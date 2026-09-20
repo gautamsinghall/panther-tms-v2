@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Ban, AlertTriangle, CheckCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { apiClient } from "@/lib/api-client";
 import Link from "next/link";
 
@@ -75,7 +76,6 @@ function CancelIRNContent() {
         }),
       });
       setSuccessMessage(`IRN has been successfully cancelled on the GST Portal.`);
-      // Reload list
       const res = await apiClient<EInvoiceRecord[]>("/api/v1/einvoicing/irn-list");
       setActiveIrns(res.filter((r) => r.status === "GENERATED"));
     } catch (err: any) {
@@ -87,28 +87,27 @@ function CancelIRNContent() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <Ban className="w-6 h-6 text-rose-600" />
-            Cancel E-Invoice IRN
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Submit an official 24-hour window cancellation request for an issued GST Invoice Reference Number.
-          </p>
-        </div>
-        <Link href="/einvoicing/irn-list">
-          <Button variant="outline" size="sm" className="gap-1 text-xs">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to IRN List
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Cancel E-Invoice IRN"
+        description="Submit an official 24-hour window cancellation request for an issued GST Invoice Reference Number."
+        breadcrumbs={[
+          { label: "Accounts", href: "/accounts" },
+          { label: "E-Invoicing", href: "/einvoicing" },
+          { label: "Cancel IRN" },
+        ]}
+        actions={
+          <Link href="/einvoicing/irn-list">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to IRN List
+            </Button>
+          </Link>
+        }
+      />
 
       {/* 24-Hour Notice */}
-      <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs leading-relaxed flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+      <div className="p-4 rounded-xl bg-warning-light border border-warning/20 text-warning text-xs leading-relaxed flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>
           <strong className="font-semibold block mb-0.5">GST Rule Reminder: 24-Hour Cancellation Window</strong>
           Per government regulations, an IRN can only be cancelled within 24 hours of its generation on the IRP.
@@ -117,28 +116,32 @@ function CancelIRNContent() {
       </div>
 
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">
-          {errorMessage}
+        <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
+          <span>{errorMessage}</span>
+          <button onClick={() => setErrorMessage(null)} className="text-danger hover:opacity-80">×</button>
         </div>
       )}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{successMessage}</span>
+        <div className="p-4 rounded-xl bg-success-light border border-success/20 text-success text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button onClick={() => setSuccessMessage(null)} className="text-success hover:opacity-80">×</button>
         </div>
       )}
 
       {/* Form Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+      <div className="bg-surface rounded-card border border-border p-6 shadow-xs">
         <form onSubmit={handleCancelIRN} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-text-primary mb-1">
               Select Active IRN from System
             </label>
             <select
               value={irn}
               onChange={(e) => setIrn(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono text-xs"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
             >
               <option value="">-- Choose active generated invoice --</option>
               {activeIrns.map((rec) => (
@@ -150,7 +153,7 @@ function CancelIRNContent() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-text-primary mb-1">
               64-Character IRN String *
             </label>
             <input
@@ -160,18 +163,18 @@ function CancelIRNContent() {
               placeholder="Paste 64-character hash..."
               value={irn}
               onChange={(e) => setIrn(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-text-primary mb-1">
               NIC Cancellation Reason *
             </label>
             <select
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
             >
               <option value="1 - Duplicate">1 - Duplicate Document</option>
               <option value="2 - Data Entry Mistake">2 - Data Entry Mistake</option>
@@ -181,7 +184,7 @@ function CancelIRNContent() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-xs font-semibold text-text-primary mb-1">
               Audit Cancellation Remarks
             </label>
             <textarea
@@ -189,11 +192,11 @@ function CancelIRNContent() {
               placeholder="Detailed remarks recorded for GST audit purposes..."
               value={cancelRemarks}
               onChange={(e) => setCancelRemarks(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+          <div className="pt-4 border-t border-border flex justify-end">
             <Button
               type="submit"
               variant="danger"
@@ -212,7 +215,7 @@ function CancelIRNContent() {
 
 export default function CancelIRNPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Loading cancellation interface...</div>}>
+    <Suspense fallback={<div className="p-6 text-sm text-text-muted">Loading cancellation interface...</div>}>
       <CancelIRNContent />
     </Suspense>
   );

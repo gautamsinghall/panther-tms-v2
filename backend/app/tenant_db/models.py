@@ -1019,3 +1019,200 @@ class EInvoiceRecord(TenantBase):
 
     voucher = relationship("Voucher", back_populates="einvoice", lazy="selectin")
 
+
+# ==============================================================================
+# Fleet Management Module (PRD §7.10)
+# ==============================================================================
+
+class TripExpense(TenantBase):
+    """
+    On-road trip expense voucher (Diesel, Toll, Fastag, Driver Allowance, etc.)
+    Linked to Phase 2's trips/vehicles.
+    """
+    __tablename__ = "fleet_trip_expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    expense_number = Column(String(50), unique=True, nullable=False, index=True)
+    lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True, index=True)
+    job_id = Column(Integer, ForeignKey("transport_jobs.id"), nullable=True, index=True)
+    vehicle_number = Column(String(20), nullable=False, index=True)
+    driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
+    driver_name = Column(String(150), nullable=True)
+    expense_category = Column(String(50), nullable=False, index=True)  # DIESEL, TOLL, MAINTENANCE, DRIVER_ALLOWANCE, POLICE_RTO, LOADING_UNLOADING, MISC
+    amount = Column(Numeric(12, 2), default=0, nullable=False)
+    payment_mode = Column(String(50), default="PETROCARD", nullable=False)  # PETROCARD, FASTAG, CASH, BANK, UPI
+    expense_date = Column(Date, default=date.today, nullable=False)
+    receipt_number = Column(String(100), nullable=True)
+    odometer_km = Column(Integer, nullable=True)
+    fuel_liters = Column(Numeric(10, 2), nullable=True)
+    plaza_name = Column(String(150), nullable=True)  # For FASTag/Toll expenses
+    status = Column(String(50), default="APPROVED", nullable=False, index=True)  # APPROVED, PENDING, REJECTED
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    lr = relationship("LR", lazy="selectin")
+    job = relationship("Job", lazy="selectin")
+    driver = relationship("Driver", lazy="selectin")
+
+
+class TripAdvance(TenantBase):
+    """
+    Driver Trip Advance and disbursement record.
+    Settles against trip expenses and vouchers.
+    """
+    __tablename__ = "fleet_trip_advances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    advance_number = Column(String(50), unique=True, nullable=False, index=True)
+    lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True, index=True)
+    vehicle_number = Column(String(20), nullable=False, index=True)
+    driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
+    driver_name = Column(String(150), nullable=True)
+    advance_amount = Column(Numeric(12, 2), default=0, nullable=False)
+    settled_amount = Column(Numeric(12, 2), default=0, nullable=False)
+    balance_due = Column(Numeric(12, 2), default=0, nullable=False)
+    payment_mode = Column(String(50), default="BANK_TRANSFER", nullable=False)  # BANK_TRANSFER, CASH, UPI, PETROCARD
+    advance_date = Column(Date, default=date.today, nullable=False)
+    settlement_date = Column(Date, nullable=True)
+    status = Column(String(50), default="OPEN", nullable=False, index=True)  # OPEN, PARTIALLY_SETTLED, SETTLED
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    lr = relationship("LR", lazy="selectin")
+    driver = relationship("Driver", lazy="selectin")
+
+
+class VehicleDocument(TenantBase):
+    """
+    Vehicle compliance documents (Fitness, Insurance, National Permit, PUC, Road Tax).
+    """
+    __tablename__ = "fleet_vehicle_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_number = Column(String(20), nullable=False, index=True)
+    vehicle_type = Column(String(20), default="COMPANY", nullable=False)  # COMPANY or MARKET
+    doc_type = Column(String(50), nullable=False, index=True)  # FITNESS_CERT, INSURANCE, NATIONAL_PERMIT, PUC, ROAD_TAX, REGISTRATION_RC
+    document_number = Column(String(100), nullable=False)
+    issuing_authority = Column(String(200), nullable=True)
+    valid_from = Column(Date, nullable=True)
+    valid_till = Column(Date, nullable=False, index=True)
+    file_url = Column(String(500), nullable=True)
+    status = Column(String(50), default="VALID", nullable=False, index=True)  # VALID, EXPIRING_SOON, EXPIRED
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
+class VehicleHealthRecord(TenantBase):
+    """
+    Vehicle telematics diagnostics, mechanical health, and current operational status.
+    """
+    __tablename__ = "fleet_vehicle_health"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_number = Column(String(20), unique=True, nullable=False, index=True)
+    odometer_km = Column(Integer, default=0, nullable=False)
+    engine_health = Column(String(50), default="GOOD", nullable=False)  # GOOD, ATTENTION_NEEDED, CRITICAL
+    battery_status = Column(String(50), default="HEALTHY", nullable=False)  # HEALTHY, CHECK_VOLTAGE, REPLACE
+    last_service_km = Column(Integer, default=0, nullable=False)
+    last_service_date = Column(Date, nullable=True)
+    next_service_km = Column(Integer, default=10000, nullable=False)
+    next_service_due_date = Column(Date, nullable=True)
+    fitness_expiry = Column(Date, nullable=True)
+    insurance_expiry = Column(Date, nullable=True)
+    puc_expiry = Column(Date, nullable=True)
+    status = Column(String(50), default="ROADWORTHY", nullable=False, index=True)  # ROADWORTHY, IN_WORKSHOP, SERVICE_OVERDUE
+    current_status = Column(String(50), default="AVAILABLE", nullable=False, index=True)  # AVAILABLE, IN_TRANSIT, LOADING, UNLOADING, UNDER_MAINTENANCE
+    current_location = Column(String(150), nullable=True)
+    active_lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True)
+    active_driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True)
+    last_inspected_at = Column(DateTime(timezone=True), nullable=True)
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    lr = relationship("LR", lazy="selectin")
+    driver = relationship("Driver", lazy="selectin")
+
+
+class TyreRecord(TenantBase):
+    """
+    Tyre inventory, axle fitment, tread depth wear inspection, and retreading lifecycle.
+    """
+    __tablename__ = "fleet_tyres"
+
+    id = Column(Integer, primary_key=True, index=True)
+    serial_number = Column(String(50), unique=True, nullable=False, index=True)
+    brand = Column(String(100), nullable=False)
+    size = Column(String(50), nullable=False)
+    vehicle_number = Column(String(20), nullable=True, index=True)
+    axle_position = Column(String(50), nullable=True)  # e.g. Front Right (FR), Front Left (FL), Rear Axle 1 Outer (R1O), Spare
+    initial_tread_depth_mm = Column(Numeric(5, 2), default=15.0, nullable=False)
+    current_tread_depth_mm = Column(Numeric(5, 2), default=15.0, nullable=False)
+    installed_date = Column(Date, nullable=True)
+    installed_odometer_km = Column(Integer, default=0, nullable=False)
+    total_km_run = Column(Integer, default=0, nullable=False)
+    purchase_cost = Column(Numeric(12, 2), default=0, nullable=False)
+    status = Column(String(50), default="MOUNTED_GOOD", nullable=False, index=True)  # MOUNTED_GOOD, RETREAD_DUE, RETREADED, SCRAPPED
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
+class RepairServiceRecord(TenantBase):
+    """
+    Workshop maintenance and repair job cards.
+    """
+    __tablename__ = "fleet_repair_services"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_card_number = Column(String(50), unique=True, nullable=False, index=True)
+    vehicle_number = Column(String(20), nullable=False, index=True)
+    service_type = Column(String(50), nullable=False, index=True)  # SCHEDULED_PM, BREAKDOWN_REPAIR, OIL_CHANGE, BRAKE_OVERHAUL, TYRE_SERVICE, BODY_ACCIDENT
+    workshop_name = Column(String(150), nullable=False)
+    service_date = Column(Date, default=date.today, nullable=False)
+    completion_date = Column(Date, nullable=True)
+    odometer_km = Column(Integer, default=0, nullable=False)
+    description_of_work = Column(Text, nullable=True)
+    parts_cost = Column(Numeric(12, 2), default=0, nullable=False)
+    labor_cost = Column(Numeric(12, 2), default=0, nullable=False)
+    total_cost = Column(Numeric(12, 2), default=0, nullable=False)
+    invoice_number = Column(String(100), nullable=True)
+    status = Column(String(50), default="COMPLETED", nullable=False, index=True)  # SCHEDULED, IN_PROGRESS, COMPLETED
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+

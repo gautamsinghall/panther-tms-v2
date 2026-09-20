@@ -1,77 +1,73 @@
 "use client";
 
-import React, { useState } from "react";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { CheckCircle, AlertTriangle, RefreshCw, Activity, Zap } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef } from "@/types/table";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/badge";
+import { VehiclePlate } from "@/components/ui/vehicle-plate";
+import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client";
+import { formatDate } from "@/lib/utils";
 
 interface VehicleHealth {
   id: number;
-  vehicle_no: string;
-  model: string;
+  vehicle_number: string;
+  vehicle_type?: string;
   odometer_km: number;
-  engine_health: "GOOD" | "ATTENTION_NEEDED" | "CRITICAL";
-  battery_status: "HEALTHY" | "CHECK_VOLTAGE";
+  engine_health: string;
+  battery_status: string;
   last_service_km: number;
+  last_service_date?: string;
   next_service_km: number;
-  fitness_expiry: string;
-  status: "ROADWORTHY" | "IN_WORKSHOP" | "SERVICE_OVERDUE";
+  next_service_due_date?: string;
+  fitness_expiry?: string;
+  insurance_expiry?: string;
+  puc_expiry?: string;
+  status: string;
+  current_status: string;
+  current_location?: string;
+  last_inspected_at?: string;
+  remarks?: string;
 }
 
-const SAMPLE_HEALTH: VehicleHealth[] = [
-  {
-    id: 1,
-    vehicle_no: "MH-12-RN-4821",
-    model: "Tata Prima 4028.S (14 Wheeler)",
-    odometer_km: 124500,
-    engine_health: "GOOD",
-    battery_status: "HEALTHY",
-    last_service_km: 115000,
-    next_service_km: 130000,
-    fitness_expiry: "2027-04-15",
-    status: "ROADWORTHY",
-  },
-  {
-    id: 2,
-    vehicle_no: "DL-01-AB-1290",
-    model: "BharatBenz 3528C (12 Wheeler)",
-    odometer_km: 89400,
-    engine_health: "ATTENTION_NEEDED",
-    battery_status: "CHECK_VOLTAGE",
-    last_service_km: 70000,
-    next_service_km: 85000,
-    fitness_expiry: "2026-11-20",
-    status: "SERVICE_OVERDUE",
-  },
-  {
-    id: 3,
-    vehicle_no: "KA-04-DE-5567",
-    model: "Eicher Pro 6028 (10 Wheeler)",
-    odometer_km: 45200,
-    engine_health: "GOOD",
-    battery_status: "HEALTHY",
-    last_service_km: 35000,
-    next_service_km: 50000,
-    fitness_expiry: "2027-08-10",
-    status: "ROADWORTHY",
-  },
-];
-
 export default function VehicleHealthPage() {
-  const [data] = useState<VehicleHealth[]>(SAMPLE_HEALTH);
+  const [data, setData] = useState<VehicleHealth[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await apiClient<VehicleHealth[]>("/api/v1/fleet/vehicle-health");
+      setData(Array.isArray(res) ? res : []);
+    } catch (e) {
+      console.error("Failed to load vehicle health records:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const roadworthyCount = data.filter((d) => d.status === "ROADWORTHY").length;
+  const overdueCount = data.filter((d) => d.status === "SERVICE_OVERDUE" || d.odometer_km >= d.next_service_km).length;
+  const avgMileage = data.length ? Math.round(data.reduce((sum, d) => sum + d.odometer_km, 0) / data.length) : 0;
 
   const columns: ColumnDef<VehicleHealth>[] = [
     {
-      key: "vehicle_no",
-      header: "Vehicle & Model",
+      key: "vehicle_number",
+      header: "Vehicle Plate",
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-[#172033]">{row.vehicle_no}</span>
-          <div className="text-xs text-[#667085]">{row.model}</div>
+          <VehiclePlate vehicleNumber={row.vehicle_number} />
+          {row.current_location && (
+            <div className="text-[11px] text-[#667085] mt-1">{row.current_location}</div>
+          )}
         </div>
       ),
     },
@@ -80,52 +76,74 @@ export default function VehicleHealthPage() {
       header: "Odometer",
       align: "right",
       isNumeric: true,
-      cell: (row) => <span className="font-mono font-medium text-[#172033]">{row.odometer_km.toLocaleString("en-IN")} KM</span>,
+      sortable: true,
+      cell: (row) => <span className="font-mono font-bold text-[#101828]">{row.odometer_km.toLocaleString()} KM</span>,
     },
     {
       key: "engine_health",
       header: "Engine Diagnostics",
-      cell: (row) => (
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold">
-          {row.engine_health === "GOOD" ? (
-            <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-          ) : (
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-          )}
-          <span className={row.engine_health === "GOOD" ? "text-emerald-700" : "text-amber-700"}>
-            {row.engine_health.replace("_", " ")}
+      cell: (row) => {
+        const isGood = row.engine_health === "GOOD";
+        return (
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded ${
+            isGood ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+          }`}>
+            {isGood ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
+            {row.engine_health}
           </span>
+        );
+      },
+    },
+    {
+      key: "battery_status",
+      header: "Electrical / Battery",
+      cell: (row) => (
+        <span className="inline-flex items-center gap-1 text-xs font-mono text-[#344054]">
+          <Zap className="w-3 h-3 text-amber-500" />
+          {row.battery_status}
         </span>
       ),
     },
     {
-      key: "battery_status",
-      header: "Battery / Electrical",
-      cell: (row) => <span className="text-xs font-mono text-[#667085]">{row.battery_status}</span>,
+      key: "next_service_km",
+      header: "Next PM Due",
+      cell: (row) => {
+        const isDue = row.odometer_km >= row.next_service_km;
+        return (
+          <div className="text-xs font-mono">
+            <span className={isDue ? "text-rose-600 font-bold" : "text-[#101828]"}>
+              At {row.next_service_km.toLocaleString()} KM
+            </span>
+            {row.next_service_due_date && (
+              <div className="text-[11px] text-[#667085]">{formatDate(row.next_service_due_date)}</div>
+            )}
+          </div>
+        );
+      },
     },
     {
-      key: "next_service_km",
-      header: "Next PM Service",
+      key: "current_status",
+      header: "Operational State",
       cell: (row) => (
-        <div className="text-xs font-mono">
-          <span className={row.odometer_km >= row.next_service_km ? "text-rose-600 font-bold" : "text-[#172033]"}>
-            Due at {row.next_service_km.toLocaleString("en-IN")} KM
-          </span>
-        </div>
+        <StatusBadge
+          status={row.current_status}
+          variant={
+            row.current_status === "IN_TRANSIT"
+              ? "in_progress"
+              : row.current_status === "AVAILABLE"
+              ? "completed"
+              : "pending"
+          }
+        />
       ),
     },
     {
-      key: "fitness_expiry",
-      header: "Fitness Validity",
-      cell: (row) => <span className="text-xs text-[#667085] font-mono">{row.fitness_expiry}</span>,
-    },
-    {
       key: "status",
-      header: "Status",
+      header: "Roadworthiness",
       cell: (row) => (
         <StatusBadge
           status={row.status}
-          variant={row.status === "ROADWORTHY" ? "active" : "pending"}
+          variant={row.status === "ROADWORTHY" ? "completed" : "danger"}
         />
       ),
     },
@@ -140,17 +158,38 @@ export default function VehicleHealthPage() {
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Vehicle Health" },
         ]}
+        secondaryActions={[
+          {
+            label: "Refresh Telematics",
+            icon: <RefreshCw className="w-4 h-4" />,
+            variant: "outline",
+            onClick: fetchData,
+          },
+        ]}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <KpiCard title="Active Roadworthy Fleet" value="2 / 3" subtext="66.7% operational" />
-        <KpiCard title="Service Overdue" value="1 Truck" subtext="DL-01-AB-1290" />
-        <KpiCard title="Avg Fleet Age / Mileage" value="86,366 KM" subtext="Optimal maintenance" />
+        <KpiCard
+          title="Active Roadworthy Fleet"
+          value={`${roadworthyCount} / ${data.length}`}
+          subtext="Certified mechanically operational"
+        />
+        <KpiCard
+          title="Service Overdue / Due Soon"
+          value={`${overdueCount} Trucks`}
+          subtext="Exceeded or near PM threshold"
+        />
+        <KpiCard
+          title="Avg Fleet Odometer"
+          value={`${avgMileage.toLocaleString()} KM`}
+          subtext="Cumulative mileage indicator"
+        />
       </div>
 
       <DataTable
         columns={columns}
         data={data}
+        isLoading={isLoading}
       />
     </div>
   );

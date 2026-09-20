@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, FileText } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface TruckHiringNoteRecord {
   id: number;
@@ -28,17 +30,20 @@ interface TruckHiringNoteRecord {
 export default function TruckHiringNotePage() {
   const [data, setData] = useState<TruckHiringNoteRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const res = await apiClient<TruckHiringNoteRecord[]>("/api/v1/transport/truck-hiring-notes");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load truck hiring notes.");
     } finally {
       setIsLoading(false);
@@ -52,48 +57,57 @@ export default function TruckHiringNotePage() {
   const columns: ColumnDef<TruckHiringNoteRecord>[] = [
     {
       key: "note_number",
-      header: "Note Number",
+      header: "Note Reference",
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-bold text-[#101828] block">
             {row.note_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
-            {row.note_date}
+          <span className="block text-[11px] text-[#667085]">
+            {formatDate(row.note_date)}
           </span>
         </div>
       ),
     },
     {
-      key: "vehicle_number",
-      header: "Vehicle Number",
-      sortable: true,
+      key: "vehicle",
+      header: "Vehicle / Driver",
       cell: (row) => (
-        <span className="font-mono font-bold uppercase text-slate-900 dark:text-slate-100">
-          {row.vehicle_number}
-        </span>
+        <div>
+          <span className="font-mono font-bold uppercase text-[#101828] block text-xs">
+            {row.vehicle_number}
+          </span>
+          <span className="block text-[11px] text-[#667085]">
+            {row.driver_name || "Unassigned"}
+          </span>
+        </div>
       ),
     },
     {
-      key: "owner_broker",
-      header: "Owner / Broker",
-      cell: (row) => row.owner_name || row.broker_name || "Direct",
+      key: "route",
+      header: "Loading → Unloading",
+      cell: (row) => (
+        <span className="text-xs text-[#344054]">
+          {row.loading_point || "Origin"} → {row.unloading_point || "Destination"}
+        </span>
+      ),
     },
     {
       key: "agreed_rate",
       header: "Agreed Rate",
       isNumeric: true,
-      cell: (row) => `₹${parseFloat(String(row.agreed_rate)).toLocaleString()}`,
+      cell: (row) => formatCurrency(row.agreed_rate),
     },
     {
       key: "advances",
-      header: "Advances (Cash / Diesel)",
+      header: "Advance (Cash / Diesel)",
       isNumeric: true,
       cell: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400">
-          ₹{parseFloat(String(row.advance_cash)).toLocaleString()} / ₹{parseFloat(String(row.advance_diesel_slip)).toLocaleString()}
-        </span>
+        <div className="font-mono text-xs text-[#667085]">
+          <span>Cash: {formatCurrency(row.advance_cash)}</span>
+          <span className="block text-[11px]">Diesel: {formatCurrency(row.advance_diesel_slip)}</span>
+        </div>
       ),
     },
     {
@@ -101,8 +115,8 @@ export default function TruckHiringNotePage() {
       header: "Balance Payable",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono font-semibold text-rose-600 dark:text-rose-400">
-          ₹{parseFloat(String(row.balance_payable)).toLocaleString()}
+        <span className="font-mono font-semibold text-[#B42318]">
+          {formatCurrency(row.balance_payable)}
         </span>
       ),
     },
@@ -110,67 +124,64 @@ export default function TruckHiringNotePage() {
 
   const formSections: FormSectionDef[] = [
     {
-      id: "thn_info",
-      title: "Hiring Memorandum Details",
-      description: "Truck hiring contract terms and advance split",
+      id: "hiring_note_info",
+      title: "Truck Hiring Engagement Note",
+      description: "Driver advance slip and agreed transport hire rate",
       columns: 2,
       fields: [
         {
           name: "vehicle_number",
-          label: "Vehicle Registration Number *",
-          placeholder: "e.g. MH12AB9999",
+          label: "Truck Registration",
+          placeholder: "e.g. MH-12-PQ-4567",
           required: true,
         },
         {
-          name: "owner_name",
-          label: "Owner / Transporter Name",
-          placeholder: "e.g. Royal Transport",
-        },
-        {
-          name: "broker_name",
-          label: "Truck Broker / Agent",
-          placeholder: "e.g. Nagpur Freight Agency",
+          name: "note_date",
+          label: "Engagement Date",
+          type: "date",
+          required: true,
+          defaultValue: new Date().toISOString().split("T")[0],
         },
         {
           name: "driver_name",
           label: "Driver Name",
-          placeholder: "e.g. Surinder Singh",
+          placeholder: "e.g. Raju Yadav",
+        },
+        {
+          name: "owner_name",
+          label: "Owner / Supplier Name",
+          placeholder: "e.g. Western Fleet Corp",
         },
         {
           name: "loading_point",
-          label: "Loading Point",
-          placeholder: "e.g. Chakan Plant 2",
+          label: "Loading Hub",
+          placeholder: "Mumbai",
+          required: true,
         },
         {
           name: "unloading_point",
-          label: "Unloading Destination",
-          placeholder: "e.g. Hosur Central Warehouse",
+          label: "Unloading Hub",
+          placeholder: "Delhi",
+          required: true,
         },
         {
           name: "agreed_rate",
-          label: "Agreed Freight Rate (₹) *",
+          label: "Agreed Freight Rate (₹)",
           type: "number",
-          placeholder: "32000",
+          placeholder: "55000",
           required: true,
         },
         {
           name: "advance_cash",
-          label: "Cash Advance (₹)",
+          label: "Cash Advance Given (₹)",
           type: "number",
-          placeholder: "5000",
+          placeholder: "15000",
         },
         {
           name: "advance_diesel_slip",
-          label: "Diesel Slip Value (₹)",
+          label: "Diesel Pump Slip Amount (₹)",
           type: "number",
-          placeholder: "5000",
-        },
-        {
-          name: "terms_and_conditions",
-          label: "Contract Terms",
-          type: "textarea",
-          placeholder: "Detention charges Rs 1500/day after 24 hrs loading/unloading.",
-          colSpan: 2,
+          placeholder: "20000",
         },
       ],
     },
@@ -181,18 +192,18 @@ export default function TruckHiringNotePage() {
     try {
       const payload = {
         ...values,
-        agreed_rate: values.agreed_rate ? parseFloat(values.agreed_rate) : 0,
-        advance_cash: values.advance_cash ? parseFloat(values.advance_cash) : 0,
-        advance_diesel_slip: values.advance_diesel_slip ? parseFloat(values.advance_diesel_slip) : 0,
+        agreed_rate: parseFloat(values.agreed_rate) || 0,
+        advance_cash: parseFloat(values.advance_cash) || 0,
+        advance_diesel_slip: parseFloat(values.advance_diesel_slip) || 0,
       };
       await apiClient("/api/v1/transport/truck-hiring-notes", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to issue hiring note.");
+      alert(err.message || "Failed to create hiring note.");
     } finally {
       setIsSubmitting(false);
     }
@@ -200,65 +211,50 @@ export default function TruckHiringNotePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Truck Hiring Notes
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Memorandum notes for truck brokers with diesel slip advances and payment contracts.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Create Hiring Note
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <PageHeader
+        title="Truck Hiring Notes"
+        description="Issue vehicle hiring slips, disburse pump diesel slips, and track driver cash advances."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/jobs" },
+          { label: "Truck Hiring Notes" },
+        ]}
+        primaryAction={{
+          label: "Issue Hiring Note",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
       <DataTable
         columns={columns}
         data={data}
         isLoading={isLoading}
-        searchPlaceholder="Search by note number, vehicle, or broker..."
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        searchPlaceholder="Search notes by reference, vehicle, or route..."
+        emptyMessage="No hiring notes recorded"
+        emptySubtext="Issue hiring notes to log vehicle hiring agreements, diesel pump slips, and cash advances."
+        emptyAction={{
+          label: "Issue Hiring Note",
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Generate Truck Hiring Note
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Issue Note"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Issue Truck Hiring Note"
+        description="Record driver cash advance, diesel slip, and destination payment terms."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Issue Note"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

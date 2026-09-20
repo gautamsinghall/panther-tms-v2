@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { PackageCheck, RefreshCw } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { ColumnDef } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -50,10 +50,10 @@ export default function ArrivalRegisterPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-semibold text-[#101828]">
             {row.report_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
+          <span className="block text-[11px] text-[#667085]">
             {new Date(row.arrival_date).toLocaleString()}
           </span>
         </div>
@@ -64,7 +64,7 @@ export default function ArrivalRegisterPage() {
       header: "Consignment LR",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">
+        <span className="font-mono text-xs font-semibold text-[#101828]">
           {row.lr_number}
         </span>
       ),
@@ -72,7 +72,11 @@ export default function ArrivalRegisterPage() {
     {
       key: "destination_hub",
       header: "Destination Hub",
-      cell: (row) => row.destination_hub || "Hub Warehouse",
+      cell: (row) => (
+        <span className="text-[#344054]">
+          {row.destination_hub || "Hub Warehouse"}
+        </span>
+      ),
     },
     {
       key: "packages",
@@ -81,11 +85,11 @@ export default function ArrivalRegisterPage() {
         const hasIssue = row.packages_damaged > 0 || row.packages_short > 0;
         return (
           <div className="text-xs">
-            <span className="font-medium text-slate-800 dark:text-slate-200">
+            <span className="font-medium text-[#344054] tabular-nums">
               {row.packages_received} pkgs received
             </span>
             {hasIssue && (
-              <span className="block text-[11px] text-rose-600 dark:text-rose-400 font-medium">
+              <span className="block text-[11px] text-[#B42318] font-medium">
                 {row.packages_damaged > 0 ? `${row.packages_damaged} damaged ` : ""}
                 {row.packages_short > 0 ? `${row.packages_short} shortage` : ""}
               </span>
@@ -97,13 +101,17 @@ export default function ArrivalRegisterPage() {
     {
       key: "receiver_name",
       header: "Inspector / Receiver",
-      cell: (row) => row.receiver_name || "Warehouse Staff",
+      cell: (row) => (
+        <span className="text-[#667085]">
+          {row.receiver_name || "Warehouse Staff"}
+        </span>
+      ),
     },
     {
       key: "condition_remarks",
       header: "Unloading Observations",
       cell: (row) => (
-        <span className="text-xs text-slate-500 line-clamp-1">
+        <span className="text-xs text-[#667085] line-clamp-1">
           {row.condition_remarks || "Normal delivery condition"}
         </span>
       ),
@@ -112,29 +120,23 @@ export default function ArrivalRegisterPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Arrival Report Register
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Destination hub arrival audit register tracking cargo unloading and shortage discrepancies (PRD §7.4).
-          </p>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          className="gap-1.5 text-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh Report
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Transport Reports", href: "/transport-reports" },
+          { label: "Arrival Register" },
+        ]}
+        title="Arrival Report Register"
+        description="Destination hub arrival audit register tracking cargo unloading and shortage discrepancies (PRD §7.4)."
+        primaryAction={{
+          label: "Refresh Register",
+          icon: RefreshCw,
+          onClick: loadData,
+        }}
+      />
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium">
           {errorMessage}
         </div>
       )}

@@ -17,6 +17,9 @@ from app.modules.accounts.router import router as accounts_router
 from app.modules.einvoicing.router import router as einvoicing_router
 from app.modules.reports.router import router as reports_router
 from app.modules.statements.router import router as statements_router
+from app.modules.fleet.router import router as fleet_router
+from app.modules.home.router import router as home_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,3 +83,6 @@ app.include_router(accounts_router, prefix=settings.API_V1_PREFIX)
 app.include_router(einvoicing_router, prefix=settings.API_V1_PREFIX)
 app.include_router(reports_router, prefix=settings.API_V1_PREFIX)
 app.include_router(statements_router, prefix=settings.API_V1_PREFIX)
+app.include_router(fleet_router, prefix=settings.API_V1_PREFIX)
+app.include_router(home_router, prefix=settings.API_V1_PREFIX)
+

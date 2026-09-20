@@ -1,112 +1,145 @@
 "use client";
 
-import React, { useState } from "react";
-import { Plus, Fuel, CreditCard, FileSpreadsheet } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Plus, Fuel, CreditCard, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef } from "@/types/table";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface TripExpense {
   id: number;
-  expense_no: string;
-  trip_no: string;
-  vehicle_no: string;
-  driver_name: string;
-  category: "DIESEL" | "TOLL" | "MAINTENANCE" | "POLICE/RTO" | "MISC";
+  expense_number: string;
+  lr_id?: number;
+  job_id?: number;
+  vehicle_number: string;
+  driver_name?: string;
+  expense_category: string;
   amount: number;
-  paid_by: "DRIVER" | "FASTAG" | "PETROCARD" | "COMPANY";
+  payment_mode: string;
   expense_date: string;
-  status: "APPROVED" | "PENDING" | "REJECTED";
+  receipt_number?: string;
+  odometer_km?: number;
+  fuel_liters?: number;
+  plaza_name?: string;
+  status: string;
+  remarks?: string;
 }
 
-const SAMPLE_EXPENSES: TripExpense[] = [
-  {
-    id: 1,
-    expense_no: "EXP-2026-0041",
-    trip_no: "TRIP-8821",
-    vehicle_no: "MH-12-RN-4821",
-    driver_name: "Ramesh Pawar",
-    category: "DIESEL",
-    amount: 14500,
-    paid_by: "PETROCARD",
-    expense_date: "2026-09-18",
-    status: "APPROVED",
-  },
-  {
-    id: 2,
-    expense_no: "EXP-2026-0042",
-    trip_no: "TRIP-8821",
-    vehicle_no: "MH-12-RN-4821",
-    driver_name: "Ramesh Pawar",
-    category: "TOLL",
-    amount: 2850,
-    paid_by: "FASTAG",
-    expense_date: "2026-09-18",
-    status: "APPROVED",
-  },
-  {
-    id: 3,
-    expense_no: "EXP-2026-0043",
-    trip_no: "TRIP-8829",
-    vehicle_no: "DL-01-AB-1290",
-    driver_name: "Suresh Kumar",
-    category: "MAINTENANCE",
-    amount: 3200,
-    paid_by: "DRIVER",
-    expense_date: "2026-09-19",
-    status: "PENDING",
-  },
-  {
-    id: 4,
-    expense_no: "EXP-2026-0044",
-    trip_no: "TRIP-8833",
-    vehicle_no: "KA-04-DE-5567",
-    driver_name: "Mahesh Patil",
-    category: "DIESEL",
-    amount: 18200,
-    paid_by: "PETROCARD",
-    expense_date: "2026-09-20",
-    status: "APPROVED",
-  },
-];
-
 export default function TripExpensePage() {
-  const [data] = useState<TripExpense[]>(SAMPLE_EXPENSES);
+  const [data, setData] = useState<TripExpense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<"ALL" | "FASTAG" | "PENDING">("ALL");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  // New expense form state
+  const [formData, setFormData] = useState({
+    vehicle_number: "",
+    expense_category: "DIESEL",
+    amount: "",
+    payment_mode: "PETROCARD",
+    expense_date: new Date().toISOString().split("T")[0],
+    driver_name: "",
+    receipt_number: "",
+    odometer_km: "",
+    fuel_liters: "",
+    plaza_name: "",
+    remarks: "",
+  });
+
+  const fetchData = async (filter = activeFilter) => {
+    setIsLoading(true);
+    try {
+      let query = "";
+      if (filter === "FASTAG") query = "?is_fastag=true";
+      else if (filter === "PENDING") query = "?is_pending=true";
+
+      const res = await apiClient<TripExpense[]>(`/api/v1/fleet/trip-expenses${query}`);
+      setData(Array.isArray(res) ? res : []);
+    } catch (e) {
+      console.error("Failed to load trip expenses:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData(activeFilter);
+  }, [activeFilter]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiClient("/api/v1/fleet/trip-expenses", {
+        method: "POST",
+        body: JSON.stringify({
+          ...formData,
+          amount: parseFloat(formData.amount) || 0,
+          odometer_km: formData.odometer_km ? parseInt(formData.odometer_km) : null,
+          fuel_liters: formData.fuel_liters ? parseFloat(formData.fuel_liters) : null,
+        }),
+      });
+      setIsAddOpen(false);
+      setFormData({
+        vehicle_number: "",
+        expense_category: "DIESEL",
+        amount: "",
+        payment_mode: "PETROCARD",
+        expense_date: new Date().toISOString().split("T")[0],
+        driver_name: "",
+        receipt_number: "",
+        odometer_km: "",
+        fuel_liters: "",
+        plaza_name: "",
+        remarks: "",
+      });
+      fetchData(activeFilter);
+    } catch (err: any) {
+      alert(err.message || "Failed to create trip expense voucher.");
+    }
+  };
+
+  // KPIs
+  const totalAmount = data.reduce((sum, d) => sum + Number(d.amount || 0), 0);
+  const dieselAmount = data
+    .filter((d) => d.expense_category === "DIESEL")
+    .reduce((sum, d) => sum + Number(d.amount || 0), 0);
+  const tollAmount = data
+    .filter((d) => d.expense_category === "TOLL" || d.payment_mode === "FASTAG")
+    .reduce((sum, d) => sum + Number(d.amount || 0), 0);
+  const pendingCount = data.filter((d) => d.status === "PENDING").length;
 
   const columns: ColumnDef<TripExpense>[] = [
     {
-      key: "expense_no",
+      key: "expense_number",
       header: "Expense #",
       sortable: true,
-      cell: (row) => <span className="font-mono font-semibold text-[#172033]">{row.expense_no}</span>,
+      cell: (row) => <span className="font-mono font-semibold text-[#172033]">{row.expense_number}</span>,
     },
     {
-      key: "trip_no",
-      header: "Trip & Vehicle",
+      key: "vehicle_number",
+      header: "Vehicle & Driver",
+      sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono text-xs font-semibold text-[#C9A227]">{row.trip_no}</span>
-          <div className="font-mono text-xs text-[#172033]">{row.vehicle_no}</div>
+          <span className="font-mono font-semibold text-xs text-[#101828]">{row.vehicle_number}</span>
+          <div className="text-xs text-[#667085]">{row.driver_name || "Unassigned"}</div>
         </div>
       ),
     },
     {
-      key: "driver_name",
-      header: "Driver",
-      sortable: true,
-      cell: (row) => <span>{row.driver_name}</span>,
-    },
-    {
-      key: "category",
+      key: "expense_category",
       header: "Expense Category",
       cell: (row) => (
         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-[#F2F4F7] text-[#172033]">
-          {row.category === "DIESEL" && <Fuel className="w-3 h-3 text-amber-600" />}
-          {row.category === "TOLL" && <CreditCard className="w-3 h-3 text-blue-600" />}
-          {row.category}
+          {row.expense_category === "DIESEL" && <Fuel className="w-3 h-3 text-amber-600" />}
+          {row.expense_category === "TOLL" && <CreditCard className="w-3 h-3 text-blue-600" />}
+          {row.expense_category}
         </span>
       ),
     },
@@ -119,19 +152,25 @@ export default function TripExpensePage() {
       cell: (row) => <span className="font-mono font-semibold text-[#172033]">{formatCurrency(row.amount)}</span>,
     },
     {
-      key: "paid_by",
-      header: "Paid By",
-      cell: (row) => <span className="text-xs text-[#667085] font-mono">{row.paid_by}</span>,
+      key: "payment_mode",
+      header: "Disbursement",
+      cell: (row) => <span className="text-xs text-[#667085] font-mono">{row.payment_mode}</span>,
     },
     {
       key: "expense_date",
-      header: "Date",
+      header: "Expense Date",
+      sortable: true,
       cell: (row) => <span>{formatDate(row.expense_date)}</span>,
     },
     {
       key: "status",
       header: "Status",
-      cell: (row) => <StatusBadge status={row.status} variant={row.status === "APPROVED" ? "completed" : "pending"} />,
+      cell: (row) => (
+        <StatusBadge
+          status={row.status}
+          variant={row.status === "APPROVED" ? "completed" : row.status === "PENDING" ? "pending" : "danger"}
+        />
+      ),
     },
   ];
 
@@ -139,7 +178,7 @@ export default function TripExpensePage() {
     <div className="space-y-6">
       <PageHeader
         title="Trip Expense Management"
-        description="Record, audit, and reconcile on-road expenses including diesel, tolls, driver allowances, and repair vouchers."
+        description="Record, audit, and reconcile on-road expenses including diesel, FASTag tolls, driver allowances, and repair vouchers."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Trip Expense" },
@@ -147,29 +186,206 @@ export default function TripExpensePage() {
         primaryAction={{
           label: "Add Expense Voucher",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => {},
+          onClick: () => setIsAddOpen(true),
         }}
         secondaryActions={[
           {
-            label: "Export CSV",
-            icon: <FileSpreadsheet className="w-4 h-4" />,
+            label: "Refresh",
+            icon: <RefreshCw className="w-4 h-4" />,
             variant: "outline",
-            onClick: () => {},
+            onClick: () => fetchData(activeFilter),
           },
         ]}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard title="Total Month Expenses" value="₹38,750" subtext="₹12.4k diesel" />
-        <KpiCard title="Fuel / Diesel Cost" value="₹32,700" subtext="84.3% of total" />
-        <KpiCard title="FASTag Tolls" value="₹2,850" subtext="Auto-reconciled" />
-        <KpiCard title="Pending Approvals" value="1 Voucher" subtext="₹3,200 awaiting review" />
+        <KpiCard title="Total Operating Expenses" value={formatCurrency(totalAmount)} subtext={`${data.length} total vouchers`} />
+        <KpiCard title="Fuel / Diesel Cost" value={formatCurrency(dieselAmount)} subtext="High-speed diesel fill-ups" />
+        <KpiCard title="FASTag & Tolls" value={formatCurrency(tollAmount)} subtext="Highway toll plazas" />
+        <KpiCard title="Pending Approvals" value={`${pendingCount} Vouchers`} subtext="Awaiting manager review" />
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 border-b border-[#E4E7EC] pb-2">
+        <button
+          onClick={() => setActiveFilter("ALL")}
+          className={`px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
+            activeFilter === "ALL" ? "bg-[#4F46E5] text-white" : "text-[#667085] hover:bg-[#F1F3F6]"
+          }`}
+        >
+          All Expenses ({data.length})
+        </button>
+        <button
+          onClick={() => setActiveFilter("FASTAG")}
+          className={`px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
+            activeFilter === "FASTAG" ? "bg-[#4F46E5] text-white" : "text-[#667085] hover:bg-[#F1F3F6]"
+          }`}
+        >
+          FASTag Tolls
+        </button>
+        <button
+          onClick={() => setActiveFilter("PENDING")}
+          className={`px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
+            activeFilter === "PENDING" ? "bg-[#4F46E5] text-white" : "text-[#667085] hover:bg-[#F1F3F6]"
+          }`}
+        >
+          Pending Audit
+        </button>
       </div>
 
       <DataTable
         columns={columns}
         data={data}
+        isLoading={isLoading}
       />
+
+      {/* Add Expense Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-lg shadow-xl overflow-hidden">
+            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[#101828]">New Trip Expense Voucher</h2>
+              <button onClick={() => setIsAddOpen(false)} className="text-[#667085] hover:text-[#101828]">✕</button>
+            </div>
+            <form onSubmit={handleCreate} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
+                  <Input
+                    required
+                    placeholder="e.g. MH-12-RN-4821"
+                    value={formData.vehicle_number}
+                    onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Driver Name</label>
+                  <Input
+                    placeholder="e.g. Ramesh Pawar"
+                    value={formData.driver_name}
+                    onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Category *</label>
+                  <select
+                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                    value={formData.expense_category}
+                    onChange={(e) => setFormData({ ...formData, expense_category: e.target.value })}
+                  >
+                    <option value="DIESEL">DIESEL</option>
+                    <option value="TOLL">TOLL / FASTAG</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="DRIVER_ALLOWANCE">DRIVER ALLOWANCE</option>
+                    <option value="POLICE_RTO">POLICE / RTO</option>
+                    <option value="LOADING_UNLOADING">LOADING / UNLOADING</option>
+                    <option value="MISC">MISCELLANEOUS</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Amount (₹) *</label>
+                  <Input
+                    required
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
+                  <select
+                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                    value={formData.payment_mode}
+                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
+                  >
+                    <option value="PETROCARD">PETROCARD</option>
+                    <option value="FASTAG">FASTAG</option>
+                    <option value="CASH">DRIVER CASH</option>
+                    <option value="BANK">COMPANY BANK</option>
+                    <option value="UPI">UPI</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Expense Date</label>
+                  <Input
+                    type="date"
+                    value={formData.expense_date}
+                    onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Receipt / Bill #</label>
+                  <Input
+                    placeholder="e.g. BPCL-9920"
+                    value={formData.receipt_number}
+                    onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Odometer (KM)</label>
+                  <Input
+                    type="number"
+                    placeholder="e.g. 124500"
+                    value={formData.odometer_km}
+                    onChange={(e) => setFormData({ ...formData, odometer_km: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {formData.expense_category === "DIESEL" && (
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Fuel Liters</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g. 160.00"
+                    value={formData.fuel_liters}
+                    onChange={(e) => setFormData({ ...formData, fuel_liters: e.target.value })}
+                  />
+                </div>
+              )}
+
+              {formData.expense_category === "TOLL" && (
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Toll Plaza Name</label>
+                  <Input
+                    placeholder="e.g. Khalapur Toll Plaza"
+                    value={formData.plaza_name}
+                    onChange={(e) => setFormData({ ...formData, plaza_name: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+                <Input
+                  placeholder="Notes on trip route, station, or justification"
+                  value={formData.remarks}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
+                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save Voucher</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

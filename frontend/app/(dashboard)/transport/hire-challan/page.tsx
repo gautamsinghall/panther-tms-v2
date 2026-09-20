@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, X, CheckCircle, FileText } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface HireChallanRecord {
   id: number;
@@ -35,21 +38,28 @@ export default function HireChallansPage() {
   const [data, setData] = useState<HireChallanRecord[]>([]);
   const [owners, setOwners] = useState<SelectOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters & Drawer State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const [challansRes, ownersRes] = await Promise.all([
         apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans"),
         apiClient<SelectOption[]>("/api/v1/transport/vehicle-owners"),
       ]);
-      setData(challansRes);
-      setOwners(ownersRes);
+      setData(Array.isArray(challansRes) ? challansRes : []);
+      setOwners(Array.isArray(ownersRes) ? ownersRes : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load hire challans.");
     } finally {
       setIsLoading(false);
@@ -60,22 +70,12 @@ export default function HireChallansPage() {
     loadData();
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "DRAFT":
-        return <Badge variant="neutral">Draft</Badge>;
-      case "ISSUED":
-        return <Badge variant="primary">Issued</Badge>;
-      case "TRANSIT":
-        return <Badge variant="warning">In Transit</Badge>;
-      case "SETTLED":
-        return <Badge variant="success">Settled</Badge>;
-      case "CANCELLED":
-        return <Badge variant="danger">Cancelled</Badge>;
-      default:
-        return <Badge variant="neutral">{status}</Badge>;
-    }
-  };
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
+      return true;
+    });
+  }, [data, statusFilter]);
 
   const columns: ColumnDef<HireChallanRecord>[] = [
     {
@@ -84,11 +84,11 @@ export default function HireChallansPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-bold text-[#101828] block">
             {row.challan_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
-            {row.challan_date}
+          <span className="block text-[11px] text-[#667085]">
+            {formatDate(row.challan_date)}
           </span>
         </div>
       ),
@@ -98,10 +98,10 @@ export default function HireChallansPage() {
       header: "Vehicle / Driver",
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold uppercase text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-bold uppercase text-[#101828] block text-xs">
             {row.vehicle_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
+          <span className="block text-[11px] text-[#667085]">
             {row.driver_name || "Unassigned"} {row.driver_phone ? `(${row.driver_phone})` : ""}
           </span>
         </div>
@@ -110,21 +110,25 @@ export default function HireChallansPage() {
     {
       key: "owner",
       header: "Vehicle Owner / Broker",
-      cell: (row) => row.owner_name || "Direct Driver",
+      cell: (row) => (
+        <span className="text-xs text-[#344054]">
+          {row.owner_name || "Direct Driver"}
+        </span>
+      ),
     },
     {
       key: "rate",
       header: "Agreed Rate",
       isNumeric: true,
-      cell: (row) => `₹${parseFloat(String(row.hire_rate)).toLocaleString()}`,
+      cell: (row) => formatCurrency(row.hire_rate),
     },
     {
       key: "balance",
       header: "Balance Due",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono font-semibold text-rose-600 dark:text-rose-400">
-          ₹{parseFloat(String(row.balance_amount)).toLocaleString()}
+        <span className="font-mono font-semibold text-[#B42318]">
+          {formatCurrency(row.balance_amount)}
         </span>
       ),
     },
@@ -132,7 +136,7 @@ export default function HireChallansPage() {
       key: "status",
       header: "Challan Status",
       align: "center",
-      cell: (row) => getStatusBadge(row.status),
+      cell: (row) => <StatusBadge status={row.status} />,
     },
   ];
 
@@ -162,69 +166,71 @@ export default function HireChallansPage() {
 
   const formSections: FormSectionDef[] = [
     {
-      id: "hc_core",
-      title: "Hired Vehicle Details",
-      description: "Hired transport vehicle agreement and trip allocation",
+      id: "challan_info",
+      title: "Hire Challan Specification",
+      description: "Agreement with vehicle supplier / market truck owner",
       columns: 2,
       fields: [
         {
           name: "vehicle_number",
-          label: "Vehicle Registration Number *",
-          placeholder: "e.g. NL01AB1234",
+          label: "Truck Registration Number",
+          placeholder: "e.g. RJ-14-GH-9876",
           required: true,
         },
         {
+          name: "challan_date",
+          label: "Challan Date",
+          type: "date",
+          required: true,
+          defaultValue: new Date().toISOString().split("T")[0],
+        },
+        {
           name: "owner_id",
-          label: "Registered Owner / Broker",
+          label: "Vehicle Owner / Broker",
           type: "select",
           options: ownerOptions,
         },
         {
           name: "driver_name",
           label: "Driver Name",
-          placeholder: "e.g. Surinder Singh",
+          placeholder: "e.g. Suresh Yadav",
         },
         {
           name: "driver_phone",
-          label: "Driver Contact Number",
-          placeholder: "+91 9822233344",
+          label: "Driver Mobile",
+          placeholder: "9876543210",
         },
         {
-          name: "from_location",
-          label: "From Origin",
-          placeholder: "e.g. Pune Hub",
-        },
-        {
-          name: "to_location",
-          label: "To Destination",
-          placeholder: "e.g. Bengaluru Hub",
+          name: "driver_license_number",
+          label: "Driver License No",
+          placeholder: "DL-1420110012345",
         },
       ],
     },
     {
-      id: "hc_financials",
-      title: "Hire Charges & TDS Deduction",
-      description: "Agreed hiring rates, advance payment, and statutory TDS deduction",
+      id: "financial_terms",
+      title: "Commercial & Payment Terms",
+      description: "Hire rates, freight advance, and TDS deductions",
       columns: 2,
       fields: [
         {
           name: "hire_rate",
-          label: "Total Agreed Hire Rate (₹) *",
+          label: "Total Agreed Lorry Hire (₹)",
           type: "number",
-          placeholder: "32000",
+          placeholder: "45000",
           required: true,
         },
         {
           name: "advance_amount",
-          label: "Advance Paid (₹)",
+          label: "Advance Paid to Driver/Owner (₹)",
           type: "number",
-          placeholder: "10000",
+          placeholder: "20000",
         },
         {
           name: "tds_rate",
-          label: "TDS Rate (%)",
+          label: "TDS Percentage (%)",
           type: "number",
-          placeholder: "1.0",
+          placeholder: "1.0 or 2.0",
         },
         {
           name: "detention_charge",
@@ -251,7 +257,7 @@ export default function HireChallansPage() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to issue hire challan.");
@@ -262,66 +268,78 @@ export default function HireChallansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Hire Challan
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Issue hire challans for market fleet vehicles, track advances, and settle balances.
-          </p>
-        </div>
+      <PageHeader
+        title="Hire Challan"
+        description="Issue hire challans for market fleet vehicles, track advances, and settle balances."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/jobs" },
+          { label: "Hire Challans" },
+        ]}
+        primaryAction={{
+          label: "Issue Hire Challan",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Issue Hire Challan
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by challan number, vehicle, owner..."
+        filters={[
+          {
+            id: "status",
+            label: "All Statuses",
+            value: statusFilter,
+            options: [
+              { label: "All Statuses", value: "ALL" },
+              { label: "Draft", value: "DRAFT" },
+              { label: "Issued", value: "ISSUED" },
+              { label: "In Transit", value: "TRANSIT" },
+              { label: "Settled", value: "SETTLED" },
+              { label: "Cancelled", value: "CANCELLED" },
+            ],
+            onChange: setStatusFilter,
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+        hasActiveFilters={Boolean(searchTerm || statusFilter !== "ALL")}
+      />
 
       <DataTable
         columns={columns}
-        data={data}
+        data={filteredData}
         isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         actions={actions}
-        searchPlaceholder="Search by challan number, vehicle, or owner..."
+        emptyMessage="No hire challans issued"
+        emptySubtext="Issue hire challans to record market vehicle hiring and advance vouchers."
+        emptyAction={{
+          label: "Issue Hire Challan",
+          onClick: () => setIsDrawerOpen(true),
+        }}
+        searchable={false}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Issue Market Vehicle Hire Challan
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Issue Challan"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Issue Market Vehicle Hire Challan"
+        description="Create an official hire challan contract with vehicle supplier."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Issue Challan"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

@@ -56,9 +56,15 @@ class Tenant(ControlBase):
     subdomain = Column(String(63), unique=True, index=True, nullable=False)
     company_name = Column(String(255), nullable=False)
     db_name = Column(String(100), unique=True, nullable=False)
-    status = Column(String(50), default="ACTIVE", nullable=False)  # ACTIVE, SUSPENDED, PENDING_SETUP
+    status = Column(String(50), default="ACTIVE", nullable=False)  # ACTIVE, SUSPENDED, PENDING_SETUP, PAST_DUE
     plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False)
     admin_email = Column(String(255), nullable=False)
+    subscription_id = Column(String(100), index=True, nullable=True)
+    subscription_status = Column(String(50), default="ACTIVE", nullable=False)  # ACTIVE, PAST_DUE, CANCELLED, HALTED
+    current_period_start = Column(DateTime(timezone=True), nullable=True)
+    current_period_end = Column(DateTime(timezone=True), nullable=True)
+    grace_period_until = Column(DateTime(timezone=True), nullable=True)
+    razorpay_customer_id = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -68,6 +74,21 @@ class Tenant(ControlBase):
     )
 
     plan = relationship("Plan", back_populates="tenants")
+
+
+class WebhookEvent(ControlBase):
+    """
+    Stores incoming processed webhook events for idempotent deduplication.
+    Per architecture.md §7 & rules.md §8.
+    """
+    __tablename__ = "webhook_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(String(100), unique=True, index=True, nullable=False)
+    event_type = Column(String(100), nullable=False, index=True)
+    payload = Column(Text, nullable=False)
+    status = Column(String(50), default="PROCESSED", nullable=False)
+    processed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
 class PlatformAdmin(ControlBase):

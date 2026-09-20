@@ -98,7 +98,7 @@ export default function DriversPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono text-xs uppercase bg-[#F2F4F7] text-[#172033] px-2 py-0.5 rounded border border-[#E4E7EC]">
+          <span className="font-mono text-xs uppercase bg-[#F8F9FB] text-[#101828] px-2 py-0.5 rounded-[4px] border border-[#E4E7EC]">
             {row.license_number}
           </span>
           {row.license_expiry && (
@@ -116,7 +116,7 @@ export default function DriversPage() {
         <div className="text-xs text-[#667085]">
           <div>Contact: {row.emergency_contact || "N/A"}</div>
           {row.blood_group && (
-            <span className="font-mono text-[11px] font-semibold text-[#172033]">
+            <span className="font-mono text-[11px] font-semibold text-[#101828]">
               Blood: {row.blood_group}
             </span>
           )}

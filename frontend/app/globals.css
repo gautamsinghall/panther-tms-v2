@@ -3,59 +3,66 @@
 @tailwind utilities;
 
 :root {
-  /* Core Color Tokens per docs/design.md §3.1 */
-  --color-bg: #F7F8FA;
-  --color-surface: #FFFFFF;
-  --color-surface-muted: #F2F4F7;
-  --color-border: #E4E7EC;
-  --color-border-strong: #D0D5DD;
+  /* Neutral scale per docs/design.md §1 */
+  --gray-25:  #FCFCFD;   /* app background */
+  --gray-50:  #F8F9FB;   /* subtle section backgrounds, table header */
+  --gray-100: #F1F3F6;   /* hover states, input backgrounds */
+  --gray-200: #E4E7EC;   /* borders, dividers */
+  --gray-300: #D0D5DD;   /* stronger borders, disabled fills */
+  --gray-500: #667085;   /* secondary text, icons */
+  --gray-700: #344054;   /* body text */
+  --gray-900: #101828;   /* headings, primary text */
 
-  --color-text-primary: #172033;
-  --color-text-secondary: #667085;
+  /* Surface & borders */
+  --color-bg: var(--gray-25);
+  --color-surface: #FFFFFF;
+  --color-surface-muted: var(--gray-50);
+  --color-border: var(--gray-200);
+  --color-border-strong: var(--gray-300);
+
+  /* Typography colors */
+  --color-text-primary: var(--gray-900);
+  --color-text-secondary: var(--gray-500);
   --color-text-muted: #98A2B3;
   --color-text-inverse: #FFFFFF;
 
-  /* Brand Gold Accent */
-  --color-gold: #C9A227;
-  --color-gold-dark: #A88416;
-  --color-gold-soft: #F8F1D9;
+  /* Brand / Primary per docs/design.md §1 */
+  --primary-50:  #EEF2FF;   /* selected row bg, active nav bg, light chip */
+  --primary-600: #4F46E5;   /* primary buttons, active nav, links */
+  --primary-700: #4338CA;   /* hover/pressed */
 
-  /* Primary Action */
-  --color-primary: #172033;
-  --color-primary-hover: #0F172A;
+  --color-primary: var(--primary-600);
+  --color-primary-hover: var(--primary-700);
 
-  /* Semantic Status Colors */
-  --color-info: #2563EB;
-  --color-info-soft: #EFF6FF;
+  /* Semantic status colors per docs/design.md §1 */
+  --success-600: #12B76A;
+  --success-text: #027A48;
+  --success-bg: #ECFDF3;
 
-  --color-success: #16A34A;
-  --color-success-soft: #ECFDF3;
+  --warning-600: #F79009;
+  --warning-text: #B54708;
+  --warning-bg: #FFFAEB;
 
-  --color-warning: #D97706;
-  --color-warning-soft: #FFFAEB;
+  --danger-600: #F04438;
+  --danger-text: #B42318;
+  --danger-bg: #FEF3F2;
 
-  --color-danger: #DC2626;
-  --color-danger-soft: #FEF2F2;
-
-  --color-neutral: #667085;
-  --color-neutral-soft: #F2F4F7;
-
-  /* Elevation Shadows per docs/design.md §6 */
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-floating: 0 8px 24px rgba(16, 24, 40, 0.08);
+  --info-600: #2E90FA;
+  --info-text: #175CD3;
+  --info-bg: #EFF8FF;
 
   --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-text-primary);
+  background-color: var(--gray-25);
+  color: var(--gray-900);
   font-family: var(--font-inter);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Tabular numbers for financial and operational metrics per docs/design.md §4 & §27 */
+/* Tabular numbers for financial and operational metrics per docs/design.md §2 */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
@@ -69,9 +76,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--gray-200);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: var(--gray-500);
 }

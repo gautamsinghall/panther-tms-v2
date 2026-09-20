@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2, Package } from "lucide-react";
+import { Plus, Trash2, Package } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -20,16 +22,20 @@ interface MethodOfPackingRecord {
 export default function PackingMethodPage() {
   const [data, setData] = useState<MethodOfPackingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
+    setErrorMessage(null);
     try {
       const res = await apiClient<MethodOfPackingRecord[]>("/api/v1/general/packing-methods");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load packing methods.");
     } finally {
       setIsLoading(false);
@@ -46,8 +52,8 @@ export default function PackingMethodPage() {
       header: "Packing Method",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-          <Package className="w-3.5 h-3.5 text-amber-500" />
+        <span className="font-semibold text-[#101828] flex items-center gap-1.5">
+          <Package className="w-3.5 h-3.5 text-[#4F46E5]" />
           {row.name}
         </span>
       ),
@@ -55,33 +61,38 @@ export default function PackingMethodPage() {
     {
       key: "code",
       header: "Code",
-      cell: (row) => <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{row.code || "-"}</span>,
+      sortable: true,
+      cell: (row) => (
+        <span className="font-mono text-xs bg-[#F8F9FB] border border-[#E4E7EC] px-1.5 py-0.5 rounded-[4px] text-[#344054]">
+          {row.code || "-"}
+        </span>
+      ),
     },
     {
       key: "description",
       header: "Description",
-      cell: (row) => <span className="text-xs text-slate-500">{row.description || "-"}</span>,
+      cell: (row) => <span className="text-xs text-[#667085]">{row.description || "-"}</span>,
     },
     {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />,
     },
   ];
 
   const actions: RowAction<MethodOfPackingRecord>[] = [
     {
       label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
-        if (!confirm(`Deactivate packing method ${row.name}?`)) return;
+        if (!confirm(`Are you sure you want to deactivate ${row.name}?`)) return;
         try {
           await apiClient(`/api/v1/general/packing-methods/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate.");
+          alert(err.message || "Failed to deactivate packing method.");
         }
       },
     },
@@ -89,13 +100,28 @@ export default function PackingMethodPage() {
 
   const formSections: FormSectionDef[] = [
     {
-      id: "pack_info",
-      title: "Packing Method Details",
+      id: "packing_info",
+      title: "Packing Specification",
+      description: "Packaging type definition",
       columns: 2,
       fields: [
-        { name: "name", label: "Packing Method Name", placeholder: "e.g. Wooden Pallets", required: true },
-        { name: "code", label: "Code", placeholder: "e.g. PALLET" },
-        { name: "description", label: "Description / Material", type: "textarea", colSpan: 2 },
+        {
+          name: "name",
+          label: "Packing Type",
+          placeholder: "e.g. Wooden Pallet / Carton Box",
+          required: true,
+        },
+        {
+          name: "code",
+          label: "Method Code",
+          placeholder: "e.g. PLT / CTN",
+        },
+        {
+          name: "description",
+          label: "Description",
+          placeholder: "Protection and handling instructions",
+          colSpan: 2,
+        },
       ],
     },
   ];
@@ -103,8 +129,11 @@ export default function PackingMethodPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/general/packing-methods", { method: "POST", body: JSON.stringify(values) });
-      setIsModalOpen(false);
+      await apiClient("/api/v1/general/packing-methods", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to create packing method.");
@@ -115,28 +144,51 @@ export default function PackingMethodPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Methods of Packing</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage packaging standards for cargo booking.</p>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)} className="gap-1.5 text-xs font-semibold">
-          <Plus className="w-3.5 h-3.5" /> Add Packing Method
-        </Button>
-      </div>
-      {errorMessage && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">{errorMessage}</div>}
-      <DataTable columns={columns} data={data} isLoading={isLoading} actions={actions} searchPlaceholder="Search packing methods..." />
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-6 shadow-xl border space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold">Create Packing Method</h3>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
-            </div>
-            <Form sections={formSections} onSubmit={handleCreate} onCancel={() => setIsModalOpen(false)} submitLabel="Create Method" isLoading={isSubmitting} />
-          </div>
-        </div>
-      )}
+      <PageHeader
+        title="Methods of Packing"
+        description="Configure standard consignment packaging types for handling instructions."
+        breadcrumbs={[
+          { label: "General", href: "/general/packing-method" },
+          { label: "Packing Methods" },
+        ]}
+        primaryAction={{
+          label: "Add Packing Method",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        actions={actions}
+        searchPlaceholder="Search packing methods..."
+        emptyMessage="No packing methods configured"
+        emptySubtext="Add packaging standards such as Pallets, Bags, Crates, or Drums."
+        emptyAction={{
+          label: "Add Packing Method",
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Create Packaging Method"
+        description="Add a consignment packaging standard."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Create Method"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

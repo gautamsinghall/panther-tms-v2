@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Building2, Trash2 } from "lucide-react";
+import { Plus, Trash2, Building2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -26,17 +28,20 @@ interface VehicleOwnerRecord {
 export default function VehicleOwnersPage() {
   const [data, setData] = useState<VehicleOwnerRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const res = await apiClient<VehicleOwnerRecord[]>("/api/v1/transport/vehicle-owners");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load vehicle owners.");
     } finally {
       setIsLoading(false);
@@ -53,51 +58,65 @@ export default function VehicleOwnersPage() {
       header: "Owner / Transporter Name",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100">
-          {row.name}
-        </span>
+        <div>
+          <span className="font-semibold text-[#101828] block">
+            {row.name}
+          </span>
+          {row.pan && (
+            <span className="font-mono text-[11px] text-[#667085]">
+              PAN: {row.pan}
+            </span>
+          )}
+        </div>
       ),
     },
     {
       key: "phone",
-      header: "Phone Number",
-      sortable: true,
+      header: "Contact Details",
       cell: (row) => (
-        <span className="font-mono text-xs text-slate-600 dark:text-slate-400">
-          {row.phone}
-        </span>
+        <div>
+          <span className="text-xs text-[#101828] font-medium block">
+            {row.phone}
+          </span>
+          {row.email && (
+            <span className="text-[11px] text-[#667085]">
+              {row.email}
+            </span>
+          )}
+        </div>
       ),
     },
     {
-      key: "pan",
-      header: "PAN",
+      key: "city",
+      header: "City / State",
       cell: (row) => (
-        <span className="font-mono text-xs uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-          {row.pan || "-"}
+        <span className="text-xs text-[#667085]">
+          {row.city || "-"}{row.state ? `, ${row.state}` : ""}
         </span>
       ),
     },
     {
       key: "bank",
-      header: "Bank Account / IFSC",
+      header: "Banking Settlement",
       cell: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400">
-          {row.bank_name ? `${row.bank_name} (${row.bank_ifsc || ""})` : "Not provided"}
-        </span>
+        <div className="text-[11px] text-[#667085]">
+          <div>{row.bank_name || "No Bank Added"}</div>
+          {row.bank_ifsc && <span className="font-mono text-[10px]">{row.bank_ifsc}</span>}
+        </div>
       ),
     },
     {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />,
     },
   ];
 
   const actions: RowAction<VehicleOwnerRecord>[] = [
     {
       label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
         if (!confirm(`Are you sure you want to deactivate ${row.name}?`)) return;
@@ -105,7 +124,7 @@ export default function VehicleOwnersPage() {
           await apiClient(`/api/v1/transport/vehicle-owners/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate owner.");
+          alert(err.message || "Failed to deactivate vehicle owner.");
         }
       },
     },
@@ -114,27 +133,28 @@ export default function VehicleOwnersPage() {
   const formSections: FormSectionDef[] = [
     {
       id: "owner_info",
-      title: "Vehicle Owner Information",
-      description: "Identity and contact details for market vehicle supplier",
+      title: "Vehicle Owner Profile",
+      description: "Truck owner and broker vendor master",
       columns: 2,
       fields: [
         {
           name: "name",
           label: "Owner / Transporter Name",
-          placeholder: "e.g. Royal Logistics & Fleet",
+          placeholder: "e.g. Sharma Freight Logistics",
           required: true,
+          colSpan: 2,
         },
         {
           name: "phone",
-          label: "Phone Number",
-          placeholder: "+91 9811122233",
+          label: "Mobile Number",
+          placeholder: "9876543210",
           required: true,
         },
         {
           name: "email",
           label: "Email Address",
           type: "email",
-          placeholder: "owner@transporter.com",
+          placeholder: "finance@sharmafreight.com",
         },
         {
           name: "pan",
@@ -144,26 +164,34 @@ export default function VehicleOwnersPage() {
         {
           name: "city",
           label: "City",
-          placeholder: "e.g. Nagpur",
+          placeholder: "Jaipur",
         },
         {
           name: "state",
           label: "State",
-          placeholder: "e.g. Maharashtra",
+          placeholder: "Rajasthan",
         },
+      ],
+    },
+    {
+      id: "banking_info",
+      title: "Bank Settlement Details",
+      description: "NEFT/RTGS bank credentials for balance settlements",
+      columns: 2,
+      fields: [
         {
           name: "bank_name",
           label: "Bank Name",
-          placeholder: "e.g. State Bank of India",
+          placeholder: "State Bank of India",
         },
         {
           name: "bank_account_no",
           label: "Account Number",
-          placeholder: "12345678901",
+          placeholder: "302910293019",
         },
         {
           name: "bank_ifsc",
-          label: "Bank IFSC",
+          label: "IFSC Code",
           placeholder: "SBIN0001234",
         },
       ],
@@ -177,10 +205,10 @@ export default function VehicleOwnersPage() {
         method: "POST",
         body: JSON.stringify(values),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create vehicle owner.");
+      alert(err.message || "Failed to add vehicle owner.");
     } finally {
       setIsSubmitting(false);
     }
@@ -188,66 +216,51 @@ export default function VehicleOwnersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Vehicle Owners
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage commercial truck owners and market fleet contractors.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Vehicle Owner
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <PageHeader
+        title="Vehicle Owners"
+        description="Manage market vehicle fleet owners, freight brokers, and supplier banking records."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/jobs" },
+          { label: "Vehicle Owners" },
+        ]}
+        primaryAction={{
+          label: "Add Vehicle Owner",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
       <DataTable
         columns={columns}
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         actions={actions}
-        searchPlaceholder="Search by owner name, phone, or PAN..."
+        searchPlaceholder="Search owners by name, phone, PAN..."
+        emptyMessage="No vehicle owners registered"
+        emptySubtext="Add truck suppliers to issue hire challans and manage freight payables."
+        emptyAction={{
+          label: "Add Vehicle Owner",
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Register New Vehicle Owner
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Save Owner"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Add Vehicle Owner"
+        description="Register a truck supplier for hire challan settlements."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Add Owner"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

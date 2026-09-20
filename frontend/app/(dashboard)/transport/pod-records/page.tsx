@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, CheckCircle, FileCheck, ExternalLink } from "lucide-react";
+import { Plus, CheckCircle, FileCheck } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatDate } from "@/lib/utils";
 
 interface PODRecord {
   id: number;
@@ -34,21 +36,24 @@ export default function PODRecordsPage() {
   const [data, setData] = useState<PODRecord[]>([]);
   const [lrs, setLrs] = useState<LROption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const [podsRes, lrsRes] = await Promise.all([
         apiClient<PODRecord[]>("/api/v1/transport/pod-records"),
         apiClient<LROption[]>("/api/v1/transport/lrs"),
       ]);
-      setData(podsRes);
-      setLrs(lrsRes);
+      setData(Array.isArray(podsRes) ? podsRes : []);
+      setLrs(Array.isArray(lrsRes) ? lrsRes : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load POD records.");
     } finally {
       setIsLoading(false);
@@ -62,39 +67,39 @@ export default function PODRecordsPage() {
   const columns: ColumnDef<PODRecord>[] = [
     {
       key: "pod_number",
-      header: "POD Number",
+      header: "POD Reference",
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-bold text-[#101828] block">
             {row.pod_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
-            Delivered: {row.delivery_date}
+          <span className="block text-[11px] text-[#667085]">
+            Delivered: {formatDate(row.delivery_date)}
           </span>
         </div>
       ),
     },
     {
       key: "lr_number",
-      header: "Consignment LR",
+      header: "LR Number",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+        <span className="font-mono text-xs font-semibold text-[#4F46E5]">
           {row.lr_number || `LR #${row.lr_id}`}
         </span>
       ),
     },
     {
       key: "receiver",
-      header: "Consignee Receiving Rep",
+      header: "Consignee Signature",
       cell: (row) => (
         <div>
-          <span className="font-medium text-slate-800 dark:text-slate-200">
+          <span className="text-xs text-[#101828] font-medium block">
             {row.receiver_name}
           </span>
           {row.receiver_phone && (
-            <span className="block text-[11px] font-mono text-slate-400">
+            <span className="text-[11px] text-[#667085]">
               {row.receiver_phone}
             </span>
           )}
@@ -103,61 +108,41 @@ export default function PODRecordsPage() {
     },
     {
       key: "condition",
-      header: "Receiving Condition",
-      align: "center",
-      cell: (row) => {
-        let variant: "success" | "danger" | "warning" = "success";
-        if (row.received_condition === "DAMAGED") variant = "danger";
-        if (row.received_condition === "SHORTAGE") variant = "warning";
-        return (
-          <Badge variant={variant} className="text-xs">
-            {row.received_condition} ({row.packages_delivered} pkgs)
-          </Badge>
-        );
-      },
-    },
-    {
-      key: "doc",
-      header: "POD Copy / Attachment",
+      header: "Cargo Condition",
       cell: (row) => (
-        row.document_path ? (
-          <span className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-            <FileCheck className="w-3 h-3" /> Signed Copy Attached
+        <div className="flex items-center gap-2">
+          <span
+            className={
+              row.received_condition === "OK"
+                ? "bg-[#ECFDF3] text-[#027A48] border border-[#A6F4C5] px-2 py-0.5 rounded-[4px] text-[11px] font-medium"
+                : "bg-[#FEF3F2] text-[#B42318] border border-[#FECDCA] px-2 py-0.5 rounded-[4px] text-[11px] font-medium"
+            }
+          >
+            {row.received_condition}
           </span>
-        ) : (
-          <span className="text-xs text-slate-400">No copy uploaded</span>
-        )
+          <span className="font-mono text-xs text-[#667085]">
+            {row.packages_delivered} pkgs
+          </span>
+        </div>
       ),
     },
     {
-      key: "status",
-      header: "Audit Verification",
+      key: "verification_status",
+      header: "Audit Status",
       align: "center",
-      cell: (row) => {
-        let variant: "neutral" | "success" | "danger" = "neutral";
-        if (row.verification_status === "VERIFIED") variant = "success";
-        if (row.verification_status === "REJECTED") variant = "danger";
-        return (
-          <Badge variant={variant}>
-            {row.verification_status}
-          </Badge>
-        );
-      },
+      cell: (row) => <StatusBadge status={row.verification_status} />,
     },
   ];
 
   const actions: RowAction<PODRecord>[] = [
     {
-      label: "Verify & Approve POD",
+      label: "Verify & Approve",
       disabled: (row) => row.verification_status === "VERIFIED",
       onClick: async (row) => {
         try {
           await apiClient(`/api/v1/transport/pod-records/${row.id}/verify`, {
             method: "POST",
-            body: JSON.stringify({
-              verification_status: "VERIFIED",
-              verification_notes: "Approved by Billing / Audit desk",
-            }),
+            body: JSON.stringify({ status: "VERIFIED" }),
           });
           loadData();
         } catch (err: any) {
@@ -167,62 +152,60 @@ export default function PODRecordsPage() {
     },
   ];
 
-  const lrOptions = lrs.map((l) => ({ label: l.lr_number, value: String(l.id) }));
+  const lrOptions = lrs.map((l) => ({
+    label: l.lr_number,
+    value: String(l.id),
+  }));
 
   const formSections: FormSectionDef[] = [
     {
-      id: "pod_core",
-      title: "Proof of Delivery (POD) Receipt",
-      description: "Customer signature, receiving condition, and document attachment (PRD §7.3)",
+      id: "pod_info",
+      title: "Proof of Delivery (POD)",
+      description: "Signed delivery challan acknowledgment",
       columns: 2,
       fields: [
         {
           name: "lr_id",
-          label: "Consignment LR *",
+          label: "Consignment (LR/GR)",
           type: "select",
-          required: true,
           options: lrOptions,
+          required: true,
         },
         {
           name: "delivery_date",
           label: "Actual Delivery Date",
           type: "date",
           required: true,
+          defaultValue: new Date().toISOString().split("T")[0],
         },
         {
           name: "receiver_name",
-          label: "Receiving Party Representative *",
-          placeholder: "e.g. Ramesh Kumar (Store Manager)",
+          label: "Receiver Name (Consignee Signature)",
+          placeholder: "e.g. Ramesh Chandra (Security/Store)",
           required: true,
         },
         {
           name: "receiver_phone",
-          label: "Contact Phone",
-          placeholder: "+91 9876543210",
+          label: "Receiver Phone",
+          placeholder: "9876543210",
         },
         {
           name: "packages_delivered",
-          label: "Delivered Package Count",
+          label: "Total Delivered Packages",
           type: "number",
-          placeholder: "50",
+          placeholder: "100",
           required: true,
         },
         {
           name: "received_condition",
-          label: "Goods Receiving Condition",
+          label: "Delivery Condition",
           type: "select",
           required: true,
           options: [
-            { label: "Clean / OK (Intact Condition)", value: "OK" },
-            { label: "Damaged Package Condition", value: "DAMAGED" },
-            { label: "Shortage / Quantity Discrepancy", value: "SHORTAGE" },
+            { label: "Intact & Undamaged (OK)", value: "OK" },
+            { label: "Damaged In Transit", value: "DAMAGED" },
+            { label: "Shortage Upon Unloading", value: "SHORTAGE" },
           ],
-        },
-        {
-          name: "document_path",
-          label: "Signed POD File / R2 Path",
-          placeholder: "e.g. r2://panther-tms/demo/pod/POD-2026-0001.pdf",
-          colSpan: 2,
         },
       ],
     },
@@ -234,13 +217,13 @@ export default function PODRecordsPage() {
       const payload = {
         ...values,
         lr_id: parseInt(values.lr_id, 10),
-        packages_delivered: values.packages_delivered ? parseInt(values.packages_delivered, 10) : 0,
+        packages_delivered: parseInt(values.packages_delivered, 10) || 0,
       };
       await apiClient("/api/v1/transport/pod-records", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to record POD.");
@@ -251,66 +234,51 @@ export default function PODRecordsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            POD Records & Verification
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage Proof of Delivery records, receiver acknowledgments, and audit verification for billing.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Record POD
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <PageHeader
+        title="Proof of Delivery (POD)"
+        description="Verify signed delivery receipts, track delivery acknowledgments, and approve freight billing."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/jobs" },
+          { label: "POD Records" },
+        ]}
+        primaryAction={{
+          label: "Upload POD",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
       <DataTable
         columns={columns}
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         actions={actions}
-        searchPlaceholder="Search by POD number, LR, or receiver..."
+        searchPlaceholder="Search by POD reference, LR, receiver..."
+        emptyMessage="No PODs uploaded"
+        emptySubtext="Upload signed consignee delivery acknowledgments to clear LRs for transport billing."
+        emptyAction={{
+          label: "Upload POD",
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Record Proof of Delivery (POD)
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Save POD Record"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Upload Consignee POD Acknowledgment"
+        description="Record physical signature verification from the receiving party."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Save POD"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

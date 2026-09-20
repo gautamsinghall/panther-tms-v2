@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Radio, MapPin, Gauge, Info, RefreshCw } from "lucide-react";
+import { Plus, Radio, MapPin, Gauge, Info, RefreshCw } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Form } from "@/components/forms/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ColumnDef } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -26,7 +28,7 @@ interface TrackingPingRecord {
 export default function TrackingPage() {
   const [data, setData] = useState<TrackingPingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -53,7 +55,7 @@ export default function TrackingPage() {
       header: "Vehicle Number",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold uppercase text-slate-900 dark:text-slate-100">
+        <span className="font-mono font-semibold uppercase text-[#101828]">
           {row.vehicle_number}
         </span>
       ),
@@ -61,13 +63,12 @@ export default function TrackingPage() {
     {
       key: "tracking_mode",
       header: "Tracking Mode",
-      align: "center",
       cell: (row) => {
-        let variant: "primary" | "secondary" | "neutral" = "neutral";
+        let variant: "info" | "primary" | "neutral" = "neutral";
         if (row.tracking_mode === "GPS") variant = "primary";
-        if (row.tracking_mode === "FASTAG") variant = "secondary";
+        if (row.tracking_mode === "FASTAG") variant = "info";
         return (
-          <Badge variant={variant} className="font-mono text-xs">
+          <Badge variant={variant} dot className="font-mono text-xs">
             {row.tracking_mode}
           </Badge>
         );
@@ -78,12 +79,12 @@ export default function TrackingPage() {
       header: "Last Location / Coordinates",
       cell: (row) => (
         <div>
-          <div className="font-medium text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1">
-            <MapPin className="w-3 h-3 text-indigo-500" />
+          <div className="font-medium text-[#344054] text-xs flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-[#4F46E5]" />
             {row.location_name || "En route"}
           </div>
           {row.last_latitude && (
-            <div className="text-[11px] font-mono text-slate-400">
+            <div className="text-[11px] font-mono text-[#667085] mt-0.5">
               {Number(row.last_latitude).toFixed(4)}, {Number(row.last_longitude).toFixed(4)}
             </div>
           )}
@@ -95,7 +96,7 @@ export default function TrackingPage() {
       header: "Speed",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+        <span className="font-mono text-xs font-semibold tabular-nums text-[#344054]">
           {row.speed_kmh ? `${parseFloat(String(row.speed_kmh)).toFixed(1)} km/h` : "Idle / Stopped"}
         </span>
       ),
@@ -104,7 +105,7 @@ export default function TrackingPage() {
       key: "last_ping_at",
       header: "Last Telemetry Ping",
       cell: (row) => (
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-[#667085] tabular-nums">
           {new Date(row.last_ping_at).toLocaleTimeString()} ({new Date(row.last_ping_at).toLocaleDateString()})
         </span>
       ),
@@ -182,7 +183,7 @@ export default function TrackingPage() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to record telemetry ping.");
@@ -193,48 +194,32 @@ export default function TrackingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Tracking (FASTag / GPS / SIM)
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Fleet tracking telemetry shell supporting GPS devices, toll gate FASTag pings, and SIM tracking.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadData}
-            className="gap-1.5 text-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsModalOpen(true)}
-            className="gap-1.5 text-xs font-semibold"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Simulate Ping
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Transport", href: "/transport" },
+          { label: "Fleet Tracking" },
+        ]}
+        title="Fleet Tracking (FASTag / GPS / SIM)"
+        description="Unified fleet tracking telemetry shell supporting GPS devices, toll gate FASTag pings, and SIM tracking."
+        primaryAction={{
+          label: "Simulate Ping",
+          icon: Plus,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
       {/* Integration Gap Notice per Rules §2 */}
-      <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-3">
-        <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-        <div className="text-xs text-amber-800 dark:text-amber-200 space-y-1">
+      <div className="p-4 bg-[#FFFAEB] border border-[#FEDF89] rounded-xl flex items-start gap-3">
+        <Info className="w-5 h-5 text-[#B54708] mt-0.5 shrink-0" />
+        <div className="text-xs text-[#B54708] space-y-1">
           <p className="font-semibold">
             Telemetry Shell (Rules.md §2 — Do-Not-Invent Principle)
           </p>
-          <p className="text-amber-700/80 dark:text-amber-300/80">
+          <p className="text-[#B54708]/90">
             External hardware/telecom providers (NPCI NETC FASTag, WheelsEye/LocoNav GPS, telecom SIM consent gateways)
             are marked as{" "}
-            <code className="font-mono bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded">
+            <code className="font-mono bg-[#FEF0C7] px-1.5 py-0.5 rounded border border-[#FEDF89] text-[#B54708]">
               UNKNOWN / NEEDS VERIFICATION
             </code>{" "}
             until specific carrier agreements are configured. The data model and telemetry display pipeline are fully operational.
@@ -243,10 +228,21 @@ export default function TrackingPage() {
       </div>
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium">
           {errorMessage}
         </div>
       )}
+
+      <div className="flex justify-end">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={loadData}
+          className="gap-1.5 text-xs"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh Telemetry
+        </Button>
+      </div>
 
       <DataTable
         columns={columns}
@@ -255,31 +251,21 @@ export default function TrackingPage() {
         searchPlaceholder="Search by vehicle number, location, or mode..."
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Record Telemetry Ping
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Transmit Ping"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Record Telemetry Ping"
+        subtitle="Simulate GPS, FASTag or SIM ping for vehicle location tracking"
+        size="lg"
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Transmit Ping"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

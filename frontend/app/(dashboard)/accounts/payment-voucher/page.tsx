@@ -4,7 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Plus, X, ArrowUpRight, Ban, CheckCircle, AlertCircle, Eye, Truck } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -54,7 +57,7 @@ export default function PaymentVoucherPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Standard Payment Modal
+  // Standard Payment Drawer
   const [isStandardOpen, setIsStandardOpen] = useState(false);
   const [partyName, setPartyName] = useState("");
   const [paymentMode, setPaymentMode] = useState<"BANK" | "CASH">("BANK");
@@ -63,27 +66,27 @@ export default function PaymentVoucherPage() {
   const [narration, setNarration] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ATH Modal
+  // ATH Drawer
   const [isAthOpen, setIsAthOpen] = useState(false);
   const [athChallanId, setAthChallanId] = useState("");
   const [athAmount, setAthAmount] = useState("");
   const [athMode, setAthMode] = useState<"BANK" | "CASH">("BANK");
   const [athNarration, setAthNarration] = useState("");
 
-  // BTH Modal
+  // BTH Drawer
   const [isBthOpen, setIsBthOpen] = useState(false);
   const [bthChallanId, setBthChallanId] = useState("");
   const [bthAmount, setBthAmount] = useState("");
   const [bthMode, setBthMode] = useState<"BANK" | "CASH">("BANK");
   const [bthNarration, setBthNarration] = useState("");
 
-  // Void Modal
+  // Void Dialog
   const [isVoidOpen, setIsVoidOpen] = useState(false);
   const [voidVoucherId, setVoidVoucherId] = useState<number | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [isVoiding, setIsVoiding] = useState(false);
 
-  // View Ledger Modal
+  // View Ledger Drawer
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
 
   const loadData = async () => {
@@ -212,8 +215,7 @@ export default function PaymentVoucherPage() {
     }
   };
 
-  const handleVoidVoucher = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
       alert("Void reason must be at least 10 characters as per audit rules.");
@@ -251,30 +253,29 @@ export default function PaymentVoucherPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+          <span className="font-mono font-semibold text-[#101828] flex items-center gap-1.5">
             {row.voucher_number}
             {row.is_void && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 rounded">
+              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-[#FEF3F2] text-[#B42318] border border-[#FECDCA] rounded">
                 VOIDED
               </span>
             )}
           </span>
-          <span className="block text-[11px] text-slate-400">{row.voucher_date}</span>
+          <span className="block text-[11px] text-[#667085]">{row.voucher_date}</span>
         </div>
       ),
     },
     {
       key: "voucher_type",
       header: "Type",
-      align: "center",
       cell: (row) => {
         if (row.voucher_type === "ATH_PAYMENT") {
-          return <Badge variant="warning">ATH (Advance)</Badge>;
+          return <Badge variant="warning" dot className="text-xs">ATH (Advance)</Badge>;
         }
         if (row.voucher_type === "BTH_PAYMENT") {
-          return <Badge variant="success">BTH (Balance)</Badge>;
+          return <Badge variant="success" dot className="text-xs">BTH (Balance)</Badge>;
         }
-        return <Badge variant="primary">Standard Payment</Badge>;
+        return <Badge variant="primary" dot className="text-xs">Standard Payment</Badge>;
       },
     },
     {
@@ -282,11 +283,11 @@ export default function PaymentVoucherPage() {
       header: "Beneficiary / Lorry",
       cell: (row) => (
         <div>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">
+          <span className="font-medium text-[#101828]">
             {row.party_name || "Beneficiary"}
           </span>
           {row.hire_challan_number && (
-            <span className="block font-mono text-[11px] text-blue-600 dark:text-blue-400">
+            <span className="block font-mono text-[11px] text-[#4F46E5]">
               HC: {row.hire_challan_number}
             </span>
           )}
@@ -296,10 +297,10 @@ export default function PaymentVoucherPage() {
     {
       key: "net_amount",
       header: "Amount Paid",
-      align: "right",
+      isNumeric: true,
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
+        <span className="font-mono font-semibold tabular-nums text-[#B42318]">
           ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -310,7 +311,6 @@ export default function PaymentVoucherPage() {
     {
       label: "View Ledger",
       icon: <Eye className="w-3.5 h-3.5" />,
-      variant: "default",
       onClick: (row) => setSelectedVoucher(row),
     },
     {
@@ -327,40 +327,50 @@ export default function PaymentVoucherPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <ArrowUpRight className="w-6 h-6 text-rose-600" />
-            Payment Vouchers & Lorry Settlements
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Disburse vendor payments, advance truck hire payments (ATH), and final balance settlements (BTH) with automatic double-entry ledger postings.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => setIsAthOpen(true)} variant="outline" className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30">
-            <Truck className="w-4 h-4" />
-            Pay ATH (Advance)
-          </Button>
-          <Button onClick={() => setIsBthOpen(true)} variant="outline" className="gap-1.5 text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30">
-            <Truck className="w-4 h-4" />
-            Pay BTH (Balance)
-          </Button>
-          <Button onClick={() => setIsStandardOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Standard Payment
-          </Button>
-        </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Accounts", href: "/accounts" },
+          { label: "Payment Vouchers" },
+        ]}
+        title="Payment Vouchers & Lorry Settlements"
+        description="Disburse vendor payments, advance truck hire payments (ATH), and final balance settlements (BTH) with automatic ledger postings."
+        primaryAction={{
+          label: "Standard Payment",
+          icon: Plus,
+          onClick: () => setIsStandardOpen(true),
+        }}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          onClick={() => setIsAthOpen(true)}
+          variant="secondary"
+          size="sm"
+          className="gap-1.5 text-xs text-[#B54708] border-[#FEDF89] bg-[#FFFAEB] hover:bg-[#FEF0C7]"
+        >
+          <Truck className="w-3.5 h-3.5" />
+          Pay ATH (Advance)
+        </Button>
+        <Button
+          onClick={() => setIsBthOpen(true)}
+          variant="secondary"
+          size="sm"
+          className="gap-1.5 text-xs text-[#027A48] border-[#A6F4C5] bg-[#ECFDF3] hover:bg-[#D1FADF]"
+        >
+          <Truck className="w-3.5 h-3.5" />
+          Pay BTH (Balance)
+        </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+      <div className="flex items-center gap-2 border-b border-[#E4E7EC] pb-2">
         <button
           onClick={() => setActiveTab("ALL")}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
             activeTab === "ALL"
-              ? "bg-[var(--color-primary)] text-white"
-              : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              ? "bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]"
+              : "text-[#667085] hover:bg-[#F2F4F7]"
           }`}
         >
           All Payments ({data.length})
@@ -369,8 +379,8 @@ export default function PaymentVoucherPage() {
           onClick={() => setActiveTab("ATH_PAYMENT")}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
             activeTab === "ATH_PAYMENT"
-              ? "bg-[var(--color-primary)] text-white"
-              : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              ? "bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]"
+              : "text-[#667085] hover:bg-[#F2F4F7]"
           }`}
         >
           ATH Advances ({data.filter((d) => d.voucher_type === "ATH_PAYMENT").length})
@@ -379,8 +389,8 @@ export default function PaymentVoucherPage() {
           onClick={() => setActiveTab("BTH_PAYMENT")}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
             activeTab === "BTH_PAYMENT"
-              ? "bg-[var(--color-primary)] text-white"
-              : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              ? "bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]"
+              : "text-[#667085] hover:bg-[#F2F4F7]"
           }`}
         >
           BTH Balances ({data.filter((d) => d.voucher_type === "BTH_PAYMENT").length})
@@ -389,8 +399,8 @@ export default function PaymentVoucherPage() {
           onClick={() => setActiveTab("PAYMENT_VOUCHER")}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
             activeTab === "PAYMENT_VOUCHER"
-              ? "bg-[var(--color-primary)] text-white"
-              : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              ? "bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE]"
+              : "text-[#667085] hover:bg-[#F2F4F7]"
           }`}
         >
           Standard Payments ({data.filter((d) => d.voucher_type === "PAYMENT_VOUCHER").length})
@@ -398,432 +408,359 @@ export default function PaymentVoucherPage() {
       </div>
 
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium flex items-center justify-between">
           <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="ml-auto text-rose-400 hover:text-rose-600">
+          <button onClick={() => setErrorMessage(null)} className="text-[#B42318] hover:opacity-80">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-3 bg-[#ECFDF3] border border-[#A6F4C5] text-[#027A48] text-xs rounded-lg font-medium flex items-center justify-between">
           <span>{successMessage}</span>
-          <button onClick={() => setSuccessMessage(null)} className="ml-auto text-emerald-400 hover:text-emerald-600">
+          <button onClick={() => setSuccessMessage(null)} className="text-[#027A48] hover:opacity-80">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          isLoading={isLoading}
-          searchPlaceholder="Search beneficiary or voucher..."
-          searchColumn="party_name"
-          actions={actions}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={isLoading}
+        searchPlaceholder="Search beneficiary or voucher..."
+        searchColumn="party_name"
+        actions={actions}
+      />
 
-      {/* Standard Payment Modal */}
-      {isStandardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <ArrowUpRight className="w-5 h-5 text-rose-600" />
-                Record Standard Payment
-              </h3>
-              <button onClick={() => setIsStandardOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateStandardPayment} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Paid To (Beneficiary Name) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Fuel Station / Office Landlord"
-                  value={partyName}
-                  onChange={(e) => setPartyName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Payment Channel *
-                  </label>
-                  <select
-                    value={paymentMode}
-                    onChange={(e) => setPaymentMode(e.target.value as any)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  >
-                    <option value="BANK">Bank Account (NEFT/RTGS/Cheque)</option>
-                    <option value="CASH">Cash in Hand</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Amount Paid (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Cheque / UTR / Reference Number
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. UTR-98214221"
-                  value={referenceNumber}
-                  onChange={(e) => setReferenceNumber(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Narration / Notes
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Payment particulars..."
-                  value={narration}
-                  onChange={(e) => setNarration(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsStandardOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Disbursing..." : "Record Payment"}
-                </Button>
-              </div>
-            </form>
+      {/* Standard Payment Drawer */}
+      <EntityDrawer
+        isOpen={isStandardOpen}
+        onClose={() => setIsStandardOpen(false)}
+        title="Record Standard Payment"
+        subtitle="Disburse vendor or supplier payment voucher"
+        size="md"
+      >
+        <form onSubmit={handleCreateStandardPayment} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#344054] mb-1">
+              Paid To (Beneficiary Name) *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Fuel Station / Office Landlord"
+              value={partyName}
+              onChange={(e) => setPartyName(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+            />
           </div>
-        </div>
-      )}
 
-      {/* ATH Modal */}
-      {isAthOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                <Truck className="w-5 h-5" />
-                Pay ATH (Advance To Hired Vehicle)
-              </h3>
-              <button onClick={() => setIsAthOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Payment Channel *
+              </label>
+              <select
+                value={paymentMode}
+                onChange={(e) => setPaymentMode(e.target.value as any)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+              >
+                <option value="BANK">Bank Account (NEFT/RTGS/Cheque)</option>
+                <option value="CASH">Cash in Hand</option>
+              </select>
             </div>
-
-            <form onSubmit={handleCreateAth} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Select Hire Challan *
-                </label>
-                <select
-                  required
-                  value={athChallanId}
-                  onChange={(e) => {
-                    setAthChallanId(e.target.value);
-                    const selected = challans.find((c) => c.id.toString() === e.target.value);
-                    if (selected) {
-                      setAthAmount(selected.advance_amount?.toString() || "");
-                    }
-                  }}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                >
-                  <option value="">-- Choose Hire Challan --</option>
-                  {challans.map((hc) => (
-                    <option key={hc.id} value={hc.id}>
-                      {hc.challan_number} — {hc.vehicle_number} ({hc.owner_name || "Owner"}) — Adv: ₹{Number(hc.advance_amount || 0).toFixed(2)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Payment Channel
-                  </label>
-                  <select
-                    value={athMode}
-                    onChange={(e) => setAthMode(e.target.value as any)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  >
-                    <option value="BANK">Bank Account (NEFT/UPI)</option>
-                    <option value="CASH">Cash Advance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Advance Amount (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={athAmount}
-                    onChange={(e) => setAthAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Narration / Notes
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Advance release particulars..."
-                  value={athNarration}
-                  onChange={(e) => setAthNarration(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsAthOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Posting..." : "Disburse ATH Advance"}
-                </Button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Amount Paid (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] font-mono tabular-nums font-semibold focus:border-[#4F46E5] focus:outline-none"
+              />
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* BTH Modal */}
-      {isBthOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                <Truck className="w-5 h-5" />
-                Pay BTH (Balance To Hired Vehicle Settlement)
-              </h3>
-              <button onClick={() => setIsBthOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateBth} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Select Hire Challan *
-                </label>
-                <select
-                  required
-                  value={bthChallanId}
-                  onChange={(e) => {
-                    setBthChallanId(e.target.value);
-                    const selected = challans.find((c) => c.id.toString() === e.target.value);
-                    if (selected) {
-                      setBthAmount(selected.balance_amount?.toString() || "");
-                    }
-                  }}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                >
-                  <option value="">-- Choose Hire Challan --</option>
-                  {challans.map((hc) => (
-                    <option key={hc.id} value={hc.id}>
-                      {hc.challan_number} — {hc.vehicle_number} — Bal: ₹{Number(hc.balance_amount || 0).toFixed(2)} ({hc.status})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Payment Channel
-                  </label>
-                  <select
-                    value={bthMode}
-                    onChange={(e) => setBthMode(e.target.value as any)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  >
-                    <option value="BANK">Bank Transfer (NEFT/RTGS)</option>
-                    <option value="CASH">Cash Settlement</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Balance Amount (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={bthAmount}
-                    onChange={(e) => setBthAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Settlement Remarks
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Final settlement and POD clearance notes..."
-                  value={bthNarration}
-                  onChange={(e) => setBthNarration(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsBthOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Settling..." : "Settle Lorry Hire Balance"}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label className="block text-xs font-semibold text-[#344054] mb-1">
+              Cheque / UTR / Reference Number
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. UTR-98214221"
+              value={referenceNumber}
+              onChange={(e) => setReferenceNumber(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] font-mono focus:border-[#4F46E5] focus:outline-none"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Void Modal */}
-      {isVoidOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <Ban className="w-5 h-5" />
-                Void Payment #{voidVoucherId}
-              </h3>
-              <button onClick={() => setIsVoidOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleVoidVoucher} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Reason for Voiding * (Min 10 chars)
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Explain why this payment voucher is being reversed..."
-                  value={voidReason}
-                  onChange={(e) => setVoidReason(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsVoidOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="danger" disabled={isVoiding || voidReason.trim().length < 10}>
-                  {isVoiding ? "Voiding..." : "Confirm Void Entry"}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label className="block text-xs font-semibold text-[#344054] mb-1">
+              Narration / Notes
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Payment particulars..."
+              value={narration}
+              onChange={(e) => setNarration(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Ledger Modal */}
-      {selectedVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <ArrowUpRight className="w-5 h-5 text-rose-600" />
-                  Double-Entry Ledger: {selectedVoucher.voucher_number}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Beneficiary: {selectedVoucher.party_name} | Total: ₹{Number(selectedVoucher.net_amount).toFixed(2)}
-                </p>
-              </div>
-              <button onClick={() => setSelectedVoucher(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#E4E7EC]">
+            <Button type="button" variant="secondary" onClick={() => setIsStandardOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+              Record Payment
+            </Button>
+          </div>
+        </form>
+      </EntityDrawer>
+
+      {/* ATH Drawer */}
+      <EntityDrawer
+        isOpen={isAthOpen}
+        onClose={() => setIsAthOpen(false)}
+        title="Pay ATH (Advance To Hired Vehicle)"
+        subtitle="Disburse lorry advance against selected Hire Challan"
+        size="md"
+      >
+        <form onSubmit={handleCreateAth} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#344054] mb-1">
+              Select Hire Challan *
+            </label>
+            <select
+              required
+              value={athChallanId}
+              onChange={(e) => {
+                setAthChallanId(e.target.value);
+                const selected = challans.find((c) => c.id.toString() === e.target.value);
+                if (selected) {
+                  setAthAmount(selected.advance_amount?.toString() || "");
+                }
+              }}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+            >
+              <option value="">-- Choose Hire Challan --</option>
+              {challans.map((hc) => (
+                <option key={hc.id} value={hc.id}>
+                  {hc.challan_number} — {hc.vehicle_number} ({hc.owner_name || "Owner"}) — Adv: ₹{Number(hc.advance_amount || 0).toFixed(2)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Payment Channel
+              </label>
+              <select
+                value={athMode}
+                onChange={(e) => setAthMode(e.target.value as any)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+              >
+                <option value="BANK">Bank Account (NEFT/UPI)</option>
+                <option value="CASH">Cash Advance</option>
+              </select>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Advance Amount (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="0.00"
+                value={athAmount}
+                onChange={(e) => setAthAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] font-mono tabular-nums font-semibold focus:border-[#4F46E5] focus:outline-none"
+              />
+            </div>
+          </div>
 
-            <div className="p-6 space-y-4">
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
-                    <tr>
-                      <th className="px-4 py-2.5">Account</th>
-                      <th className="px-4 py-2.5">Type</th>
-                      <th className="px-4 py-2.5 text-right">Debit (Dr)</th>
-                      <th className="px-4 py-2.5 text-right">Credit (Cr)</th>
+          <div>
+            <label className="block text-xs font-semibold text-[#344054] mb-1">
+              Narration / Notes
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Advance release particulars..."
+              value={athNarration}
+              onChange={(e) => setAthNarration(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#E4E7EC]">
+            <Button type="button" variant="secondary" onClick={() => setIsAthOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+              Disburse ATH Advance
+            </Button>
+          </div>
+        </form>
+      </EntityDrawer>
+
+      {/* BTH Drawer */}
+      <EntityDrawer
+        isOpen={isBthOpen}
+        onClose={() => setIsBthOpen(false)}
+        title="Pay BTH (Balance Settlement)"
+        subtitle="Disburse final balance against delivered Hire Challan"
+        size="md"
+      >
+        <form onSubmit={handleCreateBth} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#344054] mb-1">
+              Select Hire Challan *
+            </label>
+            <select
+              required
+              value={bthChallanId}
+              onChange={(e) => {
+                setBthChallanId(e.target.value);
+                const selected = challans.find((c) => c.id.toString() === e.target.value);
+                if (selected) {
+                  setBthAmount(selected.balance_amount?.toString() || "");
+                }
+              }}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+            >
+              <option value="">-- Choose Hire Challan --</option>
+              {challans.map((hc) => (
+                <option key={hc.id} value={hc.id}>
+                  {hc.challan_number} — {hc.vehicle_number} — Bal: ₹{Number(hc.balance_amount || 0).toFixed(2)} ({hc.status})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Payment Channel
+              </label>
+              <select
+                value={bthMode}
+                onChange={(e) => setBthMode(e.target.value as any)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+              >
+                <option value="BANK">Bank Transfer (NEFT/RTGS)</option>
+                <option value="CASH">Cash Settlement</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#344054] mb-1">
+                Balance Amount (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="0.00"
+                value={bthAmount}
+                onChange={(e) => setBthAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] font-mono tabular-nums font-semibold focus:border-[#4F46E5] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#344054] mb-1">
+              Settlement Remarks
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Final settlement and POD clearance notes..."
+              value={bthNarration}
+              onChange={(e) => setBthNarration(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#E4E7EC]">
+            <Button type="button" variant="secondary" onClick={() => setIsBthOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+              Settle Lorry Hire Balance
+            </Button>
+          </div>
+        </form>
+      </EntityDrawer>
+
+      {/* Void Dialog */}
+      <ConfirmDialog
+        isOpen={isVoidOpen}
+        onClose={() => {
+          setIsVoidOpen(false);
+          setVoidReason("");
+        }}
+        onConfirm={handleVoidVoucher}
+        title={`Void Payment #${voidVoucherId}`}
+        consequence="Voiding this payment voucher will post automatic reversing ledger entries per non-destructive audit rules."
+        confirmLabel="Confirm Void"
+        isLoading={isVoiding}
+      />
+
+      {/* Ledger Drawer */}
+      <EntityDrawer
+        isOpen={!!selectedVoucher}
+        onClose={() => setSelectedVoucher(null)}
+        title={`Double-Entry Ledger: ${selectedVoucher?.voucher_number}`}
+        subtitle={`Beneficiary: ${selectedVoucher?.party_name} | Total: ₹${Number(selectedVoucher?.net_amount || 0).toFixed(2)}`}
+        size="lg"
+      >
+        {selectedVoucher && (
+          <div className="space-y-4">
+            <div className="border border-[#E4E7EC] rounded-card overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-[#F8F9FB] text-[#667085] font-semibold border-b border-[#E4E7EC]">
+                  <tr>
+                    <th className="px-4 py-2.5">Account</th>
+                    <th className="px-4 py-2.5">Type</th>
+                    <th className="px-4 py-2.5 text-right">Debit (Dr)</th>
+                    <th className="px-4 py-2.5 text-right">Credit (Cr)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E4E7EC]">
+                  {selectedVoucher.ledger_entries.map((entry) => (
+                    <tr key={entry.id} className={entry.is_reversal ? "bg-[#FEF3F2] text-[#B42318]" : ""}>
+                      <td className="px-4 py-2.5 font-medium text-[#101828]">
+                        {entry.account_name || `Account #${entry.account_id}`}
+                        {entry.is_reversal && (
+                          <span className="ml-2 text-[10px] font-bold text-[#B42318] uppercase">
+                            [Reversal]
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-[#667085]">
+                        {Number(entry.debit_amount) > 0 ? "Debit" : "Credit"}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono tabular-nums text-right text-[#101828]">
+                        {Number(entry.debit_amount) > 0 ? `₹${Number(entry.debit_amount).toFixed(2)}` : "-"}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono tabular-nums text-right text-[#101828]">
+                        {Number(entry.credit_amount) > 0 ? `₹${Number(entry.credit_amount).toFixed(2)}` : "-"}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {selectedVoucher.ledger_entries.map((entry) => (
-                      <tr key={entry.id} className={entry.is_reversal ? "bg-rose-50/50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-200" : ""}>
-                        <td className="px-4 py-2.5 font-medium">
-                          {entry.account_name || `Account #${entry.account_id}`}
-                          {entry.is_reversal && (
-                            <span className="ml-2 text-[10px] font-bold text-rose-600 uppercase">
-                              [Reversal]
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-500">
-                          {Number(entry.debit_amount) > 0 ? "Debit" : "Credit"}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right">
-                          {Number(entry.debit_amount) > 0 ? `₹${Number(entry.debit_amount).toFixed(2)}` : "-"}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right">
-                          {Number(entry.credit_amount) > 0 ? `₹${Number(entry.credit_amount).toFixed(2)}` : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="flex justify-end p-4 border-t border-slate-100 dark:border-slate-800">
-              <Button variant="outline" onClick={() => setSelectedVoucher(null)}>
-                Close
-              </Button>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </EntityDrawer>
     </div>
   );
 }

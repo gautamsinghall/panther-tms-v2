@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { Clock, RefreshCw } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { ColumnDef } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -50,10 +51,10 @@ export default function PendingHCPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-semibold text-[#101828]">
             {row.challan_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
+          <span className="block text-[11px] text-[#667085]">
             {row.challan_date}
           </span>
         </div>
@@ -64,7 +65,7 @@ export default function PendingHCPage() {
       header: "Vehicle No",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold uppercase text-slate-900 dark:text-slate-100">
+        <span className="font-mono font-semibold uppercase text-[#101828]">
           {row.vehicle_number}
         </span>
       ),
@@ -72,31 +73,47 @@ export default function PendingHCPage() {
     {
       key: "owner_name",
       header: "Owner / Transporter",
-      cell: (row) => row.owner_name || "Direct Driver",
+      cell: (row) => (
+        <span className="text-[#344054]">
+          {row.owner_name || "Direct Driver"}
+        </span>
+      ),
     },
     {
       key: "driver_name",
       header: "Driver",
-      cell: (row) => row.driver_name || "Unassigned",
+      cell: (row) => (
+        <span className="text-[#667085]">
+          {row.driver_name || "Unassigned"}
+        </span>
+      ),
     },
     {
       key: "hire_rate",
       header: "Agreed Rate",
       isNumeric: true,
-      cell: (row) => `₹${parseFloat(String(row.hire_rate)).toLocaleString()}`,
+      cell: (row) => (
+        <span className="font-mono tabular-nums text-[#344054]">
+          ₹{parseFloat(String(row.hire_rate)).toLocaleString()}
+        </span>
+      ),
     },
     {
       key: "advance_amount",
       header: "Advance Paid",
       isNumeric: true,
-      cell: (row) => `₹${parseFloat(String(row.advance_amount)).toLocaleString()}`,
+      cell: (row) => (
+        <span className="font-mono tabular-nums text-[#344054]">
+          ₹{parseFloat(String(row.advance_amount)).toLocaleString()}
+        </span>
+      ),
     },
     {
       key: "balance_due",
       header: "Outstanding Balance",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+        <span className="font-mono font-semibold tabular-nums text-[#B42318]">
           ₹{parseFloat(String(row.balance_due)).toLocaleString()}
         </span>
       ),
@@ -104,36 +121,29 @@ export default function PendingHCPage() {
     {
       key: "status",
       header: "Transit Status",
-      align: "center",
-      cell: (row) => <Badge variant="warning">{row.status}</Badge>,
+      cell: (row) => <StatusBadge status={row.status} />,
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Pending Hire Challan Report
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Audit report of hired market vehicles with unsettled outstanding balances (PRD §7.4).
-          </p>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          className="gap-1.5 text-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh Report
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Transport Reports", href: "/transport-reports" },
+          { label: "Pending Hire Challans" },
+        ]}
+        title="Pending Hire Challan Report"
+        description="Audit report of hired market vehicles with unsettled outstanding balances (PRD §7.4)."
+        primaryAction={{
+          label: "Refresh Report",
+          icon: RefreshCw,
+          onClick: loadData,
+        }}
+      />
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium">
           {errorMessage}
         </div>
       )}

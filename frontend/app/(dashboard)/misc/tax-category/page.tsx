@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Percent, Trash2 } from "lucide-react";
+import { Plus, Percent, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Form } from "@/components/forms/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -24,9 +27,13 @@ interface TaxCategoryRecord {
 export default function TaxCategoryPage() {
   const [data, setData] = useState<TaxCategoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<TaxCategoryRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -45,13 +52,27 @@ export default function TaxCategoryPage() {
     loadData();
   }, []);
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await apiClient(`/api/v1/misc/tax-categories/${deleteTarget.id}`, { method: "DELETE" });
+      setDeleteTarget(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete tax category");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const columns: ColumnDef<TaxCategoryRecord>[] = [
     {
       key: "code",
       header: "Tax Code",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-primary-light text-primary">
           {row.code}
         </span>
       ),
@@ -61,7 +82,7 @@ export default function TaxCategoryPage() {
       header: "Category Name",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100">
+        <span className="font-semibold text-text-primary">
           {row.name}
         </span>
       ),
@@ -70,7 +91,7 @@ export default function TaxCategoryPage() {
       key: "rates",
       header: "Rates (IGST / CGST / SGST)",
       cell: (row) => (
-        <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
+        <span className="font-mono text-xs tabular-nums text-text-primary">
           {Number(row.igst_rate).toFixed(1)}% (CGST: {Number(row.cgst_rate).toFixed(1)}%, SGST: {Number(row.sgst_rate).toFixed(1)}%)
         </span>
       ),
@@ -102,15 +123,7 @@ export default function TaxCategoryPage() {
       label: "Delete",
       icon: <Trash2 className="w-3.5 h-3.5" />,
       variant: "danger",
-      onClick: async (row) => {
-        if (!confirm(`Delete tax category "${row.name}"?`)) return;
-        try {
-          await apiClient(`/api/v1/misc/tax-categories/${row.id}`, { method: "DELETE" });
-          loadData();
-        } catch (err: any) {
-          alert(err.message || "Failed to delete tax category");
-        }
-      },
+      onClick: (row) => setDeleteTarget(row),
     },
   ];
 
@@ -177,7 +190,7 @@ export default function TaxCategoryPage() {
           is_rcm: Boolean(values.is_rcm),
         }),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to save tax category.");
@@ -188,63 +201,64 @@ export default function TaxCategoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Percent className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-            Tax Categories
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Indian GST tax categories and RCM rules applied across invoices and purchases.
-          </p>
-        </div>
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add Tax Category
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3.5 text-sm bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-950 dark:border-rose-900 dark:text-rose-300 rounded-lg">
-          {errorMessage}
-        </div>
-      )}
-
-      <DataTable
-        data={data}
-        columns={columns}
-        actions={actions}
-        isLoading={isLoading}
-        searchable
-        searchField="name"
-        emptyMessage="No tax categories configured yet."
+      <PageHeader
+        title="Tax Categories"
+        description="Indian GST tax categories and RCM rules applied across invoices and purchases."
+        breadcrumbs={[
+          { label: "Masters", href: "/misc/primary-group" },
+          { label: "Tax Categories" },
+        ]}
+        actions={
+          <Button onClick={() => setIsDrawerOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Add Tax Category
+          </Button>
+        }
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                New Tax Category
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-5">
-              <Form
-                sections={formSections}
-                onSubmit={handleSubmit}
-                isSubmitting={isSubmitting}
-                submitLabel="Create Category"
-              />
-            </div>
-          </div>
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
+          <span>{errorMessage}</span>
+          <button onClick={() => setErrorMessage(null)} className="text-danger hover:opacity-80">×</button>
         </div>
       )}
+
+      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
+        <DataTable
+          data={data}
+          columns={columns}
+          actions={actions}
+          isLoading={isLoading}
+          searchPlaceholder="Search tax categories..."
+          searchColumn="name"
+        />
+      </div>
+
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="New Tax Category"
+        description="Define Goods and Services Tax (GST) slabs and Reverse Charge Mechanism flags."
+        size="md"
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          submitLabel="Create Category"
+        />
+      </EntityDrawer>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title={`Delete Tax Category "${deleteTarget?.name || ""}"`}
+        description="Are you sure you want to delete this tax category? Invoices and purchases linked to it may be affected."
+        confirmText="Delete Category"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

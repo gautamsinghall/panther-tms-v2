@@ -138,9 +138,10 @@ ALL_NAVIGATION_MODULES = [
         "items": [
             {"feature": "trip_expense", "title": "Trip Expense", "href": "/fleet/trip-expense"},
             {"feature": "trip_advance", "title": "Trip Advance", "href": "/fleet/trip-advance"},
+            {"feature": "expense_register", "title": "Trip Expense Register", "href": "/fleet/trip-expense-register"},
+            {"feature": "truck_pnl", "title": "Truck-Wise P&L", "href": "/fleet/truck-pnl"},
             {"feature": "vehicle_health", "title": "Vehicle Health", "href": "/fleet/vehicle-health"},
             {"feature": "documents", "title": "Vehicle Documents", "href": "/fleet/documents"},
-            {"feature": "truck_pnl", "title": "Truck-Wise P&L", "href": "/fleet/truck-pnl"},
             {"feature": "tyre", "title": "Tyre Management", "href": "/fleet/tyre"},
             {"feature": "service", "title": "Repair & Service", "href": "/fleet/service"},
         ],

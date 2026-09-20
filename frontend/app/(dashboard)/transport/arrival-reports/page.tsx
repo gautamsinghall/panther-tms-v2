@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, PackageCheck, AlertTriangle } from "lucide-react";
+import { Plus, PackageCheck, AlertTriangle } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatDate } from "@/lib/utils";
 
 interface ArrivalReportRecord {
   id: number;
@@ -34,21 +37,24 @@ export default function ArrivalReportsPage() {
   const [data, setData] = useState<ArrivalReportRecord[]>([]);
   const [lrs, setLrs] = useState<LROption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const [reportsRes, lrsRes] = await Promise.all([
         apiClient<ArrivalReportRecord[]>("/api/v1/transport/arrival-reports"),
         apiClient<LROption[]>("/api/v1/transport/lrs"),
       ]);
-      setData(reportsRes);
-      setLrs(lrsRes);
+      setData(Array.isArray(reportsRes) ? reportsRes : []);
+      setLrs(Array.isArray(lrsRes) ? lrsRes : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load arrival reports.");
     } finally {
       setIsLoading(false);
@@ -66,109 +72,127 @@ export default function ArrivalReportsPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-bold text-[#101828] block">
             {row.report_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
-            {new Date(row.arrival_date).toLocaleString()}
+          <span className="block text-[11px] text-[#667085]">
+            {formatDate(row.arrival_date)}
           </span>
         </div>
       ),
     },
     {
       key: "lr_number",
-      header: "Consignment LR",
+      header: "Linked Consignment (LR)",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+        <span className="font-mono text-xs font-semibold text-[#4F46E5]">
           {row.lr_number || `LR #${row.lr_id}`}
         </span>
       ),
     },
     {
-      key: "destination_hub",
-      header: "Destination Hub",
-      cell: (row) => row.destination_hub || "Unspecified Hub",
+      key: "hub",
+      header: "Destination Hub / Receiver",
+      cell: (row) => (
+        <div>
+          <span className="text-xs text-[#101828] font-medium block">
+            {row.destination_hub || "Destination Hub"}
+          </span>
+          {row.receiver_name && (
+            <span className="text-[11px] text-[#667085]">
+              Recv by: {row.receiver_name}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "packages",
-      header: "Cargo Condition",
-      cell: (row) => {
-        const hasIssue = row.packages_damaged > 0 || row.packages_short > 0;
-        return (
-          <div className="text-xs">
-            <span className="font-medium text-slate-800 dark:text-slate-200">
-              {row.packages_received} Received
+      header: "Received / Damaged / Short",
+      isNumeric: true,
+      cell: (row) => (
+        <div className="font-mono text-xs">
+          <span className="text-[#027A48] font-bold">{row.packages_received} Recv</span>
+          {(row.packages_damaged > 0 || row.packages_short > 0) && (
+            <span className="text-[#B42318] ml-2 font-medium">
+              ({row.packages_damaged} Dmg / {row.packages_short} Short)
             </span>
-            {hasIssue && (
-              <span className="block text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-                {row.packages_damaged > 0 ? `${row.packages_damaged} damaged ` : ""}
-                {row.packages_short > 0 ? `${row.packages_short} short` : ""}
-              </span>
-            )}
-          </div>
-        );
-      },
+          )}
+        </div>
+      ),
     },
     {
-      key: "receiver_name",
-      header: "Unloaded / Inspected By",
-      cell: (row) => row.receiver_name || "Warehouse Staff",
+      key: "status",
+      header: "Status",
+      align: "center",
+      cell: (row) => <StatusBadge status={row.status} />,
     },
   ];
 
-  const lrOptions = lrs.map((l) => ({ label: `${l.lr_number} (${l.vehicle_number || "Vehicle"})`, value: String(l.id) }));
+  const lrOptions = lrs.map((l) => ({
+    label: `${l.lr_number} (${l.vehicle_number || "Truck"})`,
+    value: String(l.id),
+  }));
 
   const formSections: FormSectionDef[] = [
     {
-      id: "ar_core",
-      title: "Arrival Inspection Details",
-      description: "Destination unloading tally and cargo condition inspection (PRD §7.3)",
+      id: "arrival_info",
+      title: "Cargo Arrival Assessment",
+      description: "Destination unloading tally and cargo condition inspection",
       columns: 2,
       fields: [
         {
           name: "lr_id",
-          label: "Consignment LR *",
+          label: "Consignment (LR/GR)",
           type: "select",
-          required: true,
           options: lrOptions,
+          required: true,
+        },
+        {
+          name: "arrival_date",
+          label: "Arrival & Unloading Date",
+          type: "date",
+          required: true,
+          defaultValue: new Date().toISOString().split("T")[0],
         },
         {
           name: "destination_hub",
-          label: "Receiving Warehouse / Hub",
-          placeholder: "e.g. Bengaluru Central Hub",
-          required: true,
-        },
-        {
-          name: "packages_received",
-          label: "Total Packages Received *",
-          type: "number",
-          placeholder: "50",
+          label: "Destination Hub / Warehouse",
+          placeholder: "e.g. Pune Central Warehouse",
           required: true,
         },
         {
           name: "receiver_name",
-          label: "Receiving Executive Name",
-          placeholder: "e.g. Sunil Kumar",
+          label: "Receiving Officer / Incharge",
+          placeholder: "e.g. Anand Shinde",
+        },
+        {
+          name: "packages_received",
+          label: "Intact Packages Received",
+          type: "number",
+          placeholder: "100",
           required: true,
         },
         {
           name: "packages_damaged",
-          label: "Damaged Package Count",
+          label: "Damaged Packages",
           type: "number",
           placeholder: "0",
+          defaultValue: "0",
         },
         {
           name: "packages_short",
-          label: "Shortage Package Count",
+          label: "Shortage Packages",
           type: "number",
           placeholder: "0",
+          defaultValue: "0",
         },
         {
           name: "condition_remarks",
-          label: "Inspection Observations / Seal Notes",
+          label: "Remarks & Exception Details",
           type: "textarea",
-          placeholder: "Container seals intact, no external package damage observed.",
+          placeholder: "Note any seal tampering, carton wetness, or shortage specifics",
           colSpan: 2,
         },
       ],
@@ -181,15 +205,15 @@ export default function ArrivalReportsPage() {
       const payload = {
         ...values,
         lr_id: parseInt(values.lr_id, 10),
-        packages_received: values.packages_received ? parseInt(values.packages_received, 10) : 0,
-        packages_damaged: values.packages_damaged ? parseInt(values.packages_damaged, 10) : 0,
-        packages_short: values.packages_short ? parseInt(values.packages_short, 10) : 0,
+        packages_received: parseInt(values.packages_received, 10) || 0,
+        packages_damaged: parseInt(values.packages_damaged, 10) || 0,
+        packages_short: parseInt(values.packages_short, 10) || 0,
       };
       await apiClient("/api/v1/transport/arrival-reports", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to record arrival report.");
@@ -200,65 +224,50 @@ export default function ArrivalReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Arrival Reports
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Record destination warehouse arrivals, shortage tallies, and cargo unloading conditions.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Record Arrival
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <PageHeader
+        title="Arrival Reports"
+        description="Inspect destination unloading, record tally, and document cargo exceptions."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/jobs" },
+          { label: "Arrival Reports" },
+        ]}
+        primaryAction={{
+          label: "File Arrival Report",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
       <DataTable
         columns={columns}
         data={data}
         isLoading={isLoading}
-        searchPlaceholder="Search by report number, LR, or hub..."
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        searchPlaceholder="Search by report number, LR, or destination..."
+        emptyMessage="No arrival reports filed"
+        emptySubtext="Record cargo arrival at destination hub to track transit completion and shortages."
+        emptyAction={{
+          label: "File Arrival Report",
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Record Destination Arrival Inspection
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Confirm Arrival"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="File Destination Arrival Report"
+        description="Record physical unloading tally and damage/shortage conditions."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="File Report"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2, Truck } from "lucide-react";
+import { Plus, Trash2, Truck } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
+import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatDate } from "@/lib/utils";
 
 interface MarketVehicleRecord {
   id: number;
@@ -31,21 +35,24 @@ export default function MarketVehiclesPage() {
   const [data, setData] = useState<MarketVehicleRecord[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const [vehiclesRes, ownersRes] = await Promise.all([
         apiClient<MarketVehicleRecord[]>("/api/v1/transport/market-vehicles"),
         apiClient<OwnerOption[]>("/api/v1/transport/vehicle-owners"),
       ]);
-      setData(vehiclesRes);
-      setOwners(ownersRes);
+      setData(Array.isArray(vehiclesRes) ? vehiclesRes : []);
+      setOwners(Array.isArray(ownersRes) ? ownersRes : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load market vehicles.");
     } finally {
       setIsLoading(false);
@@ -62,32 +69,34 @@ export default function MarketVehiclesPage() {
       header: "Vehicle Number",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-slate-900 dark:text-slate-100 uppercase">
-          {row.vehicle_number}
-        </span>
+        <VehiclePlate vehicleNumber={row.vehicle_number} source="MARKET" />
       ),
     },
     {
       key: "vehicle_type",
-      header: "Body Type",
+      header: "Type & Capacity",
       sortable: true,
-    },
-    {
-      key: "capacity_mt",
-      header: "Capacity (MT)",
-      isNumeric: true,
-      cell: (row) => `${parseFloat(String(row.capacity_mt)).toFixed(2)} MT`,
-    },
-    {
-      key: "owner_name",
-      header: "Owner / Transporter",
       cell: (row) => (
         <div>
-          <span className="font-medium text-slate-800 dark:text-slate-200">
-            {row.owner_name || "Direct / Unassigned"}
+          <span className="text-xs text-[#101828] font-medium block">
+            {row.vehicle_type}
+          </span>
+          <span className="text-[11px] text-[#667085]">
+            {parseFloat(String(row.capacity_mt)).toFixed(2)} MT Payload
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "owner",
+      header: "Owner / Supplier",
+      cell: (row) => (
+        <div>
+          <span className="text-xs text-[#101828] font-medium block">
+            {row.owner_name || "Direct Driver"}
           </span>
           {row.owner_phone && (
-            <span className="block text-[11px] font-mono text-slate-400">
+            <span className="text-[11px] text-[#667085]">
               {row.owner_phone}
             </span>
           )}
@@ -95,26 +104,27 @@ export default function MarketVehiclesPage() {
       ),
     },
     {
-      key: "fitness_expiry",
-      header: "Fitness Expiry",
+      key: "documents",
+      header: "Fitness / Insurance",
       cell: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400">
-          {row.fitness_expiry || "Not recorded"}
-        </span>
+        <div className="text-[11px] text-[#667085]">
+          <div>Fitness: {formatDate(row.fitness_expiry)}</div>
+          <div>Insurance: {formatDate(row.insurance_expiry)}</div>
+        </div>
       ),
     },
     {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />,
     },
   ];
 
   const actions: RowAction<MarketVehicleRecord>[] = [
     {
       label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
         if (!confirm(`Are you sure you want to deactivate ${row.vehicle_number}?`)) return;
@@ -129,39 +139,48 @@ export default function MarketVehiclesPage() {
   ];
 
   const ownerOptions = [
-    { label: "Unassigned / Direct Driver", value: "" },
+    { label: "None / Direct Driver", value: "" },
     ...owners.map((o) => ({ label: o.name, value: String(o.id) })),
   ];
 
   const formSections: FormSectionDef[] = [
     {
-      id: "mv_info",
-      title: "Hired Vehicle Details",
-      description: "Market vehicle specifications and supplier linkage",
+      id: "market_vehicle_info",
+      title: "Market Vehicle Registration",
+      description: "External hired vehicle specifications and documentation",
       columns: 2,
       fields: [
         {
           name: "vehicle_number",
-          label: "Registration Number",
-          placeholder: "e.g. MH14AB1234",
+          label: "Vehicle Registration Number",
+          placeholder: "e.g. MH-04-AZ-5678",
           required: true,
         },
         {
           name: "vehicle_type",
-          label: "Vehicle Type",
-          placeholder: "e.g. 32ft MXL, 20ft Container, Taurus",
+          label: "Body / Vehicle Type",
+          type: "select",
           required: true,
+          options: [
+            { label: "32 Ft Multi-Axle Container", value: "32 FT MX CONTAINER" },
+            { label: "32 Ft Single-Axle Container", value: "32 FT SXL CONTAINER" },
+            { label: "20 Ft Open Body Truck", value: "20 FT OPEN" },
+            { label: "24 Ft Open Body Truck", value: "24 FT OPEN" },
+            { label: "19 Ft Taurus 16 Wheeler", value: "TAURUS 16W" },
+            { label: "Trailer 40 Ft Flatbed", value: "40 FT FLATBED TRAILER" },
+            { label: "Pickup / LCV 14 Ft", value: "14 FT LCV" },
+          ],
         },
         {
           name: "capacity_mt",
           label: "Payload Capacity (MT)",
           type: "number",
-          placeholder: "e.g. 21.5",
+          placeholder: "16.5",
           required: true,
         },
         {
           name: "owner_id",
-          label: "Vehicle Owner",
+          label: "Vehicle Owner / Broker",
           type: "select",
           options: ownerOptions,
         },
@@ -172,7 +191,7 @@ export default function MarketVehiclesPage() {
         },
         {
           name: "insurance_expiry",
-          label: "Insurance Expiry Date",
+          label: "Insurance Policy Expiry",
           type: "date",
         },
       ],
@@ -184,14 +203,14 @@ export default function MarketVehiclesPage() {
     try {
       const payload = {
         ...values,
+        capacity_mt: parseFloat(values.capacity_mt) || 0,
         owner_id: values.owner_id ? parseInt(values.owner_id, 10) : null,
-        capacity_mt: values.capacity_mt ? parseFloat(values.capacity_mt) : 0,
       };
       await apiClient("/api/v1/transport/market-vehicles", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to register market vehicle.");
@@ -202,66 +221,51 @@ export default function MarketVehiclesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Market Vehicles
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage hired trucks, market fleet suppliers, and vehicle compliance.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Market Vehicle
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <PageHeader
+        title="Market Vehicles"
+        description="Registry of third-party hired trucks, trailers, and market broker vehicles."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/jobs" },
+          { label: "Market Vehicles" },
+        ]}
+        primaryAction={{
+          label: "Add Market Vehicle",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
       <DataTable
         columns={columns}
         data={data}
         isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         actions={actions}
-        searchPlaceholder="Search by vehicle number, type, or owner..."
+        searchPlaceholder="Search by registration number, type, or owner..."
+        emptyMessage="No market vehicles registered"
+        emptySubtext="Add vendor/market vehicles available for trip placement and hire challans."
+        emptyAction={{
+          label: "Add Market Vehicle",
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Add Market / Hired Vehicle
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Register Vehicle"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Register Market Vehicle"
+        description="Add a vendor truck into the market fleet registry."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Register Vehicle"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

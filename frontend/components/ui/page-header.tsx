@@ -11,11 +11,21 @@ export interface BreadcrumbItem {
 
 export interface PageHeaderAction {
   label: string;
-  icon?: React.ReactNode;
+  icon?: React.ReactNode | React.ComponentType<{ className?: string }>;
   onClick?: () => void;
   href?: string;
-  variant?: "primary" | "gold" | "secondary" | "outline" | "ghost" | "danger";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "destructive";
   disabled?: boolean;
+}
+
+function renderActionIcon(icon?: React.ReactNode | React.ComponentType<{ className?: string }>) {
+  if (!icon) return null;
+  if (React.isValidElement(icon)) return icon;
+  if (typeof icon === "function" || typeof icon === "object") {
+    const IconComp = icon as React.ComponentType<{ className?: string }>;
+    return <IconComp className="w-4 h-4" />;
+  }
+  return null;
 }
 
 export interface PageHeaderProps {
@@ -25,16 +35,14 @@ export interface PageHeaderProps {
   badge?: React.ReactNode;
   primaryAction?: PageHeaderAction;
   secondaryActions?: PageHeaderAction[];
+  actions?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
 }
 
 /**
- * PageHeader standardized pattern per docs/design.md §6 & §10:
- * 
- * Title
- * One-line context
- * [ Primary Action ]
+ * Standardized Header Pattern per docs/design.md §4:
+ * Breadcrumb + Page Title + Primary Action
  */
 export function PageHeader({
   title,
@@ -43,28 +51,29 @@ export function PageHeader({
   badge,
   primaryAction,
   secondaryActions = [],
+  actions,
   children,
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("space-y-3 pb-5 border-b border-[#E4E7EC]", className)}>
-      {/* Breadcrumb row if present */}
+    <div className={cn("space-y-2 pb-4 border-b border-[#E4E7EC]", className)}>
+      {/* Breadcrumb Row */}
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-[#667085]">
           {breadcrumbs.map((crumb, idx) => {
             const isLast = idx === breadcrumbs.length - 1;
             return (
               <React.Fragment key={crumb.label}>
-                {idx > 0 && <ChevronRight className="w-3 h-3 text-[#98A2B3] shrink-0" />}
+                {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-[#667085] shrink-0" />}
                 {crumb.href && !isLast ? (
                   <Link
                     href={crumb.href}
-                    className="hover:text-[#172033] transition-colors"
+                    className="hover:text-[#101828] transition-colors"
                   >
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? "font-medium text-[#172033]" : ""}>
+                  <span className={isLast ? "font-medium text-[#101828]" : ""}>
                     {crumb.label}
                   </span>
                 )}
@@ -74,74 +83,74 @@ export function PageHeader({
         </nav>
       )}
 
-      {/* Main Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Main Title & Action Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#172033]">
+            <h1 className="text-[22px] leading-[28px] font-semibold tracking-tight text-[#101828]">
               {title}
             </h1>
             {badge}
           </div>
           {description && (
-            <p className="text-xs sm:text-sm text-[#667085] mt-1">
+            <p className="text-[13px] leading-[18px] text-[#667085] mt-0.5">
               {description}
             </p>
           )}
         </div>
 
-        {/* Action Buttons: Exactly ONE dominant CTA + optional secondary */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {secondaryActions.map((action) => (
+        {/* Action Buttons: Exactly ONE primary CTA per docs/design.md §5 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {actions}
+          {secondaryActions.map((action) =>
             action.href ? (
               <Link key={action.label} href={action.href}>
                 <Button
-                  variant={action.variant || "outline"}
+                  variant={action.variant || "secondary"}
                   size="sm"
                   disabled={action.disabled}
                 >
-                  {action.icon}
+                  {renderActionIcon(action.icon)}
                   {action.label}
                 </Button>
               </Link>
             ) : (
               <Button
                 key={action.label}
-                variant={action.variant || "outline"}
+                variant={action.variant || "secondary"}
                 size="sm"
                 onClick={action.onClick}
                 disabled={action.disabled}
               >
-                {action.icon}
+                {renderActionIcon(action.icon)}
                 {action.label}
               </Button>
             )
-          ))}
+          )}
 
-          {primaryAction && (
-            primaryAction.href ? (
+          {primaryAction &&
+            (primaryAction.href ? (
               <Link href={primaryAction.href}>
                 <Button
-                  variant={primaryAction.variant || "primary"}
+                  variant="primary"
                   size="sm"
                   disabled={primaryAction.disabled}
                 >
-                  {primaryAction.icon}
+                  {renderActionIcon(primaryAction.icon)}
                   {primaryAction.label}
                 </Button>
               </Link>
             ) : (
               <Button
-                variant={primaryAction.variant || "primary"}
+                variant="primary"
                 size="sm"
                 onClick={primaryAction.onClick}
                 disabled={primaryAction.disabled}
               >
-                {primaryAction.icon}
+                {renderActionIcon(primaryAction.icon)}
                 {primaryAction.label}
               </Button>
-            )
-          )}
+            ))}
         </div>
       </div>
 

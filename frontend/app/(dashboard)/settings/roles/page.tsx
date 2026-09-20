@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Shield, ShieldCheck, Trash2, Edit2, Check, Lock } from "lucide-react";
+import { Plus, Shield, ShieldCheck, Trash2, Edit2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiClient } from "@/lib/api-client";
 
 interface PermissionItem {
@@ -99,12 +102,16 @@ const ACTIONS = ["view", "create", "edit", "delete", "approve"] as const;
 export default function RolesPage() {
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
   const [roleName, setRoleName] = useState("");
   const [roleDescription, setRoleDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Delete dialog state
+  const [deleteTarget, setDeleteTarget] = useState<RoleRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Selected permission map: key = `${module}:${feature}:${permission}` -> boolean
   const [permMap, setPermMap] = useState<Record<string, boolean>>({});
@@ -126,15 +133,15 @@ export default function RolesPage() {
     loadRoles();
   }, []);
 
-  const openCreateModal = () => {
+  const openCreateDrawer = () => {
     setEditingRoleId(null);
     setRoleName("");
     setRoleDescription("");
     setPermMap({});
-    setIsModalOpen(true);
+    setIsDrawerOpen(true);
   };
 
-  const openEditModal = (role: RoleRecord) => {
+  const openEditDrawer = (role: RoleRecord) => {
     setEditingRoleId(role.id);
     setRoleName(role.name);
     setRoleDescription(role.description || "");
@@ -148,7 +155,7 @@ export default function RolesPage() {
       });
     }
     setPermMap(mapping);
-    setIsModalOpen(true);
+    setIsDrawerOpen(true);
   };
 
   const togglePermission = (module: string, feature: string, action: string) => {
@@ -227,7 +234,7 @@ export default function RolesPage() {
         });
       }
 
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadRoles();
     } catch (err: any) {
       alert(err.message || "Failed to save role.");
@@ -236,54 +243,52 @@ export default function RolesPage() {
     }
   };
 
-  const handleDeleteRole = async (role: RoleRecord) => {
-    if (role.is_system) {
+  const handleDeleteRole = async () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.is_system) {
       alert("System roles cannot be deleted.");
       return;
     }
-    if (!confirm(`Are you sure you want to delete role "${role.name}"?`)) return;
 
+    setIsDeleting(true);
     try {
-      await apiClient(`/api/v1/settings/roles/${role.id}`, { method: "DELETE" });
+      await apiClient(`/api/v1/settings/roles/${deleteTarget.id}`, { method: "DELETE" });
+      setDeleteTarget(null);
       loadRoles();
     } catch (err: any) {
       alert(err.message || "Failed to delete role.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Roles & Permissions Matrix
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure custom roles with view, create, edit, delete, and approve permissions.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={openCreateModal}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Create New Role
-        </Button>
-      </div>
+      <PageHeader
+        title="Roles & Permissions Matrix"
+        description="Configure custom roles with view, create, edit, delete, and approve permissions."
+        breadcrumbs={[
+          { label: "Settings" },
+          { label: "Roles & Permissions" },
+        ]}
+        actions={
+          <Button onClick={openCreateDrawer} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Create New Role
+          </Button>
+        }
+      />
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
+        <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
+          <span>{errorMessage}</span>
+          <button onClick={() => setErrorMessage(null)} className="text-danger hover:opacity-80">×</button>
         </div>
       )}
 
       {/* Role Cards Grid */}
       {isLoading ? (
-        <div className="p-8 text-center text-sm text-slate-400">Loading roles...</div>
+        <div className="p-12 text-center text-sm text-text-muted">Loading roles...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {roles.map((role) => {
@@ -291,15 +296,15 @@ export default function RolesPage() {
             return (
               <div
                 key={role.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between hover:border-indigo-300 transition-colors"
+                className="bg-surface border border-border rounded-xl p-5 shadow-xs flex flex-col justify-between hover:border-primary transition-colors"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-primary-light text-primary flex items-center justify-center font-bold">
                         <Shield className="w-4 h-4" />
                       </div>
-                      <h3 className="font-bold text-slate-900 dark:text-white text-sm">
+                      <h3 className="font-bold text-text-primary text-sm">
                         {role.name}
                       </h3>
                     </div>
@@ -314,23 +319,23 @@ export default function RolesPage() {
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 line-clamp-2">
+                  <p className="text-xs text-text-secondary mt-3 line-clamp-2">
                     {role.description || "No description provided."}
                   </p>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                  <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs text-text-secondary">
                     <span>Active Permissions:</span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100 font-mono">
+                    <span className="font-semibold text-text-primary font-mono tabular-nums">
                       {allowedCount} granted
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <div className="mt-5 pt-3 border-t border-border flex items-center justify-end gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => openEditModal(role)}
+                    onClick={() => openEditDrawer(role)}
                     className="text-xs gap-1 py-1"
                   >
                     <Edit2 className="w-3 h-3" />
@@ -340,8 +345,8 @@ export default function RolesPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDeleteRole(role)}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 py-1"
+                      onClick={() => setDeleteTarget(role)}
+                      className="text-xs text-danger hover:text-danger-dark hover:bg-danger-light border-danger/30 py-1"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -353,178 +358,172 @@ export default function RolesPage() {
         </div>
       )}
 
-      {/* Role Editor Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  {editingRoleId ? "Edit Role & Permissions" : "Create Custom Role"}
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* Role Editor Drawer */}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title={editingRoleId ? "Edit Role & Permissions" : "Create Custom Role"}
+        description="Configure role identity and granular permission matrix across modules."
+        width="full"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDrawerOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              isLoading={isSubmitting}
+              onClick={handleSaveRole}
+            >
+              {editingRoleId ? "Save Changes" : "Create Role"}
+            </Button>
+          </div>
+        }
+      >
+        <form onSubmit={handleSaveRole} className="space-y-6">
+          {/* Role Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface p-4 rounded-xl border border-border">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Role Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Master Data Clerk"
+                value={roleName}
+                onChange={(e) => setRoleName(e.target.value)}
+                className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Description
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Can view and edit consignees and locations"
+                value={roleDescription}
+                onChange={(e) => setRoleDescription(e.target.value)}
+                className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {/* Permission Matrix */}
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-text-primary">
+                Granular Feature Permissions
+              </h4>
+              <p className="text-xs text-text-secondary">
+                Configure view, create, edit, delete, and approve permissions per feature.
+              </p>
             </div>
 
-            {/* Modal Body */}
-            <form onSubmit={handleSaveRole} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                {/* Role Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Role Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Master Data Clerk"
-                      value={roleName}
-                      onChange={(e) => setRoleName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Description
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Can view and edit consignees and locations"
-                      value={roleDescription}
-                      onChange={(e) => setRoleDescription(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border rounded-lg bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                    />
+            {MODULE_DEFINITIONS.map((mod) => (
+              <div
+                key={mod.id}
+                className="border border-border rounded-xl overflow-hidden bg-surface"
+              >
+                <div className="bg-canvas px-4 py-2.5 flex items-center justify-between border-b border-border">
+                  <span className="font-bold text-xs text-text-primary uppercase tracking-wider">
+                    {mod.title}
+                  </span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setModuleAll(mod, true)}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Grant All
+                    </button>
+                    <span className="text-border">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setModuleAll(mod, false)}
+                      className="text-text-muted hover:underline"
+                    >
+                      Revoke All
+                    </button>
                   </div>
                 </div>
 
-                {/* Permission Matrix */}
-                <div className="space-y-6">
-                  <div className="border-b pb-2">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Granular Feature Permissions
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      Configure view, create, edit, delete, and approve permissions per feature.
-                    </p>
-                  </div>
-
-                  {MODULE_DEFINITIONS.map((mod) => (
+                <div className="divide-y divide-border">
+                  {mod.features.map((feat) => (
                     <div
-                      key={mod.id}
-                      className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden"
+                      key={feat.id}
+                      className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-canvas/50 transition-colors"
                     >
-                      <div className="bg-slate-100/70 dark:bg-slate-800/60 px-4 py-2.5 flex items-center justify-between">
-                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                          {mod.title}
+                      <div className="sm:w-1/3">
+                        <span className="text-xs font-semibold text-text-primary">
+                          {feat.label}
                         </span>
-                        <div className="flex items-center gap-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => setModuleAll(mod, true)}
-                            className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
-                          >
-                            Grant All
-                          </button>
-                          <span className="text-slate-300">|</span>
-                          <button
-                            type="button"
-                            onClick={() => setModuleAll(mod, false)}
-                            className="text-slate-500 hover:underline"
-                          >
-                            Revoke All
-                          </button>
-                        </div>
+                        <span className="block text-[11px] font-mono text-text-muted">
+                          {mod.id}:{feat.id}
+                        </span>
                       </div>
 
-                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {mod.features.map((feat) => (
-                          <div
-                            key={feat.id}
-                            className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 dark:hover:bg-slate-800/20"
-                          >
-                            <div className="sm:w-1/3">
-                              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                {feat.label}
-                              </span>
-                              <span className="block text-[11px] font-mono text-slate-400">
-                                {mod.id}:{feat.id}
-                              </span>
-                            </div>
+                      <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+                        {ACTIONS.map((action) => {
+                          const checked = !!permMap[`${mod.id}:${feat.id}:${action}`];
+                          return (
+                            <label
+                              key={action}
+                              className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  togglePermission(mod.id, feat.id, action)
+                                }
+                                className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+                              />
+                              <span className="capitalize">{action}</span>
+                            </label>
+                          );
+                        })}
 
-                            <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
-                              {ACTIONS.map((action) => {
-                                const checked =
-                                  !!permMap[`${mod.id}:${feat.id}:${action}`];
-                                return (
-                                  <label
-                                    key={action}
-                                    className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={() =>
-                                        togglePermission(mod.id, feat.id, action)
-                                      }
-                                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
-                                    />
-                                    <span className="capitalize">{action}</span>
-                                  </label>
-                                );
-                              })}
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const allChecked = ACTIONS.every(
-                                    (act) => permMap[`${mod.id}:${feat.id}:${act}`]
-                                  );
-                                  setRowAll(mod.id, feat.id, !allChecked);
-                                }}
-                                className="text-[11px] text-slate-400 hover:text-indigo-600 ml-2"
-                              >
-                                Toggle Row
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allChecked = ACTIONS.every(
+                              (act) => permMap[`${mod.id}:${feat.id}:${act}`]
+                            );
+                            setRowAll(mod.id, feat.id, !allChecked);
+                          }}
+                          className="text-[11px] text-text-muted hover:text-primary ml-2"
+                        >
+                          Toggle Row
+                        </button>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-
-              {/* Modal Footer */}
-              <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3 bg-slate-50 dark:bg-slate-900/50">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  isLoading={isSubmitting}
-                >
-                  {editingRoleId ? "Save Changes" : "Create Role"}
-                </Button>
-              </div>
-            </form>
+            ))}
           </div>
-        </div>
-      )}
+        </form>
+      </EntityDrawer>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteRole}
+        title={`Delete Role "${deleteTarget?.name || ""}"`}
+        description="Are you sure you want to delete this role? Any employees assigned to this role will lose their granted permissions."
+        confirmText="Delete Role"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

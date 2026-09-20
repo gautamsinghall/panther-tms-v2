@@ -8,6 +8,7 @@ import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { Form } from "@/components/forms/form";
 import { StatusBadge } from "@/components/ui/badge";
+import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -104,7 +105,7 @@ export default function LRBookingPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-[#172033] block">
+          <span className="font-mono font-bold text-[#101828] block">
             {row.lr_number}
           </span>
           <span className="text-[11px] text-[#667085]">
@@ -118,11 +119,11 @@ export default function LRBookingPage() {
       header: "Consigner → Consignee",
       cell: (row) => (
         <div>
-          <span className="font-semibold text-[#172033] block text-xs">
+          <span className="font-semibold text-[#101828] block text-xs">
             {row.consigner_name || "Direct Client"}
           </span>
           <span className="text-[11px] text-[#667085] flex items-center gap-1">
-            <span className="text-[#98A2B3]">To:</span> {row.consignee_name || "Direct Receiver"}
+            <span className="text-[#667085]">To:</span> {row.consignee_name || "Direct Receiver"}
           </span>
         </div>
       ),
@@ -133,10 +134,8 @@ export default function LRBookingPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold uppercase text-[#172033] block text-xs">
-            {row.vehicle_number}
-          </span>
-          <span className="text-[11px] text-[#667085]">
+          <VehiclePlate vehicleNumber={row.vehicle_number} source={row.vehicle_source} />
+          <span className="text-[11px] text-[#667085] block mt-1">
             {row.driver_name ? `${row.driver_name}` : row.vehicle_source}
           </span>
         </div>
@@ -148,10 +147,10 @@ export default function LRBookingPage() {
       isNumeric: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-[#172033] block text-xs">
+          <span className="font-mono font-semibold text-[#101828] block text-xs">
             {formatCurrency(row.total_freight_amount)}
           </span>
-          <span className="text-[11px] font-mono text-[#D97706]">
+          <span className="text-[11px] font-mono text-[#B54708]">
             Bal: {formatCurrency(row.balance_amount)}
           </span>
         </div>

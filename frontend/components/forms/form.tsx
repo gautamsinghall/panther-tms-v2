@@ -4,8 +4,8 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { FormSectionDef } from "@/types/form";
-import { HelpCircle, AlertCircle } from "lucide-react";
+import { FormSectionDef, FormFieldDef } from "@/types/form";
+import { AlertCircle, HelpCircle } from "lucide-react";
 
 interface FormProps {
   sections: FormSectionDef[];
@@ -21,12 +21,13 @@ interface FormProps {
 }
 
 /**
- * Standardized enterprise form system per docs/design.md §9 & §15:
- * 
- * - Clear section headers
- * - 2-column desktop / 1-column mobile
- * - Visible required markers and inline error feedback
- * - Restrained action footer
+ * Standardized Enterprise Form Component per docs/design.md §5:
+ * - Card-sectioned with H2 headers (18px/24px 600) and 1px dividers
+ * - Max width constrained to 720px
+ * - Label-above inputs with required marker in --danger-600
+ * - Inline validation below fields with small alert icon
+ * - Disabled-field tooltips explaining exact reason
+ * - Sticky action footer with primary --primary-600 + outline Cancel
  */
 export function Form({
   sections,
@@ -37,12 +38,13 @@ export function Form({
   cancelLabel = "Cancel",
   isLoading = false,
   isSubmitting = false,
-  stickyFooter = false,
+  stickyFooter = true,
   className,
 }: FormProps) {
   const loading = isLoading || isSubmitting;
   const [values, setValues] = useState<Record<string, any>>(initialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const handleChange = (name: string, value: any) => {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -52,6 +54,16 @@ export function Form({
         delete next[name];
         return next;
       });
+    }
+  };
+
+  const handleBlur = (field: FormFieldDef) => {
+    setTouched((prev) => ({ ...prev, [field.name]: true }));
+    if (field.required && !field.disabled) {
+      const val = values[field.name];
+      if (val === undefined || val === null || String(val).trim() === "") {
+        setErrors((prev) => ({ ...prev, [field.name]: `${field.label} is required` }));
+      }
     }
   };
 
@@ -78,7 +90,7 @@ export function Form({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("space-y-6", className)}>
+    <form onSubmit={handleSubmit} className={cn("max-w-[720px] space-y-6 mx-auto", className)}>
       {sections.map((section, sIndex) => {
         const gridCols = {
           1: "grid-cols-1",
@@ -90,18 +102,18 @@ export function Form({
         return (
           <div
             key={section.id || section.title || sIndex}
-            className="bg-white rounded-card border border-[#E4E7EC] p-5 sm:p-6 shadow-card space-y-4"
+            className="bg-white rounded-card border border-[#E4E7EC] p-5 sm:p-6 space-y-4"
           >
-            {/* Section Header */}
+            {/* H2 Section Header per docs/design.md §5 */}
             {(section.title || section.description) && (
               <div className="border-b border-[#E4E7EC] pb-3">
                 {section.title && (
-                  <h4 className="text-sm font-semibold text-[#172033]">
+                  <h2 className="text-[18px] leading-[24px] font-semibold text-[#101828]">
                     {section.title}
-                  </h4>
+                  </h2>
                 )}
                 {section.description && (
-                  <p className="text-xs text-[#667085] mt-0.5">
+                  <p className="text-[13px] leading-[18px] text-[#667085] mt-0.5">
                     {section.description}
                   </p>
                 )}
@@ -111,104 +123,131 @@ export function Form({
             {/* Field Grid */}
             <div className={cn("grid gap-4", gridCols)}>
               {section.fields.map((field) => {
-                const colSpanClass = {
-                  1: "col-span-1",
-                  2: "col-span-1 md:col-span-2",
-                  3: "col-span-1 md:col-span-3",
-                  4: "col-span-full",
-                }[field.colSpan || 1];
-
-                const fieldId = `field-${field.name}`;
-                const error = errors[field.name];
-                const value = values[field.name] ?? "";
+                const fieldError = errors[field.name];
+                const inputId = `form-field-${field.name}`;
+                const val = values[field.name] ?? field.defaultValue ?? "";
 
                 return (
-                  <div key={field.name} className={cn("space-y-1.5", colSpanClass)}>
-                    {/* Label */}
+                  <div
+                    key={field.name}
+                    className={cn(
+                      "space-y-1.5",
+                      field.colSpan === 2 ? "col-span-1 md:col-span-2" : "",
+                      field.colSpan === 3 ? "col-span-1 md:col-span-3" : "",
+                      field.colSpan === 4 ? "col-span-full" : ""
+                    )}
+                  >
+                    {/* Label Above Input per docs/design.md §5 */}
                     <div className="flex items-center justify-between">
                       <label
-                        htmlFor={fieldId}
-                        className="flex items-center gap-1 text-xs font-semibold text-[#172033]"
+                        htmlFor={inputId}
+                        className="block text-xs font-medium text-[#344054]"
                       >
                         {field.label}
-                        {field.required && <span className="text-[#DC2626] ml-0.5">*</span>}
-                        {field.disabled && field.disabledReason && (
-                          <Tooltip content={field.disabledReason} side="top">
-                            <span className="cursor-help text-[#98A2B3] hover:text-[#172033]">
-                              <HelpCircle className="w-3.5 h-3.5 ml-0.5" />
-                            </span>
-                          </Tooltip>
+                        {field.required && (
+                          <span className="text-[#F04438] ml-0.5 font-bold" title="Required">
+                            *
+                          </span>
                         )}
                       </label>
+
+                      {/* Tooltip for Disabled Fields or Helpers */}
+                      {field.disabled ? (
+                        <Tooltip content={field.disabledReason || "This field is locked and cannot be edited in current state"}>
+                          <span className="cursor-help text-[#667085] hover:text-[#101828]">
+                            <HelpCircle className="w-3.5 h-3.5" />
+                          </span>
+                        </Tooltip>
+                      ) : field.helperText ? (
+                        <Tooltip content={field.helperText}>
+                          <span className="cursor-help text-[#667085] hover:text-[#101828]">
+                            <HelpCircle className="w-3.5 h-3.5" />
+                          </span>
+                        </Tooltip>
+                      ) : null}
                     </div>
 
-                    {/* Field input rendering */}
+                    {/* Inputs */}
                     {field.type === "select" ? (
                       <div className="relative">
                         <select
-                          id={fieldId}
-                          disabled={field.disabled}
-                          value={value}
+                          id={inputId}
+                          value={val}
+                          disabled={field.disabled || loading}
                           onChange={(e) => handleChange(field.name, e.target.value)}
+                          onBlur={() => handleBlur(field)}
                           className={cn(
-                            "flex h-9 w-full rounded-control border border-[#E4E7EC] bg-white px-3 py-1.5 text-xs sm:text-sm text-[#172033] appearance-none cursor-pointer transition-colors",
-                            "focus:outline-none focus:ring-1 focus:ring-[#172033] focus:border-[#172033]",
-                            "disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]",
-                            error && "border-[#DC2626] focus:ring-[#DC2626]"
+                            "w-full h-9 px-3 text-xs rounded-control border bg-white text-[#101828] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors",
+                            field.disabled
+                              ? "bg-[#F1F3F6] text-[#667085] cursor-not-allowed border-[#E4E7EC]"
+                              : "border-[#E4E7EC]",
+                            fieldError && "border-[#F04438] focus:ring-[#F04438]"
                           )}
                         >
-                          <option value="">Select an option...</option>
+                          <option value="">{field.placeholder || `Select ${field.label}`}</option>
                           {field.options?.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
+                            <option key={String(opt.value)} value={opt.value}>
                               {opt.label}
                             </option>
                           ))}
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#98A2B3] text-[10px]">
-                          ▼
-                        </div>
                       </div>
                     ) : field.type === "textarea" ? (
                       <textarea
-                        id={fieldId}
-                        rows={3}
-                        disabled={field.disabled}
-                        value={value}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        id={inputId}
+                        value={val}
+                        disabled={field.disabled || loading}
                         placeholder={field.placeholder}
+                        rows={3}
+                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        onBlur={() => handleBlur(field)}
                         className={cn(
-                          "flex w-full rounded-control border border-[#E4E7EC] bg-white px-3 py-2 text-xs sm:text-sm text-[#172033] placeholder:text-[#98A2B3] transition-colors",
-                          "focus:outline-none focus:ring-1 focus:ring-[#172033] focus:border-[#172033]",
-                          "disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]",
-                          error && "border-[#DC2626] focus:ring-[#DC2626]"
+                          "w-full px-3 py-2 text-xs rounded-control border bg-white text-[#101828] placeholder:text-[#667085] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors resize-y",
+                          field.disabled
+                            ? "bg-[#F1F3F6] text-[#667085] cursor-not-allowed border-[#E4E7EC]"
+                            : "border-[#E4E7EC]",
+                          fieldError && "border-[#F04438] focus:ring-[#F04438]"
                         )}
                       />
+                    ) : field.type === "checkbox" ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          id={inputId}
+                          type="checkbox"
+                          checked={Boolean(val)}
+                          disabled={field.disabled || loading}
+                          onChange={(e) => handleChange(field.name, e.target.checked)}
+                          onBlur={() => handleBlur(field)}
+                          className="w-4 h-4 rounded border-[#D0D5DD] text-[#4F46E5] focus:ring-[#4F46E5] cursor-pointer"
+                        />
+                        <span className="text-xs text-[#344054]">{field.placeholder || "Enable"}</span>
+                      </div>
                     ) : (
                       <input
-                        id={fieldId}
+                        id={inputId}
                         type={field.type || "text"}
-                        disabled={field.disabled}
-                        value={value}
-                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        value={val}
+                        disabled={field.disabled || loading}
                         placeholder={field.placeholder}
+                        onChange={(e) => handleChange(field.name, e.target.value)}
+                        onBlur={() => handleBlur(field)}
                         className={cn(
-                          "flex h-9 w-full rounded-control border border-[#E4E7EC] bg-white px-3 py-1.5 text-xs sm:text-sm text-[#172033] placeholder:text-[#98A2B3] transition-colors",
-                          "focus:outline-none focus:ring-1 focus:ring-[#172033] focus:border-[#172033]",
-                          "disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]",
-                          error && "border-[#DC2626] focus:ring-[#DC2626]"
+                          "w-full h-9 px-3 text-xs rounded-control border bg-white text-[#101828] placeholder:text-[#667085] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors",
+                          field.disabled
+                            ? "bg-[#F1F3F6] text-[#667085] cursor-not-allowed border-[#E4E7EC]"
+                            : "border-[#E4E7EC]",
+                          fieldError && "border-[#F04438] focus:ring-[#F04438]"
                         )}
                       />
                     )}
 
-                    {/* Inline Error */}
-                    {error ? (
-                      <p className="flex items-center gap-1 text-xs text-[#DC2626] font-medium mt-1">
-                        <AlertCircle className="w-3 h-3 shrink-0" />
-                        {error}
+                    {/* Inline Validation Error below field per docs/design.md §5 */}
+                    {fieldError && (
+                      <p className="flex items-center gap-1 text-xs text-[#F04438] font-medium pt-0.5 animate-in fade-in">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{fieldError}</span>
                       </p>
-                    ) : field.helperText ? (
-                      <p className="text-xs text-[#667085] mt-1">{field.helperText}</p>
-                    ) : null}
+                    )}
                   </div>
                 );
               })}
@@ -217,19 +256,30 @@ export function Form({
         );
       })}
 
-      {/* Action Footer */}
+      {/* Sticky Action Footer per docs/design.md §5 */}
       <div
         className={cn(
-          "flex items-center justify-end gap-3 pt-4 border-t border-[#E4E7EC]",
-          stickyFooter && "sticky bottom-0 bg-white/95 backdrop-blur py-3 px-4 rounded-card shadow-floating border border-[#E4E7EC] z-20"
+          "bg-white border border-[#E4E7EC] rounded-card p-4 flex items-center justify-end gap-3",
+          stickyFooter ? "sticky bottom-4 z-20 shadow-floating" : ""
         )}
       >
         {onCancel && (
-          <Button type="button" variant="outline" size="md" onClick={onCancel} disabled={loading}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={onCancel}
+            disabled={loading}
+          >
             {cancelLabel}
           </Button>
         )}
-        <Button type="submit" variant="primary" size="md" isLoading={loading}>
+        <Button
+          type="submit"
+          variant="primary"
+          size="md"
+          isLoading={loading}
+        >
           {submitLabel}
         </Button>
       </div>

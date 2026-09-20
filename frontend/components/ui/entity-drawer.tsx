@@ -9,22 +9,26 @@ export interface EntityDrawerProps {
   onClose: () => void;
   title: string;
   description?: string;
+  subtitle?: string;
   children: React.ReactNode;
   width?: "md" | "lg" | "xl" | "full";
+  size?: "md" | "lg" | "xl" | "full";
   footer?: React.ReactNode;
 }
 
 /**
- * EntityDrawer pattern per docs/design.md §16:
- * Right-side drawer for simple and medium CRUD workflows, preserving list context.
+ * EntityDrawer pattern:
+ * Right-side drawer for creating/editing records while preserving background context.
  */
 export function EntityDrawer({
   isOpen,
   onClose,
   title,
   description,
+  subtitle,
   children,
-  width = "lg",
+  width,
+  size,
   footer,
 }: EntityDrawerProps) {
   useEffect(() => {
@@ -45,18 +49,19 @@ export function EntityDrawer({
 
   if (!isOpen) return null;
 
+  const effectiveWidth = size || width || "lg";
   const widthClasses = {
     md: "max-w-md",
     lg: "max-w-xl",
     xl: "max-w-2xl",
     full: "max-w-4xl",
-  }[width];
+  }[effectiveWidth];
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#172033]/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
+        className="fixed inset-0 bg-[#101828]/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -69,33 +74,33 @@ export function EntityDrawer({
           )}
         >
           {/* Header */}
-          <div className="px-6 py-5 border-b border-[#E4E7EC] flex items-start justify-between bg-white shrink-0">
+          <div className="px-6 py-4 border-b border-[#E4E7EC] flex items-start justify-between bg-white shrink-0">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-[#172033]">
+              <h2 className="text-[18px] leading-[24px] font-semibold text-[#101828]">
                 {title}
               </h2>
-              {description && (
-                <p className="text-xs text-[#667085] mt-0.5">
-                  {description}
+              {(description || subtitle) && (
+                <p className="text-[13px] leading-[18px] text-[#667085] mt-0.5">
+                  {description || subtitle}
                 </p>
               )}
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-control text-[#98A2B3] hover:text-[#172033] hover:bg-[#F2F4F7] transition-colors"
+              className="p-1.5 rounded-control text-[#667085] hover:text-[#101828] hover:bg-[#F8F9FB] transition-colors"
               aria-label="Close drawer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Scrollable Body */}
-          <div className="flex-1 overflow-y-auto p-6 bg-[#F7F8FA]">
+          {/* Scrollable Body on calm --gray-25 canvas */}
+          <div className="flex-1 overflow-y-auto p-6 bg-[#FCFCFD]">
             {children}
           </div>
 
-          {/* Optional Footer */}
+          {/* Footer */}
           {footer && (
             <div className="px-6 py-4 border-t border-[#E4E7EC] bg-white flex items-center justify-end gap-2.5 shrink-0">
               {footer}

@@ -1,10 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, FileSpreadsheet, Ban, CheckCircle, AlertCircle, Eye } from "lucide-react";
+import { Plus, FileSpreadsheet, Ban, CheckCircle, AlertCircle, Eye } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -40,7 +43,7 @@ export default function ProformaInvoicePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Create Modal state
+  // Create Drawer state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [partyName, setPartyName] = useState("");
   const [refNumber, setRefNumber] = useState("");
@@ -49,13 +52,13 @@ export default function ProformaInvoicePage() {
   const [narration, setNarration] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Void Modal state
+  // Void Dialog state
   const [isVoidOpen, setIsVoidOpen] = useState(false);
   const [voidVoucherId, setVoidVoucherId] = useState<number | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [isVoiding, setIsVoiding] = useState(false);
 
-  // View Modal state
+  // View Details Drawer state
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
 
   const loadData = async () => {
@@ -114,8 +117,7 @@ export default function ProformaInvoicePage() {
     }
   };
 
-  const handleVoidVoucher = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
       alert("Void reason must be at least 10 characters as per audit rules.");
@@ -148,15 +150,10 @@ export default function ProformaInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+          <span className="font-mono font-semibold text-text-primary flex items-center gap-2">
             {row.voucher_number}
-            {row.is_void && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 rounded">
-                VOIDED
-              </span>
-            )}
           </span>
-          <span className="block text-[11px] text-slate-400">{row.voucher_date}</span>
+          <span className="block text-xs text-text-muted mt-0.5">{row.voucher_date}</span>
         </div>
       ),
     },
@@ -165,11 +162,11 @@ export default function ProformaInvoicePage() {
       header: "Prospective Customer",
       cell: (row) => (
         <div>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">
-            {row.party_name || "-"}
+          <span className="font-medium text-text-primary">
+            {row.party_name || "—"}
           </span>
           {row.reference_number && (
-            <span className="block font-mono text-[11px] text-slate-400">
+            <span className="block font-mono text-xs text-text-muted mt-0.5">
               Ref: {row.reference_number}
             </span>
           )}
@@ -183,25 +180,23 @@ export default function ProformaInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div className="text-right">
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-            ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          <span className="font-mono font-semibold text-text-primary text-sm tabular-nums">
+            ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className="block text-[11px] text-slate-400">
+          <span className="block text-xs text-text-muted mt-0.5 tabular-nums">
             Tax: ₹{Number(row.tax_amount).toFixed(2)}
           </span>
         </div>
       ),
     },
     {
-      key: "status",
+      key: "is_void",
       header: "Status",
-      align: "center",
       cell: (row) => (
-        row.is_void ? (
-          <Badge variant="danger">Voided</Badge>
-        ) : (
-          <Badge variant="warning">Proforma Active</Badge>
-        )
+        <StatusBadge
+          status={row.is_void ? "VOIDED" : "ACTIVE"}
+          variant={row.is_void ? "danger" : "warning"}
+        />
       ),
     },
   ];
@@ -227,44 +222,41 @@ export default function ProformaInvoicePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <FileSpreadsheet className="w-6 h-6 text-[var(--color-primary)]" />
-            Proforma Invoices
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Generate provisional commercial estimates and quotations prior to final freight dispatch or service execution.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
+      <PageHeader
+        title="Proforma Invoices"
+        description="Generate provisional commercial estimates and quotations prior to final freight dispatch or service execution."
+        breadcrumbs={[
+          { label: "Accounts", href: "/accounts" },
+          { label: "Proforma Invoices" },
+        ]}
+        actions={
           <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
             <Plus className="w-4 h-4" />
             New Proforma Invoice
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="ml-auto text-rose-400 hover:text-rose-600">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button onClick={() => setErrorMessage(null)} className="text-danger hover:opacity-80">×</button>
         </div>
       )}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{successMessage}</span>
-          <button onClick={() => setSuccessMessage(null)} className="ml-auto text-emerald-400 hover:text-emerald-600">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="p-4 rounded-xl bg-success-light border border-success/20 text-success text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button onClick={() => setSuccessMessage(null)} className="text-success hover:opacity-80">×</button>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
+      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
         <DataTable
           columns={columns}
           data={data}
@@ -275,187 +267,183 @@ export default function ProformaInvoicePage() {
         />
       </div>
 
-      {/* Create Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-[var(--color-primary)]" />
-                New Proforma Invoice
-              </h3>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateInvoice} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Prospective Customer / Party *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Apex Industrial Works"
-                  value={partyName}
-                  onChange={(e) => setPartyName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Enquiry / Reference Number
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. ENQ-4412"
-                  value={refNumber}
-                  onChange={(e) => setRefNumber(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Estimated Amount (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={totalAmount}
-                    onChange={(e) => setTotalAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Estimated Tax (₹)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={taxAmount}
-                    onChange={(e) => setTaxAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Quotation Terms & Narration
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Proforma notes and validity period..."
-                  value={narration}
-                  onChange={(e) => setNarration(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Generating..." : "Issue Proforma"}
-                </Button>
-              </div>
-            </form>
+      {/* Create Proforma Drawer */}
+      <EntityDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="New Proforma Invoice"
+        description="Provisional commercial quotation without impact on General Ledger"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="proforma-invoice-form"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Generating..." : "Issue Proforma"}
+            </Button>
           </div>
-        </div>
-      )}
-
-      {/* Void Modal */}
-      {isVoidOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <Ban className="w-5 h-5" />
-                Void Proforma #{voidVoucherId}
-              </h3>
-              <button onClick={() => setIsVoidOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleVoidVoucher} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Reason for Cancellation * (Min 10 chars)
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Reason for cancelling this proforma..."
-                  value={voidReason}
-                  onChange={(e) => setVoidReason(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsVoidOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="danger" disabled={isVoiding || voidReason.trim().length < 10}>
-                  {isVoiding ? "Cancelling..." : "Confirm Cancellation"}
-                </Button>
-              </div>
-            </form>
+        }
+      >
+        <form id="proforma-invoice-form" onSubmit={handleCreateInvoice} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-text-primary mb-1">
+              Prospective Customer / Party *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Apex Industrial Works"
+              value={partyName}
+              onChange={(e) => setPartyName(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Details Modal */}
-      {selectedVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
-                Proforma: {selectedVoucher.voucher_number}
-              </h3>
-              <button onClick={() => setSelectedVoucher(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
+          <div>
+            <label className="block text-xs font-semibold text-text-primary mb-1">
+              Enquiry / Reference Number
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. ENQ-4412"
+              value={refNumber}
+              onChange={(e) => setRefNumber(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Estimated Amount (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="0.00"
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
             </div>
-            <div className="p-6 space-y-3 text-sm">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-slate-500">Party:</span>
-                <span className="font-bold">{selectedVoucher.party_name}</span>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Estimated Tax (₹)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={taxAmount}
+                onChange={(e) => setTaxAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-text-primary mb-1">
+              Quotation Terms & Narration
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Proforma notes and validity period..."
+              value={narration}
+              onChange={(e) => setNarration(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </form>
+      </EntityDrawer>
+
+      {/* Details Drawer */}
+      <EntityDrawer
+        isOpen={Boolean(selectedVoucher)}
+        onClose={() => setSelectedVoucher(null)}
+        title={`Proforma: ${selectedVoucher?.voucher_number || ""}`}
+        description={`Commercial quotation overview • ${selectedVoucher?.voucher_date || ""}`}
+        size="md"
+        footer={
+          <div className="flex justify-end w-full">
+            <Button variant="outline" onClick={() => setSelectedVoucher(null)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {selectedVoucher && (
+          <div className="space-y-4">
+            <div className="p-4 bg-surface-secondary rounded-xl border border-border space-y-2.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-text-muted">Customer / Party</span>
+                <span className="font-medium text-text-primary">{selectedVoucher.party_name}</span>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-slate-500">Date:</span>
-                <span>{selectedVoucher.voucher_date}</span>
+              <div className="flex justify-between">
+                <span className="text-text-muted">Quotation Date</span>
+                <span className="text-text-primary">{selectedVoucher.voucher_date}</span>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-slate-500">Net Estimated Amount:</span>
-                <span className="font-mono font-bold text-emerald-600">
-                  ₹{Number(selectedVoucher.net_amount).toFixed(2)}
-                </span>
-              </div>
-              {selectedVoucher.narration && (
-                <div className="pt-2 text-xs text-slate-600">
-                  <strong>Notes:</strong> {selectedVoucher.narration}
+              {selectedVoucher.reference_number && (
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Enquiry Reference</span>
+                  <span className="font-mono text-text-primary">{selectedVoucher.reference_number}</span>
                 </div>
               )}
+              <div className="flex justify-between border-t border-border pt-2 text-sm font-semibold">
+                <span className="text-text-primary">Net Estimated Amount</span>
+                <span className="font-mono text-primary tabular-nums">
+                  ₹{Number(selectedVoucher.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-end p-4 border-t">
-              <Button variant="outline" onClick={() => setSelectedVoucher(null)}>
-                Close
-              </Button>
-            </div>
+
+            {selectedVoucher.narration && (
+              <div className="p-3 bg-surface-secondary border border-border rounded-xl text-xs">
+                <strong className="text-text-primary block mb-1">Terms & Notes:</strong>
+                <p className="text-text-secondary whitespace-pre-wrap">{selectedVoucher.narration}</p>
+              </div>
+            )}
+
+            {selectedVoucher.is_void && (
+              <div className="p-3 bg-danger-light border border-danger/20 rounded-xl text-danger text-xs">
+                <strong>Cancellation Reason:</strong> {selectedVoucher.void_reason}
+              </div>
+            )}
           </div>
+        )}
+      </EntityDrawer>
+
+      {/* Void Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isVoidOpen}
+        onClose={() => setIsVoidOpen(false)}
+        onConfirm={handleVoidVoucher}
+        title={`Cancel Proforma #${voidVoucherId || ""}`}
+        description="Marking a proforma invoice as void deactivates the quotation. This action cannot be undone."
+        confirmText="Confirm Cancellation"
+        variant="danger"
+        isLoading={isVoiding}
+        disabled={voidReason.trim().length < 10}
+      >
+        <div className="mt-4">
+          <label className="block text-xs font-semibold text-text-primary mb-1">
+            Reason for Cancellation * (Min 10 characters)
+          </label>
+          <textarea
+            required
+            rows={3}
+            placeholder="Reason for cancelling this proforma..."
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-danger/20"
+          />
         </div>
-      )}
+      </ConfirmDialog>
     </div>
   );
 }

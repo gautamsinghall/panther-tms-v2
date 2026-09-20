@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowRight, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { ArrowRight, RefreshCw, FileSpreadsheet } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { ColumnDef } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -54,10 +55,10 @@ export default function LRRegisterPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-semibold text-[#101828]">
             {row.lr_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
+          <span className="block text-[11px] text-[#667085]">
             {row.lr_date}
           </span>
         </div>
@@ -67,20 +68,28 @@ export default function LRRegisterPage() {
       key: "consigner_name",
       header: "Consigner",
       sortable: true,
-      cell: (row) => row.consigner_name || "N/A",
+      cell: (row) => (
+        <span className="text-[#344054]">
+          {row.consigner_name || "N/A"}
+        </span>
+      ),
     },
     {
       key: "consignee_name",
       header: "Consignee",
       sortable: true,
-      cell: (row) => row.consignee_name || "N/A",
+      cell: (row) => (
+        <span className="text-[#344054]">
+          {row.consignee_name || "N/A"}
+        </span>
+      ),
     },
     {
       key: "route",
       header: "Route",
       cell: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
-          {row.origin_city || "Origin"} <ArrowRight className="w-3 h-3 text-slate-400" /> {row.destination_city || "Dest"}
+        <span className="text-xs text-[#475467] flex items-center gap-1.5">
+          {row.origin_city || "Origin"} <ArrowRight className="w-3 h-3 text-[#98A2B3]" /> {row.destination_city || "Dest"}
         </span>
       ),
     },
@@ -89,7 +98,7 @@ export default function LRRegisterPage() {
       header: "Vehicle No",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold uppercase text-slate-900 dark:text-slate-100">
+        <span className="font-mono font-semibold uppercase text-[#101828]">
           {row.vehicle_number}
         </span>
       ),
@@ -98,7 +107,11 @@ export default function LRRegisterPage() {
       key: "weight",
       header: "Weight (MT) / Pkgs",
       isNumeric: true,
-      cell: (row) => `${parseFloat(String(row.actual_weight_mt)).toFixed(2)} MT (${row.package_count} pkgs)`,
+      cell: (row) => (
+        <span className="tabular-nums font-mono text-[#344054]">
+          {parseFloat(String(row.actual_weight_mt)).toFixed(2)} MT ({row.package_count} pkgs)
+        </span>
+      ),
     },
     {
       key: "freight",
@@ -106,10 +119,10 @@ export default function LRRegisterPage() {
       isNumeric: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-semibold tabular-nums text-[#101828]">
             ₹{parseFloat(String(row.total_freight_amount)).toLocaleString()}
           </span>
-          <span className="block text-[11px] font-mono text-amber-600 dark:text-amber-400">
+          <span className="block text-[11px] font-mono tabular-nums text-[#B54708]">
             Bal: ₹{parseFloat(String(row.balance_amount)).toLocaleString()}
           </span>
         </div>
@@ -118,36 +131,29 @@ export default function LRRegisterPage() {
     {
       key: "status",
       header: "Status",
-      align: "center",
-      cell: (row) => <Badge variant="neutral">{row.status}</Badge>,
+      cell: (row) => <StatusBadge status={row.status} />,
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            LR Booking Register
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Operational register of all booked and in-transit lorry receipts (PRD §7.4).
-          </p>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          className="gap-1.5 text-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh Report
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Transport Reports", href: "/transport-reports" },
+          { label: "LR Booking Register" },
+        ]}
+        title="LR Booking Register"
+        description="Comprehensive operational register of all booked and in-transit lorry receipts (PRD §7.4)."
+        primaryAction={{
+          label: "Refresh Register",
+          icon: RefreshCw,
+          onClick: loadData,
+        }}
+      />
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium">
           {errorMessage}
         </div>
       )}

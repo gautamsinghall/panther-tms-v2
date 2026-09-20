@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, X, MapPin, Trash2, CheckCircle } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, MapPin, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -25,17 +28,24 @@ interface LocationRecord {
 export default function LocationPage() {
   const [data, setData] = useState<LocationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters & Drawer State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const res = await apiClient<LocationRecord[]>("/api/v1/general/locations");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load locations.");
     } finally {
       setIsLoading(false);
@@ -46,34 +56,52 @@ export default function LocationPage() {
     loadData();
   }, []);
 
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (statusFilter === "ACTIVE" && !item.is_active) return false;
+      if (statusFilter === "INACTIVE" && item.is_active) return false;
+      return true;
+    });
+  }, [data, statusFilter]);
+
   const columns: ColumnDef<LocationRecord>[] = [
     {
       key: "city_name",
       header: "City / Hub",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-blue-500" />
+        <span className="font-semibold text-[#101828] flex items-center gap-1.5">
+          <MapPin className="w-3.5 h-3.5 text-[#4F46E5]" />
           {row.city_name}
         </span>
       ),
     },
     {
       key: "state",
-      header: "State",
+      header: "State / Country",
       sortable: true,
-    },
-    {
-      key: "country",
-      header: "Country",
-      sortable: true,
+      cell: (row) => (
+        <span className="text-xs text-[#344054]">
+          {row.state}, {row.country}
+        </span>
+      ),
     },
     {
       key: "location_code",
       header: "Hub Code",
+      sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+        <span className="font-mono text-xs text-[#667085]">
           {row.location_code || "-"}
+        </span>
+      ),
+    },
+    {
+      key: "pincode",
+      header: "Pincode",
+      cell: (row) => (
+        <span className="font-mono text-xs text-[#344054]">
+          {row.pincode || "-"}
         </span>
       ),
     },
@@ -83,12 +111,12 @@ export default function LocationPage() {
       cell: (row) => (
         <div className="flex items-center gap-1.5 text-xs">
           {row.is_pickup_point && (
-            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[11px] font-medium">
+            <span className="bg-[#ECFDF3] text-[#027A48] border border-[#A6F4C5] px-2 py-0.5 rounded-[4px] text-[11px] font-medium">
               Pickup
             </span>
           )}
           {row.is_drop_point && (
-            <span className="bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-full text-[11px] font-medium">
+            <span className="bg-[#EFF8FF] text-[#175CD3] border border-[#BFDBFE] px-2 py-0.5 rounded-[4px] text-[11px] font-medium">
               Drop
             </span>
           )}
@@ -99,14 +127,16 @@ export default function LocationPage() {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => (
+        <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />
+      ),
     },
   ];
 
   const actions: RowAction<LocationRecord>[] = [
     {
       label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
         if (!confirm(`Are you sure you want to deactivate ${row.city_name}?`)) return;
@@ -124,7 +154,7 @@ export default function LocationPage() {
     {
       id: "location_info",
       title: "Location Details",
-      description: "Hub and terminal definition",
+      description: "Hub and transit point definition",
       columns: 2,
       fields: [
         {
@@ -177,7 +207,7 @@ export default function LocationPage() {
           is_drop_point: true,
         }),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to create location.");
@@ -188,66 +218,75 @@ export default function LocationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Locations (Hubs & Terminals)
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage origin and destination pickup/drop transit points.
-          </p>
-        </div>
+      <PageHeader
+        title="Locations (Hubs & Terminals)"
+        description="Manage origin and destination pickup/drop transit hubs."
+        breadcrumbs={[
+          { label: "General", href: "/general/location" },
+          { label: "Locations" },
+        ]}
+        primaryAction={{
+          label: "Add Location",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Location
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by city, state, code..."
+        filters={[
+          {
+            id: "status",
+            label: "All Statuses",
+            value: statusFilter,
+            options: [
+              { label: "All Statuses", value: "ALL" },
+              { label: "Active", value: "ACTIVE" },
+              { label: "Inactive", value: "INACTIVE" },
+            ],
+            onChange: setStatusFilter,
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+        hasActiveFilters={Boolean(searchTerm || statusFilter !== "ALL")}
+      />
 
       <DataTable
         columns={columns}
-        data={data}
+        data={filteredData}
         isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         actions={actions}
-        searchPlaceholder="Search by city, state, or hub code..."
+        emptyMessage="No locations yet"
+        emptySubtext="Add transport transit hubs and terminals to enable booking routes."
+        emptyAction={{
+          label: "Add Location",
+          onClick: () => setIsDrawerOpen(true),
+        }}
+        searchable={false}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Create New Location
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Create Location"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Create New Location"
+        description="Register a new hub or terminal in the master network."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Create Location"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

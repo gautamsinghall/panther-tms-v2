@@ -96,7 +96,7 @@ export default function JobsPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-[#172033] block">
+          <span className="font-mono font-bold text-[#101828] block">
             {row.job_number}
           </span>
           <span className="text-[11px] text-[#667085]">
@@ -110,11 +110,11 @@ export default function JobsPage() {
       header: "Customer → Receiver",
       cell: (row) => (
         <div>
-          <span className="font-semibold text-[#172033] block text-xs">
+          <span className="font-semibold text-[#101828] block text-xs">
             {row.consigner_name || `Customer #${row.consigner_id}`}
           </span>
           <span className="text-[11px] text-[#667085] flex items-center gap-1">
-            <span className="text-[#98A2B3]">To:</span> {row.consignee_name || `Receiver #${row.consignee_id}`}
+            <span className="text-[#667085]">To:</span> {row.consignee_name || `Receiver #${row.consignee_id}`}
           </span>
         </div>
       ),
@@ -123,12 +123,12 @@ export default function JobsPage() {
       key: "route",
       header: "Route Movement",
       cell: (row) => (
-        <div className="flex items-center gap-1.5 text-xs text-[#172033] font-medium">
-          <span className="px-1.5 py-0.5 rounded bg-[#F2F4F7] text-[#172033] border border-[#E4E7EC]">
+        <div className="flex items-center gap-1.5 text-xs text-[#101828] font-medium">
+          <span className="px-1.5 py-0.5 rounded-[4px] bg-[#F8F9FB] text-[#101828] border border-[#E4E7EC]">
             {row.origin_city || "Origin"}
           </span>
-          <ArrowRight className="w-3 h-3 text-[#98A2B3] shrink-0" />
-          <span className="px-1.5 py-0.5 rounded bg-[#F2F4F7] text-[#172033] border border-[#E4E7EC]">
+          <ArrowRight className="w-3 h-3 text-[#667085] shrink-0" />
+          <span className="px-1.5 py-0.5 rounded-[4px] bg-[#F8F9FB] text-[#101828] border border-[#E4E7EC]">
             {row.destination_city || "Destination"}
           </span>
         </div>
@@ -140,7 +140,7 @@ export default function JobsPage() {
       isNumeric: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-[#172033] block text-xs">
+          <span className="font-mono font-semibold text-[#101828] block text-xs">
             {parseFloat(String(row.estimated_weight_mt || 0)).toFixed(2)} MT
           </span>
           <span className="text-[11px] text-[#667085]">

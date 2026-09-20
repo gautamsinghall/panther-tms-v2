@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { Receipt, RefreshCw, FileText } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge, Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { ColumnDef } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -50,10 +51,10 @@ export default function UnbilledReportsPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-semibold text-[#101828]">
             {row.lr_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
+          <span className="block text-[11px] text-[#667085]">
             Booked: {row.lr_date}
           </span>
         </div>
@@ -62,17 +63,21 @@ export default function UnbilledReportsPage() {
     {
       key: "consigner",
       header: "Billing Party / Consigner",
-      cell: (row) => row.consigner_name || "N/A",
+      cell: (row) => (
+        <span className="text-[#344054]">
+          {row.consigner_name || "N/A"}
+        </span>
+      ),
     },
     {
       key: "consignee",
       header: "Consignee / Destination",
       cell: (row) => (
         <div>
-          <div className="font-medium text-slate-800 dark:text-slate-200">
+          <div className="font-medium text-[#344054]">
             {row.consignee_name || "N/A"}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-[#667085]">
             {row.destination_city || "Destination Hub"}
           </div>
         </div>
@@ -83,7 +88,7 @@ export default function UnbilledReportsPage() {
       header: "Unbilled Freight Amount",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+        <span className="font-mono font-bold tabular-nums text-[#027A48]">
           ₹{parseFloat(String(row.total_freight_amount)).toLocaleString()}
         </span>
       ),
@@ -91,56 +96,48 @@ export default function UnbilledReportsPage() {
     {
       key: "delivery",
       header: "Delivery Date",
-      cell: (row) => row.delivery_date || "Delivered",
+      cell: (row) => (
+        <span className="text-xs text-[#667085]">
+          {row.delivery_date || "Delivered"}
+        </span>
+      ),
     },
     {
       key: "pod_status",
       header: "POD Verification",
-      align: "center",
       cell: (row) => {
-        let variant: "success" | "warning" | "neutral" = "neutral";
-        if (row.pod_verification_status === "VERIFIED") variant = "success";
-        if (row.pod_verification_status === "PENDING") variant = "warning";
-        return (
-          <Badge variant={variant}>
-            {row.pod_verification_status || "Not Received"}
-          </Badge>
-        );
+        if (!row.pod_verification_status) {
+          return <Badge variant="neutral">Not Received</Badge>;
+        }
+        return <StatusBadge status={row.pod_verification_status} />;
       },
     },
     {
       key: "status",
       header: "LR Lifecycle",
-      align: "center",
-      cell: (row) => <Badge variant="primary">{row.status}</Badge>,
+      cell: (row) => <StatusBadge status={row.status} />,
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Unbilled Consignments Report
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Operational backlog of completed deliveries and verified PODs awaiting Phase 3 customer invoicing (PRD §7.4).
-          </p>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          className="gap-1.5 text-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh Report
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Transport Reports", href: "/transport-reports" },
+          { label: "Unbilled Consignments" },
+        ]}
+        title="Unbilled Consignments Report"
+        description="Operational backlog of completed deliveries and verified PODs awaiting customer invoicing (PRD §7.4)."
+        primaryAction={{
+          label: "Refresh Report",
+          icon: RefreshCw,
+          onClick: loadData,
+        }}
+      />
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium">
           {errorMessage}
         </div>
       )}

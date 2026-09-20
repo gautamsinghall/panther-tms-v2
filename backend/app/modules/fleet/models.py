@@ -1,2 +1,29 @@
-from app.tenant_db.base import TenantBase
-# Models for fleet module
+from app.tenant_db.models import (
+    TripExpense,
+    TripAdvance,
+    VehicleDocument,
+    VehicleHealthRecord,
+    TyreRecord,
+    RepairServiceRecord,
+    CompanyVehicle,
+    MarketVehicle,
+    Driver,
+    LR,
+    Job,
+    HireChallan,
+)
+
+__all__ = [
+    "TripExpense",
+    "TripAdvance",
+    "VehicleDocument",
+    "VehicleHealthRecord",
+    "TyreRecord",
+    "RepairServiceRecord",
+    "CompanyVehicle",
+    "MarketVehicle",
+    "Driver",
+    "LR",
+    "Job",
+    "HireChallan",
+]

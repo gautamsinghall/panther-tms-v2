@@ -5,6 +5,7 @@ import { Users, RefreshCw } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { ColumnDef } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -46,7 +47,7 @@ export default function LRClientWisePage() {
       header: "Client / Customer Name",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100">
+        <span className="font-semibold text-[#101828]">
           {row.client_name}
         </span>
       ),
@@ -54,8 +55,7 @@ export default function LRClientWisePage() {
     {
       key: "client_type",
       header: "Client Type",
-      align: "center",
-      cell: (row) => <Badge variant="primary">{row.client_type}</Badge>,
+      cell: (row) => <Badge variant="primary" className="text-xs">{row.client_type}</Badge>,
     },
     {
       key: "total_lrs",
@@ -63,7 +63,7 @@ export default function LRClientWisePage() {
       isNumeric: true,
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+        <span className="font-mono font-semibold tabular-nums text-[#101828]">
           {row.total_lrs} LRs
         </span>
       ),
@@ -72,14 +72,18 @@ export default function LRClientWisePage() {
       key: "total_weight_mt",
       header: "Total Freight Volume (MT)",
       isNumeric: true,
-      cell: (row) => `${parseFloat(String(row.total_weight_mt)).toFixed(2)} MT`,
+      cell: (row) => (
+        <span className="font-mono tabular-nums text-[#344054]">
+          {parseFloat(String(row.total_weight_mt)).toFixed(2)} MT
+        </span>
+      ),
     },
     {
       key: "total_freight_amount",
       header: "Total Freight Turnover (₹)",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+        <span className="font-mono font-bold tabular-nums text-[#027A48]">
           ₹{parseFloat(String(row.total_freight_amount)).toLocaleString()}
         </span>
       ),
@@ -88,14 +92,18 @@ export default function LRClientWisePage() {
       key: "delivered_count",
       header: "Delivered",
       isNumeric: true,
-      cell: (row) => `${row.delivered_count} LRs`,
+      cell: (row) => (
+        <span className="font-mono tabular-nums text-[#344054]">
+          {row.delivered_count} LRs
+        </span>
+      ),
     },
     {
       key: "in_transit_count",
       header: "In Transit",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono text-amber-600 dark:text-amber-400 font-semibold">
+        <span className="font-mono tabular-nums text-[#B54708] font-semibold">
           {row.in_transit_count} active
         </span>
       ),
@@ -104,29 +112,23 @@ export default function LRClientWisePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            LR Client-Wise Report
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Aggregated consignment volume, freight turnover, and delivery performance by client (PRD §7.4).
-          </p>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={loadData}
-          className="gap-1.5 text-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh Report
-        </Button>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Transport Reports", href: "/transport-reports" },
+          { label: "Client-Wise Summary" },
+        ]}
+        title="LR Client-Wise Report"
+        description="Aggregated consignment volume, freight turnover, and delivery performance by client (PRD §7.4)."
+        primaryAction={{
+          label: "Refresh Report",
+          icon: RefreshCw,
+          onClick: loadData,
+        }}
+      />
 
       {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
+        <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium">
           {errorMessage}
         </div>
       )}

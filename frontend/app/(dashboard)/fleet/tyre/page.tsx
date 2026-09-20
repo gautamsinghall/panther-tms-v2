@@ -1,86 +1,120 @@
 "use client";
 
-import React, { useState } from "react";
-import { Plus } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Plus, RefreshCw, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef } from "@/types/table";
 import { StatusBadge } from "@/components/ui/badge";
+import { VehiclePlate } from "@/components/ui/vehicle-plate";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { apiClient } from "@/lib/api-client";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface TyreItem {
   id: number;
-  serial_no: string;
+  serial_number: string;
   brand: string;
   size: string;
-  vehicle_no: string;
-  position: string;
+  vehicle_number?: string;
+  axle_position?: string;
+  initial_tread_depth_mm: number;
   current_tread_depth_mm: number;
-  installed_date: string;
+  installed_date?: string;
+  installed_odometer_km: number;
   total_km_run: number;
-  status: "GOOD" | "RETREAD_DUE" | "SCRAPPED";
+  purchase_cost: number;
+  status: string;
+  remarks?: string;
 }
 
-const SAMPLE_TYRES: TyreItem[] = [
-  {
-    id: 1,
-    serial_no: "MRF-99210-A",
-    brand: "MRF Steel Muscle",
-    size: "295/90 R20",
-    vehicle_no: "MH-12-RN-4821",
-    position: "Front Right (FR)",
-    current_tread_depth_mm: 11.2,
-    installed_date: "2025-11-10",
-    total_km_run: 42000,
-    status: "GOOD",
-  },
-  {
-    id: 2,
-    serial_no: "APL-44211-B",
-    brand: "Apollo EnduRace",
-    size: "295/90 R20",
-    vehicle_no: "MH-12-RN-4821",
-    position: "Front Left (FL)",
-    current_tread_depth_mm: 10.8,
-    installed_date: "2025-11-10",
-    total_km_run: 42000,
-    status: "GOOD",
-  },
-  {
-    id: 3,
-    serial_no: "JKT-11829-C",
-    brand: "JK Tyre JetSteel",
-    size: "10.00 R20",
-    vehicle_no: "DL-01-AB-1290",
-    position: "Rear Axle 1 Outer (R1O)",
-    current_tread_depth_mm: 3.4,
-    installed_date: "2025-02-14",
-    total_km_run: 78000,
-    status: "RETREAD_DUE",
-  },
-];
-
 export default function TyreManagementPage() {
-  const [data] = useState<TyreItem[]>(SAMPLE_TYRES);
+  const [data, setData] = useState<TyreItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const [formData, setFormData] = useState({
+    serial_number: "",
+    brand: "",
+    size: "295/90 R20",
+    vehicle_number: "",
+    axle_position: "Front Right (FR)",
+    initial_tread_depth_mm: "15.0",
+    current_tread_depth_mm: "15.0",
+    purchase_cost: "",
+    remarks: "",
+  });
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await apiClient<TyreItem[]>("/api/v1/fleet/tyres");
+      setData(Array.isArray(res) ? res : []);
+    } catch (e) {
+      console.error("Failed to load tyre inventory:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await apiClient("/api/v1/fleet/tyres", {
+        method: "POST",
+        body: JSON.stringify({
+          ...formData,
+          initial_tread_depth_mm: parseFloat(formData.initial_tread_depth_mm) || 15.0,
+          current_tread_depth_mm: parseFloat(formData.current_tread_depth_mm) || 15.0,
+          purchase_cost: parseFloat(formData.purchase_cost) || 0,
+        }),
+      });
+      setIsAddOpen(false);
+      setFormData({
+        serial_number: "",
+        brand: "",
+        size: "295/90 R20",
+        vehicle_number: "",
+        axle_position: "Front Right (FR)",
+        initial_tread_depth_mm: "15.0",
+        current_tread_depth_mm: "15.0",
+        purchase_cost: "",
+        remarks: "",
+      });
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || "Failed to register tyre.");
+    }
+  };
 
   const columns: ColumnDef<TyreItem>[] = [
     {
-      key: "serial_no",
+      key: "serial_number",
       header: "Tyre Serial #",
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-[#172033]">{row.serial_no}</span>
+          <span className="font-mono font-semibold text-[#172033]">{row.serial_number}</span>
           <div className="text-xs text-[#667085]">{row.brand} ({row.size})</div>
         </div>
       ),
     },
     {
-      key: "vehicle_no",
+      key: "vehicle_number",
       header: "Mounted Vehicle & Axle",
       cell: (row) => (
         <div>
-          <span className="font-mono font-medium text-[#172033]">{row.vehicle_no}</span>
-          <div className="text-xs text-[#667085]">{row.position}</div>
+          {row.vehicle_number ? (
+            <VehiclePlate vehicleNumber={row.vehicle_number} />
+          ) : (
+            <span className="text-xs text-[#667085]">Depot Inventory</span>
+          )}
+          <div className="text-xs text-[#344054] mt-0.5">{row.axle_position || "Spare"}</div>
         </div>
       ),
     },
@@ -89,18 +123,28 @@ export default function TyreManagementPage() {
       header: "Tread Depth",
       align: "right",
       isNumeric: true,
-      cell: (row) => (
-        <span className={`font-mono font-bold ${row.current_tread_depth_mm <= 4 ? "text-rose-600" : "text-emerald-600"}`}>
-          {row.current_tread_depth_mm} mm
-        </span>
-      ),
+      cell: (row) => {
+        const isCritical = row.current_tread_depth_mm <= 4.0;
+        return (
+          <span className={`font-mono font-bold ${isCritical ? "text-rose-600" : "text-emerald-600"}`}>
+            {row.current_tread_depth_mm} mm
+          </span>
+        );
+      },
     },
     {
       key: "total_km_run",
       header: "Total KM Run",
       align: "right",
       isNumeric: true,
-      cell: (row) => <span className="font-mono text-[#172033]">{row.total_km_run.toLocaleString("en-IN")} KM</span>,
+      cell: (row) => <span className="font-mono text-[#172033]">{row.total_km_run.toLocaleString()} KM</span>,
+    },
+    {
+      key: "purchase_cost",
+      header: "Cost (₹)",
+      align: "right",
+      isNumeric: true,
+      cell: (row) => <span className="font-mono text-xs text-[#667085]">{formatCurrency(row.purchase_cost)}</span>,
     },
     {
       key: "status",
@@ -108,7 +152,13 @@ export default function TyreManagementPage() {
       cell: (row) => (
         <StatusBadge
           status={row.status.replace("_", " ")}
-          variant={row.status === "GOOD" ? "active" : "pending"}
+          variant={
+            row.status === "MOUNTED_GOOD"
+              ? "completed"
+              : row.status === "RETREAD_DUE"
+              ? "pending"
+              : "danger"
+          }
         />
       ),
     },
@@ -126,14 +176,132 @@ export default function TyreManagementPage() {
         primaryAction={{
           label: "Add New Tyre",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => {},
+          onClick: () => setIsAddOpen(true),
         }}
+        secondaryActions={[
+          {
+            label: "Refresh",
+            icon: <RefreshCw className="w-4 h-4" />,
+            variant: "outline",
+            onClick: fetchData,
+          },
+        ]}
       />
 
       <DataTable
         columns={columns}
         data={data}
+        isLoading={isLoading}
       />
+
+      {/* Add Tyre Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-md shadow-xl overflow-hidden">
+            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[#101828]">Register New Tyre</h2>
+              <button onClick={() => setIsAddOpen(false)} className="text-[#667085] hover:text-[#101828]">✕</button>
+            </div>
+            <form onSubmit={handleCreate} className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Tyre Serial Number *</label>
+                <Input
+                  required
+                  placeholder="e.g. MRF-99210-A"
+                  value={formData.serial_number}
+                  onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Brand *</label>
+                  <Input
+                    required
+                    placeholder="e.g. MRF / Apollo / JK"
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Size *</label>
+                  <Input
+                    required
+                    placeholder="e.g. 295/90 R20"
+                    value={formData.size}
+                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Mounted Vehicle</label>
+                  <Input
+                    placeholder="e.g. MH-12-RN-4821"
+                    value={formData.vehicle_number}
+                    onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Axle Position</label>
+                  <select
+                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                    value={formData.axle_position}
+                    onChange={(e) => setFormData({ ...formData, axle_position: e.target.value })}
+                  >
+                    <option value="Front Right (FR)">Front Right (FR)</option>
+                    <option value="Front Left (FL)">Front Left (FL)</option>
+                    <option value="Rear Axle 1 Inner (R1I)">Rear Axle 1 Inner (R1I)</option>
+                    <option value="Rear Axle 1 Outer (R1O)">Rear Axle 1 Outer (R1O)</option>
+                    <option value="Rear Axle 2 Inner (R2I)">Rear Axle 2 Inner (R2I)</option>
+                    <option value="Rear Axle 2 Outer (R2O)">Rear Axle 2 Outer (R2O)</option>
+                    <option value="Spare">Spare</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Tread Depth (mm)</label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={formData.current_tread_depth_mm}
+                    onChange={(e) => setFormData({ ...formData, current_tread_depth_mm: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#344054]">Purchase Cost (₹)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.purchase_cost}
+                    onChange={(e) => setFormData({ ...formData, purchase_cost: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+                <Input
+                  placeholder="Installation notes, rim specs, or retread count"
+                  value={formData.remarks}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
+                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Register Tyre</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

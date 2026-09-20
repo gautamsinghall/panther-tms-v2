@@ -9,12 +9,17 @@ export interface ConfirmDialogProps {
   onClose: () => void;
   onConfirm: () => void | Promise<void>;
   title: string;
-  consequence: string;
+  consequence?: string;
+  description?: string;
   entityName?: string;
   confirmLabel?: string;
+  confirmText?: string;
   cancelLabel?: string;
+  cancelText?: string;
   variant?: "danger" | "warning";
   isLoading?: boolean;
+  disabled?: boolean;
+  children?: React.ReactNode;
 }
 
 /**
@@ -27,12 +32,21 @@ export function ConfirmDialog({
   onConfirm,
   title,
   consequence,
+  description,
   entityName,
-  confirmLabel = "Deactivate",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  confirmText,
+  cancelLabel,
+  cancelText,
   variant = "danger",
   isLoading = false,
+  disabled = false,
+  children,
 }: ConfirmDialogProps) {
+  const desc = consequence || description;
+  const cLabel = confirmText || confirmLabel || "Confirm";
+  const canLabel = cancelText || cancelLabel || "Cancel";
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen && !isLoading) {
@@ -81,9 +95,16 @@ export function ConfirmDialog({
                   {entityName}
                 </div>
               )}
-              <p className="text-xs text-[#667085] leading-relaxed">
-                {consequence}
-              </p>
+              {desc && (
+                <p className="text-xs text-[#667085] leading-relaxed">
+                  {desc}
+                </p>
+              )}
+              {children && (
+                <div className="pt-3">
+                  {children}
+                </div>
+              )}
             </div>
 
             {!isLoading && (
@@ -105,15 +126,16 @@ export function ConfirmDialog({
               onClick={onClose}
               disabled={isLoading}
             >
-              {cancelLabel}
+              {canLabel}
             </Button>
             <Button
               variant={variant === "danger" ? "danger" : "primary"}
               size="sm"
               onClick={onConfirm}
               isLoading={isLoading}
+              disabled={disabled || isLoading}
             >
-              {confirmLabel}
+              {cLabel}
             </Button>
           </div>
         </div>

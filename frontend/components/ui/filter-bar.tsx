@@ -1,6 +1,5 @@
 import React from "react";
 import { Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface FilterOption {
@@ -28,8 +27,8 @@ export interface FilterBarProps {
 }
 
 /**
- * FilterBar pattern per docs/design.md §8 & §14:
- * [ Search... ] [ Status ] [ Option... ] [ Clear ]
+ * FilterBar pattern per docs/design.md §4:
+ * [ Search... ] [ Filter ▼ ] [ Clear ]
  */
 export function FilterBar({
   searchValue = "",
@@ -50,7 +49,7 @@ export function FilterBar({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-card border border-[#E4E7EC] shadow-card",
+        "flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-card border border-[#E4E7EC]",
         className
       )}
     >
@@ -58,19 +57,19 @@ export function FilterBar({
       <div className="flex flex-wrap items-center gap-2.5 flex-1">
         {onSearchChange && (
           <div className="relative w-full sm:w-64 md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#98A2B3] pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#667085] pointer-events-none" />
             <input
               type="text"
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-control border border-[#E4E7EC] bg-[#F7F8FA] text-[#172033] placeholder:text-[#98A2B3] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#172033] focus:border-[#172033] transition-colors"
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-control border border-[#E4E7EC] bg-white text-[#101828] placeholder:text-[#667085] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors"
             />
             {searchValue && (
               <button
                 type="button"
                 onClick={() => onSearchChange("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#98A2B3] hover:text-[#172033]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#667085] hover:text-[#101828]"
                 title="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -86,9 +85,9 @@ export function FilterBar({
               value={filter.value}
               onChange={(e) => filter.onChange(e.target.value)}
               className={cn(
-                "h-8 px-2.5 pr-7 text-xs rounded-control border bg-white text-[#172033] focus:outline-none focus:ring-1 focus:ring-[#172033] appearance-none cursor-pointer transition-colors",
+                "h-8 px-2.5 pr-7 text-xs rounded-control border bg-white text-[#101828] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] appearance-none cursor-pointer transition-colors",
                 filter.value && filter.value !== "ALL" && filter.value !== ""
-                  ? "border-[#C9A227] font-semibold bg-[#F8F1D9]/30"
+                  ? "border-[#4F46E5] font-medium bg-[#EEF2FF] text-[#4338CA]"
                   : "border-[#E4E7EC] text-[#667085]"
               )}
             >
@@ -99,7 +98,7 @@ export function FilterBar({
                 </option>
               ))}
             </select>
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#98A2B3] text-[10px]">
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#667085] text-[10px]">
               ▼
             </div>
           </div>
@@ -110,7 +109,7 @@ export function FilterBar({
           <button
             type="button"
             onClick={onClear}
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-[#DC2626] hover:bg-[#FEF2F2] rounded-control transition-colors font-medium"
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-[#B42318] hover:bg-[#FEF3F2] rounded-control transition-colors font-medium"
           >
             <RotateCcw className="w-3 h-3" />
             <span>Clear filters</span>

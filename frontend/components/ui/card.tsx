@@ -5,7 +5,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        "rounded-card border border-[#E4E7EC] bg-white shadow-card transition-all duration-150",
+        "rounded-card border border-[#E4E7EC] bg-white transition-all duration-150",
         className
       )}
       {...props}
@@ -17,10 +17,15 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
   return <div className={cn("flex flex-col space-y-1.5 p-5 border-b border-[#E4E7EC]", className)} {...props} />;
 }
 
-export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+export interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  as?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+}
+
+export function CardTitle({ className, as: Component = "h2", ...props }: CardTitleProps) {
+  const Tag = Component;
   return (
-    <h3
-      className={cn("text-base font-semibold leading-none tracking-tight text-[#172033]", className)}
+    <Tag
+      className={cn("text-base font-semibold leading-none tracking-tight text-[#101828]", className)}
       {...props}
     />
   );

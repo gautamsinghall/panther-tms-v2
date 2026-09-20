@@ -8,7 +8,8 @@ import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Form } from "@/components/forms/form";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -88,9 +89,7 @@ export default function CompanyVehiclesPage() {
       header: "Registration Number",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-[#172033] uppercase">
-          {row.vehicle_number}
-        </span>
+        <VehiclePlate vehicleNumber={row.vehicle_number} source="COMPANY" />
       ),
     },
     {
@@ -98,7 +97,7 @@ export default function CompanyVehiclesPage() {
       header: "Vehicle Type",
       sortable: true,
       cell: (row) => (
-        <span className="text-xs font-medium text-[#172033]">
+        <span className="text-xs font-medium text-[#101828]">
           {row.vehicle_type}
         </span>
       ),

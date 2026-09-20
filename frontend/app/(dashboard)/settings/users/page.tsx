@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, UserPlus, Shield, UserCheck, UserX, Trash2 } from "lucide-react";
+import { Plus, Shield, UserPlus, Trash2 } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Form } from "@/components/forms/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -31,7 +33,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -63,10 +65,10 @@ export default function UsersPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <div className="font-semibold text-slate-900 dark:text-slate-100">
+          <div className="font-semibold text-text-primary">
             {row.full_name}
           </div>
-          <div className="text-xs text-slate-500 font-mono">
+          <div className="text-xs text-text-muted font-mono">
             {row.email}
           </div>
         </div>
@@ -85,7 +87,7 @@ export default function UsersPage() {
           );
         }
         return (
-          <Badge variant="secondary" className="font-medium text-xs">
+          <Badge variant="neutral" className="font-medium text-xs">
             {row.role_name || "Employee (Default)"}
           </Badge>
         );
@@ -106,7 +108,7 @@ export default function UsersPage() {
       header: "Created On",
       sortable: true,
       cell: (row) => (
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-text-muted">
           {new Date(row.created_at).toLocaleDateString()}
         </span>
       ),
@@ -140,10 +142,8 @@ export default function UsersPage() {
 
   const formSections: FormSectionDef[] = [
     {
-      id: "user_info",
       title: "Employee Credentials",
       description: "Basic identity and authentication credentials",
-      columns: 2,
       fields: [
         {
           name: "full_name",
@@ -194,7 +194,7 @@ export default function UsersPage() {
         body: JSON.stringify(payload),
       });
 
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to create user.");
@@ -205,72 +205,56 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            User Management
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage company employees, operators, and their access privileges.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          Add Employee
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
-
-      {/* User Directory Table */}
-      <DataTable
-        columns={columns}
-        data={users}
-        isLoading={isLoading}
-        actions={actions}
-        searchPlaceholder="Search by name, email, or role..."
+      <PageHeader
+        title="User Management"
+        description="Manage company employees, operators, and their access privileges."
+        breadcrumbs={[
+          { label: "Settings" },
+          { label: "User Management" },
+        ]}
+        actions={
+          <Button
+            onClick={() => setIsDrawerOpen(true)}
+            className="gap-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Employee
+          </Button>
+        }
       />
 
-      {/* Add User Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Add New Employee
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreateUser}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Create Employee"
-              isLoading={isSubmitting}
-            />
-          </div>
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
+          <span>{errorMessage}</span>
+          <button onClick={() => setErrorMessage(null)} className="text-danger hover:opacity-80">×</button>
         </div>
       )}
+
+      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
+        <DataTable
+          columns={columns}
+          data={users}
+          isLoading={isLoading}
+          actions={actions}
+          searchPlaceholder="Search by name, email, or role..."
+          searchColumn="full_name"
+        />
+      </div>
+
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Add New Employee"
+        description="Create user profile and configure role-based access permissions."
+        size="md"
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreateUser}
+          submitLabel="Create Employee"
+          isSubmitting={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     DEMO_ADMIN_EMAIL: str = "admin@demo.com"
     DEMO_ADMIN_PASSWORD: str = "PantherTMS@2026!"
 
+    # Razorpay Payments & Subscriptions (Phase 6)
+    RAZORPAY_KEY_ID: str = "rzp_test_panther_tms"
+    RAZORPAY_KEY_SECRET: str = "rzp_secret_panther_tms_secure"
+    RAZORPAY_WEBHOOK_SECRET: str = "rzp_webhook_secret_panther_2026"
+    RAZORPAY_GRACE_PERIOD_DAYS: int = 7
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

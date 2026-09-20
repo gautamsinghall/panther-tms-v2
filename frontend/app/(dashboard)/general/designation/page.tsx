@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -20,16 +22,20 @@ interface DesignationRecord {
 export default function DesignationPage() {
   const [data, setData] = useState<DesignationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
+    setErrorMessage(null);
     try {
       const res = await apiClient<DesignationRecord[]>("/api/v1/general/designations");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load designations.");
     } finally {
       setIsLoading(false);
@@ -45,39 +51,39 @@ export default function DesignationPage() {
       key: "title",
       header: "Designation Title",
       sortable: true,
-      cell: (row) => <span className="font-semibold text-slate-900 dark:text-slate-100">{row.title}</span>,
+      cell: (row) => <span className="font-semibold text-[#101828]">{row.title}</span>,
     },
     {
       key: "department",
       header: "Department",
       sortable: true,
-      cell: (row) => <span className="text-xs text-slate-600">{row.department || "-"}</span>,
+      cell: (row) => <span className="text-xs text-[#344054]">{row.department || "-"}</span>,
     },
     {
       key: "description",
       header: "Description",
-      cell: (row) => <span className="text-xs text-slate-500">{row.description || "-"}</span>,
+      cell: (row) => <span className="text-xs text-[#667085]">{row.description || "-"}</span>,
     },
     {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />,
     },
   ];
 
   const actions: RowAction<DesignationRecord>[] = [
     {
       label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
-        if (!confirm(`Deactivate ${row.title}?`)) return;
+        if (!confirm(`Are you sure you want to deactivate ${row.title}?`)) return;
         try {
           await apiClient(`/api/v1/general/designations/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate.");
+          alert(err.message || "Failed to deactivate designation.");
         }
       },
     },
@@ -85,13 +91,28 @@ export default function DesignationPage() {
 
   const formSections: FormSectionDef[] = [
     {
-      id: "des_info",
+      id: "designation_info",
       title: "Designation Details",
+      description: "Employee role definition",
       columns: 2,
       fields: [
-        { name: "title", label: "Designation Title", placeholder: "e.g. Senior Logistics Officer", required: true },
-        { name: "department", label: "Department", placeholder: "e.g. Operations / Accounts" },
-        { name: "description", label: "Description / Responsibilities", type: "textarea", colSpan: 2 },
+        {
+          name: "title",
+          label: "Designation Title",
+          placeholder: "e.g. Branch Operations Manager",
+          required: true,
+          colSpan: 2,
+        },
+        {
+          name: "department",
+          label: "Department",
+          placeholder: "e.g. Operations / Fleet",
+        },
+        {
+          name: "description",
+          label: "Role Scope",
+          placeholder: "Key operational responsibilities",
+        },
       ],
     },
   ];
@@ -99,8 +120,11 @@ export default function DesignationPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/general/designations", { method: "POST", body: JSON.stringify(values) });
-      setIsModalOpen(false);
+      await apiClient("/api/v1/general/designations", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to create designation.");
@@ -111,28 +135,51 @@ export default function DesignationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Designations</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage job roles and titles across branches.</p>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)} className="gap-1.5 text-xs font-semibold">
-          <Plus className="w-3.5 h-3.5" /> Add Designation
-        </Button>
-      </div>
-      {errorMessage && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">{errorMessage}</div>}
-      <DataTable columns={columns} data={data} isLoading={isLoading} actions={actions} searchPlaceholder="Search designations..." />
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-6 shadow-xl border space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold">Create Designation</h3>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
-            </div>
-            <Form sections={formSections} onSubmit={handleCreate} onCancel={() => setIsModalOpen(false)} submitLabel="Create Designation" isLoading={isSubmitting} />
-          </div>
-        </div>
-      )}
+      <PageHeader
+        title="Designations"
+        description="Manage company job positions and operational roles."
+        breadcrumbs={[
+          { label: "General", href: "/general/designation" },
+          { label: "Designations" },
+        ]}
+        primaryAction={{
+          label: "Add Designation",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        actions={actions}
+        searchPlaceholder="Search designations by title or department..."
+        emptyMessage="No designations configured"
+        emptySubtext="Create designation titles to assign to drivers, managers, and staff."
+        emptyAction={{
+          label: "Add Designation",
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Create New Designation"
+        description="Add a staff role in the company hierarchy."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Create Designation"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

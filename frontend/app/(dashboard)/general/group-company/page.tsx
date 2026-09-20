@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2, Building } from "lucide-react";
+import { Plus, Trash2, Building2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -22,16 +24,20 @@ interface GroupCompanyRecord {
 export default function GroupCompanyPage() {
   const [data, setData] = useState<GroupCompanyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
+    setErrorMessage(null);
     try {
       const res = await apiClient<GroupCompanyRecord[]>("/api/v1/general/group-companies");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load group companies.");
     } finally {
       setIsLoading(false);
@@ -45,11 +51,11 @@ export default function GroupCompanyPage() {
   const columns: ColumnDef<GroupCompanyRecord>[] = [
     {
       key: "company_name",
-      header: "Company Trade Name",
+      header: "Trade Name",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-          <Building className="w-3.5 h-3.5 text-indigo-500" />
+        <span className="font-semibold text-[#101828] flex items-center gap-1.5">
+          <Building2 className="w-3.5 h-3.5 text-[#4F46E5]" />
           {row.company_name}
         </span>
       ),
@@ -58,42 +64,55 @@ export default function GroupCompanyPage() {
       key: "legal_name",
       header: "Legal Registered Name",
       sortable: true,
-      cell: (row) => <span className="text-xs text-slate-600">{row.legal_name || "-"}</span>,
+      cell: (row) => <span className="text-xs text-[#344054]">{row.legal_name || "-"}</span>,
     },
     {
       key: "gstin",
       header: "GSTIN",
       cell: (row) => (
-        <span className="font-mono text-xs uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+        <span className="font-mono text-xs uppercase bg-[#F8F9FB] border border-[#E4E7EC] px-1.5 py-0.5 rounded-[4px] text-[#344054]">
           {row.gstin || "-"}
+        </span>
+      ),
+    },
+    {
+      key: "pan",
+      header: "PAN",
+      cell: (row) => (
+        <span className="font-mono text-xs uppercase text-[#667085]">
+          {row.pan || "-"}
         </span>
       ),
     },
     {
       key: "cin",
       header: "CIN",
-      cell: (row) => <span className="font-mono text-xs text-slate-500">{row.cin || "-"}</span>,
+      cell: (row) => (
+        <span className="font-mono text-[11px] text-[#667085]">
+          {row.cin || "-"}
+        </span>
+      ),
     },
     {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />,
     },
   ];
 
   const actions: RowAction<GroupCompanyRecord>[] = [
     {
       label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
-        if (!confirm(`Deactivate ${row.company_name}?`)) return;
+        if (!confirm(`Are you sure you want to deactivate ${row.company_name}?`)) return;
         try {
           await apiClient(`/api/v1/general/group-companies/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate.");
+          alert(err.message || "Failed to deactivate company.");
         }
       },
     },
@@ -101,17 +120,40 @@ export default function GroupCompanyPage() {
 
   const formSections: FormSectionDef[] = [
     {
-      id: "group_info",
+      id: "company_info",
       title: "Group Company Entity",
-      description: "Entity sharing this TMS account subscription",
+      description: "Sister companies and sister business entities",
       columns: 2,
       fields: [
-        { name: "company_name", label: "Trade Name", placeholder: "e.g. Panther Fleet Lines", required: true },
-        { name: "legal_name", label: "Legal Entity Name", placeholder: "e.g. Panther Fleet Lines Pvt Ltd" },
-        { name: "gstin", label: "GSTIN", placeholder: "27AAACP1234F1Z9" },
-        { name: "pan", label: "PAN", placeholder: "AAACP1234F" },
-        { name: "cin", label: "Corporate Identification Number (CIN)", placeholder: "U60200MH2020PTC123456" },
-        { name: "registered_address", label: "Registered Office Address", type: "textarea", colSpan: 2 },
+        {
+          name: "company_name",
+          label: "Operating Trade Name",
+          placeholder: "e.g. Panther Logistics South Ltd",
+          required: true,
+          colSpan: 2,
+        },
+        {
+          name: "legal_name",
+          label: "Legal Registered Name",
+          placeholder: "e.g. Panther Logistics South Private Limited",
+          colSpan: 2,
+        },
+        {
+          name: "gstin",
+          label: "GSTIN",
+          placeholder: "27AAACT2727Q1ZW",
+        },
+        {
+          name: "pan",
+          label: "PAN",
+          placeholder: "AAACT2727Q",
+        },
+        {
+          name: "cin",
+          label: "Corporate Identity (CIN)",
+          placeholder: "U60200MH2026PTC123456",
+          colSpan: 2,
+        },
       ],
     },
   ];
@@ -119,8 +161,11 @@ export default function GroupCompanyPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/general/group-companies", { method: "POST", body: JSON.stringify(values) });
-      setIsModalOpen(false);
+      await apiClient("/api/v1/general/group-companies", {
+        method: "POST",
+        body: JSON.stringify(values),
+      });
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to create group company.");
@@ -131,28 +176,51 @@ export default function GroupCompanyPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Group Companies</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manage sister logistics firms under your subscription.</p>
-        </div>
-        <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)} className="gap-1.5 text-xs font-semibold">
-          <Plus className="w-3.5 h-3.5" /> Add Group Company
-        </Button>
-      </div>
-      {errorMessage && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">{errorMessage}</div>}
-      <DataTable columns={columns} data={data} isLoading={isLoading} actions={actions} searchPlaceholder="Search group companies..." />
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-xl w-full p-6 shadow-xl border space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold">Create Group Company</h3>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
-            </div>
-            <Form sections={formSections} onSubmit={handleCreate} onCancel={() => setIsModalOpen(false)} submitLabel="Create Group Company" isLoading={isSubmitting} />
-          </div>
-        </div>
-      )}
+      <PageHeader
+        title="Group Companies"
+        description="Manage multi-entity legal business divisions under one subscription."
+        breadcrumbs={[
+          { label: "General", href: "/general/group-company" },
+          { label: "Group Companies" },
+        ]}
+        primaryAction={{
+          label: "Add Company",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        actions={actions}
+        searchPlaceholder="Search by trade name, legal name, GSTIN..."
+        emptyMessage="No group entities registered"
+        emptySubtext="Add multi-company entities to bill from multiple GST accounts."
+        emptyAction={{
+          label: "Add Company",
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Create Group Company Entity"
+        description="Register a legal trading company for invoice series."
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Create Entity"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

@@ -1,10 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, X, Receipt, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye } from "lucide-react";
+import { Plus, Receipt, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -44,7 +47,7 @@ export default function GeneralInvoicePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Create Modal state
+  // Create Drawer state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [partyName, setPartyName] = useState("");
   const [refNumber, setRefNumber] = useState("");
@@ -53,13 +56,13 @@ export default function GeneralInvoicePage() {
   const [narration, setNarration] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Void Modal state
+  // Void Dialog state
   const [isVoidOpen, setIsVoidOpen] = useState(false);
   const [voidVoucherId, setVoidVoucherId] = useState<number | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [isVoiding, setIsVoiding] = useState(false);
 
-  // View Ledger state
+  // View Ledger Drawer state
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
 
   const loadData = async () => {
@@ -118,8 +121,7 @@ export default function GeneralInvoicePage() {
     }
   };
 
-  const handleVoidVoucher = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
       alert("Void reason must be at least 10 characters as per audit rules.");
@@ -166,15 +168,10 @@ export default function GeneralInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+          <span className="font-mono font-semibold text-text-primary flex items-center gap-2">
             {row.voucher_number}
-            {row.is_void && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 rounded">
-                VOIDED
-              </span>
-            )}
           </span>
-          <span className="block text-[11px] text-slate-400">{row.voucher_date}</span>
+          <span className="block text-xs text-text-muted mt-0.5">{row.voucher_date}</span>
         </div>
       ),
     },
@@ -183,11 +180,11 @@ export default function GeneralInvoicePage() {
       header: "Customer / Party",
       cell: (row) => (
         <div>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">
+          <span className="font-medium text-text-primary">
             {row.party_name || "Direct Customer"}
           </span>
           {row.reference_number && (
-            <span className="block font-mono text-[11px] text-slate-400">
+            <span className="block font-mono text-xs text-text-muted mt-0.5">
               Ref: {row.reference_number}
             </span>
           )}
@@ -201,10 +198,10 @@ export default function GeneralInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div className="text-right">
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-            ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          <span className="font-mono font-semibold text-text-primary text-sm tabular-nums">
+            ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className="block text-[11px] text-slate-400">
+          <span className="block text-xs text-text-muted mt-0.5 tabular-nums">
             Tax: ₹{Number(row.tax_amount).toFixed(2)}
           </span>
         </div>
@@ -213,7 +210,6 @@ export default function GeneralInvoicePage() {
     {
       key: "irn_status",
       header: "IRN Status",
-      align: "center",
       cell: (row) => {
         if (row.irn_status === "GENERATED") {
           return (
@@ -228,6 +224,16 @@ export default function GeneralInvoicePage() {
         }
         return <Badge variant="neutral">Not Generated</Badge>;
       },
+    },
+    {
+      key: "is_void",
+      header: "Status",
+      cell: (row) => (
+        <StatusBadge
+          status={row.is_void ? "VOIDED" : "POSTED"}
+          variant={row.is_void ? "danger" : "success"}
+        />
+      ),
     },
   ];
 
@@ -259,44 +265,41 @@ export default function GeneralInvoicePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <Receipt className="w-6 h-6 text-[var(--color-primary)]" />
-            General Invoices
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Bill non-freight revenue, ancillary services, and warehousing fees with automatic double-entry accounting.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
+      <PageHeader
+        title="General Invoices"
+        description="Bill non-freight revenue, ancillary services, and warehousing fees with automatic double-entry accounting."
+        breadcrumbs={[
+          { label: "Accounts", href: "/accounts" },
+          { label: "General Invoices" },
+        ]}
+        actions={
           <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
             <Plus className="w-4 h-4" />
             New General Invoice
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="ml-auto text-rose-400 hover:text-rose-600">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button onClick={() => setErrorMessage(null)} className="text-danger hover:opacity-80">×</button>
         </div>
       )}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{successMessage}</span>
-          <button onClick={() => setSuccessMessage(null)} className="ml-auto text-emerald-400 hover:text-emerald-600">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="p-4 rounded-xl bg-success-light border border-success/20 text-success text-sm flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button onClick={() => setSuccessMessage(null)} className="text-success hover:opacity-80">×</button>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
+      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
         <DataTable
           columns={columns}
           data={data}
@@ -307,232 +310,207 @@ export default function GeneralInvoicePage() {
         />
       </div>
 
-      {/* Create Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-[var(--color-primary)]" />
-                New General Invoice
-              </h3>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateInvoice} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Customer / Party Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Paramount Logistics"
-                  value={partyName}
-                  onChange={(e) => setPartyName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Reference / PO Number
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. PO-8921"
-                  value={refNumber}
-                  onChange={(e) => setRefNumber(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Taxable Amount (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={totalAmount}
-                    onChange={(e) => setTotalAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Tax Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={taxAmount}
-                    onChange={(e) => setTaxAmount(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Narration / Remarks
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Invoice notes..."
-                  value={narration}
-                  onChange={(e) => setNarration(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Posting..." : "Create & Post"}
-                </Button>
-              </div>
-            </form>
+      {/* Create Invoice Drawer */}
+      <EntityDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="New General Invoice"
+        description="Non-freight billing with double-entry revenue and tax ledgers"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="general-invoice-form"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Posting..." : "Create & Post"}
+            </Button>
           </div>
-        </div>
-      )}
-
-      {/* Void Modal */}
-      {isVoidOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <Ban className="w-5 h-5" />
-                Void Voucher #{voidVoucherId}
-              </h3>
-              <button onClick={() => setIsVoidOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleVoidVoucher} className="p-6 space-y-4">
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Non-destructive voiding per §7: Automated reversing ledger entries will be created immediately.
-              </p>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Reason for Voiding * (Min 10 chars)
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Explain why this invoice is being voided..."
-                  value={voidReason}
-                  onChange={(e) => setVoidReason(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsVoidOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="danger" disabled={isVoiding || voidReason.trim().length < 10}>
-                  {isVoiding ? "Voiding..." : "Confirm Void Entry"}
-                </Button>
-              </div>
-            </form>
+        }
+      >
+        <form id="general-invoice-form" onSubmit={handleCreateInvoice} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-text-primary mb-1">
+              Customer / Party Name *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Paramount Logistics"
+              value={partyName}
+              onChange={(e) => setPartyName(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            />
           </div>
-        </div>
-      )}
 
-      {/* View Ledger Modal */}
-      {selectedVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-[var(--color-primary)]" />
-                  Double-Entry Ledger: {selectedVoucher.voucher_number}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Total Amount: ₹{Number(selectedVoucher.net_amount).toFixed(2)} | Date: {selectedVoucher.voucher_date}
-                </p>
-              </div>
-              <button onClick={() => setSelectedVoucher(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
+          <div>
+            <label className="block text-xs font-semibold text-text-primary mb-1">
+              Reference / PO Number
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. PO-8921"
+              value={refNumber}
+              onChange={(e) => setRefNumber(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Taxable Amount (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="0.00"
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Tax Amount (₹)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={taxAmount}
+                onChange={(e) => setTaxAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-text-primary mb-1">
+              Narration / Remarks
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Invoice notes..."
+              value={narration}
+              onChange={(e) => setNarration(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </form>
+      </EntityDrawer>
+
+      {/* Double-Entry Ledger Drawer */}
+      <EntityDrawer
+        isOpen={Boolean(selectedVoucher)}
+        onClose={() => setSelectedVoucher(null)}
+        title={`Ledger: ${selectedVoucher?.voucher_number || ""}`}
+        description={`Double-entry audit breakdown • ${selectedVoucher?.voucher_date || ""}`}
+        size="lg"
+        footer={
+          <div className="flex justify-end w-full">
+            <Button variant="outline" onClick={() => setSelectedVoucher(null)}>
+              Close Audit
+            </Button>
+          </div>
+        }
+      >
+        {selectedVoucher && (
+          <div className="space-y-4">
+            <div className="p-3.5 bg-surface-secondary rounded-xl border border-border flex items-center justify-between text-xs">
+              <span className="text-text-muted">Total Invoice Amount</span>
+              <span className="font-mono font-bold text-sm text-text-primary tabular-nums">
+                ₹{Number(selectedVoucher.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
-                    <tr>
-                      <th className="px-4 py-2.5">Account</th>
-                      <th className="px-4 py-2.5">Type</th>
-                      <th className="px-4 py-2.5 text-right">Debit (Dr)</th>
-                      <th className="px-4 py-2.5 text-right">Credit (Cr)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {selectedVoucher.ledger_entries.map((entry) => (
-                      <tr key={entry.id} className={entry.is_reversal ? "bg-rose-50/50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-200" : ""}>
-                        <td className="px-4 py-2.5 font-medium">
-                          {entry.account_name || `Account #${entry.account_id}`}
-                          {entry.is_reversal && (
-                            <span className="ml-2 text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">
-                              [Reversal]
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-500">
-                          {Number(entry.debit_amount) > 0 ? "Debit" : "Credit"}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right">
-                          {Number(entry.debit_amount) > 0 ? `₹${Number(entry.debit_amount).toFixed(2)}` : "-"}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right">
-                          {Number(entry.credit_amount) > 0 ? `₹${Number(entry.credit_amount).toFixed(2)}` : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-slate-50 dark:bg-slate-800 font-bold border-t border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
-                    <tr>
-                      <td colSpan={2} className="px-4 py-2.5 text-right">Total Balance:</td>
-                      <td className="px-4 py-2.5 font-mono text-right text-emerald-600">
-                        ₹{selectedVoucher.ledger_entries.reduce((sum, e) => sum + Number(e.debit_amount), 0).toFixed(2)}
+            <div className="border border-border rounded-xl overflow-hidden">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-surface-secondary text-text-secondary font-semibold border-b border-border">
+                  <tr>
+                    <th className="px-4 py-2.5">Account</th>
+                    <th className="px-4 py-2.5">Type</th>
+                    <th className="px-4 py-2.5 text-right">Debit (Dr)</th>
+                    <th className="px-4 py-2.5 text-right">Credit (Cr)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {selectedVoucher.ledger_entries.map((entry) => (
+                    <tr key={entry.id} className={entry.is_reversal ? "bg-danger-light/30 text-danger" : ""}>
+                      <td className="px-4 py-2.5 font-medium text-text-primary">
+                        {entry.account_name || `Account #${entry.account_id}`}
+                        {entry.is_reversal && (
+                          <span className="ml-2 text-[10px] font-bold text-danger uppercase">
+                            [Reversal]
+                          </span>
+                        )}
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-right text-emerald-600">
-                        ₹{selectedVoucher.ledger_entries.reduce((sum, e) => sum + Number(e.credit_amount), 0).toFixed(2)}
+                      <td className="px-4 py-2.5 text-text-muted">
+                        {Number(entry.debit_amount) > 0 ? "Debit" : "Credit"}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-right tabular-nums">
+                        {Number(entry.debit_amount) > 0 ? `₹${Number(entry.debit_amount).toFixed(2)}` : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-right tabular-nums">
+                        {Number(entry.credit_amount) > 0 ? `₹${Number(entry.credit_amount).toFixed(2)}` : "—"}
                       </td>
                     </tr>
-                  </tfoot>
-                </table>
+                  ))}
+                </tbody>
+                <tfoot className="bg-surface-secondary font-semibold border-t border-border text-text-primary">
+                  <tr>
+                    <td colSpan={2} className="px-4 py-2.5 text-right">Total:</td>
+                    <td className="px-4 py-2.5 font-mono text-right text-success tabular-nums">
+                      ₹{selectedVoucher.ledger_entries.reduce((sum, e) => sum + Number(e.debit_amount), 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-right text-success tabular-nums">
+                      ₹{selectedVoucher.ledger_entries.reduce((sum, e) => sum + Number(e.credit_amount), 0).toFixed(2)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {selectedVoucher.is_void && (
+              <div className="p-3 bg-danger-light border border-danger/20 rounded-xl text-danger text-xs">
+                <strong>Void Reason:</strong> {selectedVoucher.void_reason}
               </div>
-
-              {selectedVoucher.is_void && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs">
-                  <strong>Void Reason:</strong> {selectedVoucher.void_reason}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end p-4 border-t border-slate-100 dark:border-slate-800">
-              <Button variant="outline" onClick={() => setSelectedVoucher(null)}>
-                Close
-              </Button>
-            </div>
+            )}
           </div>
+        )}
+      </EntityDrawer>
+
+      {/* Void Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={isVoidOpen}
+        onClose={() => setIsVoidOpen(false)}
+        onConfirm={handleVoidVoucher}
+        title={`Void Voucher #${voidVoucherId || ""}`}
+        description="Non-destructive voiding per §7: Automated reversing ledger entries will be created immediately. This action cannot be undone."
+        confirmText="Confirm Void Entry"
+        variant="danger"
+        isLoading={isVoiding}
+        disabled={voidReason.trim().length < 10}
+      >
+        <div className="mt-4">
+          <label className="block text-xs font-semibold text-text-primary mb-1">
+            Reason for Voiding * (Min 10 characters)
+          </label>
+          <textarea
+            required
+            rows={3}
+            placeholder="Explain why this invoice is being voided..."
+            value={voidReason}
+            onChange={(e) => setVoidReason(e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-danger/20"
+          />
         </div>
-      )}
+      </ConfirmDialog>
     </div>
   );
 }

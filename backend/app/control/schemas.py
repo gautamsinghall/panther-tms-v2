@@ -47,7 +47,38 @@ class TenantResponse(BaseModel):
     status: str
     admin_email: str
     plan_id: int
+    subscription_id: Optional[str] = None
+    subscription_status: Optional[str] = "ACTIVE"
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SignupInitiateRequest(BaseModel):
+    subdomain: str = Field(..., min_length=2, max_length=63, pattern="^[a-z0-9-]+$")
+    company_name: str = Field(..., min_length=2, max_length=255)
+    admin_email: EmailStr
+    admin_password: str = Field(..., min_length=8)
+    admin_full_name: str = Field(default="Company Admin")
+    plan_code: str = Field(default="FREE")
+    billing_cycle: str = Field(default="monthly", pattern="^(monthly|yearly)$")
+
+
+class SignupInitiateResponse(BaseModel):
+    requires_payment: bool
+    tenant: Optional[TenantResponse] = None
+    subscription_id: Optional[str] = None
+    razorpay_key_id: Optional[str] = None
+    plan_code: str
+    amount: float
+    subdomain: str
+    redirect_url: Optional[str] = None
+    message: str
+
+
+class SignupCompleteRequest(BaseModel):
+    subdomain: str = Field(..., min_length=2, max_length=63)
+    subscription_id: str
+    payment_id: str
+    signature: str
