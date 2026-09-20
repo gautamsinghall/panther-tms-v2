@@ -1,38 +1,97 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { User, Mail, Shield, Key, Clock, CheckCircle2 } from "lucide-react";
+import { User, Mail, Shield, Key, Clock, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
-import { getStoredAuth } from "@/lib/auth";
+import { getStoredAuth, setStoredAuth } from "@/lib/auth";
+import { apiClient } from "@/lib/api-client";
+
+interface UserProfileData {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string;
+  phone?: string | null;
+  designation?: string | null;
+  is_active: boolean;
+  created_at: string;
+}
 
 export default function UserAccountPage() {
   const [authData, setAuthData] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("+91 98765 43210");
-  const [designation, setDesignation] = useState("Operations Director");
+  const [phone, setPhone] = useState("");
+  const [designation, setDesignation] = useState("");
   const [saved, setSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = getStoredAuth();
-    if (auth) {
-      setAuthData(auth);
-      setFullName(auth.user?.full_name || "Company Admin");
-      setEmail(auth.user?.email || "admin@demo.com");
-    } else {
-      setFullName("Company Admin");
-      setEmail("admin@demo.com");
+    if (auth) setAuthData(auth);
+
+    async function loadProfile() {
+      setIsLoading(true);
+      try {
+        const data = await apiClient<UserProfileData>("/api/v1/profile/account");
+        if (data) {
+          setProfile(data);
+          setFullName(data.full_name || "");
+          setEmail(data.email || "");
+          setPhone(data.phone || "");
+          setDesignation(data.designation || "");
+        }
+      } catch (err: any) {
+        // Fallback to authData
+        if (auth) {
+          setFullName(auth.user?.full_name || "Company Admin");
+          setEmail(auth.user?.email || "admin@demo.com");
+        }
+      } finally {
+        setIsLoading(false);
+      }
     }
+
+    loadProfile();
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setIsSaving(true);
+    setError(null);
+    try {
+      const updated = await apiClient<UserProfileData>("/api/v1/profile/account", {
+        method: "PUT",
+        body: JSON.stringify({
+          full_name: fullName,
+          phone: phone || null,
+          designation: designation || null,
+        }),
+      });
+
+      setProfile(updated);
+      setSaved(true);
+
+      // Update stored auth
+      const currentAuth = getStoredAuth();
+      if (currentAuth) {
+        currentAuth.user.full_name = fullName;
+        setStoredAuth(currentAuth);
+      }
+
+      setTimeout(() => setSaved(false), 3500);
+    } catch (err: any) {
+      setError(err.message || "Failed to update profile.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -57,8 +116,8 @@ export default function UserAccountPage() {
             <p className="text-xs text-[#667085]">{email}</p>
           </div>
           <div className="flex gap-2">
-            <StatusBadge status="ADMIN" variant="default" />
-            <StatusBadge status="ACTIVE" variant="active" />
+            <StatusBadge status={profile?.role || "ADMIN"} variant="default" />
+            <StatusBadge status={profile?.is_active !== false ? "ACTIVE" : "INACTIVE"} variant="active" />
           </div>
 
           <div className="w-full pt-4 border-t border-[#E4E7EC] text-left text-xs space-y-2.5">
@@ -87,64 +146,58 @@ export default function UserAccountPage() {
 
             {saved && (
               <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-control text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 Profile details updated successfully.
               </div>
             )}
 
-            <form onSubmit={handleSave} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Full Name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-                <Input
-                  label="Email Address"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <Input
-                  label="Phone Number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-                <Input
-                  label="Designation / Role Title"
-                  value={designation}
-                  onChange={(e) => setDesignation(e.target.value)}
-                />
+            {error && (
+              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-control text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                {error}
               </div>
+            )}
 
-              <div className="pt-2 flex justify-end">
-                <Button variant="primary" type="submit">
-                  Save Changes
-                </Button>
+            {isLoading ? (
+              <div className="py-8 flex justify-center items-center gap-2 text-xs text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                Loading profile details...
               </div>
-            </form>
-          </Card>
+            ) : (
+              <form onSubmit={handleSave} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Full Name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Email Address"
+                    value={email}
+                    disabled
+                  />
+                  <Input
+                    label="Phone Number"
+                    placeholder="+91 98765 43210"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                  <Input
+                    label="Designation / Title"
+                    placeholder="Operations Director"
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                  />
+                </div>
 
-          {/* Security & Access Overview */}
-          <Card className="p-6">
-            <h4 className="text-sm font-semibold text-[#172033] mb-4 pb-2 border-b border-[#E4E7EC] flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#16A34A]" />
-              Role & Permissions Scope
-            </h4>
-            <div className="space-y-3 text-xs text-[#667085]">
-              <p>
-                You are currently logged in with <strong className="text-[#172033]">COMPANY_ADMIN</strong> privileges. This grant permits full read/write access across all system modules, tenant DB configuration, role assignments, and financial ledgers.
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                {["Transport Ops", "Billing & Invoices", "Fleet Maintenance", "Tax & E-Invoicing"].map((scope) => (
-                  <div key={scope} className="px-2.5 py-1.5 rounded-control bg-[#F7F8FA] border border-[#E4E7EC] text-center font-medium text-[#172033]">
-                    {scope}
-                  </div>
-                ))}
-              </div>
-            </div>
+                <div className="pt-2 flex justify-end">
+                  <Button variant="primary" type="submit" disabled={isSaving}>
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </form>
+            )}
           </Card>
         </div>
       </div>

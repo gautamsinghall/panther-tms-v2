@@ -7,7 +7,12 @@ from app.core.errors import ForbiddenException
 from app.tenant_db.models import User
 from app.modules.accounts import schemas, service
 
-router = APIRouter(prefix="/accounts", tags=["Accounts"])
+router = APIRouter(
+    prefix="/accounts",
+    tags=["Accounts"],
+    dependencies=[Depends(require_permission("accounts", "general", "view"))],
+)
+
 
 def require_accounts_permission(permission: str = "view", feature: Optional[str] = None):
     async def _check(current_user: User = Depends(get_current_user)):

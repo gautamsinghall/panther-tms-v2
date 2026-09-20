@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Truck, ShieldCheck, AlertCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +125,14 @@ export default function LoginPage() {
               (demo / admin@demo.com / PantherTMS@2026!)
             </span>
           </div>
+        </div>
+
+        {/* Sign up link */}
+        <div className="text-center text-xs text-slate-500">
+          New to PantherTMS?{" "}
+          <Link href="/signup" className="text-[var(--color-primary)] font-semibold hover:underline">
+            Choose a plan & create your workspace
+          </Link>
         </div>
 
         {/* Footer */}

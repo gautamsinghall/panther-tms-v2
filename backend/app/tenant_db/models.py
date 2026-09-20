@@ -65,8 +65,15 @@ class CompanySetting(TenantBase):
     gstin = Column(String(15), nullable=True)
     pan = Column(String(10), nullable=True)
     address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    pincode = Column(String(20), nullable=True)
     phone = Column(String(50), nullable=True)
     email = Column(String(255), nullable=True)
+    bank_name = Column(String(150), nullable=True)
+    bank_account_no = Column(String(50), nullable=True)
+    bank_ifsc = Column(String(20), nullable=True)
+    logo_url = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -74,6 +81,7 @@ class CompanySetting(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
 
 
 # ==============================================================================
@@ -1214,5 +1222,151 @@ class RepairServiceRecord(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+
+# ==============================================================================
+# Settings & Profile Module Models (PRD §7.11 & §7.12, Phase 6)
+# ==============================================================================
+
+class SeriesCategory(TenantBase):
+    """
+    Document series categories (e.g. Transport Documents, Accounts Vouchers, Billing).
+    """
+    __tablename__ = "settings_series_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    code = Column(String(50), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    series_list = relationship("SeriesMaster", back_populates="category", cascade="all, delete-orphan")
+
+
+class SeriesMaster(TenantBase):
+    """
+    Numbering series sequences for documents (LR, Invoices, Vouchers, Challans).
+    """
+    __tablename__ = "settings_series_masters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category_id = Column(Integer, ForeignKey("settings_series_categories.id"), nullable=True, index=True)
+    document_type = Column(String(100), nullable=False, index=True)  # e.g., 'LR', 'INVOICE', 'HIRE_CHALLAN', 'RECEIPT_VOUCHER'
+    prefix = Column(String(50), nullable=False)  # e.g., 'LR-2026-'
+    suffix = Column(String(50), default="", nullable=True)
+    starting_number = Column(Integer, default=1, nullable=False)
+    current_number = Column(Integer, default=1, nullable=False)
+    end_number = Column(Integer, nullable=True)
+    financial_year = Column(String(20), default="2026-2027", nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    category = relationship("SeriesCategory", back_populates="series_list")
+
+
+class AdminSetting(TenantBase):
+    """
+    Tenant global operational parameters and configurations (PRD §7.11).
+    """
+    __tablename__ = "settings_admin_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    setting_key = Column(String(100), unique=True, nullable=False, index=True)
+    setting_value = Column(Text, nullable=False)
+    category = Column(String(50), default="SYSTEM", nullable=False)  # SYSTEM, LOCALIZATION, GATEWAY, BILLING
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
+class UserActivity(TenantBase):
+    """
+    Audit log tracking all critical business actions per architecture.md §11.
+    """
+    __tablename__ = "settings_user_activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_email = Column(String(255), nullable=False, index=True)
+    user_role = Column(String(50), nullable=False)
+    action = Column(String(150), nullable=False, index=True)
+    module = Column(String(100), nullable=False, index=True)
+    entity_type = Column(String(100), nullable=True)
+    entity_id = Column(String(100), nullable=True)
+    details = Column(Text, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    user = relationship("User")
+
+
+class Branch(TenantBase):
+    """
+    Company branch / operating hub master (PRD §7.12).
+    """
+    __tablename__ = "profile_branches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    city = Column(String(100), nullable=False)
+    state = Column(String(100), nullable=False)
+    address = Column(Text, nullable=True)
+    pincode = Column(String(20), nullable=True)
+    phone = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
+    gstin = Column(String(15), nullable=True)
+    is_head_office = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
+class EmailSetting(TenantBase):
+    """
+    Outbound SMTP email dispatch configuration (PRD §7.12).
+    """
+    __tablename__ = "profile_email_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    smtp_host = Column(String(255), default="smtp.mailgun.org", nullable=False)
+    smtp_port = Column(Integer, default=587, nullable=False)
+    smtp_user = Column(String(255), nullable=True)
+    smtp_password = Column(String(255), nullable=True)
+    sender_email = Column(String(255), default="notifications@panthertms.com", nullable=False)
+    sender_name = Column(String(100), default="PantherTMS Dispatch", nullable=False)
+    use_tls = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
 
 

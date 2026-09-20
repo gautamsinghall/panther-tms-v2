@@ -5,8 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.core.config import settings
 from app.core.errors import AppException
 from app.core.security import get_password_hash
-from app.control.models import ControlBase, Plan, Entitlement, Tenant
-from app.control.schemas import TenantProvisionRequest
+import json
+from datetime import datetime, timezone, timedelta
+from app.control.models import ControlBase, Plan, Entitlement, Tenant, WebhookEvent
+from app.control.schemas import (
+    TenantProvisionRequest, SignupInitiateRequest, SignupInitiateResponse,
+    SignupCompleteRequest, CreateSubscriptionRequest, CreateSubscriptionResponse,
+    TenantResponse
+)
+from app.integrations.razorpay.client import razorpay_client
 from app.tenant_db.base import TenantBase
 from app.tenant_db.models import User, Role, CompanySetting
 from app.core.database import get_tenant_session_maker
@@ -24,8 +31,11 @@ DEFAULT_PLANS = [
             ("module_home", "true"),
             ("module_general", "true"),
             ("module_transport", "true"),
+            ("module_profile", "true"),
+            ("module_settings", "true"),
             ("max_users", "1"),
             ("max_vehicles", "1"),
+            ("max_invoices_per_month", "10"),
         ],
     },
     {
@@ -42,8 +52,11 @@ DEFAULT_PLANS = [
             ("module_accounts", "true"),
             ("module_misc", "true"),
             ("module_reports", "true"),
+            ("module_profile", "true"),
+            ("module_settings", "true"),
             ("max_users", "5"),
             ("max_vehicles", "20"),
+            ("max_invoices_per_month", "200"),
         ],
     },
     {
@@ -67,6 +80,7 @@ DEFAULT_PLANS = [
             ("module_profile", "true"),
             ("max_users", "25"),
             ("max_vehicles", "100"),
+            ("max_invoices_per_month", "1000"),
         ],
     },
     {
@@ -90,12 +104,13 @@ DEFAULT_PLANS = [
             ("module_profile", "true"),
             ("max_users", "unlimited"),
             ("max_vehicles", "unlimited"),
+            ("max_invoices_per_month", "unlimited"),
         ],
     },
 ]
 
 async def seed_plans_and_entitlements(session: AsyncSession) -> None:
-    """Seeds the standard subscription tiers if they do not exist."""
+    """Seeds or synchronizes the standard subscription tiers and entitlements."""
     for plan_data in DEFAULT_PLANS:
         stmt = select(Plan).where(Plan.code == plan_data["code"])
         result = await session.execute(stmt)
@@ -121,7 +136,30 @@ async def seed_plans_and_entitlements(session: AsyncSession) -> None:
                     is_enabled=True,
                 )
                 session.add(entitlement)
+        else:
+            # Synchronize plan details & entitlements
+            existing_plan.name = plan_data["name"]
+            existing_plan.description = plan_data["description"]
+            existing_plan.price_monthly = plan_data["price_monthly"]
+            existing_plan.price_yearly = plan_data["price_yearly"]
+
+            ent_stmt = select(Entitlement).where(Entitlement.plan_id == existing_plan.id)
+            ent_res = await session.execute(ent_stmt)
+            existing_ents = {e.feature_key: e for e in ent_res.scalars().all()}
+
+            for key, val in plan_data["entitlements"]:
+                if key in existing_ents:
+                    existing_ents[key].limit_value = val
+                    existing_ents[key].is_enabled = True
+                else:
+                    session.add(Entitlement(
+                        plan_id=existing_plan.id,
+                        feature_key=key,
+                        limit_value=val,
+                        is_enabled=True,
+                    ))
     await session.commit()
+
 
 async def create_postgres_database(db_name: str) -> None:
     """Creates a new PostgreSQL database with autocommit mode."""
@@ -271,3 +309,329 @@ async def provision_tenant(
 
     logger.info(f"Successfully provisioned tenant: {subdomain} (DB: {db_name})")
     return tenant
+
+
+async def initiate_signup(
+    data: SignupInitiateRequest,
+    control_session: AsyncSession
+) -> SignupInitiateResponse:
+    """
+    Step 1 of self-serve onboarding:
+    - Validates subdomain uniqueness and syntax
+    - If FREE tier, immediately provisions isolated tenant database and seeds admin
+    - If Paid tier, generates Razorpay subscription and pre-stages tenant in PENDING_SETUP
+    """
+    subdomain = data.subdomain.strip().lower()
+
+    # 1. Subdomain check
+    check_stmt = select(Tenant).where(Tenant.subdomain == subdomain)
+    existing = (await control_session.execute(check_stmt)).scalar_one_or_none()
+    if existing:
+        raise AppException(
+            status_code=409,
+            error_code="SUBDOMAIN_EXISTS",
+            message=f"Subdomain '{subdomain}' is already registered.",
+            details={"subdomain": subdomain},
+        )
+
+    # 2. Plan check
+    plan_stmt = select(Plan).where(Plan.code == data.plan_code.upper())
+    plan = (await control_session.execute(plan_stmt)).scalar_one_or_none()
+    if not plan:
+        raise AppException(
+            status_code=400,
+            error_code="PLAN_NOT_FOUND",
+            message=f"Plan '{data.plan_code}' does not exist.",
+            details={"plan_code": data.plan_code},
+        )
+
+    amount = float(plan.price_yearly if data.billing_cycle == "yearly" else plan.price_monthly)
+
+    # 3. Free plan (or 0 price) -> Immediate self-serve provisioning
+    if plan.code == "FREE" or amount == 0.0:
+        tenant = await provision_tenant(
+            TenantProvisionRequest(
+                subdomain=subdomain,
+                company_name=data.company_name,
+                admin_email=data.admin_email,
+                admin_password=data.admin_password,
+                admin_full_name=data.admin_full_name,
+                plan_code=plan.code,
+            ),
+            control_session,
+        )
+        return SignupInitiateResponse(
+            requires_payment=False,
+            tenant=TenantResponse.model_validate(tenant),
+            plan_code=plan.code,
+            amount=0.0,
+            subdomain=subdomain,
+            redirect_url=f"/login?subdomain={subdomain}",
+            message="Free Starter workspace provisioned successfully.",
+        )
+
+    # 4. Paid plan -> Create Razorpay subscription and stage tenant
+    sub = razorpay_client.create_subscription(
+        plan_code=plan.code,
+        customer_email=str(data.admin_email),
+        customer_name=data.company_name,
+        notes={
+            "subdomain": subdomain,
+            "company_name": data.company_name,
+            "admin_email": str(data.admin_email),
+            "plan_code": plan.code,
+            "billing_cycle": data.billing_cycle,
+        },
+        period=data.billing_cycle,
+    )
+
+    # Pre-provision database and admin, but leave tenant in PENDING_SETUP until payment completes
+    sanitized_subdomain = subdomain.replace("-", "_")
+    db_name = f"panther_tenant_{sanitized_subdomain}"
+    await create_postgres_database(db_name)
+    await initialize_tenant_schema_and_admin(
+        db_name=db_name,
+        company_name=data.company_name,
+        admin_email=str(data.admin_email),
+        admin_password=data.admin_password,
+        admin_full_name=data.admin_full_name,
+    )
+
+    tenant = Tenant(
+        subdomain=subdomain,
+        company_name=data.company_name,
+        db_name=db_name,
+        status="PENDING_SETUP",
+        plan_id=plan.id,
+        admin_email=str(data.admin_email).lower().strip(),
+        subscription_id=sub["id"],
+        subscription_status="CREATED",
+    )
+    control_session.add(tenant)
+    await control_session.commit()
+
+    return SignupInitiateResponse(
+        requires_payment=True,
+        subscription_id=sub["id"],
+        razorpay_key_id=settings.RAZORPAY_KEY_ID,
+        plan_code=plan.code,
+        amount=amount,
+        subdomain=subdomain,
+        redirect_url=None,
+        message="Subscription initiated. Complete payment to activate workspace.",
+    )
+
+
+async def complete_signup(
+    data: SignupCompleteRequest,
+    control_session: AsyncSession
+) -> TenantResponse:
+    """
+    Step 2 of self-serve onboarding:
+    - Cryptographically validates payment signature (HMAC-SHA256) per rules.md §8
+    - Activates tenant from PENDING_SETUP to ACTIVE
+    - Sets 30-day period and records subscription status
+    """
+    subdomain = data.subdomain.strip().lower()
+
+    # Find staged or already provisioned tenant
+    tenant = (await control_session.execute(
+        select(Tenant).where(Tenant.subdomain == subdomain)
+    )).scalar_one_or_none()
+
+    if tenant and tenant.status == "ACTIVE":
+        return TenantResponse.model_validate(tenant)
+
+    # Verify payment signature for paid signup if signature provided
+    if data.signature:
+        is_valid = razorpay_client.verify_payment_signature(
+            subscription_id=data.subscription_id or (tenant.subscription_id if tenant else ""),
+            payment_id=data.payment_id or "",
+            signature=data.signature,
+        )
+        if not is_valid:
+            raise AppException(
+                status_code=400,
+                error_code="INVALID_PAYMENT_SIGNATURE",
+                message="Payment signature verification failed.",
+            )
+
+    if not tenant:
+        if not (data.company_name and data.admin_email and data.admin_password and data.plan_code):
+            raise AppException(
+                status_code=404,
+                error_code="TENANT_NOT_FOUND",
+                message=f"No registration found for subdomain '{subdomain}'.",
+            )
+        tenant = await provision_tenant(
+            TenantProvisionRequest(
+                subdomain=subdomain,
+                company_name=data.company_name,
+                admin_email=data.admin_email,
+                admin_password=data.admin_password,
+                admin_full_name=data.admin_full_name or "Company Admin",
+                plan_code=data.plan_code,
+            ),
+            control_session,
+        )
+
+    now = datetime.now(timezone.utc)
+    tenant.status = "ACTIVE"
+    tenant.subscription_id = data.subscription_id
+    tenant.subscription_status = "ACTIVE"
+    tenant.current_period_start = now
+    tenant.current_period_end = now + timedelta(days=30)
+    tenant.grace_period_until = None
+
+    await control_session.commit()
+    await control_session.refresh(tenant)
+
+    logger.info(f"Self-serve signup successfully completed & activated for tenant: {subdomain}")
+    return TenantResponse.model_validate(tenant)
+
+
+async def process_razorpay_webhook_event(
+    payload_bytes: bytes,
+    signature: str,
+    control_session: AsyncSession
+) -> dict:
+    """
+    Cryptographically verifies the webhook signature and processes subscription events idempotently.
+    Per rules.md §8 (security) & architecture.md §7 (Payments - Razorpay).
+    """
+    if not razorpay_client.verify_webhook_signature(payload_bytes, signature):
+        raise AppException(
+            status_code=400,
+            error_code="INVALID_SIGNATURE",
+            message="Razorpay webhook signature verification failed.",
+        )
+
+    try:
+        data = json.loads(payload_bytes.decode("utf-8"))
+    except Exception as exc:
+        raise AppException(
+            status_code=400,
+            error_code="INVALID_JSON",
+            message=f"Malformed webhook JSON payload: {exc}",
+        )
+
+    event_id = data.get("id") or data.get("event_id") or f"evt_{datetime.now(timezone.utc).timestamp()}"
+    event_type = data.get("event", "")
+
+    # Idempotent deduplication check
+    existing_evt = (await control_session.execute(
+        select(WebhookEvent).where(WebhookEvent.event_id == event_id)
+    )).scalar_one_or_none()
+
+    if existing_evt:
+        logger.info(f"Duplicate webhook event ignored: {event_id}")
+        return {"status": "ignored", "reason": "duplicate_event", "event_id": event_id}
+
+    # Record event
+    webhook_rec = WebhookEvent(
+        event_id=event_id,
+        event_type=event_type,
+        payload=payload_bytes.decode("utf-8"),
+        status="PROCESSED",
+    )
+    control_session.add(webhook_rec)
+
+    # Extract subscription / payment entity
+    entity = data.get("payload", {}).get("subscription", {}).get("entity", {}) or \
+             data.get("payload", {}).get("payment", {}).get("entity", {})
+    sub_id = entity.get("id") if entity.get("entity") == "subscription" else entity.get("subscription_id")
+    notes = entity.get("notes", {})
+    subdomain = notes.get("subdomain")
+
+    tenant = None
+    if sub_id:
+        tenant = (await control_session.execute(
+            select(Tenant).where(Tenant.subscription_id == sub_id)
+        )).scalar_one_or_none()
+
+    if not tenant and subdomain:
+        tenant = (await control_session.execute(
+            select(Tenant).where(Tenant.subdomain == subdomain.lower().strip())
+        )).scalar_one_or_none()
+
+    if not tenant:
+        logger.warning(f"Webhook received for unknown tenant (sub_id={sub_id}, subdomain={subdomain})")
+        await control_session.commit()
+        return {"status": "unmatched_tenant", "event_id": event_id}
+
+    # Handle subscription states & grace periods
+    now = datetime.now(timezone.utc)
+    if event_type in ("subscription.activated", "subscription.authenticated"):
+        tenant.subscription_status = "ACTIVE"
+        tenant.status = "ACTIVE"
+        tenant.grace_period_until = None
+    elif event_type in ("subscription.charged", "payment.captured"):
+        tenant.subscription_status = "ACTIVE"
+        tenant.status = "ACTIVE"
+        tenant.grace_period_until = None
+        current_end = entity.get("current_end")
+        if current_end:
+            tenant.current_period_end = datetime.fromtimestamp(current_end, tz=timezone.utc)
+        else:
+            tenant.current_period_end = now + timedelta(days=30)
+    elif event_type in ("payment.failed", "subscription.pending"):
+        tenant.subscription_status = "PAST_DUE"
+        tenant.grace_period_until = now + timedelta(days=settings.RAZORPAY_GRACE_PERIOD_DAYS)
+    elif event_type in ("subscription.cancelled", "subscription.halted"):
+        tenant.subscription_status = "CANCELLED"
+        tenant.status = "SUSPENDED"
+    elif event_type in ("subscription.updated", "subscription.plan_changed"):
+        new_plan_code = notes.get("new_plan_code") or notes.get("plan_code")
+        if new_plan_code:
+            new_plan = (await control_session.execute(
+                select(Plan).where(Plan.code == new_plan_code.upper())
+            )).scalar_one_or_none()
+            if new_plan:
+                tenant.plan_id = new_plan.id
+
+    await control_session.commit()
+    logger.info(f"Processed webhook {event_type} for tenant: {tenant.subdomain}")
+    return {"status": "processed", "event_id": event_id, "tenant": tenant.subdomain}
+
+
+async def create_tenant_subscription(
+    subdomain: str,
+    data: CreateSubscriptionRequest,
+    control_session: AsyncSession
+) -> CreateSubscriptionResponse:
+    """Creates a new recurring subscription for an existing tenant upgrading or changing plans."""
+    tenant = (await control_session.execute(
+        select(Tenant).where(Tenant.subdomain == subdomain.lower().strip())
+    )).scalar_one_or_none()
+
+    if not tenant:
+        raise AppException(status_code=404, error_code="TENANT_NOT_FOUND", message=f"Tenant '{subdomain}' not found.")
+
+    plan = (await control_session.execute(
+        select(Plan).where(Plan.code == data.plan_code.upper())
+    )).scalar_one_or_none()
+
+    if not plan:
+        raise AppException(status_code=400, error_code="PLAN_NOT_FOUND", message=f"Plan '{data.plan_code}' not found.")
+
+    amount = float(plan.price_yearly if data.billing_cycle == "yearly" else plan.price_monthly)
+
+    sub = razorpay_client.create_subscription(
+        plan_code=plan.code,
+        customer_email=tenant.admin_email,
+        customer_name=tenant.company_name,
+        notes={"subdomain": tenant.subdomain, "plan_code": plan.code, "billing_cycle": data.billing_cycle},
+        period=data.billing_cycle,
+    )
+
+    tenant.subscription_id = sub["id"]
+    await control_session.commit()
+
+    return CreateSubscriptionResponse(
+        subscription_id=sub["id"],
+        plan_code=plan.code,
+        amount=amount,
+        razorpay_key_id=settings.RAZORPAY_KEY_ID,
+        currency="INR",
+    )
+

@@ -130,3 +130,246 @@ async def update_existing_user(db: AsyncSession, user_id: int, data: UserUpdate)
     await db.commit()
     await db.refresh(user)
     return user
+
+
+# --- Series Categories ---
+
+from app.tenant_db.models import SeriesCategory, SeriesMaster, AdminSetting, UserActivity
+from app.modules.settings.schemas import (
+    SeriesCategoryCreate, SeriesCategoryUpdate,
+    SeriesMasterCreate, SeriesMasterUpdate,
+    AdminSettingItem
+)
+
+async def get_all_series_categories(db: AsyncSession) -> List[SeriesCategory]:
+    stmt = select(SeriesCategory).order_by(SeriesCategory.name)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+async def create_series_category(db: AsyncSession, data: SeriesCategoryCreate) -> SeriesCategory:
+    stmt = select(SeriesCategory).where(SeriesCategory.code == data.code.upper().strip())
+    if (await db.execute(stmt)).scalar_one_or_none():
+        raise AppException(status_code=409, error_code="SERIES_CAT_EXISTS", message=f"Series category '{data.code}' already exists.")
+
+    cat = SeriesCategory(
+        name=data.name.strip(),
+        code=data.code.upper().strip(),
+        description=data.description,
+        is_active=data.is_active,
+    )
+    db.add(cat)
+    await db.commit()
+    await db.refresh(cat)
+    return cat
+
+async def update_series_category(db: AsyncSession, cat_id: int, data: SeriesCategoryUpdate) -> SeriesCategory:
+    cat = (await db.execute(select(SeriesCategory).where(SeriesCategory.id == cat_id))).scalar_one_or_none()
+    if not cat:
+        raise AppException(status_code=404, error_code="SERIES_CAT_NOT_FOUND", message="Series category not found.")
+
+    if data.name:
+        cat.name = data.name.strip()
+    if data.code:
+        cat.code = data.code.upper().strip()
+    if data.description is not None:
+        cat.description = data.description
+    if data.is_active is not None:
+        cat.is_active = data.is_active
+
+    await db.commit()
+    await db.refresh(cat)
+    return cat
+
+async def delete_series_category(db: AsyncSession, cat_id: int) -> None:
+    cat = (await db.execute(select(SeriesCategory).where(SeriesCategory.id == cat_id))).scalar_one_or_none()
+    if not cat:
+        raise AppException(status_code=404, error_code="SERIES_CAT_NOT_FOUND", message="Series category not found.")
+    await db.delete(cat)
+    await db.commit()
+
+
+# --- Series Masters ---
+
+async def get_all_series_masters(db: AsyncSession) -> List[dict]:
+    stmt = select(SeriesMaster).options(selectinload(SeriesMaster.category)).order_by(SeriesMaster.document_type)
+    result = await db.execute(stmt)
+    series_list = result.scalars().all()
+    out = []
+    for s in series_list:
+        out.append({
+            "id": s.id,
+            "category_id": s.category_id,
+            "category_name": s.category.name if s.category else None,
+            "document_type": s.document_type,
+            "prefix": s.prefix,
+            "suffix": s.suffix or "",
+            "starting_number": s.starting_number,
+            "current_number": s.current_number,
+            "end_number": s.end_number,
+            "financial_year": s.financial_year,
+            "is_active": s.is_active,
+            "created_at": s.created_at,
+            "updated_at": s.updated_at,
+        })
+    return out
+
+async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> dict:
+    series = SeriesMaster(
+        category_id=data.category_id,
+        document_type=data.document_type.upper().strip(),
+        prefix=data.prefix.strip(),
+        suffix=data.suffix or "",
+        starting_number=data.starting_number,
+        current_number=data.current_number,
+        end_number=data.end_number,
+        financial_year=data.financial_year.strip(),
+        is_active=data.is_active,
+    )
+    db.add(series)
+    await db.commit()
+    await db.refresh(series)
+
+    cat_name = None
+    if series.category_id:
+        c = (await db.execute(select(SeriesCategory).where(SeriesCategory.id == series.category_id))).scalar_one_or_none()
+        if c:
+            cat_name = c.name
+
+    return {
+        "id": series.id,
+        "category_id": series.category_id,
+        "category_name": cat_name,
+        "document_type": series.document_type,
+        "prefix": series.prefix,
+        "suffix": series.suffix or "",
+        "starting_number": series.starting_number,
+        "current_number": series.current_number,
+        "end_number": series.end_number,
+        "financial_year": series.financial_year,
+        "is_active": series.is_active,
+        "created_at": series.created_at,
+        "updated_at": series.updated_at,
+    }
+
+async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMasterUpdate) -> dict:
+    series = (await db.execute(select(SeriesMaster).options(selectinload(SeriesMaster.category)).where(SeriesMaster.id == series_id))).scalar_one_or_none()
+    if not series:
+        raise AppException(status_code=404, error_code="SERIES_NOT_FOUND", message="Series master not found.")
+
+    if data.category_id is not None:
+        series.category_id = data.category_id
+    if data.document_type:
+        series.document_type = data.document_type.upper().strip()
+    if data.prefix:
+        series.prefix = data.prefix.strip()
+    if data.suffix is not None:
+        series.suffix = data.suffix
+    if data.starting_number is not None:
+        series.starting_number = data.starting_number
+    if data.current_number is not None:
+        series.current_number = data.current_number
+    if data.end_number is not None:
+        series.end_number = data.end_number
+    if data.financial_year:
+        series.financial_year = data.financial_year.strip()
+    if data.is_active is not None:
+        series.is_active = data.is_active
+
+    await db.commit()
+    await db.refresh(series)
+    return {
+        "id": series.id,
+        "category_id": series.category_id,
+        "category_name": series.category.name if series.category else None,
+        "document_type": series.document_type,
+        "prefix": series.prefix,
+        "suffix": series.suffix or "",
+        "starting_number": series.starting_number,
+        "current_number": series.current_number,
+        "end_number": series.end_number,
+        "financial_year": series.financial_year,
+        "is_active": series.is_active,
+        "created_at": series.created_at,
+        "updated_at": series.updated_at,
+    }
+
+async def delete_series_master(db: AsyncSession, series_id: int) -> None:
+    series = (await db.execute(select(SeriesMaster).where(SeriesMaster.id == series_id))).scalar_one_or_none()
+    if not series:
+        raise AppException(status_code=404, error_code="SERIES_NOT_FOUND", message="Series master not found.")
+    await db.delete(series)
+    await db.commit()
+
+
+# --- Admin Settings ---
+
+async def get_admin_settings(db: AsyncSession) -> List[AdminSetting]:
+    stmt = select(AdminSetting).order_by(AdminSetting.setting_key)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+async def update_admin_settings(db: AsyncSession, settings_items: List[AdminSettingItem]) -> List[AdminSetting]:
+    for item in settings_items:
+        stmt = select(AdminSetting).where(AdminSetting.setting_key == item.setting_key)
+        res = await db.execute(stmt)
+        record = res.scalar_one_or_none()
+        if record:
+            record.setting_value = item.setting_value
+            if item.category:
+                record.category = item.category
+            if item.description:
+                record.description = item.description
+        else:
+            db.add(AdminSetting(
+                setting_key=item.setting_key,
+                setting_value=item.setting_value,
+                category=item.category,
+                description=item.description,
+            ))
+    await db.commit()
+    return await get_admin_settings(db)
+
+
+# --- User Activity (Audit Log) ---
+
+async def log_user_activity(
+    db: AsyncSession,
+    user: User,
+    action: str,
+    module: str,
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    details: Optional[str] = None,
+    ip_address: Optional[str] = None,
+) -> UserActivity:
+    act = UserActivity(
+        user_id=user.id if user else None,
+        user_email=user.email if user else "system",
+        user_role=user.role if user else "SYSTEM",
+        action=action,
+        module=module,
+        entity_type=entity_type,
+        entity_id=str(entity_id) if entity_id is not None else None,
+        details=details,
+        ip_address=ip_address,
+    )
+    db.add(act)
+    await db.commit()
+    await db.refresh(act)
+    return act
+
+async def get_activity_logs(
+    db: AsyncSession,
+    limit: int = 100,
+    module: Optional[str] = None,
+    user_email: Optional[str] = None,
+) -> List[UserActivity]:
+    stmt = select(UserActivity)
+    if module:
+        stmt = stmt.where(UserActivity.module == module.lower().strip())
+    if user_email:
+        stmt = stmt.where(UserActivity.user_email == user_email.lower().strip())
+    stmt = stmt.order_by(UserActivity.created_at.desc()).limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+

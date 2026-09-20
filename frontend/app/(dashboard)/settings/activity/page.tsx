@@ -1,71 +1,75 @@
 "use client";
 
-import React, { useState } from "react";
-import { History, Shield, User, Download } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { History, Shield, User, Download, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef } from "@/types/table";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
+import { apiClient } from "@/lib/api-client";
 
 interface ActivityLog {
   id: number;
-  timestamp: string;
+  user_id?: number | null;
   user_email: string;
   user_role: string;
   action: string;
   module: string;
-  ip_address: string;
+  ip_address?: string | null;
+  details?: Record<string, any> | null;
+  created_at: string;
 }
 
-const SAMPLE_ACTIVITY: ActivityLog[] = [
-  {
-    id: 1,
-    timestamp: "2026-09-20T17:30:00Z",
-    user_email: "admin@demo.com",
-    user_role: "COMPANY_ADMIN",
-    action: "Generated E-Invoice IRN for INV-2026-0082",
-    module: "E-Invoicing",
-    ip_address: "192.168.1.104",
-  },
-  {
-    id: 2,
-    timestamp: "2026-09-20T17:15:20Z",
-    user_email: "admin@demo.com",
-    user_role: "COMPANY_ADMIN",
-    action: "Created LR-2026-0084 (Mumbai -> Delhi)",
-    module: "Transport",
-    ip_address: "192.168.1.104",
-  },
-  {
-    id: 3,
-    timestamp: "2026-09-20T16:40:10Z",
-    user_email: "dispatcher@demo.com",
-    user_role: "DISPATCHER",
-    action: "Updated GPS Ping & ETA for MH-12-RN-4821",
-    module: "Tracking",
-    ip_address: "103.21.58.12",
-  },
-  {
-    id: 4,
-    timestamp: "2026-09-20T15:22:45Z",
-    user_email: "accountant@demo.com",
-    user_role: "ACCOUNTANT",
-    action: "Posted Receipt Voucher RCP-2026-0019 (₹95,000)",
-    module: "Accounts",
-    ip_address: "192.168.1.108",
-  },
-];
-
 export default function UserActivityLogPage() {
-  const [data] = useState<ActivityLog[]>(SAMPLE_ACTIVITY);
+  const [data, setData] = useState<ActivityLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchActivity = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const logs = await apiClient<ActivityLog[]>("/api/v1/settings/activity?limit=100");
+      setData(Array.isArray(logs) ? logs : []);
+    } catch (err: any) {
+      setError(err.message || "Failed to retrieve activity audit logs.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchActivity();
+  }, []);
+
+  const handleExportCSV = () => {
+    if (data.length === 0) return;
+    const headers = ["ID,Timestamp,User Email,User Role,Action,Module,IP Address"];
+    const rows = data.map(
+      (r) =>
+        `"${r.id}","${r.created_at}","${r.user_email}","${r.user_role}","${r.action.replace(/"/g, '""')}","${r.module}","${r.ip_address || ""}"`
+    );
+    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `panther_activity_log_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const columns: ColumnDef<ActivityLog>[] = [
     {
-      key: "timestamp",
+      key: "created_at",
       header: "Timestamp (IST)",
       sortable: true,
-      cell: (row) => <span className="font-mono text-xs text-[#667085]">{formatDateTime(row.timestamp)}</span>,
+      cell: (row) => (
+        <span className="font-mono text-xs text-[#667085]">
+          {formatDateTime(row.created_at)}
+        </span>
+      ),
     },
     {
       key: "user_email",
@@ -81,7 +85,16 @@ export default function UserActivityLogPage() {
     {
       key: "action",
       header: "Action Performed",
-      cell: (row) => <span className="text-xs text-[#172033] font-medium">{row.action}</span>,
+      cell: (row) => (
+        <div>
+          <span className="text-xs text-[#172033] font-medium block">{row.action}</span>
+          {row.details && Object.keys(row.details).length > 0 && (
+            <span className="text-[10px] font-mono text-slate-400">
+              {JSON.stringify(row.details)}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "module",
@@ -95,7 +108,9 @@ export default function UserActivityLogPage() {
     {
       key: "ip_address",
       header: "IP Address",
-      cell: (row) => <span className="font-mono text-xs text-[#667085]">{row.ip_address}</span>,
+      cell: (row) => (
+        <span className="font-mono text-xs text-[#667085]">{row.ip_address || "127.0.0.1"}</span>
+      ),
     },
   ];
 
@@ -109,16 +124,27 @@ export default function UserActivityLogPage() {
           { label: "Activity Log" },
         ]}
         primaryAction={{
-          label: "Export Audit Log",
+          label: "Export Audit Log (CSV)",
           icon: <Download className="w-4 h-4" />,
-          onClick: () => {},
+          onClick: handleExportCSV,
         }}
       />
 
-      <DataTable
-        columns={columns}
-        data={data}
-      />
+      {error && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <span className="text-xs">Querying audit trail records...</span>
+        </div>
+      ) : (
+        <DataTable columns={columns} data={data} />
+      )}
     </div>
   );
 }

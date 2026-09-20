@@ -165,6 +165,8 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "account", "title": "User Account", "href": "/profile/account"},
             {"feature": "branch", "title": "Branch", "href": "/profile/branch"},
             {"feature": "change_password", "title": "Change Password", "href": "/profile/change-password"},
+            {"feature": "email", "title": "Email Settings", "href": "/profile/email"},
+            {"feature": "monthly_pnl", "title": "Monthly P&L", "href": "/profile/monthly-pnl"},
         ],
     },
 ]
@@ -207,47 +209,86 @@ async def get_me(
 @router.get("/navigation", summary="Get data-driven permitted navigation tree for current user")
 async def get_user_navigation(
     current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
 ):
     """
-    Returns data-driven sidebar navigation filtered by user's active RBAC permissions per rules.md §5 & architecture.md §5.
-    Company Admin sees all modules.
-    Employees only see modules and features where they have 'view' permission.
+    Returns data-driven sidebar navigation filtered by both tenant plan entitlements
+    and user's active RBAC permissions per rules.md §5 and architecture.md §5–6.
     """
-    if current_user.role == "COMPANY_ADMIN":
-        return ALL_NAVIGATION_MODULES
+    entitled_modules = set()
+    if tenant.plan and tenant.plan.entitlements:
+        for ent in tenant.plan.entitlements:
+            if ent.is_enabled and ent.limit_value.lower() in ("true", "1", "yes"):
+                if ent.feature_key.startswith("module_"):
+                    entitled_modules.add(ent.feature_key[len("module_"):])
+                if ent.feature_key == "module_all":
+                    entitled_modules.add("all")
 
-    # User is employee: filter items by custom_role permissions
+    def is_module_entitled(mod_id: str) -> bool:
+        norm = mod_id.replace("-", "_").lower()
+        return "all" in entitled_modules or norm in entitled_modules
+
+    result = []
+    is_admin = current_user.role == "COMPANY_ADMIN"
+
+    # Permitted employee features
     allowed_features = set()
-    if current_user.custom_role and current_user.custom_role.permissions:
+    if not is_admin and current_user.custom_role and current_user.custom_role.permissions:
         for p in current_user.custom_role.permissions:
             if p.is_allowed and p.permission in ("view", "all"):
                 allowed_features.add((p.module, p.feature))
 
-    filtered_nav = []
-    for module in ALL_NAVIGATION_MODULES:
-        # Home overview is accessible to all active employees
-        if module["id"] == "home":
-            filtered_nav.append(module)
+    for mod in ALL_NAVIGATION_MODULES:
+        entitled = is_module_entitled(mod["id"])
+
+        # If module is not entitled on the plan
+        if not entitled:
+            if is_admin:
+                # Company admin sees the module as locked with an upgrade CTA
+                result.append({
+                    "id": mod["id"],
+                    "title": mod["title"],
+                    "is_locked": True,
+                    "required_plan": "Business" if mod["id"] in ("fleet", "einvoicing", "statements") else "Pro",
+                    "items": [
+                        {**it, "is_locked": True} for it in mod["items"]
+                    ],
+                })
+            # Employees don't see unentitled modules at all
             continue
 
-        # Profile basic options accessible to all active employees
-        if module["id"] == "profile":
-            filtered_nav.append(module)
-            continue
-
-        allowed_items = [
-            item for item in module["items"]
-            if (module["id"], item["feature"]) in allowed_features
-        ]
-
-        if allowed_items:
-            filtered_nav.append({
-                "id": module["id"],
-                "title": module["title"],
-                "items": allowed_items,
+        # Module is entitled: filter items by role
+        if is_admin:
+            result.append({
+                "id": mod["id"],
+                "title": mod["title"],
+                "is_locked": False,
+                "items": [
+                    {**it, "is_locked": False} for it in mod["items"]
+                ],
             })
+        else:
+            # Employee role filtering
+            if mod["id"] == "home":
+                result.append({**mod, "is_locked": False})
+            elif mod["id"] == "profile":
+                # Employees only see personal account and change password
+                allowed_items = [
+                    {**it, "is_locked": False} for it in mod["items"]
+                    if it["feature"] in ("account", "change_password") or (mod["id"], it["feature"]) in allowed_features
+                ]
+                if allowed_items:
+                    result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
+            else:
+                allowed_items = [
+                    {**it, "is_locked": False} for it in mod["items"]
+                    if (mod["id"], it["feature"]) in allowed_features
+                ]
+                if allowed_items:
+                    result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
 
-    return filtered_nav
+    return result
+
 
 @router.post("/logout", status_code=status.HTTP_200_OK, summary="Logout user")
 async def logout(

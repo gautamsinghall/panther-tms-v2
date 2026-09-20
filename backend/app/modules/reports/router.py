@@ -9,12 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.control.models import Tenant
 from app.tenant_db.models import User
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_permission
 from app.core.errors import ForbiddenException
 from app.modules.reports import schemas, service
 from app.workers.tasks import get_redis_client, generate_report_export_job
 
-router = APIRouter(prefix="/reports", tags=["Reports"])
+router = APIRouter(
+    prefix="/reports",
+    tags=["Reports"],
+    dependencies=[Depends(require_permission("reports", "general", "view"))],
+)
+
 
 
 def require_reports_permission(permission: str = "view", feature: Optional[str] = None):

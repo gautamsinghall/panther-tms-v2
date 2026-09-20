@@ -5,11 +5,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.tenant_db.session import get_tenant_db
 from app.tenant_db.models import User
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_permission
 from app.core.errors import ForbiddenException
 from app.modules.statements import schemas, service
 
-router = APIRouter(prefix="/statements", tags=["Statements"])
+router = APIRouter(
+    prefix="/statements",
+    tags=["Statements"],
+    dependencies=[Depends(require_permission("statements", "general", "view"))],
+)
+
 
 
 def require_statements_permission(permission: str = "view", feature: Optional[str] = None):

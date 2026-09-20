@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from typing import Any, List, Optional
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 class EntitlementBase(BaseModel):
     feature_key: str
@@ -62,7 +62,7 @@ class SignupInitiateRequest(BaseModel):
     admin_password: str = Field(..., min_length=8)
     admin_full_name: str = Field(default="Company Admin")
     plan_code: str = Field(default="FREE")
-    billing_cycle: str = Field(default="monthly", pattern="^(monthly|yearly)$")
+    billing_cycle: str = Field(default="monthly", pattern="^(?i)(monthly|yearly)$")
 
 
 class SignupInitiateResponse(BaseModel):
@@ -79,6 +79,37 @@ class SignupInitiateResponse(BaseModel):
 
 class SignupCompleteRequest(BaseModel):
     subdomain: str = Field(..., min_length=2, max_length=63)
+    subscription_id: Optional[str] = None
+    payment_id: Optional[str] = None
+    signature: Optional[str] = None
+    company_name: Optional[str] = None
+    admin_email: Optional[EmailStr] = None
+    admin_password: Optional[str] = None
+    admin_full_name: Optional[str] = None
+    plan_code: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_razorpay_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "razorpay_subscription_id" in data and "subscription_id" not in data:
+                data["subscription_id"] = data["razorpay_subscription_id"]
+            if "razorpay_payment_id" in data and "payment_id" not in data:
+                data["payment_id"] = data["razorpay_payment_id"]
+            if "razorpay_signature" in data and "signature" not in data:
+                data["signature"] = data["razorpay_signature"]
+        return data
+
+
+class CreateSubscriptionRequest(BaseModel):
+    plan_code: str
+    billing_cycle: str = Field(default="monthly", pattern="^(monthly|yearly)$")
+
+
+class CreateSubscriptionResponse(BaseModel):
     subscription_id: str
-    payment_id: str
-    signature: str
+    plan_code: str
+    amount: float
+    razorpay_key_id: str
+    currency: str = "INR"
+

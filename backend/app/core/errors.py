@@ -54,6 +54,25 @@ class ForbiddenException(AppException):
             details=details,
         )
 
+class EntitlementLockedException(AppException):
+    def __init__(self, module: str, plan_name: str = "your plan", details: Optional[Any] = None):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            error_code="ENTITLEMENT_LOCKED",
+            message=f"The '{module}' module is not included in {plan_name}. Please upgrade your subscription to access this feature.",
+            details=details or {"module": module},
+        )
+
+class QuotaExceededException(AppException):
+    def __init__(self, limit_key: str, current_limit: str, details: Optional[Any] = None):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            error_code="QUOTA_EXCEEDED",
+            message=f"Usage quota exceeded for {limit_key} (limit: {current_limit}). Please upgrade your plan to increase limits.",
+            details=details or {"limit_key": limit_key, "limit": current_limit},
+        )
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):

@@ -114,3 +114,13 @@ class RazorpayClient:
         """Helper to generate valid HMAC-SHA256 signature for test cases and webhook simulations."""
         verify_secret = secret or self.webhook_secret
         return hmac.new(verify_secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+
+
+from app.core.config import settings
+
+razorpay_client = RazorpayClient(
+    key_id=settings.RAZORPAY_KEY_ID,
+    key_secret=settings.RAZORPAY_KEY_SECRET,
+    webhook_secret=settings.RAZORPAY_WEBHOOK_SECRET,
+)
+

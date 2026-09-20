@@ -5,7 +5,12 @@ from app.tenant_db.session import get_tenant_db
 from app.auth.dependencies import require_permission
 from app.modules.einvoicing import schemas, service
 
-router = APIRouter(prefix="/einvoicing", tags=["E-Invoicing"])
+router = APIRouter(
+    prefix="/einvoicing",
+    tags=["E-Invoicing"],
+    dependencies=[Depends(require_permission("einvoicing", "general", "view"))],
+)
+
 
 def map_einvoice_response(rec) -> schemas.EInvoiceResponse:
     resp = schemas.EInvoiceResponse.model_validate(rec)

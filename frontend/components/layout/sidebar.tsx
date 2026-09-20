@@ -21,6 +21,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -37,6 +38,8 @@ interface NavGroup {
   title: string;
   icon?: React.ReactNode;
   defaultExpanded?: boolean;
+  is_locked?: boolean;
+  required_plan?: string | null;
   items: NavSubItem[];
 }
 
@@ -195,6 +198,8 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "account", title: "User Account", href: "/profile/account" },
       { feature: "branch", title: "Branch", href: "/profile/branch" },
       { feature: "change_password", title: "Change Password", href: "/profile/change-password" },
+      { feature: "email", title: "Email Settings", href: "/profile/email" },
+      { feature: "monthly_pnl", title: "Monthly P&L", href: "/profile/monthly-pnl" },
     ],
   },
 ];
@@ -341,7 +346,17 @@ export function Sidebar() {
                   <span className={cn(hasActiveChild ? "text-[#4F46E5]" : "text-[#667085]")}>
                     {icon}
                   </span>
-                  {!isCollapsed && <span className="text-xs">{group.title}</span>}
+                  {!isCollapsed && (
+                    <span className="text-xs flex items-center gap-1.5">
+                      {group.title}
+                      {group.is_locked && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-tight">
+                          <Lock className="w-2.5 h-2.5" />
+                          {group.required_plan || "LOCKED"}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
                 {!isCollapsed && (
                   <span className="text-[#667085]">

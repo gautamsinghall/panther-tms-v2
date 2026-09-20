@@ -5,8 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import TenantNotFoundException, TenantInactiveException
-from app.control.models import Tenant
+from datetime import datetime, timezone
+from sqlalchemy.orm import selectinload
+from app.control.models import Tenant, Plan
 from app.core.database import ControlSessionLocal
+
 
 # In-memory cache for resolved tenants: subdomain -> Tenant dict/model
 _tenant_cache = {}
@@ -67,7 +70,11 @@ async def get_tenant_by_subdomain(subdomain: str, session: Optional[AsyncSession
     cleaned = subdomain.strip().lower()
 
     async def _query(s: AsyncSession) -> Optional[Tenant]:
-        result = await s.execute(select(Tenant).where(Tenant.subdomain == cleaned))
+        result = await s.execute(
+            select(Tenant)
+            .options(selectinload(Tenant.plan).selectinload(Plan.entitlements))
+            .where(Tenant.subdomain == cleaned)
+        )
         return result.scalar_one_or_none()
 
     tenant: Optional[Tenant] = None
@@ -80,7 +87,14 @@ async def get_tenant_by_subdomain(subdomain: str, session: Optional[AsyncSession
     if not tenant:
         raise TenantNotFoundException(cleaned)
 
-    if tenant.status != "ACTIVE":
+    now = datetime.now(timezone.utc)
+    if tenant.status == "SUSPENDED":
+        raise TenantInactiveException(cleaned)
+    if tenant.status == "PAST_DUE":
+        if tenant.grace_period_until and now > tenant.grace_period_until:
+            raise TenantInactiveException(cleaned)
+    elif tenant.status != "ACTIVE":
         raise TenantInactiveException(cleaned)
 
     return tenant
+

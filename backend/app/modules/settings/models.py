@@ -1,4 +1,10 @@
-from app.tenant_db.models import User, Role, RolePermission
+from app.tenant_db.models import (
+    User, Role, RolePermission,
+    SeriesCategory, SeriesMaster, AdminSetting, UserActivity
+)
 
-# Re-export tenant DB models for settings module consistency
-__all__ = ["User", "Role", "RolePermission"]
+__all__ = [
+    "User", "Role", "RolePermission",
+    "SeriesCategory", "SeriesMaster", "AdminSetting", "UserActivity"
+]
+

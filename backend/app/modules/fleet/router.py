@@ -30,7 +30,12 @@ from app.modules.fleet.schemas import (
     TripExpenseRegisterResponse,
 )
 
-router = APIRouter(prefix="/fleet", tags=["Fleet Management"])
+router = APIRouter(
+    prefix="/fleet",
+    tags=["Fleet Management"],
+    dependencies=[Depends(require_permission("fleet", "general", "view"))],
+)
+
 
 # ==============================================================================
 # Trip Expense Endpoints

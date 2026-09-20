@@ -19,6 +19,8 @@ from app.modules.reports.router import router as reports_router
 from app.modules.statements.router import router as statements_router
 from app.modules.fleet.router import router as fleet_router
 from app.modules.home.router import router as home_router
+from app.modules.profile.router import router as profile_router
+
 
 
 @asynccontextmanager
@@ -26,9 +28,17 @@ async def lifespan(app: FastAPI):
     # Startup: Ensure control-plane tables exist and plans are seeded
     async with control_engine.begin() as conn:
         await conn.run_sync(ControlBase.metadata.create_all)
+        from sqlalchemy import text
+        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(100);"))
+        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';"))
+        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;"))
+        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
+        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
+        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
 
     async with ControlSessionLocal() as session:
         await seed_plans_and_entitlements(session)
+
 
     yield
 
@@ -71,7 +81,8 @@ async def root():
         "docs": "/docs",
     }
 
-# Include API Routers under API_V1_PREFIX
+# Include API Routers
+app.include_router(control_router)  # /control/plans, /control/signup, /control/webhooks
 app.include_router(control_router, prefix=settings.API_V1_PREFIX)
 app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
 app.include_router(general_router, prefix=settings.API_V1_PREFIX)
@@ -85,4 +96,6 @@ app.include_router(reports_router, prefix=settings.API_V1_PREFIX)
 app.include_router(statements_router, prefix=settings.API_V1_PREFIX)
 app.include_router(fleet_router, prefix=settings.API_V1_PREFIX)
 app.include_router(home_router, prefix=settings.API_V1_PREFIX)
+app.include_router(profile_router, prefix=settings.API_V1_PREFIX)
+
 

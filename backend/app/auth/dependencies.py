@@ -1,10 +1,14 @@
+from datetime import datetime, timezone
 from typing import Callable
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.errors import UnauthorizedException, ForbiddenException
+from app.core.errors import (
+    UnauthorizedException, ForbiddenException,
+    EntitlementLockedException, QuotaExceededException
+)
 from app.core.security import decode_token
 from app.control.models import Tenant
 from app.tenant_db.models import User, Role, RolePermission
@@ -71,14 +75,48 @@ async def get_current_company_admin(
 
 def require_permission(module: str, feature: str, permission: str) -> Callable:
     """
-    Factory creating a FastAPI dependency enforcing fine-grained RBAC per rules.md §5:
-    'Every new endpoint must declare its required permission explicitly; no implicitly open endpoints.'
-    - Company Admin has full access to all modules and actions.
-    - Employee is checked against the permissions in their assigned role.
+    Unified authorization dependency per rules.md §5 and architecture.md §6:
+    1. Layer 1: Entitlement locking (plan-level) - checks if tenant's subscription
+       and plan allow the requested module.
+    2. Layer 2: RBAC locking (employee-level) - Company Admin has full access to
+       entitled features; Employees are checked against their assigned role permissions.
     """
     async def _check_permission(
-        user: User = Depends(get_current_user)
+        user: User = Depends(get_current_user),
+        tenant: Tenant = Depends(get_current_tenant),
     ) -> User:
+        # 1. Check tenant subscription status
+        now = datetime.now(timezone.utc)
+        if tenant.status == "SUSPENDED":
+            raise ForbiddenException(
+                message="Tenant subscription is suspended. Please renew to resume access.",
+                details={"error_code": "SUBSCRIPTION_SUSPENDED", "subdomain": tenant.subdomain}
+            )
+        if tenant.status == "PAST_DUE" and tenant.grace_period_until and now > tenant.grace_period_until:
+            raise ForbiddenException(
+                message="Subscription grace period has expired. Please update payment to resume access.",
+                details={"error_code": "GRACE_PERIOD_EXPIRED", "subdomain": tenant.subdomain}
+            )
+
+        # 2. Check Module Entitlement (plan-based)
+        norm_mod = module.replace("-", "_").lower()
+        feature_key = f"module_{norm_mod}"
+
+        if tenant.plan and tenant.plan.entitlements:
+            is_entitled = False
+            for ent in tenant.plan.entitlements:
+                if ent.feature_key in (feature_key, "module_all") and ent.is_enabled:
+                    if ent.limit_value.lower() in ("true", "1", "yes"):
+                        is_entitled = True
+                        break
+            if not is_entitled:
+                raise EntitlementLockedException(
+                    module=module,
+                    plan_name=tenant.plan.name,
+                    details={"module": module, "plan": tenant.plan.code}
+                )
+
+        # 3. Check Employee RBAC (employee-based)
         if user.role == "COMPANY_ADMIN":
             return user
 
@@ -105,3 +143,39 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
         return user
 
     return _check_permission
+
+
+async def check_entitlement_limit(tenant: Tenant, db: AsyncSession, limit_key: str) -> None:
+    """
+    Enforces numerical plan quotas (e.g., max_users, max_vehicles) per architecture.md §6.
+    """
+    if not tenant.plan or not tenant.plan.entitlements:
+        return
+
+    limit_val = None
+    for ent in tenant.plan.entitlements:
+        if ent.feature_key == limit_key and ent.is_enabled:
+            limit_val = ent.limit_value
+            break
+
+    if not limit_val or limit_val.lower() in ("unlimited", "infinite", "-1"):
+        return
+
+    try:
+        max_allowed = int(limit_val)
+    except ValueError:
+        return
+
+    if limit_key == "max_users":
+        count_stmt = select(func.count()).select_from(User).where(User.is_active == True)
+        current_count = (await db.execute(count_stmt)).scalar() or 0
+        if current_count >= max_allowed:
+            raise QuotaExceededException(limit_key="Users", current_limit=str(max_allowed))
+
+    elif limit_key == "max_vehicles":
+        from app.tenant_db.models import CompanyVehicle
+        count_stmt = select(func.count()).select_from(CompanyVehicle).where(CompanyVehicle.is_active == True)
+        current_count = (await db.execute(count_stmt)).scalar() or 0
+        if current_count >= max_allowed:
+            raise QuotaExceededException(limit_key="Vehicles", current_limit=str(max_allowed))
+
