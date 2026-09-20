@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, ShieldCheck, User, Building, ExternalLink } from "lucide-react";
+import { LogOut, ShieldCheck, User, Building, ExternalLink, Bell } from "lucide-react";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/ui/badge";
 import { getStoredAuth, clearStoredAuth } from "@/lib/auth";
@@ -28,13 +28,12 @@ export function Header() {
         companyName: auth.tenantName || "Demo Logistics Pvt Ltd",
       });
     } else {
-      // Default to demo tenant context for UI showcase if not authenticated
       setAuthData({
-        userName: "Demo Admin",
+        userName: "Operations Admin",
         userEmail: "admin@demo.com",
         role: "COMPANY_ADMIN",
         subdomain: "demo",
-        companyName: "Demo Logistics Pvt Ltd",
+        companyName: "Panther Logistics Network",
       });
     }
   }, []);
@@ -45,37 +44,40 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 border-b border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800 px-6 flex items-center justify-between">
-      {/* Left: Tenant Identity Context */}
+    <header className="h-16 border-b border-[#E4E7EC] bg-white px-6 flex items-center justify-between z-20 shrink-0">
+      {/* Left: Tenant Identity Context per docs/design.md §9 */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 dark:bg-slate-800/80 dark:border-slate-700">
-          <Building className="w-4 h-4 text-slate-500" />
-          <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-control bg-[#F7F8FA] border border-[#E4E7EC]">
+          <Building className="w-4 h-4 text-[#667085]" />
+          <span className="text-xs font-semibold text-[#172033]">
             {authData?.companyName}
           </span>
-          <span className="text-[11px] font-mono text-slate-400">
-            ({authData?.subdomain}.panthertms.local)
+          <span className="text-[11px] font-mono text-[#98A2B3]">
+            ({authData?.subdomain})
           </span>
         </div>
 
         <StatusBadge status="ACTIVE" variant="active" />
       </div>
 
-      {/* Right: User Profile Menu & Logout */}
-      <div className="flex items-center gap-4">
+      {/* Right: Notifications & User Profile Menu */}
+      <div className="flex items-center gap-3">
         <DropdownMenu
           align="right"
           trigger={
-            <button className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center font-semibold text-xs shadow-xs">
+            <button
+              type="button"
+              className="flex items-center gap-2.5 p-1.5 rounded-control hover:bg-[#F2F4F7] transition-colors"
+            >
+              <div className="w-8 h-8 rounded-control bg-[#172033] text-white flex items-center justify-center font-bold text-xs shadow-xs">
                 {authData?.userName ? authData.userName[0].toUpperCase() : "A"}
               </div>
               <div className="text-left hidden md:block">
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-tight">
+                <p className="text-xs font-semibold text-[#172033] leading-tight">
                   {authData?.userName}
                 </p>
-                <p className="text-[11px] text-slate-400 leading-tight flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                <p className="text-[10px] text-[#667085] leading-tight flex items-center gap-1 font-mono">
+                  <ShieldCheck className="w-3 h-3 text-[#16A34A]" />
                   {authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role}
                 </p>
               </div>

@@ -481,7 +481,7 @@ async def create_transport_invoice_from_lr(
 
 
 async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate) -> Voucher:
-    stmt = select(HireChallan).where(HireChallan.id == data.hire_challan_id)
+    stmt = select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == data.hire_challan_id)
     res = await session.execute(stmt)
     hc = res.scalar_one_or_none()
     if not hc:
@@ -491,10 +491,11 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate) -> V
     bank_id = data.bank_account_id or await get_fallback_account_id(session, bank_code, "BANK")
     hire_exp_id = await get_fallback_account_id(session, "ACC_TRUCK_HIRE_EXP", "EXPENSE")
 
+    owner_name = hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner")
     voucher_create = VoucherCreate(
         voucher_type=VoucherType.PAYMENT_ATH.value,
         voucher_date=data.voucher_date or date.today(),
-        party_name=hc.owner_name or "Vehicle Owner",
+        party_name=owner_name,
         party_type="VEHICLE_OWNER",
         reference_number=hc.challan_number,
         total_amount=data.amount,
@@ -504,19 +505,20 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate) -> V
         account_id=hire_exp_id,
         credit_account_id=bank_id,
         hire_challan_id=hc.id,
+        lr_id=hc.lr_id,
         items=[],
     )
     voucher = await post_voucher(session, voucher_create)
 
     # Update hire challan advance paid
-    hc.advance_paid = (hc.advance_paid or Decimal("0.00")) + data.amount
-    hc.balance_payable = max(Decimal("0.00"), (hc.total_hire_charges or Decimal("0.00")) - hc.advance_paid)
+    hc.advance_amount = (hc.advance_amount or Decimal("0.00")) + data.amount
+    hc.balance_amount = max(Decimal("0.00"), (hc.hire_rate or Decimal("0.00")) - hc.advance_amount)
     await session.commit()
     return voucher
 
 
 async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate) -> Voucher:
-    stmt = select(HireChallan).where(HireChallan.id == data.hire_challan_id)
+    stmt = select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == data.hire_challan_id)
     res = await session.execute(stmt)
     hc = res.scalar_one_or_none()
     if not hc:
@@ -526,10 +528,11 @@ async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate) -> V
     bank_id = data.bank_account_id or await get_fallback_account_id(session, bank_code, "BANK")
     hire_exp_id = await get_fallback_account_id(session, "ACC_TRUCK_HIRE_EXP", "EXPENSE")
 
+    owner_name = hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner")
     voucher_create = VoucherCreate(
         voucher_type=VoucherType.PAYMENT_BTH.value,
         voucher_date=data.voucher_date or date.today(),
-        party_name=hc.owner_name or "Vehicle Owner",
+        party_name=owner_name,
         party_type="VEHICLE_OWNER",
         reference_number=hc.challan_number,
         total_amount=data.amount,
@@ -539,13 +542,14 @@ async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate) -> V
         account_id=hire_exp_id,
         credit_account_id=bank_id,
         hire_challan_id=hc.id,
+        lr_id=hc.lr_id,
         items=[],
     )
     voucher = await post_voucher(session, voucher_create)
 
     # Settle hire challan
-    hc.balance_payable = max(Decimal("0.00"), (hc.balance_payable or Decimal("0.00")) - data.amount)
-    if hc.balance_payable == Decimal("0.00"):
+    hc.balance_amount = max(Decimal("0.00"), (hc.balance_amount or Decimal("0.00")) - data.amount)
+    if hc.balance_amount == Decimal("0.00"):
         hc.status = "SETTLED"
     await session.commit()
     return voucher

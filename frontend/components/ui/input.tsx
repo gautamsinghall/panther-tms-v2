@@ -17,10 +17,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-xs font-semibold text-slate-700 dark:text-slate-200"
+            className="block text-xs font-semibold text-[#172033]"
           >
             {label}
-            {(required || requiredMarker) && <span className="text-rose-500 ml-0.5">*</span>}
+            {(required || requiredMarker) && <span className="text-[#DC2626] ml-0.5">*</span>}
           </label>
         )}
         <input
@@ -29,19 +29,18 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           disabled={disabled}
           className={cn(
-            "flex h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:border-transparent",
-            "disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 disabled:border-slate-200",
-            "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800/60 dark:disabled:text-slate-500",
-            error && "border-rose-500 focus-visible:ring-rose-500",
+            "flex h-9 w-full rounded-control border border-[#E4E7EC] bg-white px-3 py-1.5 text-xs sm:text-sm text-[#172033] placeholder:text-[#98A2B3] transition-colors",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#172033] focus-visible:border-[#172033]",
+            "disabled:cursor-not-allowed disabled:bg-[#F2F4F7] disabled:text-[#98A2B3]",
+            error && "border-[#DC2626] focus-visible:ring-[#DC2626]",
             className
           )}
           {...props}
         />
         {error ? (
-          <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">{error}</p>
+          <p className="text-xs text-[#DC2626] font-medium">{error}</p>
         ) : helperText ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">{helperText}</p>
+          <p className="text-xs text-[#667085]">{helperText}</p>
         ) : null}
       </div>
     );

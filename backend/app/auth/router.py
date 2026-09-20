@@ -113,6 +113,10 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "trial_balance", "title": "Trial Balance", "href": "/reports/trial-balance"},
             {"feature": "balance_sheet", "title": "Balance Sheet", "href": "/reports/balance-sheet"},
             {"feature": "profit_loss", "title": "Profit & Loss", "href": "/reports/profit-loss"},
+            {"feature": "sales_register", "title": "Sales Register", "href": "/reports/sales-register"},
+            {"feature": "purchase_register", "title": "Purchase Register", "href": "/reports/purchase-register"},
+            {"feature": "bank_reconciliation", "title": "Bank Reconciliation", "href": "/reports/bank-reconciliation"},
+            {"feature": "special_report", "title": "Special Report", "href": "/reports/special-report"},
         ],
     },
     {
@@ -124,6 +128,8 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "os_debtor", "title": "O/S Debtor", "href": "/statements/os-debtor"},
             {"feature": "os_creditor", "title": "O/S Creditor", "href": "/statements/os-creditor"},
             {"feature": "tds_payable", "title": "TDS Payable", "href": "/statements/tds-payable"},
+            {"feature": "tds_return", "title": "TDS Return", "href": "/statements/tds-return"},
+            {"feature": "opening_balance", "title": "Opening Balance Details", "href": "/statements/opening-balance"},
         ],
     },
     {

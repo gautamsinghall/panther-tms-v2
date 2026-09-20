@@ -1,15 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Edit3, Building2, Phone, Mail } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 
-interface ConsignerRecord {
+export interface ConsignerRecord {
   id: number;
   name: string;
   code?: string;
@@ -20,23 +24,37 @@ interface ConsignerRecord {
   city?: string;
   state?: string;
   is_active: boolean;
+  created_at?: string;
 }
 
 export default function ConsignerPage() {
   const [data, setData] = useState<ConsignerRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters & Search
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Drawer / Form state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Confirmation dialog state
+  const [deactivatingRecord, setDeactivatingRecord] = useState<ConsignerRecord | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const res = await apiClient<ConsignerRecord[]>("/api/v1/general/consigners");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to load consigners.");
+      setIsError(true);
+      setErrorMessage(err.message || "Failed to load customer records.");
     } finally {
       setIsLoading(false);
     }
@@ -46,37 +64,65 @@ export default function ConsignerPage() {
     loadData();
   }, []);
 
+  // Filtered dataset
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (statusFilter === "ACTIVE" && !item.is_active) return false;
+      if (statusFilter === "INACTIVE" && item.is_active) return false;
+      return true;
+    });
+  }, [data, statusFilter]);
+
   const columns: ColumnDef<ConsignerRecord>[] = [
     {
       key: "name",
-      header: "Consigner Name",
+      header: "Customer / Consigner",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100">
-          {row.name}
-        </span>
-      ),
-    },
-    {
-      key: "code",
-      header: "Code",
-      sortable: true,
-      cell: (row) => (
-        <span className="font-mono text-xs text-slate-600 dark:text-slate-400">
-          {row.code || "-"}
-        </span>
+        <div>
+          <span className="font-semibold text-[#172033] block">
+            {row.name}
+          </span>
+          {row.code && (
+            <span className="font-mono text-[11px] text-[#667085]">
+              Code: {row.code}
+            </span>
+          )}
+        </div>
       ),
     },
     {
       key: "contact_person",
-      header: "Contact Person",
+      header: "Contact Details",
       sortable: true,
+      cell: (row) => (
+        <div>
+          <span className="font-medium text-[#172033] block text-xs">
+            {row.contact_person || "-"}
+          </span>
+          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#667085]">
+            {row.phone && (
+              <span className="inline-flex items-center gap-0.5">
+                <Phone className="w-2.5 h-2.5 text-[#98A2B3]" />
+                {row.phone}
+              </span>
+            )}
+            {row.email && (
+              <span className="inline-flex items-center gap-0.5">
+                <Mail className="w-2.5 h-2.5 text-[#98A2B3]" />
+                {row.email}
+              </span>
+            )}
+          </div>
+        </div>
+      ),
     },
     {
       key: "city",
-      header: "City / State",
+      header: "Location",
+      sortable: true,
       cell: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400">
+        <span className="text-xs text-[#667085]">
           {row.city || "-"}{row.state ? `, ${row.state}` : ""}
         </span>
       ),
@@ -84,8 +130,9 @@ export default function ConsignerPage() {
     {
       key: "gstin",
       header: "GSTIN",
+      sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+        <span className="font-mono text-xs uppercase bg-[#F2F4F7] text-[#172033] px-2 py-0.5 rounded border border-[#E4E7EC]">
           {row.gstin || "Unregistered"}
         </span>
       ),
@@ -94,7 +141,12 @@ export default function ConsignerPage() {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => (
+        <StatusBadge
+          status={row.is_active ? "Active" : "Inactive"}
+          variant={row.is_active ? "active" : "inactive"}
+        />
+      ),
     },
   ];
 
@@ -103,14 +155,9 @@ export default function ConsignerPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5" />,
       variant: "danger",
-      onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate ${row.name}?`)) return;
-        try {
-          await apiClient(`/api/v1/general/consigners/${row.id}`, { method: "DELETE" });
-          loadData();
-        } catch (err: any) {
-          alert(err.message || "Failed to deactivate consigner.");
-        }
+      hidden: (row) => !row.is_active,
+      onClick: (row) => {
+        setDeactivatingRecord(row);
       },
     },
   ];
@@ -118,50 +165,52 @@ export default function ConsignerPage() {
   const formSections: FormSectionDef[] = [
     {
       id: "general_info",
-      title: "Consigner Information",
-      description: "Primary shipper and dispatch party details",
+      title: "Commercial & Contact Information",
+      description: "Primary client profile and GST compliance details",
       columns: 2,
       fields: [
         {
           name: "name",
-          label: "Consigner Name",
-          placeholder: "e.g. Jindal Steel & Power",
+          label: "Customer / Consigner Name",
+          placeholder: "e.g. Jindal Steel & Power Ltd",
           required: true,
+          colSpan: 2,
         },
         {
           name: "code",
-          label: "Consigner Code",
-          placeholder: "e.g. JSP-RAI",
+          label: "Customer Code",
+          placeholder: "e.g. JSPL-RAI",
+        },
+        {
+          name: "gstin",
+          label: "GSTIN Identification",
+          placeholder: "22AAACJ1234F1Z1",
         },
         {
           name: "contact_person",
-          label: "Contact Person",
+          label: "Primary Contact Person",
           placeholder: "e.g. Alok Sharma",
         },
         {
           name: "phone",
-          label: "Phone Number",
-          placeholder: "+91 9876543210",
+          label: "Phone / Mobile",
+          placeholder: "+91 98765 43210",
         },
         {
           name: "email",
-          label: "Email Address",
+          label: "Official Email Address",
           type: "email",
-          placeholder: "dispatch@company.com",
-        },
-        {
-          name: "gstin",
-          label: "GSTIN",
-          placeholder: "22AAACJ1234F1Z1",
+          placeholder: "logistics@company.com",
+          colSpan: 2,
         },
         {
           name: "city",
-          label: "City",
+          label: "City / Hub",
           placeholder: "e.g. Raigarh",
         },
         {
           name: "state",
-          label: "State",
+          label: "State / UT",
           placeholder: "e.g. Chhattisgarh",
         },
       ],
@@ -175,80 +224,114 @@ export default function ConsignerPage() {
         method: "POST",
         body: JSON.stringify(values),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create consigner.");
+      alert(err.message || "Failed to create customer record.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleConfirmDeactivate = async () => {
+    if (!deactivatingRecord) return;
+    setIsDeactivating(true);
+    try {
+      await apiClient(`/api/v1/general/consigners/${deactivatingRecord.id}`, {
+        method: "DELETE",
+      });
+      setDeactivatingRecord(null);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to deactivate customer.");
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Consigners
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage shippers and origin dispatch parties.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Consigner
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
-
-      {/* DataTable */}
-      <DataTable
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        actions={actions}
-        searchPlaceholder="Search by name, city, or GSTIN..."
+      {/* Standardized PageHeader per docs/design.md §10 */}
+      <PageHeader
+        title="Customers & Consigners"
+        description="Manage corporate shipper accounts, commercial billing details, GSTIN compliance, and dispatch profiles."
+        primaryAction={{
+          label: "Add Customer",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {/* Add Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Create New Consigner
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* Filter & Search Bar per docs/design.md §14 */}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search customer, city, GSTIN, contact..."
+        filters={[
+          {
+            id: "status",
+            label: "Filter Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { label: "All Statuses", value: "ALL" },
+              { label: "Active Only", value: "ACTIVE" },
+              { label: "Inactive Only", value: "INACTIVE" },
+            ],
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+      />
 
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Create Consigner"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      {/* Standardized DataTable per docs/design.md §12 */}
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        actions={actions}
+        searchable={false} // FilterBar handles search seamlessly
+        emptyMessage="No customers found"
+        emptySubtext="Add your first customer to begin creating jobs, bookings, and freight invoices."
+        emptyAction={{
+          label: "+ Add Customer",
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      {/* Slide-over EntityDrawer per docs/design.md §16 */}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Register New Customer"
+        description="Enter corporate credentials and billing GSTIN for freight operations."
+        width="xl"
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Create Customer"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
+
+      {/* Explicit ConfirmDialog per docs/design.md §24 */}
+      <ConfirmDialog
+        isOpen={!!deactivatingRecord}
+        onClose={() => setDeactivatingRecord(null)}
+        onConfirm={handleConfirmDeactivate}
+        title="Deactivate Customer Account"
+        entityName={deactivatingRecord?.name}
+        consequence="Deactivating this customer will mark their status as inactive. Existing past jobs, LRs, and invoices remain intact for audit history."
+        confirmLabel="Deactivate Customer"
+        isLoading={isDeactivating}
+      />
     </div>
   );
 }

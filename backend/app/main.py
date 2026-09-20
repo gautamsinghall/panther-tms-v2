@@ -15,6 +15,8 @@ from app.modules.transport_reports.router import router as transport_reports_rou
 from app.modules.misc.router import router as misc_router
 from app.modules.accounts.router import router as accounts_router
 from app.modules.einvoicing.router import router as einvoicing_router
+from app.modules.reports.router import router as reports_router
+from app.modules.statements.router import router as statements_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -76,3 +78,5 @@ app.include_router(transport_reports_router, prefix=settings.API_V1_PREFIX)
 app.include_router(misc_router, prefix=settings.API_V1_PREFIX)
 app.include_router(accounts_router, prefix=settings.API_V1_PREFIX)
 app.include_router(einvoicing_router, prefix=settings.API_V1_PREFIX)
+app.include_router(reports_router, prefix=settings.API_V1_PREFIX)
+app.include_router(statements_router, prefix=settings.API_V1_PREFIX)

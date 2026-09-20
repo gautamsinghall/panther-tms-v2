@@ -3,38 +3,48 @@
 @tailwind utilities;
 
 :root {
-  /* Design Tokens per design.md §2 */
-  --color-bg: #f8fafc;           /* Light slate background */
-  --color-surface: #ffffff;      /* Pure white cards & tables */
-  --color-border: #e2e8f0;       /* Border slate-200 */
-  --color-text-primary: #0f172a; /* Slate-900 */
-  --color-text-secondary: #64748b; /* Slate-500 */
-  
-  --color-primary: #2563eb;      /* Vibrant Blue brand action */
-  --color-primary-hover: #1d4ed8;
-  
-  --color-success: #10b981;      /* Emerald: active, delivered, paid */
-  --color-warning: #f59e0b;      /* Amber: pending, in-transit */
-  --color-danger: #ef4444;       /* Rose/Red: overdue, cancelled, rejected */
-  --color-info: #0ea5e9;         /* Sky Blue */
+  /* Core Color Tokens per docs/design.md §3.1 */
+  --color-bg: #F7F8FA;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F2F4F7;
+  --color-border: #E4E7EC;
+  --color-border-strong: #D0D5DD;
+
+  --color-text-primary: #172033;
+  --color-text-secondary: #667085;
+  --color-text-muted: #98A2B3;
+  --color-text-inverse: #FFFFFF;
+
+  /* Brand Gold Accent */
+  --color-gold: #C9A227;
+  --color-gold-dark: #A88416;
+  --color-gold-soft: #F8F1D9;
+
+  /* Primary Action */
+  --color-primary: #172033;
+  --color-primary-hover: #0F172A;
+
+  /* Semantic Status Colors */
+  --color-info: #2563EB;
+  --color-info-soft: #EFF6FF;
+
+  --color-success: #16A34A;
+  --color-success-soft: #ECFDF3;
+
+  --color-warning: #D97706;
+  --color-warning-soft: #FFFAEB;
+
+  --color-danger: #DC2626;
+  --color-danger-soft: #FEF2F2;
+
+  --color-neutral: #667085;
+  --color-neutral-soft: #F2F4F7;
+
+  /* Elevation Shadows per docs/design.md §6 */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-floating: 0 8px 24px rgba(16, 24, 40, 0.08);
 
   --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.dark {
-  --color-bg: #0b0f19;
-  --color-surface: #111827;
-  --color-border: #1f2937;
-  --color-text-primary: #f9fafb;
-  --color-text-secondary: #9ca3af;
-  
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #38bdf8;
 }
 
 body {
@@ -42,14 +52,15 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-inter);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Tabular numbers for financial and quantity metrics per design.md §2 */
+/* Tabular numbers for financial and operational metrics per docs/design.md §4 & §27 */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Scrollbar styling for data-dense tables */
+/* Scrollbar styling for data-dense operational tables */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -62,5 +73,5 @@ body {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
+  background: var(--color-text-muted);
 }

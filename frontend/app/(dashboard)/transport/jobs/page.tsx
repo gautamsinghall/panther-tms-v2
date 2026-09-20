@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, X, ArrowRight, Briefcase } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, ArrowRight, Truck, FileText, CheckCircle2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 interface JobRecord {
@@ -24,7 +27,7 @@ interface JobRecord {
   cargo_description?: string;
   estimated_weight_mt: string | number;
   estimated_packages: number;
-  status: "OPEN" | "BOOKED" | "DISPATCHED" | "DELIVERED" | "CLOSED" | "CANCELLED";
+  status: string;
   created_at: string;
 }
 
@@ -41,12 +44,20 @@ export default function JobsPage() {
   const [consignees, setConsignees] = useState<SelectOption[]>([]);
   const [locations, setLocations] = useState<SelectOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters & Search
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Drawer / Form state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const [jobsRes, consignersRes, consigneesRes, locationsRes] = await Promise.all([
@@ -55,11 +66,12 @@ export default function JobsPage() {
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
         apiClient<SelectOption[]>("/api/v1/general/locations"),
       ]);
-      setData(jobsRes);
-      setConsigners(consignersRes);
-      setConsignees(consigneesRes);
-      setLocations(locationsRes);
+      setData(Array.isArray(jobsRes) ? jobsRes : []);
+      setConsigners(Array.isArray(consignersRes) ? consignersRes : []);
+      setConsignees(Array.isArray(consigneesRes) ? consigneesRes : []);
+      setLocations(Array.isArray(locationsRes) ? locationsRes : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load jobs.");
     } finally {
       setIsLoading(false);
@@ -70,145 +82,182 @@ export default function JobsPage() {
     loadData();
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "OPEN":
-        return <Badge variant="neutral">Open</Badge>;
-      case "BOOKED":
-        return <Badge variant="primary">Booked</Badge>;
-      case "DISPATCHED":
-        return <Badge variant="warning">Dispatched</Badge>;
-      case "DELIVERED":
-        return <Badge variant="secondary">Delivered</Badge>;
-      case "CLOSED":
-        return <Badge variant="success">Closed</Badge>;
-      case "CANCELLED":
-        return <Badge variant="danger">Cancelled</Badge>;
-      default:
-        return <Badge variant="neutral">{status}</Badge>;
-    }
-  };
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
+      return true;
+    });
+  }, [data, statusFilter]);
 
   const columns: ColumnDef<JobRecord>[] = [
     {
       key: "job_number",
-      header: "Job Number",
+      header: "Trip / Job No",
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+          <span className="font-mono font-bold text-[#172033] block">
             {row.job_number}
           </span>
-          <span className="block text-[11px] text-slate-400">
-            {row.job_date}
+          <span className="text-[11px] text-[#667085]">
+            {formatDate(row.job_date)}
           </span>
         </div>
       ),
     },
     {
-      key: "consigner",
-      header: "Consigner (Sender)",
-      sortable: true,
-      cell: (row) => row.consigner_name || "N/A",
-    },
-    {
-      key: "consignee",
-      header: "Consignee (Receiver)",
-      sortable: true,
-      cell: (row) => row.consignee_name || "N/A",
+      key: "parties",
+      header: "Customer → Receiver",
+      cell: (row) => (
+        <div>
+          <span className="font-semibold text-[#172033] block text-xs">
+            {row.consigner_name || `Customer #${row.consigner_id}`}
+          </span>
+          <span className="text-[11px] text-[#667085] flex items-center gap-1">
+            <span className="text-[#98A2B3]">To:</span> {row.consignee_name || `Receiver #${row.consignee_id}`}
+          </span>
+        </div>
+      ),
     },
     {
       key: "route",
-      header: "Route",
+      header: "Route Movement",
       cell: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
-          {row.origin_city || "Origin"} <ArrowRight className="w-3 h-3 text-slate-400" /> {row.destination_city || "Dest"}
-        </span>
+        <div className="flex items-center gap-1.5 text-xs text-[#172033] font-medium">
+          <span className="px-1.5 py-0.5 rounded bg-[#F2F4F7] text-[#172033] border border-[#E4E7EC]">
+            {row.origin_city || "Origin"}
+          </span>
+          <ArrowRight className="w-3 h-3 text-[#98A2B3] shrink-0" />
+          <span className="px-1.5 py-0.5 rounded bg-[#F2F4F7] text-[#172033] border border-[#E4E7EC]">
+            {row.destination_city || "Destination"}
+          </span>
+        </div>
       ),
     },
     {
       key: "cargo",
       header: "Weight / Packages",
       isNumeric: true,
-      cell: (row) => `${parseFloat(String(row.estimated_weight_mt)).toFixed(2)} MT (${row.estimated_packages} pkgs)`,
+      cell: (row) => (
+        <div>
+          <span className="font-mono font-semibold text-[#172033] block text-xs">
+            {parseFloat(String(row.estimated_weight_mt || 0)).toFixed(2)} MT
+          </span>
+          <span className="text-[11px] text-[#667085]">
+            {row.estimated_packages || 0} pkgs
+          </span>
+        </div>
+      ),
     },
     {
       key: "status",
-      header: "Job Status",
+      header: "Trip Status",
       align: "center",
-      cell: (row) => getStatusBadge(row.status),
+      cell: (row) => <StatusBadge status={row.status} />,
     },
   ];
 
   const actions: RowAction<JobRecord>[] = [
     {
       label: "Book GR/LR",
+      icon: <Truck className="w-3.5 h-3.5" />,
       onClick: (row) => {
         router.push(`/transport/lr-booking?job_id=${row.id}`);
       },
     },
   ];
 
-  const consignerOptions = consigners.map((c) => ({ label: c.name || `Consigner ${c.id}`, value: String(c.id) }));
-  const consigneeOptions = consignees.map((c) => ({ label: c.name || `Consignee ${c.id}`, value: String(c.id) }));
-  const locationOptions = locations.map((l) => ({ label: l.city_name || `Location ${l.id}`, value: String(l.id) }));
+  const consignerOptions = consigners.map((c) => ({
+    label: c.name || `Customer ${c.id}`,
+    value: String(c.id),
+  }));
+
+  const consigneeOptions = consignees.map((c) => ({
+    label: c.name || `Receiver ${c.id}`,
+    value: String(c.id),
+  }));
+
+  const locationOptions = locations.map((l) => ({
+    label: l.city_name || `Location ${l.id}`,
+    value: String(l.id),
+  }));
 
   const formSections: FormSectionDef[] = [
     {
-      id: "job_core",
-      title: "Job Order Information",
-      description: "Customer assignment and freight transit details (PRD §7.3)",
+      id: "commercial_parties",
+      title: "Commercial Contracting Parties",
+      description: "Select originating customer and destination consignee",
       columns: 2,
       fields: [
         {
           name: "consigner_id",
-          label: "Consigner (Sender) *",
+          label: "Customer / Consigner",
           type: "select",
           required: true,
           options: consignerOptions,
         },
         {
           name: "consignee_id",
-          label: "Consignee (Receiver) *",
+          label: "Receiving Consignee",
           type: "select",
           required: true,
           options: consigneeOptions,
         },
+      ],
+    },
+    {
+      id: "trip_schedule",
+      title: "Route & Schedule",
+      description: "Origin, destination, and dispatch date",
+      columns: 2,
+      fields: [
         {
           name: "origin_location_id",
-          label: "Origin Location",
+          label: "Origin Location / City",
           type: "select",
+          required: true,
           options: locationOptions,
         },
         {
           name: "destination_location_id",
-          label: "Destination Location",
+          label: "Destination Location / City",
           type: "select",
+          required: true,
           options: locationOptions,
         },
         {
-          name: "estimated_weight_mt",
-          label: "Estimated Cargo Weight (MT)",
-          type: "number",
-          placeholder: "e.g. 15.5",
+          name: "job_date",
+          label: "Scheduled Dispatch Date",
+          type: "date",
+          required: true,
         },
-        {
-          name: "estimated_packages",
-          label: "Package Count",
-          type: "number",
-          placeholder: "e.g. 35",
-        },
+      ],
+    },
+    {
+      id: "cargo_specs",
+      title: "Cargo & Load Details",
+      description: "Weight, package count, and consignment commodity",
+      columns: 2,
+      fields: [
         {
           name: "cargo_description",
           label: "Cargo Description",
-          placeholder: "e.g. Auto Spare Parts / FMCG Pallets",
+          placeholder: "e.g. Industrial Steel Coils",
           colSpan: 2,
         },
         {
-          name: "special_instructions",
-          label: "Special Dispatch Instructions",
-          type: "textarea",
-          colSpan: 2,
+          name: "estimated_weight_mt",
+          label: "Estimated Weight (MT)",
+          placeholder: "e.g. 24.50",
+          type: "number",
+          required: true,
+        },
+        {
+          name: "estimated_packages",
+          label: "Total Packages",
+          placeholder: "e.g. 150",
+          type: "number",
+          required: true,
         },
       ],
     },
@@ -221,19 +270,20 @@ export default function JobsPage() {
         ...values,
         consigner_id: parseInt(values.consigner_id, 10),
         consignee_id: parseInt(values.consignee_id, 10),
-        origin_location_id: values.origin_location_id ? parseInt(values.origin_location_id, 10) : null,
-        destination_location_id: values.destination_location_id ? parseInt(values.destination_location_id, 10) : null,
-        estimated_weight_mt: values.estimated_weight_mt ? parseFloat(values.estimated_weight_mt) : 0,
-        estimated_packages: values.estimated_packages ? parseInt(values.estimated_packages, 10) : 0,
+        origin_location_id: parseInt(values.origin_location_id, 10),
+        destination_location_id: parseInt(values.destination_location_id, 10),
+        estimated_weight_mt: parseFloat(values.estimated_weight_mt) || 0,
+        estimated_packages: parseInt(values.estimated_packages, 10) || 0,
       };
+
       await apiClient("/api/v1/transport/jobs", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create job.");
+      alert(err.message || "Failed to create trip / job.");
     } finally {
       setIsSubmitting(false);
     }
@@ -241,66 +291,75 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Job Creation & Orders
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Create transport job orders preceding GR/LR booking with real status lifecycle.
-          </p>
-        </div>
+      <PageHeader
+        title="Trips & Job Orders"
+        description="Operational dispatch movements: create freight bookings, monitor corridor routes, and transition into LR bookings."
+        primaryAction={{
+          label: "Create Trip Order",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Create Job
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search trip no, customer, route city..."
+        filters={[
+          {
+            id: "status",
+            label: "Filter Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { label: "All Statuses", value: "ALL" },
+              { label: "Open", value: "OPEN" },
+              { label: "Booked", value: "BOOKED" },
+              { label: "Dispatched", value: "DISPATCHED" },
+              { label: "Delivered", value: "DELIVERED" },
+              { label: "Closed", value: "CLOSED" },
+              { label: "Cancelled", value: "CANCELLED" },
+            ],
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+      />
 
       <DataTable
         columns={columns}
-        data={data}
+        data={filteredData}
         isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         actions={actions}
-        searchPlaceholder="Search by job number, consigner, or consignee..."
+        searchable={false}
+        emptyMessage="No trips found"
+        emptySubtext="Create a new trip or transport job order to initiate dispatch and vehicle scheduling."
+        emptyAction={{
+          label: "+ Create Trip Order",
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Create New Transport Job Order
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Create Job"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Create Trip / Job Order"
+        description="Specify contracting customer, dispatch route corridor, and cargo requirements."
+        width="xl"
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Create Trip Order"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
     </div>
   );
 }

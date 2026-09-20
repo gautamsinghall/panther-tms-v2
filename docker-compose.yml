@@ -55,6 +55,8 @@ services:
       - BASE_DOMAIN=${BASE_DOMAIN:-localhost}
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy

@@ -51,6 +51,7 @@ async def run_migration():
             {"primary": "LIABILITY", "code": "TAX", "name": "Duties & Taxes", "description": "GST output, input, and TDS payable"},
             {"primary": "INCOME", "code": "REV_DIRECT", "name": "Direct Income", "description": "Freight charges and transport billing"},
             {"primary": "INCOME", "code": "REV_INDIRECT", "name": "Indirect Income", "description": "Interest and non-freight revenue"},
+            {"primary": "EQUITY", "code": "CAPITAL_GRP", "name": "Capital & Reserves", "description": "Owners Capital and Retained Reserves"},
             {"primary": "EXPENSE", "code": "EXP_DIRECT", "name": "Direct Expenses", "description": "Truck hire, diesel, driver allowances, toll, loading"},
             {"primary": "EXPENSE", "code": "EXP_INDIRECT", "name": "Indirect Expenses", "description": "Office rent, salaries, utilities, marketing"},
         ]
@@ -125,6 +126,7 @@ async def run_migration():
             {"code": "ACC_TOLL_EXP", "name": "Toll Expense", "group": "EXP_DIRECT", "opening_balance": Decimal("0.00"), "opening_balance_type": "DR"},
             {"code": "ACC_SUNDRY_DEBTORS", "name": "General Trade Debtors", "group": "DEBTORS", "opening_balance": Decimal("0.00"), "opening_balance_type": "DR"},
             {"code": "ACC_SUNDRY_CREDITORS", "name": "General Trade Creditors", "group": "CREDITORS", "opening_balance": Decimal("0.00"), "opening_balance_type": "CR"},
+            {"code": "ACC_CAPITAL", "name": "Owners Capital Account", "group": "CAPITAL_GRP", "opening_balance": Decimal("300000.00"), "opening_balance_type": "CR"},
         ]
         for acc_data in accounts_data:
             stmt = select(models.Account).where(models.Account.code == acc_data["code"])

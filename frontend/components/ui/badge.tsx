@@ -7,15 +7,22 @@ export type StatusVariant =
   | "paid"
   | "completed"
   | "approved"
+  | "verified"
   | "pending"
   | "in_transit"
+  | "in_progress"
   | "draft"
+  | "scheduled"
   | "dispatched"
+  | "arrived"
   | "overdue"
   | "cancelled"
   | "rejected"
   | "failed"
   | "suspended"
+  | "inactive"
+  | "maintenance"
+  | "void"
   | "info"
   | "default";
 
@@ -24,28 +31,36 @@ interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: StatusVariant;
 }
 
+/**
+ * StatusBadge per docs/design.md §19:
+ * Communicates status via both semantic visual dot indicator AND text.
+ */
 export function StatusBadge({ status, variant, className, ...props }: StatusBadgeProps) {
-  // Normalize status to determine variant if not explicitly given
   const normalized = (variant || status || "").toLowerCase().replace(/[\s-]/g, "_");
 
-  let colorClasses = "bg-slate-100 text-slate-700 border-slate-200";
+  // Default: Scheduled / Draft / Neutral gray
+  let colorClasses = "bg-[#F2F4F7] text-[#667085] border-[#E4E7EC]";
+  let dotColor = "bg-[#667085]";
 
-  // Semantic mapping per design.md §2 & §3
-  if (["active", "delivered", "paid", "completed", "approved"].includes(normalized)) {
-    // Success / Emerald
-    colorClasses = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800";
-  } else if (["pending", "in_transit", "draft", "dispatched", "under_review"].includes(normalized)) {
-    // Warning / Amber
-    colorClasses = "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800";
-  } else if (["overdue", "cancelled", "rejected", "failed", "suspended", "inactive"].includes(normalized)) {
-    // Danger / Rose
-    colorClasses = "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800";
-  } else if (["info", "new", "created", "processing", "pro", "business", "enterprise"].includes(normalized)) {
-    // Info / Sky Blue
-    colorClasses = "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800";
+  if (["active", "delivered", "paid", "completed", "approved", "verified", "closed", "pod_verified"].includes(normalized)) {
+    // Success / Green
+    colorClasses = "bg-[#ECFDF3] text-[#16A34A] border-[#A6F4C5]";
+    dotColor = "bg-[#16A34A]";
+  } else if (["in_transit", "in_progress", "loaded", "booked", "info"].includes(normalized)) {
+    // In Transit / Blue / Sky
+    colorClasses = "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]";
+    dotColor = "bg-[#2563EB]";
+  } else if (["pending", "sent", "dispatched", "arrived", "pod_received", "warning", "maintenance", "under_review"].includes(normalized)) {
+    // Sent / Warning / Amber
+    colorClasses = "bg-[#FFFAEB] text-[#D97706] border-[#FEDF89]";
+    dotColor = "bg-[#D97706]";
+  } else if (["overdue", "cancelled", "rejected", "failed", "suspended", "inactive", "void", "danger"].includes(normalized)) {
+    // Overdue / Danger / Red
+    colorClasses = "bg-[#FEF2F2] text-[#DC2626] border-[#FECDCA]";
+    dotColor = "bg-[#DC2626]";
   }
 
-  // Format label to title case with spaces (e.g. IN_TRANSIT -> In Transit)
+  // Format label to clean title case with spaces (e.g. IN_TRANSIT -> In Transit)
   const formatLabel = (val: string) => {
     return val
       .replace(/_/g, " ")
@@ -55,38 +70,39 @@ export function StatusBadge({ status, variant, className, ...props }: StatusBadg
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border tracking-wide transition-colors",
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border tracking-wide select-none transition-colors",
         colorClasses,
         className
       )}
       {...props}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-70" />
+      <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5 shrink-0", dotColor)} />
       {formatLabel(status)}
     </span>
   );
 }
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "primary" | "secondary" | "neutral" | "success" | "danger" | "warning" | "info";
+  variant?: "primary" | "secondary" | "neutral" | "gold" | "success" | "danger" | "warning" | "info";
   children: React.ReactNode;
 }
 
 export function Badge({ variant = "neutral", className, children, ...props }: BadgeProps) {
   const variantStyles = {
-    primary: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800",
-    secondary: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
-    neutral: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/60 dark:text-slate-400 dark:border-slate-700",
-    success: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
-    danger: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800",
-    warning: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800",
-    info: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800",
+    primary: "bg-[#172033]/5 text-[#172033] border-[#172033]/15",
+    secondary: "bg-[#F2F4F7] text-[#172033] border-[#E4E7EC]",
+    neutral: "bg-[#F2F4F7] text-[#667085] border-[#E4E7EC]",
+    gold: "bg-[#F8F1D9] text-[#A88416] border-[#C9A227]/30",
+    success: "bg-[#ECFDF3] text-[#16A34A] border-[#A6F4C5]",
+    danger: "bg-[#FEF2F2] text-[#DC2626] border-[#FECDCA]",
+    warning: "bg-[#FFFAEB] text-[#D97706] border-[#FEDF89]",
+    info: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border",
+        "inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border select-none",
         variantStyles[variant],
         className
       )}
@@ -96,4 +112,3 @@ export function Badge({ variant = "neutral", className, children, ...props }: Ba
     </span>
   );
 }
-

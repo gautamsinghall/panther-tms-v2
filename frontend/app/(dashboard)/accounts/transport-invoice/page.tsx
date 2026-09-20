@@ -1,12 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, X, FileText, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, X, FileText, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye, IndianRupee } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface LedgerEntry {
   id: number;
@@ -60,27 +65,33 @@ export default function TransportInvoicePage() {
   const [lrs, setLrs] = useState<LRRecord[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Create Modal state
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Create Drawer state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedLrId, setSelectedLrId] = useState<string>("");
   const [selectedTaxCatId, setSelectedTaxCatId] = useState<string>("");
   const [narration, setNarration] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Void Modal state
+  // Void Dialog state
   const [isVoidOpen, setIsVoidOpen] = useState(false);
   const [voidVoucherId, setVoidVoucherId] = useState<number | null>(null);
   const [voidReason, setVoidReason] = useState<string>("");
   const [isVoiding, setIsVoiding] = useState(false);
 
-  // View Ledger state
+  // View Ledger Drawer state
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const [vouchersRes, lrsRes, taxesRes] = await Promise.all([
@@ -88,15 +99,15 @@ export default function TransportInvoicePage() {
         apiClient<LRRecord[]>("/api/v1/transport/lrs"),
         apiClient<TaxCategoryRecord[]>("/api/v1/misc/tax-categories"),
       ]);
-      setData(vouchersRes);
-      setLrs(lrsRes);
-      setTaxCategories(taxesRes);
+      setData(Array.isArray(vouchersRes) ? vouchersRes : []);
+      setLrs(Array.isArray(lrsRes) ? lrsRes : []);
+      setTaxCategories(Array.isArray(taxesRes) ? taxesRes : []);
       if (taxesRes.length > 0 && !selectedTaxCatId) {
-        // Default to GST 12% if present
         const g12 = taxesRes.find((t) => t.name.includes("12")) || taxesRes[0];
         setSelectedTaxCatId(g12.id.toString());
       }
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load transport invoices.");
     } finally {
       setIsLoading(false);
@@ -106,6 +117,15 @@ export default function TransportInvoicePage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const filteredData = useMemo(() => {
+    return data.filter((v) => {
+      if (statusFilter === "ACTIVE" && v.is_void) return false;
+      if (statusFilter === "VOID" && !v.is_void) return false;
+      if (statusFilter === "IRN_GENERATED" && v.irn_status !== "GENERATED") return false;
+      return true;
+    });
+  }, [data, statusFilter]);
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,26 +142,24 @@ export default function TransportInvoicePage() {
         body: JSON.stringify({
           lr_id: parseInt(selectedLrId, 10),
           tax_category_id: selectedTaxCatId ? parseInt(selectedTaxCatId, 10) : undefined,
-          narration: narration.trim() || undefined,
+          narration: narration || undefined,
         }),
       });
-      setSuccessMessage("Transport Invoice created successfully with balanced double-entry ledger entries!");
+      setSuccessMessage("Transport invoice generated and posted to financial ledger successfully.");
       setIsCreateOpen(false);
       setSelectedLrId("");
       setNarration("");
-      await loadData();
+      loadData();
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to create transport invoice.");
+      setErrorMessage(err.message || "Failed to create invoice.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleVoidVoucher = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!voidVoucherId) return;
-    if (voidReason.trim().length < 10) {
-      alert("Void reason must be at least 10 characters as per audit rules.");
+  const handleVoidVoucher = async () => {
+    if (!voidVoucherId || !voidReason.trim()) {
+      alert("Please provide an audit reason for voiding this invoice.");
       return;
     }
 
@@ -150,142 +168,147 @@ export default function TransportInvoicePage() {
     try {
       await apiClient(`/api/v1/accounts/vouchers/${voidVoucherId}/void`, {
         method: "POST",
-        body: JSON.stringify({ reason: voidReason.trim() }),
+        body: JSON.stringify({ void_reason: voidReason }),
       });
-      setSuccessMessage(`Voucher #${voidVoucherId} has been voided and reversing entries posted.`);
+      setSuccessMessage("Invoice voided successfully with automatic reversal entries posted.");
       setIsVoidOpen(false);
-      setVoidReason("");
       setVoidVoucherId(null);
-      await loadData();
+      setVoidReason("");
+      loadData();
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to void voucher.");
+      setErrorMessage(err.message || "Failed to void invoice.");
     } finally {
       setIsVoiding(false);
     }
   };
 
   const handleGenerateIRN = async (voucher: VoucherRecord) => {
-    if (!confirm(`Generate E-Invoice IRN for ${voucher.voucher_number}?`)) return;
+    setErrorMessage(null);
     try {
       await apiClient("/api/v1/einvoicing/generate-irn", {
         method: "POST",
         body: JSON.stringify({ voucher_id: voucher.id }),
       });
-      setSuccessMessage(`IRN successfully generated for ${voucher.voucher_number}!`);
-      await loadData();
+      setSuccessMessage(`IRN Generated successfully for invoice ${voucher.voucher_number}!`);
+      loadData();
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to generate IRN.");
+      setErrorMessage(err.message || "Failed to generate E-Invoice IRN.");
     }
   };
 
   const columns: ColumnDef<VoucherRecord>[] = [
     {
       key: "voucher_number",
-      header: "Invoice No.",
+      header: "Invoice Number",
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+          <span className="font-mono font-bold text-[#172033] block">
             {row.voucher_number}
-            {row.is_void && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 rounded">
-                VOIDED
-              </span>
-            )}
           </span>
-          <span className="block text-[11px] text-slate-400">{row.voucher_date}</span>
+          <span className="text-[11px] text-[#667085]">
+            {formatDate(row.voucher_date)}
+          </span>
         </div>
       ),
     },
     {
+      key: "lr_number",
+      header: "Linked Consignment (LR)",
+      sortable: true,
+      cell: (row) => (
+        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-[#F2F4F7] text-[#172033] border border-[#E4E7EC]">
+          {row.lr_number || `LR #${row.lr_id}`}
+        </span>
+      ),
+    },
+    {
       key: "party_name",
-      header: "Party / Customer",
+      header: "Billed Customer",
+      sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">
-            {row.party_name || "Direct Customer"}
+          <span className="font-semibold text-[#172033] block text-xs">
+            {row.party_name || "General Client"}
           </span>
           {row.party_gstin && (
-            <span className="block font-mono text-[11px] text-slate-400">
-              GSTIN: {row.party_gstin}
+            <span className="font-mono text-[10px] text-[#667085] uppercase">
+              GST: {row.party_gstin}
             </span>
           )}
         </div>
       ),
     },
     {
-      key: "lr_number",
-      header: "Linked LR",
-      cell: (row) => (
-        row.lr_number ? (
-          <span className="font-mono text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-            {row.lr_number}
-          </span>
-        ) : (
-          <span className="text-xs text-slate-400">-</span>
-        )
-      ),
-    },
-    {
       key: "net_amount",
-      header: "Net Amount",
-      align: "right",
+      header: "Net Amount (₹)",
       sortable: true,
+      isNumeric: true,
       cell: (row) => (
-        <div className="text-right">
-          <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-            ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+        <div>
+          <span className="font-mono font-bold text-[#172033] block text-xs sm:text-sm">
+            {formatCurrency(row.net_amount)}
           </span>
-          <span className="block text-[11px] text-slate-400">
-            Tax: ₹{Number(row.tax_amount).toFixed(2)}
+          <span className="text-[11px] font-mono text-[#667085]">
+            Tax: {formatCurrency(row.tax_amount)}
           </span>
         </div>
       ),
     },
     {
       key: "irn_status",
-      header: "IRN Status",
+      header: "E-Invoicing IRN",
       align: "center",
       cell: (row) => {
         if (row.irn_status === "GENERATED") {
           return (
             <div className="flex flex-col items-center">
               <Badge variant="success" className="gap-1">
-                <ShieldCheck className="w-3 h-3" />
-                Generated
+                <ShieldCheck className="w-3 h-3 text-[#16A34A]" />
+                IRN Active
               </Badge>
               {row.irn && (
-                <span className="font-mono text-[10px] text-slate-400 mt-0.5 truncate max-w-[120px]" title={row.irn}>
-                  {row.irn.substring(0, 10)}...
+                <span className="font-mono text-[10px] text-[#98A2B3] mt-0.5 truncate max-w-[100px]" title={row.irn}>
+                  {row.irn.substring(0, 8)}...
                 </span>
               )}
             </div>
           );
         }
         if (row.irn_status === "CANCELLED") {
-          return <Badge variant="danger">Cancelled</Badge>;
+          return <Badge variant="danger">IRN Cancelled</Badge>;
         }
         return <Badge variant="neutral">Not Generated</Badge>;
       },
+    },
+    {
+      key: "status",
+      header: "Status",
+      align: "center",
+      cell: (row) => (
+        row.is_void ? (
+          <StatusBadge status="Void" />
+        ) : (
+          <StatusBadge status="Active" />
+        )
+      ),
     },
   ];
 
   const actions: RowAction<VoucherRecord>[] = [
     {
-      label: "View Ledger",
+      label: "View Ledger Entries",
       icon: <Eye className="w-3.5 h-3.5" />,
-      variant: "default",
       onClick: (row) => setSelectedVoucher(row),
     },
     {
-      label: "Generate IRN",
+      label: "Generate IRN (E-Invoice)",
       icon: <ArrowUpRight className="w-3.5 h-3.5" />,
-      variant: "default",
       hidden: (row) => row.is_void || row.irn_status === "GENERATED",
       onClick: (row) => handleGenerateIRN(row),
     },
     {
-      label: "Void Voucher",
+      label: "Void Invoice",
       icon: <Ban className="w-3.5 h-3.5" />,
       variant: "danger",
       hidden: (row) => row.is_void,
@@ -298,264 +321,219 @@ export default function TransportInvoicePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <FileText className="w-6 h-6 text-[var(--color-primary)]" />
-            Transport Invoices
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Generate and manage billing for transport freight, linked directly to operational LRs with automatic double-entry ledger postings.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Create Invoice from LR
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Transport Invoices"
+        description="Freight billing engine: generate double-entry customer invoices linked to delivered LRs with automated GST and NIC E-Invoicing."
+        primaryAction={{
+          label: "Create Invoice from LR",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsCreateOpen(true),
+        }}
+      />
 
       {/* Notifications */}
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-3.5 rounded-card bg-[#FEF2F2] border border-[#FECDCA] text-[#DC2626] text-xs flex items-center gap-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="ml-auto text-rose-400 hover:text-rose-600">
+          <button onClick={() => setErrorMessage(null)} className="ml-auto text-[#DC2626] hover:opacity-80">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
       {successMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="p-3.5 rounded-card bg-[#ECFDF3] border border-[#A6F4C5] text-[#16A34A] text-xs flex items-center gap-2.5">
+          <CheckCircle className="w-4 h-4 shrink-0" />
           <span>{successMessage}</span>
-          <button onClick={() => setSuccessMessage(null)} className="ml-auto text-emerald-400 hover:text-emerald-600">
+          <button onClick={() => setSuccessMessage(null)} className="ml-auto text-[#16A34A] hover:opacity-80">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Data Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
-        <DataTable
-          columns={columns}
-          data={data}
-          isLoading={isLoading}
-          searchPlaceholder="Search invoices, party, or LR..."
-          searchColumn="voucher_number"
-          actions={actions}
-        />
-      </div>
+      {/* FilterBar */}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search invoice number, customer, LR..."
+        filters={[
+          {
+            id: "status",
+            label: "Filter Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { label: "All Invoices", value: "ALL" },
+              { label: "Active Invoices", value: "ACTIVE" },
+              { label: "Voided Invoices", value: "VOID" },
+              { label: "IRN Generated", value: "IRN_GENERATED" },
+            ],
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+      />
 
-      {/* Create Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[var(--color-primary)]" />
-                Create Transport Invoice from LR
-              </h3>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        actions={actions}
+        searchable={false}
+        emptyMessage="No transport invoices found"
+        emptySubtext="Select a delivered or completed Lorry Receipt to generate a formal freight invoice."
+        emptyAction={{
+          label: "+ Create Invoice from LR",
+          onClick: () => setIsCreateOpen(true),
+        }}
+      />
 
-            <form onSubmit={handleCreateInvoice} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Select LR *
-                </label>
-                <select
-                  required
-                  value={selectedLrId}
-                  onChange={(e) => setSelectedLrId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-[var(--color-primary)]"
-                >
-                  <option value="">-- Choose Consignment Note / LR --</option>
-                  {lrs.map((lr) => (
-                    <option key={lr.id} value={lr.id}>
-                      {lr.lr_number} ({lr.lr_date}) — {lr.status} — {lr.chargeable_weight_mt || 0} MT
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Tax Category *
-                </label>
-                <select
-                  required
-                  value={selectedTaxCatId}
-                  onChange={(e) => setSelectedTaxCatId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-[var(--color-primary)]"
-                >
-                  <option value="">-- Choose GST Tax Rate --</option>
-                  {taxCategories.map((tc) => (
-                    <option key={tc.id} value={tc.id}>
-                      {tc.name} ({Number(tc.igst_rate)}% IGST)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Narration / Notes
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Additional invoice remarks..."
-                  value={narration}
-                  onChange={(e) => setNarration(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Posting..." : "Create & Post to Ledger"}
-                </Button>
-              </div>
-            </form>
+      {/* Create Invoice Drawer */}
+      <EntityDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Generate Transport Invoice"
+        description="Select an unbilled Lorry Receipt to calculate freight charges, GST rate, and post double-entry ledger vouchers."
+        width="lg"
+      >
+        <form onSubmit={handleCreateInvoice} className="space-y-5 bg-white p-5 rounded-card border border-[#E4E7EC]">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#172033]">
+              Select Lorry Receipt (LR) <span className="text-[#DC2626]">*</span>
+            </label>
+            <select
+              value={selectedLrId}
+              onChange={(e) => setSelectedLrId(e.target.value)}
+              required
+              className="w-full h-9 rounded-control border border-[#E4E7EC] bg-white px-3 py-1.5 text-xs sm:text-sm text-[#172033] focus:outline-none focus:ring-1 focus:ring-[#172033]"
+            >
+              <option value="">Select LR to bill...</option>
+              {lrs.map((lr) => (
+                <option key={lr.id} value={lr.id}>
+                  {lr.lr_number} ({formatDate(lr.lr_date)}) — Status: {lr.status}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
 
-      {/* Void Voucher Modal */}
-      {isVoidOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="font-bold text-lg text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <Ban className="w-5 h-5" />
-                Void Voucher #{voidVoucherId}
-              </h3>
-              <button onClick={() => setIsVoidOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleVoidVoucher} className="p-6 space-y-4">
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Per financial audit rules (§7), voiding is non-destructive. The voucher status will be set to void and automated reversing ledger entries will be posted to keep your accounts balanced.
-              </p>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Reason for Voiding * (Min 10 chars)
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Explain why this voucher is being voided..."
-                  value={voidReason}
-                  onChange={(e) => setVoidReason(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button type="button" variant="outline" onClick={() => setIsVoidOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="danger" disabled={isVoiding || voidReason.trim().length < 10}>
-                  {isVoiding ? "Voiding..." : "Confirm Void Entry"}
-                </Button>
-              </div>
-            </form>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#172033]">
+              Applicable Tax / GST Category
+            </label>
+            <select
+              value={selectedTaxCatId}
+              onChange={(e) => setSelectedTaxCatId(e.target.value)}
+              className="w-full h-9 rounded-control border border-[#E4E7EC] bg-white px-3 py-1.5 text-xs sm:text-sm text-[#172033] focus:outline-none focus:ring-1 focus:ring-[#172033]"
+            >
+              {taxCategories.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} (IGST: {t.igst_rate}%)
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
 
-      {/* View Ledger Modal */}
-      {selectedVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#172033]">
+              Voucher Narration / Remarks
+            </label>
+            <textarea
+              rows={3}
+              value={narration}
+              onChange={(e) => setNarration(e.target.value)}
+              placeholder="e.g. Freight invoice for corridor movement with RCM/FCM terms"
+              className="w-full rounded-control border border-[#E4E7EC] bg-white px-3 py-2 text-xs sm:text-sm text-[#172033] placeholder:text-[#98A2B3] focus:outline-none focus:ring-1 focus:ring-[#172033]"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#E4E7EC]">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm" isLoading={isSubmitting}>
+              Generate & Post Invoice
+            </Button>
+          </div>
+        </form>
+      </EntityDrawer>
+
+      {/* View Ledger Entries Drawer */}
+      <EntityDrawer
+        isOpen={!!selectedVoucher}
+        onClose={() => setSelectedVoucher(null)}
+        title={`Ledger Audit: ${selectedVoucher?.voucher_number}`}
+        description="Double-entry journal postings associated with this transaction voucher."
+        width="xl"
+      >
+        {selectedVoucher && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-card border border-[#E4E7EC]">
               <div>
-                <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-[var(--color-primary)]" />
-                  Double-Entry Ledger: {selectedVoucher.voucher_number}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Total Amount: ₹{Number(selectedVoucher.net_amount).toFixed(2)} | Date: {selectedVoucher.voucher_date}
-                </p>
+                <span className="text-[11px] text-[#667085] block">Party</span>
+                <span className="text-xs font-semibold text-[#172033]">{selectedVoucher.party_name || "-"}</span>
               </div>
-              <button onClick={() => setSelectedVoucher(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <X className="w-5 h-5" />
-              </button>
+              <div>
+                <span className="text-[11px] text-[#667085] block">Date</span>
+                <span className="text-xs font-semibold text-[#172033]">{formatDate(selectedVoucher.voucher_date)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-[#667085] block">Tax</span>
+                <span className="text-xs font-mono font-semibold text-[#172033]">{formatCurrency(selectedVoucher.tax_amount)}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-[#667085] block">Net Total</span>
+                <span className="text-xs font-mono font-bold text-[#172033]">{formatCurrency(selectedVoucher.net_amount)}</span>
+              </div>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
-                    <tr>
-                      <th className="px-4 py-2.5">Account</th>
-                      <th className="px-4 py-2.5">Type</th>
-                      <th className="px-4 py-2.5 text-right">Debit (Dr)</th>
-                      <th className="px-4 py-2.5 text-right">Credit (Cr)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {selectedVoucher.ledger_entries.map((entry) => (
-                      <tr key={entry.id} className={entry.is_reversal ? "bg-rose-50/50 dark:bg-rose-950/20 text-rose-800 dark:text-rose-200" : ""}>
-                        <td className="px-4 py-2.5 font-medium">
-                          {entry.account_name || `Account #${entry.account_id}`}
-                          {entry.is_reversal && (
-                            <span className="ml-2 text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">
-                              [Reversal]
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-slate-500">
-                          {Number(entry.debit_amount) > 0 ? "Debit" : "Credit"}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right">
-                          {Number(entry.debit_amount) > 0 ? `₹${Number(entry.debit_amount).toFixed(2)}` : "-"}
-                        </td>
-                        <td className="px-4 py-2.5 font-mono text-right">
-                          {Number(entry.credit_amount) > 0 ? `₹${Number(entry.credit_amount).toFixed(2)}` : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-slate-50 dark:bg-slate-800 font-bold border-t border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
-                    <tr>
-                      <td colSpan={2} className="px-4 py-2.5 text-right">Total Balance Check:</td>
-                      <td className="px-4 py-2.5 font-mono text-right text-emerald-600">
-                        ₹{selectedVoucher.ledger_entries.reduce((sum, e) => sum + Number(e.debit_amount), 0).toFixed(2)}
+            <div className="bg-white rounded-card border border-[#E4E7EC] overflow-hidden">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-[#F7F8FA] border-b border-[#E4E7EC] text-[11px] font-semibold uppercase text-[#667085]">
+                  <tr>
+                    <th className="py-2.5 px-4">Account Head</th>
+                    <th className="py-2.5 px-4 text-right">Debit (₹)</th>
+                    <th className="py-2.5 px-4 text-right">Credit (₹)</th>
+                    <th className="py-2.5 px-4">Narration</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E4E7EC] text-[#172033]">
+                  {selectedVoucher.ledger_entries?.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-[#F7F8FA]">
+                      <td className="py-2.5 px-4 font-medium">{entry.account_name || `Account #${entry.account_id}`}</td>
+                      <td className="py-2.5 px-4 text-right font-mono tabular-nums">
+                        {parseFloat(String(entry.debit_amount)) > 0 ? formatCurrency(entry.debit_amount) : "-"}
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-right text-emerald-600">
-                        ₹{selectedVoucher.ledger_entries.reduce((sum, e) => sum + Number(e.credit_amount), 0).toFixed(2)}
+                      <td className="py-2.5 px-4 text-right font-mono tabular-nums">
+                        {parseFloat(String(entry.credit_amount)) > 0 ? formatCurrency(entry.credit_amount) : "-"}
                       </td>
+                      <td className="py-2.5 px-4 text-[#667085]">{entry.narration || "-"}</td>
                     </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {selectedVoucher.is_void && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs">
-                  <strong>Void Reason:</strong> {selectedVoucher.void_reason}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end p-4 border-t border-slate-100 dark:border-slate-800">
-              <Button variant="outline" onClick={() => setSelectedVoucher(null)}>
-                Close
-              </Button>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </EntityDrawer>
+
+      {/* Void Dialog */}
+      <ConfirmDialog
+        isOpen={isVoidOpen}
+        onClose={() => {
+          setIsVoidOpen(false);
+          setVoidReason("");
+        }}
+        onConfirm={handleVoidVoucher}
+        title="Void Freight Invoice"
+        consequence="Voiding this invoice will generate automatic contra-reversal ledger postings. You must provide a formal audit reason."
+        confirmLabel="Confirm & Void"
+        isLoading={isVoiding}
+      />
     </div>
   );
 }

@@ -3,29 +3,28 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Building2,
-  Database,
-  ShieldCheck,
-  CheckCircle2,
-  ArrowRight,
   Truck,
-  Calculator,
+  Building2,
   FileText,
-  FileCheck2,
-  Sparkles,
-  Server,
-  Layers,
-  TrendingUp,
-  FolderTree,
   FileSpreadsheet,
   Receipt,
-  PlusCircle,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  ShieldCheck,
+  Plus,
+  TrendingUp,
+  MapPin,
+  Users,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { apiClient } from "@/lib/api-client";
 import { getStoredAuth } from "@/lib/auth";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface CurrentUserContext {
   id: number;
@@ -39,326 +38,429 @@ interface CurrentUserContext {
   };
 }
 
+interface RecentLR {
+  id: number;
+  lr_number: string;
+  lr_date: string;
+  consigner_name?: string;
+  consignee_name?: string;
+  origin_city?: string;
+  destination_city?: string;
+  vehicle_number: string;
+  total_freight_amount: number | string;
+  status: string;
+}
+
 export default function DashboardOverviewPage() {
   const [userContext, setUserContext] = useState<CurrentUserContext | null>(null);
+  const [recentLRs, setRecentLRs] = useState<RecentLR[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
-    totalLRs: 0,
-    totalVouchers: 0,
+    totalTrips: 0,
+    inTransit: 0,
+    delivered: 0,
     netBilled: 0,
     totalVehicles: 0,
+    totalInvoices: 0,
   });
 
   useEffect(() => {
     async function initDashboard() {
+      setIsLoading(true);
       try {
-        const data = await apiClient<CurrentUserContext>("/api/v1/auth/me");
-        setUserContext(data);
-      } catch (err: any) {
-        const local = getStoredAuth();
-        if (local && local.user) {
-          setUserContext({
-            id: local.user.id,
-            email: local.user.email,
-            full_name: local.user.full_name,
-            role: local.user.role,
-            tenant: {
-              subdomain: local.subdomain,
-              company_name: local.tenantName,
-              status: "ACTIVE",
-            },
-          });
+        const data = await apiClient<CurrentUserContext>("/api/v1/auth/me").catch(() => null);
+        if (data) {
+          setUserContext(data);
+        } else {
+          const local = getStoredAuth();
+          if (local && local.user) {
+            setUserContext({
+              id: local.user.id,
+              email: local.user.email,
+              full_name: local.user.full_name,
+              role: local.user.role,
+              tenant: {
+                subdomain: local.subdomain,
+                company_name: local.tenantName,
+                status: "ACTIVE",
+              },
+            });
+          }
         }
+      } catch {
+        // fallback
       }
 
-      // Fetch live counts across modules
+      // Fetch live counts and recent records
       try {
-        const vouchers = await apiClient<any[]>("/api/v1/accounts/vouchers").catch(() => []);
-        const lrs = await apiClient<any[]>("/api/v1/transport/lr-booking").catch(() => []);
-        const vehicles = await apiClient<any[]>("/api/v1/transport/market-vehicle").catch(() => []);
+        const [vouchers, lrs, vehicles] = await Promise.all([
+          apiClient<any[]>("/api/v1/accounts/vouchers").catch(() => []),
+          apiClient<RecentLR[]>("/api/v1/transport/lrs").catch(() => []),
+          apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
+        ]);
 
-        const billed = vouchers
+        const validVouchers = Array.isArray(vouchers) ? vouchers : [];
+        const validLrs = Array.isArray(lrs) ? lrs : [];
+        const validVehicles = Array.isArray(vehicles) ? vehicles : [];
+
+        const billed = validVouchers
           .filter((v) => !v.is_void && (v.voucher_type === "TRANSPORT_INVOICE" || v.voucher_type === "GENERAL_INVOICE"))
           .reduce((sum, v) => sum + Number(v.net_amount || 0), 0);
 
+        const inTransitCount = validLrs.filter(
+          (l) => l.status === "IN_TRANSIT" || l.status === "BOOKED" || l.status === "LOADED"
+        ).length;
+
+        const deliveredCount = validLrs.filter(
+          (l) => l.status === "DELIVERED" || l.status === "POD_RECEIVED" || l.status === "POD_VERIFIED"
+        ).length;
+
         setStats({
-          totalLRs: lrs.length || 0,
-          totalVouchers: vouchers.length || 0,
+          totalTrips: validLrs.length,
+          inTransit: inTransitCount,
+          delivered: deliveredCount,
           netBilled: billed,
-          totalVehicles: vehicles.length || 0,
+          totalVehicles: validVehicles.length,
+          totalInvoices: validVouchers.length,
         });
+
+        setRecentLRs(validLrs.slice(0, 6));
       } catch (e) {
         console.warn("Could not fetch operational stats:", e);
+      } finally {
+        setIsLoading(false);
       }
     }
 
     initDashboard();
   }, []);
 
-  const coreModules = [
-    {
-      title: "Transport Operations",
-      desc: "End-to-end operational lifecycle: Job Orders, LR / GR Bookings, Hire Challans, Tracking, and POD Receipts.",
-      href: "/transport",
-      icon: <Truck className="w-6 h-6 text-blue-600" />,
-      badge: "Phases 1 & 2 Live",
-      links: [
-        { label: "Book Lorry Receipt (LR)", href: "/transport/lr-booking" },
-        { label: "Hire Challan (HC)", href: "/transport/hire-challan" },
-        { label: "Arrival & POD", href: "/transport/pod-records" },
-      ],
-    },
-    {
-      title: "Accounts & Financial Ledger",
-      desc: "Double-entry accounting engine: Transport Invoices, Purchases, ATH/BTH Lorry Payments, and Contra transfers.",
-      href: "/accounts",
-      icon: <Calculator className="w-6 h-6 text-emerald-600" />,
-      badge: "Phase 3 Live",
-      links: [
-        { label: "Transport Invoicing", href: "/accounts/transport-invoice" },
-        { label: "Lorry Settlements (ATH/BTH)", href: "/accounts/payment-voucher" },
-        { label: "Purchase Register", href: "/accounts/purchases" },
-      ],
-    },
-    {
-      title: "GST E-Invoicing & Compliance",
-      desc: "Govt-compliant E-Invoice integration with real-time IRN generation, signed QR codes, and 24-hr cancellations.",
-      href: "/einvoicing",
-      icon: <FileCheck2 className="w-6 h-6 text-indigo-600" />,
-      badge: "NIC Compliant",
-      links: [
-        { label: "Generate Live IRN", href: "/einvoicing/generate" },
-        { label: "IRN Registry & Status", href: "/einvoicing/registry" },
-        { label: "Cancel IRN", href: "/einvoicing/cancel" },
-      ],
-    },
-    {
-      title: "Transport Reports & Registers",
-      desc: "Executive registers and compliance audits: LR Registers, Invoice Registers, Client Summaries, and Unused Series.",
-      href: "/transport-reports",
-      icon: <FileSpreadsheet className="w-6 h-6 text-amber-600" />,
-      badge: "8 Audit Reports",
-      links: [
-        { label: "LR Booking Register", href: "/transport-reports/lr-register" },
-        { label: "Invoice Register", href: "/transport-reports/invoice-register" },
-        { label: "Pending Hire Challans", href: "/transport-reports/pending-hc" },
-      ],
-    },
-  ];
-
   return (
-    <div className="space-y-7">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-              PantherTMS Enterprise Edition
-            </span>
-            <span className="text-xs text-slate-400">•</span>
-            <span className="text-xs text-slate-500">Phases 0, 1, 2 & 3 Active</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Operations & Financial Command Center
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time logistics management, double-entry financial ledger, and GST compliance.
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Top PageHeader */}
+      <PageHeader
+        title="Operational Cockpit"
+        description={`Active transport operations, fleet movements, and billing ledger for ${
+          userContext?.tenant.company_name || "PantherTMS Enterprise"
+        }.`}
+        primaryAction={{
+          label: "New Trip Order",
+          icon: <Plus className="w-4 h-4" />,
+          href: "/transport/jobs",
+        }}
+        secondaryActions={[
+          {
+            label: "Book GR/LR",
+            icon: <Truck className="w-3.5 h-3.5" />,
+            href: "/transport/lr-booking",
+          },
+          {
+            label: "Create Invoice",
+            icon: <Receipt className="w-3.5 h-3.5" />,
+            href: "/accounts/transport-invoice",
+          },
+        ]}
+      />
 
-        <div className="flex items-center gap-2.5">
-          <Link href="/accounts/transport-invoice">
-            <Button variant="primary" size="sm" className="gap-1.5 text-xs">
-              <Receipt className="w-3.5 h-3.5" />
-              <span>Create Invoice</span>
-            </Button>
-          </Link>
-          <Link href="/transport/lr-booking">
-            <Button variant="secondary" size="sm" className="gap-1.5 text-xs">
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>New LR</span>
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Connection & Auth Health Banner */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 dark:bg-slate-900 dark:border-slate-800 shadow-xs">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {userContext?.tenant.company_name || "Demo Logistics Pvt Ltd"}
-                </h3>
-                <StatusBadge status="ACTIVE" variant="active" />
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
-                <span>Tenant Domain: <strong className="font-mono text-slate-700 dark:text-slate-300">{userContext?.tenant.subdomain || "demo"}.panthertms.local</strong></span>
-                <span>•</span>
-                <span>Isolated DB: <strong className="font-mono text-slate-700 dark:text-slate-300">panther_tenant_{userContext?.tenant.subdomain || "demo"}</strong></span>
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Role: <strong className="text-slate-800 dark:text-slate-100">{userContext?.role || "COMPANY_ADMIN"}</strong></span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Server className="w-4 h-4 text-blue-500" />
-              <span>API: <strong className="text-emerald-600">Online</strong></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Real-time KPI Stats */}
+      {/* Row 1 — KPI Summary per docs/design.md §11 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider">Booked LRs</CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-              {stats.totalLRs}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-slate-500">
-            Active operational consignments
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-emerald-500">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider">Total Billed Revenue</CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono text-emerald-600">
-              ₹{stats.netBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-slate-500">
-            Net freight & invoice billings
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider">Financial Vouchers</CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-              {stats.totalVouchers}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-slate-500">
-            Double-entry ledger journal entries
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-amber-500">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider">Fleet & Drivers</CardDescription>
-            <CardTitle className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-              {stats.totalVehicles}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-slate-500">
-            Market & company vehicle units
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Movements"
+          value={stats.totalTrips.toLocaleString()}
+          subtext="Active & historical bookings"
+          icon={<Truck className="w-4 h-4 text-[#172033]" />}
+        />
+        <KpiCard
+          title="In Transit"
+          value={stats.inTransit.toLocaleString()}
+          subtext="En route to destination"
+          icon={<Clock className="w-4 h-4 text-[#2563EB]" />}
+        />
+        <KpiCard
+          title="Delivered / POD"
+          value={stats.delivered.toLocaleString()}
+          subtext="Arrived & POD collected"
+          icon={<CheckCircle2 className="w-4 h-4 text-[#16A34A]" />}
+        />
+        <KpiCard
+          title="Billed Revenue"
+          value={formatCurrency(stats.netBilled)}
+          subtext="Invoiced freight net total"
+          icon={<Receipt className="w-4 h-4 text-[#C9A227]" />}
+        />
       </div>
 
-      {/* Module Hub Grid */}
-      <div>
-        <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-          <Layers className="w-4 h-4 text-blue-600" />
-          Enterprise Logistics Modules
-        </h2>
+      {/* Row 2 — Operational Focus & Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Operational Overview (2 columns) */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div>
+              <CardTitle>Operational Lifecycle Workflow</CardTitle>
+              <CardDescription>
+                Live transition pipeline: Customers → Trips → LRs → Invoices
+              </CardDescription>
+            </div>
+            <Link href="/transport/jobs">
+              <Button variant="ghost" size="sm" className="text-xs gap-1">
+                View Trips <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div className="p-3.5 rounded-card bg-[#F7F8FA] border border-[#E4E7EC]">
+                <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">
+                  1. Contracting
+                </span>
+                <span className="text-lg font-bold text-[#172033] block mt-1">
+                  Customer Master
+                </span>
+                <span className="text-xs text-[#667085] mt-0.5 block">
+                  GSTIN & Rate Contracts
+                </span>
+                <Link
+                  href="/general/consigner"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#172033] mt-2.5 hover:underline"
+                >
+                  Manage Clients →
+                </Link>
+              </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {coreModules.map((m) => (
-            <div
-              key={m.href}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:border-[var(--color-primary)] transition-all flex flex-col justify-between"
+              <div className="p-3.5 rounded-card bg-[#F7F8FA] border border-[#E4E7EC]">
+                <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">
+                  2. Dispatch
+                </span>
+                <span className="text-lg font-bold text-[#172033] block mt-1">
+                  Trip Orders
+                </span>
+                <span className="text-xs text-[#667085] mt-0.5 block">
+                  Route Corridor & Specs
+                </span>
+                <Link
+                  href="/transport/jobs"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#172033] mt-2.5 hover:underline"
+                >
+                  Schedule Trips →
+                </Link>
+              </div>
+
+              <div className="p-3.5 rounded-card bg-[#F7F8FA] border border-[#E4E7EC]">
+                <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">
+                  3. Consignment
+                </span>
+                <span className="text-lg font-bold text-[#172033] block mt-1">
+                  GR / LR Notes
+                </span>
+                <span className="text-xs text-[#667085] mt-0.5 block">
+                  Vehicle & Driver Assign
+                </span>
+                <Link
+                  href="/transport/lr-booking"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#172033] mt-2.5 hover:underline"
+                >
+                  Track LRs →
+                </Link>
+              </div>
+
+              <div className="p-3.5 rounded-card bg-[#F7F8FA] border border-[#E4E7EC]">
+                <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider block">
+                  4. Settlement
+                </span>
+                <span className="text-lg font-bold text-[#172033] block mt-1">
+                  Invoices & IRN
+                </span>
+                <span className="text-xs text-[#667085] mt-0.5 block">
+                  Ledger Postings & E-Way
+                </span>
+                <Link
+                  href="/accounts/transport-invoice"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#172033] mt-2.5 hover:underline"
+                >
+                  Review Invoices →
+                </Link>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-card bg-[#F8F1D9]/40 border border-[#C9A227]/30 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-[#C9A227]" />
+                <span className="text-xs font-semibold text-[#172033]">
+                  Double-Entry Ledger Integrity Active
+                </span>
+              </div>
+              <span className="text-[11px] text-[#667085]">
+                {stats.totalInvoices} financial vouchers reconciled
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions (1 column) */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Quick Dispatch Actions</CardTitle>
+            <CardDescription>
+              Accelerate common operational movements
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link
+              href="/transport/jobs"
+              className="flex items-center justify-between p-2.5 rounded-control border border-[#E4E7EC] hover:bg-[#F7F8FA] hover:border-[#D0D5DD] transition-colors"
             >
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800">
-                    {m.icon}
-                  </div>
-                  <Badge variant="neutral" className="text-[11px]">
-                    {m.badge}
-                  </Badge>
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded bg-[#F2F4F7] text-[#172033]">
+                  <Truck className="w-4 h-4" />
                 </div>
-
-                <Link href={m.href} className="group">
-                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 group-hover:text-[var(--color-primary)] transition-colors flex items-center gap-1.5">
-                    {m.title}
-                    <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--color-primary)]" />
-                  </h3>
-                </Link>
-
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  {m.desc}
-                </p>
-
-                {/* Sub-feature direct links */}
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
-                  {m.links.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="text-[11px] font-medium px-2.5 py-1 rounded bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-950/60 dark:hover:text-blue-300 transition-colors"
-                    >
-                      {link.label} →
-                    </Link>
-                  ))}
+                <div>
+                  <span className="text-xs font-semibold text-[#172033] block">
+                    Create Trip / Job Order
+                  </span>
+                  <span className="text-[10px] text-[#667085]">
+                    Initiate new cargo dispatch
+                  </span>
                 </div>
               </div>
+              <ArrowRight className="w-3.5 h-3.5 text-[#98A2B3]" />
+            </Link>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-[var(--color-primary)]">
-                <Link href={m.href} className="hover:underline flex items-center gap-1">
-                  Open {m.title} Hub
-                </Link>
+            <Link
+              href="/transport/lr-booking"
+              className="flex items-center justify-between p-2.5 rounded-control border border-[#E4E7EC] hover:bg-[#F7F8FA] hover:border-[#D0D5DD] transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded bg-[#F2F4F7] text-[#172033]">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-[#172033] block">
+                    Book Lorry Receipt (LR)
+                  </span>
+                  <span className="text-[10px] text-[#667085]">
+                    Generate carrier consignment note
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+              <ArrowRight className="w-3.5 h-3.5 text-[#98A2B3]" />
+            </Link>
+
+            <Link
+              href="/accounts/transport-invoice"
+              className="flex items-center justify-between p-2.5 rounded-control border border-[#E4E7EC] hover:bg-[#F7F8FA] hover:border-[#D0D5DD] transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded bg-[#F2F4F7] text-[#172033]">
+                  <Receipt className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-[#172033] block">
+                    Generate Freight Invoice
+                  </span>
+                  <span className="text-[10px] text-[#667085]">
+                    Post invoice from delivered LR
+                  </span>
+                </div>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-[#98A2B3]" />
+            </Link>
+
+            <Link
+              href="/general/consigner"
+              className="flex items-center justify-between p-2.5 rounded-control border border-[#E4E7EC] hover:bg-[#F7F8FA] hover:border-[#D0D5DD] transition-colors"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded bg-[#F2F4F7] text-[#172033]">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-[#172033] block">
+                    Register Customer / Consigner
+                  </span>
+                  <span className="text-[10px] text-[#667085]">
+                    Add commercial client account
+                  </span>
+                </div>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-[#98A2B3]" />
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Additional Configuration Masters Banner */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link
-          href="/general"
-          className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 transition-all flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-xs">
-              <Building2 className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-xs text-slate-900 dark:text-slate-100">General Masters</h4>
-              <p className="text-[11px] text-slate-500">Consigners, Consignees, Locations, Units, Packaging</p>
-            </div>
+      {/* Row 3 — Recent Operational Data per docs/design.md §11 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <div>
+            <CardTitle>Recent Consignment Movements</CardTitle>
+            <CardDescription>
+              Latest Lorry Receipts and dispatch status updates
+            </CardDescription>
           </div>
-          <ArrowRight className="w-4 h-4 text-slate-400" />
-        </Link>
-
-        <Link
-          href="/misc"
-          className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 transition-all flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-xs">
-              <FolderTree className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-xs text-slate-900 dark:text-slate-100">Chart of Accounts & Tax Masters</h4>
-              <p className="text-[11px] text-slate-500">Primary Groups, Subgroups, Tax Categories, Charge Heads</p>
-            </div>
+          <Link href="/transport/lr-booking">
+            <Button variant="outline" size="sm" className="text-xs gap-1">
+              View All LRs <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-[#F7F8FA] border-b border-[#E4E7EC] text-[11px] font-semibold uppercase text-[#667085]">
+                <tr>
+                  <th className="py-3 px-4">LR Number</th>
+                  <th className="py-3 px-4">Client</th>
+                  <th className="py-3 px-4">Route Movement</th>
+                  <th className="py-3 px-4">Vehicle</th>
+                  <th className="py-3 px-4 text-right">Freight (₹)</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E4E7EC] text-[#172033]">
+                {recentLRs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-[#667085]">
+                      No recent movements logged. Initiate your first dispatch trip order.
+                    </td>
+                  </tr>
+                ) : (
+                  recentLRs.map((row) => (
+                    <tr key={row.id} className="hover:bg-[#F7F8FA] transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold">
+                        <Link href="/transport/lr-booking" className="hover:underline">
+                          {row.lr_number}
+                        </Link>
+                        <span className="block text-[10px] font-normal text-[#667085]">
+                          {formatDate(row.lr_date)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-medium">
+                        {row.consigner_name || "Commercial Shipper"}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1 text-[#667085]">
+                          <span>{row.origin_city || "Origin"}</span>
+                          <ArrowRight className="w-2.5 h-2.5 text-[#98A2B3]" />
+                          <span>{row.destination_city || "Destination"}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-mono uppercase font-semibold">
+                        {row.vehicle_number}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-medium tabular-nums">
+                        {formatCurrency(row.total_freight_amount)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <StatusBadge status={row.status} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-          <ArrowRight className="w-4 h-4 text-slate-400" />
-        </Link>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

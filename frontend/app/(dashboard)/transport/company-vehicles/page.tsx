@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2, Truck } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Truck } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -32,21 +36,34 @@ export default function CompanyVehiclesPage() {
   const [data, setData] = useState<CompanyVehicleRecord[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters & Search
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Drawer / Form state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Confirmation dialog state
+  const [deactivatingRecord, setDeactivatingRecord] = useState<CompanyVehicleRecord | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const [vehiclesRes, driversRes] = await Promise.all([
         apiClient<CompanyVehicleRecord[]>("/api/v1/transport/company-vehicles"),
         apiClient<DriverOption[]>("/api/v1/transport/drivers"),
       ]);
-      setData(vehiclesRes);
-      setDrivers(driversRes);
+      setData(Array.isArray(vehiclesRes) ? vehiclesRes : []);
+      setDrivers(Array.isArray(driversRes) ? driversRes : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load company vehicles.");
     } finally {
       setIsLoading(false);
@@ -57,48 +74,68 @@ export default function CompanyVehiclesPage() {
     loadData();
   }, []);
 
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (statusFilter === "ACTIVE" && !item.is_active) return false;
+      if (statusFilter === "INACTIVE" && item.is_active) return false;
+      return true;
+    });
+  }, [data, statusFilter]);
+
   const columns: ColumnDef<CompanyVehicleRecord>[] = [
     {
       key: "vehicle_number",
-      header: "Vehicle Number",
+      header: "Registration Number",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-bold text-slate-900 dark:text-slate-100 uppercase">
+        <span className="font-mono font-bold text-[#172033] uppercase">
           {row.vehicle_number}
         </span>
       ),
     },
     {
       key: "vehicle_type",
-      header: "Body / Spec",
+      header: "Vehicle Type",
       sortable: true,
+      cell: (row) => (
+        <span className="text-xs font-medium text-[#172033]">
+          {row.vehicle_type}
+        </span>
+      ),
     },
     {
       key: "capacity_mt",
       header: "Capacity (MT)",
+      sortable: true,
       isNumeric: true,
       cell: (row) => `${parseFloat(String(row.capacity_mt)).toFixed(2)} MT`,
+    },
+    {
+      key: "current_odometer_km",
+      header: "Odometer Reading",
+      sortable: true,
+      isNumeric: true,
+      cell: (row) => `${row.current_odometer_km?.toLocaleString() || 0} km`,
     },
     {
       key: "chassis_engine",
       header: "Chassis / Engine",
       cell: (row) => (
-        <span className="font-mono text-xs text-slate-500">
+        <span className="font-mono text-xs text-[#667085]">
           {row.chassis_number || "-"} / {row.engine_number || "-"}
         </span>
       ),
     },
     {
-      key: "current_odometer_km",
-      header: "Odometer",
-      isNumeric: true,
-      cell: (row) => `${row.current_odometer_km.toLocaleString()} km`,
-    },
-    {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => (
+        <StatusBadge
+          status={row.is_active ? "Active" : "Inactive"}
+          variant={row.is_active ? "active" : "inactive"}
+        />
+      ),
     },
   ];
 
@@ -107,75 +144,73 @@ export default function CompanyVehiclesPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5" />,
       variant: "danger",
-      onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate ${row.vehicle_number}?`)) return;
-        try {
-          await apiClient(`/api/v1/transport/company-vehicles/${row.id}`, { method: "DELETE" });
-          loadData();
-        } catch (err: any) {
-          alert(err.message || "Failed to deactivate vehicle.");
-        }
+      hidden: (row) => !row.is_active,
+      onClick: (row) => {
+        setDeactivatingRecord(row);
       },
     },
   ];
 
-  const driverOptions = [
-    { label: "Unassigned", value: "" },
-    ...drivers.map((d) => ({ label: d.name, value: String(d.id) })),
-  ];
+  const driverOptions = drivers.map((d) => ({
+    label: d.name,
+    value: String(d.id),
+  }));
 
   const formSections: FormSectionDef[] = [
     {
-      id: "cv_info",
-      title: "Company Fleet Specifications",
-      description: "Company-owned asset specifications and driver allocation",
+      id: "vehicle_info",
+      title: "Vehicle Registration & Specs",
+      description: "Company-owned asset technical specifications",
       columns: 2,
       fields: [
         {
           name: "vehicle_number",
           label: "Registration Number",
-          placeholder: "e.g. MH12CD5678",
+          placeholder: "e.g. MH-12-AB-1234",
           required: true,
         },
         {
           name: "vehicle_type",
-          label: "Vehicle Model / Type",
-          placeholder: "e.g. BharatBenz 2823R, 20ft Container",
+          label: "Body Specification",
+          type: "select",
           required: true,
+          options: [
+            { label: "32 FT Multi-Axle Closed Container", value: "32 FT Container" },
+            { label: "20 FT High Bed Trailer", value: "20 FT Trailer" },
+            { label: "Open 10-Tyre Heavy Truck", value: "10-Tyre Open" },
+            { label: "Taurus 21 MT Truck", value: "Taurus 21MT" },
+            { label: "LCV 14 FT Light Commercial", value: "14 FT LCV" },
+          ],
         },
         {
           name: "capacity_mt",
-          label: "Capacity (MT)",
+          label: "Payload Capacity (MT)",
+          placeholder: "e.g. 21.50",
           type: "number",
-          placeholder: "e.g. 18.5",
           required: true,
         },
         {
-          name: "default_driver_id",
-          label: "Primary Assigned Driver",
-          type: "select",
-          options: driverOptions,
+          name: "current_odometer_km",
+          label: "Current Odometer (KM)",
+          placeholder: "e.g. 45000",
+          type: "number",
+          required: true,
         },
         {
           name: "chassis_number",
           label: "Chassis Number",
-          placeholder: "e.g. MB1CD2EF3GH45678",
+          placeholder: "e.g. MAT452092K...",
         },
         {
           name: "engine_number",
           label: "Engine Number",
-          placeholder: "e.g. 4D34I123456",
+          placeholder: "e.g. E483CD98...",
         },
         {
-          name: "current_odometer_km",
-          label: "Current Odometer (km)",
-          type: "number",
-          placeholder: "0",
-        },
-        {
-          name: "national_permit_expiry",
-          label: "National Permit Expiry",
-          type: "date",
+          name: "default_driver_id",
+          label: "Default Assigned Driver",
+          type: "select",
+          options: [{ label: "None Assigned", value: "" }, ...driverOptions],
         },
       ],
     },
@@ -186,85 +221,123 @@ export default function CompanyVehiclesPage() {
     try {
       const payload = {
         ...values,
+        capacity_mt: parseFloat(values.capacity_mt) || 0,
+        current_odometer_km: parseInt(values.current_odometer_km, 10) || 0,
         default_driver_id: values.default_driver_id ? parseInt(values.default_driver_id, 10) : null,
-        capacity_mt: values.capacity_mt ? parseFloat(values.capacity_mt) : 0,
-        current_odometer_km: values.current_odometer_km ? parseInt(values.current_odometer_km, 10) : 0,
       };
+
       await apiClient("/api/v1/transport/company-vehicles", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to register company vehicle.");
+      alert(err.message || "Failed to create vehicle record.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleConfirmDeactivate = async () => {
+    if (!deactivatingRecord) return;
+    setIsDeactivating(true);
+    try {
+      await apiClient(`/api/v1/transport/company-vehicles/${deactivatingRecord.id}`, {
+        method: "DELETE",
+      });
+      setDeactivatingRecord(null);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to deactivate vehicle.");
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Company Vehicles
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage company-owned fleet assets, maintenance metrics, and driver assignments.
-          </p>
-        </div>
-
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Company Vehicle
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
-
-      <DataTable
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        actions={actions}
-        searchPlaceholder="Search by vehicle number, model, or chassis..."
+      {/* PageHeader */}
+      <PageHeader
+        title="Company Vehicles"
+        description="Manage company-owned fleet assets, capacity limits, odometers, and driver assignments."
+        primaryAction={{
+          label: "Add Vehicle",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Add Company Asset Vehicle
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* FilterBar */}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search registration, body spec, chassis..."
+        filters={[
+          {
+            id: "status",
+            label: "Filter Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { label: "All Statuses", value: "ALL" },
+              { label: "Active Only", value: "ACTIVE" },
+              { label: "Inactive Only", value: "INACTIVE" },
+            ],
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+      />
 
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Save Vehicle"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
+        actions={actions}
+        searchable={false}
+        emptyMessage="No vehicles found"
+        emptySubtext="Add your first company truck or trailer to begin assigning fleet to trips."
+        emptyAction={{
+          label: "+ Add Vehicle",
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
+
+      {/* EntityDrawer */}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Add Company Fleet Vehicle"
+        description="Enter vehicle registration number, payload tonnage, and engine specs."
+        width="xl"
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Add Vehicle"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
+
+      {/* ConfirmDialog */}
+      <ConfirmDialog
+        isOpen={!!deactivatingRecord}
+        onClose={() => setDeactivatingRecord(null)}
+        onConfirm={handleConfirmDeactivate}
+        title="Deactivate Vehicle"
+        entityName={deactivatingRecord?.vehicle_number}
+        consequence="Deactivating this vehicle prevents it from being scheduled for new trips and hire challans."
+        confirmLabel="Deactivate Vehicle"
+        isLoading={isDeactivating}
+      />
     </div>
   );
 }

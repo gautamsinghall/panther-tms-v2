@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2, User } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Phone } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Form } from "@/components/forms/form";
-import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatDate } from "@/lib/utils";
 
 interface DriverRecord {
   id: number;
@@ -23,17 +28,30 @@ interface DriverRecord {
 export default function DriversPage() {
   const [data, setData] = useState<DriverRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters & Search
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Drawer / Form state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Confirmation dialog state
+  const [deactivatingRecord, setDeactivatingRecord] = useState<DriverRecord | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
+    setIsError(false);
     setErrorMessage(null);
     try {
       const res = await apiClient<DriverRecord[]>("/api/v1/transport/drivers");
-      setData(res);
+      setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      setIsError(true);
       setErrorMessage(err.message || "Failed to load drivers.");
     } finally {
       setIsLoading(false);
@@ -44,60 +62,77 @@ export default function DriversPage() {
     loadData();
   }, []);
 
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (statusFilter === "ACTIVE" && !item.is_active) return false;
+      if (statusFilter === "INACTIVE" && item.is_active) return false;
+      return true;
+    });
+  }, [data, statusFilter]);
+
   const columns: ColumnDef<DriverRecord>[] = [
     {
       key: "name",
       header: "Driver Name",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100">
+        <span className="font-semibold text-[#172033] block">
           {row.name}
         </span>
       ),
     },
     {
       key: "phone",
-      header: "Phone Number",
+      header: "Mobile Contact",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs text-slate-600 dark:text-slate-400">
+        <span className="font-mono text-xs text-[#172033] inline-flex items-center gap-1">
+          <Phone className="w-3 h-3 text-[#98A2B3]" />
           {row.phone}
         </span>
       ),
     },
     {
       key: "license_number",
-      header: "License Number",
+      header: "Commercial License",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs uppercase bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-          {row.license_number}
-        </span>
+        <div>
+          <span className="font-mono text-xs uppercase bg-[#F2F4F7] text-[#172033] px-2 py-0.5 rounded border border-[#E4E7EC]">
+            {row.license_number}
+          </span>
+          {row.license_expiry && (
+            <span className="block text-[11px] text-[#667085] mt-1">
+              Exp: {formatDate(row.license_expiry)}
+            </span>
+          )}
+        </div>
       ),
     },
     {
-      key: "license_expiry",
-      header: "License Expiry",
+      key: "emergency_contact",
+      header: "Emergency / Blood Group",
       cell: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400">
-          {row.license_expiry || "Not specified"}
-        </span>
-      ),
-    },
-    {
-      key: "blood_group",
-      header: "Blood Group",
-      cell: (row) => (
-        <span className="font-mono text-xs text-slate-600 dark:text-slate-400">
-          {row.blood_group || "-"}
-        </span>
+        <div className="text-xs text-[#667085]">
+          <div>Contact: {row.emergency_contact || "N/A"}</div>
+          {row.blood_group && (
+            <span className="font-mono text-[11px] font-semibold text-[#172033]">
+              Blood: {row.blood_group}
+            </span>
+          )}
+        </div>
       ),
     },
     {
       key: "status",
       header: "Status",
       align: "center",
-      cell: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: (row) => (
+        <StatusBadge
+          status={row.is_active ? "Active" : "Inactive"}
+          variant={row.is_active ? "active" : "inactive"}
+        />
+      ),
     },
   ];
 
@@ -106,14 +141,9 @@ export default function DriversPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5" />,
       variant: "danger",
-      onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate ${row.name}?`)) return;
-        try {
-          await apiClient(`/api/v1/transport/drivers/${row.id}`, { method: "DELETE" });
-          loadData();
-        } catch (err: any) {
-          alert(err.message || "Failed to deactivate driver.");
-        }
+      hidden: (row) => !row.is_active,
+      onClick: (row) => {
+        setDeactivatingRecord(row);
       },
     },
   ];
@@ -121,26 +151,26 @@ export default function DriversPage() {
   const formSections: FormSectionDef[] = [
     {
       id: "driver_info",
-      title: "Driver Details",
-      description: "Identity, commercial driving license, and emergency contact",
+      title: "Driver Identity & License",
+      description: "Official transport driver qualifications and contacts",
       columns: 2,
       fields: [
         {
           name: "name",
           label: "Full Name",
-          placeholder: "e.g. Surinder Singh",
+          placeholder: "e.g. Rajesh Kumar Yadav",
           required: true,
         },
         {
           name: "phone",
-          label: "Phone Number",
-          placeholder: "+91 9822233344",
+          label: "Primary Mobile Number",
+          placeholder: "+91 98765 43210",
           required: true,
         },
         {
           name: "license_number",
-          label: "Commercial Driving License No",
-          placeholder: "MH1420180012345",
+          label: "Commercial Driving License (DL)",
+          placeholder: "e.g. DL-0420110012345",
           required: true,
         },
         {
@@ -150,19 +180,23 @@ export default function DriversPage() {
         },
         {
           name: "emergency_contact",
-          label: "Emergency Contact",
-          placeholder: "+91 9998887776",
+          label: "Emergency Phone / Relation",
+          placeholder: "e.g. +91 98111 22334 (Brother)",
         },
         {
           name: "blood_group",
           label: "Blood Group",
-          placeholder: "e.g. B+",
-        },
-        {
-          name: "current_address",
-          label: "Permanent Address",
-          type: "textarea",
-          colSpan: 2,
+          type: "select",
+          options: [
+            { label: "O Positive (O+)", value: "O+" },
+            { label: "O Negative (O-)", value: "O-" },
+            { label: "A Positive (A+)", value: "A+" },
+            { label: "A Negative (A-)", value: "A-" },
+            { label: "B Positive (B+)", value: "B+" },
+            { label: "B Negative (B-)", value: "B-" },
+            { label: "AB Positive (AB+)", value: "AB+" },
+            { label: "AB Negative (AB-)", value: "AB-" },
+          ],
         },
       ],
     },
@@ -175,77 +209,109 @@ export default function DriversPage() {
         method: "POST",
         body: JSON.stringify(values),
       });
-      setIsModalOpen(false);
+      setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create driver.");
+      alert(err.message || "Failed to create driver record.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleConfirmDeactivate = async () => {
+    if (!deactivatingRecord) return;
+    setIsDeactivating(true);
+    try {
+      await apiClient(`/api/v1/transport/drivers/${deactivatingRecord.id}`, {
+        method: "DELETE",
+      });
+      setDeactivatingRecord(null);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || "Failed to deactivate driver.");
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Manage Drivers
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Commercial drivers directory, license tracking, and contact details.
-          </p>
-        </div>
+      <PageHeader
+        title="Fleet Drivers"
+        description="Manage commercial heavy vehicle drivers, licensing compliance, emergency contacts, and active statuses."
+        primaryAction={{
+          label: "Add Driver",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
+      />
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-1.5 text-xs font-semibold"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Driver
-        </Button>
-      </div>
-
-      {errorMessage && (
-        <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {errorMessage}
-        </div>
-      )}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search driver name, phone, DL number..."
+        filters={[
+          {
+            id: "status",
+            label: "Filter Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { label: "All Statuses", value: "ALL" },
+              { label: "Active Only", value: "ACTIVE" },
+              { label: "Inactive Only", value: "INACTIVE" },
+            ],
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+      />
 
       <DataTable
         columns={columns}
-        data={data}
+        data={filteredData}
         isLoading={isLoading}
+        isError={isError}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         actions={actions}
-        searchPlaceholder="Search by driver name, phone, or license..."
+        searchable={false}
+        emptyMessage="No drivers registered"
+        emptySubtext="Add professional drivers to assign them to active transport movements."
+        emptyAction={{
+          label: "+ Add Driver",
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Register New Driver
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        title="Register Fleet Driver"
+        description="Enter driver credentials, mobile number, and commercial license validity."
+        width="lg"
+      >
+        <Form
+          sections={formSections}
+          onSubmit={handleCreate}
+          onCancel={() => setIsDrawerOpen(false)}
+          submitLabel="Register Driver"
+          isLoading={isSubmitting}
+        />
+      </EntityDrawer>
 
-            <Form
-              sections={formSections}
-              onSubmit={handleCreate}
-              onCancel={() => setIsModalOpen(false)}
-              submitLabel="Save Driver"
-              isLoading={isSubmitting}
-            />
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!deactivatingRecord}
+        onClose={() => setDeactivatingRecord(null)}
+        onConfirm={handleConfirmDeactivate}
+        title="Deactivate Driver"
+        entityName={deactivatingRecord?.name}
+        consequence="Deactivating this driver will remove them from available dispatch assignments on upcoming trips."
+        confirmLabel="Deactivate Driver"
+        isLoading={isDeactivating}
+      />
     </div>
   );
 }

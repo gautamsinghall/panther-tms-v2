@@ -104,7 +104,7 @@ async def test_misc_accounting_masters_crud():
                 "code": f"ACC_{uid}",
                 "group_id": grp_id,
                 "subgroup_id": sub_id,
-                "opening_balance": "150000.00",
+                "opening_balance": "0.00",
                 "opening_balance_type": "DR",
             },
             headers=auth_headers,
