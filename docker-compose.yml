@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: panther-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-panther}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panther_secret}
+      POSTGRES_DB: ${CONTROL_DB_NAME:-panther_control}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-panther} -d ${CONTROL_DB_NAME:-panther_control}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - panther-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: panther-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - panther-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: panther-backend
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-panther}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-panther_secret}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - CONTROL_DB_NAME=${CONTROL_DB_NAME:-panther_control}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SECRET_KEY=${SECRET_KEY:-panther-tms-super-secret-key-change-in-production-min-32-chars}
+      - BASE_DOMAIN=${BASE_DOMAIN:-localhost}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - panther-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: panther-frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+      - NEXT_PUBLIC_ROOT_DOMAIN=localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - panther-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  panther-net:
+    driver: bridge
