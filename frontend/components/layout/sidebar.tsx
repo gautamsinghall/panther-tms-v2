@@ -274,39 +274,47 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r border-[#E4E7EC] bg-white transition-all duration-200 select-none z-30 shrink-0",
+        "relative flex flex-col border-r border-slate-200/80 bg-white transition-all duration-200 select-none z-30 shrink-0",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
-      {/* Brand Header — Thin 56px height per docs/design.md §4 */}
-      <div className="flex h-14 items-center justify-between px-4 border-b border-[#E4E7EC]">
+      {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
+      <div className="flex h-16 items-center justify-between px-3.5 border-b border-slate-200/80 bg-white">
         {!isCollapsed && (
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-control bg-[#4F46E5] flex items-center justify-center text-white font-bold tracking-wider relative shadow-xs">
-              <span className="text-white text-sm">P</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-bold tracking-tight text-[#101828]">
-                  Panther<span className="text-[#4F46E5]">TMS</span>
+          <Link href="/" className="flex items-center gap-3 group min-w-0">
+            <img
+              src="/panther-logo.png"
+              alt="PantherTMS Logo"
+              className="h-9 w-auto max-w-[56px] object-contain shrink-0 drop-shadow-xs"
+            />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-bold tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                  Panther<span className="text-indigo-600">TMS</span>
+                </span>
+                <span className="text-xs font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">
+                  v2.0
                 </span>
               </div>
-              {/* Usability Issue 2 Fix: Increase font size from text-[10px] to text-xs (min ~12px) */}
-              <span className="block text-xs text-[#667085] font-medium tracking-tight">
-                Enterprise Logistics
+              <span className="block text-xs text-slate-500 font-medium tracking-tight truncate">
+                Panther Digital Solutions
               </span>
             </div>
           </Link>
         )}
         {isCollapsed && (
-          <div className="w-8 h-8 mx-auto rounded-control bg-[#4F46E5] flex items-center justify-center text-white font-bold tracking-wider relative">
-            <span className="text-sm">P</span>
-          </div>
+          <Link href="/" className="mx-auto flex items-center justify-center" title="PantherTMS">
+            <img
+              src="/panther-logo.png"
+              alt="PantherTMS Logo"
+              className="h-8 w-auto max-w-[36px] object-contain drop-shadow-xs"
+            />
+          </Link>
         )}
 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-control text-[#667085] hover:text-[#101828] hover:bg-[#F8F9FB] transition-colors cursor-pointer"
+          className="p-1.5 rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -318,16 +326,15 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Usability Issue 8 Fix: Increase vertical whitespace between module groups to prevent 'wall of text' */}
-      <div className="flex-1 overflow-y-auto py-3 px-2 space-y-2">
+      {/* Navigation List — Linear-style Inset Item Hierarchy */}
+      <div className="flex-1 overflow-y-auto py-3 px-2.5 space-y-1.5">
         {navGroups.map((group) => {
           const isExpanded = expandedGroups[group.id] ?? false;
           const hasActiveChild = group.items?.some((item) => item.href === pathname);
-          const icon = MODULE_ICONS[group.id] || <Layers className="w-5 h-5" />;
+          const icon = MODULE_ICONS[group.id] || <Layers className="w-4 h-4" />;
 
           return (
-            <div key={group.id} className="space-y-1 mb-1">
-              {/* Usability Issue 13 Fix: Consistent header background without arbitrary grey container box on Home */}
+            <div key={group.id} className="space-y-0.5">
               <button
                 type="button"
                 onClick={() => {
@@ -335,23 +342,23 @@ export function Sidebar() {
                   toggleGroup(group.id);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between px-2.5 py-1.5 rounded-control text-xs font-medium transition-colors cursor-pointer",
+                  "flex w-full items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none",
                   hasActiveChild
-                    ? "text-[#101828] font-semibold"
-                    : "text-[#667085] hover:bg-[#F8F9FB] hover:text-[#101828]"
+                    ? "text-slate-900 font-semibold bg-slate-50 border border-slate-200/60"
+                    : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
                 )}
                 title={isCollapsed ? group.title : undefined}
               >
-                <div className="flex items-center gap-2.5">
-                  <span className={cn(hasActiveChild ? "text-[#4F46E5]" : "text-[#667085]")}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className={cn("shrink-0", hasActiveChild ? "text-indigo-600" : "text-slate-400")}>
                     {icon}
                   </span>
                   {!isCollapsed && (
-                    <span className="text-xs flex items-center gap-1.5">
+                    <span className="text-xs font-medium truncate flex items-center gap-1.5">
                       {group.title}
                       {group.is_locked && (
-                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-tight">
-                          <Lock className="w-2.5 h-2.5" />
+                        <span className="inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase tracking-tight">
+                          <Lock className="w-3 h-3" />
                           {group.required_plan || "LOCKED"}
                         </span>
                       )}
@@ -359,7 +366,7 @@ export function Sidebar() {
                   )}
                 </div>
                 {!isCollapsed && (
-                  <span className="text-[#667085]">
+                  <span className="text-slate-400 shrink-0">
                     {isExpanded ? (
                       <ChevronDown className="w-3.5 h-3.5" />
                     ) : (
@@ -369,32 +376,34 @@ export function Sidebar() {
                 )}
               </button>
 
-              {/* Sub items — Active state per docs/design.md §4 */}
+              {/* Sub items — Linear Inset Pill Active State */}
               {!isCollapsed && isExpanded && (
-                <div className="pl-7 pr-1 space-y-0.5 pt-0.5">
+                <div className="pl-5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 ml-4 my-0.5">
                   {group.items?.map((sub, idx) => {
                     const isActive = pathname === sub.href;
-                    // Usability Issue 14 Fix: Subtle category groupings for high-density lists (e.g. Transport)
                     const prevCategory = idx > 0 ? group.items[idx - 1].category : undefined;
                     const showCategoryHeader = sub.category && sub.category !== prevCategory;
 
                     return (
                       <React.Fragment key={sub.href}>
                         {showCategoryHeader && (
-                          <span className="block text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wider pt-1.5 pb-0.5 px-2.5">
+                          <span className="block text-xs font-semibold text-slate-500 uppercase tracking-wider pt-2 pb-0.5 px-2">
                             {sub.category}
                           </span>
                         )}
                         <Link
                           href={sub.href}
                           className={cn(
-                            "block px-2.5 py-1.5 rounded-control text-xs transition-colors",
+                            "flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs sm:text-[13px] transition-all duration-150 select-none",
                             isActive
-                              ? "bg-[#EEF2FF] text-[#4338CA] font-medium border-l-[3px] border-[#4F46E5] rounded-l-none"
-                              : "text-[#667085] hover:text-[#101828] hover:bg-[#F8F9FB]"
+                              ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
+                              : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/60"
                           )}
                         >
-                          {sub.title}
+                          <span className="truncate">{sub.title}</span>
+                          {isActive && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs" />
+                          )}
                         </Link>
                       </React.Fragment>
                     );
@@ -406,20 +415,25 @@ export function Sidebar() {
         })}
       </div>
 
-      {/* RBAC Active Footer */}
+      {/* RBAC Active Footer — Linear/Stripe Enterprise Status */}
       {!isCollapsed && (
-        <div className="p-3 border-t border-[#E4E7EC]">
-          <div className="rounded-control bg-[#ECFDF3] border border-[#A6F4C5] p-2.5 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-[#027A48] shrink-0" />
-            <div className="leading-tight">
-              {/* Usability Issue 3 Fix: Increase font size from text-[11px] / text-[10px] to text-xs (min ~12px) */}
-              <span className="text-xs font-semibold text-[#027A48] block">
-                Tenant RBAC Enforced
+        <div className="p-3 border-t border-slate-200/80 bg-slate-50/50">
+          <div className="rounded-lg bg-white border border-slate-200/80 p-2.5 flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="text-xs text-[#475467] block mt-0.5">
-                Dynamic permission-mapped
-              </span>
+              <div className="leading-tight truncate">
+                <span className="text-xs font-semibold text-slate-800 block truncate">
+                  Tenant RBAC Active
+                </span>
+                <span className="text-xs text-slate-500 block truncate">
+                  Multi-tenant isolated
+                </span>
+              </div>
             </div>
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
           </div>
         </div>
       )}

@@ -22,23 +22,23 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variantStyles = {
       primary:
-        "bg-[#4F46E5] text-white hover:bg-[#4338CA] focus-visible:ring-[#4F46E5] shadow-xs",
+        "bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 focus-visible:ring-indigo-500 shadow-xs border border-indigo-700/50",
       secondary:
-        "bg-white border border-[#D0D5DD] text-[#344054] hover:bg-[#F8F9FB] hover:text-[#101828] focus-visible:ring-[#D0D5DD] shadow-xs",
+        "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-400 focus-visible:ring-slate-400 shadow-2xs",
       outline:
-        "bg-white border border-[#E4E7EC] text-[#344054] hover:bg-[#F8F9FB] hover:border-[#D0D5DD] hover:text-[#101828] focus-visible:ring-slate-300 shadow-xs",
+        "bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 focus-visible:ring-slate-300 shadow-2xs",
       ghost:
-        "bg-transparent text-[#667085] hover:bg-[#F1F3F6] hover:text-[#101828] focus-visible:ring-slate-300",
+        "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-300",
       danger:
-        "bg-[#F04438] text-white hover:bg-[#D92D20] focus-visible:ring-[#F04438] shadow-xs",
+        "bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 focus-visible:ring-rose-500 shadow-xs border border-rose-700/50",
       destructive:
-        "bg-[#F04438] text-white hover:bg-[#D92D20] focus-visible:ring-[#F04438] shadow-xs",
+        "bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 focus-visible:ring-rose-500 shadow-xs border border-rose-700/50",
     };
 
     const sizeStyles = {
-      sm: "h-8 px-3 text-xs gap-1.5",
-      md: "h-9 px-4 text-xs font-semibold gap-2",
-      lg: "h-10 px-5 text-sm font-semibold gap-2.5",
+      sm: "h-8 px-2.5 text-xs gap-1.5",
+      md: "h-9 px-3.5 text-xs font-semibold gap-2",
+      lg: "h-10 px-4 text-sm font-semibold gap-2.5",
     };
 
     return (

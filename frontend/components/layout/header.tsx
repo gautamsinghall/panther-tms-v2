@@ -59,34 +59,38 @@ export function Header() {
   };
 
   return (
-    <header className="h-14 border-b border-[#E4E7EC] bg-white px-6 flex items-center justify-between z-20 shrink-0 select-none">
-      {/* Left: Company / Branch Switcher per docs/design.md §4 */}
+    <header className="h-16 border-b border-slate-200/80 bg-white/95 backdrop-blur px-5 flex items-center justify-between z-20 shrink-0 select-none">
+      {/* Left: Organization / Branch Switcher */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded-control bg-[#F8F9FB] border border-[#E4E7EC]">
-          <Building2 className="w-4 h-4 text-[#667085]" />
-          <span className="text-xs font-medium text-[#101828]">
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition-colors shadow-2xs cursor-pointer">
+          <Building2 className="w-3.5 h-3.5 text-slate-500" />
+          <span className="text-xs font-semibold text-slate-800">
             {authData?.companyName}
           </span>
-          <span className="text-[11px] font-mono text-[#667085]">
-            ({authData?.subdomain})
+          <span className="text-xs font-mono font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+            {authData?.subdomain}
           </span>
         </div>
 
-        <StatusBadge status="ACTIVE" />
+        <div className="h-4 w-[1px] bg-slate-200 hidden sm:block" />
+
+        <div className="hidden sm:block">
+          <StatusBadge status="ACTIVE" />
+        </div>
       </div>
 
       {/* Center / Right: Global Search, Notifications & User Profile Menu */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         {/* Interactive Global Search Trigger for Desktop */}
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-control border border-[#E4E7EC] bg-[#F8F9FB] hover:bg-white hover:border-[#D0D5DD] hover:shadow-xs text-xs text-[#667085] w-64 transition-all text-left cursor-pointer group"
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200/80 bg-slate-50 hover:bg-white hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-64 transition-all text-left cursor-pointer group select-none"
           title="Search records (Ctrl + K)"
         >
-          <Search className="w-3.5 h-3.5 text-[#667085] group-hover:text-[#101828] transition-colors" />
-          <span className="flex-1 text-xs text-[#667085] group-hover:text-[#344054]">Search records...</span>
-          <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-[#D0D5DD] rounded text-[#667085] group-hover:border-[#98A2B3] shadow-2xs">
+          <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-colors" />
+          <span className="flex-1 text-xs text-slate-400 group-hover:text-slate-600">Search commands, LRs...</span>
+          <kbd className="px-1.5 py-0.5 text-xs font-mono bg-white border border-slate-200 rounded text-slate-500 group-hover:border-slate-300 shadow-2xs">
             ⌘K
           </kbd>
         </button>
@@ -95,7 +99,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="md:hidden p-2 text-[#667085] hover:text-[#101828] hover:bg-[#F8F9FB] rounded-control transition-colors"
+          className="md:hidden p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
           title="Search records"
           aria-label="Search records"
         >
@@ -104,6 +108,8 @@ export function Header() {
 
         {/* Interactive Notification Bell Popover */}
         <NotificationsPopover />
+
+        <div className="h-4 w-[1px] bg-slate-200" />
 
         {/* User Profile Menu */}
         <DropdownMenu
@@ -114,24 +120,24 @@ export function Header() {
               aria-label={`User account: ${authData?.userName || "User"}, role: ${
                 authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "Admin"
               }`}
-              className="flex items-center gap-2.5 p-1 rounded-control hover:bg-[#F8F9FB] transition-colors cursor-pointer"
+              className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer select-none"
             >
               <div
                 aria-hidden="true"
-                className="w-7 h-7 rounded-control bg-[#4F46E5] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 select-none"
+                className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 select-none"
               >
                 {authData?.userName ? authData.userName[0].toUpperCase() : "A"}
               </div>
               <div className="text-left hidden md:block">
-                <p className="text-xs font-semibold text-[#101828] leading-tight">
+                <p className="text-xs font-semibold text-slate-900 leading-tight">
                   {authData?.userName}
                 </p>
-                <p className="text-xs text-[#667085] leading-tight flex items-center gap-1 font-mono mt-0.5">
-                  <ShieldCheck className="w-3 h-3 text-[#027A48] shrink-0" aria-hidden="true" />
+                <p className="text-[11px] text-slate-500 leading-tight flex items-center gap-1 font-mono mt-0.5">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden="true" />
                   <span>{authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role}</span>
                 </p>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 text-[#667085] hidden md:block shrink-0" aria-hidden="true" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block shrink-0" aria-hidden="true" />
             </button>
           }
           items={[

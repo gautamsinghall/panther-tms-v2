@@ -147,11 +147,11 @@ export function NotificationsPopover() {
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-[#101828]">Notifications</span>
               {unreadCount > 0 ? (
-                <span className="px-1.5 py-0.5 rounded-full bg-[#EEF2FF] text-[#4F46E5] text-[10px] font-semibold font-mono">
+                <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold font-mono">
                   {unreadCount} new
                 </span>
               ) : (
-                <span className="text-[11px] text-[#667085]">All caught up</span>
+                <span className="text-xs text-slate-500">All caught up</span>
               )}
             </div>
 
@@ -192,11 +192,11 @@ export function NotificationsPopover() {
                     <span className="text-xs font-semibold text-[#101828] truncate">
                       {item.title}
                     </span>
-                    <span className="text-[10px] text-[#98A2B3] shrink-0 font-mono">
+                    <span className="text-xs text-slate-400 shrink-0 font-mono">
                       {item.timeAgo}
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#667085] mt-0.5 leading-snug">
+                  <p className="text-xs text-slate-600 mt-0.5 leading-normal">
                     {item.message}
                   </p>
                 </div>
@@ -220,7 +220,7 @@ export function NotificationsPopover() {
             >
               View System Audit Trail <ArrowRight className="w-3 h-3" />
             </button>
-            <span className="text-[10px] text-[#98A2B3]">Operational Alerts</span>
+            <span className="text-xs text-slate-400">Operational Alerts</span>
           </div>
         </div>
       )}

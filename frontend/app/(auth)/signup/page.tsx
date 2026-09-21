@@ -17,6 +17,7 @@ import {
   Layers,
   Database,
   CreditCard,
+  Server,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,8 @@ const PLANS: PlanOption[] = [
       "Hire Challan Generation",
       "Consignee / Consigner Master",
       "Basic Profile & Company Settings",
+      "Isolated Dedicated DB Schema",
+      "Standard PDF Document Exports",
     ],
     limits: {
       users: "1 User",
@@ -67,7 +70,8 @@ const PLANS: PlanOption[] = [
       "Full Double-Entry Accounting",
       "Vouchers & Freight Invoicing",
       "Transport Operational Registers",
-      "Bank / Cash Reconciliation",
+      "Bank & Cash Reconciliation",
+      "Automated Daily Cloud Backups",
     ],
     limits: {
       users: "5 Users",
@@ -317,198 +321,240 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 text-white shadow-md mb-2">
-            <Truck className="w-6 h-6" />
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Get Started with Panther<span className="text-indigo-600">TMS</span>
-          </h1>
-          <p className="text-sm text-slate-500 max-w-xl mx-auto">
-            Automated Indian transport operations, LR/GR dispatch, GST e-invoicing, and multi-tenant accounting.
-          </p>
+    <div className="min-h-screen lg:h-screen w-full flex flex-col bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative lg:overflow-hidden">
+      {/* Ambient background grid pattern */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(#E2E8F0_1px,transparent_1px)] [background-size:28px_28px] opacity-70" />
+      <div className="fixed -top-40 -left-40 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Step Indicator */}
-          <div className="flex items-center justify-center gap-3 pt-4">
-            <div className={`flex items-center gap-1.5 text-xs font-semibold ${step >= 1 ? "text-indigo-600" : "text-slate-400"}`}>
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step >= 1 ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-600"}`}>
-                1
-              </span>
-              Select Plan
+      {/* ========================================================================= */}
+      {/* TOP HEADER BAR: Standardized across Signin and Signup                     */}
+      {/* ========================================================================= */}
+      <header className="w-full border-b border-slate-200/80 bg-white/75 backdrop-blur-md px-6 sm:px-10 h-16 flex items-center justify-between z-20 shrink-0">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="inline-flex items-center gap-3 group">
+            <img
+              src="/panther-logo.png"
+              alt="Panther Digital Solutions"
+              className="h-9 w-auto object-contain drop-shadow-xs group-hover:opacity-90 transition-opacity"
+            />
+            <div className="h-5 w-px bg-slate-200" />
+            <span className="text-xs font-semibold tracking-wider uppercase text-slate-500 font-mono">
+              v2.0 Enterprise
+            </span>
+          </Link>
+          <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-500 font-medium">
+            <span>Enterprise Logistics Operating System</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs">
+          <span className="hidden sm:inline text-slate-500">Already have an account?</span>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/80 border border-indigo-200/60 transition-colors"
+          >
+            Sign in
+            <span aria-hidden="true">&rarr;</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* ========================================================================= */}
+      {/* MAIN CONTENT AREA: Fits perfectly in viewport with ZERO scrolling        */}
+      {/* ========================================================================= */}
+      <main className="flex-1 flex flex-col justify-center px-4 sm:px-8 lg:px-10 xl:px-12 py-3 lg:py-4 max-w-[1640px] w-full mx-auto relative z-10 overflow-y-auto lg:overflow-hidden min-h-0">
+        {/* Workflow Title & Stepper Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2.5 lg:mb-3 border-b border-slate-200/70 shrink-0">
+          <div>
+            <div className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 font-mono">
+              Workspace Provisioning
             </div>
-            <span className="w-8 h-px bg-slate-300" />
-            <div className={`flex items-center gap-1.5 text-xs font-semibold ${step >= 2 ? "text-indigo-600" : "text-slate-400"}`}>
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step >= 2 ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-600"}`}>
-                2
-              </span>
-              Workspace Details
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
+              {step === 1 && "Select Subscription Plan"}
+              {step === 2 && "Configure Enterprise Workspace"}
+              {step === 3 && "Setting Up Your Workspace"}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              {step === 1 && "Choose the subscription edition that matches your active fleet capacity."}
+              {step === 2 && "Set up your isolated tenant database and master administrator."}
+              {step === 3 && "Automated multi-tenant environment provisioning in progress."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 sm:gap-5 flex-wrap">
+            {/* Step Indicator */}
+            <div className="flex items-center gap-2 text-xs sm:text-sm">
+              <div className={`flex items-center gap-1.5 font-semibold ${step === 1 ? "text-slate-900 font-bold" : step > 1 ? "text-indigo-600" : "text-slate-400"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 1 ? "bg-indigo-600 text-white shadow-2xs" : step > 1 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
+                  {step > 1 ? "✓" : "1"}
+                </span>
+                Plan
+              </div>
+              <span className={`w-5 h-px ${step > 1 ? "bg-indigo-600" : "bg-slate-200"}`} />
+              <div className={`flex items-center gap-1.5 font-semibold ${step === 2 ? "text-slate-900 font-bold" : step > 2 ? "text-indigo-600" : "text-slate-400"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 2 ? "bg-indigo-600 text-white shadow-2xs" : step > 2 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
+                  {step > 2 ? "✓" : "2"}
+                </span>
+                Workspace
+              </div>
+              <span className={`w-5 h-px ${step > 2 ? "bg-indigo-600" : "bg-slate-200"}`} />
+              <div className={`flex items-center gap-1.5 font-semibold ${step === 3 ? "text-slate-900 font-bold" : "text-slate-400"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 3 ? "bg-indigo-600 text-white shadow-2xs" : "bg-slate-200 text-slate-500"}`}>
+                  3
+                </span>
+                Provisioning
+              </div>
             </div>
-            <span className="w-8 h-px bg-slate-300" />
-            <div className={`flex items-center gap-1.5 text-xs font-semibold ${step >= 3 ? "text-indigo-600" : "text-slate-400"}`}>
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step >= 3 ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-600"}`}>
-                3
-              </span>
-              Instant Provisioning
-            </div>
+
+            {/* Billing Toggle (Shown on Step 1) */}
+            {step === 1 && (
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs sm:text-sm shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle("MONTHLY")}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all ${billingCycle === "MONTHLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle("YEARLY")}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${billingCycle === "YEARLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Yearly
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                    -17%
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-sm flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <div className="p-3 mb-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2.5 shrink-0">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* STEP 1: PLAN SELECTION */}
+        {/* STEP 1: PLAN SELECTION (Expanded, Prominent Cards) */}
         {step === 1 && (
-          <div className="space-y-8">
-            {/* Billing Toggle */}
-            <div className="flex justify-center items-center gap-3">
-              <span className={`text-xs font-medium ${billingCycle === "MONTHLY" ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
-                Monthly Billing
-              </span>
-              <button
-                type="button"
-                onClick={() => setBillingCycle(billingCycle === "MONTHLY" ? "YEARLY" : "MONTHLY")}
-                className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out bg-indigo-600 focus:outline-none"
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    billingCycle === "YEARLY" ? "translate-x-5" : "translate-x-0"
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5 my-auto items-stretch">
+            {PLANS.map((plan) => {
+              const isSelected = selectedPlan === plan.code;
+              const price = billingCycle === "MONTHLY" ? plan.priceMonthly : Math.round(plan.priceYearly / 12);
+
+              return (
+                <div
+                  key={plan.code}
+                  onClick={() => setSelectedPlan(plan.code)}
+                  className={`relative rounded-2xl border flex flex-col justify-between transition-all cursor-pointer bg-white ${
+                    plan.popular
+                      ? "pt-7 pb-5 px-5 lg:px-6 xl:px-7"
+                      : "p-5 lg:px-6 xl:px-7 py-5 lg:py-5"
+                  } ${
+                    isSelected
+                      ? "border-indigo-600 ring-2 ring-indigo-600 shadow-lg scale-[1.01]"
+                      : "border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-card"
                   }`}
-                />
-              </button>
-              <span className={`text-xs font-medium flex items-center gap-1.5 ${billingCycle === "YEARLY" ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
-                Yearly Billing
-                <span className="px-2 py-0.5 text-[10px] bg-emerald-100 text-emerald-800 rounded-full font-bold">
-                  SAVE 17%
-                </span>
-              </span>
-            </div>
+                >
+                  {plan.popular && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs whitespace-nowrap">
+                      Most Popular
+                    </span>
+                  )}
 
-            {/* Plans Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {PLANS.map((plan) => {
-                const isSelected = selectedPlan === plan.code;
-                const price = billingCycle === "MONTHLY" ? plan.priceMonthly : Math.round(plan.priceYearly / 12);
+                  <div className="space-y-3">
+                    <div>
+                      <h2 className="font-bold text-xl xl:text-2xl text-slate-900 tracking-tight">{plan.name}</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-1 min-h-[38px] leading-snug">{plan.description}</p>
+                    </div>
 
-                return (
-                  <div
-                    key={plan.code}
-                    onClick={() => setSelectedPlan(plan.code)}
-                    className={`relative rounded-2xl border p-6 flex flex-col justify-between transition-all cursor-pointer bg-white dark:bg-slate-900 ${
-                      isSelected
-                        ? "border-indigo-600 ring-2 ring-indigo-600 shadow-lg scale-[1.02]"
-                        : "border-slate-200 dark:border-slate-800 hover:border-slate-300 shadow-sm"
-                    }`}
-                  >
-                    {plan.popular && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                        Most Popular
-                      </span>
-                    )}
-
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">{plan.name}</h3>
-                        <p className="text-xs text-slate-500 mt-1 min-h-[32px]">{plan.description}</p>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
-                            ₹{price.toLocaleString()}
-                          </span>
-                          <span className="text-xs text-slate-500">/mo</span>
-                        </div>
-                        {billingCycle === "YEARLY" && plan.priceYearly > 0 && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            Billed ₹{plan.priceYearly.toLocaleString()} annually
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Quotas */}
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Users:</span>
-                          <span className="font-semibold">{plan.limits.users}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Vehicles:</span>
-                          <span className="font-semibold">{plan.limits.vehicles}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Invoices:</span>
-                          <span className="font-semibold">{plan.limits.invoices}</span>
-                        </div>
-                      </div>
-
-                      {/* Features */}
-                      <div className="space-y-2 pt-2">
-                        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                          Included Modules
+                    <div className="pt-2 border-t border-slate-100">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-3xl sm:text-4xl xl:text-[40px] font-extrabold text-slate-900 tracking-tight leading-none">
+                          ₹{price.toLocaleString()}
                         </span>
-                        {plan.features.map((feat, i) => (
-                          <div key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
-                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                            <span>{feat}</span>
-                          </div>
-                        ))}
+                        <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                      </div>
+                      {billingCycle === "YEARLY" && plan.priceYearly > 0 ? (
+                        <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                          Billed ₹{plan.priceYearly.toLocaleString()} annually
+                        </p>
+                      ) : (
+                        <p className="text-xs text-transparent mt-0.5 select-none font-medium">
+                          Monthly billing
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Quotas */}
+                    <div className="bg-slate-50/90 border border-slate-100 p-3 lg:p-3.5 rounded-xl space-y-1.5 text-xs sm:text-sm text-slate-700">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Team Users:</span>
+                        <span className="font-semibold text-slate-900">{plan.limits.users}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Fleet Vehicles:</span>
+                        <span className="font-semibold text-slate-900">{plan.limits.vehicles}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Monthly Invoices:</span>
+                        <span className="font-semibold text-slate-900">{plan.limits.invoices}</span>
                       </div>
                     </div>
 
-                    <Button
-                      type="button"
-                      variant={isSelected ? "primary" : "outline"}
-                      className="w-full mt-6"
-                      onClick={() => {
-                        setSelectedPlan(plan.code);
-                        setStep(2);
-                      }}
-                    >
-                      {isSelected ? "Select & Continue" : "Choose Plan"}
-                    </Button>
+                    {/* Features */}
+                    <div className="space-y-1.5 lg:space-y-2 pt-1">
+                      <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider block">
+                        Included modules
+                      </span>
+                      {plan.features.map((feat, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs sm:text-[13px] text-slate-600 leading-snug">
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <span className="font-medium">{feat}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
 
-            <div className="flex justify-center pt-4">
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                onClick={() => setStep(2)}
-                className="px-8 flex items-center gap-2"
-              >
-                Continue to Company Setup
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </div>
+                  <Button
+                    type="button"
+                    variant={isSelected ? "primary" : "outline"}
+                    className={`w-full mt-4 lg:mt-5 h-10 lg:h-11 text-sm font-semibold rounded-xl transition-all ${
+                      isSelected ? "shadow-md shadow-indigo-600/20" : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedPlan(plan.code);
+                      setStep(2);
+                    }}
+                  >
+                    Choose {plan.name}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* STEP 2: ACCOUNT DETAILS */}
+        {/* STEP 2: ACCOUNT DETAILS (Compact, No-Scroll) */}
         {step === 2 && (
-          <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-card space-y-3.5 my-auto w-full">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Workspace Configuration</h2>
-                <p className="text-xs text-slate-500">Set up your enterprise profile and admin credentials.</p>
+                <h2 className="text-base font-bold text-slate-900">Workspace Details</h2>
+                <p className="text-xs text-slate-500">Configure your company tenant and master administrator.</p>
               </div>
               <div className="text-right">
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
                   {selectedPlan} Plan
                 </span>
               </div>
             </div>
 
-            <form onSubmit={handleInitiateSignup} className="space-y-4">
+            <form onSubmit={handleInitiateSignup} className="space-y-3">
               <Input
                 label="Registered Company Name"
                 placeholder="e.g. Apex Fast Freight Pvt Ltd"
@@ -518,28 +564,28 @@ export default function SignupPage() {
               />
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-slate-700 mb-1">
                   Tenant Subdomain
                 </label>
-                <div className="flex rounded-md shadow-sm">
+                <div className="flex rounded-md shadow-2xs">
                   <input
                     type="text"
                     required
                     value={subdomain}
                     onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    className="flex-1 rounded-l-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                    className="flex-1 rounded-l-md border border-slate-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white text-slate-900"
                     placeholder="apex-freight"
                   />
-                  <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-slate-300 bg-slate-50 text-slate-500 text-xs dark:bg-slate-800 dark:border-slate-700">
+                  <span className="inline-flex items-center px-2.5 rounded-r-md border border-l-0 border-slate-300 bg-slate-50 text-slate-500 text-xs font-mono">
                     .panthertms.in
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Your team will access PantherTMS at https://{subdomain || "your-company"}.panthertms.in
+                <p className="text-[11px] text-slate-500 mt-1 font-mono">
+                  Workspace URL: https://{subdomain || "your-company"}.panthertms.in
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
                   label="Administrator Name"
                   placeholder="Rahul Verma"
@@ -566,20 +612,20 @@ export default function SignupPage() {
                 required
               />
 
-              <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+              <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
                   Tenant isolation enforced with dedicated PostgreSQL database and automated daily backups.
                 </span>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setStep(1)}
                   disabled={isLoading}
-                  className="w-1/3"
+                  className="w-1/3 h-9 text-xs"
                 >
                   Back
                 </Button>
@@ -587,11 +633,11 @@ export default function SignupPage() {
                   type="submit"
                   variant="primary"
                   disabled={isLoading}
-                  className="w-2/3 flex items-center justify-center gap-2"
+                  className="w-2/3 h-9 text-xs flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       Initializing...
                     </>
                   ) : selectedPlan === "FREE" ? (
@@ -605,47 +651,47 @@ export default function SignupPage() {
           </div>
         )}
 
-        {/* STEP 3: PROVISIONING / SUCCESS */}
+        {/* STEP 3: PROVISIONING / SUCCESS (Compact, No-Scroll) */}
         {step === 3 && (
-          <div className="max-w-md mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm text-center space-y-6">
+          <div className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200/90 p-6 shadow-card text-center space-y-4 my-auto w-full">
             {!provisionComplete ? (
-              <div className="space-y-5 py-4">
-                <div className="relative w-16 h-16 mx-auto">
+              <div className="space-y-4 py-2">
+                <div className="relative w-14 h-14 mx-auto">
                   <div className="absolute inset-0 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
-                  <Database className="w-6 h-6 text-indigo-600 absolute inset-0 m-auto" />
+                  <Database className="w-5 h-5 text-indigo-600 absolute inset-0 m-auto" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Setting Up Your Workspace</h3>
-                  <p className="text-xs text-slate-500 mt-1">Please wait while we initialize your transport ecosystem.</p>
+                  <h3 className="text-base font-bold text-slate-900">Setting Up Your Workspace</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Please wait while we initialize your transport ecosystem.</p>
                 </div>
-                <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 text-xs font-mono text-indigo-700 dark:text-indigo-300">
+                <div className="p-2.5 bg-indigo-50 rounded-xl border border-indigo-100 text-xs font-mono text-indigo-700">
                   {provisioningStatus}
                 </div>
               </div>
             ) : (
-              <div className="space-y-5 py-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-                  <CheckCircle2 className="w-8 h-8" />
+              <div className="space-y-4 py-2">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
+                  <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">Workspace Ready!</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Your tenant <span className="font-semibold text-slate-900 dark:text-white">{companyName}</span> has been provisioned.
+                  <h3 className="text-lg font-bold text-slate-900">Workspace Ready!</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Your tenant <span className="font-semibold text-slate-900">{companyName}</span> has been provisioned.
                   </p>
                 </div>
 
-                <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-2 text-left text-xs">
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5 text-left text-xs">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Tenant Subdomain:</span>
                     <span className="font-mono font-semibold text-indigo-600">{subdomain}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Subscription Plan:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{selectedPlan}</span>
+                    <span className="font-semibold text-slate-900">{selectedPlan}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Admin Email:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{adminEmail}</span>
+                    <span className="font-semibold text-slate-900">{adminEmail}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Tenant DB:</span>
@@ -656,25 +702,35 @@ export default function SignupPage() {
                 <Button
                   type="button"
                   variant="primary"
-                  className="w-full flex items-center justify-center gap-2"
+                  className="w-full h-9 text-xs flex items-center justify-center gap-2"
                   onClick={() => router.push(`/login?subdomain=${subdomain}&email=${encodeURIComponent(adminEmail)}`)}
                 >
                   Launch Workspace Dashboard
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             )}
           </div>
         )}
+      </main>
 
-        {/* Footer info */}
-        <div className="text-center text-xs text-slate-400">
-          Already have an active account?{" "}
-          <Link href="/login" className="text-indigo-600 font-medium hover:underline">
-            Sign In here
-          </Link>
-        </div>
-      </div>
+      {/* ========================================================================= */}
+      {/* ENTERPRISE TRUST FOOTER: Standardized across Signin and Signup            */}
+      {/* ========================================================================= */}
+      <footer className="w-full border-t border-slate-200/70 bg-white/50 backdrop-blur-xs py-2 px-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[11px] text-slate-500 z-20 shrink-0">
+        <span className="inline-flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span>Tenant-isolated architecture</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+          <span>256-bit SSL encrypted</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Server className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>Multi-tier RBAC security</span>
+        </span>
+      </footer>
     </div>
   );
 }

@@ -82,10 +82,10 @@ export default function OutstandingCreditorsPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-semibold text-xs text-[#172033] block">
+          <span className="font-semibold text-xs sm:text-sm text-slate-900 block">
             {row.creditor_name}
           </span>
-          <span className="text-[10px] text-[#98A2B3] font-mono">
+          <span className="text-xs text-slate-500 font-mono">
             {row.creditor_code}
           </span>
         </div>
@@ -151,7 +151,7 @@ export default function OutstandingCreditorsPage() {
       header: "Overdue",
       align: "center",
       cell: (row) => (
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
           row.days_overdue > 60
             ? "bg-rose-50 text-rose-700 border border-rose-200"
             : row.days_overdue > 30
@@ -203,44 +203,44 @@ export default function OutstandingCreditorsPage() {
 
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <Card className="p-4 bg-white border border-[#E4E7EC]">
-            <span className="text-[11px] font-semibold text-[#667085] uppercase tracking-wider">Total Payable</span>
-            <div className="text-lg font-bold font-mono text-[#172033] mt-1">
+          <Card className="p-4 bg-white border border-slate-200">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Payable</span>
+            <div className="text-lg font-bold font-mono text-slate-900 mt-1">
               ₹{Number(data.total_outstanding).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-[#667085] block mt-0.5">{data.creditor_count} creditors</span>
+            <span className="text-xs text-slate-500 block mt-0.5">{data.creditor_count} creditors</span>
           </Card>
 
-          <Card className="p-4 bg-white border border-[#E4E7EC]">
-            <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">0-30 Days</span>
+          <Card className="p-4 bg-white border border-slate-200">
+            <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">0-30 Days</span>
             <div className="text-lg font-bold font-mono text-emerald-700 mt-1">
               ₹{Number(data.total_bucket_0_30).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-[#667085] block mt-0.5">Current due</span>
+            <span className="text-xs text-slate-500 block mt-0.5">Current due</span>
           </Card>
 
-          <Card className="p-4 bg-white border border-[#E4E7EC]">
-            <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">31-60 Days</span>
+          <Card className="p-4 bg-white border border-slate-200">
+            <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">31-60 Days</span>
             <div className="text-lg font-bold font-mono text-blue-700 mt-1">
               ₹{Number(data.total_bucket_31_60).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-[#667085] block mt-0.5">30+ days due</span>
+            <span className="text-xs text-slate-500 block mt-0.5">30+ days due</span>
           </Card>
 
-          <Card className="p-4 bg-white border border-[#E4E7EC]">
-            <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">61-90 Days</span>
+          <Card className="p-4 bg-white border border-slate-200">
+            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">61-90 Days</span>
             <div className="text-lg font-bold font-mono text-amber-700 mt-1">
               ₹{Number(data.total_bucket_61_90).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-[#667085] block mt-0.5">Overdue</span>
+            <span className="text-xs text-slate-500 block mt-0.5">Overdue</span>
           </Card>
 
-          <Card className="p-4 bg-white border border-[#E4E7EC]">
-            <span className="text-[11px] font-semibold text-rose-700 uppercase tracking-wider">90+ Days</span>
+          <Card className="p-4 bg-white border border-slate-200">
+            <span className="text-xs font-semibold text-rose-700 uppercase tracking-wider">90+ Days</span>
             <div className="text-lg font-bold font-mono text-rose-700 mt-1">
               ₹{Number(data.total_bucket_over_90).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-[#667085] block mt-0.5">Critical pending</span>
+            <span className="text-xs text-slate-500 block mt-0.5">Critical pending</span>
           </Card>
         </div>
       )}

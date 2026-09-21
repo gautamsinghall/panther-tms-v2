@@ -32,17 +32,17 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "bg-white rounded-card border border-[#E4E7EC] p-5 flex flex-col justify-between transition-colors",
+        "bg-white rounded-card border border-slate-200/80 p-5 flex flex-col justify-between shadow-card hover:border-slate-300 hover:shadow-card-hover transition-all duration-200 group",
         className
       )}
     >
       {/* Label and Icon Header */}
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-medium uppercase tracking-[0.02em] text-[#667085]">
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors">
           {title}
         </span>
         {icon && (
-          <div className="w-8 h-8 rounded-control bg-[#F8F9FB] border border-[#E4E7EC] flex items-center justify-center text-[#4F46E5] shrink-0">
+          <div className="w-8 h-8 rounded-control bg-slate-50 border border-slate-200/80 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-50/70 group-hover:border-indigo-200/60 transition-colors shrink-0 shadow-2xs">
             {icon}
           </div>
         )}
@@ -50,19 +50,19 @@ export function KpiCard({
 
       {/* Metric Value & Trend Context */}
       <div className="mt-3">
-        <div className="text-[28px] leading-[36px] font-semibold text-[#101828] tabular-nums font-mono">
+        <div className="text-2xl leading-8 font-bold text-slate-900 tabular-nums tracking-tight font-sans">
           {value}
         </div>
 
         {(trend || subtext) && (
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             {trend && (
               <span
                 className={cn(
-                  "inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-[4px]",
+                  "inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-md border",
                   trend.isPositive
-                    ? "bg-[#ECFDF3] text-[#027A48]"
-                    : "bg-[#FEF3F2] text-[#B42318]"
+                    ? "bg-emerald-50 border-emerald-200/70 text-emerald-800"
+                    : "bg-rose-50 border-rose-200/70 text-rose-800"
                 )}
               >
                 {trend.isPositive ? (
@@ -74,7 +74,7 @@ export function KpiCard({
               </span>
             )}
             {subtext && (
-              <span className="text-xs text-[#667085]">
+              <span className="text-xs text-slate-500 font-normal">
                 {subtext}
               </span>
             )}

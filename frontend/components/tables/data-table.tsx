@@ -297,11 +297,11 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       ) : (
         (searchable || toolbarExtra) && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-card border border-[#E4E7EC]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-card border border-slate-200/80 shadow-card">
             {/* Search Input */}
             {searchable && (
               <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#667085] pointer-events-none" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={searchTerm}
@@ -310,13 +310,13 @@ export function DataTable<T extends Record<string, any>>({
                     setCurrentPage(1);
                   }}
                   placeholder={searchPlaceholder}
-                  className="w-full pl-9 pr-8 py-1.5 text-xs rounded-control border border-[#E4E7EC] bg-white text-[#101828] placeholder:text-[#667085] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors"
+                  className="w-full pl-9 pr-8 py-1.5 text-xs rounded-control border border-slate-200/90 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 focus:bg-white transition-colors"
                 />
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#667085] hover:text-[#101828]"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-700"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -328,14 +328,14 @@ export function DataTable<T extends Record<string, any>>({
             <div className="flex items-center gap-2 justify-end shrink-0">
               {toolbarExtra}
 
-              {/* Density Toggle per docs/design.md §3 */}
+              {/* Density Toggle */}
               <button
                 type="button"
                 onClick={() => setDensity(density === "comfortable" ? "compact" : "comfortable")}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[#344054] bg-white hover:bg-[#F8F9FB] border border-[#E4E7EC] rounded-control transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-control transition-colors shadow-2xs"
                 title={`Current: ${density}. Click to switch.`}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[#667085]" />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
                 <span className="hidden sm:inline capitalize">{density}</span>
               </button>
             </div>
@@ -344,11 +344,11 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Main Table Container */}
-      <div className="rounded-card border border-[#E4E7EC] bg-white overflow-hidden">
+      <div className="rounded-card border border-slate-200/80 bg-white shadow-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            {/* Sticky Header per docs/design.md §5: --gray-50 bg, Label-style header text */}
-            <thead className="sticky top-0 z-10 bg-[#F8F9FB] border-b border-[#E4E7EC]">
+            {/* Sticky Header: slate-50 bg, Label-style header text */}
+            <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200/80">
               <tr>
                 {/* Select All Checkbox Column */}
                 {selectable && (
@@ -357,7 +357,7 @@ export function DataTable<T extends Record<string, any>>({
                       type="checkbox"
                       checked={allCurrentPageSelected}
                       onChange={toggleSelectAll}
-                      className="rounded border-[#D0D5DD] text-[#4F46E5] focus:ring-[#4F46E5] cursor-pointer"
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       aria-label="Select all current page"
                     />
                   </th>
@@ -370,11 +370,11 @@ export function DataTable<T extends Record<string, any>>({
                       key={col.key}
                       style={{ width: col.width }}
                       className={cn(
-                        "text-xs font-medium uppercase tracking-[0.02em] text-[#667085] select-none",
+                        "text-xs font-semibold uppercase tracking-wider text-slate-500 select-none",
                         cellPaddingClass,
                         col.align === "right" || col.isNumeric ? "text-right" : "",
                         col.align === "center" ? "text-center" : "",
-                        col.sortable ? "cursor-pointer hover:text-[#101828]" : ""
+                        col.sortable ? "cursor-pointer hover:text-slate-900" : ""
                       )}
                       onClick={() => col.sortable && handleSort(col.key)}
                     >
@@ -404,7 +404,7 @@ export function DataTable<T extends Record<string, any>>({
 
                 {/* Actions Column */}
                 {actions.length > 0 && (
-                  <th className="w-12 px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.02em] text-[#667085]">
+                  <th className="w-12 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Actions
                   </th>
                 )}
@@ -526,7 +526,7 @@ export function DataTable<T extends Record<string, any>>({
                           <td
                             key={col.key}
                             className={cn(
-                              "text-xs text-[#344054]",
+                              "text-xs sm:text-[13px] text-slate-800",
                               cellPaddingClass,
                               col.align === "right" || col.isNumeric ? "text-right tabular-nums font-mono" : "",
                               col.align === "center" ? "text-center" : ""

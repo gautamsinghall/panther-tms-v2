@@ -407,19 +407,19 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           </div>
 
           {/* Footer Shortcuts */}
-          <div className="px-4 py-2.5 border-t border-[#E4E7EC] bg-[#F8F9FB] flex items-center justify-between text-[11px] text-[#667085]">
+          <div className="px-4 py-2.5 border-t border-[#E4E7EC] bg-[#F8F9FB] flex items-center justify-between text-xs text-[#667085]">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 bg-white border border-[#D0D5DD] rounded text-[10px] font-mono">↑</kbd>
-                <kbd className="px-1 py-0.5 bg-white border border-[#D0D5DD] rounded text-[10px] font-mono">↓</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white border border-[#D0D5DD] rounded text-xs font-mono">↑</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white border border-[#D0D5DD] rounded text-xs font-mono">↓</kbd>
                 <span>navigate</span>
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white border border-[#D0D5DD] rounded text-[10px] font-mono">↵</kbd>
+                <kbd className="px-2 py-0.5 bg-white border border-[#D0D5DD] rounded text-xs font-mono">↵</kbd>
                 <span>open</span>
               </span>
             </div>
-            <span className="text-[10px] text-[#98A2B3]">PantherTMS Quick Navigation</span>
+            <span className="text-xs text-[#98A2B3]">PantherTMS Quick Navigation</span>
           </div>
         </div>
       </div>

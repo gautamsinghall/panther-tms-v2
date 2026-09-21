@@ -59,10 +59,11 @@ interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 export function StatusBadge({ status, variant, className, ...props }: StatusBadgeProps) {
   const normalized = (variant || status || "").toLowerCase().replace(/[\s-]/g, "_");
 
-  // Semantic styles per docs/design.md §1
-  let bgClass = "bg-[#F1F3F6]";
-  let textClass = "text-[#344054]";
-  let dotClass = "bg-[#667085]";
+  // Semantic styles - Linear & Stripe Enterprise
+  let bgClass = "bg-slate-100/90 border-slate-200/80";
+  let textClass = "text-slate-700";
+  let dotClass = "bg-slate-400";
+  let isLive = false;
 
   // 1. Success: Delivered, Paid, Active, Reconciled, Completed, Approved, Verified, Closed, Pod Verified
   if (
@@ -79,22 +80,35 @@ export function StatusBadge({ status, variant, className, ...props }: StatusBadg
       "success",
     ].includes(normalized)
   ) {
-    bgClass = "bg-[#ECFDF3]";
-    textClass = "text-[#027A48]";
-    dotClass = "bg-[#12B76A]";
+    bgClass = "bg-emerald-50 border-emerald-200/70";
+    textClass = "text-emerald-800";
+    dotClass = "bg-emerald-500";
   }
-  // 2. Warning: Pending, In Transit, Draft, Due Soon, Booked, Loaded, Sent, Dispatched, Arrived, Pod Received, Maintenance
+  // 2. Live Active Transit: In Transit, In Progress, Dispatched, Moving, En Route
+  else if (
+    [
+      "in_transit",
+      "in_progress",
+      "dispatched",
+      "en_route",
+      "moving",
+      "tracking",
+    ].includes(normalized)
+  ) {
+    bgClass = "bg-blue-50 border-blue-200/80";
+    textClass = "text-blue-800";
+    dotClass = "bg-blue-500";
+    isLive = true;
+  }
+  // 3. Warning / Operational Hold: Pending, Booked, Loaded, Draft, Due Soon, Sent, Arrived, Pod Received, Maintenance
   else if (
     [
       "pending",
-      "in_transit",
-      "in_progress",
       "booked",
       "loaded",
       "draft",
       "due_soon",
       "sent",
-      "dispatched",
       "arrived",
       "pod_received",
       "maintenance",
@@ -102,11 +116,11 @@ export function StatusBadge({ status, variant, className, ...props }: StatusBadg
       "warning",
     ].includes(normalized)
   ) {
-    bgClass = "bg-[#FFFAEB]";
-    textClass = "text-[#B54708]";
-    dotClass = "bg-[#F79009]";
+    bgClass = "bg-amber-50 border-amber-200/70";
+    textClass = "text-amber-800";
+    dotClass = "bg-amber-500";
   }
-  // 3. Danger: Overdue, Cancelled, Rejected, Failed, Suspended, Inactive, Void
+  // 4. Danger: Overdue, Cancelled, Rejected, Failed, Suspended, Inactive, Void
   else if (
     [
       "overdue",
@@ -119,29 +133,24 @@ export function StatusBadge({ status, variant, className, ...props }: StatusBadg
       "danger",
     ].includes(normalized)
   ) {
-    bgClass = "bg-[#FEF3F2]";
-    textClass = "text-[#B42318]";
-    dotClass = "bg-[#F04438]";
+    bgClass = "bg-rose-50 border-rose-200/70";
+    textClass = "text-rose-800";
+    dotClass = "bg-rose-500";
   }
-  // 4. Info: Info, Processing, Scheduled, Generating
+  // 5. Info / System
   else if (
     ["info", "scheduled", "processing", "generating"].includes(normalized)
   ) {
-    bgClass = "bg-[#EFF8FF]";
-    textClass = "text-[#175CD3]";
-    dotClass = "bg-[#2E90FA]";
+    bgClass = "bg-indigo-50 border-indigo-200/70";
+    textClass = "text-indigo-800";
+    dotClass = "bg-indigo-500";
+    isLive = normalized === "processing" || normalized === "generating";
   }
-  // 5. Primary
+  // 6. Primary
   else if (["primary"].includes(normalized)) {
-    bgClass = "bg-[#EEF2FF]";
-    textClass = "text-[#4338CA]";
-    dotClass = "bg-[#4F46E5]";
-  }
-  // 6. Neutral / Secondary
-  else if (["neutral", "secondary"].includes(normalized)) {
-    bgClass = "bg-[#F1F3F6]";
-    textClass = "text-[#344054]";
-    dotClass = "bg-[#667085]";
+    bgClass = "bg-indigo-50 border-indigo-200/70";
+    textClass = "text-indigo-700";
+    dotClass = "bg-indigo-600";
   }
 
   // Format label to clean Title Case with spaces
@@ -154,14 +163,24 @@ export function StatusBadge({ status, variant, className, ...props }: StatusBadg
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-[6px] text-xs font-medium tracking-[0.01em] select-none transition-colors",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[6px] text-xs font-medium tracking-[0.01em] border select-none transition-all shadow-xs",
         bgClass,
         textClass,
         className
       )}
       {...props}
     >
-      <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5 shrink-0", dotClass)} />
+      <span className="relative flex h-1.5 w-1.5 shrink-0 items-center justify-center">
+        {isLive && (
+          <span
+            className={cn(
+              "absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
+              dotClass
+            )}
+          />
+        )}
+        <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", dotClass)} />
+      </span>
       {formatLabel(status)}
     </span>
   );
@@ -175,35 +194,35 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ variant = "neutral", dot = false, className, children, ...props }: BadgeProps) {
   const variantStyles = {
-    primary: "bg-[#EEF2FF] text-[#4338CA]",
-    secondary: "bg-[#F1F3F6] text-[#344054]",
-    neutral: "bg-[#F1F3F6] text-[#344054]",
-    success: "bg-[#ECFDF3] text-[#027A48]",
-    danger: "bg-[#FEF3F2] text-[#B42318]",
-    warning: "bg-[#FFFAEB] text-[#B54708]",
-    info: "bg-[#EFF8FF] text-[#175CD3]",
+    primary: "bg-indigo-50 border-indigo-200/70 text-indigo-700",
+    secondary: "bg-slate-100 border-slate-200/80 text-slate-700",
+    neutral: "bg-slate-100 border-slate-200/80 text-slate-700",
+    success: "bg-emerald-50 border-emerald-200/70 text-emerald-800",
+    danger: "bg-rose-50 border-rose-200/70 text-rose-800",
+    warning: "bg-amber-50 border-amber-200/70 text-amber-800",
+    info: "bg-blue-50 border-blue-200/70 text-blue-800",
   };
 
   const dotStyles = {
-    primary: "bg-[#4F46E5]",
-    secondary: "bg-[#667085]",
-    neutral: "bg-[#667085]",
-    success: "bg-[#12B76A]",
-    danger: "bg-[#F04438]",
-    warning: "bg-[#F79009]",
-    info: "bg-[#2E90FA]",
+    primary: "bg-indigo-600",
+    secondary: "bg-slate-400",
+    neutral: "bg-slate-400",
+    success: "bg-emerald-500",
+    danger: "bg-rose-500",
+    warning: "bg-amber-500",
+    info: "bg-blue-500",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-[6px] text-xs font-medium select-none",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[6px] text-xs font-medium border select-none shadow-xs",
         variantStyles[variant] || variantStyles.neutral,
         className
       )}
       {...props}
     >
-      {dot && <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5 shrink-0", dotStyles[variant] || dotStyles.neutral)} />}
+      {dot && <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotStyles[variant] || dotStyles.neutral)} />}
       {children}
     </span>
   );

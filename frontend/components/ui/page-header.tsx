@@ -56,24 +56,24 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("space-y-2 pb-4 border-b border-[#E4E7EC]", className)}>
+    <div className={cn("space-y-2 pb-4 border-b border-slate-200/80", className)}>
       {/* Breadcrumb Row */}
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-[#667085]">
+        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-400">
           {breadcrumbs.map((crumb, idx) => {
             const isLast = idx === breadcrumbs.length - 1;
             return (
               <React.Fragment key={crumb.label}>
-                {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-[#667085] shrink-0" />}
+                {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                 {crumb.href && !isLast ? (
                   <Link
                     href={crumb.href}
-                    className="hover:text-[#101828] transition-colors"
+                    className="hover:text-slate-800 transition-colors"
                   >
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? "font-medium text-[#101828]" : ""}>
+                  <span className={isLast ? "font-medium text-slate-700" : ""}>
                     {crumb.label}
                   </span>
                 )}
@@ -87,13 +87,13 @@ export function PageHeader({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-[22px] leading-[28px] font-semibold tracking-tight text-[#101828]">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               {title}
             </h1>
             {badge}
           </div>
           {description && (
-            <p className="text-[13px] leading-[18px] text-[#667085] mt-0.5">
+            <p className="text-sm leading-relaxed text-slate-600 mt-1 max-w-3xl">
               {description}
             </p>
           )}

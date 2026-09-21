@@ -90,16 +90,16 @@ export default function MonthlyPnLPage() {
       )}
 
       {/* Month Selector Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200/90 shadow-card">
         <div className="flex items-center gap-3">
           <Calendar className="w-4 h-4 text-indigo-600" />
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <span className="text-xs font-semibold text-slate-700">
             Reporting Accounting Month:
           </span>
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-mono font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-700"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-mono font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white text-slate-900"
           >
             <option value="2026-09">September 2026 (FY 2026-27)</option>
             <option value="2026-08">August 2026 (FY 2026-27)</option>
@@ -136,14 +136,14 @@ export default function MonthlyPnLPage() {
           {/* Key Metric KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Total Revenue */}
-            <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-2">
+            <Card className="p-5 border border-slate-200/90 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Operating Revenue</span>
                 <span className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
                   <ArrowUpRight className="w-4 h-4" />
                 </span>
               </div>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-white">
+              <div className="text-2xl font-extrabold text-slate-900">
                 {formatCurrency(pnlData.total_revenue)}
               </div>
               <p className="text-[11px] text-emerald-600 font-medium">
@@ -152,14 +152,14 @@ export default function MonthlyPnLPage() {
             </Card>
 
             {/* Total Expenses */}
-            <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-2">
+            <Card className="p-5 border border-slate-200/90 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Operating Expenses</span>
                 <span className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center">
                   <ArrowDownRight className="w-4 h-4" />
                 </span>
               </div>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-white">
+              <div className="text-2xl font-extrabold text-slate-900">
                 {formatCurrency(pnlData.total_expenses)}
               </div>
               <p className="text-[11px] text-rose-600 font-medium">
@@ -168,7 +168,7 @@ export default function MonthlyPnLPage() {
             </Card>
 
             {/* Net Operating Profit */}
-            <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-2">
+            <Card className="p-5 border border-slate-200/90 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Net Operating P&L</span>
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${pnlData.net_profit >= 0 ? "bg-indigo-100 text-indigo-700" : "bg-rose-100 text-rose-700"}`}>
@@ -184,14 +184,14 @@ export default function MonthlyPnLPage() {
             </Card>
 
             {/* Profit Margin % */}
-            <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-2">
+            <Card className="p-5 border border-slate-200/90 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Operating Margin</span>
                 <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
                   %
                 </span>
               </div>
-              <div className="text-2xl font-extrabold text-slate-900 dark:text-white">
+              <div className="text-2xl font-extrabold text-slate-900">
                 {pnlData.profit_margin_pct}%
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
@@ -204,7 +204,7 @@ export default function MonthlyPnLPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue Breakdown */}
             <Card className="p-6 space-y-4">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between pb-3 border-b border-slate-100">
                 <span className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
                   Revenue Inflow Streams
@@ -221,17 +221,17 @@ export default function MonthlyPnLPage() {
                     return (
                       <div key={stream} className="space-y-1.5">
                         <div className="flex justify-between text-xs">
-                          <span className="font-medium text-slate-700 dark:text-slate-300 capitalize">
+                          <span className="font-medium text-slate-700 capitalize">
                             {stream.replace(/_/g, " ")}
                           </span>
                           <div className="flex items-center gap-3">
                             <span className="text-slate-400 font-mono text-[11px]">{pct}%</span>
-                            <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                            <span className="font-mono font-semibold text-slate-900">
                               {formatCurrency(amount)}
                             </span>
                           </div>
                         </div>
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                           <div
                             className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
                             style={{ width: `${pct}%` }}
@@ -248,7 +248,7 @@ export default function MonthlyPnLPage() {
 
             {/* Expense Breakdown */}
             <Card className="p-6 space-y-4">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between pb-3 border-b border-slate-100">
                 <span className="flex items-center gap-2">
                   <TrendingDown className="w-4 h-4 text-rose-600" />
                   Operating Expenditure Allocations
@@ -265,17 +265,17 @@ export default function MonthlyPnLPage() {
                     return (
                       <div key={stream} className="space-y-1.5">
                         <div className="flex justify-between text-xs">
-                          <span className="font-medium text-slate-700 dark:text-slate-300 capitalize">
+                          <span className="font-medium text-slate-700 capitalize">
                             {stream.replace(/_/g, " ")}
                           </span>
                           <div className="flex items-center gap-3">
                             <span className="text-slate-400 font-mono text-[11px]">{pct}%</span>
-                            <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                            <span className="font-mono font-semibold text-slate-900">
                               {formatCurrency(amount)}
                             </span>
                           </div>
                         </div>
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                           <div
                             className="bg-rose-500 h-2 rounded-full transition-all duration-500"
                             style={{ width: `${pct}%` }}
@@ -292,11 +292,11 @@ export default function MonthlyPnLPage() {
           </div>
 
           {/* Consolidated Branches Banner */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-indigo-600" />
               <span>
-                Consolidated across <strong className="text-slate-900 dark:text-white">{pnlData.branches_included.length}</strong> active branches:{" "}
+                Consolidated across <strong className="text-slate-900">{pnlData.branches_included.length}</strong> active branches:{" "}
                 <span className="font-mono">{pnlData.branches_included.join(", ")}</span>
               </span>
             </div>

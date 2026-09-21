@@ -39,7 +39,7 @@ export function DropdownMenu({ trigger, items, align = "right", className }: Dro
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 mt-1 min-w-[160px] rounded-lg border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-800 dark:bg-slate-900 animate-in fade-in-0 zoom-in-95",
+            "absolute z-50 mt-1 min-w-[160px] rounded-lg border border-slate-200 bg-white p-1 shadow-floating animate-in fade-in-0 zoom-in-95",
             align === "right" ? "right-0" : "left-0",
             className
           )}
@@ -53,8 +53,8 @@ export function DropdownMenu({ trigger, items, align = "right", className }: Dro
                 setIsOpen(false);
               }}
               className={cn(
-                "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
-                item.variant === "danger" && "text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+                item.variant === "danger" && "text-rose-600 hover:bg-rose-50"
               )}
             >
               {item.icon && <span className="w-3.5 h-3.5 shrink-0">{item.icon}</span>}

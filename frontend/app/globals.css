@@ -3,82 +3,115 @@
 @tailwind utilities;
 
 :root {
-  /* Neutral scale per docs/design.md §1 */
-  --gray-25:  #FCFCFD;   /* app background */
-  --gray-50:  #F8F9FB;   /* subtle section backgrounds, table header */
-  --gray-100: #F1F3F6;   /* hover states, input backgrounds */
-  --gray-200: #E4E7EC;   /* borders, dividers */
-  --gray-300: #D0D5DD;   /* stronger borders, disabled fills */
-  --gray-500: #667085;   /* secondary text, icons */
-  --gray-700: #344054;   /* body text */
-  --gray-900: #101828;   /* headings, primary text */
+  /* Linear & Stripe Neutral Scale - Cool Slate Tinted */
+  --gray-25:  #F8FAFC;   /* App canvas background */
+  --gray-50:  #F1F5F9;   /* Subtle container bg, table header */
+  --gray-100: #E2E8F0;   /* Muted fills, active hover states */
+  --gray-200: #CBD5E1;   /* Primary card and divider borders */
+  --gray-300: #94A3B8;   /* Strong borders, disabled fills */
+  --gray-400: #64748B;   /* Secondary icons, muted text */
+  --gray-500: #475569;   /* Sub-labels, table meta headers */
+  --gray-600: #334155;   /* Body secondary text */
+  --gray-700: #1E293B;   /* Body primary text */
+  --gray-800: #0F172A;   /* Dark accents */
+  --gray-900: #020617;   /* Headings, high-contrast titles */
 
   /* Surface & borders */
   --color-bg: var(--gray-25);
   --color-surface: #FFFFFF;
-  --color-surface-muted: var(--gray-50);
-  --color-border: var(--gray-200);
-  --color-border-strong: var(--gray-300);
+  --color-surface-subtle: var(--gray-50);
+  --color-surface-muted: var(--gray-100);
+  --color-border: #E2E8F0;
+  --border-subtle: rgba(226, 232, 240, 0.8);
+  --color-border-strong: #CBD5E1;
 
   /* Typography colors */
   --color-text-primary: var(--gray-900);
   --color-text-secondary: var(--gray-500);
-  --color-text-muted: #98A2B3;
+  --color-text-muted: var(--gray-400);
   --color-text-inverse: #FFFFFF;
 
-  /* Brand / Primary per docs/design.md §1 */
-  --primary-50:  #EEF2FF;   /* selected row bg, active nav bg, light chip */
-  --primary-600: #4F46E5;   /* primary buttons, active nav, links */
+  /* Brand / Primary (Linear/Stripe Indigo) */
+  --primary-50:  #EEF2FF;   /* active nav pill, subtle chip */
+  --primary-100: #E0E7FF;   /* hover pill */
+  --primary-500: #6366F1;   /* accent indicator */
+  --primary-600: #4F46E5;   /* primary buttons, links */
   --primary-700: #4338CA;   /* hover/pressed */
 
   --color-primary: var(--primary-600);
   --color-primary-hover: var(--primary-700);
 
-  /* Semantic status colors per docs/design.md §1 */
-  --success-600: #12B76A;
-  --success-text: #027A48;
-  --success-bg: #ECFDF3;
+  /* Enterprise Semantic Status Colors */
+  --success-600: #16A34A;
+  --success-text: #15803D;
+  --success-bg: #DCFCE7;
 
-  --warning-600: #F79009;
-  --warning-text: #B54708;
-  --warning-bg: #FFFAEB;
+  --warning-600: #D97706;
+  --warning-text: #B45309;
+  --warning-bg: #FEF3C7;
 
-  --danger-600: #F04438;
-  --danger-text: #B42318;
-  --danger-bg: #FEF3F2;
+  --danger-600: #DC2626;
+  --danger-text: #B91C1C;
+  --danger-bg: #FEE2E2;
 
-  --info-600: #2E90FA;
-  --info-text: #175CD3;
-  --info-bg: #EFF8FF;
+  --info-600: #2563EB;
+  --info-text: #1D4ED8;
+  --info-bg: #DBEAFE;
 
   --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 body {
   background-color: var(--gray-25);
-  color: var(--gray-900);
+  color: var(--gray-800);
   font-family: var(--font-inter);
+  font-size: 0.875rem;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* Tabular numbers for financial and operational metrics per docs/design.md §2 */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+  color: var(--gray-900);
+}
+
+/* Tabular numbers for financial and operational metrics */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
-/* Scrollbar styling for data-dense operational tables */
+/* Linear-style subtle scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-200);
-  border-radius: 3px;
+  background: #CBD5E1;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-500);
+  background: #94A3B8;
+}
+
+/* Card micro-elevation */
+.card-elevation {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-elevation:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.06), 0 1px 3px -1px rgba(15, 23, 42, 0.08);
 }

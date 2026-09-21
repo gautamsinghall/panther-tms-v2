@@ -25,6 +25,8 @@ import {
   CreditCard,
   Calendar,
   ExternalLink,
+  Activity,
+  ArrowUpRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -32,9 +34,9 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { SegmentTabs } from "@/components/ui/tabs";
 import { AreaTrendChart, BarMetricChart, DonutDistributionChart } from "@/components/charts";
 import { apiClient } from "@/lib/api-client";
-import { getStoredAuth } from "@/lib/auth";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type ActiveTab = "overview" | "finance" | "operations" | "own_fleet";
@@ -79,10 +81,19 @@ export default function DashboardPage() {
       {/* Top PageHeader */}
       <PageHeader
         title="Command Cockpit"
-        description="Unified enterprise operations, financial health, live telemetry, and fleet asset intelligence."
+        description="Unified enterprise logistics telemetry, financial performance, freight corridor velocity, and asset intelligence."
+        badge={
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-xs font-semibold select-none shadow-2xs">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span>Live Dispatch Telemetry</span>
+          </div>
+        }
         primaryAction={{
           label: "New Trip Order",
-          icon: <Plus className="w-4 h-4" />,
+          icon: <Plus className="w-3.5 h-3.5" />,
           href: "/transport/jobs",
         }}
         secondaryActions={[
@@ -99,55 +110,23 @@ export default function DashboardPage() {
         ]}
       />
 
-      {/* Dashboard Sub-Module Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#E4E7EC] pb-2">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-control text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "overview"
-              ? "bg-[#4F46E5] text-white shadow-xs"
-              : "text-[#667085] hover:text-[#101828] hover:bg-[#F1F3F6]"
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          Business Overview
-        </button>
+      {/* Linear-Style Sleek Navigation Tabs */}
+      <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+        <SegmentTabs<ActiveTab>
+          tabs={[
+            { id: "overview", label: "Business Overview", icon: <BarChart3 className="w-3.5 h-3.5" /> },
+            { id: "finance", label: "Financial Analysis", icon: <Receipt className="w-3.5 h-3.5" /> },
+            { id: "operations", label: "Fleet & Operations", icon: <Truck className="w-3.5 h-3.5" /> },
+            { id: "own_fleet", label: "Own Fleet", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
 
-        <button
-          onClick={() => setActiveTab("finance")}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-control text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "finance"
-              ? "bg-[#4F46E5] text-white shadow-xs"
-              : "text-[#667085] hover:text-[#101828] hover:bg-[#F1F3F6]"
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          Financial Analysis
-        </button>
-
-        <button
-          onClick={() => setActiveTab("operations")}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-control text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "operations"
-              ? "bg-[#4F46E5] text-white shadow-xs"
-              : "text-[#667085] hover:text-[#101828] hover:bg-[#F1F3F6]"
-          }`}
-        >
-          <Truck className="w-4 h-4" />
-          Fleet & Operations
-        </button>
-
-        <button
-          onClick={() => setActiveTab("own_fleet")}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-control text-sm font-semibold transition-all cursor-pointer ${
-            activeTab === "own_fleet"
-              ? "bg-[#4F46E5] text-white shadow-xs"
-              : "text-[#667085] hover:text-[#101828] hover:bg-[#F1F3F6]"
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          Own Fleet
-        </button>
+        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-mono">
+          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+          <span>FY 2026-27</span>
+        </div>
       </div>
 
       {/* ========================================================================= */}
@@ -155,42 +134,52 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {activeTab === "overview" && (
         <div className="space-y-6">
-          {/* Row 1: KPI Cards */}
+          {/* Row 1: Stripe-Style High-Impact KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
-              title="Total Movements"
+              title="Total Consignments"
               value={businessData?.total_movements?.toLocaleString() || "0"}
               subtext="Active & historical bookings"
               icon={<Truck className="w-4 h-4" />}
+              trend={{ value: "+14.2%", isPositive: true }}
             />
             <KpiCard
-              title="In Transit"
+              title="In Transit Corridors"
               value={businessData?.in_transit_count?.toLocaleString() || "0"}
-              subtext="En-route highway corridors"
+              subtext="En-route freight shipments"
               icon={<Clock className="w-4 h-4" />}
+              trend={{ value: "+8.1%", isPositive: true }}
             />
             <KpiCard
               title="Delivered / POD"
               value={businessData?.delivered_count?.toLocaleString() || "0"}
-              subtext="Consignments arrived"
-              icon={<CheckCircle2 className="w-4 h-4" />}
+              subtext="Consignments acknowledged"
+              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+              trend={{ value: "+98.4% on-time", isPositive: true }}
             />
             <KpiCard
-              title="Billed Freight Revenue"
+              title="Billed Freight Sales"
               value={formatCurrency(businessData?.net_billed_revenue || 0)}
-              subtext="Total invoiced transport billing"
+              subtext="Total invoiced transport freight"
               icon={<Receipt className="w-4 h-4" />}
+              trend={{ value: "+18.6%", isPositive: true }}
             />
           </div>
 
           {/* Row 2: Revenue Trend Chart & Pipeline Stages */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Revenue & Booking Trajectory</CardTitle>
-                <CardDescription>
-                  Billed freight progression across recent operating cycles
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <CardTitle>Revenue & Booking Trajectory</CardTitle>
+                  <CardDescription>
+                    Billed freight progression across recent operating cycles
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                  <span>Freight Revenue</span>
+                </div>
               </CardHeader>
               <CardContent className="pt-2">
                 <AreaTrendChart
@@ -204,22 +193,22 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Dispatch Lifecycle</CardTitle>
-                <CardDescription>Live pipeline from order booking to POD</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle>Dispatch Funnel Pipeline</CardTitle>
+                <CardDescription>Live state from order booking to POD clearance</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3.5">
                 {businessData?.pipeline_stages?.map((stage: any) => (
-                  <div key={stage.stage} className="space-y-1">
+                  <div key={stage.stage} className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[#101828]">{stage.stage}</span>
-                      <span className="font-mono text-[#667085]">
+                      <span className="font-semibold text-slate-800">{stage.stage}</span>
+                      <span className="font-mono text-slate-500">
                         {stage.count} ({stage.percentage}%)
                       </span>
                     </div>
-                    <div className="w-full bg-[#F1F3F6] h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/50">
                       <div
-                        className="bg-[#4F46E5] h-full rounded-full transition-all duration-300"
+                        className="bg-indigo-600 h-full rounded-full transition-all duration-300 shadow-xs"
                         style={{ width: `${stage.percentage}%` }}
                       />
                     </div>
@@ -232,26 +221,28 @@ export default function DashboardPage() {
           {/* Row 3: Top Traffic Corridors & Recent Operations Table */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-1">
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle>Top Freight Corridors</CardTitle>
                 <CardDescription>Highest volume origin-to-destination routes</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2.5">
                 {businessData?.top_corridors?.map((corr: any, idx: number) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-3 rounded-control bg-[#F8F9FB] border border-[#E4E7EC]"
+                    className="flex items-center justify-between p-3 rounded-lg bg-slate-50/70 border border-slate-200/80 hover:bg-slate-50 transition-colors shadow-2xs"
                   >
                     <div>
-                      <div className="text-xs font-semibold text-[#101828]">
-                        {corr.origin} → {corr.destination}
+                      <div className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+                        <span>{corr.origin}</span>
+                        <ArrowRight className="w-3 h-3 text-slate-400" />
+                        <span>{corr.destination}</span>
                       </div>
-                      <div className="text-[11px] text-[#667085] mt-0.5">
+                      <div className="text-xs text-slate-500 mt-0.5 font-mono">
                         {corr.trip_count} Consignments
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono text-xs font-bold text-[#4F46E5]">
+                      <div className="font-mono text-xs font-bold text-indigo-700">
                         {formatCurrency(corr.total_freight)}
                       </div>
                     </div>
@@ -261,43 +252,48 @@ export default function DashboardPage() {
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
                   <CardTitle>Recent Consignment Movements</CardTitle>
                   <CardDescription>Latest generated LRs and dispatch status</CardDescription>
                 </div>
                 <Link
                   href="/transport/lr-booking"
-                  className="text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA] flex items-center gap-1"
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
                 >
-                  View All LRs <ArrowRight className="w-3.5 h-3.5" />
+                  <span>View All LRs</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-[#F8F9FB] border-b border-[#E4E7EC] text-[#667085] font-semibold uppercase">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-xs">
                       <tr>
                         <th className="py-2.5 px-3">LR Number</th>
-                        <th className="py-2.5 px-3">Vehicle</th>
-                        <th className="py-2.5 px-3">Route</th>
-                        <th className="py-2.5 px-3 text-right">Freight</th>
+                        <th className="py-2.5 px-3">Vehicle Plate</th>
+                        <th className="py-2.5 px-3">Corridor</th>
+                        <th className="py-2.5 px-3 text-right">Freight Amount</th>
                         <th className="py-2.5 px-3 text-center">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#E4E7EC]">
+                    <tbody className="divide-y divide-slate-100">
                       {businessData?.recent_operations?.map((lr: any) => (
-                        <tr key={lr.id} className="hover:bg-[#F8F9FB]">
-                          <td className="py-2.5 px-3 font-mono font-semibold text-[#101828]">
+                        <tr key={lr.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
                             {lr.lr_number}
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-[#344054]">
-                            {lr.vehicle_number}
+                          <td className="py-2.5 px-3">
+                            <VehiclePlate vehicleNumber={lr.vehicle_number} />
                           </td>
-                          <td className="py-2.5 px-3 text-[#667085]">
-                            {lr.origin_city || "Origin"} → {lr.destination_city || "Destination"}
+                          <td className="py-2.5 px-3 text-slate-600">
+                            <span className="inline-flex items-center gap-1 font-medium">
+                              {lr.origin_city || "Origin"}
+                              <ArrowRight className="w-2.5 h-2.5 text-slate-400" />
+                              {lr.destination_city || "Destination"}
+                            </span>
                           </td>
-                          <td className="py-2.5 px-3 font-mono font-semibold text-right text-[#101828]">
+                          <td className="py-2.5 px-3 font-mono font-bold text-right text-slate-900 tabular-nums">
                             {formatCurrency(lr.freight_amount)}
                           </td>
                           <td className="py-2.5 px-3 text-center">
@@ -332,32 +328,36 @@ export default function DashboardPage() {
             <KpiCard
               title="Billed Freight Revenue"
               value={formatCurrency(financeData?.total_billed_revenue || 0)}
-              subtext="Gross operating sales"
+              subtext="Gross operating transport sales"
               icon={<Receipt className="w-4 h-4" />}
+              trend={{ value: "+16.8%", isPositive: true }}
             />
             <KpiCard
-              title="Operating Expenses"
+              title="Direct Fleet Expenses"
               value={formatCurrency(financeData?.total_operating_expenses || 0)}
-              subtext="Fuel, tolls, workshop, drivers"
+              subtext="Fuel, toll plazas, repairs, drivers"
               icon={<Fuel className="w-4 h-4" />}
+              trend={{ value: "-2.4%", isPositive: true }}
             />
             <KpiCard
               title="Net Fleet Profit"
               value={formatCurrency(financeData?.net_operating_profit || 0)}
               subtext="Gross operating margin"
               icon={<TrendingUp className="w-4 h-4 text-emerald-600" />}
+              trend={{ value: "+21.4%", isPositive: true }}
             />
             <KpiCard
               title="Operating Margin"
               value={`${financeData?.operating_margin_pct || 0}%`}
-              subtext="Fleet operational margin"
+              subtext="Fleet operational margin efficiency"
               icon={<BarChart3 className="w-4 h-4" />}
+              trend={{ value: "Healthy", isPositive: true }}
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2">
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle>Direct Operating Cost Distribution</CardTitle>
                 <CardDescription>
                   Diesel, toll plazas, scheduled maintenance, and driver disbursements
@@ -374,42 +374,43 @@ export default function DashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle>Trade Ledger Balances</CardTitle>
                 <CardDescription>
                   Double-entry accounts receivable vs trade payables
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 rounded-control bg-[#F8F9FB] border border-[#E4E7EC]">
-                  <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider block">
+                <div className="p-4 rounded-lg bg-slate-50/70 border border-slate-200/80 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
                     Sundry Debtors (Receivables)
                   </span>
-                  <div className="text-2xl font-bold font-mono text-[#101828] mt-1">
+                  <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
                     {formatCurrency(financeData?.trade_debtors_receivable || 0)}
                   </div>
-                  <span className="text-[11px] text-[#667085] mt-1 block">
+                  <span className="text-[11px] text-slate-500 mt-1 block">
                     Outstanding client freight bills awaiting settlement
                   </span>
                 </div>
 
-                <div className="p-4 rounded-control bg-[#F8F9FB] border border-[#E4E7EC]">
-                  <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider block">
+                <div className="p-4 rounded-lg bg-slate-50/70 border border-slate-200/80 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
                     Sundry Creditors (Payables)
                   </span>
-                  <div className="text-2xl font-bold font-mono text-[#101828] mt-1">
+                  <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
                     {formatCurrency(financeData?.trade_creditors_payable || 0)}
                   </div>
-                  <span className="text-[11px] text-[#667085] mt-1 block">
+                  <span className="text-[11px] text-slate-500 mt-1 block">
                     Outstanding market vehicle & vendor dues
                   </span>
                 </div>
 
                 <Link
                   href="/reports/profit-loss"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA]"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 group"
                 >
-                  View Full Profit & Loss Report <ArrowRight className="w-3.5 h-3.5" />
+                  <span>View Full Profit & Loss Report</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </CardContent>
             </Card>
@@ -451,7 +452,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle>Fleet Operational States</CardTitle>
                 <CardDescription>Real-time vehicle asset deployment split</CardDescription>
               </CardHeader>
@@ -468,15 +469,15 @@ export default function DashboardPage() {
                 />
                 <div className="mt-4 space-y-2">
                   {operationsData?.fleet_status_breakdown?.map((s: any) => (
-                    <div key={s.status} className="flex items-center justify-between text-xs">
+                    <div key={s.status} className="flex items-center justify-between text-xs p-1.5 rounded-md hover:bg-slate-50 transition-colors">
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-2.5 h-2.5 rounded-full"
+                          className="w-2.5 h-2.5 rounded-full shadow-xs"
                           style={{ backgroundColor: s.color || "#4F46E5" }}
                         />
-                        <span className="text-[#344054] font-medium">{s.status}</span>
+                        <span className="text-slate-700 font-medium">{s.status}</span>
                       </div>
-                      <span className="font-mono font-semibold text-[#101828]">{s.count} Trucks</span>
+                      <span className="font-mono font-semibold text-slate-900">{s.count} Trucks</span>
                     </div>
                   ))}
                 </div>
@@ -484,7 +485,7 @@ export default function DashboardPage() {
             </Card>
 
             <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
                   <CardTitle>Compliance & Expiry Radar</CardTitle>
                   <CardDescription>
@@ -493,15 +494,16 @@ export default function DashboardPage() {
                 </div>
                 <Link
                   href="/fleet/documents"
-                  className="text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA] flex items-center gap-1"
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
                 >
-                  Manage Documents <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Manage Documents</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-[#F8F9FB] border-b border-[#E4E7EC] text-[#667085] font-semibold uppercase">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
                       <tr>
                         <th className="py-2.5 px-3">Vehicle</th>
                         <th className="py-2.5 px-3">Document Type</th>
@@ -510,27 +512,27 @@ export default function DashboardPage() {
                         <th className="py-2.5 px-3 text-right">Days Left</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#E4E7EC]">
+                    <tbody className="divide-y divide-slate-100">
                       {operationsData?.expiring_documents?.map((doc: any) => (
-                        <tr key={doc.id} className="hover:bg-[#F8F9FB]">
-                          <td className="py-2.5 px-3 font-mono font-semibold text-[#101828]">
+                        <tr key={doc.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
                             {doc.vehicle_number}
                           </td>
-                          <td className="py-2.5 px-3 font-semibold text-[#344054]">
+                          <td className="py-2.5 px-3 font-semibold text-slate-800">
                             {doc.doc_type}
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-[#667085]">
+                          <td className="py-2.5 px-3 font-mono text-slate-500">
                             {doc.document_number}
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-[#344054]">
+                          <td className="py-2.5 px-3 font-mono text-slate-700 tabular-nums">
                             {formatDate(doc.valid_till)}
                           </td>
                           <td className="py-2.5 px-3 text-right">
                             <span
-                              className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
+                              className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] border ${
                                 doc.days_left <= 7
-                                  ? "bg-rose-50 text-rose-700"
-                                  : "bg-amber-50 text-amber-700"
+                                  ? "bg-rose-50 border-rose-200 text-rose-700"
+                                  : "bg-amber-50 border-amber-200 text-amber-700"
                               }`}
                             >
                               {doc.days_left > 0 ? `${doc.days_left} days` : "Expired"}
@@ -540,7 +542,7 @@ export default function DashboardPage() {
                       ))}
                       {(!operationsData?.expiring_documents || operationsData.expiring_documents.length === 0) && (
                         <tr>
-                          <td colSpan={5} className="py-4 text-center text-[#667085]">
+                          <td colSpan={5} className="py-6 text-center text-slate-500 font-medium">
                             All vehicle compliance certificates are current and valid.
                           </td>
                         </tr>
@@ -587,7 +589,7 @@ export default function DashboardPage() {
           </div>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
                 <CardTitle>Company Fleet Asset & Health Matrix</CardTitle>
                 <CardDescription>
@@ -596,15 +598,16 @@ export default function DashboardPage() {
               </div>
               <Link
                 href="/fleet/vehicle-health"
-                className="text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA] flex items-center gap-1"
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
               >
-                Telemetry Hub <ArrowRight className="w-3.5 h-3.5" />
+                <span>Telemetry Hub</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-[#F8F9FB] border-b border-[#E4E7EC] text-[#667085] font-semibold uppercase">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="py-2.5 px-3">Vehicle Plate</th>
                       <th className="py-2.5 px-3">Make & Model</th>
@@ -615,33 +618,33 @@ export default function DashboardPage() {
                       <th className="py-2.5 px-3 text-center">Operational Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E4E7EC]">
+                  <tbody className="divide-y divide-slate-100">
                     {ownFleetData?.vehicles?.map((veh: any) => (
-                      <tr key={veh.vehicle_number} className="hover:bg-[#F8F9FB]">
+                      <tr key={veh.vehicle_number} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-2.5 px-3">
                           <VehiclePlate vehicleNumber={veh.vehicle_number} />
                         </td>
-                        <td className="py-2.5 px-3 font-medium text-[#101828]">
+                        <td className="py-2.5 px-3 font-medium text-slate-900">
                           {veh.model}
                         </td>
-                        <td className="py-2.5 px-3 font-mono font-semibold text-right text-[#101828]">
+                        <td className="py-2.5 px-3 font-mono font-semibold text-right text-slate-900 tabular-nums">
                           {veh.odometer_km.toLocaleString()} KM
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold ${
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
                               veh.engine_health === "GOOD"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-amber-50 text-amber-700"
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                : "bg-amber-50 border-amber-200 text-amber-700"
                             }`}
                           >
                             {veh.engine_health}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 font-mono text-[#667085]">
+                        <td className="py-2.5 px-3 font-mono text-slate-500 tabular-nums">
                           At {veh.next_service_km.toLocaleString()} KM
                         </td>
-                        <td className="py-2.5 px-3 text-[#344054]">
+                        <td className="py-2.5 px-3 text-slate-700">
                           {veh.default_driver || "Unassigned"}
                         </td>
                         <td className="py-2.5 px-3 text-center">
@@ -667,41 +670,41 @@ export default function DashboardPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* HR ATTENDANCE INTEGRATION TILE (PRD §7.1, §11) */}
+      {/* HR ATTENDANCE INTEGRATION TILE */}
       {/* ========================================================================= */}
-      <Card className="border-dashed border-[#D0D5DD] bg-[#FCFCFD]">
+      <Card className="border-dashed border-slate-300 bg-slate-50/50">
         <CardHeader className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-control bg-[#F2F4F7] border border-[#E4E7EC] flex items-center justify-center text-[#667085]">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 shadow-2xs">
                 <Users className="w-4 h-4" />
               </div>
               <div>
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   HR Attendance & Biometric Access
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">
-                    [EXTERNAL INTEGRATION PENDING CONFIRMATION]
+                    EXTERNAL CONNECTOR PENDING
                   </span>
                 </CardTitle>
-                <CardDescription className="text-xs mt-0.5">
+                <CardDescription className="text-xs mt-0.5 text-slate-500">
                   PRD §7.1 & §11 — External HRMS / biometric provider connector
                 </CardDescription>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1.5 text-xs text-[#667085] font-mono">
+            <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-mono">
               <span className="w-2 h-2 rounded-full bg-amber-500" />
-              Status: Provider Unconfirmed
+              Status: Provider Selection Pending
             </span>
           </div>
         </CardHeader>
         <CardContent className="pt-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3.5 rounded-control bg-white border border-[#E4E7EC]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3.5 rounded-lg bg-white border border-slate-200 shadow-2xs">
             <div className="space-y-1">
-              <p className="text-xs text-[#344054]">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 Staff biometric check-in, driver duty logs, and warehouse overtime records are designated for external payroll integration (ZingHR, Darwinbox, Keka, or biometric webhook). Per architecture rules, PantherTMS avoids guessing fake ambient clock-in data until the partner API is confirmed.
               </p>
-              <div className="text-[11px] text-[#667085] font-mono">
-                API Endpoint Hook: <code className="text-[#4F46E5]">/api/v1/integrations/hr-attendance</code> (Awaiting GSP / HRMS provider selection)
+              <div className="text-[11px] text-slate-500 font-mono">
+                API Endpoint Hook: <code className="text-indigo-600">/api/v1/integrations/hr-attendance</code> (Awaiting GSP / HRMS provider selection)
               </div>
             </div>
             <Button

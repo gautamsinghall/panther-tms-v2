@@ -61,8 +61,8 @@ export default function MiscOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+      <div className="border-b border-slate-200 pb-5">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
           <Layers className="w-6 h-6 text-[var(--color-primary)]" />
           Accounting Masters & Hierarchy
         </h1>
@@ -76,25 +76,25 @@ export default function MiscOverviewPage() {
           <Link
             key={m.href}
             href={m.href}
-            className="group p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs hover:border-[var(--color-primary)] hover:shadow-md transition-all flex flex-col justify-between"
+            className="group p-5 bg-white rounded-xl border border-slate-200/90 shadow-card hover:border-[var(--color-primary)] hover:shadow-card-hover transition-all flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 group-hover:scale-105 transition-transform">
+                <div className="p-2 rounded-lg bg-slate-50 group-hover:scale-105 transition-transform">
                   {m.icon}
                 </div>
                 <Badge variant="neutral" className="text-[10px]">
                   {m.badge}
                 </Badge>
               </div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-[var(--color-primary)] transition-colors">
+              <h3 className="font-bold text-sm text-slate-900 group-hover:text-[var(--color-primary)] transition-colors">
                 {m.title}
               </h3>
               <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
                 {m.desc}
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-[var(--color-primary)]">
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-[var(--color-primary)]">
               <span>Open Master</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>

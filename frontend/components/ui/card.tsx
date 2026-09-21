@@ -5,7 +5,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        "rounded-card border border-[#E4E7EC] bg-white transition-all duration-150",
+        "rounded-card border border-slate-200/80 bg-white shadow-card transition-all duration-150 hover:border-slate-300",
         className
       )}
       {...props}
@@ -14,7 +14,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex flex-col space-y-1.5 p-5 border-b border-[#E4E7EC]", className)} {...props} />;
+  return <div className={cn("flex flex-col space-y-1.5 p-5 border-b border-slate-100", className)} {...props} />;
 }
 
 export interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
@@ -25,14 +25,14 @@ export function CardTitle({ className, as: Component = "h2", ...props }: CardTit
   const Tag = Component;
   return (
     <Tag
-      className={cn("text-base font-semibold leading-none tracking-tight text-[#101828]", className)}
+      className={cn("text-base font-semibold leading-snug tracking-tight text-slate-900", className)}
       {...props}
     />
   );
 }
 
 export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-xs text-[#667085]", className)} {...props} />;
+  return <p className={cn("text-xs sm:text-[13px] text-slate-500 leading-normal", className)} {...props} />;
 }
 
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -42,7 +42,7 @@ export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDi
 export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex items-center p-5 pt-0 border-t border-[#E4E7EC] mt-4", className)}
+      className={cn("flex items-center p-5 pt-4 border-t border-slate-100 mt-2", className)}
       {...props}
     />
   );
