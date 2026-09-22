@@ -18,10 +18,14 @@ interface ConsigneeRecord {
   code?: string;
   contact_person?: string;
   phone?: string;
+  address?: string;
   email?: string;
   gstin?: string;
+  pan?: string;
   city?: string;
   state?: string;
+  pincode?: string;
+  country?: string;
   is_active: boolean;
 }
 
@@ -60,9 +64,24 @@ export default function ConsigneePage() {
     return data.filter((item) => {
       if (statusFilter === "ACTIVE" && !item.is_active) return false;
       if (statusFilter === "INACTIVE" && item.is_active) return false;
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const match =
+          item.name?.toLowerCase().includes(term) ||
+          item.contact_person?.toLowerCase().includes(term) ||
+          item.phone?.toLowerCase().includes(term) ||
+          item.address?.toLowerCase().includes(term) ||
+          item.gstin?.toLowerCase().includes(term) ||
+          item.pan?.toLowerCase().includes(term) ||
+          item.city?.toLowerCase().includes(term) ||
+          item.state?.toLowerCase().includes(term) ||
+          item.pincode?.toLowerCase().includes(term) ||
+          item.country?.toLowerCase().includes(term);
+        if (!match) return false;
+      }
       return true;
     });
-  }, [data, statusFilter]);
+  }, [data, statusFilter, searchTerm]);
 
   const columns: ColumnDef<ConsigneeRecord>[] = [
     {
@@ -74,7 +93,12 @@ export default function ConsigneePage() {
           <span className="font-semibold text-[#101828] block">
             {row.name}
           </span>
-          {row.code && (
+          {row.address && (
+            <span className="text-[11px] text-[#667085] block truncate max-w-[240px]" title={row.address}>
+              {row.address}
+            </span>
+          )}
+          {row.code && !row.address && (
             <span className="font-mono text-[11px] text-[#667085]">
               Code: {row.code}
             </span>
@@ -101,20 +125,34 @@ export default function ConsigneePage() {
     },
     {
       key: "city",
-      header: "City / State",
+      header: "Location",
       cell: (row) => (
-        <span className="text-xs text-[#667085]">
-          {row.city || "-"}{row.state ? `, ${row.state}` : ""}
-        </span>
+        <div>
+          <span className="text-xs text-[#101828] font-medium block">
+            {row.city || "-"}{row.state ? `, ${row.state}` : ""}
+          </span>
+          {(row.pincode || row.country) && (
+            <span className="text-[11px] text-[#667085]">
+              {[row.pincode, row.country || "India"].filter(Boolean).join(", ")}
+            </span>
+          )}
+        </div>
       ),
     },
     {
       key: "gstin",
-      header: "GSTIN",
+      header: "GSTIN / PAN",
       cell: (row) => (
-        <span className="font-mono text-xs uppercase bg-[#F8F9FB] border border-[#E4E7EC] px-1.5 py-0.5 rounded-[4px] text-[#344054]">
-          {row.gstin || "Unregistered"}
-        </span>
+        <div className="space-y-0.5">
+          <span className="font-mono text-xs uppercase bg-[#F8F9FB] border border-[#E4E7EC] px-1.5 py-0.5 rounded-[4px] text-[#344054] inline-block">
+            {row.gstin || "Unregistered"}
+          </span>
+          {row.pan && (
+            <span className="font-mono text-[11px] text-[#667085] block">
+              PAN: {row.pan}
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -148,7 +186,7 @@ export default function ConsigneePage() {
     {
       id: "general_info",
       title: "Consignee Information",
-      description: "Primary receiver details and location",
+      description: "Primary receiver details and delivery destination",
       columns: 2,
       fields: [
         {
@@ -156,15 +194,11 @@ export default function ConsigneePage() {
           label: "Consignee Name",
           placeholder: "e.g. Tata Motors Ltd",
           required: true,
-        },
-        {
-          name: "code",
-          label: "Consignee Code",
-          placeholder: "e.g. TATA-PUN",
+          colSpan: 2,
         },
         {
           name: "contact_person",
-          label: "Contact Person",
+          label: "Contact Person (optional)",
           placeholder: "e.g. Ramesh Kumar",
         },
         {
@@ -173,15 +207,28 @@ export default function ConsigneePage() {
           placeholder: "+91 9876543210",
         },
         {
+          name: "address",
+          label: "Address",
+          placeholder: "e.g. Plot 42, MIDC Industrial Area, Chakan",
+          type: "textarea",
+          colSpan: 2,
+        },
+        {
           name: "email",
           label: "Email Address",
           type: "email",
           placeholder: "contact@company.com",
+          colSpan: 2,
         },
         {
           name: "gstin",
           label: "GSTIN",
           placeholder: "27AAACT2727Q1ZW",
+        },
+        {
+          name: "pan",
+          label: "PAN",
+          placeholder: "e.g. AAACT2727Q",
         },
         {
           name: "city",
@@ -193,6 +240,17 @@ export default function ConsigneePage() {
           label: "State",
           placeholder: "e.g. Maharashtra",
         },
+        {
+          name: "pincode",
+          label: "Pincode",
+          placeholder: "e.g. 410501",
+        },
+        {
+          name: "country",
+          label: "Country",
+          placeholder: "e.g. India",
+          defaultValue: "India",
+        },
       ],
     },
   ];
@@ -202,7 +260,10 @@ export default function ConsigneePage() {
     try {
       await apiClient("/api/v1/general/consignees", {
         method: "POST",
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          country: values.country || "India",
+        }),
       });
       setIsDrawerOpen(false);
       loadData();
@@ -234,7 +295,7 @@ export default function ConsigneePage() {
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by name, city, contact..."
+        searchPlaceholder="Search by name, city, contact, GSTIN, PAN..."
         filters={[
           {
             id: "status",

@@ -1,8 +1,8 @@
 from typing import List
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.tenant_db.session import get_tenant_db
-from app.auth.dependencies import require_permission
+from app.tenant_db.session import get_tenant_db, get_current_tenant
+from app.auth.dependencies import require_permission, check_entitlement_limit
+from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.modules.general import schemas, service
 
@@ -22,8 +22,10 @@ async def list_consignees(
 async def create_consignee(
     data: schemas.ConsigneeCreate,
     current_user: User = Depends(require_permission("general", "consignee", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_masters")
     return await service.create_consignee(db, data)
 
 @router.get("/consignees/{id}", response_model=schemas.ConsigneeResponse, summary="Get consignee by ID")
@@ -65,8 +67,10 @@ async def list_consigners(
 async def create_consigner(
     data: schemas.ConsignerCreate,
     current_user: User = Depends(require_permission("general", "consigner", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_masters")
     return await service.create_consigner(db, data)
 
 @router.get("/consigners/{id}", response_model=schemas.ConsignerResponse, summary="Get consigner by ID")
@@ -108,8 +112,10 @@ async def list_locations(
 async def create_location(
     data: schemas.LocationCreate,
     current_user: User = Depends(require_permission("general", "location", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_masters")
     return await service.create_location(db, data)
 
 @router.get("/locations/{id}", response_model=schemas.LocationResponse, summary="Get location by ID")

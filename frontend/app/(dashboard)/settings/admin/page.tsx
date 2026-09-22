@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sliders, Bell, Globe, CheckCircle2, Server, Loader2, AlertCircle } from "lucide-react";
+import { Sliders, Bell, Globe, CheckCircle2, Server, Loader2, AlertCircle, Lock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,19 +25,31 @@ export default function AdminSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isApiLocked, setIsApiLocked] = useState(false);
 
   useEffect(() => {
     async function loadSettings() {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await apiClient<AdminSetting[]>("/api/v1/settings/admin-settings");
+        const [data, nav] = await Promise.all([
+          apiClient<AdminSetting[]>("/api/v1/settings/admin-settings"),
+          apiClient<any[]>("/api/v1/auth/navigation").catch(() => null),
+        ]);
         if (Array.isArray(data)) {
           const map = new Map(data.map((s) => [s.setting_key, s.setting_value]));
           if (map.has("timezone")) setTimezone(map.get("timezone")!);
           if (map.has("currency")) setCurrency(map.get("currency")!);
           if (map.has("sms_gateway")) setSmsGateway(map.get("sms_gateway")!);
           if (map.has("fastag_api")) setFastagApi(map.get("fastag_api")!);
+        }
+        // Check if tenant has Business module access or if on Free plan
+        if (Array.isArray(nav)) {
+          const isFleetLocked = nav.find((m) => m.id === "fleet")?.is_locked;
+          const isEwayLocked = nav.find((m) => m.id === "transport")?.items?.find((it: any) => it.feature === "eway_bill")?.is_locked;
+          if (isFleetLocked && isEwayLocked) {
+            setIsApiLocked(true);
+          }
         }
       } catch (err: any) {
         // Fallback default
@@ -130,18 +142,38 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setCurrency(e.target.value)}
                   disabled
                 />
-                <Input
-                  label="SMS / WhatsApp Notification Gateway"
-                  value={smsGateway}
-                  onChange={(e) => setSmsGateway(e.target.value)}
-                  placeholder="Karix / Gupshup API"
-                />
-                <Input
-                  label="FASTag Toll Auto-Reconciliation API"
-                  value={fastagApi}
-                  onChange={(e) => setFastagApi(e.target.value)}
-                  placeholder="IDFC / ICICI FASTag Gateway"
-                />
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-700">SMS / WhatsApp Notification Gateway</span>
+                    {isApiLocked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                        <Lock className="w-2.5 h-2.5" /> NO API ACCESS (PRO/BIZ)
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    value={isApiLocked ? "API Access Disabled on Free Plan" : smsGateway}
+                    onChange={(e) => setSmsGateway(e.target.value)}
+                    placeholder="Karix / Gupshup API"
+                    disabled={isApiLocked}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-700">FASTag Toll Auto-Reconciliation API</span>
+                    {isApiLocked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                        <Lock className="w-2.5 h-2.5" /> NO API ACCESS (PRO/BIZ)
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    value={isApiLocked ? "API Access Disabled on Free Plan" : fastagApi}
+                    onChange={(e) => setFastagApi(e.target.value)}
+                    placeholder="IDFC / ICICI FASTag Gateway"
+                    disabled={isApiLocked}
+                  />
+                </div>
               </div>
 
               <div className="pt-3 border-t border-[#E4E7EC] flex justify-end">

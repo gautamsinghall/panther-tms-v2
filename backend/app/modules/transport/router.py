@@ -1,8 +1,8 @@
 from typing import List
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.tenant_db.session import get_tenant_db
-from app.auth.dependencies import require_permission, get_current_user
+from app.tenant_db.session import get_tenant_db, get_current_tenant
+from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit
+from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.modules.transport import service
 from app.modules.transport.schemas import (
@@ -36,8 +36,10 @@ async def list_vehicle_owners(
 async def create_vehicle_owner(
     data: VehicleOwnerCreate,
     current_user: User = Depends(require_permission("transport", "vehicle_owners", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_masters")
     return await service.create_vehicle_owner(db, data)
 
 @router.put("/vehicle-owners/{id}", response_model=VehicleOwnerResponse)
@@ -72,8 +74,10 @@ async def list_drivers(
 async def create_driver(
     data: DriverCreate,
     current_user: User = Depends(require_permission("transport", "drivers", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_masters")
     return await service.create_driver(db, data)
 
 @router.put("/drivers/{id}", response_model=DriverResponse)
@@ -144,8 +148,10 @@ async def list_company_vehicles(
 async def create_company_vehicle(
     data: CompanyVehicleCreate,
     current_user: User = Depends(require_permission("transport", "company_vehicles", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_vehicles")
     return await service.create_company_vehicle(db, data)
 
 @router.put("/company-vehicles/{id}", response_model=CompanyVehicleResponse)
@@ -345,8 +351,10 @@ async def list_lrs(
 async def create_lr(
     data: LRCreate,
     current_user: User = Depends(require_permission("transport", "lr_booking", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_lrs_per_month")
     lr = await service.create_lr(db, data, user_id=current_user.id)
     return LRResponse(
         id=lr.id,
@@ -519,8 +527,10 @@ async def list_hire_challans(
 async def create_hire_challan(
     data: HireChallanCreate,
     current_user: User = Depends(require_permission("transport", "hire_challan", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    await check_entitlement_limit(tenant, db, "max_hire_challans_per_month")
     hc = await service.create_hire_challan(db, data)
     return HireChallanResponse(
         id=hc.id,

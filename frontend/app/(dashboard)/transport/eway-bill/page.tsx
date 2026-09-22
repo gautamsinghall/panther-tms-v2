@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Lock, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -37,6 +37,7 @@ export default function EWayBillsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPlanLocked, setIsPlanLocked] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -52,6 +53,9 @@ export default function EWayBillsPage() {
       setData(Array.isArray(ewayRes) ? ewayRes : []);
       setLrs(Array.isArray(lrsRes) ? lrsRes : []);
     } catch (err: any) {
+      if (err.error_code === "ENTITLEMENT_LOCKED" || err.message?.includes("not included")) {
+        setIsPlanLocked(true);
+      }
       setIsError(true);
       setErrorMessage(err.message || "Failed to load E-Way bills.");
     } finally {
@@ -222,6 +226,20 @@ export default function EWayBillsPage() {
           onClick: () => setIsDrawerOpen(true),
         }}
       />
+
+      {isPlanLocked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 flex items-start gap-3 shadow-xs">
+          <div className="p-2 rounded-lg bg-amber-100 text-amber-800 shrink-0">
+            <Lock className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-amber-900">E-Way Bill Feature Locked</h4>
+            <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+              Automated and manual GST E-Way Bill updation is disabled on the <strong>Free Plan</strong>. Upgrade your subscription to <strong>Pro Fleet</strong> or <strong>Business Scale</strong> to activate government e-way compliance and Part-B updates.
+            </p>
+          </div>
+        </div>
+      )}
 
       <DataTable
         columns={columns}

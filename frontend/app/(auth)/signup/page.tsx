@@ -45,17 +45,17 @@ const PLANS: PlanOption[] = [
     priceYearly: 0,
     description: "Basic TMS operations for single-truck owner operators.",
     features: [
-      "Job Creation & LR / GR Booking",
-      "Hire Challan Generation",
-      "Consignee / Consigner Master",
-      "Basic Profile & Company Settings",
-      "Isolated Dedicated DB Schema",
+      "10 LR Max - Per Month",
+      "10 HC Max - Per Month",
+      "10 Vouchers & Entries / Mo",
+      "10 Masters & 10 Ledgers",
+      "2 Max Vehicle Registration",
       "Standard PDF Document Exports",
     ],
     limits: {
       users: "1 User",
-      vehicles: "1 Vehicle",
-      invoices: "10 Invoices/mo",
+      vehicles: "2 Vehicles",
+      invoices: "10 Vouchers/mo",
     },
   },
   {
@@ -445,42 +445,190 @@ export default function SignupPage() {
             {PLANS.map((plan) => {
               const isSelected = selectedPlan === plan.code;
               const price = billingCycle === "MONTHLY" ? plan.priceMonthly : Math.round(plan.priceYearly / 12);
+              const isEnterprise = plan.code === "ENTERPRISE";
+              const isBusiness = plan.code === "BUSINESS";
+              const isPro = plan.code === "PRO";
+              const isFree = plan.code === "FREE";
+
+              // Distinct color schemes according to each tier
+              const cardBg = isEnterprise
+                ? "bg-gradient-to-b from-[#0F172A] via-[#0B0F19] to-[#020617] text-white shadow-xl shadow-slate-950/40"
+                : isBusiness
+                ? "bg-gradient-to-b from-[#F0FDF4] via-[#ECFDF5] to-[#D1FAE5]/60 text-slate-900 shadow-md shadow-emerald-950/5"
+                : isPro
+                ? "bg-gradient-to-b from-[#EFF6FF] via-[#EEF2FF] to-[#E0E7FF]/60 text-slate-900 shadow-md shadow-indigo-950/5"
+                : "bg-gradient-to-b from-slate-50/90 via-slate-100/50 to-slate-50/90 text-slate-900 shadow-2xs";
+
+              const borderClass = isSelected
+                ? isEnterprise
+                  ? "border-purple-500 ring-2 ring-purple-500 shadow-2xl scale-[1.01]"
+                  : isBusiness
+                  ? "border-emerald-600 ring-2 ring-emerald-600 shadow-xl scale-[1.01]"
+                  : isPro
+                  ? "border-indigo-600 ring-2 ring-indigo-600 shadow-xl scale-[1.01]"
+                  : "border-slate-400 ring-2 ring-slate-400 shadow-md scale-[1.01]"
+                : isEnterprise
+                ? "border-slate-700/80 hover:border-indigo-400/60 hover:shadow-2xl"
+                : isBusiness
+                ? "border-emerald-200/90 hover:border-emerald-400 hover:shadow-lg"
+                : isPro
+                ? "border-indigo-200/90 hover:border-indigo-400 hover:shadow-lg"
+                : "border-slate-200/90 hover:border-slate-300 hover:shadow-xs";
+
+              const quotaBg = isEnterprise
+                ? "bg-slate-900/90 border-slate-800/90"
+                : isBusiness
+                ? "bg-white/95 border-emerald-200/90"
+                : isPro
+                ? "bg-white/95 border-indigo-200/90"
+                : "bg-white/90 border-slate-200/80";
+
+              const titleColor = isEnterprise
+                ? "text-white"
+                : isBusiness
+                ? "text-emerald-950"
+                : isPro
+                ? "text-indigo-950"
+                : "text-slate-900";
+
+              const descColor = isEnterprise
+                ? "text-slate-300"
+                : isBusiness
+                ? "text-emerald-900/70"
+                : isPro
+                ? "text-indigo-900/70"
+                : "text-slate-500";
+
+              const priceColor = isEnterprise
+                ? "text-white"
+                : isBusiness
+                ? "text-emerald-950"
+                : isPro
+                ? "text-indigo-950"
+                : "text-slate-900";
+
+              const priceSubColor = isEnterprise
+                ? "text-slate-400"
+                : isBusiness
+                ? "text-emerald-700/80"
+                : isPro
+                ? "text-indigo-600/80"
+                : "text-slate-500";
+
+              const annualBillingColor = isEnterprise
+                ? "text-indigo-300"
+                : isBusiness
+                ? "text-emerald-700 font-medium"
+                : isPro
+                ? "text-indigo-700 font-medium"
+                : "text-slate-500 font-medium";
+
+              const quotaLabelColor = isEnterprise
+                ? "text-slate-400"
+                : isBusiness
+                ? "text-emerald-700/80"
+                : isPro
+                ? "text-indigo-700/80"
+                : "text-slate-500";
+
+              const quotaValColor = isEnterprise
+                ? "text-white"
+                : isBusiness
+                ? "text-emerald-950 font-bold"
+                : isPro
+                ? "text-indigo-950 font-bold"
+                : "text-slate-900 font-semibold";
+
+              const moduleHeaderColor = isEnterprise
+                ? "text-indigo-300"
+                : isBusiness
+                ? "text-emerald-800"
+                : isPro
+                ? "text-indigo-800"
+                : "text-slate-500";
+
+              const featureTextColor = isEnterprise
+                ? "text-slate-200"
+                : isBusiness
+                ? "text-emerald-950"
+                : isPro
+                ? "text-indigo-950"
+                : "text-slate-600";
+
+              const checkColor = isEnterprise
+                ? "text-emerald-400"
+                : isBusiness
+                ? "text-emerald-600"
+                : isPro
+                ? "text-indigo-600"
+                : "text-slate-400";
+
+              const dividerColor = isEnterprise
+                ? "border-slate-800"
+                : isBusiness
+                ? "border-emerald-200/60"
+                : isPro
+                ? "border-indigo-200/60"
+                : "border-slate-200/60";
+
+              const buttonClass = isEnterprise
+                ? isSelected
+                  ? "bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-950/50 ring-2 ring-purple-400 font-bold"
+                  : "bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:from-indigo-500 hover:to-purple-600 text-white shadow-md shadow-indigo-950/50 font-semibold"
+                : isBusiness
+                ? isSelected
+                  ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-lg shadow-emerald-700/30 ring-2 ring-emerald-400 font-bold"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/25 font-semibold"
+                : isPro
+                ? isSelected
+                  ? "bg-indigo-700 hover:bg-indigo-800 text-white shadow-lg shadow-indigo-700/30 ring-2 ring-indigo-400 font-bold"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 font-semibold"
+                : isSelected
+                ? "bg-slate-800 hover:bg-slate-700 text-white shadow-sm font-semibold"
+                : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs font-semibold";
 
               return (
                 <div
                   key={plan.code}
                   onClick={() => setSelectedPlan(plan.code)}
-                  className={`relative rounded-2xl border flex flex-col justify-between transition-all cursor-pointer bg-white ${
+                  className={`relative rounded-2xl border flex flex-col justify-between transition-all cursor-pointer ${cardBg} ${
                     plan.popular
                       ? "pt-7 pb-5 px-5 lg:px-6 xl:px-7"
                       : "p-5 lg:px-6 xl:px-7 py-5 lg:py-5"
-                  } ${
-                    isSelected
-                      ? "border-indigo-600 ring-2 ring-indigo-600 shadow-lg scale-[1.01]"
-                      : "border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-card"
-                  }`}
+                  } ${borderClass}`}
                 >
                   {plan.popular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs whitespace-nowrap">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs whitespace-nowrap">
                       Most Popular
+                    </span>
+                  )}
+                  {isEnterprise && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-md whitespace-nowrap">
+                      Enterprise Tier
                     </span>
                   )}
 
                   <div className="space-y-3">
                     <div>
-                      <h2 className="font-bold text-xl xl:text-2xl text-slate-900 tracking-tight">{plan.name}</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 mt-1 min-h-[38px] leading-snug">{plan.description}</p>
+                      <h2 className={`font-bold text-xl xl:text-2xl tracking-tight ${titleColor}`}>
+                        {plan.name}
+                      </h2>
+                      <p className={`text-xs sm:text-sm mt-1 min-h-[38px] leading-snug ${descColor}`}>
+                        {plan.description}
+                      </p>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100">
+                    <div className={`pt-2 border-t ${dividerColor}`}>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-3xl sm:text-4xl xl:text-[40px] font-extrabold text-slate-900 tracking-tight leading-none">
+                        <span className={`text-3xl sm:text-4xl xl:text-[40px] font-extrabold tracking-tight leading-none ${priceColor}`}>
                           ₹{price.toLocaleString()}
                         </span>
-                        <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                        <span className={`text-xs sm:text-sm font-medium ${priceSubColor}`}>
+                          /mo
+                        </span>
                       </div>
                       {billingCycle === "YEARLY" && plan.priceYearly > 0 ? (
-                        <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                        <p className={`text-xs mt-0.5 ${annualBillingColor}`}>
                           Billed ₹{plan.priceYearly.toLocaleString()} annually
                         </p>
                       ) : (
@@ -491,48 +639,46 @@ export default function SignupPage() {
                     </div>
 
                     {/* Quotas */}
-                    <div className="bg-slate-50/90 border border-slate-100 p-3 lg:p-3.5 rounded-xl space-y-1.5 text-xs sm:text-sm text-slate-700">
+                    <div className={`${quotaBg} border p-3 lg:p-3.5 rounded-xl space-y-1.5 text-xs sm:text-sm`}>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Team Users:</span>
-                        <span className="font-semibold text-slate-900">{plan.limits.users}</span>
+                        <span className={quotaLabelColor}>Team Users:</span>
+                        <span className={quotaValColor}>{plan.limits.users}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Fleet Vehicles:</span>
-                        <span className="font-semibold text-slate-900">{plan.limits.vehicles}</span>
+                        <span className={quotaLabelColor}>Fleet Vehicles:</span>
+                        <span className={quotaValColor}>{plan.limits.vehicles}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Monthly Invoices:</span>
-                        <span className="font-semibold text-slate-900">{plan.limits.invoices}</span>
+                        <span className={quotaLabelColor}>Monthly Invoices:</span>
+                        <span className={quotaValColor}>{plan.limits.invoices}</span>
                       </div>
                     </div>
 
                     {/* Features */}
                     <div className="space-y-1.5 lg:space-y-2 pt-1">
-                      <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider block">
+                      <span className={`text-xs font-semibold uppercase tracking-wider block ${moduleHeaderColor}`}>
                         Included modules
                       </span>
                       {plan.features.map((feat, i) => (
-                        <div key={i} className="flex items-start gap-2 text-xs sm:text-[13px] text-slate-600 leading-snug">
-                          <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div key={i} className={`flex items-start gap-2 text-xs sm:text-[13px] leading-snug ${featureTextColor}`}>
+                          <Check className={`w-4 h-4 shrink-0 mt-0.5 ${checkColor}`} />
                           <span className="font-medium">{feat}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <Button
+                  <button
                     type="button"
-                    variant={isSelected ? "primary" : "outline"}
-                    className={`w-full mt-4 lg:mt-5 h-10 lg:h-11 text-sm font-semibold rounded-xl transition-all ${
-                      isSelected ? "shadow-md shadow-indigo-600/20" : ""
-                    }`}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setSelectedPlan(plan.code);
                       setStep(2);
                     }}
+                    className={`w-full mt-4 lg:mt-5 h-10 lg:h-11 text-sm rounded-xl transition-all cursor-pointer ${buttonClass}`}
                   >
                     Choose {plan.name}
-                  </Button>
+                  </button>
                 </div>
               );
             })}

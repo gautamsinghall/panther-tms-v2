@@ -216,17 +216,28 @@ async def get_user_navigation(
     and user's active RBAC permissions per rules.md §5 and architecture.md §5–6.
     """
     entitled_modules = set()
+    disabled_features = set()
     if tenant.plan and tenant.plan.entitlements:
         for ent in tenant.plan.entitlements:
-            if ent.is_enabled and ent.limit_value.lower() in ("true", "1", "yes"):
-                if ent.feature_key.startswith("module_"):
-                    entitled_modules.add(ent.feature_key[len("module_"):])
-                if ent.feature_key == "module_all":
-                    entitled_modules.add("all")
+            if ent.is_enabled:
+                if ent.limit_value.lower() in ("true", "1", "yes"):
+                    if ent.feature_key.startswith("module_"):
+                        entitled_modules.add(ent.feature_key[len("module_"):])
+                    if ent.feature_key == "module_all":
+                        entitled_modules.add("all")
+                elif ent.limit_value.lower() in ("false", "0", "no"):
+                    if ent.feature_key.startswith("feature_"):
+                        disabled_features.add(ent.feature_key[len("feature_"):])
 
     def is_module_entitled(mod_id: str) -> bool:
         norm = mod_id.replace("-", "_").lower()
         return "all" in entitled_modules or norm in entitled_modules
+
+    def map_item(it: dict) -> dict:
+        feat_norm = it["feature"].replace("-", "_").lower()
+        if feat_norm in disabled_features:
+            return {**it, "is_locked": True, "required_plan": "Pro"}
+        return {**it, "is_locked": False}
 
     result = []
     is_admin = current_user.role == "COMPANY_ADMIN"
@@ -257,14 +268,14 @@ async def get_user_navigation(
             # Employees don't see unentitled modules at all
             continue
 
-        # Module is entitled: filter items by role
+        # Module is entitled: filter items by role and feature locks
         if is_admin:
             result.append({
                 "id": mod["id"],
                 "title": mod["title"],
                 "is_locked": False,
                 "items": [
-                    {**it, "is_locked": False} for it in mod["items"]
+                    map_item(it) for it in mod["items"]
                 ],
             })
         else:
@@ -274,14 +285,14 @@ async def get_user_navigation(
             elif mod["id"] == "profile":
                 # Employees only see personal account and change password
                 allowed_items = [
-                    {**it, "is_locked": False} for it in mod["items"]
+                    map_item(it) for it in mod["items"]
                     if it["feature"] in ("account", "change_password") or (mod["id"], it["feature"]) in allowed_features
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
             else:
                 allowed_items = [
-                    {**it, "is_locked": False} for it in mod["items"]
+                    map_item(it) for it in mod["items"]
                     if (mod["id"], it["feature"]) in allowed_features
                 ]
                 if allowed_items:

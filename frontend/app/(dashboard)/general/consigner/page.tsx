@@ -19,10 +19,14 @@ export interface ConsignerRecord {
   code?: string;
   contact_person?: string;
   phone?: string;
+  address?: string;
   email?: string;
   gstin?: string;
+  pan?: string;
   city?: string;
   state?: string;
+  pincode?: string;
+  country?: string;
   is_active: boolean;
   created_at?: string;
 }
@@ -54,7 +58,7 @@ export default function ConsignerPage() {
       setData(Array.isArray(res) ? res : []);
     } catch (err: any) {
       setIsError(true);
-      setErrorMessage(err.message || "Failed to load customer records.");
+      setErrorMessage(err.message || "Failed to load consigner records.");
     } finally {
       setIsLoading(false);
     }
@@ -69,21 +73,42 @@ export default function ConsignerPage() {
     return data.filter((item) => {
       if (statusFilter === "ACTIVE" && !item.is_active) return false;
       if (statusFilter === "INACTIVE" && item.is_active) return false;
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const match =
+          item.name?.toLowerCase().includes(term) ||
+          item.contact_person?.toLowerCase().includes(term) ||
+          item.phone?.toLowerCase().includes(term) ||
+          item.address?.toLowerCase().includes(term) ||
+          item.email?.toLowerCase().includes(term) ||
+          item.gstin?.toLowerCase().includes(term) ||
+          item.pan?.toLowerCase().includes(term) ||
+          item.city?.toLowerCase().includes(term) ||
+          item.state?.toLowerCase().includes(term) ||
+          item.pincode?.toLowerCase().includes(term) ||
+          item.country?.toLowerCase().includes(term);
+        if (!match) return false;
+      }
       return true;
     });
-  }, [data, statusFilter]);
+  }, [data, statusFilter, searchTerm]);
 
   const columns: ColumnDef<ConsignerRecord>[] = [
     {
       key: "name",
-      header: "Customer / Consigner",
+      header: "Consigner Name",
       sortable: true,
       cell: (row) => (
         <div>
           <span className="font-semibold text-[#172033] block">
             {row.name}
           </span>
-          {row.code && (
+          {row.address && (
+            <span className="text-[11px] text-[#667085] block truncate max-w-[240px]" title={row.address}>
+              {row.address}
+            </span>
+          )}
+          {row.code && !row.address && (
             <span className="font-mono text-[11px] text-[#667085]">
               Code: {row.code}
             </span>
@@ -93,7 +118,7 @@ export default function ConsignerPage() {
     },
     {
       key: "contact_person",
-      header: "Contact Details",
+      header: "Contact Person",
       sortable: true,
       cell: (row) => (
         <div>
@@ -122,19 +147,33 @@ export default function ConsignerPage() {
       header: "Location",
       sortable: true,
       cell: (row) => (
-        <span className="text-xs text-[#667085]">
-          {row.city || "-"}{row.state ? `, ${row.state}` : ""}
-        </span>
+        <div>
+          <span className="text-xs text-[#172033] font-medium block">
+            {row.city || "-"}{row.state ? `, ${row.state}` : ""}
+          </span>
+          {(row.pincode || row.country) && (
+            <span className="text-[11px] text-[#667085]">
+              {[row.pincode, row.country || "India"].filter(Boolean).join(", ")}
+            </span>
+          )}
+        </div>
       ),
     },
     {
       key: "gstin",
-      header: "GSTIN",
+      header: "GSTIN / PAN",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs uppercase bg-[#F2F4F7] text-[#172033] px-2 py-0.5 rounded border border-[#E4E7EC]">
-          {row.gstin || "Unregistered"}
-        </span>
+        <div className="space-y-0.5">
+          <span className="font-mono text-xs uppercase bg-[#F2F4F7] text-[#172033] px-1.5 py-0.5 rounded border border-[#E4E7EC] inline-block">
+            {row.gstin || "Unregistered"}
+          </span>
+          {row.pan && (
+            <span className="font-mono text-[11px] text-[#667085] block">
+              PAN: {row.pan}
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -165,53 +204,71 @@ export default function ConsignerPage() {
   const formSections: FormSectionDef[] = [
     {
       id: "general_info",
-      title: "Commercial & Contact Information",
-      description: "Primary client profile and GST compliance details",
+      title: "Consigner Information",
+      description: "Primary shipper profile, location, and GST compliance details",
       columns: 2,
       fields: [
         {
           name: "name",
-          label: "Customer / Consigner Name",
+          label: "Consigner Name",
           placeholder: "e.g. Jindal Steel & Power Ltd",
           required: true,
           colSpan: 2,
         },
         {
-          name: "code",
-          label: "Customer Code",
-          placeholder: "e.g. JSPL-RAI",
-        },
-        {
-          name: "gstin",
-          label: "GSTIN Identification",
-          placeholder: "22AAACJ1234F1Z1",
-        },
-        {
           name: "contact_person",
-          label: "Primary Contact Person",
+          label: "Contact Person (optional)",
           placeholder: "e.g. Alok Sharma",
         },
         {
           name: "phone",
-          label: "Phone / Mobile",
-          placeholder: "+91 98765 43210",
+          label: "Phone Number",
+          placeholder: "+91 9876543210",
+        },
+        {
+          name: "address",
+          label: "Address",
+          placeholder: "e.g. Industrial Area, Phase II",
+          type: "textarea",
+          colSpan: 2,
         },
         {
           name: "email",
-          label: "Official Email Address",
+          label: "Email Address",
           type: "email",
           placeholder: "logistics@company.com",
           colSpan: 2,
         },
         {
+          name: "gstin",
+          label: "GSTIN",
+          placeholder: "22AAACJ1234F1Z1",
+        },
+        {
+          name: "pan",
+          label: "PAN",
+          placeholder: "e.g. AACJ1234F",
+        },
+        {
           name: "city",
-          label: "City / Hub",
+          label: "City",
           placeholder: "e.g. Raigarh",
         },
         {
           name: "state",
-          label: "State / UT",
+          label: "State",
           placeholder: "e.g. Chhattisgarh",
+        },
+        {
+          name: "pincode",
+          label: "Pincode",
+          placeholder: "e.g. 496001",
+        },
+        {
+          name: "country",
+          label: "Country",
+          placeholder: "e.g. India",
+          defaultValue: "India",
         },
       ],
     },
@@ -222,12 +279,15 @@ export default function ConsignerPage() {
     try {
       await apiClient("/api/v1/general/consigners", {
         method: "POST",
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          country: values.country || "India",
+        }),
       });
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create customer record.");
+      alert(err.message || "Failed to create consigner record.");
     } finally {
       setIsSubmitting(false);
     }
@@ -243,7 +303,7 @@ export default function ConsignerPage() {
       setDeactivatingRecord(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to deactivate customer.");
+      alert(err.message || "Failed to deactivate consigner.");
     } finally {
       setIsDeactivating(false);
     }
@@ -253,10 +313,14 @@ export default function ConsignerPage() {
     <div className="space-y-6">
       {/* Standardized PageHeader per docs/design.md §10 */}
       <PageHeader
-        title="Customers & Consigners"
-        description="Manage corporate shipper accounts, commercial billing details, GSTIN compliance, and dispatch profiles."
+        title="Consigners"
+        description="Manage corporate dispatching shippers, commercial billing profiles, and GST compliance."
+        breadcrumbs={[
+          { label: "General", href: "/general/consigner" },
+          { label: "Consigners" },
+        ]}
         primaryAction={{
-          label: "Add Customer",
+          label: "Add Consigner",
           icon: <Plus className="w-4 h-4" />,
           onClick: () => setIsDrawerOpen(true),
         }}
@@ -266,7 +330,7 @@ export default function ConsignerPage() {
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search customer, city, GSTIN, contact..."
+        searchPlaceholder="Search by name, city, contact, GSTIN, PAN..."
         filters={[
           {
             id: "status",
@@ -296,10 +360,10 @@ export default function ConsignerPage() {
         onRetry={loadData}
         actions={actions}
         searchable={false} // FilterBar handles search seamlessly
-        emptyMessage="No customers found"
-        emptySubtext="Add your first customer to begin creating jobs, bookings, and freight invoices."
+        emptyMessage="No consigners yet"
+        emptySubtext="Add your first dispatching shipper party to begin creating jobs, bookings, and freight invoices."
         emptyAction={{
-          label: "+ Add Customer",
+          label: "Add Consigner",
           onClick: () => setIsDrawerOpen(true),
         }}
       />
@@ -308,15 +372,15 @@ export default function ConsignerPage() {
       <EntityDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title="Register New Customer"
-        description="Enter corporate credentials and billing GSTIN for freight operations."
+        title="Create New Consigner"
+        description="Register a new dispatching party and commercial billing shipper."
         width="xl"
       >
         <Form
           sections={formSections}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Customer"
+          submitLabel="Create Consigner"
           isLoading={isSubmitting}
         />
       </EntityDrawer>
@@ -326,10 +390,10 @@ export default function ConsignerPage() {
         isOpen={!!deactivatingRecord}
         onClose={() => setDeactivatingRecord(null)}
         onConfirm={handleConfirmDeactivate}
-        title="Deactivate Customer Account"
+        title="Deactivate Consigner"
         entityName={deactivatingRecord?.name}
-        consequence="Deactivating this customer will mark their status as inactive. Existing past jobs, LRs, and invoices remain intact for audit history."
-        confirmLabel="Deactivate Customer"
+        consequence="Deactivating this consigner will mark their status as inactive. Existing past jobs, LRs, and invoices remain intact for audit history."
+        confirmLabel="Deactivate Consigner"
         isLoading={isDeactivating}
       />
     </div>

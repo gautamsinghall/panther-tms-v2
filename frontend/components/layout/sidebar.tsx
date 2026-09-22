@@ -22,6 +22,72 @@ import {
   PanelLeftOpen,
   ShieldCheck,
   Lock,
+  Boxes,
+  UserCheck,
+  Send,
+  MapPin,
+  Factory,
+  Briefcase,
+  Building,
+  Scale,
+  Package,
+  ClipboardList,
+  FileText,
+  Users,
+  Car,
+  Key,
+  CalendarCheck,
+  CheckSquare,
+  FileSignature,
+  QrCode,
+  Navigation,
+  BookOpen,
+  Clock,
+  FileMinus,
+  Hash,
+  Zap,
+  ListOrdered,
+  XCircle,
+  FileClock,
+  ShoppingBag,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ArrowLeftRight,
+  Coins,
+  Folder,
+  FolderTree,
+  GitBranch,
+  BadgeCheck,
+  Tag,
+  BadgePercent,
+  Calendar,
+  BookMarked,
+  TableProperties,
+  TrendingUp,
+  BarChart,
+  PieChart,
+  Landmark,
+  Sparkles,
+  FileUp,
+  FileDown,
+  UserMinus,
+  UserPlus,
+  Undo2,
+  Wallet,
+  Fuel,
+  Banknote,
+  ScrollText,
+  LineChart,
+  Activity,
+  Files,
+  CircleDot,
+  Wrench,
+  UserCog,
+  Sliders,
+  History,
+  Network,
+  KeyRound,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -31,6 +97,8 @@ interface NavSubItem {
   title: string;
   href: string;
   category?: string;
+  is_locked?: boolean;
+  required_plan?: string | null;
 }
 
 interface NavGroup {
@@ -220,6 +288,212 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   profile: <UserCircle className="w-5 h-5" />,
 };
 
+// Sub-item specific Lucide icons for all modules
+const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: string }>> = {
+  // Home
+  "/": LayoutDashboard,
+  "/components-demo": Boxes,
+
+  // General
+  "/general/consignee": UserCheck,
+  "/general/consigner": Send,
+  "/general/location": MapPin,
+  "/general/industry": Factory,
+  "/general/designation": Briefcase,
+  "/general/group-company": Building,
+  "/general/unit": Scale,
+  "/general/packing-method": Package,
+
+  // Transport
+  "/transport/jobs": ClipboardList,
+  "/transport/lr-booking": FileText,
+  "/transport/hire-challan": FileSpreadsheet,
+  "/transport/drivers": Users,
+  "/transport/company-vehicles": Truck,
+  "/transport/market-vehicles": Car,
+  "/transport/vehicle-owners": Key,
+  "/transport/arrival-reports": CalendarCheck,
+  "/transport/pod-records": CheckSquare,
+  "/transport/truck-hiring-note": FileSignature,
+  "/transport/eway-bill": QrCode,
+  "/transport/tracking": Navigation,
+
+  // Transport Reports
+  "/transport-reports/lr-register": BookOpen,
+  "/transport-reports/invoice-register": Receipt,
+  "/transport-reports/lr-client-wise": Users,
+  "/transport-reports/hc-register": FileSpreadsheet,
+  "/transport-reports/pending-hc": Clock,
+  "/transport-reports/unbilled": FileMinus,
+  "/transport-reports/arrival-register": CalendarCheck,
+  "/transport-reports/unused-series": Hash,
+
+  // E-Invoicing
+  "/einvoicing/generate-irn": Zap,
+  "/einvoicing/irn-list": ListOrdered,
+  "/einvoicing/cancel-irn": XCircle,
+  "/einvoicing/taxpayer": Building2,
+
+  // Accounts
+  "/accounts/transport-invoice": FileText,
+  "/accounts/general-invoice": Receipt,
+  "/accounts/proforma-invoice": FileClock,
+  "/accounts/purchases": ShoppingBag,
+  "/accounts/receipt-voucher": ArrowDownLeft,
+  "/accounts/payment-voucher": ArrowUpRight,
+  "/accounts/contra-voucher": ArrowLeftRight,
+  "/accounts/credit-debit-notes": Coins,
+
+  // Misc
+  "/misc/primary-group": Folder,
+  "/misc/group-in-primary": FolderTree,
+  "/misc/subgroup": GitBranch,
+  "/misc/employee-master": BadgeCheck,
+  "/misc/charge-head": Tag,
+  "/misc/tax-category": BadgePercent,
+
+  // Reports
+  "/reports/daybook": Calendar,
+  "/reports/ledger": BookMarked,
+  "/reports/trial-balance": Scale,
+  "/reports/balance-sheet": TableProperties,
+  "/reports/profit-loss": TrendingUp,
+  "/reports/sales-register": BarChart,
+  "/reports/purchase-register": PieChart,
+  "/reports/bank-reconciliation": Landmark,
+  "/reports/special-report": Sparkles,
+
+  // Statements
+  "/statements/gst-output": FileUp,
+  "/statements/gst-input": FileDown,
+  "/statements/os-debtor": UserMinus,
+  "/statements/os-creditor": UserPlus,
+  "/statements/tds-payable": Receipt,
+  "/statements/tds-return": Undo2,
+  "/statements/opening-balance": Wallet,
+
+  // Fleet
+  "/fleet/trip-expense": Fuel,
+  "/fleet/trip-advance": Banknote,
+  "/fleet/trip-expense-register": ScrollText,
+  "/fleet/truck-pnl": LineChart,
+  "/fleet/vehicle-health": Activity,
+  "/fleet/documents": Files,
+  "/fleet/tyre": CircleDot,
+  "/fleet/service": Wrench,
+
+  // Settings
+  "/settings/users": UserCog,
+  "/settings/roles": ShieldCheck,
+  "/settings/series-master": Hash,
+  "/settings/admin": Sliders,
+  "/settings/activity": History,
+
+  // Profile
+  "/profile/company": Building2,
+  "/profile/account": UserCircle,
+  "/profile/branch": Network,
+  "/profile/change-password": KeyRound,
+  "/profile/email": Mail,
+  "/profile/monthly-pnl": TrendingUp,
+};
+
+const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?: string }>> = {
+  overview: LayoutDashboard,
+  components_demo: Boxes,
+  consignee: UserCheck,
+  consigner: Send,
+  location: MapPin,
+  industry: Factory,
+  designation: Briefcase,
+  group_company: Building,
+  unit: Scale,
+  method_of_packing: Package,
+  jobs: ClipboardList,
+  lr_booking: FileText,
+  hire_challan: FileSpreadsheet,
+  drivers: Users,
+  company_vehicles: Truck,
+  market_vehicles: Car,
+  vehicle_owners: Key,
+  arrival_reports: CalendarCheck,
+  pod_records: CheckSquare,
+  truck_hiring_note: FileSignature,
+  eway_bill: QrCode,
+  tracking: Navigation,
+  lr_register: BookOpen,
+  invoice_register: Receipt,
+  lr_client_wise: Users,
+  hc_register: FileSpreadsheet,
+  pending_hc: Clock,
+  unbilled: FileMinus,
+  arrival_register: CalendarCheck,
+  unused_series: Hash,
+  generate_irn: Zap,
+  irn_list: ListOrdered,
+  cancel_irn: XCircle,
+  taxpayer: Building2,
+  transport_invoice: FileText,
+  general_invoice: Receipt,
+  proforma_invoice: FileClock,
+  purchases: ShoppingBag,
+  receipt_voucher: ArrowDownLeft,
+  payment_voucher: ArrowUpRight,
+  contra_voucher: ArrowLeftRight,
+  credit_debit_notes: Coins,
+  primary_group: Folder,
+  group_in_primary: FolderTree,
+  subgroup: GitBranch,
+  employee_master: BadgeCheck,
+  charge_head: Tag,
+  tax_category: BadgePercent,
+  daybook: Calendar,
+  ledger: BookMarked,
+  trial_balance: Scale,
+  balance_sheet: TableProperties,
+  profit_loss: TrendingUp,
+  sales_register: BarChart,
+  purchase_register: PieChart,
+  bank_reconciliation: Landmark,
+  special_report: Sparkles,
+  gst_output: FileUp,
+  gst_input: FileDown,
+  os_debtor: UserMinus,
+  os_creditor: UserPlus,
+  tds_payable: Receipt,
+  tds_return: Undo2,
+  opening_balance: Wallet,
+  trip_expense: Fuel,
+  trip_advance: Banknote,
+  expense_register: ScrollText,
+  truck_pnl: LineChart,
+  vehicle_health: Activity,
+  documents: Files,
+  tyre: CircleDot,
+  service: Wrench,
+  users: UserCog,
+  roles: ShieldCheck,
+  series_master: Hash,
+  admin_setting: Sliders,
+  activity: History,
+  company: Building2,
+  account: UserCircle,
+  branch: Network,
+  change_password: KeyRound,
+  email: Mail,
+  monthly_pnl: TrendingUp,
+};
+
+function getSubItemIcon(sub: NavSubItem): React.ComponentType<{ className?: string }> {
+  if (sub.href && SUB_ITEM_ICONS_BY_HREF[sub.href]) {
+    return SUB_ITEM_ICONS_BY_HREF[sub.href];
+  }
+  if (sub.feature && SUB_ITEM_ICONS_BY_FEATURE[sub.feature]) {
+    return SUB_ITEM_ICONS_BY_FEATURE[sub.feature];
+  }
+  return CircleDot;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [navGroups, setNavGroups] = useState<NavGroup[]>(ALL_NAVIGATION_MODULES);
@@ -275,7 +549,7 @@ export function Sidebar() {
     <aside
       className={cn(
         "relative flex flex-col border-r border-slate-200/80 bg-white transition-all duration-200 select-none z-30 shrink-0",
-        isCollapsed ? "w-16" : "w-64"
+        isCollapsed ? "w-16" : "w-72"
       )}
     >
       {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
@@ -349,40 +623,43 @@ export function Sidebar() {
                 )}
                 title={isCollapsed ? group.title : undefined}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1.5">
                   <span className={cn("shrink-0", hasActiveChild ? "text-indigo-600" : "text-slate-400")}>
                     {icon}
                   </span>
                   {!isCollapsed && (
-                    <span className="text-xs font-medium truncate flex items-center gap-1.5">
+                    <span className="text-xs font-medium truncate">
                       {group.title}
-                      {group.is_locked && (
-                        <span className="inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase tracking-tight">
-                          <Lock className="w-3 h-3" />
-                          {group.required_plan || "LOCKED"}
-                        </span>
-                      )}
                     </span>
                   )}
                 </div>
                 {!isCollapsed && (
-                  <span className="text-slate-400 shrink-0">
-                    {isExpanded ? (
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    ) : (
-                      <ChevronRight className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {group.is_locked && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase tracking-tight shrink-0 whitespace-nowrap shadow-2xs">
+                        <Lock className="w-2.5 h-2.5 shrink-0" />
+                        {group.required_plan || "LOCKED"}
+                      </span>
                     )}
-                  </span>
+                    <span className="text-slate-400 shrink-0">
+                      {isExpanded ? (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      )}
+                    </span>
+                  </div>
                 )}
               </button>
 
               {/* Sub items — Linear Inset Pill Active State */}
               {!isCollapsed && isExpanded && (
-                <div className="pl-5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 ml-4 my-0.5">
+                <div className="pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 ml-4 my-0.5">
                   {group.items?.map((sub, idx) => {
                     const isActive = pathname === sub.href;
                     const prevCategory = idx > 0 ? group.items[idx - 1].category : undefined;
                     const showCategoryHeader = sub.category && sub.category !== prevCategory;
+                    const SubIcon = getSubItemIcon(sub);
 
                     return (
                       <React.Fragment key={sub.href}>
@@ -392,16 +669,44 @@ export function Sidebar() {
                           </span>
                         )}
                         <Link
-                          href={sub.href}
+                          href={sub.is_locked ? "#" : sub.href}
+                          onClick={(e) => {
+                            if (sub.is_locked) {
+                              e.preventDefault();
+                              alert(`This feature requires the ${sub.required_plan || "Pro"} plan. Please upgrade your subscription to access it.`);
+                            }
+                          }}
                           className={cn(
-                            "flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs sm:text-[13px] transition-all duration-150 select-none",
-                            isActive
+                            "group flex items-center justify-between px-2 py-1.5 rounded-md text-xs sm:text-[13px] transition-all duration-150 select-none",
+                            sub.is_locked
+                              ? "text-slate-400 opacity-80 cursor-not-allowed hover:bg-slate-50"
+                              : isActive
                               ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
-                              : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/60"
+                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
                           )}
                         >
-                          <span className="truncate">{sub.title}</span>
-                          {isActive && (
+                          <span className="truncate flex items-center gap-2 min-w-0">
+                            <span
+                              className={cn(
+                                "shrink-0 transition-colors",
+                                sub.is_locked
+                                  ? "text-slate-300"
+                                  : isActive
+                                  ? "text-indigo-600"
+                                  : "text-slate-400 group-hover:text-slate-600"
+                              )}
+                            >
+                              <SubIcon className="w-3.5 h-3.5" />
+                            </span>
+                            <span className="truncate">{sub.title}</span>
+                            {sub.is_locked && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
+                                <Lock className="w-2 h-2" />
+                                {sub.required_plan || "PRO"}
+                              </span>
+                            )}
+                          </span>
+                          {isActive && !sub.is_locked && (
                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs" />
                           )}
                         </Link>

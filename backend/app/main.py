@@ -38,7 +38,28 @@ async def lifespan(app: FastAPI):
 
     async with ControlSessionLocal() as session:
         await seed_plans_and_entitlements(session)
-
+        # Ensure tenant tables have country column
+        try:
+            from sqlalchemy import select, text
+            from app.control.models import Tenant
+            from app.core.database import get_tenant_engine
+            res = await session.execute(select(Tenant.db_name))
+            tenant_dbs = list(res.scalars().all())
+            demo_db = f"panther_tenant_{settings.DEMO_TENANT_SUBDOMAIN}"
+            if demo_db not in tenant_dbs:
+                tenant_dbs.append(demo_db)
+            for t_db in tenant_dbs:
+                try:
+                    t_engine = get_tenant_engine(t_db)
+                    async with t_engine.begin() as t_conn:
+                        await t_conn.execute(text("ALTER TABLE general_consignees ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
+                        await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
+                        for cs_col in ["city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "logo_url VARCHAR(500)"]:
+                            await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     yield
 

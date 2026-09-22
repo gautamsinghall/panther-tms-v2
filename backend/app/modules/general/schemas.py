@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Optional
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # --- Consignee ---
 class ConsigneeBase(BaseModel):
@@ -15,6 +15,15 @@ class ConsigneeBase(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     pincode: Optional[str] = None
+    country: Optional[str] = "India"
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_county_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+        return data
 
 class ConsigneeCreate(ConsigneeBase):
     is_active: bool = True
@@ -31,7 +40,16 @@ class ConsigneeUpdate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     pincode: Optional[str] = None
+    country: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_county_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+        return data
 
 class ConsigneeResponse(ConsigneeBase):
     id: int
@@ -54,6 +72,15 @@ class ConsignerBase(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     pincode: Optional[str] = None
+    country: Optional[str] = "India"
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_county_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+        return data
 
 class ConsignerCreate(ConsignerBase):
     is_active: bool = True
@@ -70,7 +97,16 @@ class ConsignerUpdate(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     pincode: Optional[str] = None
+    country: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_county_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+        return data
 
 class ConsignerResponse(ConsignerBase):
     id: int

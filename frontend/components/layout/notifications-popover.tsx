@@ -14,6 +14,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api-client";
 
 interface NotificationItem {
   id: string;
@@ -80,6 +81,24 @@ export function NotificationsPopover() {
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
+
+  useEffect(() => {
+    async function checkEntitlements() {
+      try {
+        const nav = await apiClient<any[]>("/api/v1/auth/navigation");
+        if (Array.isArray(nav)) {
+          const transportMod = nav.find((m) => m.id === "transport");
+          const isEwayLocked = transportMod?.items?.find((it: any) => it.feature === "eway_bill")?.is_locked;
+          if (isEwayLocked) {
+            setNotifications((prev) => prev.filter((n) => !n.title.toLowerCase().includes("e-way")));
+          }
+        }
+      } catch {
+        // Fallback to default notifications
+      }
+    }
+    checkEntitlements();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

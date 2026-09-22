@@ -1,8 +1,9 @@
 from typing import List
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.tenant_db.session import get_tenant_db
-from app.auth.dependencies import require_permission
+from app.tenant_db.session import get_tenant_db, get_current_tenant
+from app.auth.dependencies import require_permission, check_entitlement_limit
+from app.control.models import Tenant
 from app.modules.misc import schemas, service
 
 router = APIRouter(prefix="/misc", tags=["Misc Masters"])
@@ -205,9 +206,11 @@ async def get_account(
 @router.post("/accounts", response_model=schemas.AccountResponse, status_code=status.HTTP_201_CREATED)
 async def create_account(
     data: schemas.AccountCreate,
+    tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("misc", "account", "create")),
 ):
+    await check_entitlement_limit(tenant, session, "max_ledgers")
     item = await service.create_account(session, data)
     resp = schemas.AccountResponse.model_validate(item)
     resp.group_name = item.group.name if item.group else None

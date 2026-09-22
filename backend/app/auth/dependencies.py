@@ -98,14 +98,15 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
                 details={"error_code": "GRACE_PERIOD_EXPIRED", "subdomain": tenant.subdomain}
             )
 
-        # 2. Check Module Entitlement (plan-based)
+        # 2. Check Module & Feature Entitlements (plan-based)
         norm_mod = module.replace("-", "_").lower()
-        feature_key = f"module_{norm_mod}"
+        module_key = f"module_{norm_mod}"
+        feat_key = f"feature_{feature.replace('-', '_').lower()}"
 
         if tenant.plan and tenant.plan.entitlements:
             is_entitled = False
             for ent in tenant.plan.entitlements:
-                if ent.feature_key in (feature_key, "module_all") and ent.is_enabled:
+                if ent.feature_key in (module_key, "module_all") and ent.is_enabled:
                     if ent.limit_value.lower() in ("true", "1", "yes"):
                         is_entitled = True
                         break
@@ -115,6 +116,16 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
                     plan_name=tenant.plan.name,
                     details={"module": module, "plan": tenant.plan.code}
                 )
+
+            # Check individual feature restriction (e.g., feature_eway_bill = false)
+            for ent in tenant.plan.entitlements:
+                if ent.feature_key == feat_key and ent.is_enabled:
+                    if ent.limit_value.lower() in ("false", "0", "no"):
+                        raise EntitlementLockedException(
+                            module=feature.replace("_", " ").title(),
+                            plan_name=tenant.plan.name,
+                            details={"module": module, "feature": feature, "plan": tenant.plan.code}
+                        )
 
         # 3. Check Employee RBAC (employee-based)
         if user.role == "COMPANY_ADMIN":
@@ -147,7 +158,7 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
 
 async def check_entitlement_limit(tenant: Tenant, db: AsyncSession, limit_key: str) -> None:
     """
-    Enforces numerical plan quotas (e.g., max_users, max_vehicles) per architecture.md §6.
+    Enforces numerical plan quotas (monthly LRs, HCs, Vouchers, overall Ledgers, Masters, Vehicles, Users).
     """
     if not tenant.plan or not tenant.plan.entitlements:
         return
@@ -166,6 +177,9 @@ async def check_entitlement_limit(tenant: Tenant, db: AsyncSession, limit_key: s
     except ValueError:
         return
 
+    now = datetime.now(timezone.utc)
+    month_start = datetime(now.year, now.month, 1, 0, 0, 0, tzinfo=timezone.utc)
+
     if limit_key == "max_users":
         count_stmt = select(func.count()).select_from(User).where(User.is_active == True)
         current_count = (await db.execute(count_stmt)).scalar() or 0
@@ -177,5 +191,44 @@ async def check_entitlement_limit(tenant: Tenant, db: AsyncSession, limit_key: s
         count_stmt = select(func.count()).select_from(CompanyVehicle).where(CompanyVehicle.is_active == True)
         current_count = (await db.execute(count_stmt)).scalar() or 0
         if current_count >= max_allowed:
-            raise QuotaExceededException(limit_key="Vehicles", current_limit=str(max_allowed))
+            raise QuotaExceededException(limit_key="Company Vehicles", current_limit=f"{max_allowed} overall")
+
+    elif limit_key == "max_lrs_per_month":
+        from app.tenant_db.models import LR
+        count_stmt = select(func.count()).select_from(LR).where(LR.created_at >= month_start)
+        current_count = (await db.execute(count_stmt)).scalar() or 0
+        if current_count >= max_allowed:
+            raise QuotaExceededException(limit_key="LRs", current_limit=f"{max_allowed} per month")
+
+    elif limit_key == "max_hire_challans_per_month":
+        from app.tenant_db.models import HireChallan
+        count_stmt = select(func.count()).select_from(HireChallan).where(HireChallan.created_at >= month_start)
+        current_count = (await db.execute(count_stmt)).scalar() or 0
+        if current_count >= max_allowed:
+            raise QuotaExceededException(limit_key="Hire Challans", current_limit=f"{max_allowed} per month")
+
+    elif limit_key == "max_vouchers_per_month":
+        from app.tenant_db.models import Voucher
+        count_stmt = select(func.count()).select_from(Voucher).where(Voucher.created_at >= month_start)
+        current_count = (await db.execute(count_stmt)).scalar() or 0
+        if current_count >= max_allowed:
+            raise QuotaExceededException(limit_key="Vouchers & Entries", current_limit=f"{max_allowed} per month")
+
+    elif limit_key == "max_ledgers":
+        from app.tenant_db.models import Account
+        count_stmt = select(func.count()).select_from(Account).where(Account.is_active == True)
+        current_count = (await db.execute(count_stmt)).scalar() or 0
+        if current_count >= max_allowed:
+            raise QuotaExceededException(limit_key="Ledgers", current_limit=f"{max_allowed} overall")
+
+    elif limit_key == "max_masters":
+        from app.tenant_db.models import Consignee, Consigner, Location, Driver, VehicleOwner
+        c_cnt = (await db.execute(select(func.count()).select_from(Consignee).where(Consignee.is_active == True))).scalar() or 0
+        cn_cnt = (await db.execute(select(func.count()).select_from(Consigner).where(Consigner.is_active == True))).scalar() or 0
+        l_cnt = (await db.execute(select(func.count()).select_from(Location).where(Location.is_active == True))).scalar() or 0
+        d_cnt = (await db.execute(select(func.count()).select_from(Driver).where(Driver.is_active == True))).scalar() or 0
+        vo_cnt = (await db.execute(select(func.count()).select_from(VehicleOwner).where(VehicleOwner.is_active == True))).scalar() or 0
+        total_masters = c_cnt + cn_cnt + l_cnt + d_cnt + vo_cnt
+        if total_masters >= max_allowed:
+            raise QuotaExceededException(limit_key="Master Records", current_limit=f"{max_allowed} overall")
 

@@ -1,9 +1,10 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.tenant_db.session import get_tenant_db
-from app.auth.dependencies import require_permission, get_current_user
+from app.tenant_db.session import get_tenant_db, get_current_tenant
+from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit
 from app.core.errors import ForbiddenException
+from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.modules.accounts import schemas, service
 
@@ -28,14 +29,9 @@ def require_accounts_permission(permission: str = "view", feature: Optional[str]
             if not has_perm:
                 raise ForbiddenException(f"Access denied. Missing permission: accounts.{feature}.{permission}")
             return current_user
-        has_any = any(
-            p.module == "accounts" and (p.permission == permission or p.permission == "all") and p.is_allowed
-            for p in current_user.custom_role.permissions
-        )
-        if not has_any:
-            raise ForbiddenException("Access denied to accounts module.")
         return current_user
     return _check
+
 
 def map_voucher_response(v) -> schemas.VoucherResponse:
     resp = schemas.VoucherResponse.model_validate(v)
@@ -82,9 +78,11 @@ async def get_voucher(
 @router.post("/vouchers", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_voucher(
     data: schemas.VoucherCreate,
+    tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: User = Depends(require_accounts_permission("create")),
 ):
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     voucher = await service.post_voucher(session, data)
     return map_voucher_response(voucher)
 
@@ -92,9 +90,11 @@ async def create_voucher(
 @router.post("/transport-invoices", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_transport_invoice(
     data: schemas.TransportInvoiceCreate,
+    tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("accounts", "transport_invoice", "create")),
 ):
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     voucher = await service.create_transport_invoice_from_lr(session, data)
     return map_voucher_response(voucher)
 
@@ -102,9 +102,11 @@ async def create_transport_invoice(
 @router.post("/payments/ath", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_ath_payment(
     data: schemas.ATHPaymentCreate,
+    tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
 ):
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     voucher = await service.create_ath_payment(session, data)
     return map_voucher_response(voucher)
 
@@ -112,9 +114,11 @@ async def create_ath_payment(
 @router.post("/payments/bth", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_bth_payment(
     data: schemas.BTHPaymentCreate,
+    tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
 ):
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     voucher = await service.create_bth_payment(session, data)
     return map_voucher_response(voucher)
 

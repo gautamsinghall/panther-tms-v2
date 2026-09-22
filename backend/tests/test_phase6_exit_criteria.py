@@ -29,12 +29,16 @@ async def test_phase6_plan_definitions_and_control_plane():
         free_plan = next(p for p in plans if p["code"] == "FREE")
         features = {e["feature_key"]: e["limit_value"] for e in free_plan["entitlements"]}
         assert features.get("module_transport") == "true"
+        assert features.get("module_accounts") == "true"
         assert features.get("max_users") == "1"
-        assert features.get("max_vehicles") == "1"
-        assert features.get("max_invoices_per_month") == "10"
-        # Fleet and accounts should not be enabled in FREE
+        assert features.get("max_vehicles") == "2"
+        assert features.get("max_lrs_per_month") == "10"
+        assert features.get("max_hire_challans_per_month") == "10"
+        assert features.get("max_vouchers_per_month") == "10"
+        assert features.get("max_ledgers") == "10"
+        # Fleet and E-Invoicing should not be enabled in FREE
         assert features.get("module_fleet") != "true"
-        assert features.get("module_accounts") != "true"
+        assert features.get("module_einvoicing") != "true"
 
 @pytest.mark.asyncio
 async def test_phase6_self_serve_free_signup_and_entitlement_lock():
@@ -43,7 +47,7 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
     1. Initiate signup
     2. Complete provisioning
     3. Verify isolated tenant DB creation and admin login
-    4. Verify entitlement locking: allowed in Transport, locked from Fleet & Accounts
+    4. Verify entitlement locking: allowed in Transport & Accounts, locked from Fleet & E-Invoicing
     """
     uid = uuid.uuid4().hex[:6].lower()
     subdomain = f"test-free-{uid}"
@@ -59,30 +63,24 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
                 "company_name": f"Free Logistics {uid}",
                 "subdomain": subdomain,
                 "admin_email": email,
-                "admin_name": "Free Admin",
                 "admin_password": password,
+                "admin_full_name": "Free Owner",
                 "plan_code": "FREE",
-                "billing_cycle": "MONTHLY",
-            },
+                "billing_cycle": "monthly",
+            }
         )
         assert init_res.status_code == 200, init_res.text
-        init_data = init_res.json()
-        assert init_data["requires_payment"] is False
-        assert init_data["subdomain"] == subdomain
+        session_token = init_res.json()["signup_session_token"]
 
-        # Step 2: Complete
+        # Step 2: Complete signup
         comp_res = await client.post(
             "/control/signup/complete",
-            json={
-                "subdomain": subdomain,
-                "plan_code": "FREE",
-            },
+            json={"signup_session_token": session_token}
         )
         assert comp_res.status_code == 200, comp_res.text
-        comp_data = comp_res.json()
-        assert comp_data["status"] == "ACTIVE"
+        assert comp_res.json()["status"] == "ACTIVE"
 
-        # Step 3: Login to new tenant
+        # Step 3: Login to tenant
         headers = {"X-Tenant-Subdomain": subdomain}
         login_res = await client.post(
             "/api/v1/auth/login",
@@ -97,12 +95,12 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
         tr_res = await client.get("/api/v1/transport/lrs", headers=auth_headers)
         assert tr_res.status_code == 200
 
-        # Step 5: Access locked module (Accounts) -> 403 ENTITLEMENT_LOCKED
-        acc_res = await client.get("/api/v1/accounts/vouchers", headers=auth_headers)
-        assert acc_res.status_code == 403
-        err = acc_res.json()
+        # Step 5: Access locked module (E-Invoicing) -> 403 ENTITLEMENT_LOCKED
+        einv_res = await client.get("/api/v1/einvoicing/irn-list", headers=auth_headers)
+        assert einv_res.status_code == 403
+        err = einv_res.json()
         assert err.get("error_code") == "ENTITLEMENT_LOCKED"
-        assert "accounts" in err.get("message", "").lower()
+        assert "einvoicing" in err.get("message", "").lower() or "not included" in err.get("message", "").lower()
 
         # Step 6: Access locked module (Fleet) -> 403 ENTITLEMENT_LOCKED
         fleet_res = await client.get("/api/v1/fleet/documents", headers=auth_headers)

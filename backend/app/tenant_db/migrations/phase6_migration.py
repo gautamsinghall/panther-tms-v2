@@ -1,7 +1,15 @@
 import asyncio
 import logging
+import sys
+from pathlib import Path
 from datetime import datetime, timezone
-from sqlalchemy import select
+
+# Add backend directory to sys.path
+backend_dir = str(Path(__file__).resolve().parent.parent.parent.parent)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+from sqlalchemy import select, text
 from app.core.config import settings
 from app.core.database import (
     get_tenant_engine, get_tenant_session_maker,

@@ -104,6 +104,7 @@ class Consignee(TenantBase):
     city = Column(String(100), nullable=True)
     state = Column(String(100), nullable=True)
     pincode = Column(String(20), nullable=True)
+    country = Column(String(100), default="India", nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -130,6 +131,7 @@ class Consigner(TenantBase):
     city = Column(String(100), nullable=True)
     state = Column(String(100), nullable=True)
     pincode = Column(String(20), nullable=True)
+    country = Column(String(100), default="India", nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
