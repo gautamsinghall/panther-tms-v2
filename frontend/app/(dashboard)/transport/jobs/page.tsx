@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, ArrowRight, Truck, FileText, CheckCircle2 } from "lucide-react";
+import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { Form } from "@/components/forms/form";
 import { StatusBadge } from "@/components/ui/badge";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -82,6 +83,14 @@ export default function JobsPage() {
     loadData();
   }, []);
 
+  const stats = useMemo(() => {
+    const total = data.length;
+    const open = data.filter((d) => d.status === "OPEN").length;
+    const dispatched = data.filter((d) => d.status === "BOOKED" || d.status === "DISPATCHED").length;
+    const delivered = data.filter((d) => d.status === "DELIVERED" || d.status === "CLOSED").length;
+    return { total, open, dispatched, delivered };
+  }, [data]);
+
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
@@ -96,10 +105,10 @@ export default function JobsPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-[#101828] block">
+          <span className="font-mono font-bold text-slate-900 block">
             {row.job_number}
           </span>
-          <span className="text-[11px] text-[#667085]">
+          <span className="text-[11px] font-mono text-slate-500">
             {formatDate(row.job_date)}
           </span>
         </div>
@@ -110,11 +119,11 @@ export default function JobsPage() {
       header: "Customer → Receiver",
       cell: (row) => (
         <div>
-          <span className="font-semibold text-[#101828] block text-xs">
+          <span className="font-semibold text-slate-900 block text-xs">
             {row.consigner_name || `Customer #${row.consigner_id}`}
           </span>
-          <span className="text-[11px] text-[#667085] flex items-center gap-1">
-            <span className="text-[#667085]">To:</span> {row.consignee_name || `Receiver #${row.consignee_id}`}
+          <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+            <span className="text-slate-400">To:</span> {row.consignee_name || `Receiver #${row.consignee_id}`}
           </span>
         </div>
       ),
@@ -123,12 +132,12 @@ export default function JobsPage() {
       key: "route",
       header: "Route Movement",
       cell: (row) => (
-        <div className="flex items-center gap-1.5 text-xs text-[#101828] font-medium">
-          <span className="px-1.5 py-0.5 rounded-[4px] bg-[#F8F9FB] text-[#101828] border border-[#E4E7EC]">
+        <div className="flex items-center gap-1.5 text-xs text-slate-800 font-medium">
+          <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-800 border border-slate-200/80 shadow-2xs">
             {row.origin_city || "Origin"}
           </span>
-          <ArrowRight className="w-3 h-3 text-[#667085] shrink-0" />
-          <span className="px-1.5 py-0.5 rounded-[4px] bg-[#F8F9FB] text-[#101828] border border-[#E4E7EC]">
+          <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
+          <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-800 border border-slate-200/80 shadow-2xs">
             {row.destination_city || "Destination"}
           </span>
         </div>
@@ -140,10 +149,10 @@ export default function JobsPage() {
       isNumeric: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-[#101828] block text-xs">
+          <span className="font-mono font-semibold text-slate-900 block text-xs tabular-nums">
             {parseFloat(String(row.estimated_weight_mt || 0)).toFixed(2)} MT
           </span>
-          <span className="text-[11px] text-[#667085]">
+          <span className="text-[11px] text-slate-500 font-mono">
             {row.estimated_packages || 0} pkgs
           </span>
         </div>
@@ -300,6 +309,34 @@ export default function JobsPage() {
           onClick: () => setIsDrawerOpen(true),
         }}
       />
+
+      {/* Operational KPI Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total Trips Created"
+          value={stats.total.toLocaleString()}
+          subtext="Active transport bookings"
+          icon={<Truck className="w-4 h-4" />}
+        />
+        <KpiCard
+          title="Open Dispatch"
+          value={stats.open.toLocaleString()}
+          subtext="Awaiting carrier assignment"
+          icon={<Clock className="w-4 h-4 text-amber-600" />}
+        />
+        <KpiCard
+          title="Booked / In Transit"
+          value={stats.dispatched.toLocaleString()}
+          subtext="LR booked & vehicles en route"
+          icon={<Layers className="w-4 h-4 text-blue-600" />}
+        />
+        <KpiCard
+          title="Delivered / Closed"
+          value={stats.delivered.toLocaleString()}
+          subtext="Completed trip consignments"
+          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+        />
+      </div>
 
       <FilterBar
         searchValue={searchTerm}

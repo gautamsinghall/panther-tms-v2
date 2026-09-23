@@ -23,8 +23,8 @@ export interface ConfirmDialogProps {
 }
 
 /**
- * Explicit ConfirmDialog conforming to docs/design.md §24:
- * Title, Consequence, Entity name, Cancel, Confirm.
+ * Enterprise ConfirmDialog:
+ * High-clarity confirmation modal for destructive or irreversible actions.
  */
 export function ConfirmDialog({
   isOpen,
@@ -68,72 +68,69 @@ export function ConfirmDialog({
       <div className="flex min-h-screen items-center justify-center p-4 text-center">
         {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-[#172033]/40 backdrop-blur-xs transition-opacity animate-in fade-in"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in"
           onClick={isLoading ? undefined : onClose}
           aria-hidden="true"
         />
 
         {/* Dialog Modal */}
-        <div className="relative w-full max-w-md transform overflow-hidden rounded-card bg-white p-6 text-left shadow-floating border border-[#E4E7EC] transition-all animate-in zoom-in-95">
-          <div className="flex items-start gap-3.5">
+        <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-2xl border border-slate-200 transition-all animate-in zoom-in-95">
+          <div className="flex items-start gap-4">
             <div
-              className={`p-2.5 rounded-full shrink-0 ${
+              className={`p-3 rounded-2xl shrink-0 ${
                 variant === "danger"
-                  ? "bg-[#FEF2F2] text-[#DC2626]"
-                  : "bg-[#FFFAEB] text-[#D97706]"
+                  ? "bg-rose-50 border border-rose-100 text-rose-600 shadow-2xs"
+                  : "bg-amber-50 border border-amber-100 text-amber-600 shadow-2xs"
               }`}
             >
               <AlertTriangle className="w-5 h-5" />
             </div>
 
             <div className="space-y-1.5 flex-1">
-              <h3 className="text-base font-bold text-[#172033]">
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
                 {title}
               </h3>
               {entityName && (
-                <div className="text-xs font-mono font-semibold bg-[#F2F4F7] px-2 py-1 rounded text-[#172033] inline-block">
+                <div className="text-xs font-mono font-semibold bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md text-slate-800 inline-block">
                   {entityName}
                 </div>
               )}
               {desc && (
-                <p className="text-xs text-[#667085] leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed mt-1">
                   {desc}
                 </p>
               )}
-              {children && (
-                <div className="pt-3">
-                  {children}
-                </div>
-              )}
+              {children}
             </div>
 
-            {!isLoading && (
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-[#98A2B3] hover:text-[#172033] p-1"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          <div className="mt-6 flex items-center justify-end gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
+            <button
+              type="button"
               onClick={onClose}
               disabled={isLoading}
+              className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Action Footer */}
+          <div className="mt-6 flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={onClose}
+              disabled={isLoading}
+              className="text-xs font-semibold rounded-xl h-9 px-4"
             >
               {canLabel}
             </Button>
             <Button
               variant={variant === "danger" ? "danger" : "primary"}
-              size="sm"
+              size="md"
               onClick={onConfirm}
               isLoading={isLoading}
               disabled={disabled || isLoading}
+              className="text-xs font-semibold rounded-xl h-9 px-4 shadow-sm"
             >
               {cLabel}
             </Button>

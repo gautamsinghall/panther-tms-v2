@@ -17,8 +17,8 @@ export interface EntityDrawerProps {
 }
 
 /**
- * EntityDrawer pattern:
- * Right-side drawer for creating/editing records while preserving background context.
+ * Enterprise EntityDrawer:
+ * Right-side modal drawer for creating/editing records with backdrop blur and smooth slide animation.
  */
 export function EntityDrawer({
   isOpen,
@@ -61,7 +61,7 @@ export function EntityDrawer({
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#101828]/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-200 animate-in fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -69,18 +69,18 @@ export function EntityDrawer({
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div
           className={cn(
-            "w-screen bg-white shadow-floating border-l border-[#E4E7EC] flex flex-col transform transition-transform duration-200 ease-in-out animate-in slide-in-from-right",
+            "w-screen bg-white shadow-2xl border-l border-slate-200 flex flex-col transform transition-transform duration-200 ease-in-out animate-in slide-in-from-right",
             widthClasses
           )}
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-[#E4E7EC] flex items-start justify-between bg-white shrink-0">
+          <div className="px-6 py-4.5 border-b border-slate-100 flex items-start justify-between bg-white shrink-0">
             <div>
-              <h2 className="text-[18px] leading-[24px] font-semibold text-[#101828]">
+              <h2 className="text-lg font-bold tracking-tight text-slate-900">
                 {title}
               </h2>
               {(description || subtitle) && (
-                <p className="text-[13px] leading-[18px] text-[#667085] mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5 leading-normal">
                   {description || subtitle}
                 </p>
               )}
@@ -88,21 +88,21 @@ export function EntityDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-control text-[#667085] hover:text-[#101828] hover:bg-[#F8F9FB] transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               aria-label="Close drawer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Scrollable Body on calm --gray-25 canvas */}
-          <div className="flex-1 overflow-y-auto p-6 bg-[#FCFCFD]">
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
             {children}
           </div>
 
-          {/* Footer */}
+          {/* Optional Footer */}
           {footer && (
-            <div className="px-6 py-4 border-t border-[#E4E7EC] bg-white flex items-center justify-end gap-2.5 shrink-0">
+            <div className="px-6 py-4 border-t border-slate-100 bg-white shrink-0">
               {footer}
             </div>
           )}

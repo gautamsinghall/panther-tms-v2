@@ -61,17 +61,14 @@ export interface DataTableProps<T> {
 }
 
 /**
- * Enterprise DataTable per docs/design.md §5:
- * - Sticky header with --gray-50 (#F8F9FB) bg, uppercase Label-style header text
- * - Row hover with subtle --gray-50 bg
- * - Selected row with --primary-50 (#EEF2FF) bg and checkbox
- * - Right-aligned numeric/currency columns with tabular numbers
- * - Single kebab menu ("...") row actions
- * - Contextual bulk-action bar on selection
- * - Empty state with centered icon + one-line explanation + primary CTA
- * - Loading state with animated skeleton rows
- * - Page-number pagination
- * - Comfortable (12px/16px) vs Compact (8px/12px) density toggle
+ * Enterprise DataTable:
+ * - Sticky header with slate-50 background, uppercase tracking
+ * - High-clarity hover states and selected row highlights
+ * - Right-aligned numeric/currency columns with tabular font-mono
+ * - Row actions kebab menu
+ * - Contextual bulk-action toolbar
+ * - Refined empty, loading skeleton, and error states
+ * - High-precision pagination controls
  */
 export function DataTable<T extends Record<string, any>>({
   columns,
@@ -100,98 +97,90 @@ export function DataTable<T extends Record<string, any>>({
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [pageSize, setPageSize] = useState<number>(initialPageSize);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [density, setDensity] = useState<TableDensity>(defaultDensity);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialPageSize);
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
 
-  // Helper to extract unique ID for row
   const resolveRowId = (row: T, index: number): string | number => {
     if (getRowId) return getRowId(row, index);
-    return row.id ?? row.code ?? row.uuid ?? index;
+    return row.id ?? row._id ?? index;
   };
 
-  // Sorting handler
-  const handleSort = (key: string) => {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDirection("asc");
-    } else if (sortDirection === "asc") {
-      setSortDirection("desc");
+  const handleSort = (columnKey: string) => {
+    if (sortKey === columnKey) {
+      if (sortDirection === "asc") setSortDirection("desc");
+      else if (sortDirection === "desc") {
+        setSortKey(null);
+        setSortDirection(null);
+      }
     } else {
-      setSortKey(null);
-      setSortDirection(null);
+      setSortKey(columnKey);
+      setSortDirection("asc");
     }
   };
 
-  // Filter and sort data
-  const filteredAndSortedData = useMemo(() => {
-    let result = Array.isArray(data) ? [...data] : [];
+  const filteredData = useMemo(() => {
+    if (!searchTerm.trim()) return data;
+    const term = searchTerm.toLowerCase().trim();
 
-    // Search filter
-    if (searchable && searchTerm.trim()) {
-      const lower = searchTerm.toLowerCase().trim();
-      result = result.filter((item) => {
-        if (activeSearchCol) {
-          const val = item[activeSearchCol as string];
-          return val !== undefined && val !== null && String(val).toLowerCase().includes(lower);
-        }
-        return Object.values(item).some(
-          (val) => val !== undefined && val !== null && String(val).toLowerCase().includes(lower)
-        );
-      });
-    }
+    return data.filter((row) => {
+      if (activeSearchCol && row[activeSearchCol] !== undefined) {
+        return String(row[activeSearchCol]).toLowerCase().includes(term);
+      }
+      return Object.values(row).some((val) =>
+        String(val ?? "").toLowerCase().includes(term)
+      );
+    });
+  }, [data, searchTerm, activeSearchCol]);
 
-    // Sorting
-    if (sortKey && sortDirection) {
-      result.sort((a, b) => {
-        const valA = a[sortKey];
-        const valB = b[sortKey];
+  const sortedData = useMemo(() => {
+    if (!sortKey || !sortDirection) return filteredData;
 
-        if (valA === valB) return 0;
-        if (valA === undefined || valA === null) return 1;
-        if (valB === undefined || valB === null) return -1;
+    return [...filteredData].sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
 
-        const isNum = !isNaN(Number(valA)) && !isNaN(Number(valB));
-        if (isNum) {
-          return sortDirection === "asc"
-            ? Number(valA) - Number(valB)
-            : Number(valB) - Number(valA);
-        }
+      if (aVal === bVal) return 0;
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
 
-        const comp = String(valA).localeCompare(String(valB));
-        return sortDirection === "asc" ? comp : -comp;
-      });
-    }
+      let comparison = 0;
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        comparison = aVal - bVal;
+      } else {
+        comparison = String(aVal).localeCompare(String(bVal), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+      }
 
-    return result;
-  }, [data, searchTerm, activeSearchCol, searchable, sortKey, sortDirection]);
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [filteredData, sortKey, sortDirection]);
 
-  // Pagination calculation
-  const totalItems = filteredAndSortedData.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const totalItems = sortedData.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const validPage = Math.min(Math.max(1, currentPage), totalPages);
 
   const paginatedData = useMemo(() => {
     const start = (validPage - 1) * pageSize;
-    return filteredAndSortedData.slice(start, start + pageSize);
-  }, [filteredAndSortedData, validPage, pageSize]);
+    return sortedData.slice(start, start + pageSize);
+  }, [sortedData, validPage, pageSize]);
 
-  // Selection handlers
-  const allCurrentPageSelected =
-    paginatedData.length > 0 &&
-    paginatedData.every((row, idx) => selectedIds.has(resolveRowId(row, idx)));
+  const allCurrentPageSelected = useMemo(() => {
+    if (paginatedData.length === 0) return false;
+    return paginatedData.every((row, idx) => selectedIds.has(resolveRowId(row, idx)));
+  }, [paginatedData, selectedIds]);
 
   const toggleSelectAll = () => {
+    const next = new Set(selectedIds);
     if (allCurrentPageSelected) {
-      const next = new Set(selectedIds);
       paginatedData.forEach((row, idx) => next.delete(resolveRowId(row, idx)));
-      setSelectedIds(next);
     } else {
-      const next = new Set(selectedIds);
       paginatedData.forEach((row, idx) => next.add(resolveRowId(row, idx)));
-      setSelectedIds(next);
     }
+    setSelectedIds(next);
   };
 
   const toggleSelectRow = (id: string | number) => {
@@ -213,7 +202,6 @@ export function DataTable<T extends Record<string, any>>({
     return data.filter((row, idx) => selectedIds.has(resolveRowId(row, idx)));
   }, [data, selectedIds]);
 
-  // Default export selected as CSV
   const handleExportSelected = () => {
     if (selectedRowsList.length === 0) return;
     const headers = columns.map((c) => c.header).join(",");
@@ -231,12 +219,8 @@ export function DataTable<T extends Record<string, any>>({
     document.body.removeChild(link);
   };
 
-  // Density padding styles per docs/design.md §3:
-  // Comfortable: 12px vertical / 16px horizontal
-  // Compact: 8px vertical / 12px horizontal
   const cellPaddingClass = density === "comfortable" ? "py-3 px-4" : "py-2 px-3";
 
-  // Generate numbered pagination buttons
   const paginationButtons = useMemo(() => {
     const pages: (number | string)[] = [];
     if (totalPages <= 7) {
@@ -257,15 +241,15 @@ export function DataTable<T extends Record<string, any>>({
     <div className="space-y-3">
       {/* Contextual Bulk Action Bar OR Standard Search & Density Bar */}
       {selectedIds.size > 0 ? (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#EEF2FF] border border-[#C7D2FE] px-4 py-2.5 rounded-card transition-all duration-150 animate-in fade-in">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-indigo-50 border border-indigo-200 px-4 py-2.5 rounded-2xl transition-all duration-150 animate-in fade-in shadow-2xs">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-[#4338CA]">
+            <span className="text-xs font-semibold text-indigo-700">
               {selectedIds.size} {selectedIds.size === 1 ? "record" : "records"} selected
             </span>
             <button
               type="button"
               onClick={clearSelection}
-              className="text-xs text-[#667085] hover:text-[#101828] underline transition-colors"
+              className="text-xs text-slate-500 hover:text-slate-800 underline transition-colors cursor-pointer"
             >
               Cancel selection
             </button>
@@ -278,9 +262,10 @@ export function DataTable<T extends Record<string, any>>({
                 variant={action.variant || "secondary"}
                 size="sm"
                 onClick={() => action.onClick && action.onClick(selectedRowsList)}
+                className="h-8 text-xs font-semibold rounded-xl"
               >
                 {action.icon}
-                {action.label}
+                <span>{action.label}</span>
               </Button>
             ))}
 
@@ -288,20 +273,20 @@ export function DataTable<T extends Record<string, any>>({
               variant="secondary"
               size="sm"
               onClick={handleExportSelected}
-              className="gap-1.5"
+              className="gap-1.5 h-8 text-xs font-semibold rounded-xl"
             >
               <Download className="w-3.5 h-3.5" />
-              Export Selected
+              <span>Export Selected</span>
             </Button>
           </div>
         </div>
       ) : (
         (searchable || toolbarExtra) && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-card border border-slate-200/80 shadow-card">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs">
             {/* Search Input */}
             {searchable && (
               <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
                   value={searchTerm}
@@ -310,13 +295,13 @@ export function DataTable<T extends Record<string, any>>({
                     setCurrentPage(1);
                   }}
                   placeholder={searchPlaceholder}
-                  className="w-full pl-9 pr-8 py-1.5 text-xs rounded-control border border-slate-200/90 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 focus:bg-white transition-colors"
+                  className="w-full pl-9 pr-8 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-700"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-slate-700 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -332,7 +317,7 @@ export function DataTable<T extends Record<string, any>>({
               <button
                 type="button"
                 onClick={() => setDensity(density === "comfortable" ? "compact" : "comfortable")}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-control transition-colors shadow-2xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shadow-2xs cursor-pointer"
                 title={`Current: ${density}. Click to switch.`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
@@ -344,11 +329,11 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Main Table Container */}
-      <div className="rounded-card border border-slate-200/80 bg-white shadow-card overflow-hidden">
+      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            {/* Sticky Header: slate-50 bg, Label-style header text */}
-            <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200/80">
+            {/* Sticky Header */}
+            <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200/80 backdrop-blur-xs">
               <tr>
                 {/* Select All Checkbox Column */}
                 {selectable && (
@@ -370,7 +355,7 @@ export function DataTable<T extends Record<string, any>>({
                       key={col.key}
                       style={{ width: col.width }}
                       className={cn(
-                        "text-xs font-semibold uppercase tracking-wider text-slate-500 select-none",
+                        "text-xs font-semibold uppercase tracking-wider text-slate-500 select-none font-mono",
                         cellPaddingClass,
                         col.align === "right" || col.isNumeric ? "text-right" : "",
                         col.align === "center" ? "text-center" : "",
@@ -387,14 +372,14 @@ export function DataTable<T extends Record<string, any>>({
                       >
                         <span>{col.header}</span>
                         {col.sortable && (
-                          <span className="text-[#667085]">
+                          <span className="text-slate-400">
                             {isSorted && sortDirection === "asc" && (
-                              <ChevronUp className="w-3.5 h-3.5 text-[#4F46E5]" />
+                              <ChevronUp className="w-3.5 h-3.5 text-indigo-600" />
                             )}
                             {isSorted && sortDirection === "desc" && (
-                              <ChevronDown className="w-3.5 h-3.5 text-[#4F46E5]" />
+                              <ChevronDown className="w-3.5 h-3.5 text-indigo-600" />
                             )}
-                            {!isSorted && <ChevronsUpDown className="w-3.5 h-3.5 opacity-50" />}
+                            {!isSorted && <ChevronsUpDown className="w-3.5 h-3.5 opacity-40" />}
                           </span>
                         )}
                       </div>
@@ -404,7 +389,7 @@ export function DataTable<T extends Record<string, any>>({
 
                 {/* Actions Column */}
                 {actions.length > 0 && (
-                  <th className="w-12 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="w-12 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono">
                     Actions
                   </th>
                 )}
@@ -412,7 +397,7 @@ export function DataTable<T extends Record<string, any>>({
             </thead>
 
             {/* Table Body */}
-            <tbody className="divide-y divide-[#E4E7EC]">
+            <tbody className="divide-y divide-slate-100">
               {/* 1. Loading Skeleton State */}
               {isLoading &&
                 Array.from({ length: 5 }).map((_, idx) => (
@@ -440,22 +425,22 @@ export function DataTable<T extends Record<string, any>>({
                 <tr>
                   <td
                     colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
-                    className="py-12 text-center"
+                    className="py-14 text-center"
                   >
                     <div className="max-w-xs mx-auto space-y-3">
-                      <div className="w-10 h-10 rounded-full bg-[#FEF3F2] flex items-center justify-center mx-auto text-[#F04438]">
-                        <AlertCircle className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto text-rose-600 shadow-2xs">
+                        <AlertCircle className="w-6 h-6" />
                       </div>
-                      <p className="text-sm font-semibold text-[#101828]">
+                      <p className="text-sm font-bold text-slate-900">
                         Unable to load records
                       </p>
-                      <p className="text-xs text-[#667085]">
+                      <p className="text-xs text-slate-500 leading-normal">
                         {errorMessage || "An unexpected network or database error occurred."}
                       </p>
                       {onRetry && (
-                        <Button variant="secondary" size="sm" onClick={onRetry} className="gap-1.5">
+                        <Button variant="secondary" size="sm" onClick={onRetry} className="gap-1.5 rounded-xl">
                           <RotateCcw className="w-3.5 h-3.5" />
-                          Retry
+                          <span>Retry</span>
                         </Button>
                       )}
                     </div>
@@ -463,7 +448,7 @@ export function DataTable<T extends Record<string, any>>({
                 </tr>
               )}
 
-              {/* 3. Empty State per docs/design.md §5 */}
+              {/* 3. Empty State */}
               {!isLoading && !isError && paginatedData.length === 0 && (
                 <tr>
                   <td
@@ -471,17 +456,17 @@ export function DataTable<T extends Record<string, any>>({
                     className="py-16 text-center"
                   >
                     <div className="max-w-sm mx-auto space-y-3">
-                      <div className="w-12 h-12 rounded-control bg-[#F8F9FB] border border-[#E4E7EC] flex items-center justify-center mx-auto text-[#667085]">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
                         <FileSpreadsheet className="w-6 h-6" />
                       </div>
-                      <h4 className="text-sm font-semibold text-[#101828]">
+                      <h4 className="text-sm font-bold text-slate-900">
                         {emptyMessage}
                       </h4>
-                      <p className="text-xs text-[#667085]">
+                      <p className="text-xs text-slate-500 leading-normal">
                         {emptySubtext}
                       </p>
                       {emptyAction && (
-                        <Button variant="primary" size="sm" onClick={emptyAction.onClick}>
+                        <Button variant="primary" size="sm" onClick={emptyAction.onClick} className="rounded-xl shadow-xs">
                           {emptyAction.label}
                         </Button>
                       )}
@@ -503,8 +488,8 @@ export function DataTable<T extends Record<string, any>>({
                       className={cn(
                         "transition-colors",
                         isSelected
-                          ? "bg-[#EEF2FF] hover:bg-[#E0E7FF]"
-                          : "hover:bg-[#F8F9FB]"
+                          ? "bg-indigo-50/70 hover:bg-indigo-100/70"
+                          : "hover:bg-slate-50/80"
                       )}
                     >
                       {/* Checkbox Column */}
@@ -514,7 +499,7 @@ export function DataTable<T extends Record<string, any>>({
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelectRow(rowId)}
-                            className="rounded border-[#D0D5DD] text-[#4F46E5] focus:ring-[#4F46E5] cursor-pointer"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                             aria-label={`Select row ${rowId}`}
                           />
                         </td>
@@ -526,7 +511,7 @@ export function DataTable<T extends Record<string, any>>({
                           <td
                             key={col.key}
                             className={cn(
-                              "text-xs sm:text-[13px] text-slate-800",
+                              "text-xs sm:text-[13px] text-slate-800 font-medium",
                               cellPaddingClass,
                               col.align === "right" || col.isNumeric ? "text-right tabular-nums font-mono" : "",
                               col.align === "center" ? "text-center" : ""
@@ -537,7 +522,7 @@ export function DataTable<T extends Record<string, any>>({
                         );
                       })}
 
-                      {/* Row Actions: Kebab Menu per docs/design.md §5 */}
+                      {/* Row Actions: Kebab Menu */}
                       {actions.length > 0 && (
                         <td className="w-12 px-4 py-3 text-right">
                           <DropdownMenu
@@ -545,7 +530,7 @@ export function DataTable<T extends Record<string, any>>({
                             trigger={
                               <button
                                 type="button"
-                                className="p-1 rounded-control text-[#667085] hover:text-[#101828] hover:bg-[#E4E7EC]/50 transition-colors"
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                                 title="Actions"
                                 aria-label="Row actions"
                               >
@@ -571,34 +556,34 @@ export function DataTable<T extends Record<string, any>>({
           </table>
         </div>
 
-        {/* Numbered Pagination per docs/design.md §5 */}
+        {/* Numbered Pagination */}
         {!isLoading && !isError && totalItems > 0 && (
-          <div className="px-4 py-3 border-t border-[#E4E7EC] bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#667085]">
+          <div className="px-4 py-3 border-t border-slate-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             {/* Range info */}
             <div>
               Showing{" "}
-              <span className="font-semibold text-[#101828]">
+              <span className="font-semibold text-slate-900 font-mono">
                 {(validPage - 1) * pageSize + 1}
               </span>{" "}
               to{" "}
-              <span className="font-semibold text-[#101828]">
+              <span className="font-semibold text-slate-900 font-mono">
                 {Math.min(validPage * pageSize, totalItems)}
               </span>{" "}
-              of <span className="font-semibold text-[#101828]">{totalItems}</span> records
+              of <span className="font-semibold text-slate-900 font-mono">{totalItems}</span> records
             </div>
 
             {/* Page Buttons & Page Size */}
             <div className="flex items-center gap-3">
               {/* Page size selector */}
               <div className="flex items-center gap-1.5">
-                <span>Rows per page:</span>
+                <span>Rows:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="h-7 px-2 border border-[#E4E7EC] rounded-control bg-white text-xs text-[#101828] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                  className="h-7 px-2 border border-slate-200 rounded-lg bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer"
                 >
                   {pageSizeOptions.map((opt) => (
                     <option key={opt} value={opt}>
@@ -614,7 +599,7 @@ export function DataTable<T extends Record<string, any>>({
                   type="button"
                   disabled={validPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="p-1 rounded-control border border-[#E4E7EC] text-[#667085] hover:text-[#101828] hover:bg-[#F8F9FB] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -623,7 +608,7 @@ export function DataTable<T extends Record<string, any>>({
                 {paginationButtons.map((btn, idx) => {
                   if (btn === "...") {
                     return (
-                      <span key={`dots-${idx}`} className="px-1.5 text-[#667085]">
+                      <span key={`dots-${idx}`} className="px-1.5 text-slate-400">
                         ...
                       </span>
                     );
@@ -635,10 +620,10 @@ export function DataTable<T extends Record<string, any>>({
                       type="button"
                       onClick={() => setCurrentPage(Number(btn))}
                       className={cn(
-                        "min-w-[28px] h-7 px-2 rounded-control text-xs font-medium transition-colors",
+                        "min-w-[28px] h-7 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer font-mono",
                         isCurrent
-                          ? "bg-[#4F46E5] text-white font-semibold"
-                          : "border border-[#E4E7EC] text-[#344054] hover:bg-[#F8F9FB]"
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "border border-slate-200 text-slate-700 hover:bg-slate-50"
                       )}
                     >
                       {btn}
@@ -650,7 +635,7 @@ export function DataTable<T extends Record<string, any>>({
                   type="button"
                   disabled={validPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-1 rounded-control border border-[#E4E7EC] text-[#667085] hover:text-[#101828] hover:bg-[#F8F9FB] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   aria-label="Next page"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />

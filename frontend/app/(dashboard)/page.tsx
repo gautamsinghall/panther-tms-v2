@@ -38,6 +38,7 @@ import { SegmentTabs } from "@/components/ui/tabs";
 import { AreaTrendChart, BarMetricChart, DonutDistributionChart } from "@/components/charts";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import TextAnimation from "@/components/ui/staggerText";
 
 type ActiveTab = "overview" | "finance" | "operations" | "own_fleet";
 
@@ -80,7 +81,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Top PageHeader */}
       <PageHeader
-        title="Command Cockpit"
+        title={<TextAnimation>Command Cockpit</TextAnimation>}
         description="Unified enterprise logistics telemetry, financial performance, freight corridor velocity, and asset intelligence."
         badge={
           <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-xs font-semibold select-none shadow-2xs">

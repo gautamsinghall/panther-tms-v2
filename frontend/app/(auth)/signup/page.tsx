@@ -4,23 +4,25 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Truck,
-  CheckCircle2,
   ShieldCheck,
   AlertCircle,
-  Sparkles,
   ArrowRight,
   Loader2,
   Check,
   Lock,
   Building2,
-  Layers,
   Database,
-  CreditCard,
+  CheckCircle2,
   Server,
+  User,
+  Mail,
+  Layers,
+  Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import TextAnimation from "@/components/ui/staggerText";
+import { LineHoverLink } from "@/components/ui/line-hover-link";
+import { Link000 } from "@/components/ui/skiper-ui/skiper40";
+import { PerspectiveGrid } from "@/components/ui/perspective-grid";
 
 interface PlanOption {
   code: string;
@@ -212,7 +214,6 @@ export default function SignupPage() {
   };
 
   const triggerRazorpayCheckout = (initData: any) => {
-    // If running in sandbox/browser without active Razorpay keys or in local test environment
     const options = {
       key: initData.razorpay_key_id || "rzp_test_mock_12345",
       subscription_id: initData.subscription_id,
@@ -242,12 +243,10 @@ export default function SignupPage() {
       },
     };
 
-    // Check if Razorpay script is present, otherwise load or use simulated checkout modal
     if (typeof (window as any).Razorpay !== "undefined") {
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } else {
-      // Load Razorpay script dynamically
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onload = () => {
@@ -266,7 +265,6 @@ export default function SignupPage() {
   };
 
   const simulateDirectPayment = async (initData: any) => {
-    // Fallback for offline/mock test environment
     setProvisioningStatus("Processing payment confirmation & verifying HMAC token...");
     setTimeout(async () => {
       await completeTenantSignup(
@@ -322,15 +320,19 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen lg:h-screen w-full flex flex-col bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative lg:overflow-hidden">
-      {/* Ambient background grid pattern */}
-      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(#E2E8F0_1px,transparent_1px)] [background-size:28px_28px] opacity-70" />
+      {/* Perspective Grid Background Layer from Vengeance UI */}
+      <div className="fixed inset-0 pointer-events-none opacity-25 z-0">
+        <PerspectiveGrid gridSize={32} showOverlay fadeRadius={70} />
+      </div>
+
+      {/* Ambient ambient glow accents */}
       <div className="fixed -top-40 -left-40 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* ========================================================================= */}
-      {/* TOP HEADER BAR: Standardized across Signin and Signup                     */}
+      {/* TOP HEADER BAR: Standardized enterprise header across Login and Signup     */}
       {/* ========================================================================= */}
-      <header className="w-full border-b border-slate-200/80 bg-white/75 backdrop-blur-md px-6 sm:px-10 h-16 flex items-center justify-between z-20 shrink-0">
+      <header className="w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 sm:px-10 h-16 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-3">
           <Link href="/" className="inline-flex items-center gap-3 group">
             <img
@@ -348,32 +350,45 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-4 text-xs">
           <span className="hidden sm:inline text-slate-500">Already have an account?</span>
-          <Link
+          <Link000
             href="/login"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/80 border border-indigo-200/60 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100/90 border border-indigo-200/70 transition-all shadow-2xs"
           >
-            Sign in
-            <span aria-hidden="true">&rarr;</span>
-          </Link>
+            <span>Sign in</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link000>
         </div>
       </header>
 
       {/* ========================================================================= */}
-      {/* MAIN CONTENT AREA: Fits perfectly in viewport with ZERO scrolling        */}
+      {/* MAIN CONTENT AREA: Viewport optimized                                    */}
       {/* ========================================================================= */}
       <main className="flex-1 flex flex-col justify-center px-4 sm:px-8 lg:px-10 xl:px-12 py-3 lg:py-4 max-w-[1640px] w-full mx-auto relative z-10 overflow-y-auto lg:overflow-hidden min-h-0">
         {/* Workflow Title & Stepper Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2.5 lg:mb-3 border-b border-slate-200/70 shrink-0">
           <div>
-            <div className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 font-mono">
-              Workspace Provisioning
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-600 font-mono">
+              <Layers className="w-3.5 h-3.5" />
+              <span>Workspace Provisioning</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
-              {step === 1 && "Select Subscription Plan"}
-              {step === 2 && "Configure Enterprise Workspace"}
-              {step === 3 && "Setting Up Your Workspace"}
+              {step === 1 && (
+                <TextAnimation divideBy="word" delay={0.05}>
+                  Select Subscription Plan
+                </TextAnimation>
+              )}
+              {step === 2 && (
+                <TextAnimation divideBy="word" delay={0.05}>
+                  Configure Enterprise Workspace
+                </TextAnimation>
+              )}
+              {step === 3 && (
+                <TextAnimation divideBy="word" delay={0.05}>
+                  Setting Up Your Workspace
+                </TextAnimation>
+              )}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
               {step === 1 && "Choose the subscription edition that matches your active fleet capacity."}
@@ -389,21 +404,21 @@ export default function SignupPage() {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 1 ? "bg-indigo-600 text-white shadow-2xs" : step > 1 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
                   {step > 1 ? "✓" : "1"}
                 </span>
-                Plan
+                <span>Plan</span>
               </div>
               <span className={`w-5 h-px ${step > 1 ? "bg-indigo-600" : "bg-slate-200"}`} />
               <div className={`flex items-center gap-1.5 font-semibold ${step === 2 ? "text-slate-900 font-bold" : step > 2 ? "text-indigo-600" : "text-slate-400"}`}>
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 2 ? "bg-indigo-600 text-white shadow-2xs" : step > 2 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
                   {step > 2 ? "✓" : "2"}
                 </span>
-                Workspace
+                <span>Workspace</span>
               </div>
               <span className={`w-5 h-px ${step > 2 ? "bg-indigo-600" : "bg-slate-200"}`} />
               <div className={`flex items-center gap-1.5 font-semibold ${step === 3 ? "text-slate-900 font-bold" : "text-slate-400"}`}>
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 3 ? "bg-indigo-600 text-white shadow-2xs" : "bg-slate-200 text-slate-500"}`}>
                   3
                 </span>
-                Provisioning
+                <span>Provisioning</span>
               </div>
             </div>
 
@@ -413,14 +428,14 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setBillingCycle("MONTHLY")}
-                  className={`px-3 py-1 rounded-lg font-medium transition-all ${billingCycle === "MONTHLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${billingCycle === "MONTHLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   Monthly
                 </button>
                 <button
                   type="button"
                   onClick={() => setBillingCycle("YEARLY")}
-                  className={`px-3 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${billingCycle === "YEARLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`px-3 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 cursor-pointer ${billingCycle === "YEARLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
                 >
                   Yearly
                   <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
@@ -433,13 +448,13 @@ export default function SignupPage() {
         </div>
 
         {error && (
-          <div className="p-3 mb-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2.5 shrink-0">
+          <div className="p-3 mb-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2.5 shrink-0 animate-in fade-in-0 duration-200">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{error}</span>
+            <span className="font-medium">{error}</span>
           </div>
         )}
 
-        {/* STEP 1: PLAN SELECTION (Expanded, Prominent Cards) */}
+        {/* STEP 1: PLAN SELECTION */}
         {step === 1 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5 my-auto items-stretch">
             {PLANS.map((plan) => {
@@ -448,9 +463,7 @@ export default function SignupPage() {
               const isEnterprise = plan.code === "ENTERPRISE";
               const isBusiness = plan.code === "BUSINESS";
               const isPro = plan.code === "PRO";
-              const isFree = plan.code === "FREE";
 
-              // Distinct color schemes according to each tier
               const cardBg = isEnterprise
                 ? "bg-gradient-to-b from-[#0F172A] via-[#0B0F19] to-[#020617] text-white shadow-xl shadow-slate-950/40"
                 : isBusiness
@@ -675,7 +688,7 @@ export default function SignupPage() {
                       setSelectedPlan(plan.code);
                       setStep(2);
                     }}
-                    className={`w-full mt-4 lg:mt-5 h-10 lg:h-11 text-sm rounded-xl transition-all cursor-pointer ${buttonClass}`}
+                    className={`w-full mt-4 lg:mt-5 h-11 text-sm rounded-xl transition-all cursor-pointer ${buttonClass}`}
                   >
                     Choose {plan.name}
                   </button>
@@ -685,175 +698,235 @@ export default function SignupPage() {
           </div>
         )}
 
-        {/* STEP 2: ACCOUNT DETAILS (Compact, No-Scroll) */}
+        {/* STEP 2: ACCOUNT DETAILS (Aligned with Login styling) */}
         {step === 2 && (
-          <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-card space-y-3.5 my-auto w-full">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5 my-auto w-full">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Workspace Details</h2>
-                <p className="text-xs text-slate-500">Configure your company tenant and master administrator.</p>
+                <h2 className="text-xl font-bold tracking-tight text-slate-900">Workspace Details</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Configure your company tenant and master administrator.</p>
               </div>
               <div className="text-right">
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200/80 font-mono shadow-2xs">
                   {selectedPlan} Plan
                 </span>
               </div>
             </div>
 
-            <form onSubmit={handleInitiateSignup} className="space-y-3">
-              <Input
-                label="Registered Company Name"
-                placeholder="e.g. Apex Fast Freight Pvt Ltd"
-                value={companyName}
-                onChange={(e) => handleCompanyChange(e.target.value)}
-                required
-              />
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Tenant Subdomain
+            <form onSubmit={handleInitiateSignup} className="space-y-4">
+              {/* Company Name */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                  Registered company name
                 </label>
-                <div className="flex rounded-md shadow-2xs">
+                <div className="relative flex items-center">
+                  <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={companyName}
+                    onChange={(e) => handleCompanyChange(e.target.value)}
+                    placeholder="Apex Fast Freight Pvt Ltd"
+                    className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Subdomain */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                  Tenant subdomain
+                </label>
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-2xs focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all overflow-hidden group">
                   <input
                     type="text"
                     required
                     value={subdomain}
                     onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    className="flex-1 rounded-l-md border border-slate-300 px-3 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white text-slate-900"
                     placeholder="apex-freight"
+                    className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
                   />
-                  <span className="inline-flex items-center px-2.5 rounded-r-md border border-l-0 border-slate-300 bg-slate-50 text-slate-500 text-xs font-mono">
+                  <div className="px-3 py-2.5 bg-slate-50 border-l border-slate-100 text-xs font-mono text-slate-500 select-none whitespace-nowrap">
                     .panthertms.in
-                  </span>
+                  </div>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1 font-mono">
-                  Workspace URL: https://{subdomain || "your-company"}.panthertms.in
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <span>Workspace URL:</span>
+                  <span className="font-mono text-indigo-700 font-semibold truncate">
+                    https://{subdomain || "your-company"}.panthertms.in
+                  </span>
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="Administrator Name"
-                  placeholder="Rahul Verma"
-                  value={adminName}
-                  onChange={(e) => setAdminName(e.target.value)}
-                  required
-                />
-                <Input
-                  label="Administrator Email"
-                  type="email"
-                  placeholder="admin@apexfreight.com"
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  required
-                />
+              {/* Administrator Name & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    Admin full name
+                  </label>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={adminName}
+                      onChange={(e) => setAdminName(e.target.value)}
+                      placeholder="Rahul Verma"
+                      className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    Admin work email
+                  </label>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="admin@apexfreight.com"
+                      className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <Input
-                label="Admin Password (Min 8 Characters)"
-                type="password"
-                placeholder="••••••••••••"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                required
-              />
+              {/* Password */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    Admin password (Min 8 characters)
+                  </label>
+                  <span className="text-[11px] text-slate-400 select-none">
+                    Security compliant
+                  </span>
+                </div>
+                <div className="relative flex items-center">
+                  <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full pl-10 pr-3.5 py-2.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
 
-              <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
+              {/* Tenant Isolation Badge */}
+              <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl text-xs text-slate-600 flex items-center gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
                   Tenant isolation enforced with dedicated PostgreSQL database and automated daily backups.
                 </span>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <Button
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setStep(1)}
                   disabled={isLoading}
-                  className="w-1/3 h-9 text-xs"
+                  className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   Back
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
-                  variant="primary"
                   disabled={isLoading}
-                  className="w-2/3 h-9 text-xs flex items-center justify-center gap-2"
+                  className="w-2/3 h-11 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Initializing...
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                      <span>Initializing...</span>
                     </>
                   ) : selectedPlan === "FREE" ? (
-                    "Complete Free Provisioning"
+                    <>
+                      <span>Complete Free Provisioning</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
                   ) : (
-                    "Proceed to Razorpay Autopay"
+                    <>
+                      <span>Proceed to Razorpay Autopay</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
                   )}
-                </Button>
+                </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* STEP 3: PROVISIONING / SUCCESS (Compact, No-Scroll) */}
+        {/* STEP 3: PROVISIONING / SUCCESS */}
         {step === 3 && (
-          <div className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200/90 p-6 shadow-card text-center space-y-4 my-auto w-full">
+          <div className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center space-y-5 my-auto w-full">
             {!provisionComplete ? (
               <div className="space-y-4 py-2">
-                <div className="relative w-14 h-14 mx-auto">
-                  <div className="absolute inset-0 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
-                  <Database className="w-5 h-5 text-indigo-600 absolute inset-0 m-auto" />
+                <div className="relative w-16 h-16 mx-auto">
+                  <div className="absolute inset-0 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
+                  <Database className="w-6 h-6 text-indigo-600 absolute inset-0 m-auto" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Setting Up Your Workspace</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Setting Up Your Workspace</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Please wait while we initialize your transport ecosystem.</p>
                 </div>
-                <div className="p-2.5 bg-indigo-50 rounded-xl border border-indigo-100 text-xs font-mono text-indigo-700">
+                <div className="p-3 bg-indigo-50/90 rounded-xl border border-indigo-100 text-xs font-mono text-indigo-700 shadow-2xs">
                   {provisioningStatus}
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 py-2">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
-                  <CheckCircle2 className="w-6 h-6" />
+              <div className="space-y-5 py-2">
+                <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-2xs">
+                  <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Workspace Ready!</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <h3 className="text-xl font-bold tracking-tight text-slate-900">Workspace Ready!</h3>
+                  <p className="text-xs text-slate-500 mt-1">
                     Your tenant <span className="font-semibold text-slate-900">{companyName}</span> has been provisioned.
                   </p>
                 </div>
 
-                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5 text-left text-xs">
+                <div className="p-3.5 bg-slate-50/90 border border-slate-200/80 rounded-xl space-y-2 text-left text-xs font-mono">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Tenant Subdomain:</span>
-                    <span className="font-mono font-semibold text-indigo-600">{subdomain}</span>
+                    <span className="text-slate-500 font-sans">Subdomain:</span>
+                    <span className="font-semibold text-indigo-600">{subdomain}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Subscription Plan:</span>
+                    <span className="text-slate-500 font-sans">Plan:</span>
                     <span className="font-semibold text-slate-900">{selectedPlan}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Admin Email:</span>
+                    <span className="text-slate-500 font-sans">Admin Email:</span>
                     <span className="font-semibold text-slate-900">{adminEmail}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Tenant DB:</span>
-                    <span className="font-mono text-emerald-600">panther_tenant_{subdomain}</span>
+                    <span className="text-slate-500 font-sans">Tenant DB:</span>
+                    <span className="text-emerald-600 font-semibold">panther_tenant_{subdomain}</span>
                   </div>
                 </div>
 
-                <Button
+                <button
                   type="button"
-                  variant="primary"
-                  className="w-full h-9 text-xs flex items-center justify-center gap-2"
+                  className="w-full h-11 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
                   onClick={() => router.push(`/login?subdomain=${subdomain}&email=${encodeURIComponent(adminEmail)}`)}
                 >
-                  Launch Workspace Dashboard
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
+                  <span>Launch Workspace Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
@@ -863,7 +936,7 @@ export default function SignupPage() {
       {/* ========================================================================= */}
       {/* ENTERPRISE TRUST FOOTER: Standardized across Signin and Signup            */}
       {/* ========================================================================= */}
-      <footer className="w-full border-t border-slate-200/70 bg-white/50 backdrop-blur-xs py-2 px-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[11px] text-slate-500 z-20 shrink-0">
+      <footer className="w-full border-t border-slate-200/70 bg-white/70 backdrop-blur-xs py-2.5 px-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[11px] text-slate-500 z-20 shrink-0">
         <span className="inline-flex items-center gap-1.5">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
           <span>Tenant-isolated architecture</span>

@@ -59,15 +59,15 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 border-b border-slate-200/80 bg-white/95 backdrop-blur px-5 flex items-center justify-between z-20 shrink-0 select-none">
+    <header className="h-16 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-5 flex items-center justify-between z-20 shrink-0 select-none">
       {/* Left: Organization / Branch Switcher */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition-colors shadow-2xs cursor-pointer">
-          <Building2 className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-xs font-semibold text-slate-800">
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/60 transition-all duration-150 shadow-2xs cursor-pointer group">
+          <Building2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
+          <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors">
             {authData?.companyName}
           </span>
-          <span className="text-xs font-mono font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+          <span className="text-xs font-mono font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200 group-hover:border-slate-300">
             {authData?.subdomain}
           </span>
         </div>
@@ -85,12 +85,12 @@ export function Header() {
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200/80 bg-slate-50 hover:bg-white hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-64 transition-all text-left cursor-pointer group select-none"
+          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200/80 bg-slate-50/80 hover:bg-white hover:border-indigo-300 hover:shadow-xs text-xs text-slate-400 w-64 transition-all text-left cursor-pointer group select-none ring-0 focus:outline-hidden"
           title="Search records (Ctrl + K)"
         >
-          <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-colors" />
-          <span className="flex-1 text-xs text-slate-400 group-hover:text-slate-600">Search commands, LRs...</span>
-          <kbd className="px-1.5 py-0.5 text-xs font-mono bg-white border border-slate-200 rounded text-slate-500 group-hover:border-slate-300 shadow-2xs">
+          <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+          <span className="flex-1 text-xs text-slate-400 group-hover:text-slate-600 transition-colors">Search commands, LRs...</span>
+          <kbd className="px-1.5 py-0.5 text-xs font-mono bg-white border border-slate-200 rounded text-slate-500 group-hover:border-indigo-200 group-hover:text-indigo-600 shadow-2xs transition-colors">
             ⌘K
           </kbd>
         </button>
@@ -99,7 +99,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="md:hidden p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+          className="md:hidden p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
           title="Search records"
           aria-label="Search records"
         >
@@ -124,7 +124,7 @@ export function Header() {
             >
               <div
                 aria-hidden="true"
-                className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 select-none"
+                className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 select-none group-hover:bg-indigo-700 transition-colors"
               >
                 {authData?.userName ? authData.userName[0].toUpperCase() : "A"}
               </div>

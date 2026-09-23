@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, ArrowRight, Truck, CheckCircle2, Send, Navigation, FileText, IndianRupee } from "lucide-react";
+import { Plus, ArrowRight, Truck, CheckCircle2, Send, Navigation, FileText, IndianRupee, Clock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -9,6 +9,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { Form } from "@/components/forms/form";
 import { StatusBadge } from "@/components/ui/badge";
 import { VehiclePlate } from "@/components/ui/vehicle-plate";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
@@ -91,6 +92,14 @@ export default function LRBookingPage() {
     loadData();
   }, []);
 
+  const stats = useMemo(() => {
+    const total = data.length;
+    const inTransit = data.filter((d) => d.status === "IN_TRANSIT").length;
+    const pendingPOD = data.filter((d) => d.status === "ARRIVED" || d.status === "DELIVERED").length;
+    const totalFreight = data.reduce((acc, d) => acc + (parseFloat(String(d.total_freight_amount)) || 0), 0);
+    return { total, inTransit, pendingPOD, totalFreight };
+  }, [data]);
+
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
@@ -105,10 +114,10 @@ export default function LRBookingPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-[#101828] block">
+          <span className="font-mono font-bold text-slate-900 block">
             {row.lr_number}
           </span>
-          <span className="text-[11px] text-[#667085]">
+          <span className="text-[11px] font-mono text-slate-500">
             {formatDate(row.lr_date)} {row.job_number ? `· ${row.job_number}` : ""}
           </span>
         </div>
@@ -119,11 +128,11 @@ export default function LRBookingPage() {
       header: "Consigner → Consignee",
       cell: (row) => (
         <div>
-          <span className="font-semibold text-[#101828] block text-xs">
+          <span className="font-semibold text-slate-900 block text-xs">
             {row.consigner_name || "Direct Client"}
           </span>
-          <span className="text-[11px] text-[#667085] flex items-center gap-1">
-            <span className="text-[#667085]">To:</span> {row.consignee_name || "Direct Receiver"}
+          <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+            <span className="text-slate-400">To:</span> {row.consignee_name || "Direct Receiver"}
           </span>
         </div>
       ),
@@ -135,7 +144,7 @@ export default function LRBookingPage() {
       cell: (row) => (
         <div>
           <VehiclePlate vehicleNumber={row.vehicle_number} source={row.vehicle_source} />
-          <span className="text-[11px] text-[#667085] block mt-1">
+          <span className="text-[11px] text-slate-500 block mt-1 font-medium">
             {row.driver_name ? `${row.driver_name}` : row.vehicle_source}
           </span>
         </div>
@@ -147,10 +156,10 @@ export default function LRBookingPage() {
       isNumeric: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-[#101828] block text-xs">
+          <span className="font-mono font-semibold text-slate-900 block text-xs tabular-nums">
             {formatCurrency(row.total_freight_amount)}
           </span>
-          <span className="text-[11px] font-mono text-[#B54708]">
+          <span className="text-[11px] font-mono text-amber-700 font-medium tabular-nums">
             Bal: {formatCurrency(row.balance_amount)}
           </span>
         </div>
@@ -371,6 +380,34 @@ export default function LRBookingPage() {
           onClick: () => setIsDrawerOpen(true),
         }}
       />
+
+      {/* Operational KPI Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total Consignments"
+          value={stats.total.toLocaleString()}
+          subtext="Official GR/LR receipts"
+          icon={<FileText className="w-4 h-4" />}
+        />
+        <KpiCard
+          title="In Transit Corridors"
+          value={stats.inTransit.toLocaleString()}
+          subtext="Active line-haul dispatch"
+          icon={<Truck className="w-4 h-4 text-blue-600" />}
+        />
+        <KpiCard
+          title="Awaiting POD Clearance"
+          value={stats.pendingPOD.toLocaleString()}
+          subtext="Arrived / Delivered consignments"
+          icon={<Clock className="w-4 h-4 text-amber-600" />}
+        />
+        <KpiCard
+          title="Total Billed Freight"
+          value={formatCurrency(stats.totalFreight)}
+          subtext="Cumulative LR booking value"
+          icon={<IndianRupee className="w-4 h-4 text-emerald-600" />}
+        />
+      </div>
 
       <FilterBar
         searchValue={searchTerm}

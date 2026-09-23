@@ -21,13 +21,11 @@ interface FormProps {
 }
 
 /**
- * Standardized Enterprise Form Component per docs/design.md §5:
- * - Card-sectioned with H2 headers (18px/24px 600) and 1px dividers
- * - Max width constrained to 720px
- * - Label-above inputs with required marker in --danger-600
- * - Inline validation below fields with small alert icon
- * - Disabled-field tooltips explaining exact reason
- * - Sticky action footer with primary --primary-600 + outline Cancel
+ * Standardized Enterprise Form Component:
+ * - Card-sectioned with clear headers and subtle dividers
+ * - Accessible label-above layout with red required indicator
+ * - Focus rings and validation alerts
+ * - Sticky bottom action bar
  */
 export function Form({
   sections,
@@ -90,7 +88,7 @@ export function Form({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("max-w-[720px] space-y-6 mx-auto", className)}>
+    <form onSubmit={handleSubmit} className={cn("max-w-[760px] space-y-6 mx-auto", className)}>
       {sections.map((section, sIndex) => {
         const gridCols = {
           1: "grid-cols-1",
@@ -102,18 +100,18 @@ export function Form({
         return (
           <div
             key={section.id || section.title || sIndex}
-            className="bg-white rounded-card border border-[#E4E7EC] p-5 sm:p-6 space-y-4"
+            className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 space-y-4 shadow-2xs"
           >
-            {/* H2 Section Header per docs/design.md §5 */}
+            {/* Section Header */}
             {(section.title || section.description) && (
-              <div className="border-b border-[#E4E7EC] pb-3">
+              <div className="border-b border-slate-100 pb-3">
                 {section.title && (
-                  <h2 className="text-[18px] leading-[24px] font-semibold text-[#101828]">
+                  <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
                     {section.title}
                   </h2>
                 )}
                 {section.description && (
-                  <p className="text-[13px] leading-[18px] text-[#667085] mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5 leading-normal">
                     {section.description}
                   </p>
                 )}
@@ -137,15 +135,15 @@ export function Form({
                       field.colSpan === 4 ? "col-span-full" : ""
                     )}
                   >
-                    {/* Label Above Input per docs/design.md §5 */}
+                    {/* Label Above Input */}
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor={inputId}
-                        className="block text-xs font-medium text-[#344054]"
+                        className="block text-xs font-semibold text-slate-700 tracking-tight"
                       >
                         {field.label}
                         {field.required && (
-                          <span className="text-[#F04438] ml-0.5 font-bold" title="Required">
+                          <span className="text-rose-500 ml-0.5 font-bold" title="Required">
                             *
                           </span>
                         )}
@@ -154,13 +152,13 @@ export function Form({
                       {/* Tooltip for Disabled Fields or Helpers */}
                       {field.disabled ? (
                         <Tooltip content={field.disabledReason || "This field is locked and cannot be edited in current state"}>
-                          <span className="cursor-help text-[#667085] hover:text-[#101828]">
+                          <span className="cursor-help text-slate-400 hover:text-slate-700">
                             <HelpCircle className="w-3.5 h-3.5" />
                           </span>
                         </Tooltip>
                       ) : field.helperText ? (
                         <Tooltip content={field.helperText}>
-                          <span className="cursor-help text-[#667085] hover:text-[#101828]">
+                          <span className="cursor-help text-slate-400 hover:text-slate-700">
                             <HelpCircle className="w-3.5 h-3.5" />
                           </span>
                         </Tooltip>
@@ -177,11 +175,11 @@ export function Form({
                           onChange={(e) => handleChange(field.name, e.target.value)}
                           onBlur={() => handleBlur(field)}
                           className={cn(
-                            "w-full h-9 px-3 text-xs rounded-control border bg-white text-[#101828] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors",
+                            "w-full h-10 px-3 text-xs sm:text-sm font-medium rounded-xl border bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs",
                             field.disabled
-                              ? "bg-[#F1F3F6] text-[#667085] cursor-not-allowed border-[#E4E7EC]"
-                              : "border-[#E4E7EC]",
-                            fieldError && "border-[#F04438] focus:ring-[#F04438]"
+                              ? "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200"
+                              : "border-slate-200",
+                            fieldError && "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
                           )}
                         >
                           <option value="">{field.placeholder || `Select ${field.label}`}</option>
@@ -202,15 +200,15 @@ export function Form({
                         onChange={(e) => handleChange(field.name, e.target.value)}
                         onBlur={() => handleBlur(field)}
                         className={cn(
-                          "w-full px-3 py-2 text-xs rounded-control border bg-white text-[#101828] placeholder:text-[#667085] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors resize-y",
+                          "w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all resize-y shadow-2xs",
                           field.disabled
-                            ? "bg-[#F1F3F6] text-[#667085] cursor-not-allowed border-[#E4E7EC]"
-                            : "border-[#E4E7EC]",
-                          fieldError && "border-[#F04438] focus:ring-[#F04438]"
+                            ? "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200"
+                            : "border-slate-200",
+                          fieldError && "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
                         )}
                       />
                     ) : field.type === "checkbox" ? (
-                      <div className="flex items-center gap-2 pt-1">
+                      <div className="flex items-center gap-2 pt-1.5">
                         <input
                           id={inputId}
                           type="checkbox"
@@ -218,9 +216,9 @@ export function Form({
                           disabled={field.disabled || loading}
                           onChange={(e) => handleChange(field.name, e.target.checked)}
                           onBlur={() => handleBlur(field)}
-                          className="w-4 h-4 rounded border-[#D0D5DD] text-[#4F46E5] focus:ring-[#4F46E5] cursor-pointer"
+                          className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                         />
-                        <span className="text-xs text-[#344054]">{field.placeholder || "Enable"}</span>
+                        <span className="text-xs font-medium text-slate-700">{field.placeholder || "Enable"}</span>
                       </div>
                     ) : (
                       <input
@@ -232,18 +230,18 @@ export function Form({
                         onChange={(e) => handleChange(field.name, e.target.value)}
                         onBlur={() => handleBlur(field)}
                         className={cn(
-                          "w-full h-9 px-3 text-xs rounded-control border bg-white text-[#101828] placeholder:text-[#667085] focus:outline-none focus:ring-1 focus:ring-[#4F46E5] focus:border-[#4F46E5] transition-colors",
+                          "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs",
                           field.disabled
-                            ? "bg-[#F1F3F6] text-[#667085] cursor-not-allowed border-[#E4E7EC]"
-                            : "border-[#E4E7EC]",
-                          fieldError && "border-[#F04438] focus:ring-[#F04438]"
+                            ? "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200"
+                            : "border-slate-200",
+                          fieldError && "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
                         )}
                       />
                     )}
 
-                    {/* Inline Validation Error below field per docs/design.md §5 */}
+                    {/* Inline Validation Error */}
                     {fieldError && (
-                      <p className="flex items-center gap-1 text-xs text-[#F04438] font-medium pt-0.5 animate-in fade-in">
+                      <p className="flex items-center gap-1.5 text-xs text-rose-600 font-medium pt-0.5 animate-in fade-in">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>{fieldError}</span>
                       </p>
@@ -256,20 +254,21 @@ export function Form({
         );
       })}
 
-      {/* Sticky Action Footer per docs/design.md §5 */}
+      {/* Sticky Action Footer */}
       <div
         className={cn(
-          "bg-white border border-[#E4E7EC] rounded-card p-4 flex items-center justify-end gap-3",
-          stickyFooter ? "sticky bottom-4 z-20 shadow-floating" : ""
+          "bg-white border border-slate-200/90 rounded-2xl p-4 flex items-center justify-end gap-3",
+          stickyFooter ? "sticky bottom-4 z-20 shadow-lg shadow-slate-900/5 backdrop-blur-md bg-white/95" : ""
         )}
       >
         {onCancel && (
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             size="md"
             onClick={onCancel}
             disabled={loading}
+            className="rounded-xl h-10 px-4 text-xs font-semibold"
           >
             {cancelLabel}
           </Button>
@@ -279,6 +278,7 @@ export function Form({
           variant="primary"
           size="md"
           isLoading={loading}
+          className="rounded-xl h-10 px-5 text-xs font-semibold shadow-xs"
         >
           {submitLabel}
         </Button>
