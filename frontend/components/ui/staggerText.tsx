@@ -15,10 +15,11 @@ const container = (stagger: number, delay: number) => ({
 });
 
 const item = {
-  hidden: { y: "110%" },
+  hidden: { opacity: 0, y: 8 },
   show: {
-    y: "0%",
-    transition: { duration: 0.6, ease: EASE },
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: EASE },
   },
 };
 
@@ -40,10 +41,10 @@ const TextAnimation = ({
     }
   }
 
-  const text = children as string;
+  const text = (children as string).trim().replace(/\s+/g, " ");
   const parts =
     divideBy === "letter" ? text.split("") : text.split(" ");
-  const stagger = divideBy === "letter" ? 0.02 : 0.05;
+  const stagger = divideBy === "letter" ? 0.02 : 0.04;
 
   return (
     <motion.span
@@ -51,12 +52,12 @@ const TextAnimation = ({
       initial="hidden"
       whileInView="show"
       viewport={{ once: true }}
-      style={{ display: "inline-block" }}
+      className="inline-block"
     >
       {parts.map((part, i) => (
         <span
           key={i}
-          className="inline-block overflow-hidden relative"
+          className="inline-block relative"
           style={{ verticalAlign: "top" }}
         >
           <motion.span

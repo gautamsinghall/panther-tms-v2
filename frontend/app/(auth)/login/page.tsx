@@ -22,7 +22,6 @@ import {
   Cpu,
 } from "lucide-react";
 import { login } from "@/lib/auth";
-import TextAnimation from "@/components/ui/staggerText";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
 import { PerspectiveGrid } from "@/components/ui/perspective-grid";
@@ -115,8 +114,8 @@ export default function LoginPage() {
       {/* ========================================================================= */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative z-10 overflow-y-auto lg:overflow-hidden">
         {/* LEFT COLUMN: Logistics Telemetry & Operating System Platform              */}
-        <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col justify-center gap-6 xl:gap-8 p-8 xl:p-12 border-r border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white/80 to-indigo-50/30">
-          <div>
+        <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col justify-center gap-6 xl:gap-8 p-8 xl:p-12 border-r border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white/80 to-indigo-50/30 overflow-y-auto">
+          <div className="shrink-0 space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50/90 border border-indigo-100 text-indigo-700 text-xs font-semibold shadow-2xs">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
@@ -125,12 +124,10 @@ export default function LoginPage() {
               <span>Next-Gen Autonomous Freight Core</span>
             </div>
 
-            <h1 className="mt-4 text-3xl xl:text-4xl font-bold tracking-tight text-slate-900 leading-[1.15]">
-              <TextAnimation divideBy="word" delay={0.08}>
-                The operating system for modern logistics.
-              </TextAnimation>
+            <h1 className="text-3xl xl:text-4xl font-bold tracking-tight text-slate-900 leading-[1.2] pb-0.5">
+              The operating system for modern logistics.
             </h1>
-            <p className="mt-2 text-sm xl:text-base text-slate-600 leading-relaxed max-w-lg">
+            <p className="text-sm xl:text-base text-slate-600 leading-relaxed max-w-lg">
               Manage dispatch, tracking, billing and compliance from one intelligent logistics workspace built for real-world enterprise freight operations.
             </p>
           </div>

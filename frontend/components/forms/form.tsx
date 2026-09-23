@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FormSectionDef, FormFieldDef } from "@/types/form";
 import { AlertCircle, HelpCircle } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface FormProps {
   sections: FormSectionDef[];
@@ -167,29 +168,18 @@ export function Form({
 
                     {/* Inputs */}
                     {field.type === "select" ? (
-                      <div className="relative">
-                        <select
-                          id={inputId}
-                          value={val}
-                          disabled={field.disabled || loading}
-                          onChange={(e) => handleChange(field.name, e.target.value)}
-                          onBlur={() => handleBlur(field)}
-                          className={cn(
-                            "w-full h-10 px-3 text-xs sm:text-sm font-medium rounded-xl border bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs",
-                            field.disabled
-                              ? "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200"
-                              : "border-slate-200",
-                            fieldError && "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
-                          )}
-                        >
-                          <option value="">{field.placeholder || `Select ${field.label}`}</option>
-                          {field.options?.map((opt) => (
-                            <option key={String(opt.value)} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <SearchableSelect
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        options={field.options || []}
+                        placeholder={field.placeholder || `Select ${field.label}`}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={field.required}
+                        onChange={(selectedVal) => handleChange(field.name, selectedVal)}
+                        onBlur={() => handleBlur(field)}
+                      />
                     ) : field.type === "textarea" ? (
                       <textarea
                         id={inputId}

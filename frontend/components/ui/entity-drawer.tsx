@@ -74,13 +74,13 @@ export function EntityDrawer({
           )}
         >
           {/* Header */}
-          <div className="px-6 py-4.5 border-b border-slate-100 flex items-start justify-between bg-white shrink-0">
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">
+          <div className="px-6 pt-7 pb-5 sm:px-8 sm:pt-8 sm:pb-6 border-b border-slate-200/80 flex items-start justify-between bg-white shrink-0">
+            <div className="space-y-1 pr-4">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
                 {title}
               </h2>
               {(description || subtitle) && (
-                <p className="text-xs text-slate-500 mt-0.5 leading-normal">
+                <p className="text-xs sm:text-sm text-slate-500 leading-normal">
                   {description || subtitle}
                 </p>
               )}
@@ -88,7 +88,7 @@ export function EntityDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="p-2 -mr-1.5 -mt-1 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
               aria-label="Close drawer"
             >
               <X className="w-5 h-5" />
