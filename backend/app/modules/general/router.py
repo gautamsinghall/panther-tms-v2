@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, check_entitlement_limit
 from app.control.models import Tenant
