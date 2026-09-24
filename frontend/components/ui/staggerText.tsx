@@ -1,27 +1,5 @@
 'use client'
-import React from "react";
-import { motion } from 'framer-motion'
-
-const EASE = [0.22, 1, 0.36, 1] as const;
-
-const container = (stagger: number, delay: number) => ({
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: stagger,
-      delayChildren: delay,
-    },
-  },
-});
-
-const item = {
-  hidden: { opacity: 0, y: 8 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.45, ease: EASE },
-  },
-};
+import React, { useEffect, useState } from "react";
 
 const TextAnimation = ({
   children,
@@ -32,47 +10,45 @@ const TextAnimation = ({
   delay?: number;
   divideBy?: "word" | "letter";
 }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   if (typeof children !== "string") {
     if (typeof children === "number" || typeof children === "boolean") {
       children = String(children);
     } else {
-      console.warn("TextAnimation only supports plain text/string children.");
       return <>{children}</>;
     }
   }
 
   const text = (children as string).trim().replace(/\s+/g, " ");
-  const parts =
-    divideBy === "letter" ? text.split("") : text.split(" ");
-  const stagger = divideBy === "letter" ? 0.02 : 0.04;
+  const parts = divideBy === "letter" ? text.split("") : text.split(" ");
+  const staggerStep = divideBy === "letter" ? 0.02 : 0.04;
 
   return (
-    <motion.span
-      variants={container(stagger, delay)}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true }}
-      className="inline-block"
-    >
+    <span className="inline-block">
       {parts.map((part, i) => (
         <span
           key={i}
-          className="inline-block relative"
-          style={{ verticalAlign: "top" }}
+          className="inline-block transition-all duration-500 ease-out"
+          style={{
+            opacity: mounted ? 1 : 0,
+            transform: mounted ? "translateY(0)" : "translateY(6px)",
+            transitionDelay: `${delay + i * staggerStep}s`,
+            verticalAlign: "top",
+          }}
         >
-          <motion.span
-            variants={item}
-            className="inline-block will-change-transform"
-          >
-            {divideBy === "letter"
-              ? part === " "
-                ? "\u00A0"
-                : part
-              : part + "\u00A0"}
-          </motion.span>
+          {divideBy === "letter"
+            ? part === " "
+              ? "\u00A0"
+              : part
+            : part + "\u00A0"}
         </span>
       ))}
-    </motion.span>
+    </span>
   );
 };
 
