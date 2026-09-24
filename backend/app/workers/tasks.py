@@ -20,7 +20,7 @@ def json_serial(obj):
     raise TypeError(f"Type {type(obj)} not serializable")
 
 async def get_redis_client() -> aioredis.Redis:
-    return aioredis.from_url(f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}", decode_responses=True)
+    return aioredis.from_url(settings.redis_connection_url, decode_responses=True)
 
 async def process_async_job(ctx: Dict[str, Any], tenant_subdomain: str, job_type: str, payload: Dict[str, Any]):
     """

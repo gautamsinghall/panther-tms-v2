@@ -47,14 +47,15 @@ services:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - CONTROL_DB_NAME=${CONTROL_DB_NAME:-panther_control}
+      - CONTROL_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-panther}:${POSTGRES_PASSWORD:-panther_secret}@postgres:5432/${CONTROL_DB_NAME:-panther_control}
+      - CONTROL_DATABASE_SYNC_URL=postgresql://${POSTGRES_USER:-panther}:${POSTGRES_PASSWORD:-panther_secret}@postgres:5432/${CONTROL_DB_NAME:-panther_control}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-panther-tms-super-secret-key-change-in-production-min-32-chars}
-      - BASE_DOMAIN=${BASE_DOMAIN:-localhost}
+      - BASE_DOMAIN=${BASE_DOMAIN:-panthertms.com}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
-    volumes:
-      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy

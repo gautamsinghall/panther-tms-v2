@@ -59,14 +59,26 @@ class Settings(BaseSettings):
     @computed_field
     def control_db_async_url(self) -> str:
         if self.CONTROL_DATABASE_URL:
+            if self.POSTGRES_HOST != "localhost" and ("@localhost" in self.CONTROL_DATABASE_URL or "@127.0.0.1" in self.CONTROL_DATABASE_URL):
+                return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.CONTROL_DB_NAME}"
             return self.CONTROL_DATABASE_URL
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.CONTROL_DB_NAME}"
 
     @computed_field
     def control_db_sync_url(self) -> str:
         if self.CONTROL_DATABASE_SYNC_URL:
+            if self.POSTGRES_HOST != "localhost" and ("@localhost" in self.CONTROL_DATABASE_SYNC_URL or "@127.0.0.1" in self.CONTROL_DATABASE_SYNC_URL):
+                return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.CONTROL_DB_NAME}"
             return self.CONTROL_DATABASE_SYNC_URL
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.CONTROL_DB_NAME}"
+
+    @computed_field
+    def redis_connection_url(self) -> str:
+        if self.REDIS_URL:
+            if self.REDIS_HOST != "localhost" and ("@localhost" in self.REDIS_URL or "//localhost" in self.REDIS_URL or "//127.0.0.1" in self.REDIS_URL):
+                return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+            return self.REDIS_URL
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
 
     def get_tenant_db_async_url(self, db_name: str) -> str:
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{db_name}"

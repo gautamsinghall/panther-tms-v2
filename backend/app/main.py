@@ -26,23 +26,41 @@ from app.modules.profile.router import router as profile_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Ensure control-plane tables exist and plans are seeded
-    async with control_engine.begin() as conn:
-        await conn.run_sync(ControlBase.metadata.create_all)
-        from sqlalchemy import text
-        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(100);"))
-        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';"))
-        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;"))
-        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
-        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
-        await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
+    try:
+        async with control_engine.begin() as conn:
+            await conn.run_sync(ControlBase.metadata.create_all)
+            from sqlalchemy import text
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';"))
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;"))
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
 
-    async with ControlSessionLocal() as session:
-        await seed_plans_and_entitlements(session)
-        # Ensure tenant tables have country column
-        try:
+        async with ControlSessionLocal() as session:
+            await seed_plans_and_entitlements(session)
+
+            # Check and auto-provision demo tenant if missing
             from sqlalchemy import select, text
             from app.control.models import Tenant
+            from app.control.schemas import TenantProvisionRequest
+            from app.control.service import provision_tenant
             from app.core.database import get_tenant_engine
+
+            stmt = select(Tenant).where(Tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN)
+            res = await session.execute(stmt)
+            if not res.scalar_one_or_none():
+                req = TenantProvisionRequest(
+                    subdomain=settings.DEMO_TENANT_SUBDOMAIN,
+                    company_name=settings.DEMO_TENANT_NAME,
+                    admin_email=settings.DEMO_ADMIN_EMAIL,
+                    admin_password=settings.DEMO_ADMIN_PASSWORD,
+                    admin_full_name="Operations Manager",
+                    plan_code="PRO",
+                )
+                await provision_tenant(req, session)
+
+            # Ensure tenant tables have country column and extra settings
             res = await session.execute(select(Tenant.db_name))
             tenant_dbs = list(res.scalars().all())
             demo_db = f"panther_tenant_{settings.DEMO_TENANT_SUBDOMAIN}"
@@ -56,15 +74,18 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         for cs_col in ["city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "logo_url VARCHAR(500)"]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as t_err:
+                    print(f"Notice: Tenant {t_db} setup: {t_err}")
+    except Exception as e:
+        print(f"Startup initialization notice: {e}")
 
     yield
 
     # Shutdown: Close all database engines cleanly
-    await close_all_connections()
+    try:
+        await close_all_connections()
+    except Exception:
+        pass
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -79,10 +100,21 @@ register_error_handlers(app)
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://.*",
+    allow_origin_regex=r"^https?://.*",
+    allow_origins=[
+        "https://bharat.panthertms.com",
+        "http://bharat.panthertms.com",
+        "https://api.panthertms.com",
+        "https://panthertms.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Base health & info
