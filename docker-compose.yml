@@ -3,6 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: panther-postgres
     restart: unless-stopped
+    command: postgres -c shared_buffers=128MB -c work_mem=4MB -c maintenance_work_mem=32MB -c effective_cache_size=256MB -c max_connections=50
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-panther}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panther_secret}
@@ -23,6 +24,7 @@ services:
     image: redis:7-alpine
     container_name: panther-redis
     restart: unless-stopped
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save ""
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
