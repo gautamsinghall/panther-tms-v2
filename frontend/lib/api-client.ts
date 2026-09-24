@@ -4,14 +4,44 @@ interface ApiClientOptions extends RequestInit {
   subdomain?: string;
 }
 
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  // If in browser on panthertms.com or subdomains
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.endsWith("panthertms.com")) {
+      return "https://api.panthertms.com";
+    }
+  }
+
+  // If envUrl is set and is NOT a template placeholder
+  if (envUrl && !envUrl.includes("yourdomain.com") && !envUrl.includes("example.com")) {
+    return envUrl;
+  }
+
+  // Fallback for browser on other domains
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:8000";
+    }
+    const parts = host.split(".");
+    if (parts.length >= 2) {
+      const root = parts.slice(-2).join(".");
+      return `${protocol}//api.${root}`;
+    }
+  }
+
+  return "http://localhost:8000";
+}
+
 export async function apiClient<T = any>(
   endpoint: string,
   options: ApiClientOptions = {}
 ): Promise<T> {
-  const backendBaseUrl =
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://localhost:8000";
+  const backendBaseUrl = getApiBaseUrl();
   const url = endpoint.startsWith("http") ? endpoint : `${backendBaseUrl}${endpoint}`;
 
   const storedAuth = getStoredAuth();

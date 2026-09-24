@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/panther-logo-transparent.png" type="image/png" />
         <link rel="shortcut icon" href="/panther-logo-transparent.png" type="image/png" />
@@ -32,7 +32,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="h-full bg-[var(--color-bg)] text-slate-900 antialiased font-sans">
+      <body className="h-full bg-[var(--color-bg)] text-slate-900 antialiased font-sans" suppressHydrationWarning>
         {children}
       </body>
     </html>

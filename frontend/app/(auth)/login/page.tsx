@@ -36,6 +36,25 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isDemoExpanded, setIsDemoExpanded] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [rootDomainSuffix, setRootDomainSuffix] = useState(".panthertms.com");
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      if (host.includes("panthertms.com")) {
+        setRootDomainSuffix(".panthertms.com");
+      } else if (host === "localhost" || host === "127.0.0.1") {
+        setRootDomainSuffix(".panthertms.local");
+      } else {
+        const parts = host.split(".");
+        if (parts.length > 2) {
+          setRootDomainSuffix(`.${parts.slice(-2).join(".")}`);
+        } else {
+          setRootDomainSuffix(`.${host}`);
+        }
+      }
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -269,13 +288,13 @@ export default function LoginPage() {
                       className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
                     />
                     <div className="px-3 py-2.5 bg-slate-50 border-l border-slate-100 text-xs font-mono text-slate-500 select-none whitespace-nowrap">
-                      .panthertms.local
+                      {rootDomainSuffix}
                     </div>
                   </div>
                   <p className="text-xs text-slate-500 flex items-center gap-1">
                     <span>Resolved host:</span>
                     <span className="font-mono text-indigo-700 font-semibold truncate">
-                      {subdomain || "your-workspace"}.panthertms.local
+                      {subdomain || "your-workspace"}{rootDomainSuffix}
                     </span>
                   </p>
                 </div>
@@ -410,7 +429,7 @@ export default function LoginPage() {
                             Workspace
                           </span>
                           <span className="text-slate-800 font-medium truncate">
-                            demo.panthertms.local
+                            demo{rootDomainSuffix}
                           </span>
                         </div>
                         <button

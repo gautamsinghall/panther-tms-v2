@@ -48,10 +48,13 @@ export function clearStoredAuth(): void {
 }
 
 export async function login(email: string, password: string, subdomain: string): Promise<StoredAuth> {
-  const backendBaseUrl =
-    process.env.NEXT_PUBLIC_API_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://localhost:8000";
+  // Determine API base URL dynamically
+  let backendBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (typeof window !== "undefined" && window.location.hostname.endsWith("panthertms.com")) {
+    backendBaseUrl = "https://api.panthertms.com";
+  } else if (!backendBaseUrl || backendBaseUrl.includes("yourdomain.com") || backendBaseUrl.includes("example.com")) {
+    backendBaseUrl = "http://localhost:8000";
+  }
   const endpoint = `${backendBaseUrl}/api/v1/auth/login`;
 
   const res = await fetch(endpoint, {
