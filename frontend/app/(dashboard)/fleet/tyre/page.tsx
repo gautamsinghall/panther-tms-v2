@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -245,19 +246,22 @@ export default function TyreManagementPage() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Axle Position</label>
-                  <select
-                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                  <SearchableSelect
+                    size="sm"
                     value={formData.axle_position}
-                    onChange={(e) => setFormData({ ...formData, axle_position: e.target.value })}
-                  >
-                    <option value="Front Right (FR)">Front Right (FR)</option>
-                    <option value="Front Left (FL)">Front Left (FL)</option>
-                    <option value="Rear Axle 1 Inner (R1I)">Rear Axle 1 Inner (R1I)</option>
-                    <option value="Rear Axle 1 Outer (R1O)">Rear Axle 1 Outer (R1O)</option>
-                    <option value="Rear Axle 2 Inner (R2I)">Rear Axle 2 Inner (R2I)</option>
-                    <option value="Rear Axle 2 Outer (R2O)">Rear Axle 2 Outer (R2O)</option>
-                    <option value="Spare">Spare</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, axle_position: String(val) })}
+                    options={[
+                      { value: "Front Right (FR)", label: "Front Right (FR)" },
+                      { value: "Front Left (FL)", label: "Front Left (FL)" },
+                      { value: "Rear Axle 1 Inner (R1I)", label: "Rear Axle 1 Inner (R1I)" },
+                      { value: "Rear Axle 1 Outer (R1O)", label: "Rear Axle 1 Outer (R1O)" },
+                      { value: "Rear Axle 2 Inner (R2I)", label: "Rear Axle 2 Inner (R2I)" },
+                      { value: "Rear Axle 2 Outer (R2O)", label: "Rear Axle 2 Outer (R2O)" },
+                      { value: "Spare", label: "Spare" },
+                    ]}
+                    placeholder="Select axle position..."
+                    searchPlaceholder="Search position..."
+                  />
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, ArrowRight, Truck, CheckCircle2, Send, Navigation, FileText, IndianRupee, Clock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -15,6 +15,11 @@ import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import {
+  QuickCreateConsignerModal,
+  QuickCreateConsigneeModal,
+  QuickCreateLocationModal,
+} from "@/components/modals/quick-create-modal";
 
 interface LRRecord {
   id: number;
@@ -62,6 +67,13 @@ export default function LRBookingPage() {
   // Drawer / Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
+  const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
+
+  // Quick Create Modals state
+  const [quickConsignerOpen, setQuickConsignerOpen] = useState(false);
+  const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
+  const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -212,6 +224,26 @@ export default function LRBookingPage() {
     },
   ];
 
+  const handleConsignerCreated = (newConsigner: { id: number; name: string }) => {
+    setConsigners((prev) => [{ id: newConsigner.id, name: newConsigner.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, consigner_id: String(newConsigner.id) }));
+    formSetFieldValueRef.current?.("consigner_id", String(newConsigner.id));
+  };
+
+  const handleConsigneeCreated = (newConsignee: { id: number; name: string }) => {
+    setConsignees((prev) => [{ id: newConsignee.id, name: newConsignee.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, consignee_id: String(newConsignee.id) }));
+    formSetFieldValueRef.current?.("consignee_id", String(newConsignee.id));
+  };
+
+  const handleLocationCreated = (newLoc: { id: number; city_name: string }) => {
+    setLocations((prev) => [{ id: newLoc.id, city_name: newLoc.city_name }, ...prev]);
+    const field = quickLocationTarget === "origin" ? "origin_location_id" : "destination_location_id";
+    setFormInitialValues((prev) => ({ ...prev, [field]: String(newLoc.id) }));
+    formSetFieldValueRef.current?.(field, String(newLoc.id));
+    setQuickLocationTarget(null);
+  };
+
   const consignerOptions = consigners.map((c) => ({ label: c.name || `Customer ${c.id}`, value: String(c.id) }));
   const consigneeOptions = consignees.map((c) => ({ label: c.name || `Consignee ${c.id}`, value: String(c.id) }));
   const locationOptions = locations.map((l) => ({ label: l.city_name || `Location ${l.id}`, value: String(l.id) }));
@@ -232,6 +264,9 @@ export default function LRBookingPage() {
           label: "Linked Trip / Job Order",
           type: "select",
           options: jobOptions,
+          onAddNew: () => router.push("/transport/jobs"),
+          addNewLabel: "+ Create New Trip Order",
+          addNewTitle: "Go to Trips & Job Orders to create a new trip",
         },
         {
           name: "lr_date",
@@ -245,6 +280,9 @@ export default function LRBookingPage() {
           type: "select",
           required: true,
           options: consignerOptions,
+          onAddNew: () => setQuickConsignerOpen(true),
+          addNewLabel: "+ Add New Consigner",
+          addNewTitle: "Quickly create customer / consigner",
         },
         {
           name: "consignee_id",
@@ -252,6 +290,9 @@ export default function LRBookingPage() {
           type: "select",
           required: true,
           options: consigneeOptions,
+          onAddNew: () => setQuickConsigneeOpen(true),
+          addNewLabel: "+ Add New Consignee",
+          addNewTitle: "Quickly create consignee",
         },
         {
           name: "origin_location_id",
@@ -259,6 +300,9 @@ export default function LRBookingPage() {
           type: "select",
           required: true,
           options: locationOptions,
+          onAddNew: () => setQuickLocationTarget("origin"),
+          addNewLabel: "+ Add New Origin Hub",
+          addNewTitle: "Quickly create origin city / hub",
         },
         {
           name: "destination_location_id",
@@ -266,6 +310,9 @@ export default function LRBookingPage() {
           type: "select",
           required: true,
           options: locationOptions,
+          onAddNew: () => setQuickLocationTarget("destination"),
+          addNewLabel: "+ Add New Destination Hub",
+          addNewTitle: "Quickly create destination city / hub",
         },
       ],
     },
@@ -377,7 +424,10 @@ export default function LRBookingPage() {
         primaryAction={{
           label: "New LR Booking",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setFormInitialValues({ lr_date: new Date().toISOString().split("T")[0] });
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -449,7 +499,10 @@ export default function LRBookingPage() {
         emptySubtext="Create an LR booking from a confirmed transport trip or book directly to generate consignment notes."
         emptyAction={{
           label: "+ New LR Booking",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setFormInitialValues({ lr_date: new Date().toISOString().split("T")[0] });
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -462,12 +515,32 @@ export default function LRBookingPage() {
       >
         <Form
           sections={formSections}
+          initialValues={formInitialValues}
+          setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
           submitLabel="Create Lorry Receipt"
           isLoading={isSubmitting}
         />
       </EntityDrawer>
+
+      {/* Quick Creation Modals */}
+      <QuickCreateConsignerModal
+        isOpen={quickConsignerOpen}
+        onClose={() => setQuickConsignerOpen(false)}
+        onSuccess={handleConsignerCreated}
+      />
+      <QuickCreateConsigneeModal
+        isOpen={quickConsigneeOpen}
+        onClose={() => setQuickConsigneeOpen(false)}
+        onSuccess={handleConsigneeCreated}
+      />
+      <QuickCreateLocationModal
+        isOpen={quickLocationTarget !== null}
+        onClose={() => setQuickLocationTarget(null)}
+        onSuccess={handleLocationCreated}
+        defaultTitle={quickLocationTarget === "origin" ? "Quick Add Origin Hub / City" : "Quick Add Destination Hub / City"}
+      />
     </div>
   );
 }

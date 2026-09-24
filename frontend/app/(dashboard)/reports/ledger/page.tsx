@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef } from "@/types/table";
 import { Card } from "@/components/ui/card";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 
@@ -227,17 +228,20 @@ export default function LedgerReportPage() {
           <label className="text-xs font-bold text-[#344054] uppercase tracking-wider">
             Select Account Head:
           </label>
-          <select
-            value={selectedAccountId || ""}
-            onChange={(e) => setSelectedAccountId(Number(e.target.value))}
-            className="text-xs font-semibold px-3 py-2 rounded-lg border border-[#D0D5DD] bg-white text-[#172033] focus:outline-none focus:ring-2 focus:ring-[#172033]"
-          >
-            {accounts.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                {acc.code} — {acc.name}
-              </option>
-            ))}
-          </select>
+          <div className="min-w-[280px]">
+            <SearchableSelect
+              size="sm"
+              value={selectedAccountId || ""}
+              onChange={(val) => setSelectedAccountId(val ? Number(val) : 0)}
+              options={accounts.map((acc) => ({
+                value: acc.id,
+                label: `${acc.code} — ${acc.name}`,
+              }))}
+              placeholder="Select Account Head..."
+              searchPlaceholder="Search account name or code..."
+              required
+            />
+          </div>
         </div>
 
         {ledgerData && (

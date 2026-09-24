@@ -8,6 +8,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -300,15 +301,18 @@ export default function ContraVoucherPage() {
             <label className="block text-xs font-semibold text-text-primary mb-1">
               Transfer Type *
             </label>
-            <select
+            <SearchableSelect
               value={contraType}
-              onChange={(e) => setContraType(e.target.value as any)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="DEPOSIT">Cash Deposit (Cash in Hand → Bank Account)</option>
-              <option value="WITHDRAWAL">Cash Withdrawal (Bank Account → Cash in Hand)</option>
-              <option value="INTERBANK">Inter-Bank Transfer (Bank A → Bank B)</option>
-            </select>
+              onChange={(val) => setContraType(val as any)}
+              options={[
+                { value: "DEPOSIT", label: "Cash Deposit (Cash in Hand → Bank Account)" },
+                { value: "WITHDRAWAL", label: "Cash Withdrawal (Bank Account → Cash in Hand)" },
+                { value: "INTERBANK", label: "Inter-Bank Transfer (Bank A → Bank B)" },
+              ]}
+              placeholder="Select transfer type..."
+              searchPlaceholder="Search transfer mode..."
+              required
+            />
           </div>
 
           <div>

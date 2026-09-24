@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -12,6 +12,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { QuickCreateVehicleOwnerModal } from "@/components/modals/quick-create-modal";
 
 interface HireChallanRecord {
   id: number;
@@ -46,6 +47,11 @@ export default function HireChallansPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
+  const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
+
+  // Quick Create Modal State
+  const [quickOwnerOpen, setQuickOwnerOpen] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -159,6 +165,12 @@ export default function HireChallansPage() {
     },
   ];
 
+  const handleOwnerCreated = (newOwner: { id: number; name: string }) => {
+    setOwners((prev) => [{ id: newOwner.id, name: newOwner.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, owner_id: String(newOwner.id) }));
+    formSetFieldValueRef.current?.("owner_id", String(newOwner.id));
+  };
+
   const ownerOptions = [
     { label: "Direct Driver / Other", value: "" },
     ...owners.map((o) => ({ label: o.name || `Owner ${o.id}`, value: String(o.id) })),
@@ -189,6 +201,9 @@ export default function HireChallansPage() {
           label: "Vehicle Owner / Broker",
           type: "select",
           options: ownerOptions,
+          onAddNew: () => setQuickOwnerOpen(true),
+          addNewLabel: "+ Add New Vehicle Owner",
+          addNewTitle: "Quickly create and register vehicle owner / broker",
         },
         {
           name: "driver_name",
@@ -334,12 +349,21 @@ export default function HireChallansPage() {
       >
         <Form
           sections={formSections}
+          initialValues={formInitialValues}
+          setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
           submitLabel="Issue Challan"
           isLoading={isSubmitting}
         />
       </EntityDrawer>
+
+      {/* Quick Creation Modal */}
+      <QuickCreateVehicleOwnerModal
+        isOpen={quickOwnerOpen}
+        onClose={() => setQuickOwnerOpen(false)}
+        onSuccess={handleOwnerCreated}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef } from "@/types/table";
 import { Card } from "@/components/ui/card";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCurrency } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 
@@ -171,16 +172,22 @@ export default function TDSReturnPage() {
           <label className="text-xs font-bold text-[#344054] uppercase tracking-wider">
             Quarter (Form 26Q):
           </label>
-          <select
-            value={quarter}
-            onChange={(e) => setQuarter(e.target.value)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#D0D5DD] bg-white text-[#172033]"
-          >
-            <option value="Q1">Q1 (Apr - Jun)</option>
-            <option value="Q2">Q2 (Jul - Sep)</option>
-            <option value="Q3">Q3 (Oct - Dec)</option>
-            <option value="Q4">Q4 (Jan - Mar)</option>
-          </select>
+          <div className="min-w-[180px]">
+            <SearchableSelect
+              size="sm"
+              value={quarter}
+              onChange={(val) => setQuarter(String(val))}
+              options={[
+                { value: "Q1", label: "Q1 (Apr - Jun)" },
+                { value: "Q2", label: "Q2 (Jul - Sep)" },
+                { value: "Q3", label: "Q3 (Oct - Dec)" },
+                { value: "Q4", label: "Q4 (Jan - Mar)" },
+              ]}
+              placeholder="Select Quarter..."
+              searchPlaceholder="Search quarter..."
+              required
+            />
+          </div>
         </div>
 
         {data && (

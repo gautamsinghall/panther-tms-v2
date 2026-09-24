@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -237,20 +238,22 @@ export default function TripExpenseRegisterPage() {
 
         <div className="w-44">
           <label className="text-[11px] font-semibold text-[#667085] uppercase block mb-1">Category</label>
-          <select
-            className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+          <SearchableSelect
+            size="sm"
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="">All Categories</option>
-            <option value="DIESEL">DIESEL</option>
-            <option value="TOLL">TOLL / FASTAG</option>
-            <option value="MAINTENANCE">MAINTENANCE</option>
-            <option value="DRIVER_ALLOWANCE">DRIVER ALLOWANCE</option>
-            <option value="POLICE_RTO">POLICE / RTO</option>
-            <option value="LOADING_UNLOADING">LOADING / UNLOADING</option>
-            <option value="MISC">MISCELLANEOUS</option>
-          </select>
+            onChange={(val) => setCategoryFilter(String(val))}
+            options={[
+              { value: "DIESEL", label: "DIESEL" },
+              { value: "TOLL", label: "TOLL / FASTAG" },
+              { value: "MAINTENANCE", label: "MAINTENANCE" },
+              { value: "DRIVER_ALLOWANCE", label: "DRIVER ALLOWANCE" },
+              { value: "POLICE_RTO", label: "POLICE / RTO" },
+              { value: "LOADING_UNLOADING", label: "LOADING / UNLOADING" },
+              { value: "MISC", label: "MISCELLANEOUS" },
+            ]}
+            placeholder="All Categories"
+            searchPlaceholder="Search category..."
+          />
         </div>
 
         <div className="w-36">

@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -210,18 +211,21 @@ export default function RepairServicePage() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Service Classification</label>
-                  <select
-                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                  <SearchableSelect
+                    size="sm"
                     value={formData.service_type}
-                    onChange={(e) => setFormData({ ...formData, service_type: e.target.value })}
-                  >
-                    <option value="SCHEDULED_PM">SCHEDULED PM</option>
-                    <option value="BREAKDOWN_REPAIR">BREAKDOWN REPAIR</option>
-                    <option value="OIL_CHANGE">OIL CHANGE</option>
-                    <option value="BRAKE_OVERHAUL">BRAKE OVERHAUL</option>
-                    <option value="TYRE_SERVICE">TYRE SERVICE</option>
-                    <option value="BODY_ACCIDENT">BODY / ACCIDENT</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, service_type: String(val) })}
+                    options={[
+                      { value: "SCHEDULED_PM", label: "SCHEDULED PM" },
+                      { value: "BREAKDOWN_REPAIR", label: "BREAKDOWN REPAIR" },
+                      { value: "OIL_CHANGE", label: "OIL CHANGE" },
+                      { value: "BRAKE_OVERHAUL", label: "BRAKE OVERHAUL" },
+                      { value: "TYRE_SERVICE", label: "TYRE SERVICE" },
+                      { value: "BODY_ACCIDENT", label: "BODY / ACCIDENT" },
+                    ]}
+                    placeholder="Select classification..."
+                    searchPlaceholder="Search service type..."
+                  />
                 </div>
               </div>
 
@@ -289,15 +293,18 @@ export default function RepairServicePage() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Job Card Status</label>
-                  <select
-                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                  <SearchableSelect
+                    size="sm"
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  >
-                    <option value="COMPLETED">COMPLETED</option>
-                    <option value="IN_PROGRESS">IN PROGRESS</option>
-                    <option value="SCHEDULED">SCHEDULED</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, status: String(val) })}
+                    options={[
+                      { value: "COMPLETED", label: "COMPLETED" },
+                      { value: "IN_PROGRESS", label: "IN PROGRESS" },
+                      { value: "SCHEDULED", label: "SCHEDULED" },
+                    ]}
+                    placeholder="Select status..."
+                    searchPlaceholder="Search status..."
+                  />
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -19,6 +19,7 @@ interface FormProps {
   isSubmitting?: boolean;
   stickyFooter?: boolean;
   className?: string;
+  setFieldValueRef?: React.MutableRefObject<((name: string, value: any) => void) | null>;
 }
 
 /**
@@ -39,11 +40,18 @@ export function Form({
   isSubmitting = false,
   stickyFooter = true,
   className,
+  setFieldValueRef,
 }: FormProps) {
   const loading = isLoading || isSubmitting;
   const [values, setValues] = useState<Record<string, any>>(initialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      setValues((prev) => ({ ...prev, ...initialValues }));
+    }
+  }, [initialValues]);
 
   const handleChange = (name: string, value: any) => {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -55,6 +63,12 @@ export function Form({
       });
     }
   };
+
+  useEffect(() => {
+    if (setFieldValueRef) {
+      setFieldValueRef.current = handleChange;
+    }
+  });
 
   const handleBlur = (field: FormFieldDef) => {
     setTouched((prev) => ({ ...prev, [field.name]: true }));
@@ -130,7 +144,7 @@ export function Form({
                   <div
                     key={field.name}
                     className={cn(
-                      "space-y-1.5",
+                      "space-y-1.5 min-w-0",
                       field.colSpan === 2 ? "col-span-1 md:col-span-2" : "",
                       field.colSpan === 3 ? "col-span-1 md:col-span-3" : "",
                       field.colSpan === 4 ? "col-span-full" : ""
@@ -179,6 +193,21 @@ export function Form({
                         required={field.required}
                         onChange={(selectedVal) => handleChange(field.name, selectedVal)}
                         onBlur={() => handleBlur(field)}
+                        onAddNew={
+                          field.onAddNew
+                            ? field.onAddNew
+                            : field.addNewHref
+                            ? () => {
+                                if (field.addNewHref?.startsWith("/")) {
+                                  window.location.href = field.addNewHref;
+                                } else {
+                                  window.open(field.addNewHref, "_blank");
+                                }
+                              }
+                            : undefined
+                        }
+                        addNewLabel={field.addNewLabel || `+ Add new ${field.label.replace(" *", "")}`}
+                        addNewTitle={field.addNewTitle || `Add new ${field.label}`}
                       />
                     ) : field.type === "textarea" ? (
                       <textarea

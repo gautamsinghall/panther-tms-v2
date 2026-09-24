@@ -22,7 +22,6 @@ import {
 import TextAnimation from "@/components/ui/staggerText";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
-import { PerspectiveGrid } from "@/components/ui/perspective-grid";
 
 interface PlanOption {
   code: string;
@@ -320,14 +319,10 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen lg:h-screen w-full flex flex-col bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative lg:overflow-hidden">
-      {/* Perspective Grid Background Layer from Vengeance UI */}
-      <div className="fixed inset-0 pointer-events-none opacity-25 z-0">
-        <PerspectiveGrid gridSize={32} showOverlay fadeRadius={70} />
+      {/* Clean neutral ambient background with subtle radial glow behind the cards */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[550px] bg-indigo-500/[0.035] rounded-full blur-3xl" />
       </div>
-
-      {/* Ambient ambient glow accents */}
-      <div className="fixed -top-40 -left-40 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* ========================================================================= */}
       {/* TOP HEADER BAR: Standardized enterprise header across Login and Signup     */}
@@ -456,242 +451,196 @@ export default function SignupPage() {
 
         {/* STEP 1: PLAN SELECTION */}
         {step === 1 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5 my-auto items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 xl:gap-6 my-auto items-stretch w-full py-2">
             {PLANS.map((plan) => {
               const isSelected = selectedPlan === plan.code;
               const price = billingCycle === "MONTHLY" ? plan.priceMonthly : Math.round(plan.priceYearly / 12);
               const isEnterprise = plan.code === "ENTERPRISE";
               const isBusiness = plan.code === "BUSINESS";
               const isPro = plan.code === "PRO";
+              const isFree = plan.code === "FREE";
 
+              // Surface and background
               const cardBg = isEnterprise
-                ? "bg-gradient-to-b from-[#0F172A] via-[#0B0F19] to-[#020617] text-white shadow-xl shadow-slate-950/40"
-                : isBusiness
-                ? "bg-gradient-to-b from-[#F0FDF4] via-[#ECFDF5] to-[#D1FAE5]/60 text-slate-900 shadow-md shadow-emerald-950/5"
+                ? "bg-[#0B0F19] text-white"
                 : isPro
-                ? "bg-gradient-to-b from-[#EFF6FF] via-[#EEF2FF] to-[#E0E7FF]/60 text-slate-900 shadow-md shadow-indigo-950/5"
-                : "bg-gradient-to-b from-slate-50/90 via-slate-100/50 to-slate-50/90 text-slate-900 shadow-2xs";
+                ? "bg-[#FCFDFF] text-slate-900"
+                : "bg-white text-slate-900";
 
-              const borderClass = isSelected
-                ? isEnterprise
-                  ? "border-purple-500 ring-2 ring-purple-500 shadow-2xl scale-[1.01]"
-                  : isBusiness
-                  ? "border-emerald-600 ring-2 ring-emerald-600 shadow-xl scale-[1.01]"
-                  : isPro
-                  ? "border-indigo-600 ring-2 ring-indigo-600 shadow-xl scale-[1.01]"
-                  : "border-slate-400 ring-2 ring-slate-400 shadow-md scale-[1.01]"
-                : isEnterprise
-                ? "border-slate-700/80 hover:border-indigo-400/60 hover:shadow-2xl"
-                : isBusiness
-                ? "border-emerald-200/90 hover:border-emerald-400 hover:shadow-lg"
+              // 1px Border and shadow with smooth hover lift
+              const cardBorderAndShadow = isEnterprise
+                ? isSelected
+                  ? "border-indigo-500 ring-2 ring-indigo-500/80 shadow-2xl shadow-slate-950/60 -translate-y-1"
+                  : "border-slate-800/90 shadow-xl shadow-slate-950/30 hover:border-slate-700 hover:shadow-2xl hover:shadow-slate-950/50 hover:-translate-y-1"
                 : isPro
-                ? "border-indigo-200/90 hover:border-indigo-400 hover:shadow-lg"
-                : "border-slate-200/90 hover:border-slate-300 hover:shadow-xs";
-
-              const quotaBg = isEnterprise
-                ? "bg-slate-900/90 border-slate-800/90"
+                ? isSelected
+                  ? "border-indigo-600 ring-2 ring-indigo-600/80 shadow-xl shadow-indigo-600/10 -translate-y-1"
+                  : "border-indigo-500/40 ring-1 ring-indigo-500/20 shadow-md shadow-indigo-500/5 hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1"
                 : isBusiness
-                ? "bg-white/95 border-emerald-200/90"
-                : isPro
-                ? "bg-white/95 border-indigo-200/90"
-                : "bg-white/90 border-slate-200/80";
+                ? isSelected
+                  ? "border-indigo-600 ring-2 ring-indigo-600/80 shadow-lg shadow-indigo-600/5 -translate-y-1"
+                  : "border-slate-200/90 shadow-xs hover:border-slate-300 hover:shadow-lg hover:-translate-y-1"
+                : isSelected
+                ? "border-slate-400 ring-2 ring-slate-400/80 shadow-md -translate-y-1"
+                : "border-slate-200/90 shadow-xs hover:border-slate-300 hover:shadow-md hover:-translate-y-1";
 
-              const titleColor = isEnterprise
-                ? "text-white"
-                : isBusiness
-                ? "text-emerald-950"
-                : isPro
-                ? "text-indigo-950"
-                : "text-slate-900";
+              // Text color hierarchy
+              const titleColor = isEnterprise ? "text-white" : "text-slate-900";
+              const descColor = isEnterprise ? "text-slate-400" : "text-slate-500";
+              const priceColor = isEnterprise ? "text-white" : "text-slate-900";
+              const priceUnitColor = isEnterprise ? "text-slate-400" : "text-slate-500";
+              const annualBillingColor = isEnterprise ? "text-indigo-400" : isPro ? "text-indigo-600" : "text-slate-500";
 
-              const descColor = isEnterprise
-                ? "text-slate-300"
-                : isBusiness
-                ? "text-emerald-900/70"
+              // Secondary information panel (Limits / Stats)
+              const quotaBoxBg = isEnterprise
+                ? "bg-slate-900/70 border-slate-800/80"
                 : isPro
-                ? "text-indigo-900/70"
-                : "text-slate-500";
+                ? "bg-indigo-50/30 border-indigo-100/70"
+                : "bg-slate-50/70 border-slate-100";
+              const quotaLabelColor = isEnterprise ? "text-slate-400" : "text-slate-500";
+              const quotaValColor = isEnterprise ? "text-white font-semibold" : "text-slate-900 font-semibold";
 
-              const priceColor = isEnterprise
-                ? "text-white"
-                : isBusiness
-                ? "text-emerald-950"
-                : isPro
-                ? "text-indigo-950"
-                : "text-slate-900";
+              // Included modules heading and check icons
+              const moduleHeaderColor = isEnterprise ? "text-slate-400" : isPro ? "text-indigo-900/80 font-semibold" : "text-slate-400";
+              const checkIconColor = isEnterprise ? "text-indigo-400" : "text-indigo-600";
 
-              const priceSubColor = isEnterprise
-                ? "text-slate-400"
-                : isBusiness
-                ? "text-emerald-700/80"
-                : isPro
-                ? "text-indigo-600/80"
-                : "text-slate-500";
-
-              const annualBillingColor = isEnterprise
-                ? "text-indigo-300"
-                : isBusiness
-                ? "text-emerald-700 font-medium"
-                : isPro
-                ? "text-indigo-700 font-medium"
-                : "text-slate-500 font-medium";
-
-              const quotaLabelColor = isEnterprise
-                ? "text-slate-400"
-                : isBusiness
-                ? "text-emerald-700/80"
-                : isPro
-                ? "text-indigo-700/80"
-                : "text-slate-500";
-
-              const quotaValColor = isEnterprise
-                ? "text-white"
-                : isBusiness
-                ? "text-emerald-950 font-bold"
-                : isPro
-                ? "text-indigo-950 font-bold"
-                : "text-slate-900 font-semibold";
-
-              const moduleHeaderColor = isEnterprise
-                ? "text-indigo-300"
-                : isBusiness
-                ? "text-emerald-800"
-                : isPro
-                ? "text-indigo-800"
-                : "text-slate-500";
-
-              const featureTextColor = isEnterprise
-                ? "text-slate-200"
-                : isBusiness
-                ? "text-emerald-950"
-                : isPro
-                ? "text-indigo-950"
-                : "text-slate-600";
-
-              const checkColor = isEnterprise
-                ? "text-emerald-400"
-                : isBusiness
-                ? "text-emerald-600"
-                : isPro
-                ? "text-indigo-600"
-                : "text-slate-400";
-
-              const dividerColor = isEnterprise
-                ? "border-slate-800"
-                : isBusiness
-                ? "border-emerald-200/60"
-                : isPro
-                ? "border-indigo-200/60"
-                : "border-slate-200/60";
-
+              // CTA button
               const buttonClass = isEnterprise
                 ? isSelected
-                  ? "bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-950/50 ring-2 ring-purple-400 font-bold"
-                  : "bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 hover:from-indigo-500 hover:to-purple-600 text-white shadow-md shadow-indigo-950/50 font-semibold"
-                : isBusiness
-                ? isSelected
-                  ? "bg-emerald-700 hover:bg-emerald-800 text-white shadow-lg shadow-emerald-700/30 ring-2 ring-emerald-400 font-bold"
-                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/25 font-semibold"
+                  ? "bg-indigo-500 hover:bg-indigo-400 text-white shadow-sm ring-2 ring-indigo-400 ring-offset-2 ring-offset-slate-950 font-semibold"
+                  : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-950/40 font-semibold"
                 : isPro
                 ? isSelected
-                  ? "bg-indigo-700 hover:bg-indigo-800 text-white shadow-lg shadow-indigo-700/30 ring-2 ring-indigo-400 font-bold"
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 font-semibold"
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-400 ring-offset-2 font-semibold"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/25 font-semibold"
+                : isBusiness
+                ? isSelected
+                  ? "bg-indigo-700 hover:bg-indigo-800 text-white shadow-sm ring-2 ring-indigo-400 ring-offset-1 font-semibold"
+                  : "bg-indigo-600/90 hover:bg-indigo-600 text-white shadow-2xs font-semibold"
                 : isSelected
-                ? "bg-slate-800 hover:bg-slate-700 text-white shadow-sm font-semibold"
+                ? "bg-slate-900 hover:bg-slate-800 text-white shadow-xs font-semibold"
                 : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs font-semibold";
 
               return (
                 <div
                   key={plan.code}
                   onClick={() => setSelectedPlan(plan.code)}
-                  className={`relative rounded-2xl border flex flex-col justify-between transition-all cursor-pointer ${cardBg} ${
-                    plan.popular
-                      ? "pt-7 pb-5 px-5 lg:px-6 xl:px-7"
-                      : "p-5 lg:px-6 xl:px-7 py-5 lg:py-5"
-                  } ${borderClass}`}
+                  className={`relative rounded-[22px] border p-6 lg:p-7 flex flex-col justify-between transition-all duration-200 ease-out cursor-pointer ${cardBg} ${cardBorderAndShadow}`}
                 >
+                  {/* Small Pill Badges */}
                   {plan.popular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs whitespace-nowrap">
-                      Most Popular
-                    </span>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="inline-flex items-center gap-1 bg-indigo-600 text-white text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm shadow-indigo-600/30 whitespace-nowrap">
+                        <Sparkles className="w-3 h-3" />
+                        Most Popular
+                      </span>
+                    </div>
                   )}
                   {isEnterprise && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-md whitespace-nowrap">
-                      Enterprise Tier
-                    </span>
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="inline-flex items-center gap-1 bg-slate-900 border border-slate-700 text-indigo-300 text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm whitespace-nowrap">
+                        <ShieldCheck className="w-3 h-3 text-indigo-400" />
+                        Enterprise Tier
+                      </span>
+                    </div>
                   )}
 
-                  <div className="space-y-3">
+                  {/* Top Content Area */}
+                  <div className="space-y-4">
+                    {/* Header: Title and Description */}
                     <div>
-                      <h2 className={`font-bold text-xl xl:text-2xl tracking-tight ${titleColor}`}>
+                      <h2 className={`font-bold text-xl sm:text-2xl tracking-tight ${titleColor}`}>
                         {plan.name}
                       </h2>
-                      <p className={`text-xs sm:text-sm mt-1 min-h-[38px] leading-snug ${descColor}`}>
+                      <p className={`text-xs sm:text-sm mt-1.5 leading-relaxed min-h-[44px] ${descColor}`}>
                         {plan.description}
                       </p>
                     </div>
 
-                    <div className={`pt-2 border-t ${dividerColor}`}>
+                    {/* Price Block */}
+                    <div className={`pt-3 border-t ${isEnterprise ? "border-slate-800/90" : "border-slate-100"}`}>
                       <div className="flex items-baseline gap-1.5">
-                        <span className={`text-3xl sm:text-4xl xl:text-[40px] font-extrabold tracking-tight leading-none ${priceColor}`}>
+                        <span className={`text-4xl sm:text-[44px] font-extrabold tracking-tight tabular-nums leading-none ${priceColor}`}>
                           ₹{price.toLocaleString()}
                         </span>
-                        <span className={`text-xs sm:text-sm font-medium ${priceSubColor}`}>
+                        <span className={`text-xs sm:text-sm font-medium ${priceUnitColor}`}>
                           /mo
                         </span>
                       </div>
-                      {billingCycle === "YEARLY" && plan.priceYearly > 0 ? (
-                        <p className={`text-xs mt-0.5 ${annualBillingColor}`}>
-                          Billed ₹{plan.priceYearly.toLocaleString()} annually
-                        </p>
-                      ) : (
-                        <p className="text-xs text-transparent mt-0.5 select-none font-medium">
-                          Monthly billing
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Quotas */}
-                    <div className={`${quotaBg} border p-3 lg:p-3.5 rounded-xl space-y-1.5 text-xs sm:text-sm`}>
-                      <div className="flex justify-between items-center">
-                        <span className={quotaLabelColor}>Team Users:</span>
-                        <span className={quotaValColor}>{plan.limits.users}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className={quotaLabelColor}>Fleet Vehicles:</span>
-                        <span className={quotaValColor}>{plan.limits.vehicles}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className={quotaLabelColor}>Monthly Invoices:</span>
-                        <span className={quotaValColor}>{plan.limits.invoices}</span>
+                      <div className="h-5 mt-1">
+                        {billingCycle === "YEARLY" && plan.priceYearly > 0 ? (
+                          <p className={`text-xs font-medium ${annualBillingColor}`}>
+                            Billed ₹{plan.priceYearly.toLocaleString()} annually
+                          </p>
+                        ) : (
+                          <p className="text-xs text-transparent select-none font-medium">
+                            Monthly billing
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    {/* Features */}
-                    <div className="space-y-1.5 lg:space-y-2 pt-1">
+                    {/* Secondary Information Panel: Limits / Stats */}
+                    <div className={`${quotaBoxBg} border p-3.5 rounded-xl space-y-2`}>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={quotaLabelColor}>Team Users</span>
+                        <span className={`tabular-nums ${quotaValColor}`}>{plan.limits.users}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={quotaLabelColor}>Fleet Vehicles</span>
+                        <span className={`tabular-nums ${quotaValColor}`}>{plan.limits.vehicles}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className={quotaLabelColor}>Monthly Invoices</span>
+                        <span className={`tabular-nums ${quotaValColor}`}>{plan.limits.invoices}</span>
+                      </div>
+                    </div>
+
+                    {/* Included Modules / Feature List */}
+                    <div className="space-y-2 pt-1">
                       <span className={`text-xs font-semibold uppercase tracking-wider block ${moduleHeaderColor}`}>
-                        Included modules
+                        Included Modules
                       </span>
-                      {plan.features.map((feat, i) => (
-                        <div key={i} className={`flex items-start gap-2 text-xs sm:text-[13px] leading-snug ${featureTextColor}`}>
-                          <Check className={`w-4 h-4 shrink-0 mt-0.5 ${checkColor}`} />
-                          <span className="font-medium">{feat}</span>
-                        </div>
-                      ))}
+                      <ul className="space-y-2">
+                        {plan.features.map((feat, i) => {
+                          const isInheritance = feat.startsWith("Everything in");
+                          return (
+                            <li key={i} className="flex items-start gap-2.5 text-xs sm:text-sm leading-snug">
+                              <Check className={`w-4 h-4 shrink-0 mt-0.5 ${checkIconColor}`} />
+                              <span
+                                className={
+                                  isInheritance
+                                    ? isEnterprise
+                                      ? "font-semibold text-white"
+                                      : "font-semibold text-slate-900"
+                                    : isEnterprise
+                                    ? "font-normal text-slate-300"
+                                    : "font-normal text-slate-600"
+                                }
+                              >
+                                {feat}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedPlan(plan.code);
-                      setStep(2);
-                    }}
-                    className={`w-full mt-4 lg:mt-5 h-11 text-sm rounded-xl transition-all cursor-pointer ${buttonClass}`}
-                  >
-                    Choose {plan.name}
-                  </button>
+                  {/* CTA Button Pinned at Bottom */}
+                  <div className="pt-6 mt-auto">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPlan(plan.code);
+                        setStep(2);
+                      }}
+                      className={`w-full h-11 sm:h-12 text-sm font-semibold rounded-xl transition-all duration-200 cursor-pointer ${buttonClass}`}
+                    >
+                      Choose {plan.name}
+                    </button>
+                  </div>
                 </div>
               );
             })}

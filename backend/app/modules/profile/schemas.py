@@ -157,9 +157,14 @@ class MonthlyPnLItem(BaseModel):
     margin_percent: float
 
 class MonthlyPnLResponse(BaseModel):
+    period: Optional[str] = None
     total_revenue: float
     total_expenses: float
     net_profit: float
     margin_percent: float
-    months: List[MonthlyPnLItem]
-    branch_count: int
+    profit_margin_pct: Optional[float] = None
+    revenue_breakdown: dict[str, float] = Field(default_factory=dict)
+    expense_breakdown: dict[str, float] = Field(default_factory=dict)
+    branches_included: List[str] = Field(default_factory=list)
+    months: List[MonthlyPnLItem] = Field(default_factory=list)
+    branch_count: int = 1

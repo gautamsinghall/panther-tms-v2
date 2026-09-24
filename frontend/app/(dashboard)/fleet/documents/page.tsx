@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 
@@ -189,31 +190,38 @@ export default function FleetDocumentsPage() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Vehicle Source</label>
-                  <select
-                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                  <SearchableSelect
+                    size="sm"
                     value={formData.vehicle_type}
-                    onChange={(e) => setFormData({ ...formData, vehicle_type: e.target.value })}
-                  >
-                    <option value="COMPANY">COMPANY</option>
-                    <option value="MARKET">MARKET</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, vehicle_type: String(val) })}
+                    options={[
+                      { value: "COMPANY", label: "COMPANY" },
+                      { value: "MARKET", label: "MARKET" },
+                    ]}
+                    placeholder="Select vehicle source..."
+                    searchPlaceholder="Search source..."
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Document Type *</label>
-                <select
-                  className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                <SearchableSelect
+                  size="sm"
                   value={formData.doc_type}
-                  onChange={(e) => setFormData({ ...formData, doc_type: e.target.value })}
-                >
-                  <option value="FITNESS_CERT">FITNESS CERTIFICATE</option>
-                  <option value="INSURANCE">COMPREHENSIVE INSURANCE</option>
-                  <option value="NATIONAL_PERMIT">NATIONAL PERMIT</option>
-                  <option value="PUC">POLLUTION UNDER CONTROL (PUC)</option>
-                  <option value="ROAD_TAX">RTO ROAD TAX</option>
-                  <option value="REGISTRATION_RC">RC BOOK</option>
-                </select>
+                  onChange={(val) => setFormData({ ...formData, doc_type: String(val) })}
+                  options={[
+                    { value: "FITNESS_CERT", label: "FITNESS CERTIFICATE" },
+                    { value: "INSURANCE", label: "COMPREHENSIVE INSURANCE" },
+                    { value: "NATIONAL_PERMIT", label: "NATIONAL PERMIT" },
+                    { value: "PUC", label: "POLLUTION UNDER CONTROL (PUC)" },
+                    { value: "ROAD_TAX", label: "RTO ROAD TAX" },
+                    { value: "REGISTRATION_RC", label: "RC BOOK" },
+                  ]}
+                  placeholder="Select document type..."
+                  searchPlaceholder="Search document..."
+                  required
+                />
               </div>
 
               <div>

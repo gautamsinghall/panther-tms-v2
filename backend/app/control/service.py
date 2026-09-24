@@ -401,6 +401,7 @@ async def initiate_signup(
             plan_code=plan.code,
             amount=0.0,
             subdomain=subdomain,
+            signup_session_token=subdomain,
             redirect_url=f"/login?subdomain={subdomain}",
             message="Free Starter workspace provisioned successfully.",
         )
@@ -452,6 +453,7 @@ async def initiate_signup(
         plan_code=plan.code,
         amount=amount,
         subdomain=subdomain,
+        signup_session_token=subdomain,
         redirect_url=None,
         message="Subscription initiated. Complete payment to activate workspace.",
     )

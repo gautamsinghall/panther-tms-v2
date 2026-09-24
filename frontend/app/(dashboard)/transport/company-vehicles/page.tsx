@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, Trash2, Truck } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -13,6 +13,7 @@ import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { QuickCreateDriverModal } from "@/components/modals/quick-create-modal";
 
 interface CompanyVehicleRecord {
   id: number;
@@ -47,6 +48,11 @@ export default function CompanyVehiclesPage() {
   // Drawer / Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
+  const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
+
+  // Quick Create Modal State
+  const [quickDriverOpen, setQuickDriverOpen] = useState(false);
 
   // Confirmation dialog state
   const [deactivatingRecord, setDeactivatingRecord] = useState<CompanyVehicleRecord | null>(null);
@@ -150,6 +156,12 @@ export default function CompanyVehiclesPage() {
     },
   ];
 
+  const handleDriverCreated = (newDriver: { id: number; name: string }) => {
+    setDrivers((prev) => [{ id: newDriver.id, name: newDriver.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, default_driver_id: String(newDriver.id) }));
+    formSetFieldValueRef.current?.("default_driver_id", String(newDriver.id));
+  };
+
   const driverOptions = drivers.map((d) => ({
     label: d.name,
     value: String(d.id),
@@ -210,6 +222,9 @@ export default function CompanyVehiclesPage() {
           label: "Default Assigned Driver",
           type: "select",
           options: [{ label: "None Assigned", value: "" }, ...driverOptions],
+          onAddNew: () => setQuickDriverOpen(true),
+          addNewLabel: "+ Add New Driver",
+          addNewTitle: "Quickly create and register driver",
         },
       ],
     },
@@ -319,12 +334,21 @@ export default function CompanyVehiclesPage() {
       >
         <Form
           sections={formSections}
+          initialValues={formInitialValues}
+          setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
           submitLabel="Add Vehicle"
           isLoading={isSubmitting}
         />
       </EntityDrawer>
+
+      {/* Quick Creation Modal */}
+      <QuickCreateDriverModal
+        isOpen={quickDriverOpen}
+        onClose={() => setQuickDriverOpen(false)}
+        onSuccess={handleDriverCreated}
+      />
 
       {/* ConfirmDialog */}
       <ConfirmDialog

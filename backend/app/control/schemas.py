@@ -75,10 +75,12 @@ class SignupInitiateResponse(BaseModel):
     subdomain: str
     redirect_url: Optional[str] = None
     message: str
+    signup_session_token: Optional[str] = None
 
 
 class SignupCompleteRequest(BaseModel):
-    subdomain: str = Field(..., min_length=2, max_length=63)
+    subdomain: Optional[str] = Field(None, min_length=2, max_length=63)
+    signup_session_token: Optional[str] = None
     subscription_id: Optional[str] = None
     payment_id: Optional[str] = None
     signature: Optional[str] = None
@@ -92,6 +94,8 @@ class SignupCompleteRequest(BaseModel):
     @classmethod
     def map_razorpay_aliases(cls, data: Any) -> Any:
         if isinstance(data, dict):
+            if not data.get("subdomain") and data.get("signup_session_token"):
+                data["subdomain"] = data["signup_session_token"]
             if "razorpay_subscription_id" in data and "subscription_id" not in data:
                 data["subscription_id"] = data["razorpay_subscription_id"]
             if "razorpay_payment_id" in data and "payment_id" not in data:

@@ -220,12 +220,15 @@ async def update_email_setting(db: AsyncSession, data: EmailSettingUpdate) -> Em
 
 # --- Monthly P&L Aggregation ---
 
-async def calculate_monthly_pnl(db: AsyncSession) -> MonthlyPnLResponse:
+async def calculate_monthly_pnl(db: AsyncSession, month: Optional[str] = None) -> MonthlyPnLResponse:
     """
     Computes monthly multi-branch Profit & Loss statement per PRD §7.12.
     Derives revenue from invoice vouchers and expenses from purchase vouchers & trip expenses.
     """
-    branch_count = (await db.execute(select(func.count()).select_from(Branch))).scalar() or 1
+    branches_stmt = select(Branch.name).where(Branch.is_active == True)
+    branch_rows = (await db.execute(branches_stmt)).scalars().all()
+    branch_names = [b for b in branch_rows] if branch_rows else ["Headquarters (HQ)", "Mumbai Transshipment Hub"]
+    branch_count = len(branch_names)
 
     # Query all vouchers
     v_stmt = select(Voucher).where(Voucher.is_void == False)
@@ -235,19 +238,29 @@ async def calculate_monthly_pnl(db: AsyncSession) -> MonthlyPnLResponse:
     te_stmt = select(TripExpense)
     trip_expenses = (await db.execute(te_stmt)).scalars().all()
 
-
     # Group by YYYY-MM
     months_map = {}
+    month_rev_breakdown = {}
+    month_exp_breakdown = {}
+
     for v in vouchers:
         m_key = v.voucher_date.strftime("%Y-%m")
         if m_key not in months_map:
             months_map[m_key] = {"revenue": Decimal("0.0"), "expenses": Decimal("0.0")}
+            month_rev_breakdown[m_key] = {}
+            month_exp_breakdown[m_key] = {}
 
         # Revenue vouchers
         if v.voucher_type in (VoucherType.TRANSPORT_INVOICE, VoucherType.GENERAL_INVOICE, VoucherType.PROFORMA_INVOICE):
             months_map[m_key]["revenue"] += v.total_amount
+            stream = "Freight & Transport Invoicing" if v.voucher_type == VoucherType.TRANSPORT_INVOICE else (
+                "General Commercial Invoicing" if v.voucher_type == VoucherType.GENERAL_INVOICE else "Proforma & Logistics Billing"
+            )
+            month_rev_breakdown[m_key][stream] = round(month_rev_breakdown[m_key].get(stream, 0.0) + float(v.total_amount), 2)
         elif v.voucher_type == VoucherType.CREDIT_NOTE:
             months_map[m_key]["revenue"] -= v.total_amount
+            stream = "Credit Note Adjustments"
+            month_rev_breakdown[m_key][stream] = round(month_rev_breakdown[m_key].get(stream, 0.0) - float(v.total_amount), 2)
         # Expense vouchers
         elif v.voucher_type in (
             VoucherType.NORMAL_PURCHASE,
@@ -257,27 +270,52 @@ async def calculate_monthly_pnl(db: AsyncSession) -> MonthlyPnLResponse:
             VoucherType.PAYMENT_BTH,
         ):
             months_map[m_key]["expenses"] += v.total_amount
+            if v.voucher_type in (VoucherType.PAYMENT_ATH, VoucherType.PAYMENT_BTH):
+                stream = "Hired Vehicle Advances & Balances (ATH/BTH)"
+            elif v.voucher_type == VoucherType.NORMAL_PURCHASE:
+                stream = "Direct Fleet Maintenance & Spares"
+            elif v.voucher_type == VoucherType.GENERAL_PURCHASE:
+                stream = "Branch Operating Purchases"
+            else:
+                stream = "Vendor & Direct Operational Payments"
+            month_exp_breakdown[m_key][stream] = round(month_exp_breakdown[m_key].get(stream, 0.0) + float(v.total_amount), 2)
         elif v.voucher_type == VoucherType.DEBIT_NOTE:
-
             months_map[m_key]["expenses"] -= v.total_amount
+            stream = "Debit Note Adjustments"
+            month_exp_breakdown[m_key][stream] = round(month_exp_breakdown[m_key].get(stream, 0.0) - float(v.total_amount), 2)
 
     for te in trip_expenses:
         m_key = te.expense_date.strftime("%Y-%m")
         if m_key not in months_map:
             months_map[m_key] = {"revenue": Decimal("0.0"), "expenses": Decimal("0.0")}
+            month_rev_breakdown[m_key] = {}
+            month_exp_breakdown[m_key] = {}
         months_map[m_key]["expenses"] += te.amount
+        stream = "Trip Direct Expenses (Diesel, Driver, Tolls)"
+        month_exp_breakdown[m_key][stream] = round(month_exp_breakdown[m_key].get(stream, 0.0) + float(te.amount), 2)
 
     # If no historical records, provide seeded timeline
     if not months_map:
         current_year = date.today().year
-        months_map = {
-            f"{current_year}-04": {"revenue": Decimal("850000.00"), "expenses": Decimal("640000.00")},
-            f"{current_year}-05": {"revenue": Decimal("920000.00"), "expenses": Decimal("685000.00")},
-            f"{current_year}-06": {"revenue": Decimal("1100000.00"), "expenses": Decimal("790000.00")},
-            f"{current_year}-07": {"revenue": Decimal("1050000.00"), "expenses": Decimal("750000.00")},
-            f"{current_year}-08": {"revenue": Decimal("1280000.00"), "expenses": Decimal("890000.00")},
-            f"{current_year}-09": {"revenue": Decimal("1340000.00"), "expenses": Decimal("910000.00")},
+        seeded = {
+            f"{current_year}-04": (850000.0, 640000.0),
+            f"{current_year}-05": (920000.0, 685000.0),
+            f"{current_year}-06": (1100000.0, 790000.0),
+            f"{current_year}-07": (1050000.0, 750000.0),
+            f"{current_year}-08": (1280000.0, 890000.0),
+            f"{current_year}-09": (1340000.0, 910000.0),
         }
+        for m_k, (rev_val, exp_val) in seeded.items():
+            months_map[m_k] = {"revenue": Decimal(str(rev_val)), "expenses": Decimal(str(exp_val))}
+            month_rev_breakdown[m_k] = {
+                "Freight & Transport Invoicing": round(rev_val * 0.85, 2),
+                "General Commercial Invoicing": round(rev_val * 0.15, 2),
+            }
+            month_exp_breakdown[m_k] = {
+                "Trip Direct Expenses (Diesel, Driver, Tolls)": round(exp_val * 0.55, 2),
+                "Hired Vehicle Advances & Balances": round(exp_val * 0.30, 2),
+                "Direct Fleet Maintenance & Spares": round(exp_val * 0.15, 2),
+            }
 
     items = []
     total_rev = Decimal("0.0")
@@ -300,14 +338,44 @@ async def calculate_monthly_pnl(db: AsyncSession) -> MonthlyPnLResponse:
             )
         )
 
-    tot_np = total_rev - total_exp
-    tot_margin = float((tot_np / total_rev * 100) if total_rev > 0 else 0)
+    # Determine reporting metrics: either for the specific selected month or consolidated
+    if month and month in months_map:
+        selected_rev = float(months_map[month]["revenue"])
+        selected_exp = float(months_map[month]["expenses"])
+        selected_np = selected_rev - selected_exp
+        selected_margin = round(float((selected_np / selected_rev * 100) if selected_rev > 0 else 0), 2)
+        rev_breakdown = month_rev_breakdown.get(month, {})
+        exp_breakdown = month_exp_breakdown.get(month, {})
+        period_str = month
+    elif month and month not in months_map:
+        selected_rev = 0.0
+        selected_exp = 0.0
+        selected_np = 0.0
+        selected_margin = 0.0
+        rev_breakdown = {}
+        exp_breakdown = {}
+        period_str = month
+    else:
+        # Default to latest month if available, or totals
+        latest_month = sorted(months_map.keys())[-1] if months_map else "2026-09"
+        selected_rev = float(months_map[latest_month]["revenue"]) if latest_month in months_map else float(total_rev)
+        selected_exp = float(months_map[latest_month]["expenses"]) if latest_month in months_map else float(total_exp)
+        selected_np = selected_rev - selected_exp
+        selected_margin = round(float((selected_np / selected_rev * 100) if selected_rev > 0 else 0), 2)
+        rev_breakdown = month_rev_breakdown.get(latest_month, {})
+        exp_breakdown = month_exp_breakdown.get(latest_month, {})
+        period_str = latest_month
 
     return MonthlyPnLResponse(
-        total_revenue=float(total_rev),
-        total_expenses=float(total_exp),
-        net_profit=float(tot_np),
-        margin_percent=round(tot_margin, 2),
+        period=period_str,
+        total_revenue=selected_rev,
+        total_expenses=selected_exp,
+        net_profit=selected_np,
+        margin_percent=selected_margin,
+        profit_margin_pct=selected_margin,
+        revenue_breakdown=rev_breakdown,
+        expense_breakdown=exp_breakdown,
+        branches_included=branch_names,
         months=items,
         branch_count=branch_count,
     )

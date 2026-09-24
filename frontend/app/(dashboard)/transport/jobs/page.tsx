@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -14,6 +14,11 @@ import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import {
+  QuickCreateConsignerModal,
+  QuickCreateConsigneeModal,
+  QuickCreateLocationModal,
+} from "@/components/modals/quick-create-modal";
 
 interface JobRecord {
   id: number;
@@ -55,6 +60,13 @@ export default function JobsPage() {
   // Drawer / Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
+  const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
+
+  // Quick Create Modals state
+  const [quickConsignerOpen, setQuickConsignerOpen] = useState(false);
+  const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
+  const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -176,6 +188,26 @@ export default function JobsPage() {
     },
   ];
 
+  const handleConsignerCreated = (newConsigner: { id: number; name: string }) => {
+    setConsigners((prev) => [{ id: newConsigner.id, name: newConsigner.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, consigner_id: String(newConsigner.id) }));
+    formSetFieldValueRef.current?.("consigner_id", String(newConsigner.id));
+  };
+
+  const handleConsigneeCreated = (newConsignee: { id: number; name: string }) => {
+    setConsignees((prev) => [{ id: newConsignee.id, name: newConsignee.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, consignee_id: String(newConsignee.id) }));
+    formSetFieldValueRef.current?.("consignee_id", String(newConsignee.id));
+  };
+
+  const handleLocationCreated = (newLoc: { id: number; city_name: string }) => {
+    setLocations((prev) => [{ id: newLoc.id, city_name: newLoc.city_name }, ...prev]);
+    const field = quickLocationTarget === "origin" ? "origin_location_id" : "destination_location_id";
+    setFormInitialValues((prev) => ({ ...prev, [field]: String(newLoc.id) }));
+    formSetFieldValueRef.current?.(field, String(newLoc.id));
+    setQuickLocationTarget(null);
+  };
+
   const consignerOptions = consigners.map((c) => ({
     label: c.name || `Customer ${c.id}`,
     value: String(c.id),
@@ -204,6 +236,9 @@ export default function JobsPage() {
           type: "select",
           required: true,
           options: consignerOptions,
+          onAddNew: () => setQuickConsignerOpen(true),
+          addNewLabel: "+ Add New Customer / Consigner",
+          addNewTitle: "Quickly create and register customer / consigner",
         },
         {
           name: "consignee_id",
@@ -211,6 +246,9 @@ export default function JobsPage() {
           type: "select",
           required: true,
           options: consigneeOptions,
+          onAddNew: () => setQuickConsigneeOpen(true),
+          addNewLabel: "+ Add New Consignee / Receiver",
+          addNewTitle: "Quickly create and register consignee / receiver",
         },
       ],
     },
@@ -226,6 +264,9 @@ export default function JobsPage() {
           type: "select",
           required: true,
           options: locationOptions,
+          onAddNew: () => setQuickLocationTarget("origin"),
+          addNewLabel: "+ Add New Origin Location",
+          addNewTitle: "Quickly create origin city / hub",
         },
         {
           name: "destination_location_id",
@@ -233,6 +274,9 @@ export default function JobsPage() {
           type: "select",
           required: true,
           options: locationOptions,
+          onAddNew: () => setQuickLocationTarget("destination"),
+          addNewLabel: "+ Add New Destination Location",
+          addNewTitle: "Quickly create destination city / hub",
         },
         {
           name: "job_date",
@@ -306,7 +350,10 @@ export default function JobsPage() {
         primaryAction={{
           label: "Create Trip Order",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setFormInitialValues({ job_date: new Date().toISOString().split("T")[0] });
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -378,7 +425,10 @@ export default function JobsPage() {
         emptySubtext="Create a new trip or transport job order to initiate dispatch and vehicle scheduling."
         emptyAction={{
           label: "+ Create Trip Order",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setFormInitialValues({ job_date: new Date().toISOString().split("T")[0] });
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -391,12 +441,32 @@ export default function JobsPage() {
       >
         <Form
           sections={formSections}
+          initialValues={formInitialValues}
+          setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
           submitLabel="Create Trip Order"
           isLoading={isSubmitting}
         />
       </EntityDrawer>
+
+      {/* Quick Creation Modals */}
+      <QuickCreateConsignerModal
+        isOpen={quickConsignerOpen}
+        onClose={() => setQuickConsignerOpen(false)}
+        onSuccess={handleConsignerCreated}
+      />
+      <QuickCreateConsigneeModal
+        isOpen={quickConsigneeOpen}
+        onClose={() => setQuickConsigneeOpen(false)}
+        onSuccess={handleConsigneeCreated}
+      />
+      <QuickCreateLocationModal
+        isOpen={quickLocationTarget !== null}
+        onClose={() => setQuickLocationTarget(null)}
+        onSuccess={handleLocationCreated}
+        defaultTitle={quickLocationTarget === "origin" ? "Quick Add Origin Hub / City" : "Quick Add Destination Hub / City"}
+      />
     </div>
   );
 }

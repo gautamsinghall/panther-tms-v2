@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Truck } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
@@ -12,6 +12,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
+import { QuickCreateVehicleOwnerModal } from "@/components/modals/quick-create-modal";
 
 interface MarketVehicleRecord {
   id: number;
@@ -39,6 +40,11 @@ export default function MarketVehiclesPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
+  const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
+
+  // Quick Create Modal State
+  const [quickOwnerOpen, setQuickOwnerOpen] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -138,6 +144,12 @@ export default function MarketVehiclesPage() {
     },
   ];
 
+  const handleOwnerCreated = (newOwner: { id: number; name: string }) => {
+    setOwners((prev) => [{ id: newOwner.id, name: newOwner.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, owner_id: String(newOwner.id) }));
+    formSetFieldValueRef.current?.("owner_id", String(newOwner.id));
+  };
+
   const ownerOptions = [
     { label: "None / Direct Driver", value: "" },
     ...owners.map((o) => ({ label: o.name, value: String(o.id) })),
@@ -183,6 +195,9 @@ export default function MarketVehiclesPage() {
           label: "Vehicle Owner / Broker",
           type: "select",
           options: ownerOptions,
+          onAddNew: () => setQuickOwnerOpen(true),
+          addNewLabel: "+ Add New Vehicle Owner",
+          addNewTitle: "Quickly create and register vehicle owner / broker",
         },
         {
           name: "fitness_expiry",
@@ -260,12 +275,21 @@ export default function MarketVehiclesPage() {
       >
         <Form
           sections={formSections}
+          initialValues={formInitialValues}
+          setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
           submitLabel="Register Vehicle"
           isLoading={isSubmitting}
         />
       </EntityDrawer>
+
+      {/* Quick Creation Modal */}
+      <QuickCreateVehicleOwnerModal
+        isOpen={quickOwnerOpen}
+        onClose={() => setQuickOwnerOpen(false)}
+        onSuccess={handleOwnerCreated}
+      />
     </div>
   );
 }

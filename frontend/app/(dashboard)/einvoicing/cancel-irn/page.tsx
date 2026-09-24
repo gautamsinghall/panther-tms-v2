@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Ban, AlertTriangle, CheckCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 import Link from "next/link";
 
@@ -138,18 +139,16 @@ function CancelIRNContent() {
             <label className="block text-xs font-semibold text-text-primary mb-1">
               Select Active IRN from System
             </label>
-            <select
+            <SearchableSelect
               value={irn}
-              onChange={(e) => setIrn(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">-- Choose active generated invoice --</option>
-              {activeIrns.map((rec) => (
-                <option key={rec.id} value={rec.irn}>
-                  {rec.voucher_number || `Voucher #${rec.voucher_id}`} — {rec.party_name || "Customer"} — {rec.irn.substring(0, 16)}...
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setIrn(String(val))}
+              options={activeIrns.map((rec) => ({
+                value: rec.irn,
+                label: `${rec.voucher_number || `Voucher #${rec.voucher_id}`} — ${rec.party_name || "Customer"} — ${rec.irn.substring(0, 16)}...`,
+              }))}
+              placeholder="Choose active generated invoice..."
+              searchPlaceholder="Search voucher or IRN hash..."
+            />
           </div>
 
           <div>
@@ -171,16 +170,19 @@ function CancelIRNContent() {
             <label className="block text-xs font-semibold text-text-primary mb-1">
               NIC Cancellation Reason *
             </label>
-            <select
+            <SearchableSelect
               value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="1 - Duplicate">1 - Duplicate Document</option>
-              <option value="2 - Data Entry Mistake">2 - Data Entry Mistake</option>
-              <option value="3 - Order Cancelled">3 - Order / Consignment Cancelled</option>
-              <option value="4 - Other">4 - Other Business Reason</option>
-            </select>
+              onChange={(val) => setCancelReason(String(val))}
+              options={[
+                { value: "1 - Duplicate", label: "1 - Duplicate Document" },
+                { value: "2 - Data Entry Mistake", label: "2 - Data Entry Mistake" },
+                { value: "3 - Order Cancelled", label: "3 - Order / Consignment Cancelled" },
+                { value: "4 - Other", label: "4 - Other Business Reason" },
+              ]}
+              placeholder="Select cancellation reason..."
+              searchPlaceholder="Search reason..."
+              required
+            />
           </div>
 
           <div>

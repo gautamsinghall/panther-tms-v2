@@ -8,6 +8,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -461,14 +462,17 @@ export default function PaymentVoucherPage() {
               <label className="block text-xs font-semibold text-[#344054] mb-1">
                 Payment Channel *
               </label>
-              <select
+              <SearchableSelect
                 value={paymentMode}
-                onChange={(e) => setPaymentMode(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
-              >
-                <option value="BANK">Bank Account (NEFT/RTGS/Cheque)</option>
-                <option value="CASH">Cash in Hand</option>
-              </select>
+                onChange={(val) => setPaymentMode(val as any)}
+                options={[
+                  { value: "BANK", label: "Bank Account (NEFT/RTGS/Cheque)" },
+                  { value: "CASH", label: "Cash in Hand" },
+                ]}
+                placeholder="Select payment channel..."
+                searchPlaceholder="Search channel..."
+                required
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#344054] mb-1">
@@ -536,25 +540,24 @@ export default function PaymentVoucherPage() {
             <label className="block text-xs font-semibold text-[#344054] mb-1">
               Select Hire Challan *
             </label>
-            <select
-              required
+            <SearchableSelect
               value={athChallanId}
-              onChange={(e) => {
-                setAthChallanId(e.target.value);
-                const selected = challans.find((c) => c.id.toString() === e.target.value);
+              onChange={(val) => {
+                const strVal = String(val);
+                setAthChallanId(strVal);
+                const selected = challans.find((c) => c.id.toString() === strVal);
                 if (selected) {
                   setAthAmount(selected.advance_amount?.toString() || "");
                 }
               }}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
-            >
-              <option value="">-- Choose Hire Challan --</option>
-              {challans.map((hc) => (
-                <option key={hc.id} value={hc.id}>
-                  {hc.challan_number} — {hc.vehicle_number} ({hc.owner_name || "Owner"}) — Adv: ₹{Number(hc.advance_amount || 0).toFixed(2)}
-                </option>
-              ))}
-            </select>
+              options={challans.map((hc) => ({
+                value: String(hc.id),
+                label: `${hc.challan_number} — ${hc.vehicle_number} (${hc.owner_name || "Owner"}) — Adv: ₹${Number(hc.advance_amount || 0).toFixed(2)}`,
+              }))}
+              placeholder="Choose Hire Challan..."
+              searchPlaceholder="Search challan number or vehicle..."
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -562,14 +565,16 @@ export default function PaymentVoucherPage() {
               <label className="block text-xs font-semibold text-[#344054] mb-1">
                 Payment Channel
               </label>
-              <select
+              <SearchableSelect
                 value={athMode}
-                onChange={(e) => setAthMode(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
-              >
-                <option value="BANK">Bank Account (NEFT/UPI)</option>
-                <option value="CASH">Cash Advance</option>
-              </select>
+                onChange={(val) => setAthMode(val as any)}
+                options={[
+                  { value: "BANK", label: "Bank Account (NEFT/UPI)" },
+                  { value: "CASH", label: "Cash Advance" },
+                ]}
+                placeholder="Select channel..."
+                searchPlaceholder="Search channel..."
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#344054] mb-1">
@@ -624,25 +629,24 @@ export default function PaymentVoucherPage() {
             <label className="block text-xs font-semibold text-[#344054] mb-1">
               Select Hire Challan *
             </label>
-            <select
-              required
+            <SearchableSelect
               value={bthChallanId}
-              onChange={(e) => {
-                setBthChallanId(e.target.value);
-                const selected = challans.find((c) => c.id.toString() === e.target.value);
+              onChange={(val) => {
+                const strVal = String(val);
+                setBthChallanId(strVal);
+                const selected = challans.find((c) => c.id.toString() === strVal);
                 if (selected) {
                   setBthAmount(selected.balance_amount?.toString() || "");
                 }
               }}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
-            >
-              <option value="">-- Choose Hire Challan --</option>
-              {challans.map((hc) => (
-                <option key={hc.id} value={hc.id}>
-                  {hc.challan_number} — {hc.vehicle_number} — Bal: ₹{Number(hc.balance_amount || 0).toFixed(2)} ({hc.status})
-                </option>
-              ))}
-            </select>
+              options={challans.map((hc) => ({
+                value: String(hc.id),
+                label: `${hc.challan_number} — ${hc.vehicle_number} — Bal: ₹${Number(hc.balance_amount || 0).toFixed(2)} (${hc.status})`,
+              }))}
+              placeholder="Choose Hire Challan..."
+              searchPlaceholder="Search challan number or vehicle..."
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -650,14 +654,16 @@ export default function PaymentVoucherPage() {
               <label className="block text-xs font-semibold text-[#344054] mb-1">
                 Payment Channel
               </label>
-              <select
+              <SearchableSelect
                 value={bthMode}
-                onChange={(e) => setBthMode(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
-              >
-                <option value="BANK">Bank Transfer (NEFT/RTGS)</option>
-                <option value="CASH">Cash Settlement</option>
-              </select>
+                onChange={(val) => setBthMode(val as any)}
+                options={[
+                  { value: "BANK", label: "Bank Transfer (NEFT/RTGS)" },
+                  { value: "CASH", label: "Cash Settlement" },
+                ]}
+                placeholder="Select channel..."
+                searchPlaceholder="Search channel..."
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#344054] mb-1">

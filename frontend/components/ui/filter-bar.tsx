@@ -1,6 +1,7 @@
 import React from "react";
 import { Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 export interface FilterOption {
   label: string;
@@ -79,30 +80,27 @@ export function FilterBar({
         )}
 
         {/* Dynamic Select Filters */}
-        {filters.map((filter) => (
-          <div key={filter.id} className="relative">
-            <select
-              value={filter.value}
-              onChange={(e) => filter.onChange(e.target.value)}
-              className={cn(
-                "h-9 px-3 pr-8 text-xs font-medium rounded-xl border bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 appearance-none cursor-pointer transition-all shadow-2xs",
-                filter.value && filter.value !== "ALL" && filter.value !== ""
-                  ? "border-indigo-300 font-semibold bg-indigo-50/80 text-indigo-700"
-                  : "border-slate-200 hover:border-slate-300 text-slate-600"
-              )}
-            >
-              <option value="">{filter.label}</option>
-              {filter.options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-              <SlidersHorizontal className="w-3 h-3" />
+        {filters.map((filter) => {
+          const isActive = filter.value && filter.value !== "ALL" && filter.value !== "";
+          return (
+            <div key={filter.id} className="relative min-w-[140px] sm:w-auto">
+              <SearchableSelect
+                size="sm"
+                value={filter.value}
+                onChange={(val) => filter.onChange(String(val))}
+                options={filter.options}
+                placeholder={filter.label}
+                searchPlaceholder={`Filter ${filter.label}...`}
+                buttonClassName={cn(
+                  "h-9 rounded-xl pr-2.5",
+                  isActive
+                    ? "border-indigo-300 font-semibold bg-indigo-50/80 text-indigo-700"
+                    : "border-slate-200 hover:border-slate-300 text-slate-600"
+                )}
+              />
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Active Filter Clear Button */}
         {showClear && onClear && (

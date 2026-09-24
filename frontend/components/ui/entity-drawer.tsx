@@ -53,8 +53,8 @@ export function EntityDrawer({
   const widthClasses = {
     md: "max-w-md",
     lg: "max-w-xl",
-    xl: "max-w-2xl",
-    full: "max-w-4xl",
+    xl: "max-w-3xl",
+    full: "max-w-5xl",
   }[effectiveWidth];
 
   return (

@@ -5,6 +5,7 @@ import { FileCheck2, AlertTriangle, CheckCircle, ShieldCheck, RefreshCw, QrCode 
 import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 
 interface VoucherRecord {
@@ -200,24 +201,24 @@ export default function GenerateIRNPage() {
                 <label className="block text-xs font-semibold text-text-primary mb-1">
                   Choose Invoice Voucher *
                 </label>
-                <select
-                  required
+                <SearchableSelect
                   value={selectedVoucherId}
-                  onChange={(e) => {
-                    setSelectedVoucherId(e.target.value);
-                    const sel = vouchers.find((v) => v.id.toString() === e.target.value);
+                  onChange={(val) => {
+                    const strVal = String(val);
+                    setSelectedVoucherId(strVal);
+                    const sel = vouchers.find((v) => v.id.toString() === strVal);
                     if (sel?.party_gstin) {
                       setBuyerGstin(sel.party_gstin);
                     }
                   }}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                >
-                  {vouchers.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.voucher_number} ({v.voucher_type}) — {v.party_name || "Direct Customer"} — ₹{Number(v.net_amount).toFixed(2)}
-                    </option>
-                  ))}
-                </select>
+                  options={vouchers.map((v) => ({
+                    value: String(v.id),
+                    label: `${v.voucher_number} (${v.voucher_type}) — ${v.party_name || "Direct Customer"} — ₹${Number(v.net_amount).toFixed(2)}`,
+                  }))}
+                  placeholder="Choose invoice voucher..."
+                  searchPlaceholder="Search voucher number or customer..."
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

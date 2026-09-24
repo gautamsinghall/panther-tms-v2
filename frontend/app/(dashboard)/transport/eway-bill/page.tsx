@@ -153,6 +153,9 @@ export default function EWayBillsPage() {
           type: "select",
           options: lrOptions,
           required: true,
+          addNewHref: "/transport/lr-booking",
+          addNewLabel: "+ Book New LR Booking",
+          addNewTitle: "Go to LR Booking to book a new consignment",
         },
         {
           name: "vehicle_number",

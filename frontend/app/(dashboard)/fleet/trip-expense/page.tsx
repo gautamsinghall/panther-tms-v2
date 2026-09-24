@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -271,19 +272,23 @@ export default function TripExpensePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Category *</label>
-                  <select
-                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                  <SearchableSelect
+                    size="sm"
                     value={formData.expense_category}
-                    onChange={(e) => setFormData({ ...formData, expense_category: e.target.value })}
-                  >
-                    <option value="DIESEL">DIESEL</option>
-                    <option value="TOLL">TOLL / FASTAG</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
-                    <option value="DRIVER_ALLOWANCE">DRIVER ALLOWANCE</option>
-                    <option value="POLICE_RTO">POLICE / RTO</option>
-                    <option value="LOADING_UNLOADING">LOADING / UNLOADING</option>
-                    <option value="MISC">MISCELLANEOUS</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, expense_category: String(val) })}
+                    options={[
+                      { value: "DIESEL", label: "DIESEL" },
+                      { value: "TOLL", label: "TOLL / FASTAG" },
+                      { value: "MAINTENANCE", label: "MAINTENANCE" },
+                      { value: "DRIVER_ALLOWANCE", label: "DRIVER ALLOWANCE" },
+                      { value: "POLICE_RTO", label: "POLICE / RTO" },
+                      { value: "LOADING_UNLOADING", label: "LOADING / UNLOADING" },
+                      { value: "MISC", label: "MISCELLANEOUS" },
+                    ]}
+                    placeholder="Select category..."
+                    searchPlaceholder="Search category..."
+                    required
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Amount (₹) *</label>
@@ -301,17 +306,20 @@ export default function TripExpensePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
-                  <select
-                    className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                  <SearchableSelect
+                    size="sm"
                     value={formData.payment_mode}
-                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-                  >
-                    <option value="PETROCARD">PETROCARD</option>
-                    <option value="FASTAG">FASTAG</option>
-                    <option value="CASH">DRIVER CASH</option>
-                    <option value="BANK">COMPANY BANK</option>
-                    <option value="UPI">UPI</option>
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, payment_mode: String(val) })}
+                    options={[
+                      { value: "PETROCARD", label: "PETROCARD" },
+                      { value: "FASTAG", label: "FASTAG" },
+                      { value: "CASH", label: "DRIVER CASH" },
+                      { value: "BANK", label: "COMPANY BANK" },
+                      { value: "UPI", label: "UPI" },
+                    ]}
+                    placeholder="Select payment mode..."
+                    searchPlaceholder="Search payment mode..."
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-[#344054]">Expense Date</label>

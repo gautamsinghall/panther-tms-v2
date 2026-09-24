@@ -9,9 +9,11 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface LedgerEntry {
   id: number;
@@ -61,6 +63,7 @@ interface TaxCategoryRecord {
 }
 
 export default function TransportInvoicePage() {
+  const router = useRouter();
   const [data, setData] = useState<VoucherRecord[]>([]);
   const [lrs, setLrs] = useState<LRRecord[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategoryRecord[]>([]);
@@ -406,36 +409,36 @@ export default function TransportInvoicePage() {
             <label className="block text-xs font-semibold text-[#172033]">
               Select Lorry Receipt (LR) <span className="text-[#DC2626]">*</span>
             </label>
-            <select
+            <SearchableSelect
               value={selectedLrId}
-              onChange={(e) => setSelectedLrId(e.target.value)}
+              onChange={(val) => setSelectedLrId(String(val))}
+              options={lrs.map((lr) => ({
+                value: String(lr.id),
+                label: `${lr.lr_number} (${formatDate(lr.lr_date)}) — Status: ${lr.status}`,
+              }))}
+              placeholder="Select LR to bill..."
+              searchPlaceholder="Search LR number or status..."
+              onAddNew={() => router.push("/transport/lr-booking")}
+              addNewLabel="+ Book New Lorry Receipt (LR)"
+              addNewTitle="Book a new Lorry Receipt in transport module"
               required
-              className="w-full h-9 rounded-control border border-[#E4E7EC] bg-white px-3 py-1.5 text-xs sm:text-sm text-[#172033] focus:outline-none focus:ring-1 focus:ring-[#172033]"
-            >
-              <option value="">Select LR to bill...</option>
-              {lrs.map((lr) => (
-                <option key={lr.id} value={lr.id}>
-                  {lr.lr_number} ({formatDate(lr.lr_date)}) — Status: {lr.status}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-[#172033]">
               Applicable Tax / GST Category
             </label>
-            <select
+            <SearchableSelect
               value={selectedTaxCatId}
-              onChange={(e) => setSelectedTaxCatId(e.target.value)}
-              className="w-full h-9 rounded-control border border-[#E4E7EC] bg-white px-3 py-1.5 text-xs sm:text-sm text-[#172033] focus:outline-none focus:ring-1 focus:ring-[#172033]"
-            >
-              {taxCategories.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} (IGST: {t.igst_rate}%)
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedTaxCatId(String(val))}
+              options={taxCategories.map((t) => ({
+                value: String(t.id),
+                label: `${t.name} (IGST: ${t.igst_rate}%)`,
+              }))}
+              placeholder="Select tax category..."
+              searchPlaceholder="Search tax rate or GST..."
+            />
           </div>
 
           <div className="space-y-1.5">

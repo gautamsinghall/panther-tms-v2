@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -271,16 +272,19 @@ export default function TripAdvancePage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
-                <select
-                  className="w-full h-9 rounded-control border border-[#D0D5DD] px-3 text-xs bg-white"
+                <SearchableSelect
+                  size="sm"
                   value={formData.payment_mode}
-                  onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-                >
-                  <option value="BANK_TRANSFER">BANK TRANSFER</option>
-                  <option value="CASH">CASH</option>
-                  <option value="UPI">UPI</option>
-                  <option value="PETROCARD">PETROCARD</option>
-                </select>
+                  onChange={(val) => setFormData({ ...formData, payment_mode: String(val) })}
+                  options={[
+                    { value: "BANK_TRANSFER", label: "BANK TRANSFER" },
+                    { value: "CASH", label: "CASH" },
+                    { value: "UPI", label: "UPI" },
+                    { value: "PETROCARD", label: "PETROCARD" },
+                  ]}
+                  placeholder="Select payment mode..."
+                  searchPlaceholder="Search payment mode..."
+                />
               </div>
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Disbursement Date</label>

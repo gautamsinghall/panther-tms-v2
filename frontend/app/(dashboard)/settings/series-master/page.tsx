@@ -8,6 +8,7 @@ import { ColumnDef } from "@/types/table";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { apiClient } from "@/lib/api-client";
 
 interface SeriesMasterItem {
@@ -330,20 +331,19 @@ export default function SeriesMasterPage() {
                   <label className="block text-xs font-medium text-slate-700 mb-1">
                     Series Category (Optional)
                   </label>
-                  <select
+                  <SearchableSelect
+                    size="sm"
                     value={selectedCatId || ""}
-                    onChange={(e) =>
-                      setSelectedCatId(e.target.value ? parseInt(e.target.value) : undefined)
+                    onChange={(val) =>
+                      setSelectedCatId(val ? parseInt(String(val)) : undefined)
                     }
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="">No Category</option>
-                    {categoryList.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name} ({cat.code})
-                      </option>
-                    ))}
-                  </select>
+                    options={categoryList.map((cat) => ({
+                      value: cat.id,
+                      label: `${cat.name} (${cat.code})`,
+                    }))}
+                    placeholder="No Category"
+                    searchPlaceholder="Search category..."
+                  />
                 </div>
               )}
 

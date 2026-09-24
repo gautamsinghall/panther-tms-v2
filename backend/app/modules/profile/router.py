@@ -1,5 +1,5 @@
-from typing import List
-from fastapi import APIRouter, Depends, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db
 from app.auth.dependencies import (
@@ -177,7 +177,8 @@ async def update_email(
     summary="Get consolidated Monthly P&L across all branches (Admin Only per PRD §7.12)"
 )
 async def get_monthly_pnl(
+    month: Optional[str] = Query(None, description="Optional accounting month in YYYY-MM format"),
     current_admin: User = Depends(get_current_company_admin),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.calculate_monthly_pnl(db)
+    return await service.calculate_monthly_pnl(db, month=month)

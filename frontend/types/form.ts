@@ -17,6 +17,10 @@ export interface FormFieldDef {
   helperText?: string;
   defaultValue?: any;
   colSpan?: 1 | 2 | 3 | 4;
+  onAddNew?: () => void;
+  addNewLabel?: string;
+  addNewTitle?: string;
+  addNewHref?: string;
 }
 
 export interface FormSectionDef {

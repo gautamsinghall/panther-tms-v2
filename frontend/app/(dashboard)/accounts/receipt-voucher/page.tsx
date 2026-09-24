@@ -8,6 +8,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -286,14 +287,17 @@ export default function ReceiptVoucherPage() {
               <label className="block text-xs font-semibold text-[#344054] mb-1">
                 Receipt Channel *
               </label>
-              <select
+              <SearchableSelect
                 value={paymentMode}
-                onChange={(e) => setPaymentMode(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
-              >
-                <option value="BANK">Bank Account (NEFT/RTGS/Cheque)</option>
-                <option value="CASH">Cash in Hand</option>
-              </select>
+                onChange={(val) => setPaymentMode(val as any)}
+                options={[
+                  { value: "BANK", label: "Bank Account (NEFT/RTGS/Cheque)" },
+                  { value: "CASH", label: "Cash in Hand" },
+                ]}
+                placeholder="Select receipt channel..."
+                searchPlaceholder="Search channel..."
+                required
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#344054] mb-1">
