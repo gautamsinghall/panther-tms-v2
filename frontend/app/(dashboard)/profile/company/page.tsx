@@ -29,7 +29,7 @@ interface CompanySettingData {
 }
 
 export default function CompanyProfilePage() {
-  const [subdomain, setSubdomain] = useState("demo");
+  const [subdomain, setSubdomain] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [gstin, setGstin] = useState("");
   const [pan, setPan] = useState("");

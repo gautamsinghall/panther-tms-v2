@@ -51,8 +51,8 @@ export default function UserAccountPage() {
       } catch (err: any) {
         // Fallback to authData
         if (auth) {
-          setFullName(auth.user?.full_name || "Company Admin");
-          setEmail(auth.user?.email || "admin@demo.com");
+          setFullName(auth.user?.full_name || "Workspace Admin");
+          setEmail(auth.user?.email || "");
         }
       } finally {
         setIsLoading(false);

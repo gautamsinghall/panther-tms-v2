@@ -1,4 +1,4 @@
-import { getStoredAuth } from "./auth";
+import { getStoredAuth, clearStoredAuth } from "./auth";
 
 interface ApiClientOptions extends RequestInit {
   subdomain?: string;
@@ -45,12 +45,24 @@ export async function apiClient<T = any>(
   const url = endpoint.startsWith("http") ? endpoint : `${backendBaseUrl}${endpoint}`;
 
   const storedAuth = getStoredAuth();
-  const subdomain = options.subdomain || storedAuth?.subdomain || "demo";
+  let subdomain = options.subdomain || storedAuth?.subdomain;
+  if (!subdomain && typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.includes("panthertms.com")) {
+      const parts = host.split(".");
+      if (parts.length > 2 && parts[0] !== "www" && parts[0] !== "api") {
+        subdomain = parts[0];
+      }
+    }
+  }
 
   const headers: Record<string, string> = {
-    "X-Tenant-Subdomain": subdomain,
     ...((options.headers as Record<string, string>) || {}),
   };
+
+  if (subdomain) {
+    headers["X-Tenant-Subdomain"] = subdomain;
+  }
 
   if (storedAuth?.accessToken && !headers["Authorization"]) {
     headers["Authorization"] = `Bearer ${storedAuth.accessToken}`;
@@ -66,6 +78,13 @@ export async function apiClient<T = any>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearStoredAuth();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+    }
+
     let errorDetail = `API Error ${response.status}: ${response.statusText}`;
     try {
       const errorJson = await response.json();
@@ -73,7 +92,9 @@ export async function apiClient<T = any>(
     } catch {
       // response wasn't JSON
     }
-    throw new Error(errorDetail);
+    const error = new Error(errorDetail);
+    (error as any).status = response.status;
+    throw error;
   }
 
   // If status is 204 No Content, return null

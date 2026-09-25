@@ -34,22 +34,16 @@ export function Header() {
 
   useEffect(() => {
     const auth = getStoredAuth();
-    if (auth) {
+    if (auth && auth.user) {
       setAuthData({
-        userName: auth.user?.full_name || "Company Admin",
-        userEmail: auth.user?.email || "admin@demo.com",
-        role: auth.user?.role || "COMPANY_ADMIN",
-        subdomain: auth.subdomain || "demo",
-        companyName: auth.tenantName || "Demo Logistics Pvt Ltd",
+        userName: auth.user.full_name || "Workspace User",
+        userEmail: auth.user.email || "",
+        role: auth.user.role || "COMPANY_ADMIN",
+        subdomain: auth.subdomain || "",
+        companyName: auth.tenantName || auth.subdomain || "Workspace",
       });
     } else {
-      setAuthData({
-        userName: "Operations Admin",
-        userEmail: "admin@demo.com",
-        role: "COMPANY_ADMIN",
-        subdomain: "demo",
-        companyName: "Demo Logistics Pvt Ltd",
-      });
+      setAuthData(null);
     }
   }, []);
 
@@ -62,15 +56,19 @@ export function Header() {
     <header className="h-16 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-5 flex items-center justify-between z-20 shrink-0 select-none">
       {/* Left: Organization / Branch Switcher */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/60 transition-all duration-150 shadow-2xs cursor-pointer group">
-          <Building2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
-          <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors">
-            {authData?.companyName}
-          </span>
-          <span className="text-xs font-mono font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200 group-hover:border-slate-300">
-            {authData?.subdomain}
-          </span>
-        </div>
+        {authData && (
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/60 transition-all duration-150 shadow-2xs cursor-pointer group">
+            <Building2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
+            <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors">
+              {authData.companyName}
+            </span>
+            {authData.subdomain && (
+              <span className="text-xs font-mono font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200 group-hover:border-slate-300">
+                {authData.subdomain}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="h-4 w-[1px] bg-slate-200 hidden sm:block" />
 
@@ -126,15 +124,15 @@ export function Header() {
                 aria-hidden="true"
                 className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0 select-none group-hover:bg-indigo-700 transition-colors"
               >
-                {authData?.userName ? authData.userName[0].toUpperCase() : "A"}
+                {authData?.userName ? authData.userName[0].toUpperCase() : "U"}
               </div>
               <div className="text-left hidden md:block">
                 <p className="text-xs font-semibold text-slate-900 leading-tight">
-                  {authData?.userName}
+                  {authData?.userName || "User"}
                 </p>
                 <p className="text-[11px] text-slate-500 leading-tight flex items-center gap-1 font-mono mt-0.5">
                   <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden="true" />
-                  <span>{authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role}</span>
+                  <span>{authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "User"}</span>
                 </p>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block shrink-0" aria-hidden="true" />

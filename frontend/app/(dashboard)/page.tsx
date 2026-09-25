@@ -57,17 +57,33 @@ export default function DashboardPage() {
       setIsLoading(true);
       try {
         const [biz, fin, ops, own] = await Promise.all([
-          apiClient<any>("/api/v1/home/business-overview").catch(() => null),
-          apiClient<any>("/api/v1/home/financial-analysis").catch(() => null),
-          apiClient<any>("/api/v1/home/fleet-operations").catch(() => null),
-          apiClient<any>("/api/v1/home/own-fleet").catch(() => null),
+          apiClient<any>("/api/v1/home/business-overview").catch((err) => {
+            if (err?.status === 401) throw err;
+            return null;
+          }),
+          apiClient<any>("/api/v1/home/financial-analysis").catch((err) => {
+            if (err?.status === 401) throw err;
+            return null;
+          }),
+          apiClient<any>("/api/v1/home/fleet-operations").catch((err) => {
+            if (err?.status === 401) throw err;
+            return null;
+          }),
+          apiClient<any>("/api/v1/home/own-fleet").catch((err) => {
+            if (err?.status === 401) throw err;
+            return null;
+          }),
         ]);
 
         if (biz) setBusinessData(biz);
         if (fin) setFinanceData(fin);
         if (ops) setOperationsData(ops);
         if (own) setOwnFleetData(own);
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.status === 401) {
+          // 401 is handled by apiClient clearing auth and redirecting to /login
+          return;
+        }
         console.warn("Could not fetch home dashboard data:", err);
       } finally {
         setIsLoading(false);

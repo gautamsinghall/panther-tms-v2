@@ -520,8 +520,12 @@ export function Sidebar() {
             setExpandedGroups(expanded);
           }
         }
-      } catch (err) {
-        // Fallback retained
+      } catch (err: any) {
+        if (err?.status === 401) {
+          // Auth error: handled by apiClient / auth guard redirecting to /login
+          return;
+        }
+        // Fallback retained for non-auth errors (e.g. temporary network glitch)
       }
     }
     loadNavigation();

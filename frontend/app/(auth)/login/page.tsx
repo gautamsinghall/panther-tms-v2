@@ -21,7 +21,7 @@ import {
   CheckCircle2,
   Cpu,
 } from "lucide-react";
-import { login } from "@/lib/auth";
+import { login, getStoredAuth } from "@/lib/auth";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
 import { PerspectiveGrid } from "@/components/ui/perspective-grid";
@@ -37,24 +37,50 @@ export default function LoginPage() {
   const [isDemoExpanded, setIsDemoExpanded] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [rootDomainSuffix, setRootDomainSuffix] = useState(".panthertms.com");
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
+      const auth = getStoredAuth();
+      if (auth && auth.accessToken) {
+        router.replace("/");
+        return;
+      }
+      setIsCheckingAuth(false);
+
       const host = window.location.hostname;
       if (host.includes("panthertms.com")) {
         setRootDomainSuffix(".panthertms.com");
+        const parts = host.split(".");
+        if (parts.length > 2 && parts[0] !== "www" && parts[0] !== "api") {
+          setSubdomain(parts[0]);
+        }
       } else if (host === "localhost" || host === "127.0.0.1") {
         setRootDomainSuffix(".panthertms.local");
       } else {
         const parts = host.split(".");
         if (parts.length > 2) {
           setRootDomainSuffix(`.${parts.slice(-2).join(".")}`);
+          if (parts[0] !== "www") {
+            setSubdomain(parts[0]);
+          }
         } else {
           setRootDomainSuffix(`.${host}`);
         }
       }
     }
-  }, []);
+  }, [router]);
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#F8FAFC]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium text-slate-500 font-mono">Checking session...</span>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

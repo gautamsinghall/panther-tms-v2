@@ -17,14 +17,45 @@ export interface StoredAuth {
 
 const AUTH_STORAGE_KEY = "panther_tms_auth";
 
+export function isTokenExpired(token: string): boolean {
+  if (!token || typeof token !== "string") return true;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(jsonPayload);
+    if (!payload.exp) return false;
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return false;
+  }
+}
+
 export function getStoredAuth(): StoredAuth | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const data: StoredAuth = JSON.parse(raw);
+    if (!data || !data.accessToken) {
+      clearStoredAuth();
+      return null;
+    }
+    if (isTokenExpired(data.accessToken)) {
+      clearStoredAuth();
+      return null;
+    }
+    return data;
   } catch (err) {
     console.error("Failed to parse stored auth", err);
+    clearStoredAuth();
     return null;
   }
 }
