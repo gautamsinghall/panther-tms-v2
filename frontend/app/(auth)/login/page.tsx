@@ -28,9 +28,9 @@ import { PerspectiveGrid } from "@/components/ui/perspective-grid";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [subdomain, setSubdomain] = useState("demo");
-  const [email, setEmail] = useState("admin@demo.com");
-  const [password, setPassword] = useState("PantherTMS@2026!");
+  const [subdomain, setSubdomain] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -309,7 +309,8 @@ export default function LoginPage() {
                       type="text"
                       value={subdomain}
                       onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                      placeholder="demo"
+                      placeholder="workspace"
+                      autoComplete="organization"
                       required
                       className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
                     />
@@ -338,7 +339,8 @@ export default function LoginPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@demo.com"
+                      placeholder="name@company.com"
+                      autoComplete="email"
                       required
                       className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
                     />
@@ -363,9 +365,10 @@ export default function LoginPage() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
                       required
-                      className="w-full pl-10 pr-10 py-2.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                      className="w-full pl-10 pr-10 py-2.5 text-sm font-mono placeholder:font-sans text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
                     />
                     <button
                       type="button"
