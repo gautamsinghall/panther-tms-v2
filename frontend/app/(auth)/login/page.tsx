@@ -51,19 +51,12 @@ export default function LoginPage() {
       const host = window.location.hostname;
       if (host.includes("panthertms.com")) {
         setRootDomainSuffix(".panthertms.com");
-        const parts = host.split(".");
-        if (parts.length > 2 && parts[0] !== "www" && parts[0] !== "api") {
-          setSubdomain(parts[0]);
-        }
       } else if (host === "localhost" || host === "127.0.0.1") {
         setRootDomainSuffix(".panthertms.local");
       } else {
         const parts = host.split(".");
         if (parts.length > 2) {
           setRootDomainSuffix(`.${parts.slice(-2).join(".")}`);
-          if (parts[0] !== "www") {
-            setSubdomain(parts[0]);
-          }
         } else {
           setRootDomainSuffix(`.${host}`);
         }
