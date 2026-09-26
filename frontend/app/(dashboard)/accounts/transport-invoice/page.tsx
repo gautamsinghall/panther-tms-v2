@@ -565,52 +565,70 @@ export default function TransportInvoicePage() {
         )}
 
         <form onSubmit={handleCreateInvoice} className="space-y-5 bg-white p-5 rounded-card border border-[#E4E7EC]">
-          {isManualSeries && activeRange ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[#172033]">
-                  Select Series Batch / Range <span className="text-[#DC2626]">*</span>
-                </label>
-                <SearchableSelect
-                  value={selectedRangeId || String(activeRange.id)}
-                  onChange={(val) => {
-                    const newId = String(val);
-                    setSelectedRangeId(newId);
-                    const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newId);
-                    const firstOpt = newRange?.available_options?.[0]?.value || "";
-                    setInvoiceNumber(firstOpt);
-                  }}
-                  options={rangeOptions}
-                  placeholder="Select series range..."
-                  searchPlaceholder="Search booklet / series..."
-                  onAddNew={() => router.push("/settings/series-master")}
-                  addNewLabel="+ Create New Series Range"
-                  addNewTitle="Configure new booklet range in Settings > Series Master"
-                />
-                <span className="text-[11px] text-slate-500 block">
-                  {activeRange.is_default
-                    ? "Sticky Active Series: Pre-selected automatically for current billing."
-                    : "Select booklet / batch range."}
-                </span>
-              </div>
+          {isManualSeries ? (
+            activeRange ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#172033]">
+                    Select Series Batch / Range <span className="text-[#DC2626]">*</span>
+                  </label>
+                  <SearchableSelect
+                    value={selectedRangeId || String(activeRange.id)}
+                    onChange={(val) => {
+                      const newId = String(val);
+                      setSelectedRangeId(newId);
+                      const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newId);
+                      const firstOpt = newRange?.available_options?.[0]?.value || "";
+                      setInvoiceNumber(firstOpt);
+                    }}
+                    options={rangeOptions}
+                    placeholder="Select series range..."
+                    searchPlaceholder="Search booklet / series..."
+                    onAddNew={() => router.push("/settings/series-master")}
+                    addNewLabel="+ Create New Series Range"
+                    addNewTitle="Configure new booklet range in Settings > Series Master"
+                  />
+                  <span className="text-[11px] text-slate-500 block">
+                    {activeRange.is_default
+                      ? "Sticky Active Series: Pre-selected automatically for current billing."
+                      : "Select booklet / batch range."}
+                  </span>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[#172033]">
-                  Select Invoice Number ({leafOptions.length} Unused Available) <span className="text-[#DC2626]">*</span>
-                </label>
-                <SearchableSelect
-                  value={invoiceNumber}
-                  onChange={(val) => setInvoiceNumber(String(val))}
-                  options={leafOptions}
-                  placeholder={leafOptions.length > 0 ? "Select unused invoice number..." : "All vouchers in this range are used!"}
-                  searchPlaceholder="Search unused invoice number..."
-                  required
-                />
-                <span className="text-[11px] text-slate-500 block">
-                  Used voucher numbers are automatically hidden. Select any available number.
-                </span>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-[#172033]">
+                    Select Invoice Number ({leafOptions.length} Unused Available) <span className="text-[#DC2626]">*</span>
+                  </label>
+                  <SearchableSelect
+                    value={invoiceNumber}
+                    onChange={(val) => setInvoiceNumber(String(val))}
+                    options={leafOptions}
+                    placeholder={leafOptions.length > 0 ? "Select unused invoice number..." : "All vouchers in this range are used!"}
+                    searchPlaceholder="Search unused invoice number..."
+                    required
+                  />
+                  <span className="text-[11px] text-slate-500 block">
+                    Used voucher numbers are automatically hidden. Select any available number.
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+                <div>
+                  <strong className="block font-semibold">No Manual Series Range Configured</strong>
+                  <span className="text-amber-700">Please configure a batch range (e.g. 1001 – 1500) in Series Master to generate Transport Invoices.</span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.push("/settings/series-master")}
+                  className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
+                >
+                  Configure Series
+                </Button>
+              </div>
+            )
           ) : (
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-[#172033]">

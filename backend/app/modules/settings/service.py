@@ -262,9 +262,12 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
     result = await db.execute(stmt)
     series_list = result.scalars().all()
     
-    # Auto-initialize standard voucher series if any standard voucher type (e.g. JOB) is missing
-    if len(series_list) < len(STANDARD_VOUCHER_METADATA):
-        await initialize_all_standard_series(db)
+    # Auto-initialize standard automatic voucher series if any automatic series is missing
+    auto_metadata = [m for m in STANDARD_VOUCHER_METADATA if m.get("series_mode") != "MANUAL" and not m.get("is_mandatory_manual")]
+    existing_types = {s.document_type for s in series_list}
+    missing_auto = any(m["document_type"] not in existing_types for m in auto_metadata)
+    if missing_auto:
+        await initialize_all_standard_series(db, exclude_manual=True)
         result = await db.execute(stmt)
         series_list = result.scalars().all()
 

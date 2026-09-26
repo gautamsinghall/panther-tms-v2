@@ -410,6 +410,16 @@ async def ensure_series_table_schema(db: AsyncSession) -> None:
                 await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN series_name VARCHAR(100);"))
             if "is_default" not in cols:
                 await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN is_default BOOLEAN DEFAULT 0;"))
+        # Clean up any unconfigured auto-seeded manual series with no range and 0 usage
+        try:
+            await db.execute(text("""
+                DELETE FROM settings_series_masters 
+                WHERE series_mode = 'MANUAL' 
+                  AND end_number IS NULL 
+                  AND (current_number IS NULL OR current_number = 0);
+            """))
+        except Exception:
+            pass
         await db.commit()
         _VERIFIED_SERIES_DBS.add(db_name)
     except Exception as e:
@@ -519,10 +529,15 @@ async def get_manual_series_ranges(db: AsyncSession, document_type: str) -> Dict
     default_series_id = None
 
     for s in all_series:
+        start = s.starting_number or 1
+        end = s.end_number
+
+        # If range is not set, do not use any default range (e.g. 501) and do not show the series
+        if end is None or end < start:
+            continue
+
         prefix = s.prefix or ""
         suffix = s.suffix or ""
-        start = s.starting_number or 1
-        end = s.end_number if s.end_number and s.end_number >= start else (start + 500)
         total_in_range = end - start + 1
 
         available_options = []
@@ -777,6 +792,19 @@ async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str,
 
     real_usage = await get_real_voucher_usage(db, norm_type)
     disp = compute_series_display_data(series, real_usage=real_usage)
+
+    # For manual series: if range is not set, treat series as not configured
+    if disp["series_mode"] == "MANUAL" and (series.end_number is None or series.end_number < (series.starting_number or 1)):
+        readable_title = norm_type.replace("_", " ").title()
+        return {
+            "configured": False,
+            "document_type": norm_type,
+            "display_name": readable_title,
+            "is_mandatory_manual": is_mandatory_manual,
+            "series_mode": "MANUAL",
+            "message": f"Manual series batch range is not configured for {readable_title}. Please set up a series range in Settings > Series Master.",
+        }
+
     return {
         "configured": True,
         "id": series.id,
@@ -799,9 +827,16 @@ async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str,
     }
 
 
-async def initialize_all_standard_series(db: AsyncSession, financial_year: str = "2026-2027") -> List[Dict[str, Any]]:
+async def initialize_all_standard_series(
+    db: AsyncSession,
+    financial_year: str = "2026-2027",
+    exclude_manual: bool = True,
+) -> List[Dict[str, Any]]:
     """
-    Initializes all 15 standard voucher series with their default prefix, postfix, and modes.
+    Initializes standard voucher series across Panther TMS.
+    By default (exclude_manual=True), creates all automatic series (Job, Receipts, Payments,
+    Purchases, Contra, Credit/Debit Notes, Journal). Manual series (LR, Hire Challan,
+    Transport & General Invoice) are excluded so users configure their own physical ranges.
     """
     # 1. Ensure categories exist
     cat_map = {}
@@ -828,6 +863,14 @@ async def initialize_all_standard_series(db: AsyncSession, financial_year: str =
     # 2. Seed standard series
     created_list = []
     for meta in STANDARD_VOUCHER_METADATA:
+        # Exclude manual series if requested (e.g. on new tenant signup or auto-init)
+        if exclude_manual and (
+            meta.get("series_mode") == "MANUAL"
+            or meta.get("is_mandatory_manual")
+            or meta["document_type"] in MANDATORY_MANUAL_DOC_TYPES
+        ):
+            continue
+
         stmt = select(SeriesMaster).where(
             SeriesMaster.document_type == meta["document_type"],
             SeriesMaster.financial_year == financial_year,

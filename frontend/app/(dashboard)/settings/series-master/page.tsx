@@ -345,6 +345,9 @@ export default function SeriesMasterPage() {
     setSuccessMessage(null);
     try {
       const mode = isSelectedMandatoryManual ? "MANUAL" : seriesMode;
+      if (mode === "MANUAL" && (!endNum || Number(endNum) < startingNum)) {
+        throw new Error("For manual series, Range End Number is required and must be greater than or equal to Range Start Number.");
+      }
       const payload = {
         document_type: docType,
         series_name: seriesName.trim() || null,
@@ -648,12 +651,20 @@ export default function SeriesMasterPage() {
 
         return (
           <div className="flex flex-col gap-0.5">
-            {hasRange ? (
-              <div className="flex items-center gap-1 font-mono text-xs font-bold text-slate-800">
-                <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[11px]">
-                  Batch #{row.starting_number} – #{row.end_number}
-                </span>
-              </div>
+            {isManual ? (
+              hasRange ? (
+                <div className="flex items-center gap-1 font-mono text-xs font-bold text-slate-800">
+                  <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[11px]">
+                    Batch #{row.starting_number} – #{row.end_number}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 font-mono text-xs font-semibold text-rose-700">
+                  <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[10px]">
+                    Range Not Set (Click Edit)
+                  </span>
+                </div>
+              )
             ) : null}
 
             {row.last_used_formatted && row.current_number > 0 ? (

@@ -60,13 +60,18 @@ export default function ProformaInvoicePage() {
 
   // View Details Drawer state
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
+  const [seriesInfo, setSeriesInfo] = useState<any>(null);
 
   const loadData = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PROFORMA_INVOICE");
+      const [res, sInfo] = await Promise.all([
+        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PROFORMA_INVOICE"),
+        apiClient<any>("/api/v1/settings/series/check/PROFORMA_INVOICE").catch(() => null),
+      ]);
       setData(res);
+      setSeriesInfo(sInfo);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load proforma invoices.");
     } finally {
@@ -94,6 +99,7 @@ export default function ProformaInvoicePage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "PROFORMA_INVOICE",
+          voucher_number: seriesInfo?.next_number_formatted || undefined,
           party_name: partyName.trim(),
           reference_number: refNumber.trim() || undefined,
           total_amount: tot,
@@ -291,6 +297,21 @@ export default function ProformaInvoicePage() {
       >
         <form id="proforma-invoice-form" onSubmit={handleCreateInvoice} className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
+            {/* Series Master Info / Voucher Number */}
+            <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
+                  Proforma Invoice Number (Auto Series)
+                </div>
+                <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
+                  {seriesInfo?.next_number_formatted || "PI-2026-0001"}
+                </div>
+              </div>
+              <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
+                Auto-Assigned & Locked
+              </span>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">
                 Prospective Customer / Party *

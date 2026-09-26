@@ -90,18 +90,29 @@ export default function PaymentVoucherPage() {
   // View Ledger Drawer
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
 
+  // Series States
+  const [stdSeries, setStdSeries] = useState<any>(null);
+  const [athSeries, setAthSeries] = useState<any>(null);
+  const [bthSeries, setBthSeries] = useState<any>(null);
+
   const loadData = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [stdRes, athRes, bthRes, hcRes] = await Promise.all([
+      const [stdRes, athRes, bthRes, hcRes, sStd, sAth, sBth] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_VOUCHER"),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=ATH_PAYMENT"),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=BTH_PAYMENT"),
         apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans"),
+        apiClient<any>("/api/v1/settings/series/check/PAYMENT_VOUCHER").catch(() => null),
+        apiClient<any>("/api/v1/settings/series/check/PAYMENT_ATH").catch(() => null),
+        apiClient<any>("/api/v1/settings/series/check/PAYMENT_BTH").catch(() => null),
       ]);
       setData([...stdRes, ...athRes, ...bthRes]);
       setChallans(hcRes);
+      setStdSeries(sStd);
+      setAthSeries(sAth);
+      setBthSeries(sBth);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load payment vouchers.");
     } finally {
@@ -128,6 +139,7 @@ export default function PaymentVoucherPage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "PAYMENT_VOUCHER",
+          voucher_number: stdSeries?.next_number_formatted || undefined,
           party_name: partyName.trim(),
           reference_number: referenceNumber.trim() || undefined,
           total_amount: amt,
@@ -443,6 +455,21 @@ export default function PaymentVoucherPage() {
         size="md"
       >
         <form onSubmit={handleCreateStandardPayment} className="space-y-4">
+          {/* Series Master Info / Voucher Number */}
+          <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
+                Payment Voucher Number (Auto Series)
+              </div>
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
+                {stdSeries?.next_number_formatted || "PV-2026-0001"}
+              </div>
+            </div>
+            <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
+              Auto-Assigned & Locked
+            </span>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-[#344054] mb-1">
               Paid To (Beneficiary Name) *
@@ -536,6 +563,21 @@ export default function PaymentVoucherPage() {
         size="md"
       >
         <form onSubmit={handleCreateAth} className="space-y-4">
+          {/* Series Master Info / Voucher Number */}
+          <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
+                ATH Voucher Number (Auto Series)
+              </div>
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
+                {athSeries?.next_number_formatted || "ATH-2026-0001"}
+              </div>
+            </div>
+            <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
+              Auto-Assigned & Locked
+            </span>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-[#344054] mb-1">
               Select Hire Challan *
@@ -625,6 +667,21 @@ export default function PaymentVoucherPage() {
         size="md"
       >
         <form onSubmit={handleCreateBth} className="space-y-4">
+          {/* Series Master Info / Voucher Number */}
+          <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
+                BTH Voucher Number (Auto Series)
+              </div>
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
+                {bthSeries?.next_number_formatted || "BTH-2026-0001"}
+              </div>
+            </div>
+            <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
+              Auto-Assigned & Locked
+            </span>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-[#344054] mb-1">
               Select Hire Challan *

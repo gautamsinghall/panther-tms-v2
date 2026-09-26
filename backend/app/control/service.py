@@ -276,6 +276,13 @@ async def initialize_tenant_schema_and_admin(
             )
             session.add(comp_setting)
 
+        # Seed all standard series EXCEPT manual series upon tenant creation
+        try:
+            from app.modules.settings.series_service import initialize_all_standard_series
+            await initialize_all_standard_series(session, exclude_manual=True)
+        except Exception as e:
+            logger.warning(f"Could not initialize default series for {db_name}: {e}")
+
         await session.commit()
     await engine.dispose()
 

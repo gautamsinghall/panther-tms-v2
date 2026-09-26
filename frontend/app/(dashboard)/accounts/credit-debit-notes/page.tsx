@@ -63,15 +63,25 @@ export default function CreditDebitNotesPage() {
   // View Ledger Drawer state
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
 
+  // Series state
+  const [creditSeries, setCreditSeries] = useState<any>(null);
+  const [debitSeries, setDebitSeries] = useState<any>(null);
+
+  const activeSeries = noteType === "CREDIT_NOTE" ? creditSeries : debitSeries;
+
   const loadData = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [crRes, drRes] = await Promise.all([
+      const [crRes, drRes, sCr, sDr] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=CREDIT_NOTE"),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=DEBIT_NOTE"),
+        apiClient<any>("/api/v1/settings/series/check/CREDIT_NOTE").catch(() => null),
+        apiClient<any>("/api/v1/settings/series/check/DEBIT_NOTE").catch(() => null),
       ]);
       setData([...crRes, ...drRes]);
+      setCreditSeries(sCr);
+      setDebitSeries(sDr);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load credit and debit notes.");
     } finally {
@@ -99,6 +109,7 @@ export default function CreditDebitNotesPage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: noteType,
+          voucher_number: activeSeries?.next_number_formatted || undefined,
           party_name: partyName.trim(),
           reference_number: refNumber.trim() || undefined,
           total_amount: tot,
@@ -344,6 +355,21 @@ export default function CreditDebitNotesPage() {
       >
         <form id="credit-debit-note-form" onSubmit={handleCreateNote} className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
+            {/* Series Master Info / Voucher Number */}
+            <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
+                  {noteType === "CREDIT_NOTE" ? "Credit Note Number" : "Debit Note Number"} (Auto Series)
+                </div>
+                <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
+                  {activeSeries?.next_number_formatted || (noteType === "CREDIT_NOTE" ? "CN-2026-0001" : "DN-2026-0001")}
+                </div>
+              </div>
+              <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
+                Auto-Assigned & Locked
+              </span>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1.5">
                 Note Type *

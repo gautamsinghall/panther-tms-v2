@@ -60,13 +60,18 @@ export default function ReceiptVoucherPage() {
 
   // View Ledger state
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
+  const [seriesInfo, setSeriesInfo] = useState<any>(null);
 
   const loadData = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=RECEIPT_VOUCHER");
+      const [res, sInfo] = await Promise.all([
+        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=RECEIPT_VOUCHER"),
+        apiClient<any>("/api/v1/settings/series/check/RECEIPT_VOUCHER").catch(() => null),
+      ]);
       setData(res);
+      setSeriesInfo(sInfo);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load receipt vouchers.");
     } finally {
@@ -93,6 +98,7 @@ export default function ReceiptVoucherPage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "RECEIPT_VOUCHER",
+          voucher_number: seriesInfo?.next_number_formatted || undefined,
           party_name: partyName.trim(),
           reference_number: referenceNumber.trim() || undefined,
           total_amount: amt,
@@ -268,6 +274,21 @@ export default function ReceiptVoucherPage() {
         size="md"
       >
         <form onSubmit={handleCreateReceipt} className="space-y-4">
+          {/* Series Master Info / Voucher Number */}
+          <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
+            <div>
+              <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
+                Receipt Voucher Number (Auto Series)
+              </div>
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
+                {seriesInfo?.next_number_formatted || "RV-2026-0001"}
+              </div>
+            </div>
+            <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
+              Auto-Assigned & Locked
+            </span>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-[#344054] mb-1">
               Received From (Customer Name) *

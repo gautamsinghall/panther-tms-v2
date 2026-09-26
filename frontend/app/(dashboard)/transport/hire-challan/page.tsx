@@ -246,39 +246,51 @@ export default function HireChallansPage() {
       description: "Agreement with vehicle supplier / market truck owner",
       columns: 2,
       fields: [
-        ...(isManualSeries && activeRange
-          ? [
-              {
-                name: "series_range_id",
-                label: "Select Series Batch / Range",
-                type: "select" as const,
-                required: true,
-                options: rangeOptions,
-                defaultValue: String(activeRange.id),
-                helperText: activeRange.is_default
-                  ? "Sticky Active Series: Pre-selected automatically for current billing."
-                  : "Select booklet / batch range.",
-                onChange: (newRangeId: string) => {
-                  setSelectedRangeId(newRangeId);
-                  const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newRangeId);
-                  const firstOpt = newRange?.available_options?.[0]?.value || "";
-                  formSetFieldValueRef.current?.("challan_number", firstOpt);
+        ...(isManualSeries
+          ? activeRange
+            ? [
+                {
+                  name: "series_range_id",
+                  label: "Select Series Batch / Range",
+                  type: "select" as const,
+                  required: true,
+                  options: rangeOptions,
+                  defaultValue: String(activeRange.id),
+                  helperText: activeRange.is_default
+                    ? "Sticky Active Series: Pre-selected automatically for current billing."
+                    : "Select booklet / batch range.",
+                  onChange: (newRangeId: string) => {
+                    setSelectedRangeId(newRangeId);
+                    const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newRangeId);
+                    const firstOpt = newRange?.available_options?.[0]?.value || "";
+                    formSetFieldValueRef.current?.("challan_number", firstOpt);
+                  },
+                  onAddNew: () => router.push("/settings/series-master"),
+                  addNewLabel: "+ Create New Series Range",
+                  addNewTitle: "Configure new booklet range in Settings > Series Master",
                 },
-                onAddNew: () => router.push("/settings/series-master"),
-                addNewLabel: "+ Create New Series Range",
-                addNewTitle: "Configure new booklet range in Settings > Series Master",
-              },
-              {
-                name: "challan_number",
-                label: `Voucher Number (${leafOptions.length} Unused Available)`,
-                type: "select" as const,
-                required: true,
-                options: leafOptions,
-                defaultValue: leafOptions[0]?.value || "",
-                placeholder: leafOptions.length > 0 ? "Select unused challan leaf/number" : "All vouchers in this range are used!",
-                helperText: "Used voucher numbers are automatically hidden. Select any available leaf in the batch.",
-              },
-            ]
+                {
+                  name: "challan_number",
+                  label: `Voucher Number (${leafOptions.length} Unused Available)`,
+                  type: "select" as const,
+                  required: true,
+                  options: leafOptions,
+                  defaultValue: leafOptions[0]?.value || "",
+                  placeholder: leafOptions.length > 0 ? "Select unused challan leaf/number" : "All vouchers in this range are used!",
+                  helperText: "Used voucher numbers are automatically hidden. Select any available leaf in the batch.",
+                },
+              ]
+            : [
+                {
+                  name: "challan_number",
+                  label: "Challan Number (Manual Series Required)",
+                  type: "text" as const,
+                  disabled: true,
+                  disabledReason: "No manual series range configured. Please set up a series batch in Settings > Series Master.",
+                  placeholder: "No active series range configured",
+                  helperText: "Go to Settings > Series Master to configure your custom series prefix and start/end range.",
+                },
+              ]
           : [
               {
                 name: "challan_number",

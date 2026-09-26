@@ -320,39 +320,51 @@ export default function LRBookingPage() {
       description: "Originating contracting parties, series booklet, and optional Job linkage",
       columns: 2,
       fields: [
-        ...(isManualSeries && activeRange
-          ? [
-              {
-                name: "series_range_id",
-                label: "Select Series Batch / Range",
-                type: "select" as const,
-                required: true,
-                options: rangeOptions,
-                defaultValue: String(activeRange.id),
-                helperText: activeRange.is_default
-                  ? "Sticky Active Series: Pre-selected automatically for current billing."
-                  : "Select physical booklet / series batch.",
-                onChange: (newRangeId: string) => {
-                  setSelectedRangeId(newRangeId);
-                  const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newRangeId);
-                  const firstOpt = newRange?.available_options?.[0]?.value || "";
-                  formSetFieldValueRef.current?.("lr_number", firstOpt);
+        ...(isManualSeries
+          ? activeRange
+            ? [
+                {
+                  name: "series_range_id",
+                  label: "Select Series Batch / Range",
+                  type: "select" as const,
+                  required: true,
+                  options: rangeOptions,
+                  defaultValue: String(activeRange.id),
+                  helperText: activeRange.is_default
+                    ? "Sticky Active Series: Pre-selected automatically for current billing."
+                    : "Select physical booklet / series batch.",
+                  onChange: (newRangeId: string) => {
+                    setSelectedRangeId(newRangeId);
+                    const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newRangeId);
+                    const firstOpt = newRange?.available_options?.[0]?.value || "";
+                    formSetFieldValueRef.current?.("lr_number", firstOpt);
+                  },
+                  onAddNew: () => router.push("/settings/series-master"),
+                  addNewLabel: "+ Create New Series Range",
+                  addNewTitle: "Configure new booklet range in Settings > Series Master",
                 },
-                onAddNew: () => router.push("/settings/series-master"),
-                addNewLabel: "+ Create New Series Range",
-                addNewTitle: "Configure new booklet range in Settings > Series Master",
-              },
-              {
-                name: "lr_number",
-                label: `Voucher Number (${leafOptions.length} Unused Available)`,
-                type: "select" as const,
-                required: true,
-                options: leafOptions,
-                defaultValue: leafOptions[0]?.value || "",
-                placeholder: leafOptions.length > 0 ? "Select unused LR leaf/number" : "All vouchers in this range are used!",
-                helperText: "Used voucher numbers are automatically hidden. Select any available leaf in the batch.",
-              },
-            ]
+                {
+                  name: "lr_number",
+                  label: `Voucher Number (${leafOptions.length} Unused Available)`,
+                  type: "select" as const,
+                  required: true,
+                  options: leafOptions,
+                  defaultValue: leafOptions[0]?.value || "",
+                  placeholder: leafOptions.length > 0 ? "Select unused LR leaf/number" : "All vouchers in this range are used!",
+                  helperText: "Used voucher numbers are automatically hidden. Select any available leaf in the batch.",
+                },
+              ]
+            : [
+                {
+                  name: "lr_number",
+                  label: "LR / GR Number (Manual Series Required)",
+                  type: "text" as const,
+                  disabled: true,
+                  disabledReason: "No manual series range configured. Please set up a series batch in Settings > Series Master.",
+                  placeholder: "No active series range configured",
+                  helperText: "Go to Settings > Series Master to configure your custom series prefix and start/end range.",
+                },
+              ]
           : [
               {
                 name: "lr_number",
