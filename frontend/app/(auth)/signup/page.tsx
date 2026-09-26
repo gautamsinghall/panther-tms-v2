@@ -18,6 +18,14 @@ import {
   Mail,
   Layers,
   Sparkles,
+  HelpCircle,
+  Package,
+  BarChart3,
+  Truck,
+  Users,
+  FileText,
+  Crown,
+  Headset,
 } from "lucide-react";
 import TextAnimation from "@/components/ui/staggerText";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
@@ -336,25 +344,41 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen lg:h-screen w-full flex flex-col bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative lg:overflow-hidden">
-      {/* Clean neutral ambient background with subtle radial glow behind the cards */}
+      {/* Clean neutral ambient background with subtle radial glow and right-side freight truck atmosphere */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[550px] bg-indigo-500/[0.035] rounded-full blur-3xl" />
+        {/* Subtle center ambient glow */}
+        <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-indigo-500/[0.03] rounded-full blur-3xl" />
+        
+        {/* Upper-right faded freight truck background matching reference */}
+        <div className="absolute top-0 right-0 w-[55vw] max-w-[900px] h-[580px] pointer-events-none overflow-hidden opacity-75">
+          <img
+            src="/logistics-truck-bg.jpg"
+            alt=""
+            className="w-full h-full object-cover object-[68%_38%]"
+          />
+          {/* Edge gradients to dissolve seamlessly into background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/55 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#F8FAFC] via-transparent to-[#F8FAFC]/20" />
+          <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/60 to-transparent" />
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* TOP HEADER BAR: Standardized enterprise header across Login and Signup     */}
+      {/* TOP HEADER BAR: Replicated from reference                                  */}
       {/* ========================================================================= */}
-      <header className="w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 sm:px-10 h-16 flex items-center justify-between z-20 shrink-0">
+      <header className="w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md px-6 sm:px-10 h-16 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-3">
-          <Link href="/" className="inline-flex items-center gap-3 group">
+          <Link href="/" className="inline-flex items-center gap-2 group">
             <img
               src="/panther-logo.png"
               alt="Panther Digital Solutions"
-              className="h-9 w-auto object-contain drop-shadow-xs group-hover:opacity-90 transition-opacity"
+              className="h-8 w-auto object-contain drop-shadow-xs group-hover:opacity-90 transition-opacity"
             />
-            <div className="h-5 w-px bg-slate-200" />
-            <span className="text-xs font-semibold tracking-wider uppercase text-slate-500 font-mono">
-              v2.0 Enterprise
+            <span className="font-bold text-lg tracking-tight text-slate-900">
+              Panther<span className="font-extrabold text-blue-600">TMS</span>
+            </span>
+            <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200/70 rounded-full px-2 py-0.5 font-mono">
+              v2.0
             </span>
           </Link>
           <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-500 font-medium">
@@ -363,14 +387,21 @@ export default function SignupPage() {
         </div>
 
         <div className="flex items-center gap-4 text-xs">
-          <span className="hidden sm:inline text-slate-500">Already have an account?</span>
-          <Link000
+          <button
+            type="button"
+            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+            title="Help & Documentation"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+          <span className="hidden sm:inline text-slate-500 font-medium">Already have an account?</span>
+          <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100/90 border border-indigo-200/70 transition-all shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-white hover:bg-slate-50 border border-indigo-200/70 shadow-2xs transition-all"
           >
             <span>Sign in</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </Link000>
+          </Link>
         </div>
       </header>
 
@@ -381,15 +412,18 @@ export default function SignupPage() {
         {/* Workflow Title & Stepper Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2.5 lg:mb-3 border-b border-slate-200/70 shrink-0">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-600 font-mono">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono">
               <Layers className="w-3.5 h-3.5" />
               <span>Workspace Provisioning</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 leading-tight">
               {step === 1 && (
-                <TextAnimation divideBy="word" delay={0.05}>
-                  Select Subscription Plan
-                </TextAnimation>
+                <span>
+                  Select{" "}
+                  <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-600 bg-clip-text text-transparent font-extrabold">
+                    Subscription Plan
+                  </span>
+                </span>
               )}
               {step === 2 && (
                 <TextAnimation divideBy="word" delay={0.05}>
@@ -403,7 +437,7 @@ export default function SignupPage() {
               )}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              {step === 1 && "Choose the subscription edition that matches your active fleet capacity."}
+              {step === 1 && "Choose the subscription edition that matches your active fleet capacity and business needs."}
               {step === 2 && "Set up your isolated tenant database and master administrator."}
               {step === 3 && "Automated multi-tenant environment provisioning in progress."}
             </p>
@@ -411,23 +445,23 @@ export default function SignupPage() {
 
           <div className="flex items-center gap-3 sm:gap-5 flex-wrap">
             {/* Step Indicator */}
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <div className={`flex items-center gap-1.5 font-semibold ${step === 1 ? "text-slate-900 font-bold" : step > 1 ? "text-indigo-600" : "text-slate-400"}`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 1 ? "bg-indigo-600 text-white shadow-2xs" : step > 1 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-medium">
+              <div className={`flex items-center gap-1.5 ${step === 1 ? "text-slate-900 font-bold" : step > 1 ? "text-indigo-600 font-semibold" : "text-slate-400"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 1 ? "bg-[#1D4ED8] text-white shadow-2xs" : step > 1 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
                   {step > 1 ? "✓" : "1"}
                 </span>
                 <span>Plan</span>
               </div>
-              <span className={`w-5 h-px ${step > 1 ? "bg-indigo-600" : "bg-slate-200"}`} />
-              <div className={`flex items-center gap-1.5 font-semibold ${step === 2 ? "text-slate-900 font-bold" : step > 2 ? "text-indigo-600" : "text-slate-400"}`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 2 ? "bg-indigo-600 text-white shadow-2xs" : step > 2 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
+              <span className={`w-4 h-px ${step > 1 ? "bg-indigo-600" : "bg-slate-200"}`} />
+              <div className={`flex items-center gap-1.5 ${step === 2 ? "text-slate-900 font-bold" : step > 2 ? "text-indigo-600 font-semibold" : "text-slate-400"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 2 ? "bg-[#1D4ED8] text-white shadow-2xs" : step > 2 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
                   {step > 2 ? "✓" : "2"}
                 </span>
                 <span>Workspace</span>
               </div>
-              <span className={`w-5 h-px ${step > 2 ? "bg-indigo-600" : "bg-slate-200"}`} />
-              <div className={`flex items-center gap-1.5 font-semibold ${step === 3 ? "text-slate-900 font-bold" : "text-slate-400"}`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 3 ? "bg-indigo-600 text-white shadow-2xs" : "bg-slate-200 text-slate-500"}`}>
+              <span className={`w-4 h-px ${step > 2 ? "bg-indigo-600" : "bg-slate-200"}`} />
+              <div className={`flex items-center gap-1.5 ${step === 3 ? "text-slate-900 font-bold" : "text-slate-400"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 3 ? "bg-[#1D4ED8] text-white shadow-2xs" : "bg-slate-200 text-slate-500"}`}>
                   3
                 </span>
                 <span>Provisioning</span>
@@ -436,21 +470,21 @@ export default function SignupPage() {
 
             {/* Billing Toggle (Shown on Step 1) */}
             {step === 1 && (
-              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs sm:text-sm shadow-2xs">
+              <div className="flex items-center bg-white/90 backdrop-blur-xs p-1 rounded-full border border-slate-200 shadow-2xs text-xs">
                 <button
                   type="button"
                   onClick={() => setBillingCycle("MONTHLY")}
-                  className={`px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${billingCycle === "MONTHLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`px-3.5 py-1 rounded-full font-semibold transition-all cursor-pointer ${billingCycle === "MONTHLY" ? "bg-[#2563EB] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
                 >
                   Monthly
                 </button>
                 <button
                   type="button"
                   onClick={() => setBillingCycle("YEARLY")}
-                  className={`px-3 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 cursor-pointer ${billingCycle === "YEARLY" ? "bg-white text-slate-900 shadow-xs font-semibold" : "text-slate-500 hover:text-slate-700"}`}
+                  className={`px-3 py-1 rounded-full font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${billingCycle === "YEARLY" ? "bg-[#2563EB] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
                 >
                   Yearly
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200/80">
                     -17%
                   </span>
                 </button>
@@ -466,203 +500,490 @@ export default function SignupPage() {
           </div>
         )}
 
-        {/* STEP 1: PLAN SELECTION */}
+        {/* STEP 1: PLAN SELECTION (EXACT REPLICATION OF REFERENCE IMAGE) */}
         {step === 1 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 xl:gap-6 my-auto items-stretch w-full py-2">
-            {PLANS.map((plan) => {
-              const isSelected = selectedPlan === plan.code;
-              const price = billingCycle === "MONTHLY" ? plan.priceMonthly : Math.round(plan.priceYearly / 12);
-              const isEnterprise = plan.code === "ENTERPRISE";
-              const isBusiness = plan.code === "BUSINESS";
-              const isPro = plan.code === "PRO";
-              const isFree = plan.code === "FREE";
-
-              // Surface and background
-              const cardBg = isEnterprise
-                ? "bg-[#0B0F19] text-white"
-                : isPro
-                ? "bg-[#FCFDFF] text-slate-900"
-                : "bg-white text-slate-900";
-
-              // 1px Border and shadow with smooth hover lift
-              const cardBorderAndShadow = isEnterprise
-                ? isSelected
-                  ? "border-indigo-500 ring-2 ring-indigo-500/80 shadow-2xl shadow-slate-950/60 -translate-y-1"
-                  : "border-slate-800/90 shadow-xl shadow-slate-950/30 hover:border-slate-700 hover:shadow-2xl hover:shadow-slate-950/50 hover:-translate-y-1"
-                : isPro
-                ? isSelected
-                  ? "border-indigo-600 ring-2 ring-indigo-600/80 shadow-xl shadow-indigo-600/10 -translate-y-1"
-                  : "border-indigo-500/40 ring-1 ring-indigo-500/20 shadow-md shadow-indigo-500/5 hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1"
-                : isBusiness
-                ? isSelected
-                  ? "border-indigo-600 ring-2 ring-indigo-600/80 shadow-lg shadow-indigo-600/5 -translate-y-1"
-                  : "border-slate-200/90 shadow-xs hover:border-slate-300 hover:shadow-lg hover:-translate-y-1"
-                : isSelected
-                ? "border-slate-400 ring-2 ring-slate-400/80 shadow-md -translate-y-1"
-                : "border-slate-200/90 shadow-xs hover:border-slate-300 hover:shadow-md hover:-translate-y-1";
-
-              // Text color hierarchy
-              const titleColor = isEnterprise ? "text-white" : "text-slate-900";
-              const descColor = isEnterprise ? "text-slate-400" : "text-slate-500";
-              const priceColor = isEnterprise ? "text-white" : "text-slate-900";
-              const priceUnitColor = isEnterprise ? "text-slate-400" : "text-slate-500";
-              const annualBillingColor = isEnterprise ? "text-indigo-400" : isPro ? "text-indigo-600" : "text-slate-500";
-
-              // Secondary information panel (Limits / Stats)
-              const quotaBoxBg = isEnterprise
-                ? "bg-slate-900/70 border-slate-800/80"
-                : isPro
-                ? "bg-indigo-50/30 border-indigo-100/70"
-                : "bg-slate-50/70 border-slate-100";
-              const quotaLabelColor = isEnterprise ? "text-slate-400" : "text-slate-500";
-              const quotaValColor = isEnterprise ? "text-white font-semibold" : "text-slate-900 font-semibold";
-
-              // Included modules heading and check icons
-              const moduleHeaderColor = isEnterprise ? "text-slate-400" : isPro ? "text-indigo-900/80 font-semibold" : "text-slate-400";
-              const checkIconColor = isEnterprise ? "text-indigo-400" : "text-indigo-600";
-
-              // CTA button
-              const buttonClass = isEnterprise
-                ? isSelected
-                  ? "bg-indigo-500 hover:bg-indigo-400 text-white shadow-sm ring-2 ring-indigo-400 ring-offset-2 ring-offset-slate-950 font-semibold"
-                  : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-950/40 font-semibold"
-                : isPro
-                ? isSelected
-                  ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-400 ring-offset-2 font-semibold"
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/25 font-semibold"
-                : isBusiness
-                ? isSelected
-                  ? "bg-indigo-700 hover:bg-indigo-800 text-white shadow-sm ring-2 ring-indigo-400 ring-offset-1 font-semibold"
-                  : "bg-indigo-600/90 hover:bg-indigo-600 text-white shadow-2xs font-semibold"
-                : isSelected
-                ? "bg-slate-900 hover:bg-slate-800 text-white shadow-xs font-semibold"
-                : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs font-semibold";
-
-              return (
-                <div
-                  key={plan.code}
-                  onClick={() => setSelectedPlan(plan.code)}
-                  className={`relative rounded-[22px] border p-6 lg:p-7 flex flex-col justify-between transition-all duration-200 ease-out cursor-pointer ${cardBg} ${cardBorderAndShadow}`}
-                >
-                  {/* Small Pill Badges */}
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="inline-flex items-center gap-1 bg-indigo-600 text-white text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm shadow-indigo-600/30 whitespace-nowrap">
-                        <Sparkles className="w-3 h-3" />
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-                  {isEnterprise && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="inline-flex items-center gap-1 bg-slate-900 border border-slate-700 text-indigo-300 text-[11px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider shadow-sm whitespace-nowrap">
-                        <ShieldCheck className="w-3 h-3 text-indigo-400" />
-                        Enterprise Tier
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Top Content Area */}
-                  <div className="space-y-4">
-                    {/* Header: Title and Description */}
-                    <div>
-                      <h2 className={`font-bold text-xl sm:text-2xl tracking-tight ${titleColor}`}>
-                        {plan.name}
-                      </h2>
-                      <p className={`text-xs sm:text-sm mt-1.5 leading-relaxed min-h-[44px] ${descColor}`}>
-                        {plan.description}
-                      </p>
-                    </div>
-
-                    {/* Price Block */}
-                    <div className={`pt-3 border-t ${isEnterprise ? "border-slate-800/90" : "border-slate-100"}`}>
-                      <div className="flex items-baseline gap-1.5">
-                        <span className={`text-4xl sm:text-[44px] font-extrabold tracking-tight tabular-nums leading-none ${priceColor}`}>
-                          ₹{price.toLocaleString()}
-                        </span>
-                        <span className={`text-xs sm:text-sm font-medium ${priceUnitColor}`}>
-                          /mo
-                        </span>
-                      </div>
-                      <div className="h-5 mt-1">
-                        {billingCycle === "YEARLY" && plan.priceYearly > 0 ? (
-                          <p className={`text-xs font-medium ${annualBillingColor}`}>
-                            Billed ₹{plan.priceYearly.toLocaleString()} annually
-                          </p>
-                        ) : (
-                          <p className="text-xs text-transparent select-none font-medium">
-                            Monthly billing
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Secondary Information Panel: Limits / Stats */}
-                    <div className={`${quotaBoxBg} border p-3.5 rounded-xl space-y-2`}>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className={quotaLabelColor}>Team Users</span>
-                        <span className={`tabular-nums ${quotaValColor}`}>{plan.limits.users}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className={quotaLabelColor}>Fleet Vehicles</span>
-                        <span className={`tabular-nums ${quotaValColor}`}>{plan.limits.vehicles}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className={quotaLabelColor}>Monthly Invoices</span>
-                        <span className={`tabular-nums ${quotaValColor}`}>{plan.limits.invoices}</span>
-                      </div>
-                    </div>
-
-                    {/* Included Modules / Feature List */}
-                    <div className="space-y-2 pt-1">
-                      <span className={`text-xs font-semibold uppercase tracking-wider block ${moduleHeaderColor}`}>
-                        Included Modules
-                      </span>
-                      <ul className="space-y-2">
-                        {plan.features.map((feat, i) => {
-                          const isInheritance = feat.startsWith("Everything in");
-                          return (
-                            <li key={i} className="flex items-start gap-2.5 text-xs sm:text-sm leading-snug">
-                              <Check className={`w-4 h-4 shrink-0 mt-0.5 ${checkIconColor}`} />
-                              <span
-                                className={
-                                  isInheritance
-                                    ? isEnterprise
-                                      ? "font-semibold text-white"
-                                      : "font-semibold text-slate-900"
-                                    : isEnterprise
-                                    ? "font-normal text-slate-300"
-                                    : "font-normal text-slate-600"
-                                }
-                              >
-                                {feat}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 xl:gap-5 my-auto items-stretch w-full py-1">
+            {/* 1. FREE STARTER CARD */}
+            <div
+              onClick={() => setSelectedPlan("FREE")}
+              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${
+                selectedPlan === "FREE"
+                  ? "border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg"
+                  : "border-slate-200/90 shadow-sm hover:border-slate-300 hover:shadow-md"
+              }`}
+            >
+              <div className="space-y-4">
+                {/* Icon & Title */}
+                <div className="flex items-start justify-between">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                    <Package className="w-6 h-6" />
                   </div>
-
-                  {/* CTA Button Pinned at Bottom */}
-                  <div className="pt-6 mt-auto">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPlan(plan.code);
-                        setStep(2);
-                      }}
-                      className={`w-full h-11 sm:h-12 text-sm font-semibold rounded-xl transition-all duration-200 cursor-pointer ${buttonClass}`}
-                    >
-                      Choose {plan.name}
-                    </button>
+                  <div className="flex gap-1 opacity-20">
+                    <div className="w-2 h-2 rounded-full bg-emerald-600" />
+                    <div className="w-2 h-2 rounded-full bg-emerald-600" />
                   </div>
                 </div>
-              );
-            })}
+
+                <div>
+                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Free Starter</h2>
+                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
+                    Basic TMS operations for single-truck owner operators.
+                  </p>
+                </div>
+
+                {/* Price */}
+                <div className="pt-2 flex items-baseline gap-1">
+                  <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">₹0</span>
+                  <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                </div>
+
+                {/* Limits Row */}
+                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Users className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Team Users</span>
+                    </div>
+                    <span className="font-bold text-slate-900">1 User</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Truck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Fleet Vehicles</span>
+                    </div>
+                    <span className="font-bold text-slate-900">2 Vehicles</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Monthly Invoices</span>
+                    </div>
+                    <span className="font-bold text-slate-900">10 Vouchers/mo</span>
+                  </div>
+                </div>
+
+                {/* Included Modules */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    INCLUDED MODULES
+                  </span>
+                  <ul className="space-y-1.5 text-xs text-slate-600">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>10 LR Max - Per Month</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>10 HC Max - Per Month</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>10 Vouchers & Entries / Mo</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>10 Masters & 10 Ledgers</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>2 Max Vehicle Registration</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>Standard PDF Document Exports</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="pt-5 mt-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPlan("FREE");
+                    setStep(2);
+                  }}
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                >
+                  <span>Choose Free Starter</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 2. PRO FLEET CARD (MOST POPULAR) */}
+            <div
+              onClick={() => setSelectedPlan("PRO")}
+              className={`relative bg-white rounded-2xl border-2 border-indigo-500 ring-4 ring-indigo-500/10 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-indigo-500/10 transition-all duration-200 cursor-pointer ${
+                selectedPlan === "PRO" ? "-translate-y-1" : "hover:-translate-y-0.5"
+              }`}
+            >
+              {/* Floating Top Badge */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center gap-1 bg-[#4F46E5] text-white text-[10px] font-extrabold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-md whitespace-nowrap">
+                  👑 MOST POPULAR
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {/* Icon & Title */}
+                <div className="flex items-start justify-between">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                    <BarChart3 className="w-6 h-6" />
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Pro Fleet</h2>
+                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
+                    Complete operations & double-entry transport accounting.
+                  </p>
+                </div>
+
+                {/* Price + Mini Sparklines */}
+                <div className="pt-2 flex items-center justify-between">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                      ₹{billingCycle === "MONTHLY" ? "2,499" : "2,082"}
+                    </span>
+                    <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                  </div>
+                  {/* Purple Mini Sparklines */}
+                  <div className="flex items-end gap-1 h-7 opacity-35">
+                    <div className="w-1.5 h-3 bg-indigo-500 rounded-xs" />
+                    <div className="w-1.5 h-5 bg-indigo-500 rounded-xs" />
+                    <div className="w-1.5 h-4 bg-indigo-500 rounded-xs" />
+                    <div className="w-1.5 h-6 bg-indigo-500 rounded-xs" />
+                    <div className="w-1.5 h-7 bg-indigo-500 rounded-xs" />
+                  </div>
+                </div>
+
+                {/* Limits Row */}
+                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Users className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Team Users</span>
+                    </div>
+                    <span className="font-bold text-slate-900">5 Users</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Fleet Vehicles</span>
+                    </div>
+                    <span className="font-bold text-slate-900">20 Vehicles</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Monthly Invoices</span>
+                    </div>
+                    <span className="font-bold text-slate-900">200 Invoices/mo</span>
+                  </div>
+                </div>
+
+                {/* Included Modules */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    INCLUDED MODULES
+                  </span>
+                  <ul className="space-y-1.5 text-xs text-slate-600">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0 font-bold" />
+                      <span className="font-bold text-slate-900">Everything in Free Starter</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>Full Double-Entry Accounting</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>Vouchers & Freight Invoicing</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>Transport Operational Registers</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>Bank & Cash Reconciliation</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>Automated Daily Cloud Backups</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="pt-5 mt-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPlan("PRO");
+                    setStep(2);
+                  }}
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-[#4F46E5] hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/25 transition-all cursor-pointer"
+                >
+                  <span>Choose Pro Fleet</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 3. BUSINESS LOGISTICS CARD */}
+            <div
+              onClick={() => setSelectedPlan("BUSINESS")}
+              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${
+                selectedPlan === "BUSINESS"
+                  ? "border-amber-500 ring-2 ring-amber-500/20 shadow-lg"
+                  : "border-slate-200/90 shadow-sm hover:border-slate-300 hover:shadow-md"
+              }`}
+            >
+              <div className="space-y-4">
+                {/* Icon & Title */}
+                <div className="flex items-start justify-between">
+                  <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+                    <Truck className="w-6 h-6" />
+                  </div>
+                  <div className="flex gap-1 opacity-20">
+                    <div className="w-2 h-2 rounded-full bg-amber-600" />
+                    <div className="w-2 h-2 rounded-full bg-amber-600" />
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Business Logistics</h2>
+                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
+                    Advanced fleet telematics, NIC E-Invoicing & compliance.
+                  </p>
+                </div>
+
+                {/* Price + Mini Sparklines */}
+                <div className="pt-2 flex items-center justify-between">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                      ₹{billingCycle === "MONTHLY" ? "7,999" : "6,665"}
+                    </span>
+                    <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                  </div>
+                  {/* Amber Mini Sparklines */}
+                  <div className="flex items-end gap-1 h-7 opacity-35">
+                    <div className="w-1.5 h-3 bg-amber-500 rounded-xs" />
+                    <div className="w-1.5 h-4 bg-amber-500 rounded-xs" />
+                    <div className="w-1.5 h-6 bg-amber-500 rounded-xs" />
+                    <div className="w-1.5 h-5 bg-amber-500 rounded-xs" />
+                    <div className="w-1.5 h-7 bg-amber-500 rounded-xs" />
+                  </div>
+                </div>
+
+                {/* Limits Row */}
+                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Users className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Team Users</span>
+                    </div>
+                    <span className="font-bold text-slate-900">15 Users</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Truck className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Fleet Vehicles</span>
+                    </div>
+                    <span className="font-bold text-slate-900">75 Vehicles</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <FileText className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Monthly Invoices</span>
+                    </div>
+                    <span className="font-bold text-slate-900">1,000 Invoices/mo</span>
+                  </div>
+                </div>
+
+                {/* Included Modules */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    INCLUDED MODULES
+                  </span>
+                  <ul className="space-y-1.5 text-xs text-slate-600">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0 font-bold" />
+                      <span className="font-bold text-slate-900">Everything in Pro Fleet</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Fleet Management & Trip P&L</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Trip Advance & Fuel Expense</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>E-Way Bill & E-Invoice Auto IRN</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>FASTag & GPS Tracking Feeds</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Vehicle Service & Tyre Logs</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="pt-5 mt-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPlan("BUSINESS");
+                    setStep(2);
+                  }}
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-[#FFF7ED] hover:bg-[#FFEDD5] border border-orange-200/80 text-orange-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>Choose Business Logistics</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 4. ENTERPRISE SCALE CARD (ENTERPRISE TIER) */}
+            <div
+              onClick={() => setSelectedPlan("ENTERPRISE")}
+              className={`relative bg-[#0B132B] rounded-2xl border border-slate-700/80 p-5 sm:p-6 flex flex-col justify-between shadow-2xl text-white transition-all duration-200 cursor-pointer ${
+                selectedPlan === "ENTERPRISE"
+                  ? "ring-2 ring-blue-500/80 -translate-y-1"
+                  : "hover:-translate-y-0.5 hover:border-slate-600"
+              }`}
+            >
+              {/* Floating Top Badge */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center gap-1 bg-[#090D1A] border border-slate-700 text-indigo-300 text-[10px] font-extrabold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-md whitespace-nowrap">
+                  💎 ENTERPRISE TIER
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {/* Icon & Title */}
+                <div className="flex items-start justify-between">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-950/80 border border-indigo-700/50 flex items-center justify-center text-white">
+                    <Crown className="w-6 h-6 text-indigo-200" />
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="font-bold text-xl text-white tracking-tight">Enterprise Scale</h2>
+                  <p className="text-xs text-slate-400 mt-1 leading-snug min-h-[34px]">
+                    Unlimited scale with dedicated DB tenancy and custom SLA.
+                  </p>
+                </div>
+
+                {/* Price + Mini Sparklines */}
+                <div className="pt-2 flex items-center justify-between">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                      ₹{billingCycle === "MONTHLY" ? "19,999" : "16,665"}
+                    </span>
+                    <span className="text-xs sm:text-sm text-slate-400 font-medium">/mo</span>
+                  </div>
+                  {/* Blue/Slate Mini Sparklines */}
+                  <div className="flex items-end gap-1 h-7 opacity-35">
+                    <div className="w-1.5 h-3 bg-blue-400 rounded-xs" />
+                    <div className="w-1.5 h-5 bg-blue-400 rounded-xs" />
+                    <div className="w-1.5 h-4 bg-blue-400 rounded-xs" />
+                    <div className="w-1.5 h-6 bg-blue-400 rounded-xs" />
+                    <div className="w-1.5 h-7 bg-blue-400 rounded-xs" />
+                  </div>
+                </div>
+
+                {/* Limits Row */}
+                <div className="space-y-2 pt-1 border-t border-slate-800/80 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Users className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Team Users</span>
+                    </div>
+                    <span className="font-bold text-white">Unlimited</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Truck className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Fleet Vehicles</span>
+                    </div>
+                    <span className="font-bold text-white">Unlimited</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <FileText className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Monthly Invoices</span>
+                    </div>
+                    <span className="font-bold text-white">Unlimited</span>
+                  </div>
+                </div>
+
+                {/* Included Modules */}
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    INCLUDED MODULES
+                  </span>
+                  <ul className="space-y-1.5 text-xs text-slate-300">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0 font-bold" />
+                      <span className="font-bold text-white">Everything in Business Logistics</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Full Statements & GST Returns</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Unlimited Operational Scale</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Priority Webhook & SLA Guarantee</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Dedicated PostgreSQL Instance</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Custom Subdomain Branding</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="pt-5 mt-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPlan("ENTERPRISE");
+                    setStep(2);
+                  }}
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white flex items-center justify-center gap-1.5 shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+                >
+                  <span>Choose Enterprise Scale</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
-        )}
+        )}      )}
 
         {/* STEP 2: ACCOUNT DETAILS (Aligned with Login styling) */}
         {step === 2 && (
@@ -900,21 +1221,48 @@ export default function SignupPage() {
       </main>
 
       {/* ========================================================================= */}
-      {/* ENTERPRISE TRUST FOOTER: Standardized across Signin and Signup            */}
+      {/* ENTERPRISE TRUST FOOTER: Replicated from reference                         */}
       {/* ========================================================================= */}
-      <footer className="w-full border-t border-slate-200/70 bg-white/70 backdrop-blur-xs py-2.5 px-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[11px] text-slate-500 z-20 shrink-0">
-        <span className="inline-flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <span>Tenant-isolated architecture</span>
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-          <span>256-bit SSL encrypted</span>
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Server className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span>Multi-tier RBAC security</span>
-        </span>
+      <footer className="w-full border-t border-slate-200/70 bg-white/60 backdrop-blur-xs py-3 px-6 lg:px-12 flex flex-wrap items-center justify-between gap-4 z-20 shrink-0 max-w-[1640px] mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div className="text-left leading-tight">
+            <div className="text-xs font-bold text-slate-800">Tenant-isolated architecture</div>
+            <div className="text-[11px] text-slate-500">Complete data isolation for your business</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div className="text-left leading-tight">
+            <div className="text-xs font-bold text-slate-800">256-bit SSL encrypted</div>
+            <div className="text-[11px] text-slate-500">Bank-grade security for all data</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+            <Server className="w-4 h-4" />
+          </div>
+          <div className="text-left leading-tight">
+            <div className="text-xs font-bold text-slate-800">Multi-tier RBAC security</div>
+            <div className="text-[11px] text-slate-500">Role-based access control</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+            <Headset className="w-4 h-4" />
+          </div>
+          <div className="text-left leading-tight">
+            <div className="text-xs font-bold text-slate-800">24/7 Support</div>
+            <div className="text-[11px] text-slate-500">Dedicated enterprise support</div>
+          </div>
+        </div>
       </footer>
     </div>
   );
