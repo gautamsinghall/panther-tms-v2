@@ -329,7 +329,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 setSelectedIndex(0);
               }}
               placeholder="Search records, modules, bills, vehicles, or ledger... (e.g. 'LR', 'Invoice', 'Fleet')"
-              className="flex-1 bg-transparent text-sm text-[#101828] placeholder-[#98A2B3] focus:outline-hidden"
+              className="flex-1 bg-transparent text-sm text-[#101828] placeholder-[#98A2B3] border-none outline-none ring-0 shadow-none focus:border-none focus:outline-none focus:ring-0 focus:shadow-none"
+              style={{ outline: "none", boxShadow: "none", border: "none" }}
             />
             {query ? (
               <button

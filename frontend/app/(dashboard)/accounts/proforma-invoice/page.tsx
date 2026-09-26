@@ -322,7 +322,7 @@ export default function ProformaInvoicePage() {
                 placeholder="e.g. Apex Industrial Works"
                 value={partyName}
                 onChange={(e) => setPartyName(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -335,7 +335,7 @@ export default function ProformaInvoicePage() {
                 placeholder="e.g. ENQ-4412"
                 value={refNumber}
                 onChange={(e) => setRefNumber(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -351,7 +351,7 @@ export default function ProformaInvoicePage() {
                   placeholder="0.00"
                   value={totalAmount}
                   onChange={(e) => setTotalAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div>
@@ -364,7 +364,7 @@ export default function ProformaInvoicePage() {
                   placeholder="0.00"
                   value={taxAmount}
                   onChange={(e) => setTaxAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </div>
@@ -378,7 +378,7 @@ export default function ProformaInvoicePage() {
                 placeholder="Proforma notes and validity period..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -463,7 +463,7 @@ export default function ProformaInvoicePage() {
             placeholder="Reason for cancelling this proforma..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-danger/20"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-danger/20"
           />
         </div>
       </ConfirmDialog>

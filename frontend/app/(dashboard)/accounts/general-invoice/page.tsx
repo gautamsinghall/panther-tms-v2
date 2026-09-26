@@ -573,7 +573,7 @@ export default function GeneralInvoicePage() {
                   readOnly
                   placeholder={seriesInfo?.next_number_formatted || "GI-2026-0001"}
                   value={voucherNumber || seriesInfo?.next_number_formatted || ""}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-slate-50 text-text-primary font-mono font-bold cursor-not-allowed select-all focus:outline-hidden"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-slate-50 text-text-primary font-mono font-bold cursor-not-allowed select-all focus:outline-none"
                 />
                 {seriesInfo?.configured && (
                   <span className="text-[11px] text-[#667085] mt-1 block">
@@ -593,7 +593,7 @@ export default function GeneralInvoicePage() {
                 placeholder="e.g. Paramount Logistics"
                 value={partyName}
                 onChange={(e) => setPartyName(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -606,7 +606,7 @@ export default function GeneralInvoicePage() {
                 placeholder="e.g. PO-8921"
                 value={refNumber}
                 onChange={(e) => setRefNumber(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -622,7 +622,7 @@ export default function GeneralInvoicePage() {
                   placeholder="0.00"
                   value={totalAmount}
                   onChange={(e) => setTotalAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div>
@@ -635,7 +635,7 @@ export default function GeneralInvoicePage() {
                   placeholder="0.00"
                   value={taxAmount}
                   onChange={(e) => setTaxAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </div>
@@ -649,7 +649,7 @@ export default function GeneralInvoicePage() {
                 placeholder="Invoice notes..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -758,7 +758,7 @@ export default function GeneralInvoicePage() {
             placeholder="Explain why this invoice is being voided..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-danger/20"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-danger/20"
           />
         </div>
       </ConfirmDialog>

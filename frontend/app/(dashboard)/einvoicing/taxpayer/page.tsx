@@ -81,7 +81,7 @@ export default function TaxpayerDetailsPage() {
               placeholder="Enter 15-character GSTIN (e.g. 24AAACT1234F1Z1)..."
               value={gstin}
               onChange={(e) => setGstin(e.target.value.toUpperCase())}
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono uppercase tracking-wider focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <Button type="submit" disabled={isLoading} className="gap-2">

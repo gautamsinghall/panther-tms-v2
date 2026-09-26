@@ -400,7 +400,7 @@ export default function RolesPage() {
                 placeholder="e.g. Master Data Clerk"
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -412,7 +412,7 @@ export default function RolesPage() {
                 placeholder="e.g. Can view and edit consignees and locations"
                 value={roleDescription}
                 onChange={(e) => setRoleDescription(e.target.value)}
-                className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>

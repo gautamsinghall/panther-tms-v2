@@ -162,7 +162,7 @@ function CancelIRNContent() {
               placeholder="Paste 64-character hash..."
               value={irn}
               onChange={(e) => setIrn(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
@@ -194,7 +194,7 @@ function CancelIRNContent() {
               placeholder="Detailed remarks recorded for GST audit purposes..."
               value={cancelRemarks}
               onChange={(e) => setCancelRemarks(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 

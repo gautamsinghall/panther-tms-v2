@@ -83,7 +83,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-72 lg:w-[420px] transition-all text-left cursor-pointer group select-none ring-0 focus:outline-hidden"
+          className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-72 lg:w-[420px] transition-all text-left cursor-pointer group select-none ring-0 focus:outline-none"
           title="Search records (Ctrl + K)"
         >
           <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />

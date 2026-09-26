@@ -87,6 +87,14 @@ h1, h2, h3, h4 {
   font-feature-settings: "tnum";
 }
 
+/* Prevent unwanted browser default black box outlines on inputs */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible {
+  outline: none;
+}
+
 /* Hide all scrollbars globally across all browsers while maintaining smooth scrolling */
 * {
   scrollbar-width: none !important; /* Firefox */

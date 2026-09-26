@@ -231,7 +231,7 @@ export default function GenerateIRNPage() {
                     required
                     value={supplierGstin}
                     onChange={(e) => setSupplierGstin(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <div>
@@ -243,7 +243,7 @@ export default function GenerateIRNPage() {
                     required
                     value={buyerGstin}
                     onChange={(e) => setBuyerGstin(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
