@@ -22,6 +22,7 @@ import {
 import TextAnimation from "@/components/ui/staggerText";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
+import { getApiBaseUrl } from "@/lib/auth";
 
 interface PlanOption {
   code: string;
@@ -136,6 +137,27 @@ export default function SignupPage() {
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [rootDomainSuffix, setRootDomainSuffix] = useState(".panthertms.com");
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      if (host.includes("panthertms.com")) {
+        setRootDomainSuffix(".panthertms.com");
+      } else if (host.includes("panthertms.in")) {
+        setRootDomainSuffix(".panthertms.in");
+      } else if (host === "localhost" || host === "127.0.0.1") {
+        setRootDomainSuffix(".panthertms.local");
+      } else {
+        const parts = host.split(".");
+        if (parts.length > 2) {
+          setRootDomainSuffix(`.${parts.slice(-2).join(".")}`);
+        } else {
+          setRootDomainSuffix(`.${host}`);
+        }
+      }
+    }
+  }, []);
 
   // Provisioning & payment state
   const [isLoading, setIsLoading] = useState(false);
@@ -168,10 +190,7 @@ export default function SignupPage() {
     }
 
     try {
-      const backendBaseUrl =
-        process.env.NEXT_PUBLIC_API_URL ||
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        "http://localhost:8000";
+      const backendBaseUrl = getApiBaseUrl();
 
       // 1. Initiate signup with Control API
       setProvisioningStatus("Initiating workspace registration with Control Plane...");
@@ -284,10 +303,7 @@ export default function SignupPage() {
     signature: string | null
   ) => {
     try {
-      const backendBaseUrl =
-        process.env.NEXT_PUBLIC_API_URL ||
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        "http://localhost:8000";
+      const backendBaseUrl = getApiBaseUrl();
 
       setProvisioningStatus("Running database migrations & setting up RBAC security policies...");
 
@@ -698,13 +714,13 @@ export default function SignupPage() {
                     className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
                   />
                   <div className="px-3 py-2.5 bg-slate-50 border-l border-slate-100 text-xs font-mono text-slate-500 select-none whitespace-nowrap">
-                    .panthertms.in
+                    {rootDomainSuffix}
                   </div>
                 </div>
                 <p className="text-xs text-slate-500 flex items-center gap-1">
                   <span>Workspace URL:</span>
                   <span className="font-mono text-indigo-700 font-semibold truncate">
-                    https://{subdomain || "your-company"}.panthertms.in
+                    https://{subdomain || "your-company"}{rootDomainSuffix}
                   </span>
                 </p>
               </div>

@@ -74,11 +74,10 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         for cs_col in ["city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "logo_url VARCHAR(500)"]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
-                        if t_db == demo_db:
-                            await t_conn.execute(
-                                text("UPDATE users SET is_active = true WHERE lower(email) = lower(:email);"),
-                                {"email": settings.DEMO_ADMIN_EMAIL.lower().strip()}
-                            )
+                        await t_conn.execute(
+                            text("UPDATE users SET is_active = true WHERE lower(email) = lower(:email);"),
+                            {"email": settings.DEMO_ADMIN_EMAIL.lower().strip()}
+                        )
                 except Exception as t_err:
                     print(f"Notice: Tenant {t_db} setup: {t_err}")
     except Exception as e:
@@ -111,6 +110,10 @@ app.add_middleware(
         "http://bharat.panthertms.com",
         "https://api.panthertms.com",
         "https://panthertms.com",
+        "https://panthertms.in",
+        "http://panthertms.in",
+        "https://demo.panthertms.in",
+        "https://demo.panthertms.com",
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",

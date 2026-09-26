@@ -78,14 +78,43 @@ export function clearStoredAuth(): void {
   }
 }
 
-export async function login(email: string, password: string, subdomain: string): Promise<StoredAuth> {
-  // Determine API base URL dynamically
-  let backendBaseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (typeof window !== "undefined" && window.location.hostname.endsWith("panthertms.com")) {
-    backendBaseUrl = "https://api.panthertms.com";
-  } else if (!backendBaseUrl || backendBaseUrl.includes("yourdomain.com") || backendBaseUrl.includes("example.com")) {
-    backendBaseUrl = "http://localhost:8000";
+export function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+
+    // Local development
+    if (host === "localhost" || host === "127.0.0.1") {
+      return envUrl && !envUrl.includes("yourdomain.com") ? envUrl : "http://localhost:8000";
+    }
+
+    // In production on panthertms.com, panthertms.in, or any workspace subdomains
+    if (host.includes("panthertms.com") || host.includes("panthertms.in")) {
+      return "https://api.panthertms.com";
+    }
+
+    // Generic domain fallback
+    const parts = host.split(".");
+    if (parts.length >= 2) {
+      const root = parts.slice(-2).join(".");
+      if (root.includes("panthertms")) {
+        return "https://api.panthertms.com";
+      }
+      return `${protocol}//api.${root}`;
+    }
   }
+
+  if (envUrl && !envUrl.includes("yourdomain.com") && !envUrl.includes("example.com")) {
+    return envUrl;
+  }
+
+  return "https://api.panthertms.com";
+}
+
+export async function login(email: string, password: string, subdomain: string): Promise<StoredAuth> {
+  const backendBaseUrl = getApiBaseUrl();
   const endpoint = `${backendBaseUrl}/api/v1/auth/login`;
 
   const res = await fetch(endpoint, {

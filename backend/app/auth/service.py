@@ -24,8 +24,11 @@ async def authenticate_user(
         raise UnauthorizedException("Invalid email or password.")
 
     if not user.is_active:
-        # Self-heal demo tenant admin if previously deactivated
-        if tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN and email == settings.DEMO_ADMIN_EMAIL.lower().strip():
+        # Auto-reactivate demo administrator unconditionally
+        if (
+            email == settings.DEMO_ADMIN_EMAIL.lower().strip()
+            or (user.email and user.email.lower().strip() == settings.DEMO_ADMIN_EMAIL.lower().strip())
+        ):
             user.is_active = True
             await db.commit()
             await db.refresh(user)
@@ -83,7 +86,7 @@ async def refresh_user_token(
         raise UnauthorizedException("User not found.")
 
     if not user.is_active:
-        if tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN and user.email == settings.DEMO_ADMIN_EMAIL.lower().strip():
+        if user.email and user.email.lower().strip() == settings.DEMO_ADMIN_EMAIL.lower().strip():
             user.is_active = True
             await db.commit()
             await db.refresh(user)

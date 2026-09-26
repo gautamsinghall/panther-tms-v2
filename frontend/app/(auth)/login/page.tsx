@@ -51,6 +51,8 @@ export default function LoginPage() {
       const host = window.location.hostname;
       if (host.includes("panthertms.com")) {
         setRootDomainSuffix(".panthertms.com");
+      } else if (host.includes("panthertms.in")) {
+        setRootDomainSuffix(".panthertms.in");
       } else if (host === "localhost" || host === "127.0.0.1") {
         setRootDomainSuffix(".panthertms.local");
       } else {
