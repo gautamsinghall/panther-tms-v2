@@ -10,6 +10,51 @@ from app.modules.general import schemas, service
 router = APIRouter(prefix="/general", tags=["General (Master Data)"])
 
 # ==============================================================================
+# 0. Billing Client
+# ==============================================================================
+@router.get("/billing-clients", response_model=List[schemas.BillingClientResponse], summary="List all billing clients")
+async def list_billing_clients(
+    current_user: User = Depends(require_permission("general", "billing_client", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.list_billing_clients(db)
+
+@router.post("/billing-clients", response_model=schemas.BillingClientResponse, status_code=status.HTTP_201_CREATED, summary="Create a billing client")
+async def create_billing_client(
+    data: schemas.BillingClientCreate,
+    current_user: User = Depends(require_permission("general", "billing_client", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    await check_entitlement_limit(tenant, db, "max_masters")
+    return await service.create_billing_client(db, data)
+
+@router.get("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Get billing client by ID")
+async def get_billing_client(
+    id: int,
+    current_user: User = Depends(require_permission("general", "billing_client", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_billing_client(db, id)
+
+@router.put("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Update billing client")
+async def update_billing_client(
+    id: int,
+    data: schemas.BillingClientUpdate,
+    current_user: User = Depends(require_permission("general", "billing_client", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.update_billing_client(db, id, data)
+
+@router.delete("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Deactivate billing client")
+async def delete_billing_client(
+    id: int,
+    current_user: User = Depends(require_permission("general", "billing_client", "delete")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.delete_billing_client(db, id)
+
+# ==============================================================================
 # 1. Consignee
 # ==============================================================================
 @router.get("/consignees", response_model=List[schemas.ConsigneeResponse], summary="List all consignees")

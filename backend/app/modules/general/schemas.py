@@ -2,6 +2,73 @@ from datetime import datetime
 from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+# --- Billing Client ---
+class BillingClientBase(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+    code: Optional[str] = None
+    company_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+    tds_rate: Optional[float] = 0.00
+    credit_period_days: Optional[int] = 30
+    credit_limit: Optional[float] = 0.00
+    payment_terms: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    country: Optional[str] = "India"
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_county_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+        return data
+
+class BillingClientCreate(BillingClientBase):
+    is_active: bool = True
+
+class BillingClientUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    company_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+    tds_rate: Optional[float] = None
+    credit_period_days: Optional[int] = None
+    credit_limit: Optional[float] = None
+    payment_terms: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    country: Optional[str] = None
+    is_active: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_county_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+        return data
+
+class BillingClientResponse(BillingClientBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 # --- Consignee ---
 class ConsigneeBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)

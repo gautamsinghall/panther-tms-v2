@@ -26,6 +26,7 @@ ALL_NAVIGATION_MODULES = [
         "id": "general",
         "title": "General",
         "items": [
+            {"feature": "billing_client", "title": "Billing Client", "href": "/general/billing-client"},
             {"feature": "consignee", "title": "Consignee", "href": "/general/consignee"},
             {"feature": "consigner", "title": "Consigner", "href": "/general/consigner"},
             {"feature": "location", "title": "Location", "href": "/general/location"},

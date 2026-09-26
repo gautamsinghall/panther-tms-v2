@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
 from app.tenant_db.models import (
+    BillingClient,
     Consignee,
     Consigner,
     Location,
@@ -39,6 +40,31 @@ async def _soft_delete(db: AsyncSession, model: Type[T], entity_id: int) -> T:
     await db.commit()
     await db.refresh(entity)
     return entity
+
+# --- Billing Client Service ---
+async def list_billing_clients(db: AsyncSession) -> List[BillingClient]:
+    return await _get_all(db, BillingClient)
+
+async def get_billing_client(db: AsyncSession, cid: int) -> BillingClient:
+    return await _get_by_id(db, BillingClient, cid)
+
+async def create_billing_client(db: AsyncSession, data) -> BillingClient:
+    entity = BillingClient(**data.model_dump())
+    db.add(entity)
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+async def update_billing_client(db: AsyncSession, cid: int, data) -> BillingClient:
+    entity = await _get_by_id(db, BillingClient, cid)
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(entity, k, v)
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+async def delete_billing_client(db: AsyncSession, cid: int) -> BillingClient:
+    return await _soft_delete(db, BillingClient, cid)
 
 # --- Consignee Service ---
 async def list_consignees(db: AsyncSession) -> List[Consignee]:

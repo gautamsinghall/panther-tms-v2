@@ -51,6 +51,7 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/components-demo": { title: "Components Demo", icon: Layers },
 
   // General
+  "/general/billing-client": { title: "Billing Client", icon: Building2 },
   "/general/consignee": { title: "Consignee", icon: Users },
   "/general/consigner": { title: "Consigner", icon: Building2 },
   "/general/location": { title: "Location", icon: MapPin },

@@ -1,4 +1,5 @@
 from app.tenant_db.models import (
+    BillingClient,
     Consignee,
     Consigner,
     Location,
@@ -10,6 +11,7 @@ from app.tenant_db.models import (
 )
 
 __all__ = [
+    "BillingClient",
     "Consignee",
     "Consigner",
     "Location",

@@ -17,11 +17,18 @@ import { Badge } from "@/components/ui/badge";
 export default function GeneralOverviewPage() {
   const masters = [
     {
+      title: "Billing Client Master",
+      desc: "Commercial contracting clients, debtors, GST billing profiles, credit terms, and TDS rates.",
+      href: "/general/billing-client",
+      icon: <Building2 className="w-5 h-5 text-[#4F46E5]" />,
+      badge: "Bill-To Party",
+    },
+    {
       title: "Consigner Master",
       desc: "Shippers and client accounts dispatching freight consignments.",
       href: "/general/consigner",
       icon: <Building2 className="w-5 h-5 text-[#4F46E5]" />,
-      badge: "Clients",
+      badge: "Shippers",
     },
     {
       title: "Consignee Master",

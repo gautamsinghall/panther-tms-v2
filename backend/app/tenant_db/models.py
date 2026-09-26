@@ -88,6 +88,38 @@ class CompanySetting(TenantBase):
 # General Module Master Models (PRD §7.2)
 # ==============================================================================
 
+class BillingClient(TenantBase):
+    """Corporate client / bill-to commercial party master"""
+    __tablename__ = "general_billing_clients"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    code = Column(String(50), nullable=True, index=True)
+    company_name = Column(String(255), nullable=True)
+    contact_person = Column(String(255), nullable=True)
+    phone = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
+    gstin = Column(String(15), nullable=True, index=True)
+    pan = Column(String(10), nullable=True, index=True)
+    tds_rate = Column(Numeric(5, 2), default=0.00, nullable=True)
+    credit_period_days = Column(Integer, default=30, nullable=True)
+    credit_limit = Column(Numeric(12, 2), default=0.00, nullable=True)
+    payment_terms = Column(String(255), nullable=True)
+    address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    pincode = Column(String(20), nullable=True)
+    country = Column(String(100), default="India", nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
 class Consignee(TenantBase):
     """Receiving party / Delivery destination master"""
     __tablename__ = "general_consignees"
