@@ -43,14 +43,33 @@ export function Form({
   setFieldValueRef,
 }: FormProps) {
   const loading = isLoading || isSubmitting;
-  const [values, setValues] = useState<Record<string, any>>(initialValues);
+  // Seed initial values with field defaultValues where initialValues does not provide them
+  const getMergedInitialValues = () => {
+    const defaults: Record<string, any> = {};
+    for (const section of sections) {
+      for (const field of section.fields) {
+        if (field.defaultValue !== undefined) {
+          defaults[field.name] = field.defaultValue;
+        }
+      }
+    }
+    return { ...defaults, ...initialValues };
+  };
+
+  const [values, setValues] = useState<Record<string, any>>(getMergedInitialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (initialValues && Object.keys(initialValues).length > 0) {
-      setValues((prev) => ({ ...prev, ...initialValues }));
+    const defaults: Record<string, any> = {};
+    for (const section of sections) {
+      for (const field of section.fields) {
+        if (field.defaultValue !== undefined) {
+          defaults[field.name] = field.defaultValue;
+        }
+      }
     }
+    setValues((prev) => ({ ...defaults, ...prev, ...initialValues }));
   }, [initialValues]);
 
   const handleChange = (name: string, value: any) => {
@@ -73,7 +92,7 @@ export function Form({
   const handleBlur = (field: FormFieldDef) => {
     setTouched((prev) => ({ ...prev, [field.name]: true }));
     if (field.required && !field.disabled) {
-      const val = values[field.name];
+      const val = values[field.name] ?? field.defaultValue;
       if (val === undefined || val === null || String(val).trim() === "") {
         setErrors((prev) => ({ ...prev, [field.name]: `${field.label} is required` }));
       }
@@ -85,7 +104,7 @@ export function Form({
     for (const section of sections) {
       for (const field of section.fields) {
         if (field.required && !field.disabled) {
-          const val = values[field.name];
+          const val = values[field.name] ?? field.defaultValue;
           if (val === undefined || val === null || String(val).trim() === "") {
             newErrors[field.name] = `${field.label} is required`;
           }
@@ -99,7 +118,15 @@ export function Form({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    await onSubmit(values);
+    const finalValues = { ...values };
+    for (const section of sections) {
+      for (const field of section.fields) {
+        if (field.defaultValue !== undefined && (finalValues[field.name] === undefined || finalValues[field.name] === "")) {
+          finalValues[field.name] = field.defaultValue;
+        }
+      }
+    }
+    await onSubmit(finalValues);
   };
 
   return (

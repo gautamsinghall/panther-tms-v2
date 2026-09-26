@@ -11,6 +11,7 @@ import { Form } from "@/components/forms/form";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from "@/lib/countries";
 
 interface LocationRecord {
   id: number;
@@ -172,7 +173,10 @@ export default function LocationPage() {
         {
           name: "country",
           label: "Country",
-          placeholder: "India",
+          type: "select",
+          options: COUNTRY_OPTIONS,
+          placeholder: "Select Country",
+          defaultValue: DEFAULT_COUNTRY,
           required: true,
         },
         {

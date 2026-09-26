@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from "@/lib/countries";
 
 export interface ConsignerRecord {
   id: number;
@@ -267,8 +268,10 @@ export default function ConsignerPage() {
         {
           name: "country",
           label: "Country",
-          placeholder: "e.g. India",
-          defaultValue: "India",
+          type: "select",
+          options: COUNTRY_OPTIONS,
+          placeholder: "Select Country",
+          defaultValue: DEFAULT_COUNTRY,
         },
       ],
     },

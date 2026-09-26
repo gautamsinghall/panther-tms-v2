@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { X, Building2, MapPin, User, Truck, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
+import { CountrySelect } from "@/components/ui/country-select";
+import { DEFAULT_COUNTRY } from "@/lib/countries";
 
 function QuickModalWrapper({
   isOpen,
@@ -74,6 +76,7 @@ export function QuickCreateConsignerModal({
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [gstin, setGstin] = useState("");
   const [address, setAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -98,9 +101,9 @@ export function QuickCreateConsignerModal({
           phone: phone.trim() || undefined,
           city: city.trim() || undefined,
           state: state.trim() || undefined,
+          country: country || DEFAULT_COUNTRY,
           gstin: gstin.trim() || undefined,
           address: address.trim() || undefined,
-          country: "India",
           is_active: true,
         }),
       });
@@ -110,6 +113,7 @@ export function QuickCreateConsignerModal({
       setPhone("");
       setCity("");
       setState("");
+      setCountry(DEFAULT_COUNTRY);
       setGstin("");
       setAddress("");
       onSuccess(res);
@@ -196,7 +200,7 @@ export function QuickCreateConsignerModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
               <input
@@ -215,6 +219,14 @@ export function QuickCreateConsignerModal({
                 onChange={(e) => setState(e.target.value)}
                 placeholder="e.g. Maharashtra"
                 className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
+              <CountrySelect
+                value={country}
+                onChange={setCountry}
+                size="sm"
               />
             </div>
             <div>
@@ -270,6 +282,7 @@ export function QuickCreateConsigneeModal({
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [gstin, setGstin] = useState("");
   const [address, setAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -294,9 +307,9 @@ export function QuickCreateConsigneeModal({
           phone: phone.trim() || undefined,
           city: city.trim() || undefined,
           state: state.trim() || undefined,
+          country: country || DEFAULT_COUNTRY,
           gstin: gstin.trim() || undefined,
           address: address.trim() || undefined,
-          country: "India",
           is_active: true,
         }),
       });
@@ -305,6 +318,7 @@ export function QuickCreateConsigneeModal({
       setPhone("");
       setCity("");
       setState("");
+      setCountry(DEFAULT_COUNTRY);
       setGstin("");
       setAddress("");
       onSuccess(res);
@@ -391,7 +405,7 @@ export function QuickCreateConsigneeModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
               <input
@@ -410,6 +424,14 @@ export function QuickCreateConsigneeModal({
                 onChange={(e) => setState(e.target.value)}
                 placeholder="e.g. Maharashtra"
                 className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
+              <CountrySelect
+                value={country}
+                onChange={setCountry}
+                size="sm"
               />
             </div>
             <div>
@@ -464,6 +486,7 @@ export function QuickCreateLocationModal({
 }: QuickCreateLocationProps) {
   const [cityName, setCityName] = useState("");
   const [state, setState] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [locationCode, setLocationCode] = useState("");
   const [address, setAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -485,9 +508,9 @@ export function QuickCreateLocationModal({
         body: JSON.stringify({
           city_name: cityName.trim(),
           state: state.trim(),
+          country: country || DEFAULT_COUNTRY,
           location_code: locationCode.trim() || undefined,
           address: address.trim() || undefined,
-          country: "India",
           is_pickup_point: true,
           is_drop_point: true,
           is_active: true,
@@ -495,6 +518,7 @@ export function QuickCreateLocationModal({
       });
       setCityName("");
       setState("");
+      setCountry(DEFAULT_COUNTRY);
       setLocationCode("");
       setAddress("");
       onSuccess(res);
@@ -507,7 +531,7 @@ export function QuickCreateLocationModal({
   };
 
   return (
-    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
@@ -535,7 +559,7 @@ export function QuickCreateLocationModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 City / Hub Name <span className="text-rose-500">*</span>
@@ -561,6 +585,17 @@ export function QuickCreateLocationModal({
                 onChange={(e) => setState(e.target.value)}
                 placeholder="e.g. Maharashtra"
                 className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Country <span className="text-rose-500">*</span>
+              </label>
+              <CountrySelect
+                value={country}
+                onChange={setCountry}
+                size="sm"
+                required
               />
             </div>
           </div>
