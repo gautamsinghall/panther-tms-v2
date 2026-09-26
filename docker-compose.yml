@@ -3,7 +3,13 @@ services:
     image: postgres:16-alpine
     container_name: panther-postgres
     restart: unless-stopped
-    command: postgres -c shared_buffers=128MB -c work_mem=4MB -c maintenance_work_mem=32MB -c effective_cache_size=256MB -c max_connections=50
+    command: postgres -c shared_buffers=128MB -c work_mem=4MB -c maintenance_work_mem=32MB -c effective_cache_size=256MB -c max_connections=50 -c wal_buffers=4MB -c min_wal_size=32MB -c max_wal_size=128MB
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 128M
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-panther}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panther_secret}
@@ -25,6 +31,12 @@ services:
     container_name: panther-redis
     restart: unless-stopped
     command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save ""
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -43,6 +55,12 @@ services:
       dockerfile: Dockerfile
     container_name: panther-backend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 192M
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-panther}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-panther_secret}
@@ -72,6 +90,12 @@ services:
       dockerfile: Dockerfile
     container_name: panther-frontend
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 192M
     environment:
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
       - NEXT_PUBLIC_ROOT_DOMAIN=${NEXT_PUBLIC_ROOT_DOMAIN:-localhost:3000}
@@ -83,9 +107,17 @@ services:
       - panther-net
 
   pgadmin:
+    profiles:
+      - tools
     image: dpage/pgadmin4:latest
     container_name: panther-pgadmin
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 128M
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@panthertms.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-panther_secret}
