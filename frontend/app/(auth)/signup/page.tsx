@@ -983,7 +983,7 @@ export default function SignupPage() {
               </div>
             </div>
           </div>
-        )}      )}
+        )}
 
         {/* STEP 2: ACCOUNT DETAILS (Aligned with Login styling) */}
         {step === 2 && (
