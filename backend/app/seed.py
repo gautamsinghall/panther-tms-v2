@@ -30,6 +30,18 @@ async def seed_demo():
 
         if demo_tenant:
             logger.info(f"Demo tenant '{settings.DEMO_TENANT_SUBDOMAIN}' already exists. (DB: {demo_tenant.db_name})")
+            from sqlalchemy import text
+            from app.core.database import get_tenant_engine
+            try:
+                demo_engine = get_tenant_engine(demo_tenant.db_name)
+                async with demo_engine.begin() as conn:
+                    await conn.execute(
+                        text("UPDATE users SET is_active = true WHERE lower(email) = lower(:email);"),
+                        {"email": settings.DEMO_ADMIN_EMAIL.lower().strip()}
+                    )
+                logger.info(f"Ensured demo admin '{settings.DEMO_ADMIN_EMAIL}' is active.")
+            except Exception as e:
+                logger.warning(f"Could not reactivate demo admin in {demo_tenant.db_name}: {e}")
         else:
             logger.info(f"Provisioning demo tenant '{settings.DEMO_TENANT_SUBDOMAIN}'...")
             req = TenantProvisionRequest(

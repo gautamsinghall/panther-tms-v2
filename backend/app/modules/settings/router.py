@@ -199,7 +199,7 @@ async def update_user(
     current_user: User = Depends(require_permission("settings", "users", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    user = await service.update_existing_user(db, user_id, data)
+    user = await service.update_existing_user(db, user_id, data, current_user=current_user)
     return UserListItem(
         id=user.id,
         email=user.email,

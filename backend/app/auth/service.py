@@ -24,7 +24,13 @@ async def authenticate_user(
         raise UnauthorizedException("Invalid email or password.")
 
     if not user.is_active:
-        raise AppException(status_code=403, error_code="USER_INACTIVE", message="User account is inactive.")
+        # Self-heal demo tenant admin if previously deactivated
+        if tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN and email == settings.DEMO_ADMIN_EMAIL.lower().strip():
+            user.is_active = True
+            await db.commit()
+            await db.refresh(user)
+        else:
+            raise AppException(status_code=403, error_code="USER_INACTIVE", message="User account is inactive.")
 
     access_token = create_access_token(
         subject=str(user.id),
@@ -73,8 +79,16 @@ async def refresh_user_token(
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
-    if not user or not user.is_active:
-        raise UnauthorizedException("User not found or inactive.")
+    if not user:
+        raise UnauthorizedException("User not found.")
+
+    if not user.is_active:
+        if tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN and user.email == settings.DEMO_ADMIN_EMAIL.lower().strip():
+            user.is_active = True
+            await db.commit()
+            await db.refresh(user)
+        else:
+            raise UnauthorizedException("User not found or inactive.")
 
     new_access_token = create_access_token(
         subject=str(user.id),

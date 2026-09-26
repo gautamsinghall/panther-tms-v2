@@ -1,7 +1,8 @@
 from typing import List, Optional
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 from app.core.errors import AppException
 from app.core.security import get_password_hash
 from app.tenant_db.models import User, Role, RolePermission
@@ -112,11 +113,46 @@ async def create_new_user(db: AsyncSession, data: UserCreate) -> User:
     await db.refresh(user)
     return user
 
-async def update_existing_user(db: AsyncSession, user_id: int, data: UserUpdate) -> User:
+async def update_existing_user(
+    db: AsyncSession,
+    user_id: int,
+    data: UserUpdate,
+    current_user: Optional[User] = None,
+) -> User:
     stmt = select(User).where(User.id == user_id)
     user = (await db.execute(stmt)).scalar_one_or_none()
     if not user:
         raise AppException(status_code=404, error_code="USER_NOT_FOUND", message="User not found.")
+
+    if data.is_active is False:
+        # 1. Protect demo administrator from deactivation
+        if user.email.lower().strip() == settings.DEMO_ADMIN_EMAIL.lower().strip():
+            raise AppException(
+                status_code=400,
+                error_code="CANNOT_DEACTIVATE_DEMO_ADMIN",
+                message="The demo administrator account cannot be deactivated.",
+            )
+        # 2. Protect current user from self-deactivation
+        if current_user and current_user.id == user.id:
+            raise AppException(
+                status_code=400,
+                error_code="CANNOT_DEACTIVATE_SELF",
+                message="You cannot deactivate your own account.",
+            )
+        # 3. Protect last remaining active Company Admin
+        if user.role == "COMPANY_ADMIN":
+            active_admins_stmt = select(func.count(User.id)).where(
+                User.role == "COMPANY_ADMIN",
+                User.is_active == True,
+                User.id != user.id,
+            )
+            active_admins_count = (await db.execute(active_admins_stmt)).scalar() or 0
+            if active_admins_count == 0:
+                raise AppException(
+                    status_code=400,
+                    error_code="CANNOT_DEACTIVATE_LAST_ADMIN",
+                    message="Cannot deactivate the only active Company Administrator.",
+                )
 
     if data.full_name:
         user.full_name = data.full_name.strip()

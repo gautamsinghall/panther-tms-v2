@@ -11,6 +11,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { getStoredAuth } from "@/lib/auth";
 
 interface UserRecord {
   id: number;
@@ -36,6 +37,7 @@ export default function UsersPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const currentAuth = getStoredAuth();
 
   const loadData = async () => {
     setIsLoading(true);
@@ -63,16 +65,33 @@ export default function UsersPage() {
       key: "full_name",
       header: "Employee / User",
       sortable: true,
-      cell: (row) => (
-        <div>
-          <div className="font-semibold text-text-primary">
-            {row.full_name}
+      cell: (row) => {
+        const isDemoAdmin = row.email.toLowerCase() === "admin@demo.com";
+        const isSelf = currentAuth?.user?.id === row.id;
+
+        return (
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-text-primary">
+                {row.full_name}
+              </span>
+              {isDemoAdmin && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  Demo Admin
+                </span>
+              )}
+              {isSelf && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  You
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-text-muted font-mono">
+              {row.email}
+            </div>
           </div>
-          <div className="text-xs text-text-muted font-mono">
-            {row.email}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "role",
@@ -118,7 +137,16 @@ export default function UsersPage() {
   const actions: RowAction<UserRecord>[] = [
     {
       label: "Toggle Status",
+      hidden: (row) => row.email.toLowerCase() === "admin@demo.com" || row.id === currentAuth?.user?.id,
       onClick: async (row) => {
+        if (row.email.toLowerCase() === "admin@demo.com") {
+          alert("The demo administrator account cannot be deactivated.");
+          return;
+        }
+        if (currentAuth?.user?.id && row.id === currentAuth.user.id) {
+          alert("You cannot deactivate your own account.");
+          return;
+        }
         try {
           await apiClient(`/api/v1/settings/users/${row.id}`, {
             method: "PUT",
