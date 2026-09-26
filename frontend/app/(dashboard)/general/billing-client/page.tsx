@@ -12,8 +12,6 @@ import {
   CheckCircle2,
   Clock,
   Coins,
-  RefreshCw,
-  Search,
   Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,9 +19,11 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { StatusBadge, Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { Form } from "@/components/forms/form";
 import { ColumnDef, RowAction } from "@/types/table";
+import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from "@/lib/countries";
 
@@ -51,7 +51,7 @@ export interface BillingClientRecord {
   updated_at?: string;
 }
 
-const initialFormState = {
+const defaultInitialValues = {
   name: "",
   code: "",
   company_name: "",
@@ -60,9 +60,9 @@ const initialFormState = {
   email: "",
   gstin: "",
   pan: "",
-  tds_rate: "0.00",
-  credit_period_days: "30",
-  credit_limit: "0.00",
+  tds_rate: 0,
+  credit_period_days: 30,
+  credit_limit: 0,
   payment_terms: "",
   address: "",
   city: "",
@@ -85,9 +85,7 @@ export default function BillingClientPage() {
   // Drawer / Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<BillingClientRecord | null>(null);
-  const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Confirmation dialog state
   const [deactivatingRecord, setDeactivatingRecord] = useState<BillingClientRecord | null>(null);
@@ -114,90 +112,39 @@ export default function BillingClientPage() {
 
   const openCreateDrawer = () => {
     setEditingRecord(null);
-    setFormData(initialFormState);
-    setFormErrors({});
     setIsDrawerOpen(true);
   };
 
   const openEditDrawer = (record: BillingClientRecord) => {
     setEditingRecord(record);
-    setFormData({
-      name: record.name || "",
-      code: record.code || "",
-      company_name: record.company_name || "",
-      contact_person: record.contact_person || "",
-      phone: record.phone || "",
-      email: record.email || "",
-      gstin: record.gstin || "",
-      pan: record.pan || "",
-      tds_rate: record.tds_rate !== undefined && record.tds_rate !== null ? String(record.tds_rate) : "0.00",
-      credit_period_days:
-        record.credit_period_days !== undefined && record.credit_period_days !== null
-          ? String(record.credit_period_days)
-          : "30",
-      credit_limit:
-        record.credit_limit !== undefined && record.credit_limit !== null ? String(record.credit_limit) : "0.00",
-      payment_terms: record.payment_terms || "",
-      address: record.address || "",
-      city: record.city || "",
-      state: record.state || "",
-      pincode: record.pincode || "",
-      country: record.country || DEFAULT_COUNTRY,
-    });
-    setFormErrors({});
     setIsDrawerOpen(true);
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (formErrors[field]) {
-      setFormErrors((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-    }
-  };
-
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    if (!formData.name.trim()) {
-      errors.name = "Client / Corporate Name is required.";
-    }
-    if (formData.gstin.trim() && formData.gstin.trim().length !== 15) {
-      errors.gstin = "GSTIN must be 15 characters long if provided.";
-    }
-    if (formData.pan.trim() && formData.pan.trim().length !== 10) {
-      errors.pan = "PAN must be 10 characters long if provided.";
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
+  const handleFormSubmit = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
       const payload = {
-        name: formData.name.trim(),
-        code: formData.code.trim() || null,
-        company_name: formData.company_name.trim() || null,
-        contact_person: formData.contact_person.trim() || null,
-        phone: formData.phone.trim() || null,
-        email: formData.email.trim() || null,
-        gstin: formData.gstin.trim().toUpperCase() || null,
-        pan: formData.pan.trim().toUpperCase() || null,
-        tds_rate: formData.tds_rate ? parseFloat(formData.tds_rate) : 0,
-        credit_period_days: formData.credit_period_days ? parseInt(formData.credit_period_days, 10) : 30,
-        credit_limit: formData.credit_limit ? parseFloat(formData.credit_limit) : 0,
-        payment_terms: formData.payment_terms.trim() || null,
-        address: formData.address.trim() || null,
-        city: formData.city.trim() || null,
-        state: formData.state.trim() || null,
-        pincode: formData.pincode.trim() || null,
-        country: formData.country.trim() || DEFAULT_COUNTRY,
+        name: String(values.name || "").trim(),
+        code: values.code ? String(values.code).trim() : null,
+        company_name: values.company_name ? String(values.company_name).trim() : null,
+        contact_person: values.contact_person ? String(values.contact_person).trim() : null,
+        phone: values.phone ? String(values.phone).trim() : null,
+        email: values.email ? String(values.email).trim() : null,
+        gstin: values.gstin ? String(values.gstin).trim().toUpperCase() : null,
+        pan: values.pan ? String(values.pan).trim().toUpperCase() : null,
+        tds_rate: values.tds_rate !== undefined && values.tds_rate !== "" ? parseFloat(values.tds_rate) : 0,
+        credit_period_days:
+          values.credit_period_days !== undefined && values.credit_period_days !== ""
+            ? parseInt(values.credit_period_days, 10)
+            : 30,
+        credit_limit:
+          values.credit_limit !== undefined && values.credit_limit !== "" ? parseFloat(values.credit_limit) : 0,
+        payment_terms: values.payment_terms ? String(values.payment_terms).trim() : null,
+        address: values.address ? String(values.address).trim() : null,
+        city: values.city ? String(values.city).trim() : null,
+        state: values.state ? String(values.state).trim() : null,
+        pincode: values.pincode ? String(values.pincode).trim() : null,
+        country: values.country || DEFAULT_COUNTRY,
       };
 
       if (editingRecord) {
@@ -249,6 +196,171 @@ export default function BillingClientPage() {
       alert(err.message || "Failed to update client status.");
     }
   };
+
+  // Initial values for Form
+  const editingInitialValues = useMemo(() => {
+    if (!editingRecord) return defaultInitialValues;
+    return {
+      name: editingRecord.name || "",
+      code: editingRecord.code || "",
+      company_name: editingRecord.company_name || "",
+      contact_person: editingRecord.contact_person || "",
+      phone: editingRecord.phone || "",
+      email: editingRecord.email || "",
+      gstin: editingRecord.gstin || "",
+      pan: editingRecord.pan || "",
+      tds_rate: editingRecord.tds_rate ?? 0,
+      credit_period_days: editingRecord.credit_period_days ?? 30,
+      credit_limit: editingRecord.credit_limit ?? 0,
+      payment_terms: editingRecord.payment_terms || "",
+      address: editingRecord.address || "",
+      city: editingRecord.city || "",
+      state: editingRecord.state || "",
+      pincode: editingRecord.pincode || "",
+      country: editingRecord.country || DEFAULT_COUNTRY,
+    };
+  }, [editingRecord]);
+
+  // Standardized Form Sections matching global design system
+  const formSections: FormSectionDef[] = [
+    {
+      id: "corporate_info",
+      title: "Corporate & Contact Information",
+      description: "Primary client identity, trade name, and key contact details for dispatch and billing.",
+      columns: 2,
+      fields: [
+        {
+          name: "name",
+          label: "Client / Trade Name",
+          placeholder: "e.g. Tata Steel Ltd or Reliance Retail",
+          required: true,
+          colSpan: 2,
+        },
+        {
+          name: "code",
+          label: "Client Code (Optional)",
+          placeholder: "e.g. CLI-001",
+        },
+        {
+          name: "company_name",
+          label: "Legal / Registered Entity Name",
+          placeholder: "e.g. Tata Steel BSL Limited",
+        },
+        {
+          name: "contact_person",
+          label: "Primary Contact Person",
+          placeholder: "e.g. Rajesh Kumar (Logistics Head)",
+        },
+        {
+          name: "phone",
+          label: "Phone / Mobile Number",
+          placeholder: "+91 98765 43210",
+        },
+        {
+          name: "email",
+          label: "Email Address for Invoicing & Statements",
+          type: "email",
+          placeholder: "accounts.payable@clientcompany.com",
+          colSpan: 2,
+        },
+      ],
+    },
+    {
+      id: "tax_compliance",
+      title: "Tax, GST & Regulatory Compliance",
+      description: "Indian Goods & Services Tax (GSTIN), Permanent Account Number (PAN), and statutory TDS rate.",
+      columns: 3,
+      fields: [
+        {
+          name: "gstin",
+          label: "GSTIN (15 Digits)",
+          placeholder: "27AAACT1234F1Z5",
+          helperText: "15-digit alphanumeric Indian GST identifier",
+        },
+        {
+          name: "pan",
+          label: "PAN (10 Digits)",
+          placeholder: "AAACT1234F",
+          helperText: "10-digit Income Tax PAN",
+        },
+        {
+          name: "tds_rate",
+          label: "TDS Deduction Rate (%)",
+          type: "number",
+          placeholder: "e.g. 1.00 or 2.00",
+          defaultValue: 0,
+        },
+      ],
+    },
+    {
+      id: "credit_terms",
+      title: "Credit Terms & Payment Ceiling",
+      description: "Debtor terms, maximum outstanding credit limit, and contractual billing milestones.",
+      columns: 2,
+      fields: [
+        {
+          name: "credit_period_days",
+          label: "Credit Period (Days)",
+          type: "number",
+          placeholder: "30",
+          defaultValue: 30,
+          helperText: "Default payment duration allowed after invoice generation",
+        },
+        {
+          name: "credit_limit",
+          label: "Credit Limit (INR ₹)",
+          type: "number",
+          placeholder: "e.g. 500000",
+          defaultValue: 0,
+          helperText: "Maximum permitted unpaid invoice balance across active jobs",
+        },
+        {
+          name: "payment_terms",
+          label: "Payment Terms / Billing Notes",
+          placeholder: "e.g. 30 Days from Physical POD Submission / Payment via RTGS",
+          colSpan: 2,
+        },
+      ],
+    },
+    {
+      id: "billing_address",
+      title: "Registered Office & Billing Address",
+      description: "Official postal address to be printed on GST Tax Invoices and E-Way Bills.",
+      columns: 2,
+      fields: [
+        {
+          name: "address",
+          label: "Street / Building Address",
+          type: "textarea",
+          placeholder: "e.g. Plot No 42, Sector 18, Commercial Belt",
+          colSpan: 2,
+        },
+        {
+          name: "city",
+          label: "City",
+          placeholder: "e.g. Mumbai",
+        },
+        {
+          name: "state",
+          label: "State",
+          placeholder: "e.g. Maharashtra",
+        },
+        {
+          name: "pincode",
+          label: "Pincode / Postal Code",
+          placeholder: "e.g. 400001",
+        },
+        {
+          name: "country",
+          label: "Country",
+          type: "select",
+          options: COUNTRY_OPTIONS,
+          placeholder: "Select Country",
+          defaultValue: DEFAULT_COUNTRY,
+        },
+      ],
+    },
+  ];
 
   // KPI Metrics
   const metrics = useMemo(() => {
@@ -572,7 +684,7 @@ export default function BillingClientPage() {
         }}
       />
 
-      {/* Entity Drawer (Full Form Workspace) */}
+      {/* Entity Drawer using Global Form UI */}
       <EntityDrawer
         isOpen={isDrawerOpen}
         onClose={() => {
@@ -580,350 +692,25 @@ export default function BillingClientPage() {
           setEditingRecord(null);
         }}
         title={editingRecord ? `Edit Billing Client: ${editingRecord.name}` : "Create New Billing Client"}
-        description="Configure corporate entity profiles, GST/PAN compliance details, credit terms, and billing address."
-        width="xl"
+        description={
+          editingRecord
+            ? "Update corporate entity profiles, GST/PAN compliance details, credit terms, and billing address."
+            : "Register a new corporate client, commercial debtor profile, credit terms, and GST compliance details."
+        }
       >
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto pb-8">
-          {/* Section 1: Corporate Profile */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-indigo-600" />
-                Corporate & Contact Information
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Primary client identity, trade name, and key contact details for dispatch and billing.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Client / Trade Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Tata Steel Ltd or Reliance Retail"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  className={`w-full px-3.5 py-2 text-sm rounded-xl border ${
-                    formErrors.name ? "border-rose-400 focus:ring-rose-500" : "border-slate-200 focus:border-indigo-500"
-                  } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all`}
-                />
-                {formErrors.name && (
-                  <p className="text-[11px] text-rose-500 mt-1">{formErrors.name}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Client Code (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. CLI-001"
-                  value={formData.code}
-                  onChange={(e) => handleInputChange("code", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Legal / Registered Entity Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Tata Steel BSL Limited"
-                  value={formData.company_name}
-                  onChange={(e) => handleInputChange("company_name", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Primary Contact Person
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Rajesh Kumar (Logistics Head)"
-                  value={formData.contact_person}
-                  onChange={(e) => handleInputChange("contact_person", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Phone / Mobile Number
-                </label>
-                <input
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Email Address for Invoicing & Statements
-                </label>
-                <input
-                  type="email"
-                  placeholder="accounts.payable@clientcompany.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Tax & Compliance */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                Tax, GST & Regulatory Compliance
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Indian Goods & Services Tax (GSTIN), Permanent Account Number (PAN), and statutory TDS rate.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  GSTIN (15 Digits)
-                </label>
-                <input
-                  type="text"
-                  maxLength={15}
-                  placeholder="27AAACT1234F1Z5"
-                  value={formData.gstin}
-                  onChange={(e) => handleInputChange("gstin", e.target.value.toUpperCase())}
-                  className={`w-full px-3.5 py-2 text-sm rounded-xl border ${
-                    formErrors.gstin ? "border-rose-400 focus:ring-rose-500" : "border-slate-200 focus:border-indigo-500"
-                  } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono uppercase`}
-                />
-                {formErrors.gstin && (
-                  <p className="text-[11px] text-rose-500 mt-1">{formErrors.gstin}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  PAN (10 Digits)
-                </label>
-                <input
-                  type="text"
-                  maxLength={10}
-                  placeholder="AAACT1234F"
-                  value={formData.pan}
-                  onChange={(e) => handleInputChange("pan", e.target.value.toUpperCase())}
-                  className={`w-full px-3.5 py-2 text-sm rounded-xl border ${
-                    formErrors.pan ? "border-rose-400 focus:ring-rose-500" : "border-slate-200 focus:border-indigo-500"
-                  } focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono uppercase`}
-                />
-                {formErrors.pan && (
-                  <p className="text-[11px] text-rose-500 mt-1">{formErrors.pan}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  TDS Deduction Rate (%)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="e.g. 1.00 or 2.00"
-                    value={formData.tds_rate}
-                    onChange={(e) => handleInputChange("tds_rate", e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all pr-8"
-                  />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-medium">%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Credit & Commercial Terms */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <Coins className="w-4 h-4 text-amber-600" />
-                Credit Terms & Payment Ceiling
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Debtor terms, maximum outstanding credit limit, and contractual billing milestones.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Credit Period (Days)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="30"
-                  value={formData.credit_period_days}
-                  onChange={(e) => handleInputChange("credit_period_days", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                  Default payment duration allowed after invoice generation.
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Credit Limit (INR ₹)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  placeholder="e.g. 500000"
-                  value={formData.credit_limit}
-                  onChange={(e) => handleInputChange("credit_limit", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                  Maximum permitted unpaid invoice balance across all active jobs.
-                </span>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Payment Terms / Billing Notes
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 30 Days from Physical POD Submission / Payment via RTGS"
-                  value={formData.payment_terms}
-                  onChange={(e) => handleInputChange("payment_terms", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 4: Registered Address & Location */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                Registered Office & Billing Address
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Official postal address to be printed on GST Tax Invoices and E-Way Bills.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Street / Building Address
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Plot No 42, Sector 18, Commercial Belt"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  City
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mumbai"
-                  value={formData.city}
-                  onChange={(e) => handleInputChange("city", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  State
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Maharashtra"
-                  value={formData.state}
-                  onChange={(e) => handleInputChange("state", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Pincode / Postal Code
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 400001"
-                  value={formData.pincode}
-                  onChange={(e) => handleInputChange("pincode", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Country
-                </label>
-                <select
-                  value={formData.country}
-                  onChange={(e) => handleInputChange("country", e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all bg-white"
-                >
-                  {COUNTRY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsDrawerOpen(false);
-                setEditingRecord(null);
-              }}
-              className="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-            >
-              {isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              {editingRecord ? "Save Client Changes" : "Create Billing Client"}
-            </button>
-          </div>
-        </form>
+        <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "create"}
+          sections={formSections}
+          initialValues={editingInitialValues}
+          onSubmit={handleFormSubmit}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Client Changes" : "Create Billing Client"}
+          cancelLabel="Cancel"
+          isLoading={isSubmitting}
+        />
       </EntityDrawer>
 
       {/* Confirmation Dialog */}
