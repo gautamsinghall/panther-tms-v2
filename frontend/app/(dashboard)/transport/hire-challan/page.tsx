@@ -13,6 +13,8 @@ import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { QuickCreateVehicleOwnerModal } from "@/components/modals/quick-create-modal";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 interface HireChallanRecord {
   id: number;
@@ -36,6 +38,7 @@ interface SelectOption {
 }
 
 export default function HireChallansPage() {
+  const router = useRouter();
   const [data, setData] = useState<HireChallanRecord[]>([]);
   const [owners, setOwners] = useState<SelectOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,17 +56,28 @@ export default function HireChallansPage() {
   // Quick Create Modal State
   const [quickOwnerOpen, setQuickOwnerOpen] = useState(false);
 
+  // Series Master State
+  const [seriesInfo, setSeriesInfo] = useState<{
+    configured: boolean;
+    prefix?: string;
+    suffix?: string;
+    next_number_formatted?: string;
+    series_mode?: string;
+  } | null>(null);
+
   const loadData = async () => {
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
     try {
-      const [challansRes, ownersRes] = await Promise.all([
+      const [challansRes, ownersRes, seriesRes] = await Promise.all([
         apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans"),
         apiClient<SelectOption[]>("/api/v1/transport/vehicle-owners"),
+        apiClient<any>("/api/v1/settings/series/check/HIRE_CHALLAN").catch(() => null),
       ]);
       setData(Array.isArray(challansRes) ? challansRes : []);
       setOwners(Array.isArray(ownersRes) ? ownersRes : []);
+      setSeriesInfo(seriesRes);
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load hire challans.");
@@ -184,6 +198,13 @@ export default function HireChallansPage() {
       columns: 2,
       fields: [
         {
+          name: "challan_number",
+          label: "Challan Number (Manual Series)",
+          type: "text",
+          required: true,
+          placeholder: seriesInfo?.next_number_formatted || "HC-2026-0001",
+        },
+        {
           name: "vehicle_number",
           label: "Truck Registration Number",
           placeholder: "e.g. RJ-14-GH-9876",
@@ -258,10 +279,15 @@ export default function HireChallansPage() {
   ];
 
   const handleCreate = async (values: Record<string, any>) => {
+    if (seriesInfo && !seriesInfo.configured) {
+      alert("Manual Series for Hire Challan is not configured! Please configure it in Series Master before issuing a challan.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const payload = {
         ...values,
+        challan_number: values.challan_number ? String(values.challan_number).trim() : undefined,
         owner_id: values.owner_id ? parseInt(values.owner_id, 10) : null,
         hire_rate: values.hire_rate ? parseFloat(values.hire_rate) : 0,
         advance_amount: values.advance_amount ? parseFloat(values.advance_amount) : 0,
@@ -293,9 +319,33 @@ export default function HireChallansPage() {
         primaryAction={{
           label: "Issue Hire Challan",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setFormInitialValues({
+              challan_date: new Date().toISOString().split("T")[0],
+              challan_number: seriesInfo?.next_number_formatted || "",
+            });
+            setIsDrawerOpen(true);
+          },
         }}
       />
+
+      {seriesInfo && !seriesInfo.configured && (
+        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">⚠️ Manual Series Required:</span>
+            <span>Manual series must be configured in Series Master before Hire Challans can be issued.</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => router.push("/settings/series-master")}
+            className="text-xs bg-white text-amber-800 border-amber-300 hover:bg-amber-100 shrink-0"
+          >
+            Configure HC Series
+          </Button>
+        </div>
+      )}
 
       <FilterBar
         searchValue={searchTerm}
@@ -347,13 +397,44 @@ export default function HireChallansPage() {
         title="Issue Market Vehicle Hire Challan"
         description="Create an official hire challan contract with vehicle supplier."
       >
+        {seriesInfo && !seriesInfo.configured && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+            <div className="font-bold flex items-center gap-1.5 text-amber-800">
+              ⚠️ Mandatory Manual Series Not Configured
+            </div>
+            <p>
+              By TMS operational policy, Hire Challan creation requires a configured Manual Series. You cannot issue a challan until an active series is set up in Settings &gt; Series Master.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/settings/series-master")}
+              className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
+            >
+              Go to Series Master
+            </Button>
+          </div>
+        )}
+        {seriesInfo && seriesInfo.configured && (
+          <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
+            <div className="font-mono">
+              <span className="text-slate-500 font-sans mr-1">Active Series:</span>
+              <strong className="text-indigo-700">Prefix [{seriesInfo.prefix}]</strong>
+              {seriesInfo.suffix ? <strong className="text-indigo-700"> Postfix [{seriesInfo.suffix}]</strong> : null}
+            </div>
+            <div className="font-mono text-[11px] text-indigo-700">
+              Suggested Next: <span className="font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">{seriesInfo.next_number_formatted}</span>
+            </div>
+          </div>
+        )}
         <Form
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Issue Challan"
+          submitLabel={seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Issue Challan"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

@@ -25,6 +25,7 @@ from app.modules.accounts.schemas import (
     BTHPaymentCreate,
     VoidVoucherRequest,
 )
+from app.modules.settings.series_service import allocate_or_validate_voucher_number
 
 VOUCHER_PREFIXES = {
     VoucherType.TRANSPORT_INVOICE.value: "TI",
@@ -116,7 +117,11 @@ async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
 # Double-Entry Posting Engine
 # ------------------------------------------------------------------------------
 async def post_voucher(session: AsyncSession, data: VoucherCreate) -> Voucher:
-    v_num = await generate_voucher_number(session, data.voucher_type)
+    v_num = await allocate_or_validate_voucher_number(
+        session,
+        data.voucher_type,
+        manual_number=data.voucher_number,
+    )
 
     net_amt = data.net_amount
     tot_amt = data.total_amount
@@ -462,6 +467,7 @@ async def create_transport_invoice_from_lr(
     party_name = lr.consigner.name if lr.consigner else (lr.consignee.name if lr.consignee else "Transport Client")
 
     voucher_create = VoucherCreate(
+        voucher_number=data.voucher_number or data.invoice_number,
         voucher_type=VoucherType.TRANSPORT_INVOICE.value,
         voucher_date=data.voucher_date or date.today(),
         party_name=party_name,

@@ -225,13 +225,30 @@ async def delete_series_category(db: AsyncSession, cat_id: int) -> None:
 
 
 # --- Series Masters ---
+from app.modules.settings.series_service import (
+    compute_series_display_data,
+    ensure_series_table_schema,
+    MANDATORY_MANUAL_DOC_TYPES,
+    DOC_TYPE_ALIASES,
+    initialize_all_standard_series,
+    check_series_status,
+)
 
 async def get_all_series_masters(db: AsyncSession) -> List[dict]:
+    await ensure_series_table_schema(db)
     stmt = select(SeriesMaster).options(selectinload(SeriesMaster.category)).order_by(SeriesMaster.document_type)
     result = await db.execute(stmt)
     series_list = result.scalars().all()
+    
+    # Auto-initialize all 15 default voucher series if database is fresh/empty
+    if len(series_list) == 0:
+        await initialize_all_standard_series(db)
+        result = await db.execute(stmt)
+        series_list = result.scalars().all()
+
     out = []
     for s in series_list:
+        disp = compute_series_display_data(s)
         out.append({
             "id": s.id,
             "category_id": s.category_id,
@@ -243,6 +260,11 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
             "current_number": s.current_number,
             "end_number": s.end_number,
             "financial_year": s.financial_year,
+            "series_mode": disp["series_mode"],
+            "last_used_formatted": disp["last_used_formatted"],
+            "next_number": disp["next_number"],
+            "next_number_formatted": disp["next_number_formatted"],
+            "is_mandatory_manual": disp["is_mandatory_manual"],
             "is_active": s.is_active,
             "created_at": s.created_at,
             "updated_at": s.updated_at,
@@ -250,15 +272,30 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
     return out
 
 async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> dict:
+    await ensure_series_table_schema(db)
+    raw_doc = data.document_type.upper().strip()
+    norm_doc = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
+    is_mandatory = norm_doc in MANDATORY_MANUAL_DOC_TYPES
+
+    mode = (data.series_mode or ("MANUAL" if is_mandatory else "AUTOMATIC")).upper().strip()
+    if is_mandatory and mode != "MANUAL":
+        readable_title = norm_doc.replace("_", " ").title()
+        raise AppException(
+            status_code=400,
+            error_code="INVALID_SERIES_MODE",
+            message=f"Manual series is mandatory for {readable_title} and cannot be set to Automatic."
+        )
+
     series = SeriesMaster(
         category_id=data.category_id,
-        document_type=data.document_type.upper().strip(),
+        document_type=norm_doc,
         prefix=data.prefix.strip(),
         suffix=data.suffix or "",
         starting_number=data.starting_number,
-        current_number=data.current_number,
+        current_number=data.current_number if data.current_number is not None else (data.starting_number - 1),
         end_number=data.end_number,
         financial_year=data.financial_year.strip(),
+        series_mode=mode,
         is_active=data.is_active,
     )
     db.add(series)
@@ -271,6 +308,7 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         if c:
             cat_name = c.name
 
+    disp = compute_series_display_data(series)
     return {
         "id": series.id,
         "category_id": series.category_id,
@@ -282,24 +320,47 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         "current_number": series.current_number,
         "end_number": series.end_number,
         "financial_year": series.financial_year,
+        "series_mode": disp["series_mode"],
+        "last_used_formatted": disp["last_used_formatted"],
+        "next_number": disp["next_number"],
+        "next_number_formatted": disp["next_number_formatted"],
+        "is_mandatory_manual": disp["is_mandatory_manual"],
         "is_active": series.is_active,
         "created_at": series.created_at,
         "updated_at": series.updated_at,
     }
 
 async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMasterUpdate) -> dict:
+    await ensure_series_table_schema(db)
     series = (await db.execute(select(SeriesMaster).options(selectinload(SeriesMaster.category)).where(SeriesMaster.id == series_id))).scalar_one_or_none()
     if not series:
         raise AppException(status_code=404, error_code="SERIES_NOT_FOUND", message="Series master not found.")
 
+    target_doc = (data.document_type.upper().strip() if data.document_type else series.document_type.upper().strip())
+    norm_doc = DOC_TYPE_ALIASES.get(target_doc, target_doc)
+    is_mandatory = norm_doc in MANDATORY_MANUAL_DOC_TYPES
+
+    if data.series_mode is not None:
+        req_mode = data.series_mode.upper().strip()
+        if is_mandatory and req_mode != "MANUAL":
+            readable_title = norm_doc.replace("_", " ").title()
+            raise AppException(
+                status_code=400,
+                error_code="INVALID_SERIES_MODE",
+                message=f"Manual series is mandatory for {readable_title} and cannot be set to Automatic."
+            )
+        series.series_mode = req_mode
+    elif is_mandatory:
+        series.series_mode = "MANUAL"
+
     if data.category_id is not None:
         series.category_id = data.category_id
     if data.document_type:
-        series.document_type = data.document_type.upper().strip()
-    if data.prefix:
+        series.document_type = norm_doc
+    if data.prefix is not None:
         series.prefix = data.prefix.strip()
     if data.suffix is not None:
-        series.suffix = data.suffix
+        series.suffix = data.suffix.strip()
     if data.starting_number is not None:
         series.starting_number = data.starting_number
     if data.current_number is not None:
@@ -313,6 +374,7 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
 
     await db.commit()
     await db.refresh(series)
+    disp = compute_series_display_data(series)
     return {
         "id": series.id,
         "category_id": series.category_id,
@@ -324,6 +386,11 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
         "current_number": series.current_number,
         "end_number": series.end_number,
         "financial_year": series.financial_year,
+        "series_mode": disp["series_mode"],
+        "last_used_formatted": disp["last_used_formatted"],
+        "next_number": disp["next_number"],
+        "next_number_formatted": disp["next_number_formatted"],
+        "is_mandatory_manual": disp["is_mandatory_manual"],
         "is_active": series.is_active,
         "created_at": series.created_at,
         "updated_at": series.updated_at,

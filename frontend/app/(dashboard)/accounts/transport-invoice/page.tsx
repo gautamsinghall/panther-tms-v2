@@ -80,8 +80,18 @@ export default function TransportInvoicePage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedLrId, setSelectedLrId] = useState<string>("");
   const [selectedTaxCatId, setSelectedTaxCatId] = useState<string>("");
+  const [invoiceNumber, setInvoiceNumber] = useState<string>("");
   const [narration, setNarration] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Series Master state
+  const [seriesInfo, setSeriesInfo] = useState<{
+    configured: boolean;
+    prefix?: string;
+    suffix?: string;
+    next_number_formatted?: string;
+    series_mode?: string;
+  } | null>(null);
 
   // Void Dialog state
   const [isVoidOpen, setIsVoidOpen] = useState(false);
@@ -97,14 +107,19 @@ export default function TransportInvoicePage() {
     setIsError(false);
     setErrorMessage(null);
     try {
-      const [vouchersRes, lrsRes, taxesRes] = await Promise.all([
+      const [vouchersRes, lrsRes, taxesRes, seriesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=TRANSPORT_INVOICE"),
         apiClient<LRRecord[]>("/api/v1/transport/lrs"),
         apiClient<TaxCategoryRecord[]>("/api/v1/misc/tax-categories"),
+        apiClient<any>("/api/v1/settings/series/check/TRANSPORT_INVOICE").catch(() => null),
       ]);
       setData(Array.isArray(vouchersRes) ? vouchersRes : []);
       setLrs(Array.isArray(lrsRes) ? lrsRes : []);
       setTaxCategories(Array.isArray(taxesRes) ? taxesRes : []);
+      setSeriesInfo(seriesRes);
+      if (seriesRes?.next_number_formatted && !invoiceNumber) {
+        setInvoiceNumber(seriesRes.next_number_formatted);
+      }
       if (taxesRes.length > 0 && !selectedTaxCatId) {
         const g12 = taxesRes.find((t) => t.name.includes("12")) || taxesRes[0];
         setSelectedTaxCatId(g12.id.toString());
@@ -137,6 +152,11 @@ export default function TransportInvoicePage() {
       return;
     }
 
+    if (seriesInfo && !seriesInfo.configured) {
+      alert("Manual Series is mandatory for Transport Invoices and has not been configured in Series Master.");
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
@@ -144,6 +164,8 @@ export default function TransportInvoicePage() {
         method: "POST",
         body: JSON.stringify({
           lr_id: parseInt(selectedLrId, 10),
+          invoice_number: invoiceNumber.trim() || undefined,
+          voucher_number: invoiceNumber.trim() || undefined,
           tax_category_id: selectedTaxCatId ? parseInt(selectedTaxCatId, 10) : undefined,
           narration: narration || undefined,
         }),
@@ -330,9 +352,32 @@ export default function TransportInvoicePage() {
         primaryAction={{
           label: "Create Invoice from LR",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => setIsCreateOpen(true),
+          onClick: () => {
+            if (seriesInfo?.next_number_formatted) {
+              setInvoiceNumber(seriesInfo.next_number_formatted);
+            }
+            setIsCreateOpen(true);
+          },
         }}
       />
+
+      {seriesInfo && !seriesInfo.configured && (
+        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">⚠️ Manual Series Required:</span>
+            <span>Manual series must be configured in Series Master before Transport Invoices can be generated.</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => router.push("/settings/series-master")}
+            className="text-xs bg-white text-amber-800 border-amber-300 hover:bg-amber-100 shrink-0"
+          >
+            Configure TI Series
+          </Button>
+        </div>
+      )}
 
       {/* Notifications */}
       {errorMessage && (
@@ -404,7 +449,58 @@ export default function TransportInvoicePage() {
         description="Select an unbilled Lorry Receipt to calculate freight charges, GST rate, and post double-entry ledger vouchers."
         width="lg"
       >
+        {seriesInfo && !seriesInfo.configured && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+            <div className="font-bold flex items-center gap-1.5 text-amber-800">
+              ⚠️ Mandatory Manual Series Not Configured
+            </div>
+            <p>
+              By TMS operational policy, Transport Invoice creation requires a configured Manual Series. You cannot generate an invoice until an active series is set up in Settings &gt; Series Master.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/settings/series-master")}
+              className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
+            >
+              Go to Series Master
+            </Button>
+          </div>
+        )}
+        {seriesInfo && seriesInfo.configured && (
+          <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
+            <div className="font-mono">
+              <span className="text-slate-500 font-sans mr-1">Active Series:</span>
+              <strong className="text-indigo-700">Prefix [{seriesInfo.prefix}]</strong>
+              {seriesInfo.suffix ? <strong className="text-indigo-700"> Postfix [{seriesInfo.suffix}]</strong> : null}
+            </div>
+            <div className="font-mono text-[11px] text-indigo-700">
+              Suggested Next: <span className="font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">{seriesInfo.next_number_formatted}</span>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleCreateInvoice} className="space-y-5 bg-white p-5 rounded-card border border-[#E4E7EC]">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#172033]">
+              Invoice Number (Manual Series) <span className="text-[#DC2626]">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+              placeholder={seriesInfo?.next_number_formatted || "e.g. TI-2026-0043"}
+              className="w-full rounded-control border border-[#E4E7EC] bg-white px-3 py-2 text-xs sm:text-sm text-[#172033] font-mono font-bold placeholder:font-normal placeholder:text-[#98A2B3] focus:outline-none focus:ring-1 focus:ring-[#172033]"
+            />
+            {seriesInfo?.configured && (
+              <span className="text-[11px] text-[#667085] block">
+                Format: <code className="font-mono text-indigo-600">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
+              </span>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-[#172033]">
               Select Lorry Receipt (LR) <span className="text-[#DC2626]">*</span>
@@ -458,8 +554,14 @@ export default function TransportInvoicePage() {
             <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" size="sm" isLoading={isSubmitting}>
-              Generate & Post Invoice
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={isSubmitting}
+              disabled={seriesInfo ? !seriesInfo.configured : false}
+            >
+              {seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Generate & Post Invoice"}
             </Button>
           </div>
         </form>

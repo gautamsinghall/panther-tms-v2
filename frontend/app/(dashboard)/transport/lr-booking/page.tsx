@@ -15,6 +15,7 @@ import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   QuickCreateConsignerModal,
   QuickCreateConsigneeModal,
@@ -75,23 +76,34 @@ export default function LRBookingPage() {
   const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
   const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
 
+  // Series Master State
+  const [seriesInfo, setSeriesInfo] = useState<{
+    configured: boolean;
+    prefix?: string;
+    suffix?: string;
+    next_number_formatted?: string;
+    series_mode?: string;
+  } | null>(null);
+
   const loadData = async () => {
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
     try {
-      const [lrsRes, consignersRes, consigneesRes, locationsRes, jobsRes] = await Promise.all([
+      const [lrsRes, consignersRes, consigneesRes, locationsRes, jobsRes, seriesRes] = await Promise.all([
         apiClient<LRRecord[]>("/api/v1/transport/lrs"),
         apiClient<SelectOption[]>("/api/v1/general/consigners"),
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
         apiClient<SelectOption[]>("/api/v1/general/locations"),
         apiClient<SelectOption[]>("/api/v1/transport/jobs"),
+        apiClient<any>("/api/v1/settings/series/check/LR").catch(() => null),
       ]);
       setData(Array.isArray(lrsRes) ? lrsRes : []);
       setConsigners(Array.isArray(consignersRes) ? consignersRes : []);
       setConsignees(Array.isArray(consigneesRes) ? consigneesRes : []);
       setLocations(Array.isArray(locationsRes) ? locationsRes : []);
       setJobs(Array.isArray(jobsRes) ? jobsRes : []);
+      setSeriesInfo(seriesRes);
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load LRs.");
@@ -260,6 +272,19 @@ export default function LRBookingPage() {
       columns: 2,
       fields: [
         {
+          name: "lr_number",
+          label: "LR / GR Number (Manual Series)",
+          type: "text",
+          required: true,
+          placeholder: seriesInfo?.next_number_formatted || "LR-2026-0001",
+        },
+        {
+          name: "lr_date",
+          label: "LR Booking Date",
+          type: "date",
+          required: true,
+        },
+        {
           name: "job_id",
           label: "Linked Trip / Job Order",
           type: "select",
@@ -267,12 +292,6 @@ export default function LRBookingPage() {
           onAddNew: () => router.push("/transport/jobs"),
           addNewLabel: "+ Create New Trip Order",
           addNewTitle: "Go to Trips & Job Orders to create a new trip",
-        },
-        {
-          name: "lr_date",
-          label: "LR Booking Date",
-          type: "date",
-          required: true,
         },
         {
           name: "consigner_id",
@@ -388,10 +407,15 @@ export default function LRBookingPage() {
   ];
 
   const handleCreate = async (values: Record<string, any>) => {
+    if (seriesInfo && !seriesInfo.configured) {
+      alert("Manual Series for LR is not configured! Please configure it in Series Master before creating an LR.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const payload = {
         ...values,
+        lr_number: values.lr_number ? String(values.lr_number).trim() : undefined,
         job_id: values.job_id ? parseInt(values.job_id, 10) : null,
         consigner_id: parseInt(values.consigner_id, 10),
         consignee_id: parseInt(values.consignee_id, 10),
@@ -425,11 +449,32 @@ export default function LRBookingPage() {
           label: "New LR Booking",
           icon: <Plus className="w-4 h-4" />,
           onClick: () => {
-            setFormInitialValues({ lr_date: new Date().toISOString().split("T")[0] });
+            setFormInitialValues({
+              lr_date: new Date().toISOString().split("T")[0],
+              lr_number: seriesInfo?.next_number_formatted || "",
+            });
             setIsDrawerOpen(true);
           },
         }}
       />
+
+      {seriesInfo && !seriesInfo.configured && (
+        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">⚠️ Manual Series Required:</span>
+            <span>Manual series must be configured in Series Master before LRs can be booked.</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => router.push("/settings/series-master")}
+            className="text-xs bg-white text-amber-800 border-amber-300 hover:bg-amber-100 shrink-0"
+          >
+            Configure LR Series
+          </Button>
+        </div>
+      )}
 
       {/* Operational KPI Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -513,13 +558,44 @@ export default function LRBookingPage() {
         description="Record commercial consignment, assigned truck, freight charges, and dispatch parties."
         width="xl"
       >
+        {seriesInfo && !seriesInfo.configured && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+            <div className="font-bold flex items-center gap-1.5 text-amber-800">
+              ⚠️ Mandatory Manual Series Not Configured
+            </div>
+            <p>
+              By TMS operational policy, LR creation requires a configured Manual Series. You cannot book an LR until an active series is set up in Settings &gt; Series Master.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/settings/series-master")}
+              className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
+            >
+              Go to Series Master
+            </Button>
+          </div>
+        )}
+        {seriesInfo && seriesInfo.configured && (
+          <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
+            <div className="font-mono">
+              <span className="text-slate-500 font-sans mr-1">Active Series:</span>
+              <strong className="text-indigo-700">Prefix [{seriesInfo.prefix}]</strong>
+              {seriesInfo.suffix ? <strong className="text-indigo-700"> Postfix [{seriesInfo.suffix}]</strong> : null}
+            </div>
+            <div className="font-mono text-[11px] text-indigo-700">
+              Suggested Next: <span className="font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">{seriesInfo.next_number_formatted}</span>
+            </div>
+          </div>
+        )}
         <Form
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Lorry Receipt"
+          submitLabel={seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Create Lorry Receipt"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

@@ -39,6 +39,7 @@ from app.modules.transport.schemas import (
     EWayBillCreate,
     TrackingPingCreate,
 )
+from app.modules.settings.series_service import allocate_or_validate_voucher_number
 
 # ===========================================================================
 # State Machine Transition Rules (PRD §7.3 & Architecture §9)
@@ -299,7 +300,7 @@ async def get_all_lrs(db: AsyncSession) -> List[LR]:
     return list(result.scalars().all())
 
 async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = None) -> LR:
-    lr_number = data.lr_number or await _generate_sequence(db, LR, "LR")
+    lr_number = await allocate_or_validate_voucher_number(db, "LR", manual_number=data.lr_number)
     lr_dict = data.model_dump()
     lr_dict["lr_number"] = lr_number
     lr_dict["status"] = LRStatus.DRAFT.value
@@ -407,7 +408,7 @@ async def get_all_hire_challans(db: AsyncSession) -> List[HireChallan]:
     return list(result.scalars().all())
 
 async def create_hire_challan(db: AsyncSession, data: HireChallanCreate) -> HireChallan:
-    challan_number = data.challan_number or await _generate_sequence(db, HireChallan, "HC")
+    challan_number = await allocate_or_validate_voucher_number(db, "HIRE_CHALLAN", manual_number=data.challan_number)
     hc_dict = data.model_dump()
     hc_dict["challan_number"] = challan_number
     hc_dict["status"] = HireChallanStatus.ISSUED.value  # Confirmed on creation

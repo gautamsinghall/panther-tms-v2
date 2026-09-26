@@ -49,12 +49,22 @@ export default function GeneralInvoicePage() {
 
   // Create Drawer state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [voucherNumber, setVoucherNumber] = useState("");
   const [partyName, setPartyName] = useState("");
   const [refNumber, setRefNumber] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
   const [taxAmount, setTaxAmount] = useState("0");
   const [narration, setNarration] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Series Master state
+  const [seriesInfo, setSeriesInfo] = useState<{
+    configured: boolean;
+    prefix?: string;
+    suffix?: string;
+    next_number_formatted?: string;
+    series_mode?: string;
+  } | null>(null);
 
   // Void Dialog state
   const [isVoidOpen, setIsVoidOpen] = useState(false);
@@ -69,8 +79,15 @@ export default function GeneralInvoicePage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=GENERAL_INVOICE");
+      const [res, sInfo] = await Promise.all([
+        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=GENERAL_INVOICE"),
+        apiClient<any>("/api/v1/settings/series/check/GENERAL_INVOICE").catch(() => null),
+      ]);
       setData(res);
+      setSeriesInfo(sInfo);
+      if (sInfo?.next_number_formatted && !voucherNumber) {
+        setVoucherNumber(sInfo.next_number_formatted);
+      }
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load general invoices.");
     } finally {
@@ -91,6 +108,11 @@ export default function GeneralInvoicePage() {
       return;
     }
 
+    if (seriesInfo && !seriesInfo.configured) {
+      alert("Manual Series for General Invoice is not configured! Please configure it in Series Master before creating an invoice.");
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
@@ -98,6 +120,7 @@ export default function GeneralInvoicePage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "GENERAL_INVOICE",
+          voucher_number: voucherNumber.trim() || undefined,
           party_name: partyName.trim(),
           reference_number: refNumber.trim() || undefined,
           total_amount: tot,
@@ -273,12 +296,38 @@ export default function GeneralInvoicePage() {
           { label: "General Invoices" },
         ]}
         actions={
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
+          <Button
+            onClick={() => {
+              if (seriesInfo?.next_number_formatted) {
+                setVoucherNumber(seriesInfo.next_number_formatted);
+              }
+              setIsCreateOpen(true);
+            }}
+            className="gap-2"
+          >
             <Plus className="w-4 h-4" />
             New General Invoice
           </Button>
         }
       />
+
+      {seriesInfo && !seriesInfo.configured && (
+        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">⚠️ Manual Series Required:</span>
+            <span>Manual series must be configured in Series Master before General Invoices can be created.</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => window.location.href = "/settings/series-master"}
+            className="text-xs bg-white text-amber-800 border-amber-300 hover:bg-amber-100 shrink-0"
+          >
+            Configure GI Series
+          </Button>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="p-4 rounded-xl bg-danger-light border border-danger/20 text-danger text-sm flex items-center justify-between">
@@ -325,15 +374,66 @@ export default function GeneralInvoicePage() {
             <Button
               type="submit"
               form="general-invoice-form"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (seriesInfo ? !seriesInfo.configured : false)}
             >
-              {isSubmitting ? "Posting..." : "Create & Post"}
+              {isSubmitting ? "Posting..." : seriesInfo && !seriesInfo.configured ? "Series Config Required" : "Create & Post"}
             </Button>
           </div>
         }
       >
+        {seriesInfo && !seriesInfo.configured && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+            <div className="font-bold flex items-center gap-1.5 text-amber-800">
+              ⚠️ Mandatory Manual Series Not Configured
+            </div>
+            <p>
+              By TMS operational policy, General Invoice creation requires a configured Manual Series. You cannot create an invoice until an active series is set up in Settings &gt; Series Master.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => window.location.href = "/settings/series-master"}
+              className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
+            >
+              Go to Series Master
+            </Button>
+          </div>
+        )}
+        {seriesInfo && seriesInfo.configured && (
+          <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
+            <div className="font-mono">
+              <span className="text-slate-500 font-sans mr-1">Active Series:</span>
+              <strong className="text-indigo-700">Prefix [{seriesInfo.prefix}]</strong>
+              {seriesInfo.suffix ? <strong className="text-indigo-700"> Postfix [{seriesInfo.suffix}]</strong> : null}
+            </div>
+            <div className="font-mono text-[11px] text-indigo-700">
+              Suggested Next: <span className="font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">{seriesInfo.next_number_formatted}</span>
+            </div>
+          </div>
+        )}
+
         <form id="general-invoice-form" onSubmit={handleCreateInvoice} className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Invoice Number (Manual Series) *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder={seriesInfo?.next_number_formatted || "GI-2026-0001"}
+                value={voucherNumber}
+                onChange={(e) => setVoucherNumber(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono font-bold focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+              {seriesInfo?.configured && (
+                <span className="text-[11px] text-[#667085] mt-1 block">
+                  Format: <code className="font-mono text-indigo-600">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
+                </span>
+              )}
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">
                 Customer / Party Name *

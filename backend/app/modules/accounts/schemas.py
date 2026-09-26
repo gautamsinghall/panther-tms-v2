@@ -39,6 +39,7 @@ class LedgerEntryResponse(BaseModel):
 
 
 class VoucherBase(BaseModel):
+    voucher_number: Optional[str] = None
     voucher_type: str = Field(..., description="VoucherType enum value")
     voucher_date: date = Field(default_factory=date.today)
     party_name: Optional[str] = None
@@ -59,6 +60,8 @@ class VoucherCreate(VoucherBase):
 
 class TransportInvoiceCreate(BaseModel):
     lr_id: int
+    invoice_number: Optional[str] = None
+    voucher_number: Optional[str] = None
     voucher_date: Optional[date] = None
     tax_category_id: Optional[int] = None
     party_account_id: Optional[int] = None

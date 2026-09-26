@@ -61,6 +61,7 @@ async def run_migration():
             "logo_url VARCHAR(500)"
         ]:
             await conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col};"))
+        await conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
 
     session_factory = get_tenant_session_maker(demo_db)
     async with session_factory() as session:
@@ -81,8 +82,9 @@ async def run_migration():
                 await session.flush()
             created_cats[cat_data["code"]] = cat.id
 
-        # B. Series Masters
+        # B. Series Masters - All 15 Voucher Types
         series_data = [
+            # Mandatory Manual
             {
                 "category_id": created_cats.get("TRANSPORT"),
                 "document_type": "LR",
@@ -91,6 +93,7 @@ async def run_migration():
                 "starting_number": 1,
                 "current_number": 85,
                 "financial_year": "2026-2027",
+                "series_mode": "MANUAL",
                 "is_active": True,
             },
             {
@@ -101,36 +104,151 @@ async def run_migration():
                 "starting_number": 1,
                 "current_number": 57,
                 "financial_year": "2026-2027",
+                "series_mode": "MANUAL",
                 "is_active": True,
             },
             {
                 "category_id": created_cats.get("BILLING"),
-                "document_type": "INVOICE",
-                "prefix": "INV-2026-",
+                "document_type": "TRANSPORT_INVOICE",
+                "prefix": "TI-2026-",
                 "suffix": "",
                 "starting_number": 1,
                 "current_number": 43,
                 "financial_year": "2026-2027",
+                "series_mode": "MANUAL",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("BILLING"),
+                "document_type": "GENERAL_INVOICE",
+                "prefix": "GI-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 12,
+                "financial_year": "2026-2027",
+                "series_mode": "MANUAL",
+                "is_active": True,
+            },
+            # Automatic Series (Defaults)
+            {
+                "category_id": created_cats.get("BILLING"),
+                "document_type": "PROFORMA_INVOICE",
+                "prefix": "PI-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 5,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "NORMAL_PURCHASE",
+                "prefix": "NP-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 20,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "GENERAL_PURCHASE",
+                "prefix": "GP-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 8,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
                 "is_active": True,
             },
             {
                 "category_id": created_cats.get("ACCOUNTS"),
                 "document_type": "RECEIPT_VOUCHER",
-                "prefix": "RCP-2026-",
+                "prefix": "RV-2026-",
                 "suffix": "",
                 "starting_number": 1,
                 "current_number": 29,
                 "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
                 "is_active": True,
             },
             {
                 "category_id": created_cats.get("ACCOUNTS"),
                 "document_type": "PAYMENT_VOUCHER",
-                "prefix": "PAY-2026-",
+                "prefix": "PV-2026-",
                 "suffix": "",
                 "starting_number": 1,
                 "current_number": 15,
                 "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "PAYMENT_ATH",
+                "prefix": "ATH-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 25,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "PAYMENT_BTH",
+                "prefix": "BTH-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 18,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "CREDIT_NOTE",
+                "prefix": "CN-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 4,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "DEBIT_NOTE",
+                "prefix": "DN-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 3,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "GENERAL_VOUCHER",
+                "prefix": "JV-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 6,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
+                "is_active": True,
+            },
+            {
+                "category_id": created_cats.get("ACCOUNTS"),
+                "document_type": "CONTRA_VOUCHER",
+                "prefix": "CV-2026-",
+                "suffix": "",
+                "starting_number": 1,
+                "current_number": 7,
+                "financial_year": "2026-2027",
+                "series_mode": "AUTOMATIC",
                 "is_active": True,
             },
         ]
@@ -140,8 +258,12 @@ async def run_migration():
                 models.SeriesMaster.financial_year == s_data["financial_year"]
             )
             res = await session.execute(stmt)
-            if not res.scalar_one_or_none():
+            existing_s = res.scalar_one_or_none()
+            if not existing_s:
                 session.add(models.SeriesMaster(**s_data))
+            else:
+                if not getattr(existing_s, "series_mode", None):
+                    existing_s.series_mode = s_data["series_mode"]
 
         # C. Admin Settings
         admin_settings_data = [

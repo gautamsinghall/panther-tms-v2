@@ -1267,6 +1267,7 @@ class SeriesMaster(TenantBase):
     current_number = Column(Integer, default=1, nullable=False)
     end_number = Column(Integer, nullable=True)
     financial_year = Column(String(20), default="2026-2027", nullable=False)
+    series_mode = Column(String(20), default="AUTOMATIC", nullable=False)  # 'AUTOMATIC' or 'MANUAL'
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(

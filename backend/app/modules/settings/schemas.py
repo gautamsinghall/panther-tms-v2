@@ -86,9 +86,10 @@ class SeriesMasterBase(BaseModel):
     prefix: str = Field(..., min_length=1, max_length=50)
     suffix: Optional[str] = ""
     starting_number: int = 1
-    current_number: int = 1
+    current_number: int = 0
     end_number: Optional[int] = None
     financial_year: str = Field(default="2026-2027")
+    series_mode: str = Field(default="AUTOMATIC", description="'AUTOMATIC' or 'MANUAL'")
     is_active: bool = True
 
 class SeriesMasterCreate(SeriesMasterBase):
@@ -103,6 +104,7 @@ class SeriesMasterUpdate(BaseModel):
     current_number: Optional[int] = None
     end_number: Optional[int] = None
     financial_year: Optional[str] = None
+    series_mode: Optional[str] = None
     is_active: Optional[bool] = None
 
 class SeriesMasterResponse(SeriesMasterBase):
@@ -110,7 +112,29 @@ class SeriesMasterResponse(SeriesMasterBase):
     created_at: datetime
     updated_at: datetime
     category_name: Optional[str] = None
+    last_used_formatted: Optional[str] = None
+    next_number: int = 1
+    next_number_formatted: str = ""
+    is_mandatory_manual: bool = False
     model_config = ConfigDict(from_attributes=True)
+
+class SeriesCheckResponse(BaseModel):
+    configured: bool
+    id: Optional[int] = None
+    document_type: str
+    display_name: Optional[str] = None
+    prefix: Optional[str] = None
+    suffix: Optional[str] = None
+    starting_number: Optional[int] = None
+    current_number: Optional[int] = None
+    last_used_formatted: Optional[str] = None
+    next_number: Optional[int] = None
+    next_number_formatted: Optional[str] = None
+    financial_year: Optional[str] = None
+    series_mode: Optional[str] = None
+    is_mandatory_manual: bool = False
+    is_active: bool = True
+    message: Optional[str] = None
 
 
 # --- Admin Settings ---

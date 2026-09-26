@@ -9,7 +9,7 @@ from app.modules.settings.schemas import (
     RoleCreate, RoleUpdate, RoleResponse,
     UserCreate, UserUpdate, UserListItem, PermissionItem,
     SeriesCategoryCreate, SeriesCategoryUpdate, SeriesCategoryResponse,
-    SeriesMasterCreate, SeriesMasterUpdate, SeriesMasterResponse,
+    SeriesMasterCreate, SeriesMasterUpdate, SeriesMasterResponse, SeriesCheckResponse,
     AdminSettingItem, AdminSettingsBulkUpdate, AdminSettingResponse, UserActivityResponse
 )
 from app.modules.settings import service
@@ -319,6 +319,28 @@ async def delete_series_master(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_series_master(db, series_id)
+
+@router.post(
+    "/series/initialize",
+    summary="Initialize all 15 default voucher series across Panther TMS"
+)
+async def initialize_standard_series(
+    current_user: User = Depends(require_permission("settings", "series_master", "create")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    created = await service.initialize_all_standard_series(db)
+    return {"message": f"Successfully ensured all standard document series are configured.", "initialized_count": len(created), "series": created}
+
+@router.get(
+    "/series/check/{document_type}",
+    response_model=SeriesCheckResponse,
+    summary="Check status and get next sequence for a voucher document type"
+)
+async def check_series(
+    document_type: str,
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.check_series_status(db, document_type)
 
 
 # --- Admin Settings Endpoints ---
