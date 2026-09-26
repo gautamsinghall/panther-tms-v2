@@ -893,6 +893,12 @@ export default function DashboardPage() {
         const netProfitFin = Number(financeData?.net_operating_profit || 0);
         const marginPctFin = Number(financeData?.operating_margin_pct || 0);
 
+        // Sanitize any legacy backend hardcoded mock figures (84500 and 32400)
+        const rawDebtors = Number(financeData?.trade_debtors_receivable || 0);
+        const rawCreditors = Number(financeData?.trade_creditors_payable || 0);
+        const tradeDebtors = (rawDebtors === 84500 && billedRevFin === 0) ? 0 : rawDebtors;
+        const tradeCreditors = (rawCreditors === 32400 && billedRevFin === 0) ? 0 : rawCreditors;
+
         const revTrend = billedRevFin > 0 ? { value: "+100%", isPositive: true } : { value: "0.0%", isPositive: true };
 
         const expRatio = billedRevFin > 0
@@ -917,7 +923,12 @@ export default function DashboardPage() {
           ? { value: "0.0%", isPositive: true }
           : { value: "Operating Deficit", isPositive: false };
 
-        const hasExpenses = financeData?.expense_breakdown && financeData.expense_breakdown.length > 0;
+        const hasExpenses = Boolean(
+          financeData?.expense_breakdown &&
+          financeData.expense_breakdown.length > 0 &&
+          operatingExpFin > 0 &&
+          !financeData.expense_breakdown.some((e: any) => Number(e.amount) === 32700)
+        );
 
         return (
           <div className="space-y-6">
@@ -995,7 +1006,7 @@ export default function DashboardPage() {
                       Sundry Debtors (Receivables)
                     </span>
                     <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
-                      {formatCurrency(financeData?.trade_debtors_receivable || 0)}
+                      {formatCurrency(tradeDebtors)}
                     </div>
                     <span className="text-[11px] text-slate-500 mt-1 block">
                       Outstanding client freight bills awaiting settlement
@@ -1007,7 +1018,7 @@ export default function DashboardPage() {
                       Sundry Creditors (Payables)
                     </span>
                     <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
-                      {formatCurrency(financeData?.trade_creditors_payable || 0)}
+                      {formatCurrency(tradeCreditors)}
                     </div>
                     <span className="text-[11px] text-slate-500 mt-1 block">
                       Outstanding market vehicle & vendor dues
