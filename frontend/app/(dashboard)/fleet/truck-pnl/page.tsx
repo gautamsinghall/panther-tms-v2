@@ -8,6 +8,7 @@ import { ColumnDef } from "@/types/table";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Button } from "@/components/ui/button";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -236,116 +237,102 @@ export default function TruckPnLPage() {
         isLoading={isLoading}
       />
 
-      {/* Vehicle Trip Drilldown Modal */}
-      {selectedVehicle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl border border-slate-200/80 w-full max-w-4xl shadow-xl overflow-hidden max-h-[85vh] flex flex-col">
-            <div className="p-5 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
+      {/* Vehicle Trip Drilldown Drawer */}
+      <EntityDrawer
+        isOpen={Boolean(selectedVehicle)}
+        onClose={() => setSelectedVehicle(null)}
+        title={selectedVehicle ? `Trip P&L Drilldown: ${selectedVehicle.vehicle_number}` : "Trip Drilldown"}
+        description="Detailed trip-by-trip freight revenue vs diesel, toll, and maintenance costs"
+        size="full"
+      >
+        {selectedVehicle && (
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs space-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50/90 p-4 rounded-xl border border-slate-200/80 shadow-2xs">
               <div>
-                <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                  Trip P&L Drilldown: <VehiclePlate vehicleNumber={selectedVehicle.vehicle_number} />
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Detailed trip-by-trip freight revenue vs diesel, toll, and maintenance costs
-                </p>
+                <span className="text-slate-500 block">Vehicle Revenue:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">{formatCurrency(selectedVehicle.total_revenue)}</span>
               </div>
-              <button
-                onClick={() => setSelectedVehicle(null)}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-                aria-label="Close dialog"
-              >
-                ✕
-              </button>
+              <div>
+                <span className="text-slate-500 block">Operating Expenses:</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">{formatCurrency(selectedVehicle.total_operating_cost)}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Net Vehicle Profit:</span>
+                <span className="font-mono font-bold text-emerald-600 text-sm">{formatCurrency(selectedVehicle.net_profit)}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block">Operating Margin:</span>
+                <span className="font-mono font-bold text-emerald-600 text-sm">{selectedVehicle.profit_margin_pct}%</span>
+              </div>
             </div>
 
-            <div className="p-5 flex-1 overflow-y-auto space-y-4">
-              <div className="grid grid-cols-4 gap-3 text-xs bg-slate-50/80 p-3.5 rounded-lg border border-slate-200/80 shadow-2xs">
-                <div>
-                  <span className="text-slate-500 block">Vehicle Revenue:</span>
-                  <span className="font-mono font-bold text-slate-900">{formatCurrency(selectedVehicle.total_revenue)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Operating Expenses:</span>
-                  <span className="font-mono font-bold text-slate-900">{formatCurrency(selectedVehicle.total_operating_cost)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Net Vehicle Profit:</span>
-                  <span className="font-mono font-bold text-emerald-600">{formatCurrency(selectedVehicle.net_profit)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Operating Margin:</span>
-                  <span className="font-mono font-bold text-emerald-600">{selectedVehicle.profit_margin_pct}%</span>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
-                    <tr>
-                      <th className="py-2.5 px-3">Trip / LR #</th>
-                      <th className="py-2.5 px-3">Route</th>
-                      <th className="py-2.5 px-3 text-right">Freight (₹)</th>
-                      <th className="py-2.5 px-3 text-right">Fuel (₹)</th>
-                      <th className="py-2.5 px-3 text-right">Toll (₹)</th>
-                      <th className="py-2.5 px-3 text-right">Maint (₹)</th>
-                      <th className="py-2.5 px-3 text-right">Total Exp (₹)</th>
-                      <th className="py-2.5 px-3 text-right">Net Margin</th>
-                      <th className="py-2.5 px-3 text-right">Margin %</th>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="py-2.5 px-3">Trip / LR #</th>
+                    <th className="py-2.5 px-3">Route</th>
+                    <th className="py-2.5 px-3 text-right">Freight (₹)</th>
+                    <th className="py-2.5 px-3 text-right">Fuel (₹)</th>
+                    <th className="py-2.5 px-3 text-right">Toll (₹)</th>
+                    <th className="py-2.5 px-3 text-right">Maint (₹)</th>
+                    <th className="py-2.5 px-3 text-right">Total Exp (₹)</th>
+                    <th className="py-2.5 px-3 text-right">Net Margin</th>
+                    <th className="py-2.5 px-3 text-right">Margin %</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {selectedVehicle.trips.map((trip) => (
+                    <tr key={trip.lr_id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
+                        {trip.lr_number}
+                        <div className="text-[11px] font-mono text-slate-500">{formatDate(trip.lr_date)}</div>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700">
+                        {trip.origin_city} → {trip.destination_city}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-semibold text-right text-slate-900 tabular-nums">
+                        {formatCurrency(trip.freight_revenue)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-right text-slate-500 tabular-nums">
+                        {formatCurrency(trip.diesel_cost)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-right text-slate-500 tabular-nums">
+                        {formatCurrency(trip.toll_cost)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-right text-slate-500 tabular-nums">
+                        {formatCurrency(trip.maintenance_cost)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-semibold text-right text-slate-800 tabular-nums">
+                        {formatCurrency(trip.total_expense)}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-right text-emerald-600 tabular-nums">
+                        {formatCurrency(trip.net_margin)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <span className="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700">
+                          {trip.margin_pct}%
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {selectedVehicle.trips.map((trip) => (
-                      <tr key={trip.lr_id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
-                          {trip.lr_number}
-                          <div className="text-[11px] font-mono text-slate-500">{formatDate(trip.lr_date)}</div>
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700">
-                          {trip.origin_city} → {trip.destination_city}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-semibold text-right text-slate-900 tabular-nums">
-                          {formatCurrency(trip.freight_revenue)}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-right text-slate-500 tabular-nums">
-                          {formatCurrency(trip.diesel_cost)}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-right text-slate-500 tabular-nums">
-                          {formatCurrency(trip.toll_cost)}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-right text-slate-500 tabular-nums">
-                          {formatCurrency(trip.maintenance_cost)}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-semibold text-right text-slate-800 tabular-nums">
-                          {formatCurrency(trip.total_expense)}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-right text-emerald-600 tabular-nums">
-                          {formatCurrency(trip.net_margin)}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <span className="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700">
-                            {trip.margin_pct}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {selectedVehicle.trips.length === 0 && (
-                      <tr>
-                        <td colSpan={9} className="py-6 text-center text-slate-500 font-medium">
-                          No dedicated trip-linked LRs for this vehicle yet. Operating expenses reflect unlinked depot maintenance and standby fuel.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                  {selectedVehicle.trips.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="py-6 text-center text-slate-500 font-medium">
+                        No dedicated trip-linked LRs for this vehicle yet. Operating expenses reflect unlinked depot maintenance and standby fuel.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <div className="p-4 border-t border-slate-200/80 bg-slate-50/50 flex justify-end">
-              <Button onClick={() => setSelectedVehicle(null)}>Close</Button>
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <Button variant="outline" onClick={() => setSelectedVehicle(null)}>Close View</Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </EntityDrawer>
     </div>
   );
 }

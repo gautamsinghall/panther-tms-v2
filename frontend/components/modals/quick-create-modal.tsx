@@ -1,9 +1,56 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Building2, MapPin, User, Truck, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
+
+function QuickModalWrapper({
+  isOpen,
+  onClose,
+  maxWidth = "max-w-lg",
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  maxWidth?: string;
+  children: React.ReactNode;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
+
+  const targetEl =
+    document.getElementById("workspace-form-canvas") ||
+    document.getElementById("workspace-main-canvas") ||
+    document.body;
+
+  const isCanvas = targetEl.id?.startsWith("workspace-");
+
+  const modalNode = (
+    <div
+      className={`${
+        isCanvas ? "absolute inset-0" : "fixed inset-0"
+      } z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto`}
+    >
+      <div
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in"
+        onClick={onClose}
+      />
+      <div
+        className={`relative w-full ${maxWidth} bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+
+  return createPortal(modalNode, targetEl);
+}
 
 interface QuickModalBaseProps {
   isOpen: boolean;
@@ -75,12 +122,7 @@ export function QuickCreateConsignerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
@@ -207,8 +249,7 @@ export function QuickCreateConsignerModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </QuickModalWrapper>
   );
 }
 
@@ -276,12 +317,7 @@ export function QuickCreateConsigneeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
@@ -408,8 +444,7 @@ export function QuickCreateConsigneeModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </QuickModalWrapper>
   );
 }
 
@@ -472,12 +507,7 @@ export function QuickCreateLocationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
@@ -568,8 +598,7 @@ export function QuickCreateLocationModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </QuickModalWrapper>
   );
 }
 
@@ -630,12 +659,7 @@ export function QuickCreateVehicleOwnerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
@@ -738,8 +762,7 @@ export function QuickCreateVehicleOwnerModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </QuickModalWrapper>
   );
 }
 
@@ -794,12 +817,7 @@ export function QuickCreateDriverModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100">
@@ -879,7 +897,6 @@ export function QuickCreateDriverModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </QuickModalWrapper>
   );
 }

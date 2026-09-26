@@ -8,6 +8,7 @@ import { ColumnDef } from "@/types/table";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 
 interface BranchItem {
@@ -172,109 +173,98 @@ export default function BranchesPage() {
         <DataTable columns={columns} data={branches} />
       )}
 
-      {/* Add Branch Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-indigo-600" />
-                Add Operating Branch
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm"
-              >
-                ✕
-              </button>
+      {/* Add Branch Drawer */}
+      <EntityDrawer
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Add Operating Branch"
+        description="Register primary dispatch terminal, regional transshipment hub, or corporate head office."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreateBranch} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Branch Code"
+                placeholder="B-HYD-01"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+              />
+              <Input
+                label="Branch Name"
+                placeholder="Hyderabad Hub"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
 
-            <form onSubmit={handleCreateBranch} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Branch Code"
-                  placeholder="B-HYD-01"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  required
-                />
-                <Input
-                  label="Branch Name"
-                  placeholder="Hyderabad Hub"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="City"
-                  placeholder="Hyderabad"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                />
-                <Input
-                  label="State"
-                  placeholder="Telangana"
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                />
-              </div>
-
+            <div className="grid grid-cols-2 gap-3">
               <Input
-                label="Street Address / Facility"
-                placeholder="Plot 18, Transport Nagar, Autonagar"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                label="City"
+                placeholder="Hyderabad"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
               />
+              <Input
+                label="State"
+                placeholder="Telangana"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+              />
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Phone"
-                  placeholder="+91 40 1234 5678"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-                <Input
-                  label="Branch Email"
-                  placeholder="hyderabad@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+            <Input
+              label="Street Address / Facility"
+              placeholder="Plot 18, Transport Nagar, Autonagar"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
 
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="is_head_office"
-                  checked={isHeadOffice}
-                  onChange={(e) => setIsHeadOffice(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <label htmlFor="is_head_office" className="text-xs text-slate-700 select-none">
-                  Set as Head Office / Principal Place of Business
-                </label>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Phone"
+                placeholder="+91 40 1234 5678"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+              <Input
+                label="Branch Email"
+                placeholder="hyderabad@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm" disabled={submitting}>
-                  {submitting ? "Saving..." : "Create Branch"}
-                </Button>
-              </div>
-            </form>
-          </div>
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="checkbox"
+                id="is_head_office"
+                checked={isHeadOffice}
+                onChange={(e) => setIsHeadOffice(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="is_head_office" className="text-xs text-slate-700 select-none">
+                Set as Head Office / Principal Place of Business
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={submitting}>
+                {submitting ? "Saving..." : "Create Branch"}
+              </Button>
+            </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
     </div>
   );
 }

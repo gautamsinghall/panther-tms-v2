@@ -103,30 +103,30 @@ export function Form({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("max-w-[760px] space-y-6 mx-auto", className)}>
+    <form onSubmit={handleSubmit} className={cn("w-full max-w-5xl space-y-6 mx-auto", className)}>
       {sections.map((section, sIndex) => {
         const gridCols = {
           1: "grid-cols-1",
           2: "grid-cols-1 md:grid-cols-2",
-          3: "grid-cols-1 md:grid-cols-3",
-          4: "grid-cols-1 sm:grid-cols-2 md:grid-cols-4",
+          3: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+          4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4",
         }[section.columns || 2];
 
         return (
           <div
             key={section.id || section.title || sIndex}
-            className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 space-y-4 shadow-2xs"
+            className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs"
           >
             {/* Section Header */}
             {(section.title || section.description) && (
-              <div className="border-b border-slate-100 pb-3">
+              <div className="border-b border-slate-100 pb-3.5">
                 {section.title && (
                   <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
                     {section.title}
                   </h2>
                 )}
                 {section.description && (
-                  <p className="text-xs text-slate-500 mt-0.5 leading-normal">
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-normal">
                     {section.description}
                   </p>
                 )}
@@ -134,7 +134,7 @@ export function Form({
             )}
 
             {/* Field Grid */}
-            <div className={cn("grid gap-4", gridCols)}>
+            <div className={cn("grid gap-4 sm:gap-5", gridCols)}>
               {section.fields.map((field) => {
                 const fieldError = errors[field.name];
                 const inputId = `form-field-${field.name}`;

@@ -49,8 +49,8 @@ pnpm-debug.log*
 .next/
 out/
 build/
-dist/
 .turbo/
+*.tsbuildinfo
 
 # IDE & OS
 .idea/

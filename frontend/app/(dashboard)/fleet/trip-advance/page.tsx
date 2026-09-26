@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -233,102 +234,100 @@ export default function TripAdvancePage() {
         isLoading={isLoading}
       />
 
-      {/* Issue Advance Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-md shadow-xl overflow-hidden">
-            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[#101828]">Issue Driver Advance</h2>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#667085] hover:text-[#101828]">✕</button>
+      {/* Issue Advance Drawer */}
+      <EntityDrawer
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        title="Issue Driver Advance"
+        description="Disburse operational trip cash, fuel, or bank transfer advance to vehicle driver."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
+              <Input
+                required
+                placeholder="e.g. MH-12-RN-4821"
+                value={formData.vehicle_number}
+                onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
+              />
             </div>
-            <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
-                <Input
-                  required
-                  placeholder="e.g. MH-12-RN-4821"
-                  value={formData.vehicle_number}
-                  onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Driver Name</label>
-                <Input
-                  placeholder="e.g. Ramesh Pawar"
-                  value={formData.driver_name}
-                  onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Advance Amount (₹) *</label>
-                <Input
-                  required
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.advance_amount}
-                  onChange={(e) => setFormData({ ...formData, advance_amount: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
-                <SearchableSelect
-                  size="sm"
-                  value={formData.payment_mode}
-                  onChange={(val) => setFormData({ ...formData, payment_mode: String(val) })}
-                  options={[
-                    { value: "BANK_TRANSFER", label: "BANK TRANSFER" },
-                    { value: "CASH", label: "CASH" },
-                    { value: "UPI", label: "UPI" },
-                    { value: "PETROCARD", label: "PETROCARD" },
-                  ]}
-                  placeholder="Select payment mode..."
-                  searchPlaceholder="Search payment mode..."
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Disbursement Date</label>
-                <Input
-                  type="date"
-                  value={formData.advance_date}
-                  onChange={(e) => setFormData({ ...formData, advance_date: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Remarks</label>
-                <Input
-                  placeholder="Trip route, purpose, or instructions"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
-                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Issue Advance</Button>
-              </div>
-            </form>
-          </div>
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Driver Name</label>
+              <Input
+                placeholder="e.g. Ramesh Pawar"
+                value={formData.driver_name}
+                onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Advance Amount (₹) *</label>
+              <Input
+                required
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.advance_amount}
+                onChange={(e) => setFormData({ ...formData, advance_amount: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
+              <SearchableSelect
+                size="sm"
+                value={formData.payment_mode}
+                onChange={(val) => setFormData({ ...formData, payment_mode: String(val) })}
+                options={[
+                  { value: "BANK_TRANSFER", label: "BANK TRANSFER" },
+                  { value: "CASH", label: "CASH" },
+                  { value: "UPI", label: "UPI" },
+                  { value: "PETROCARD", label: "PETROCARD" },
+                ]}
+                placeholder="Select payment mode..."
+                searchPlaceholder="Search payment mode..."
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Disbursement Date</label>
+              <Input
+                type="date"
+                value={formData.advance_date}
+                onChange={(e) => setFormData({ ...formData, advance_date: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+              <Input
+                placeholder="Trip route, purpose, or instructions"
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
+              <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Issue Advance</Button>
+            </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
 
-      {/* Settle Advance Modal */}
-      {settleItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-md shadow-xl overflow-hidden">
-            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[#101828]">
-                Settle Advance #{settleItem.advance_number}
-              </h2>
-              <button onClick={() => setSettleItem(null)} className="text-[#667085] hover:text-[#101828]">✕</button>
-            </div>
-            <form onSubmit={handleSettle} className="p-5 space-y-4">
-              <div className="p-3 rounded-control bg-[#F8F9FB] border border-[#E4E7EC] text-xs space-y-1">
-                <div><strong>Vehicle:</strong> {settleItem.vehicle_number} ({settleItem.driver_name})</div>
-                <div><strong>Original Advance:</strong> {formatCurrency(settleItem.advance_amount)}</div>
-                <div><strong>Already Settled:</strong> {formatCurrency(settleItem.settled_amount)}</div>
-                <div><strong>Current Balance Due:</strong> {formatCurrency(settleItem.balance_due)}</div>
+      {/* Settle Advance Drawer */}
+      <EntityDrawer
+        isOpen={Boolean(settleItem)}
+        onClose={() => setSettleItem(null)}
+        title={settleItem ? `Settle Advance #${settleItem.advance_number}` : "Settle Advance"}
+        description="Reconcile and adjust driver trip advance against trip expenses."
+      >
+        {settleItem && (
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+            <form onSubmit={handleSettle} className="space-y-4">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-1.5 font-medium">
+                <div><span className="text-slate-500">Vehicle:</span> <strong className="text-slate-900">{settleItem.vehicle_number}</strong> ({settleItem.driver_name})</div>
+                <div><span className="text-slate-500">Original Advance:</span> <strong className="text-slate-900">{formatCurrency(settleItem.advance_amount)}</strong></div>
+                <div><span className="text-slate-500">Already Settled:</span> <strong className="text-slate-900">{formatCurrency(settleItem.settled_amount)}</strong></div>
+                <div><span className="text-slate-500">Current Balance Due:</span> <strong className="text-amber-600 font-bold">{formatCurrency(settleItem.balance_due)}</strong></div>
               </div>
 
               <div>
@@ -357,8 +356,8 @@ export default function TripAdvancePage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </EntityDrawer>
     </div>
   );
 }

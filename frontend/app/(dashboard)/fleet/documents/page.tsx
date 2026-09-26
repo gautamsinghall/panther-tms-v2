@@ -10,6 +10,7 @@ import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 
@@ -169,119 +170,118 @@ export default function FleetDocumentsPage() {
         isLoading={isLoading}
       />
 
-      {/* Upload Document Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-md shadow-xl overflow-hidden">
-            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[#101828]">Upload Vehicle Compliance Certificate</h2>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#667085] hover:text-[#101828]">✕</button>
-            </div>
-            <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
-                  <Input
-                    required
-                    placeholder="e.g. MH-12-RN-4821"
-                    value={formData.vehicle_number}
-                    onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Vehicle Source</label>
-                  <SearchableSelect
-                    size="sm"
-                    value={formData.vehicle_type}
-                    onChange={(val) => setFormData({ ...formData, vehicle_type: String(val) })}
-                    options={[
-                      { value: "COMPANY", label: "COMPANY" },
-                      { value: "MARKET", label: "MARKET" },
-                    ]}
-                    placeholder="Select vehicle source..."
-                    searchPlaceholder="Search source..."
-                  />
-                </div>
-              </div>
-
+      {/* Upload Document Drawer */}
+      <EntityDrawer
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        title="Upload Vehicle Compliance Certificate"
+        description="Attach RTO registration, fitness, comprehensive insurance, national permit, or pollution certificate."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-[#344054]">Document Type *</label>
+                <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
+                <Input
+                  required
+                  placeholder="e.g. MH-12-RN-4821"
+                  value={formData.vehicle_number}
+                  onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Vehicle Source</label>
                 <SearchableSelect
                   size="sm"
-                  value={formData.doc_type}
-                  onChange={(val) => setFormData({ ...formData, doc_type: String(val) })}
+                  value={formData.vehicle_type}
+                  onChange={(val) => setFormData({ ...formData, vehicle_type: String(val) })}
                   options={[
-                    { value: "FITNESS_CERT", label: "FITNESS CERTIFICATE" },
-                    { value: "INSURANCE", label: "COMPREHENSIVE INSURANCE" },
-                    { value: "NATIONAL_PERMIT", label: "NATIONAL PERMIT" },
-                    { value: "PUC", label: "POLLUTION UNDER CONTROL (PUC)" },
-                    { value: "ROAD_TAX", label: "RTO ROAD TAX" },
-                    { value: "REGISTRATION_RC", label: "RC BOOK" },
+                    { value: "COMPANY", label: "COMPANY" },
+                    { value: "MARKET", label: "MARKET" },
                   ]}
-                  placeholder="Select document type..."
-                  searchPlaceholder="Search document..."
-                  required
+                  placeholder="Select vehicle source..."
+                  searchPlaceholder="Search source..."
                 />
               </div>
+            </div>
 
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Document Type *</label>
+              <SearchableSelect
+                size="sm"
+                value={formData.doc_type}
+                onChange={(val) => setFormData({ ...formData, doc_type: String(val) })}
+                options={[
+                  { value: "FITNESS_CERT", label: "FITNESS CERTIFICATE" },
+                  { value: "INSURANCE", label: "COMPREHENSIVE INSURANCE" },
+                  { value: "NATIONAL_PERMIT", label: "NATIONAL PERMIT" },
+                  { value: "PUC", label: "POLLUTION UNDER CONTROL (PUC)" },
+                  { value: "ROAD_TAX", label: "RTO ROAD TAX" },
+                  { value: "REGISTRATION_RC", label: "RC BOOK" },
+                ]}
+                placeholder="Select document type..."
+                searchPlaceholder="Search document..."
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Policy / Certificate Number *</label>
+              <Input
+                required
+                placeholder="e.g. NIC-COMM-992102"
+                value={formData.document_number}
+                onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Issuing Authority</label>
+              <Input
+                placeholder="e.g. National Insurance Co / RTO Pune"
+                value={formData.issuing_authority}
+                onChange={(e) => setFormData({ ...formData, issuing_authority: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-[#344054]">Policy / Certificate Number *</label>
+                <label className="text-xs font-semibold text-[#344054]">Valid From</label>
+                <Input
+                  type="date"
+                  value={formData.valid_from}
+                  onChange={(e) => setFormData({ ...formData, valid_from: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Valid Till *</label>
                 <Input
                   required
-                  placeholder="e.g. NIC-COMM-992102"
-                  value={formData.document_number}
-                  onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
+                  type="date"
+                  value={formData.valid_till}
+                  onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })}
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Issuing Authority</label>
-                <Input
-                  placeholder="e.g. National Insurance Co / RTO Pune"
-                  value={formData.issuing_authority}
-                  onChange={(e) => setFormData({ ...formData, issuing_authority: e.target.value })}
-                />
-              </div>
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+              <Input
+                placeholder="Coverage, endorsement, or renewal notes"
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              />
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Valid From</label>
-                  <Input
-                    type="date"
-                    value={formData.valid_from}
-                    onChange={(e) => setFormData({ ...formData, valid_from: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Valid Till *</label>
-                  <Input
-                    required
-                    type="date"
-                    value={formData.valid_till}
-                    onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-[#344054]">Remarks</label>
-                <Input
-                  placeholder="Coverage, endorsement, or renewal notes"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
-                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Document</Button>
-              </div>
-            </form>
-          </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
+              <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Document</Button>
+            </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
     </div>
   );
 }

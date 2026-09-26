@@ -10,6 +10,7 @@ import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -190,134 +191,133 @@ export default function RepairServicePage() {
         isLoading={isLoading}
       />
 
-      {/* Open Job Card Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-lg shadow-xl overflow-hidden">
-            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[#101828]">Open Workshop Job Card</h2>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#667085] hover:text-[#101828]">✕</button>
-            </div>
-            <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
-                  <Input
-                    required
-                    placeholder="e.g. MH-12-RN-4821"
-                    value={formData.vehicle_number}
-                    onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Service Classification</label>
-                  <SearchableSelect
-                    size="sm"
-                    value={formData.service_type}
-                    onChange={(val) => setFormData({ ...formData, service_type: String(val) })}
-                    options={[
-                      { value: "SCHEDULED_PM", label: "SCHEDULED PM" },
-                      { value: "BREAKDOWN_REPAIR", label: "BREAKDOWN REPAIR" },
-                      { value: "OIL_CHANGE", label: "OIL CHANGE" },
-                      { value: "BRAKE_OVERHAUL", label: "BRAKE OVERHAUL" },
-                      { value: "TYRE_SERVICE", label: "TYRE SERVICE" },
-                      { value: "BODY_ACCIDENT", label: "BODY / ACCIDENT" },
-                    ]}
-                    placeholder="Select classification..."
-                    searchPlaceholder="Search service type..."
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Workshop Hub *</label>
-                  <Input
-                    required
-                    placeholder="e.g. Tata Authorized Service Hub"
-                    value={formData.workshop_name}
-                    onChange={(e) => setFormData({ ...formData, workshop_name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Odometer at Service (KM)</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g. 115000"
-                    value={formData.odometer_km}
-                    onChange={(e) => setFormData({ ...formData, odometer_km: e.target.value })}
-                  />
-                </div>
-              </div>
-
+      {/* Open Job Card Drawer */}
+      <EntityDrawer
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        title="Open Workshop Job Card"
+        description="Schedule preventative maintenance, oil change, tyre service, or breakdown overhaul."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-[#344054]">Description of Work Carried Out</label>
+                <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
                 <Input
-                  placeholder="Engine oil drain, air filter, brake shoe skimming, etc."
-                  value={formData.description_of_work}
-                  onChange={(e) => setFormData({ ...formData, description_of_work: e.target.value })}
+                  required
+                  placeholder="e.g. MH-12-RN-4821"
+                  value={formData.vehicle_number}
+                  onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Parts Cost (₹)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.parts_cost}
-                    onChange={(e) => setFormData({ ...formData, parts_cost: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Labor Cost (₹)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.labor_cost}
-                    onChange={(e) => setFormData({ ...formData, labor_cost: e.target.value })}
-                  />
-                </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Service Classification</label>
+                <SearchableSelect
+                  size="sm"
+                  value={formData.service_type}
+                  onChange={(val) => setFormData({ ...formData, service_type: String(val) })}
+                  options={[
+                    { value: "SCHEDULED_PM", label: "SCHEDULED PM" },
+                    { value: "BREAKDOWN_REPAIR", label: "BREAKDOWN REPAIR" },
+                    { value: "OIL_CHANGE", label: "OIL CHANGE" },
+                    { value: "BRAKE_OVERHAUL", label: "BRAKE OVERHAUL" },
+                    { value: "TYRE_SERVICE", label: "TYRE SERVICE" },
+                    { value: "BODY_ACCIDENT", label: "BODY / ACCIDENT" },
+                  ]}
+                  placeholder="Select classification..."
+                  searchPlaceholder="Search service type..."
+                />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Workshop Invoice #</label>
-                  <Input
-                    placeholder="e.g. INV-TATA-4412"
-                    value={formData.invoice_number}
-                    onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Job Card Status</label>
-                  <SearchableSelect
-                    size="sm"
-                    value={formData.status}
-                    onChange={(val) => setFormData({ ...formData, status: String(val) })}
-                    options={[
-                      { value: "COMPLETED", label: "COMPLETED" },
-                      { value: "IN_PROGRESS", label: "IN PROGRESS" },
-                      { value: "SCHEDULED", label: "SCHEDULED" },
-                    ]}
-                    placeholder="Select status..."
-                    searchPlaceholder="Search status..."
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Workshop Hub *</label>
+                <Input
+                  required
+                  placeholder="e.g. Tata Authorized Service Hub"
+                  value={formData.workshop_name}
+                  onChange={(e) => setFormData({ ...formData, workshop_name: e.target.value })}
+                />
               </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Odometer at Service (KM)</label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 115000"
+                  value={formData.odometer_km}
+                  onChange={(e) => setFormData({ ...formData, odometer_km: e.target.value })}
+                />
+              </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
-                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Job Card</Button>
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Description of Work Carried Out</label>
+              <Input
+                placeholder="Engine oil drain, air filter, brake shoe skimming, etc."
+                value={formData.description_of_work}
+                onChange={(e) => setFormData({ ...formData, description_of_work: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Parts Cost (₹)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.parts_cost}
+                  onChange={(e) => setFormData({ ...formData, parts_cost: e.target.value })}
+                />
               </div>
-            </form>
-          </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Labor Cost (₹)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.labor_cost}
+                  onChange={(e) => setFormData({ ...formData, labor_cost: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Workshop Invoice #</label>
+                <Input
+                  placeholder="e.g. INV-TATA-4412"
+                  value={formData.invoice_number}
+                  onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Job Card Status</label>
+                <SearchableSelect
+                  size="sm"
+                  value={formData.status}
+                  onChange={(val) => setFormData({ ...formData, status: String(val) })}
+                  options={[
+                    { value: "COMPLETED", label: "COMPLETED" },
+                    { value: "IN_PROGRESS", label: "IN PROGRESS" },
+                    { value: "SCHEDULED", label: "SCHEDULED" },
+                  ]}
+                  placeholder="Select status..."
+                  searchPlaceholder="Search status..."
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
+              <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Job Card</Button>
+            </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
     </div>
   );
 }

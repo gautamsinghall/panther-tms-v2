@@ -10,6 +10,7 @@ import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -195,117 +196,116 @@ export default function TyreManagementPage() {
         isLoading={isLoading}
       />
 
-      {/* Add Tyre Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-md shadow-xl overflow-hidden">
-            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[#101828]">Register New Tyre</h2>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#667085] hover:text-[#101828]">✕</button>
+      {/* Add Tyre Drawer */}
+      <EntityDrawer
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        title="Register New Tyre"
+        description="Record serial number, brand, size specifications, axle position, and initial tread depth."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Tyre Serial Number *</label>
+              <Input
+                required
+                placeholder="e.g. MRF-99210-A"
+                value={formData.serial_number}
+                onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+              />
             </div>
-            <form onSubmit={handleCreate} className="p-5 space-y-4">
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-[#344054]">Tyre Serial Number *</label>
+                <label className="text-xs font-semibold text-[#344054]">Brand *</label>
                 <Input
                   required
-                  placeholder="e.g. MRF-99210-A"
-                  value={formData.serial_number}
-                  onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+                  placeholder="e.g. MRF / Apollo / JK"
+                  value={formData.brand}
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Brand *</label>
-                  <Input
-                    required
-                    placeholder="e.g. MRF / Apollo / JK"
-                    value={formData.brand}
-                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Size *</label>
-                  <Input
-                    required
-                    placeholder="e.g. 295/90 R20"
-                    value={formData.size}
-                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Mounted Vehicle</label>
-                  <Input
-                    placeholder="e.g. MH-12-RN-4821"
-                    value={formData.vehicle_number}
-                    onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Axle Position</label>
-                  <SearchableSelect
-                    size="sm"
-                    value={formData.axle_position}
-                    onChange={(val) => setFormData({ ...formData, axle_position: String(val) })}
-                    options={[
-                      { value: "Front Right (FR)", label: "Front Right (FR)" },
-                      { value: "Front Left (FL)", label: "Front Left (FL)" },
-                      { value: "Rear Axle 1 Inner (R1I)", label: "Rear Axle 1 Inner (R1I)" },
-                      { value: "Rear Axle 1 Outer (R1O)", label: "Rear Axle 1 Outer (R1O)" },
-                      { value: "Rear Axle 2 Inner (R2I)", label: "Rear Axle 2 Inner (R2I)" },
-                      { value: "Rear Axle 2 Outer (R2O)", label: "Rear Axle 2 Outer (R2O)" },
-                      { value: "Spare", label: "Spare" },
-                    ]}
-                    placeholder="Select axle position..."
-                    searchPlaceholder="Search position..."
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Tread Depth (mm)</label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={formData.current_tread_depth_mm}
-                    onChange={(e) => setFormData({ ...formData, current_tread_depth_mm: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Purchase Cost (₹)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.purchase_cost}
-                    onChange={(e) => setFormData({ ...formData, purchase_cost: e.target.value })}
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+                <label className="text-xs font-semibold text-[#344054]">Size *</label>
                 <Input
-                  placeholder="Installation notes, rim specs, or retread count"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  required
+                  placeholder="e.g. 295/90 R20"
+                  value={formData.size}
+                  onChange={(e) => setFormData({ ...formData, size: e.target.value })}
                 />
               </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
-                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Register Tyre</Button>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Mounted Vehicle</label>
+                <Input
+                  placeholder="e.g. MH-12-RN-4821"
+                  value={formData.vehicle_number}
+                  onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
+                />
               </div>
-            </form>
-          </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Axle Position</label>
+                <SearchableSelect
+                  size="sm"
+                  value={formData.axle_position}
+                  onChange={(val) => setFormData({ ...formData, axle_position: String(val) })}
+                  options={[
+                    { value: "Front Right (FR)", label: "Front Right (FR)" },
+                    { value: "Front Left (FL)", label: "Front Left (FL)" },
+                    { value: "Rear Axle 1 Inner (R1I)", label: "Rear Axle 1 Inner (R1I)" },
+                    { value: "Rear Axle 1 Outer (R1O)", label: "Rear Axle 1 Outer (R1O)" },
+                    { value: "Rear Axle 2 Inner (R2I)", label: "Rear Axle 2 Inner (R2I)" },
+                    { value: "Rear Axle 2 Outer (R2O)", label: "Rear Axle 2 Outer (R2O)" },
+                    { value: "Spare", label: "Spare" },
+                  ]}
+                  placeholder="Select axle position..."
+                  searchPlaceholder="Search position..."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Tread Depth (mm)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.current_tread_depth_mm}
+                  onChange={(e) => setFormData({ ...formData, current_tread_depth_mm: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Purchase Cost (₹)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.purchase_cost}
+                  onChange={(e) => setFormData({ ...formData, purchase_cost: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+              <Input
+                placeholder="Installation notes, rim specs, or retread count"
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
+              <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Register Tyre</Button>
+            </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
     </div>
   );
 }

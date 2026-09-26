@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -240,160 +241,159 @@ export default function TripExpensePage() {
         isLoading={isLoading}
       />
 
-      {/* Add Expense Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-card border border-[#E4E7EC] w-full max-w-lg shadow-xl overflow-hidden">
-            <div className="p-5 border-b border-[#E4E7EC] flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[#101828]">New Trip Expense Voucher</h2>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#667085] hover:text-[#101828]">✕</button>
-            </div>
-            <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
-                  <Input
-                    required
-                    placeholder="e.g. MH-12-RN-4821"
-                    value={formData.vehicle_number}
-                    onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Driver Name</label>
-                  <Input
-                    placeholder="e.g. Ramesh Pawar"
-                    value={formData.driver_name}
-                    onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Category *</label>
-                  <SearchableSelect
-                    size="sm"
-                    value={formData.expense_category}
-                    onChange={(val) => setFormData({ ...formData, expense_category: String(val) })}
-                    options={[
-                      { value: "DIESEL", label: "DIESEL" },
-                      { value: "TOLL", label: "TOLL / FASTAG" },
-                      { value: "MAINTENANCE", label: "MAINTENANCE" },
-                      { value: "DRIVER_ALLOWANCE", label: "DRIVER ALLOWANCE" },
-                      { value: "POLICE_RTO", label: "POLICE / RTO" },
-                      { value: "LOADING_UNLOADING", label: "LOADING / UNLOADING" },
-                      { value: "MISC", label: "MISCELLANEOUS" },
-                    ]}
-                    placeholder="Select category..."
-                    searchPlaceholder="Search category..."
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Amount (₹) *</label>
-                  <Input
-                    required
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
-                  <SearchableSelect
-                    size="sm"
-                    value={formData.payment_mode}
-                    onChange={(val) => setFormData({ ...formData, payment_mode: String(val) })}
-                    options={[
-                      { value: "PETROCARD", label: "PETROCARD" },
-                      { value: "FASTAG", label: "FASTAG" },
-                      { value: "CASH", label: "DRIVER CASH" },
-                      { value: "BANK", label: "COMPANY BANK" },
-                      { value: "UPI", label: "UPI" },
-                    ]}
-                    placeholder="Select payment mode..."
-                    searchPlaceholder="Search payment mode..."
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Expense Date</label>
-                  <Input
-                    type="date"
-                    value={formData.expense_date}
-                    onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Receipt / Bill #</label>
-                  <Input
-                    placeholder="e.g. BPCL-9920"
-                    value={formData.receipt_number}
-                    onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Odometer (KM)</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g. 124500"
-                    value={formData.odometer_km}
-                    onChange={(e) => setFormData({ ...formData, odometer_km: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {formData.expense_category === "DIESEL" && (
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Fuel Liters</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 160.00"
-                    value={formData.fuel_liters}
-                    onChange={(e) => setFormData({ ...formData, fuel_liters: e.target.value })}
-                  />
-                </div>
-              )}
-
-              {formData.expense_category === "TOLL" && (
-                <div>
-                  <label className="text-xs font-semibold text-[#344054]">Toll Plaza Name</label>
-                  <Input
-                    placeholder="e.g. Khalapur Toll Plaza"
-                    value={formData.plaza_name}
-                    onChange={(e) => setFormData({ ...formData, plaza_name: e.target.value })}
-                  />
-                </div>
-              )}
-
+      {/* Add Expense Drawer */}
+      <EntityDrawer
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        title="New Trip Expense Voucher"
+        description="Record driver cash, diesel, FASTag tolls, or maintenance voucher."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+                <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
                 <Input
-                  placeholder="Notes on trip route, station, or justification"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  required
+                  placeholder="e.g. MH-12-RN-4821"
+                  value={formData.vehicle_number}
+                  onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
                 />
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
-                <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Voucher</Button>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Driver Name</label>
+                <Input
+                  placeholder="e.g. Ramesh Pawar"
+                  value={formData.driver_name}
+                  onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
+                />
               </div>
-            </form>
-          </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Category *</label>
+                <SearchableSelect
+                  size="sm"
+                  value={formData.expense_category}
+                  onChange={(val) => setFormData({ ...formData, expense_category: String(val) })}
+                  options={[
+                    { value: "DIESEL", label: "DIESEL" },
+                    { value: "TOLL", label: "TOLL / FASTAG" },
+                    { value: "MAINTENANCE", label: "MAINTENANCE" },
+                    { value: "DRIVER_ALLOWANCE", label: "DRIVER ALLOWANCE" },
+                    { value: "POLICE_RTO", label: "POLICE / RTO" },
+                    { value: "LOADING_UNLOADING", label: "LOADING / UNLOADING" },
+                    { value: "MISC", label: "MISCELLANEOUS" },
+                  ]}
+                  placeholder="Select category..."
+                  searchPlaceholder="Search category..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Amount (₹) *</label>
+                <Input
+                  required
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Payment Mode</label>
+                <SearchableSelect
+                  size="sm"
+                  value={formData.payment_mode}
+                  onChange={(val) => setFormData({ ...formData, payment_mode: String(val) })}
+                  options={[
+                    { value: "PETROCARD", label: "PETROCARD" },
+                    { value: "FASTAG", label: "FASTAG" },
+                    { value: "CASH", label: "DRIVER CASH" },
+                    { value: "BANK", label: "COMPANY BANK" },
+                    { value: "UPI", label: "UPI" },
+                  ]}
+                  placeholder="Select payment mode..."
+                  searchPlaceholder="Search payment mode..."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Expense Date</label>
+                <Input
+                  type="date"
+                  value={formData.expense_date}
+                  onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Receipt / Bill #</label>
+                <Input
+                  placeholder="e.g. BPCL-9920"
+                  value={formData.receipt_number}
+                  onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Odometer (KM)</label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 124500"
+                  value={formData.odometer_km}
+                  onChange={(e) => setFormData({ ...formData, odometer_km: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {formData.expense_category === "DIESEL" && (
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Fuel Liters</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 160.00"
+                  value={formData.fuel_liters}
+                  onChange={(e) => setFormData({ ...formData, fuel_liters: e.target.value })}
+                />
+              </div>
+            )}
+
+            {formData.expense_category === "TOLL" && (
+              <div>
+                <label className="text-xs font-semibold text-[#344054]">Toll Plaza Name</label>
+                <Input
+                  placeholder="e.g. Khalapur Toll Plaza"
+                  value={formData.plaza_name}
+                  onChange={(e) => setFormData({ ...formData, plaza_name: e.target.value })}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs font-semibold text-[#344054]">Remarks</label>
+              <Input
+                placeholder="Notes on trip route, station, or justification"
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E4E7EC]">
+              <Button variant="outline" type="button" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save Voucher</Button>
+            </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
     </div>
   );
 }

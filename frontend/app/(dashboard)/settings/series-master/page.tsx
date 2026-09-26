@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
 
 interface SeriesMasterItem {
@@ -269,158 +270,142 @@ export default function SeriesMasterPage() {
         <DataTable columns={categoryColumns} data={categoryList} />
       )}
 
-      {/* Add Series Modal */}
-      {showAddSeriesModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-sm text-slate-900">Add New Document Series</h3>
-              <button
+      {/* Add Series Drawer */}
+      <EntityDrawer
+        isOpen={showAddSeriesModal}
+        onClose={() => setShowAddSeriesModal(false)}
+        title="Add New Document Series"
+        description="Configure prefix, starting number, suffix, and fiscal year sequence for invoices and challans."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreateSeries} className="space-y-4">
+            <Input
+              label="Document Type / Title"
+              placeholder="e.g. Delivery Challan (DC)"
+              value={docType}
+              onChange={(e) => setDocType(e.target.value)}
+              required
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Prefix"
+                placeholder="DC-2026-"
+                value={prefix}
+                onChange={(e) => setPrefix(e.target.value)}
+                required
+              />
+              <Input
+                label="Suffix (Optional)"
+                placeholder="/HQ"
+                value={suffix}
+                onChange={(e) => setSuffix(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Starting Number"
+                type="number"
+                value={String(startingNum)}
+                onChange={(e) => setStartingNum(parseInt(e.target.value) || 1)}
+                required
+              />
+              <Input
+                label="Financial Year"
+                placeholder="2026-2027"
+                value={finYear}
+                onChange={(e) => setFinYear(e.target.value)}
+                required
+              />
+            </div>
+
+            {categoryList.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Series Category (Optional)
+                </label>
+                <SearchableSelect
+                  size="sm"
+                  value={selectedCatId || ""}
+                  onChange={(val) =>
+                    setSelectedCatId(val ? parseInt(String(val)) : undefined)
+                  }
+                  options={categoryList.map((cat) => ({
+                    value: cat.id,
+                    label: `${cat.name} (${cat.code})`,
+                  }))}
+                  placeholder="No Category"
+                  searchPlaceholder="Search category..."
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setShowAddSeriesModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm"
               >
-                ✕
-              </button>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={submitting}>
+                {submitting ? "Saving..." : "Create Series"}
+              </Button>
             </div>
-
-            <form onSubmit={handleCreateSeries} className="space-y-3">
-              <Input
-                label="Document Type / Title"
-                placeholder="e.g. Delivery Challan (DC)"
-                value={docType}
-                onChange={(e) => setDocType(e.target.value)}
-                required
-              />
-
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Prefix"
-                  placeholder="DC-2026-"
-                  value={prefix}
-                  onChange={(e) => setPrefix(e.target.value)}
-                  required
-                />
-                <Input
-                  label="Suffix (Optional)"
-                  placeholder="/HQ"
-                  value={suffix}
-                  onChange={(e) => setSuffix(e.target.value)}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Starting Number"
-                  type="number"
-                  value={String(startingNum)}
-                  onChange={(e) => setStartingNum(parseInt(e.target.value) || 1)}
-                  required
-                />
-                <Input
-                  label="Financial Year"
-                  placeholder="2026-2027"
-                  value={finYear}
-                  onChange={(e) => setFinYear(e.target.value)}
-                  required
-                />
-              </div>
-
-              {categoryList.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Series Category (Optional)
-                  </label>
-                  <SearchableSelect
-                    size="sm"
-                    value={selectedCatId || ""}
-                    onChange={(val) =>
-                      setSelectedCatId(val ? parseInt(String(val)) : undefined)
-                    }
-                    options={categoryList.map((cat) => ({
-                      value: cat.id,
-                      label: `${cat.name} (${cat.code})`,
-                    }))}
-                    placeholder="No Category"
-                    searchPlaceholder="Search category..."
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddSeriesModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm" disabled={submitting}>
-                  {submitting ? "Saving..." : "Create Series"}
-                </Button>
-              </div>
-            </form>
-          </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
 
-      {/* Add Category Modal */}
-      {showAddCatModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-sm text-slate-900">Add Series Category</h3>
-              <button
+      {/* Add Category Drawer */}
+      <EntityDrawer
+        isOpen={showAddCatModal}
+        onClose={() => setShowAddCatModal(false)}
+        title="Add Series Category"
+        description="Group and organize document series by department or operations."
+      >
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
+          <form onSubmit={handleCreateCategory} className="space-y-4">
+            <Input
+              label="Category Name"
+              placeholder="e.g. Transport Logistics"
+              value={catName}
+              onChange={(e) => setCatName(e.target.value)}
+              required
+            />
+
+            <Input
+              label="Category Code (Uppercase)"
+              placeholder="e.g. LOGISTICS"
+              value={catCode}
+              onChange={(e) => setCatCode(e.target.value.toUpperCase())}
+              required
+            />
+
+            <Input
+              label="Description (Optional)"
+              placeholder="Dispatches, haulage and hire orders"
+              value={catDesc}
+              onChange={(e) => setCatDesc(e.target.value)}
+            />
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setShowAddCatModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm"
               >
-                ✕
-              </button>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm" disabled={submitting}>
+                {submitting ? "Saving..." : "Create Category"}
+              </Button>
             </div>
-
-            <form onSubmit={handleCreateCategory} className="space-y-3">
-              <Input
-                label="Category Name"
-                placeholder="e.g. Transport Logistics"
-                value={catName}
-                onChange={(e) => setCatName(e.target.value)}
-                required
-              />
-
-              <Input
-                label="Category Code (Uppercase)"
-                placeholder="e.g. LOGISTICS"
-                value={catCode}
-                onChange={(e) => setCatCode(e.target.value.toUpperCase())}
-                required
-              />
-
-              <Input
-                label="Description (Optional)"
-                placeholder="Dispatches, haulage and hire orders"
-                value={catDesc}
-                onChange={(e) => setCatDesc(e.target.value)}
-              />
-
-              <div className="flex justify-end gap-2 pt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddCatModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm" disabled={submitting}>
-                  {submitting ? "Saving..." : "Create Category"}
-                </Button>
-              </div>
-            </form>
-          </div>
+          </form>
         </div>
-      )}
+      </EntityDrawer>
     </div>
   );
 }
