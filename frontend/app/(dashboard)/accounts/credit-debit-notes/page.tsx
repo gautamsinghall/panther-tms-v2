@@ -343,104 +343,106 @@ export default function CreditDebitNotesPage() {
         }
       >
         <form id="credit-debit-note-form" onSubmit={handleCreateNote} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1.5">
-              Note Type *
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setNoteType("CREDIT_NOTE")}
-                className={`py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all ${
-                  noteType === "CREDIT_NOTE"
-                    ? "border-warning bg-warning-light text-warning"
-                    : "border-border text-text-secondary hover:bg-surface-secondary"
-                }`}
-              >
-                Credit Note (To Customer)
-              </button>
-              <button
-                type="button"
-                onClick={() => setNoteType("DEBIT_NOTE")}
-                className={`py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all ${
-                  noteType === "DEBIT_NOTE"
-                    ? "border-info bg-info-light text-info"
-                    : "border-border text-text-secondary hover:bg-surface-secondary"
-                }`}
-              >
-                Debit Note (To Vendor / Supplier)
-              </button>
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1.5">
+                Note Type *
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNoteType("CREDIT_NOTE")}
+                  className={`py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all ${
+                    noteType === "CREDIT_NOTE"
+                      ? "border-warning bg-warning-light text-warning"
+                      : "border-border text-text-secondary hover:bg-surface-secondary"
+                  }`}
+                >
+                  Credit Note (To Customer)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNoteType("DEBIT_NOTE")}
+                  className={`py-2 px-3 text-xs font-semibold rounded-lg border text-center transition-all ${
+                    noteType === "DEBIT_NOTE"
+                      ? "border-info bg-info-light text-info"
+                      : "border-border text-text-secondary hover:bg-surface-secondary"
+                  }`}
+                >
+                  Debit Note (To Vendor / Supplier)
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1">
-              Party Name *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Acme Customer / MRF Vendor"
-              value={partyName}
-              onChange={(e) => setPartyName(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1">
-              Original Invoice Reference #
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. TI-2026-0001"
-              value={refNumber}
-              onChange={(e) => setRefNumber(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">
-                Taxable Adjustment (₹) *
+                Party Name *
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 required
-                placeholder="0.00"
-                value={totalAmount}
-                onChange={(e) => setTotalAmount(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                placeholder="e.g. Acme Customer / MRF Vendor"
+                value={partyName}
+                onChange={(e) => setPartyName(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
               />
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">
-                Tax Adjustment (₹)
+                Original Invoice Reference #
               </label>
               <input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={taxAmount}
-                onChange={(e) => setTaxAmount(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                type="text"
+                placeholder="e.g. TI-2026-0001"
+                value={refNumber}
+                onChange={(e) => setRefNumber(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1">
-              Reason for Adjustment / Narration
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Shortage deduction, rate difference, or freight adjustment..."
-              value={narration}
-              onChange={(e) => setNarration(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1">
+                  Taxable Adjustment (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="0.00"
+                  value={totalAmount}
+                  onChange={(e) => setTotalAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1">
+                  Tax Adjustment (₹)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={taxAmount}
+                  onChange={(e) => setTaxAmount(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Reason for Adjustment / Narration
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Shortage deduction, rate difference, or freight adjustment..."
+                value={narration}
+                onChange={(e) => setNarration(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
           </div>
         </form>
       </EntityDrawer>

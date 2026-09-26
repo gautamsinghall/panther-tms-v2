@@ -318,7 +318,8 @@ export default function PurchasesPage() {
         subtitle="Log vendor invoice and post balanced ledger entries"
         size="md"
       >
-        <form onSubmit={handleCreatePurchase} className="space-y-4">
+        <form onSubmit={handleCreatePurchase} className="space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
           <div>
             <label className="block text-xs font-semibold text-[#344054] mb-1">
               Purchase Classification *
@@ -417,13 +418,14 @@ export default function PurchasesPage() {
               onChange={(e) => setNarration(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-lg border border-[#E4E7EC] bg-white text-[#101828] focus:border-[#4F46E5] focus:outline-none"
             />
+            </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-[#E4E7EC]">
-            <Button type="button" variant="secondary" onClick={() => setIsCreateOpen(false)}>
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">
+            <Button type="button" variant="outline" size="md" onClick={() => setIsCreateOpen(false)} className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer">
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+            <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer">
               Record & Post
             </Button>
           </div>

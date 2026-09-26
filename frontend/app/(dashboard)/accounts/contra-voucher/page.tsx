@@ -297,63 +297,65 @@ export default function ContraVoucherPage() {
         }
       >
         <form id="contra-voucher-form" onSubmit={handleCreateContra} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1">
-              Transfer Type *
-            </label>
-            <SearchableSelect
-              value={contraType}
-              onChange={(val) => setContraType(val as any)}
-              options={[
-                { value: "DEPOSIT", label: "Cash Deposit (Cash in Hand → Bank Account)" },
-                { value: "WITHDRAWAL", label: "Cash Withdrawal (Bank Account → Cash in Hand)" },
-                { value: "INTERBANK", label: "Inter-Bank Transfer (Bank A → Bank B)" },
-              ]}
-              placeholder="Select transfer type..."
-              searchPlaceholder="Search transfer mode..."
-              required
-            />
-          </div>
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Transfer Type *
+              </label>
+              <SearchableSelect
+                value={contraType}
+                onChange={(val) => setContraType(val as any)}
+                options={[
+                  { value: "DEPOSIT", label: "Cash Deposit (Cash in Hand → Bank Account)" },
+                  { value: "WITHDRAWAL", label: "Cash Withdrawal (Bank Account → Cash in Hand)" },
+                  { value: "INTERBANK", label: "Inter-Bank Transfer (Bank A → Bank B)" },
+                ]}
+                placeholder="Select transfer type..."
+                searchPlaceholder="Search transfer mode..."
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1">
-              Amount Transferred (₹) *
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono font-semibold tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Amount Transferred (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono font-semibold tabular-nums focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1">
-              Deposit Slip / Cheque / UTR Reference
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. SLIP-88123 / UTR9823471"
-              value={referenceNumber}
-              onChange={(e) => setReferenceNumber(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Deposit Slip / Cheque / UTR Reference
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. SLIP-88123 / UTR9823471"
+                value={referenceNumber}
+                onChange={(e) => setReferenceNumber(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-text-primary mb-1">
-              Narration / Notes
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Transfer remarks..."
-              value={narration}
-              onChange={(e) => setNarration(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
+            <div>
+              <label className="block text-xs font-semibold text-text-primary mb-1">
+                Narration / Notes
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Transfer remarks..."
+                value={narration}
+                onChange={(e) => setNarration(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
           </div>
         </form>
       </EntityDrawer>

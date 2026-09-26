@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ export interface EntityDrawerProps {
  * - Opens as an in-app workspace tab at the top with seamless tab switching.
  * - Leaves the main navigation sidebar completely active, visible, and unblocked.
  * - Retains entered form data when switching between the form tab and the record list tab.
+ * - Supports multi-drawer pages (Accounts, Settings, Fleet) without sibling drawer state collision.
  */
 export function EntityDrawer({
   isOpen,
@@ -38,36 +39,53 @@ export function EntityDrawer({
 }: EntityDrawerProps) {
   const { openFormTab, dismissFormTab, setActiveTab, activeTab } = useWorkspaceTabs();
   const [mounted, setMounted] = useState(false);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const wasOpenedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     setMounted(true);
-    setPortalTarget(document.getElementById("workspace-form-canvas"));
   }, []);
 
   // Sync tab state with isOpen prop
   useEffect(() => {
     if (isOpen) {
+      wasOpenedRef.current = true;
       openFormTab({
         title,
         subtitle: description || subtitle,
-        onClose,
+        onClose: () => {
+          onCloseRef.current?.();
+        },
       });
-    } else {
+    } else if (wasOpenedRef.current) {
+      // ONLY dismiss the form tab if THIS specific drawer instance was previously open!
+      // This prevents sibling/closed drawers on multi-drawer pages (e.g. Accounts) from cancelling an open drawer.
+      wasOpenedRef.current = false;
       dismissFormTab();
     }
-  }, [isOpen, title, description, subtitle, onClose, openFormTab, dismissFormTab]);
+  }, [isOpen, title, description, subtitle, openFormTab, dismissFormTab]);
+
+  // Clean up if component unmounts while open
+  useEffect(() => {
+    return () => {
+      if (wasOpenedRef.current) {
+        wasOpenedRef.current = false;
+        dismissFormTab();
+      }
+    };
+  }, [dismissFormTab]);
 
   // Global Escape key listener to close form when in form tab
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen && activeTab === "form") {
-        onClose();
+        onCloseRef.current?.();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, activeTab, onClose]);
+  }, [isOpen, activeTab]);
 
   if (!isOpen) return null;
 
@@ -120,7 +138,7 @@ export function EntityDrawer({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => onCloseRef.current?.()}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/60 rounded-xl transition-colors cursor-pointer shadow-2xs"
               title="Discard changes and close form"
             >
@@ -136,18 +154,23 @@ export function EntityDrawer({
         {children}
       </div>
 
-      {/* Optional Custom Footer */}
+      {/* Optional Custom Footer - Solid card positioned at the very end of the form */}
       {footer && (
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs mt-8">
           {footer}
         </div>
       )}
     </div>
   );
 
+  const targetEl =
+    typeof document !== "undefined"
+      ? document.getElementById("workspace-form-canvas")
+      : null;
+
   // If portal target container is mounted, portal into layout's workspace-form-canvas
-  if (mounted && portalTarget) {
-    return createPortal(formViewContent, portalTarget);
+  if (mounted && targetEl) {
+    return createPortal(formViewContent, targetEl);
   }
 
   // Fallback: If portal target is not mounted yet, render within canvas without obscuring sidebar
