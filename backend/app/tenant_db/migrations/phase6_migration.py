@@ -42,27 +42,43 @@ async def run_migration():
     logger.info("Control DB synced successfully.")
 
 
-    # 2. Sync Demo Tenant DB tables
+    # 2. Sync all Tenant DB tables
+    async with ControlSessionLocal() as c_session:
+        from app.control.models import Tenant
+        res = await c_session.execute(select(Tenant.db_name))
+        tenant_dbs = list(res.scalars().all())
     demo_db = f"panther_tenant_{settings.DEMO_TENANT_SUBDOMAIN}"
-    logger.info(f"Connecting to {demo_db} and creating Phase 6 tables...")
-    t_engine = get_tenant_engine(demo_db)
+    if demo_db not in tenant_dbs:
+        tenant_dbs.append(demo_db)
 
-    async with t_engine.begin() as conn:
-        await conn.run_sync(TenantBase.metadata.create_all)
-        for col in [
-            "city VARCHAR(100)",
-            "state VARCHAR(100)",
-            "pincode VARCHAR(20)",
-            "phone VARCHAR(50)",
-            "email VARCHAR(255)",
-            "bank_name VARCHAR(150)",
-            "bank_account_no VARCHAR(50)",
-            "bank_ifsc VARCHAR(20)",
-            "logo_url VARCHAR(500)"
-        ]:
-            await conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col};"))
-        await conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+    for target_db in tenant_dbs:
+        logger.info(f"Connecting to {target_db} and ensuring Phase 6 tables...")
+        t_engine = get_tenant_engine(target_db)
 
+        async with t_engine.begin() as conn:
+            await conn.run_sync(TenantBase.metadata.create_all)
+            for col in [
+                "city VARCHAR(100)",
+                "state VARCHAR(100)",
+                "pincode VARCHAR(20)",
+                "phone VARCHAR(50)",
+                "email VARCHAR(255)",
+                "bank_name VARCHAR(150)",
+                "bank_account_no VARCHAR(50)",
+                "bank_ifsc VARCHAR(20)",
+                "logo_url VARCHAR(500)"
+            ]:
+                await conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col};"))
+            await conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+
+        if target_db != demo_db:
+            from app.modules.settings.series_service import initialize_all_standard_series
+            session_factory = get_tenant_session_maker(target_db)
+            async with session_factory() as session:
+                await initialize_all_standard_series(session)
+
+    # 3. Seed demo tenant with rich demo data
+    logger.info(f"Seeding demo tenant {demo_db}...")
     session_factory = get_tenant_session_maker(demo_db)
     async with session_factory() as session:
         # A. Series Categories

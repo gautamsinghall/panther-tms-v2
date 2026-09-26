@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.core.database import control_engine, close_all_connections, ControlSessionLocal
 from app.core.errors import register_error_handlers
 from app.control.models import ControlBase
+from app.tenant_db.base import TenantBase
 from app.control.service import seed_plans_and_entitlements
 from app.control.router import router as control_router
 from app.auth.router import router as auth_router
@@ -70,10 +71,12 @@ async def lifespan(app: FastAPI):
                 try:
                     t_engine = get_tenant_engine(t_db)
                     async with t_engine.begin() as t_conn:
+                        await t_conn.run_sync(TenantBase.metadata.create_all)
                         await t_conn.execute(text("ALTER TABLE general_consignees ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         for cs_col in ["city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "logo_url VARCHAR(500)"]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
+                        await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
                         await t_conn.execute(
                             text("UPDATE users SET is_active = true WHERE lower(email) = lower(:email);"),
                             {"email": settings.DEMO_ADMIN_EMAIL.lower().strip()}

@@ -73,6 +73,27 @@ class QuotaExceededException(AppException):
         )
 
 
+import logging
+import traceback
+from typing import Any, Optional
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+logger = logging.getLogger(__name__)
+
+def _cors_headers_for_request(request: Request) -> dict:
+    origin = request.headers.get("origin")
+    if origin:
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    return {}
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
@@ -83,6 +104,7 @@ def register_error_handlers(app: FastAPI) -> None:
                 "message": exc.message,
                 "details": exc.details,
             },
+            headers=_cors_headers_for_request(request),
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -102,6 +124,7 @@ def register_error_handlers(app: FastAPI) -> None:
                 "message": str(exc.detail),
                 "details": None,
             },
+            headers=_cors_headers_for_request(request),
         )
 
     @app.exception_handler(RequestValidationError)
@@ -113,15 +136,18 @@ def register_error_handlers(app: FastAPI) -> None:
                 "message": "Input validation failed",
                 "details": exc.errors(),
             },
+            headers=_cors_headers_for_request(request),
         )
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
+        logger.error(f"Unhandled Exception on {request.method} {request.url}: {exc}\n{traceback.format_exc()}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "error_code": "INTERNAL_SERVER_ERROR",
-                "message": "An unexpected error occurred",
-                "details": str(exc) if app.debug else None,
+                "message": str(exc) if str(exc) else "An unexpected error occurred",
+                "details": str(exc),
             },
+            headers=_cors_headers_for_request(request),
         )

@@ -264,17 +264,40 @@ def compute_series_display_data(s: SeriesMaster) -> Dict[str, Any]:
     }
 
 
+_VERIFIED_SERIES_DBS = set()
+
+
 async def ensure_series_table_schema(db: AsyncSession) -> None:
     """
-    Safely ensures the series_mode column exists in settings_series_masters.
-    Works transparently with Postgres and SQLite.
+    Safely ensures the Series tables and series_mode column exist in tenant database.
+    Works transparently with Postgres and SQLite without leaving aborted transactions.
+    Caches verified databases to eliminate redundant DDL on subsequent requests.
     """
+    bind = db.get_bind()
+    db_name = getattr(getattr(bind, "url", None), "database", None) or "default"
+    if db_name in _VERIFIED_SERIES_DBS:
+        return
+
     try:
-        await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+        conn = await db.connection()
+        from app.tenant_db.base import TenantBase
+        await conn.run_sync(TenantBase.metadata.create_all)
+
+        if bind.dialect.name == "postgresql":
+            await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+        elif bind.dialect.name == "sqlite":
+            res = await db.execute(text("PRAGMA table_info(settings_series_masters);"))
+            cols = [r[1] for r in res.fetchall()]
+            if "series_mode" not in cols:
+                await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
         await db.commit()
-    except Exception:
-        # Column already exists or table not ready
-        pass
+        _VERIFIED_SERIES_DBS.add(db_name)
+    except Exception as e:
+        logger.warning(f"ensure_series_table_schema notice: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
 
 
 async def allocate_or_validate_voucher_number(

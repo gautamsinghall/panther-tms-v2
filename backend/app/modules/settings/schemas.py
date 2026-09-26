@@ -109,13 +109,13 @@ class SeriesMasterUpdate(BaseModel):
 
 class SeriesMasterResponse(SeriesMasterBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     category_name: Optional[str] = None
     last_used_formatted: Optional[str] = None
-    next_number: int = 1
-    next_number_formatted: str = ""
-    is_mandatory_manual: bool = False
+    next_number: Optional[int] = 1
+    next_number_formatted: Optional[str] = ""
+    is_mandatory_manual: Optional[bool] = False
     model_config = ConfigDict(from_attributes=True)
 
 class SeriesCheckResponse(BaseModel):

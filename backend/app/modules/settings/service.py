@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime, timezone
 from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -178,9 +179,28 @@ from app.modules.settings.schemas import (
 )
 
 async def get_all_series_categories(db: AsyncSession) -> List[SeriesCategory]:
+    await ensure_series_table_schema(db)
     stmt = select(SeriesCategory).order_by(SeriesCategory.name)
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    cats = list(result.scalars().all())
+    if len(cats) == 0:
+        categories = [
+            {"code": "TRANSPORT", "name": "Transport Documents", "description": "LR, Hire Challan, POD, Dispatch"},
+            {"code": "BILLING", "name": "Customer Invoicing", "description": "Transport Invoices, General Invoices, Proforma"},
+            {"code": "ACCOUNTS", "name": "Accounting Vouchers", "description": "Purchases, Receipts, Payments, Notes, Contra"},
+        ]
+        for c in categories:
+            cat_obj = SeriesCategory(
+                name=c["name"],
+                code=c["code"],
+                description=c["description"],
+                is_active=True,
+            )
+            db.add(cat_obj)
+        await db.commit()
+        result = await db.execute(stmt)
+        cats = list(result.scalars().all())
+    return cats
 
 async def create_series_category(db: AsyncSession, data: SeriesCategoryCreate) -> SeriesCategory:
     stmt = select(SeriesCategory).where(SeriesCategory.code == data.code.upper().strip())
@@ -247,6 +267,7 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
         series_list = result.scalars().all()
 
     out = []
+    now_utc = datetime.now(timezone.utc)
     for s in series_list:
         disp = compute_series_display_data(s)
         out.append({
@@ -266,8 +287,8 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
             "next_number_formatted": disp["next_number_formatted"],
             "is_mandatory_manual": disp["is_mandatory_manual"],
             "is_active": s.is_active,
-            "created_at": s.created_at,
-            "updated_at": s.updated_at,
+            "created_at": s.created_at or now_utc,
+            "updated_at": s.updated_at or now_utc,
         })
     return out
 
