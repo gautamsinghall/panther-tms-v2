@@ -246,7 +246,7 @@ async def get_all_jobs(db: AsyncSession) -> List[Job]:
     return list(result.scalars().all())
 
 async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] = None) -> Job:
-    job_number = data.job_number or await _generate_sequence(db, Job, "JOB")
+    job_number = await allocate_or_validate_voucher_number(db, "JOB", manual_number=data.job_number)
     job_dict = data.model_dump()
     job_dict["job_number"] = job_number
     job_dict["status"] = JobStatus.OPEN.value

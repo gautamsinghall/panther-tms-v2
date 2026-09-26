@@ -199,10 +199,12 @@ export default function HireChallansPage() {
       fields: [
         {
           name: "challan_number",
-          label: "Challan Number (Manual Series)",
+          label: "Challan Number (Auto Series)",
           type: "text",
-          required: true,
+          disabled: true,
+          disabledReason: "Voucher numbers are auto-assigned by Series Master and cannot be edited",
           placeholder: seriesInfo?.next_number_formatted || "HC-2026-0001",
+          defaultValue: seriesInfo?.next_number_formatted || "HC-2026-0001",
         },
         {
           name: "vehicle_number",
@@ -287,7 +289,7 @@ export default function HireChallansPage() {
     try {
       const payload = {
         ...values,
-        challan_number: values.challan_number ? String(values.challan_number).trim() : undefined,
+        challan_number: values.challan_number ? String(values.challan_number).trim() : (seriesInfo?.next_number_formatted || undefined),
         owner_id: values.owner_id ? parseInt(values.owner_id, 10) : null,
         hire_rate: values.hire_rate ? parseFloat(values.hire_rate) : 0,
         advance_amount: values.advance_amount ? parseFloat(values.advance_amount) : 0,
@@ -322,7 +324,7 @@ export default function HireChallansPage() {
           onClick: () => {
             setFormInitialValues({
               challan_date: new Date().toISOString().split("T")[0],
-              challan_number: seriesInfo?.next_number_formatted || "",
+              challan_number: seriesInfo?.next_number_formatted || "HC-2026-0001",
             });
             setIsDrawerOpen(true);
           },

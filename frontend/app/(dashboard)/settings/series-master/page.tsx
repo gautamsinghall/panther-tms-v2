@@ -3,25 +3,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
-  Hash,
-  Layers,
   Loader2,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
   Lock,
   Sparkles,
-  ArrowRight,
-  Filter,
   Search,
-  SlidersHorizontal,
-  Settings,
   ShieldAlert,
-  FileText,
-  Truck,
-  CreditCard,
-  Receipt,
-  BookOpen,
   Edit2,
   Check,
 } from "lucide-react";
@@ -30,10 +19,8 @@ import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef, RowAction } from "@/types/table";
 import { StatusBadge, Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
-import { KpiCard } from "@/components/ui/kpi-card";
 import { apiClient } from "@/lib/api-client";
 
 interface SeriesMasterItem {
@@ -65,8 +52,19 @@ interface SeriesCategoryItem {
   is_active: boolean;
 }
 
-// 15 Standard Voucher Types Definition
+// 16 Standard Voucher Types Definition (including JOB Trip Order)
 const STANDARD_VOUCHERS = [
+  // 1. Transport Operations
+  {
+    code: "JOB",
+    name: "Trip Order / Job (Job Creation)",
+    category: "TRANSPORT",
+    categoryLabel: "Transport Documents",
+    isMandatoryManual: false,
+    defaultPrefix: "JOB-2026-",
+    defaultSuffix: "",
+    description: "Operational dispatch movement and freight booking order.",
+  },
   {
     code: "LR",
     name: "Lorry Receipt (GR / LR)",
@@ -87,6 +85,7 @@ const STANDARD_VOUCHERS = [
     defaultSuffix: "",
     description: "Lorry hire contract slip issued to market truck owner / driver.",
   },
+  // 2. Billing & Invoicing
   {
     code: "TRANSPORT_INVOICE",
     name: "Transport / Freight Invoice",
@@ -117,6 +116,7 @@ const STANDARD_VOUCHERS = [
     defaultSuffix: "",
     description: "Preliminary quotation / proforma invoice for advance billing estimation.",
   },
+  // 3. Accounts & Double-Entry Vouchers
   {
     code: "NORMAL_PURCHASE",
     name: "Purchase Invoice (Operational / Spares)",
@@ -220,7 +220,6 @@ const STANDARD_VOUCHERS = [
 ];
 
 export default function SeriesMasterPage() {
-  const [activeTab, setActiveTab] = useState<"series" | "categories">("series");
   const [seriesList, setSeriesList] = useState<SeriesMasterItem[]>([]);
   const [categoryList, setCategoryList] = useState<SeriesCategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -231,10 +230,14 @@ export default function SeriesMasterPage() {
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Inline Row Edits state: { [seriesId]: { prefix: string, suffix: string } }
+  const [inlineEdits, setInlineEdits] = useState<Record<number, { prefix: string; suffix: string }>>({});
+  const [savingRowId, setSavingRowId] = useState<number | null>(null);
+  const [savedRowId, setSavedRowId] = useState<number | null>(null);
+
   // Drawer / Form states
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<SeriesMasterItem | null>(null);
-  const [showAddCatModal, setShowAddCatModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [initializingDefaults, setInitializingDefaults] = useState(false);
 
@@ -248,11 +251,6 @@ export default function SeriesMasterPage() {
   const [seriesMode, setSeriesMode] = useState<"AUTOMATIC" | "MANUAL">("AUTOMATIC");
   const [selectedCatId, setSelectedCatId] = useState<number | undefined>(undefined);
   const [isActive, setIsActive] = useState(true);
-
-  // Category form
-  const [catName, setCatName] = useState("");
-  const [catCode, setCatCode] = useState("");
-  const [catDesc, setCatDesc] = useState("");
 
   const loadData = async () => {
     setIsLoading(true);
@@ -277,13 +275,13 @@ export default function SeriesMasterPage() {
 
   const handleOpenCreate = () => {
     setEditingSeries(null);
-    setDocType("LR");
-    setPrefix("LR-2026-");
+    setDocType("JOB");
+    setPrefix("JOB-2026-");
     setSuffix("");
     setStartingNum(1);
     setCurrentNum(0);
     setFinYear("2026-2027");
-    setSeriesMode("MANUAL");
+    setSeriesMode("AUTOMATIC");
     setIsActive(true);
     setSelectedCatId(undefined);
     setIsDrawerOpen(true);
@@ -323,29 +321,10 @@ export default function SeriesMasterPage() {
     }
   };
 
-  // Check if currently selected docType is mandatory manual
   const isSelectedMandatoryManual = useMemo(() => {
     const raw = docType.toUpperCase().trim();
     return ["LR", "HIRE_CHALLAN", "HC", "TRANSPORT_INVOICE", "GENERAL_INVOICE"].includes(raw);
   }, [docType]);
-
-  // Live Sequence Preview calculations
-  const livePreview = useMemo(() => {
-    const p = prefix || "";
-    const s = suffix || "";
-    const curr = currentNum >= 0 ? currentNum : 0;
-    const start = startingNum >= 1 ? startingNum : 1;
-    const nextVal = curr >= start ? curr + 1 : start;
-
-    const formatPadded = (n: number) => `${p}${String(n).padStart(4, "0")}${s}`;
-
-    return {
-      lastUsed: curr >= start ? formatPadded(curr) : "None yet (New Series)",
-      nextNumber: nextVal,
-      nextFormatted: formatPadded(nextVal),
-      template: `${p}XXXX${s}`,
-    };
-  }, [prefix, suffix, startingNum, currentNum]);
 
   const handleSaveSeries = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,7 +376,7 @@ export default function SeriesMasterPage() {
       const res = await apiClient<any>("/api/v1/settings/series/initialize", {
         method: "POST",
       });
-      setSuccessMessage(res.message || "All 15 standard voucher series verified and configured.");
+      setSuccessMessage(res.message || "All standard voucher series verified and configured.");
       await loadData();
     } catch (err: any) {
       setError(err.message || "Failed to initialize standard series.");
@@ -406,68 +385,68 @@ export default function SeriesMasterPage() {
     }
   };
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      await apiClient("/api/v1/settings/series-categories", {
-        method: "POST",
-        body: JSON.stringify({
-          name: catName,
-          code: catCode.toUpperCase(),
-          description: catDesc || null,
-          is_active: true,
-        }),
-      });
-      setShowAddCatModal(false);
-      setCatName("");
-      setCatCode("");
-      setCatDesc("");
-      setSuccessMessage("Series Category created successfully.");
-      await loadData();
-    } catch (err: any) {
-      setError(err.message || "Failed to create category.");
-    } finally {
-      setSubmitting(false);
-    }
+  // Inline Prefix / Postfix configuration from table row
+  const handleInlineChange = (id: number, field: "prefix" | "suffix", value: string, defaultRow: SeriesMasterItem) => {
+    setInlineEdits((prev) => ({
+      ...prev,
+      [id]: {
+        prefix: field === "prefix" ? value : (prev[id]?.prefix ?? defaultRow.prefix),
+        suffix: field === "suffix" ? value : (prev[id]?.suffix ?? (defaultRow.suffix || "")),
+      },
+    }));
   };
 
-  // KPIs
-  const stats = useMemo(() => {
-    const total = seriesList.length;
-    const manualMandatoryTypes = ["LR", "HIRE_CHALLAN", "HC", "TRANSPORT_INVOICE", "GENERAL_INVOICE"];
-    const mandatoryConfigured = seriesList.filter((s) =>
-      manualMandatoryTypes.includes(s.document_type.toUpperCase())
-    ).length;
-    const automaticCount = seriesList.filter((s) => s.series_mode === "AUTOMATIC").length;
-    const manualCount = seriesList.filter((s) => s.series_mode === "MANUAL").length;
-    return { total, mandatoryConfigured, automaticCount, manualCount };
-  }, [seriesList]);
+  const handleSaveInline = async (seriesId: number) => {
+    const row = seriesList.find((s) => s.id === seriesId);
+    if (!row) return;
+    const edit = inlineEdits[seriesId];
+    if (!edit) return;
+
+    setSavingRowId(seriesId);
+    setError(null);
+    try {
+      const updated = await apiClient<SeriesMasterItem>(`/api/v1/settings/series/${seriesId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          prefix: edit.prefix.trim(),
+          suffix: edit.suffix.trim(),
+        }),
+      });
+      setSeriesList((prev) => prev.map((s) => (s.id === seriesId ? { ...s, ...updated } : s)));
+      setInlineEdits((prev) => {
+        const copy = { ...prev };
+        delete copy[seriesId];
+        return copy;
+      });
+      setSavedRowId(seriesId);
+      setTimeout(() => setSavedRowId((curr) => (curr === seriesId ? null : curr)), 2500);
+      setSuccessMessage(`Prefix / Postfix saved for ${row.document_type}`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to update series prefix / postfix.");
+    } finally {
+      setSavingRowId(null);
+    }
+  };
 
   // Filtered series list
   const filteredSeries = useMemo(() => {
     return seriesList.filter((item) => {
-      // Category filter
+      const doc = item.document_type.toUpperCase();
       if (filterCategory === "MANDATORY_MANUAL") {
         if (!item.is_mandatory_manual) return false;
       } else if (filterCategory === "AUTOMATIC") {
         if (item.series_mode !== "AUTOMATIC") return false;
       } else if (filterCategory === "TRANSPORT") {
-        if (!["LR", "HIRE_CHALLAN", "HC"].includes(item.document_type.toUpperCase())) return false;
+        if (!["JOB", "LR", "HIRE_CHALLAN", "HC"].includes(doc)) return false;
       } else if (filterCategory === "BILLING") {
-        if (!["TRANSPORT_INVOICE", "GENERAL_INVOICE", "PROFORMA_INVOICE"].includes(item.document_type.toUpperCase()))
+        if (!["TRANSPORT_INVOICE", "GENERAL_INVOICE", "PROFORMA_INVOICE"].includes(doc))
           return false;
       } else if (filterCategory === "ACCOUNTS") {
-        if (
-          ["LR", "HIRE_CHALLAN", "HC", "TRANSPORT_INVOICE", "GENERAL_INVOICE", "PROFORMA_INVOICE"].includes(
-            item.document_type.toUpperCase()
-          )
-        )
+        if (["JOB", "LR", "HIRE_CHALLAN", "HC", "TRANSPORT_INVOICE", "GENERAL_INVOICE", "PROFORMA_INVOICE"].includes(doc))
           return false;
       }
 
-      // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesDoc = item.document_type.toLowerCase().includes(q);
@@ -545,49 +524,114 @@ export default function SeriesMasterPage() {
     {
       key: "prefix",
       header: "Configured Prefix & Postfix",
-      cell: (row) => (
-        <div className="flex items-center gap-1 font-mono text-xs">
-          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 font-semibold text-slate-800">
-            {row.prefix}
-          </span>
-          <span className="text-slate-400 font-bold">XXXX</span>
-          {row.suffix ? (
-            <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 font-semibold text-slate-800">
-              {row.suffix}
-            </span>
-          ) : (
-            <span className="text-[11px] text-slate-400 font-sans italic">—</span>
-          )}
-        </div>
-      ),
+      cell: (row) => {
+        const currentPrefix = inlineEdits[row.id]?.prefix ?? row.prefix;
+        const currentSuffix = inlineEdits[row.id]?.suffix ?? (row.suffix || "");
+        const isModified =
+          inlineEdits[row.id] !== undefined &&
+          (inlineEdits[row.id].prefix !== row.prefix || inlineEdits[row.id].suffix !== (row.suffix || ""));
+        const isSaving = savingRowId === row.id;
+        const isSaved = savedRowId === row.id;
+
+        return (
+          <div className="flex items-center gap-1.5 py-1" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+              <input
+                type="text"
+                value={currentPrefix}
+                onChange={(e) => handleInlineChange(row.id, "prefix", e.target.value, row)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveInline(row.id);
+                }}
+                placeholder="Prefix (e.g. CV-2026-)"
+                title="Configure Prefix directly from list"
+                className="w-28 sm:w-32 px-2 py-1 text-xs font-mono font-bold text-slate-800 bg-white border border-slate-300 rounded shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <span className="text-[10px] font-mono text-slate-400 font-semibold px-0.5">#</span>
+              <input
+                type="text"
+                value={currentSuffix}
+                onChange={(e) => handleInlineChange(row.id, "suffix", e.target.value, row)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveInline(row.id);
+                }}
+                placeholder="Postfix"
+                title="Configure Postfix directly from list"
+                className="w-20 sm:w-24 px-2 py-1 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-300 rounded shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            {isSaving ? (
+              <span className="p-1 text-indigo-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </span>
+            ) : isSaved ? (
+              <span className="p-1 text-emerald-600 font-semibold text-xs flex items-center gap-1 bg-emerald-50 rounded border border-emerald-200 px-1.5 py-0.5">
+                <Check className="w-3.5 h-3.5" />
+                <span className="text-[10px]">Saved</span>
+              </span>
+            ) : isModified ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                onClick={() => handleSaveInline(row.id)}
+                className="h-7 px-2 text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs"
+              >
+                Save
+              </Button>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: "current_number",
-      header: "Current / Last Used #",
-      align: "right",
-      isNumeric: true,
+      header: "Used Till",
+      align: "left",
       sortable: true,
-      cell: (row) => (
-        <div className="text-right">
-          <span className="font-mono text-xs font-bold text-[#172033] block">
-            #{row.current_number}
-          </span>
-          <span className="font-mono text-[11px] text-[#667085]">
-            {row.last_used_formatted || "None yet"}
-          </span>
-        </div>
-      ),
+      cell: (row) => {
+        if (!row.last_used_formatted || row.current_number === 0) {
+          return (
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400 font-medium italic">
+                Not used yet
+              </span>
+              <span className="font-mono text-[10px] text-slate-400">
+                0 vouchers
+              </span>
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col">
+            <span className="font-mono text-xs font-bold text-[#172033] block">
+              {row.last_used_formatted}
+            </span>
+            <span className="font-mono text-[11px] text-[#667085]">
+              Total Used: #{row.current_number}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: "next_number_formatted",
       header: "Next Series Number",
-      cell: (row) => (
-        <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 font-mono text-xs font-bold text-indigo-700 shadow-2xs">
-            {row.next_number_formatted || `${row.prefix}0001${row.suffix || ""}`}
-          </span>
-        </div>
-      ),
+      cell: (row) => {
+        const currentPrefix = inlineEdits[row.id]?.prefix ?? row.prefix;
+        const currentSuffix = inlineEdits[row.id]?.suffix ?? (row.suffix || "");
+        const nextNum = row.next_number || 1;
+        const previewNumber = `${currentPrefix}${String(nextNum).padStart(4, "0")}${currentSuffix}`;
+
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 font-mono text-xs font-bold text-indigo-700 shadow-2xs">
+              {previewNumber}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: "financial_year",
@@ -611,81 +655,21 @@ export default function SeriesMasterPage() {
     },
   ];
 
-  const categoryColumns: ColumnDef<SeriesCategoryItem>[] = [
-    {
-      key: "code",
-      header: "Category Code",
-      sortable: true,
-      cell: (row) => (
-        <span className="font-mono text-xs font-bold text-slate-800">{row.code}</span>
-      ),
-    },
-    {
-      key: "name",
-      header: "Category Name",
-      sortable: true,
-      cell: (row) => <span className="font-semibold text-xs text-[#172033]">{row.name}</span>,
-    },
-    {
-      key: "description",
-      header: "Description",
-      cell: (row) => <span className="text-xs text-slate-500">{row.description || "—"}</span>,
-    },
-    {
-      key: "is_active",
-      header: "Status",
-      cell: (row) => (
-        <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} variant="active" />
-      ),
-    },
-  ];
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Document Series Master"
-        description="Unified sequence numbering engine: configure custom Prefix, Postfix, and sequence counters with policy enforcement for Manual vs Automatic voucher generation."
+        description="Unified sequence numbering engine: configure Prefix, Postfix, and sequence counters directly from the list with real voucher verification."
         breadcrumbs={[
           { label: "Settings", href: "/settings/users" },
           { label: "Series Master" },
         ]}
         primaryAction={{
-          label: activeTab === "series" ? "Configure Series" : "Add Series Category",
+          label: "Configure Series",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => {
-            if (activeTab === "series") handleOpenCreate();
-            else setShowAddCatModal(true);
-          },
+          onClick: handleOpenCreate,
         }}
       />
-
-      {/* KPI Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Configured Document Series"
-          value={`${stats.total} / 15`}
-          subtext="Voucher types in active catalog"
-          icon={<Layers className="w-4 h-4 text-indigo-600" />}
-        />
-        <KpiCard
-          title="Mandatory Manual Vouchers"
-          value={`${stats.mandatoryConfigured} / 4`}
-          subtext="LR, HC, General & Transport Invoices"
-          icon={<Lock className="w-4 h-4 text-amber-600" />}
-        />
-        <KpiCard
-          title="Automatic Series Vouchers"
-          value={stats.automaticCount.toString()}
-          subtext="Auto-incremented on creation"
-          icon={<Sparkles className="w-4 h-4 text-emerald-600" />}
-        />
-        <KpiCard
-          title="Active Financial Year"
-          value="2026-2027"
-          subtext="April 1, 2026 – March 31, 2027"
-          icon={<Hash className="w-4 h-4 text-slate-600" />}
-        />
-      </div>
 
       {/* Alerts */}
       {error && (
@@ -714,128 +698,80 @@ export default function SeriesMasterPage() {
         </div>
       )}
 
-      {/* Primary Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200">
-        <div className="flex gap-4">
-          <button
-            type="button"
-            onClick={() => setActiveTab("series")}
-            className={`pb-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "series"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            All Document Series ({seriesList.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("categories")}
-            className={`pb-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "categories"
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            Series Categories ({categoryList.length})
-          </button>
+      {/* Filters Bar & Quick Action */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+        {/* Category Filter Pills */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {[
+            { id: "ALL", label: `All Vouchers (${seriesList.length})` },
+            {
+              id: "MANDATORY_MANUAL",
+              label: `Mandatory Manual (${seriesList.filter((s) => s.is_mandatory_manual).length})`,
+            },
+            { id: "TRANSPORT", label: "Transport (JOB, LR, HC)" },
+            { id: "BILLING", label: "Invoicing & Billing" },
+            { id: "ACCOUNTS", label: "Accounting Vouchers" },
+          ].map((pill) => (
+            <button
+              key={pill.id}
+              onClick={() => setFilterCategory(pill.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                filterCategory === pill.id
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60"
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
         </div>
 
-        {activeTab === "series" && (
-          <div className="pb-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleInitializeDefaults}
-              disabled={initializingDefaults}
-              className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-            >
-              {initializingDefaults ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              )}
-              Initialize All 15 Standard Series
-            </Button>
+        {/* Right side: Search & Reset Defaults */}
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-[200px]">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search series or prefix..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
           </div>
-        )}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleInitializeDefaults}
+            disabled={initializingDefaults}
+            className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50 shrink-0"
+            title="Ensure all 16 standard voucher series are configured in the system"
+          >
+            {initializingDefaults ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+            )}
+            Verify / Initialize All Series
+          </Button>
+        </div>
       </div>
 
-      {activeTab === "series" && (
-        <>
-          {/* Filters & Quick Category Pills */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-            {/* Category Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {[
-                { id: "ALL", label: `All Vouchers (${seriesList.length})` },
-                {
-                  id: "MANDATORY_MANUAL",
-                  label: `Mandatory Manual (${seriesList.filter((s) => s.is_mandatory_manual).length})`,
-                },
-                { id: "TRANSPORT", label: "Transport (LR & HC)" },
-                { id: "BILLING", label: "Invoicing & Billing" },
-                { id: "ACCOUNTS", label: "Accounting Vouchers" },
-              ].map((pill) => (
-                <button
-                  key={pill.id}
-                  onClick={() => setFilterCategory(pill.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    filterCategory === pill.id
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60"
-                  }`}
-                >
-                  {pill.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input */}
-            <div className="relative min-w-[220px]">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search series or prefix..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          {/* Table */}
-          {isLoading ? (
-            <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-              <span className="text-xs">Loading series records...</span>
-            </div>
-          ) : (
-            <DataTable
-              columns={seriesColumns}
-              data={filteredSeries}
-              actions={seriesActions}
-              emptyMessage="No document series matching filter"
-              emptySubtext="Click 'Initialize All 15 Standard Series' or 'Configure Series' to setup numbering sequence formats."
-            />
-          )}
-        </>
-      )}
-
-      {activeTab === "categories" && (
-        <>
-          {isLoading ? (
-            <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-2">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-              <span className="text-xs">Loading series categories...</span>
-            </div>
-          ) : (
-            <DataTable columns={categoryColumns} data={categoryList} />
-          )}
-        </>
+      {/* Main Series Table */}
+      {isLoading ? (
+        <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <span className="text-xs">Loading series records and real voucher usage...</span>
+        </div>
+      ) : (
+        <DataTable
+          columns={seriesColumns}
+          data={filteredSeries}
+          actions={seriesActions}
+          emptyMessage="No document series matching filter"
+          emptySubtext="Click 'Verify / Initialize All Series' to automatically configure standard voucher sequences."
+        />
       )}
 
       {/* Series Configure / Edit Drawer */}
@@ -878,7 +814,7 @@ export default function SeriesMasterPage() {
                   <span className="font-bold block">Mandatory Manual Series Enforced</span>
                   <span>
                     LR, HC, General Invoice, and Transport Invoice require Manual Series. Document creation
-                    will be blocked until this series is configured and active.
+                    will validate against this configured series.
                   </span>
                 </div>
               </div>
@@ -898,14 +834,11 @@ export default function SeriesMasterPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                        Automatic Series
-                      </span>
-                      {seriesMode === "AUTOMATIC" && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                      <span className="font-bold text-xs text-[#172033]">Automatic Series</span>
+                      <Sparkles className="w-4 h-4 text-emerald-600" />
                     </div>
-                    <span className="text-[11px] text-slate-500 block leading-relaxed">
-                      System automatically allocates the next running number upon voucher creation.
+                    <span className="text-[11px] text-[#667085] block">
+                      Sequence counter increments automatically on each voucher creation.
                     </span>
                   </button>
 
@@ -914,207 +847,102 @@ export default function SeriesMasterPage() {
                     onClick={() => setSeriesMode("MANUAL")}
                     className={`p-3 rounded-xl border text-left transition-all ${
                       seriesMode === "MANUAL"
-                        ? "border-blue-500 bg-blue-50/60 ring-2 ring-blue-500/20"
+                        ? "border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-500/20"
                         : "border-slate-200 bg-white hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1">
-                        <Edit2 className="w-3.5 h-3.5 text-blue-600" />
-                        Manual Series
-                      </span>
-                      {seriesMode === "MANUAL" && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                      <span className="font-bold text-xs text-[#172033]">Manual Series</span>
+                      <Edit2 className="w-4 h-4 text-indigo-600" />
                     </div>
-                    <span className="text-[11px] text-slate-500 block leading-relaxed">
-                      User inputs the document number, formatted with prefix & postfix.
+                    <span className="text-[11px] text-[#667085] block">
+                      Format is validated against Prefix / Postfix patterns while enforcing audit tracking.
                     </span>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Prefix & Postfix */}
+            {/* Prefix & Postfix Configuration */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#172033] mb-1">
-                  Prefix (Leading Scheme) <span className="text-rose-600">*</span>
+                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                  Document Prefix <span className="text-rose-600">*</span>
                 </label>
-                <Input
-                  placeholder="e.g. LR-2026- or TI/"
+                <input
+                  type="text"
+                  required
                   value={prefix}
                   onChange={(e) => setPrefix(e.target.value)}
-                  required
+                  placeholder="e.g. CV-2026- or TI-2026-"
+                  className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
-                <span className="text-[10px] text-slate-400 mt-1 block">e.g. TI-2026- or EXP/</span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#172033] mb-1">
-                  Postfix / Suffix (Trailing Scheme)
+                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                  Document Postfix (Suffix)
                 </label>
-                <Input
-                  placeholder="e.g. /DEL or -HQ (Optional)"
+                <input
+                  type="text"
                   value={suffix}
                   onChange={(e) => setSuffix(e.target.value)}
+                  placeholder="e.g. -HO or /26"
+                  className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
-                <span className="text-[10px] text-slate-400 mt-1 block">Appended after sequence number</span>
               </div>
             </div>
 
-            {/* Starting Number, Current Number & Financial Year */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Starting Sequence & Financial Year */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#172033] mb-1">
-                  Starting Number
+                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                  Starting Sequence Number <span className="text-rose-600">*</span>
                 </label>
-                <Input
+                <input
                   type="number"
                   min={1}
-                  value={String(startingNum)}
-                  onChange={(e) => setStartingNum(parseInt(e.target.value) || 1)}
                   required
+                  value={startingNum}
+                  onChange={(e) => setStartingNum(parseInt(e.target.value, 10) || 1)}
+                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#172033] mb-1">
-                  Current / Last Used #
+                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                  Financial Year <span className="text-rose-600">*</span>
                 </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={String(currentNum)}
-                  onChange={(e) => setCurrentNum(parseInt(e.target.value) || 0)}
+                <input
+                  type="text"
                   required
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">0 if brand new series</span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#172033] mb-1">
-                  Financial Year
-                </label>
-                <Input
-                  placeholder="2026-2027"
                   value={finYear}
                   onChange={(e) => setFinYear(e.target.value)}
-                  required
+                  placeholder="2026-2027"
+                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
-            {/* Series Category */}
-            {categoryList.length > 0 && (
-              <div>
-                <label className="block text-xs font-semibold text-[#172033] mb-1">
-                  Series Category
-                </label>
-                <SearchableSelect
-                  value={selectedCatId ? String(selectedCatId) : ""}
-                  onChange={(val) => setSelectedCatId(val ? parseInt(String(val)) : undefined)}
-                  options={categoryList.map((cat) => ({
-                    value: String(cat.id),
-                    label: `${cat.name} (${cat.code})`,
-                  }))}
-                  placeholder="Select Category (Optional)"
-                  searchPlaceholder="Search category..."
-                />
-              </div>
-            )}
-
-            {/* Live Interactive Sequence Preview Box */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                Live Sequence Preview
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-[11px] text-slate-500 block">Current / Last Used Number</span>
-                  <span className="font-mono font-bold text-slate-700 block mt-0.5">
-                    {livePreview.lastUsed}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[11px] text-indigo-600 font-semibold block">
-                    Next Generated Document Number
-                  </span>
-                  <span className="font-mono font-bold text-indigo-700 block mt-0.5 text-sm bg-white px-2 py-0.5 rounded border border-indigo-200 w-fit">
-                    {livePreview.nextFormatted}
-                  </span>
-                </div>
-              </div>
-              <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200 flex items-center justify-between">
-                <span>
-                  Pattern Template: <code className="font-mono text-slate-700 font-bold">{livePreview.template}</code>
-                </span>
-                <span className="font-medium text-slate-600">
-                  Mode:{" "}
-                  <strong>{isSelectedMandatoryManual ? "MANUAL (Mandatory)" : seriesMode}</strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Submit / Cancel Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+            {/* Submit Action */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => setIsDrawerOpen(false)}
+                disabled={submitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" size="sm" disabled={submitting}>
-                {submitting ? "Saving Configuration..." : editingSeries ? "Update Series" : "Save Series"}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </EntityDrawer>
-
-      {/* Add Category Drawer */}
-      <EntityDrawer
-        isOpen={showAddCatModal}
-        onClose={() => setShowAddCatModal(false)}
-        title="Add Series Category"
-        description="Group and organize document series by department or operations."
-      >
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
-          <form onSubmit={handleCreateCategory} className="space-y-4">
-            <Input
-              label="Category Name"
-              placeholder="e.g. Transport Logistics"
-              value={catName}
-              onChange={(e) => setCatName(e.target.value)}
-              required
-            />
-
-            <Input
-              label="Category Code (Uppercase)"
-              placeholder="e.g. LOGISTICS"
-              value={catCode}
-              onChange={(e) => setCatCode(e.target.value.toUpperCase())}
-              required
-            />
-
-            <Input
-              label="Description (Optional)"
-              placeholder="Dispatches, haulage and hire orders"
-              value={catDesc}
-              onChange={(e) => setCatDesc(e.target.value)}
-            />
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddCatModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" size="sm" disabled={submitting}>
-                {submitting ? "Saving..." : "Create Category"}
+              <Button type="submit" variant="primary" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Series Master"
+                )}
               </Button>
             </div>
           </form>

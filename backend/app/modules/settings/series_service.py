@@ -16,6 +16,10 @@ MANDATORY_MANUAL_DOC_TYPES = {
 }
 
 DOC_TYPE_ALIASES = {
+    "JOB": "JOB",
+    "JOB_ORDER": "JOB",
+    "TRIP": "JOB",
+    "TRIP_ORDER": "JOB",
     "HC": "HIRE_CHALLAN",
     "HIRE_CHALLAN": "HIRE_CHALLAN",
     "LR": "LR",
@@ -27,9 +31,22 @@ DOC_TYPE_ALIASES = {
     "JV": "GENERAL_VOUCHER",
 }
 
-# Complete catalog of all 15 voucher & document types across Panther TMS
+# Complete catalog of all 16 voucher & document types across Panther TMS
 STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
-    # 1. Transport Documents (Mandatory Manual)
+    # 1. Transport Operations Documents
+    {
+        "document_type": "JOB",
+        "name": "Trip / Job Order (Job Creation)",
+        "category_code": "TRANSPORT",
+        "category_name": "Transport Documents",
+        "prefix": "JOB-2026-",
+        "suffix": "",
+        "starting_number": 1,
+        "current_number": 0,
+        "series_mode": "AUTOMATIC",
+        "is_mandatory_manual": False,
+        "description": "Freight trip booking and load dispatch job order.",
+    },
     {
         "document_type": "LR",
         "name": "Lorry Receipt (GR / LR)",
@@ -38,7 +55,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "LR-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 85,
+        "current_number": 0,
         "series_mode": "MANUAL",
         "is_mandatory_manual": True,
         "description": "Consignment note issued to shipper / consignee for cargo transit.",
@@ -51,7 +68,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "HC-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 57,
+        "current_number": 0,
         "series_mode": "MANUAL",
         "is_mandatory_manual": True,
         "description": "Lorry hire contract slip issued to market truck owner / driver.",
@@ -65,7 +82,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "TI-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 43,
+        "current_number": 0,
         "series_mode": "MANUAL",
         "is_mandatory_manual": True,
         "description": "Tax invoice issued for freight charges linked to delivered LRs.",
@@ -78,7 +95,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "GI-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 10,
+        "current_number": 0,
         "series_mode": "MANUAL",
         "is_mandatory_manual": True,
         "description": "Direct sales & services invoice with balanced double-entry ledger postings.",
@@ -91,12 +108,12 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "PI-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 5,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Preliminary quotation / proforma invoice for advance billing estimation.",
     },
-    # 3. Accounts & Double-Entry Vouchers (Automatic by default)
+    # 3. Accounts & Double-Entry Vouchers
     {
         "document_type": "NORMAL_PURCHASE",
         "name": "Purchase Invoice (Operational / Spares)",
@@ -105,7 +122,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "NP-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 20,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Vendor purchase invoice for fuel, tyres, lubricants, and spare parts.",
@@ -118,7 +135,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "GP-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 8,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "General expense billings (office rent, utilities, legal fees).",
@@ -131,7 +148,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "RV-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 29,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Customer payments received via NEFT, RTGS, Cheque, or Cash.",
@@ -144,7 +161,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "PV-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 15,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "General vendor and supplier payments made from company bank accounts.",
@@ -157,7 +174,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "ATH-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 25,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Truck hire trip advance disbursed to vehicle owner / driver.",
@@ -170,7 +187,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "BTH-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 18,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Final balance settlement paid to hired truck owner upon POD receipt.",
@@ -183,7 +200,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "CN-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 4,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Credit adjustment issued to customer for freight rebate or discount.",
@@ -196,7 +213,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "DN-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 3,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Debit adjustment issued to vendor or transporter for shortage / penalty.",
@@ -209,7 +226,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "JV-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 6,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "General non-cash double-entry adjustment voucher.",
@@ -222,7 +239,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "prefix": "CV-2026-",
         "suffix": "",
         "starting_number": 1,
-        "current_number": 7,
+        "current_number": 0,
         "series_mode": "AUTOMATIC",
         "is_mandatory_manual": False,
         "description": "Internal fund transfer between company bank accounts and cash drawers.",
@@ -235,20 +252,114 @@ def format_series_number(prefix: str, num: int, suffix: Optional[str] = "") -> s
     return f"{prefix}{num:04d}{s}"
 
 
-def compute_series_display_data(s: SeriesMaster) -> Dict[str, Any]:
+async def get_real_voucher_usage(db: AsyncSession, document_type: str) -> Dict[str, Any]:
     """
-    Computes formatted last used series and formatted next series number.
+    Connects Series Master directly to REAL vouchers in the database.
+    Queries the actual table for the last used voucher number and count.
+    """
+    raw_doc = document_type.upper().strip()
+    norm = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
+    
+    last_voucher_no = None
+    real_count = 0
+    
+    try:
+        from sqlalchemy import func
+        if norm == "JOB":
+            from app.tenant_db.models import Job
+            res = await db.execute(select(Job.job_number).order_by(Job.id.desc()).limit(1))
+            last_voucher_no = res.scalar_one_or_none()
+            cnt_res = await db.execute(select(func.count(Job.id)))
+            real_count = cnt_res.scalar() or 0
+        elif norm == "LR":
+            from app.tenant_db.models import LR
+            res = await db.execute(select(LR.lr_number).order_by(LR.id.desc()).limit(1))
+            last_voucher_no = res.scalar_one_or_none()
+            cnt_res = await db.execute(select(func.count(LR.id)))
+            real_count = cnt_res.scalar() or 0
+        elif norm in ("HIRE_CHALLAN", "HC"):
+            from app.tenant_db.models import HireChallan
+            res = await db.execute(select(HireChallan.challan_number).order_by(HireChallan.id.desc()).limit(1))
+            last_voucher_no = res.scalar_one_or_none()
+            cnt_res = await db.execute(select(func.count(HireChallan.id)))
+            real_count = cnt_res.scalar() or 0
+        else:
+            from app.tenant_db.models import Voucher
+            v_types = [norm]
+            if norm == "TRANSPORT_INVOICE":
+                v_types = ["TRANSPORT_INVOICE", "INVOICE"]
+            elif norm == "GENERAL_INVOICE":
+                v_types = ["GENERAL_INVOICE"]
+            elif norm == "PROFORMA_INVOICE":
+                v_types = ["PROFORMA_INVOICE"]
+            elif norm == "NORMAL_PURCHASE":
+                v_types = ["NORMAL_PURCHASE", "PURCHASE"]
+            elif norm == "GENERAL_PURCHASE":
+                v_types = ["GENERAL_PURCHASE"]
+            elif norm == "RECEIPT_VOUCHER":
+                v_types = ["RECEIPT_VOUCHER", "RECEIPT"]
+            elif norm == "PAYMENT_VOUCHER":
+                v_types = ["PAYMENT_VOUCHER", "PAYMENT"]
+            elif norm == "PAYMENT_ATH":
+                v_types = ["PAYMENT_ATH", "ATH_PAYMENT", "ATH"]
+            elif norm == "PAYMENT_BTH":
+                v_types = ["PAYMENT_BTH", "BTH_PAYMENT", "BTH"]
+            elif norm == "CREDIT_NOTE":
+                v_types = ["CREDIT_NOTE"]
+            elif norm == "DEBIT_NOTE":
+                v_types = ["DEBIT_NOTE"]
+            elif norm == "GENERAL_VOUCHER":
+                v_types = ["GENERAL_VOUCHER", "JOURNAL", "JV"]
+            elif norm == "CONTRA_VOUCHER":
+                v_types = ["CONTRA_VOUCHER", "CONTRA"]
+            
+            stmt = select(Voucher.voucher_number).where(Voucher.voucher_type.in_(v_types)).order_by(Voucher.id.desc()).limit(1)
+            res = await db.execute(stmt)
+            last_voucher_no = res.scalar_one_or_none()
+            cnt_stmt = select(func.count(Voucher.id)).where(Voucher.voucher_type.in_(v_types))
+            cnt_res = await db.execute(cnt_stmt)
+            real_count = cnt_res.scalar() or 0
+    except Exception as e:
+        logger.warning(f"Could not query real voucher usage for {norm}: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    return {
+        "last_voucher_number": last_voucher_no,
+        "count": real_count,
+    }
+
+
+def compute_series_display_data(s: SeriesMaster, real_usage: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Computes formatted last used series and formatted next series number based on REAL database vouchers.
     """
     start_num = s.starting_number if s.starting_number is not None else 1
-    curr_num = s.current_number if s.current_number is not None else 0
     prefix = s.prefix or ""
     suffix = s.suffix or ""
 
-    if curr_num >= start_num:
+    last_used_fmt = None
+    curr_num = 0
+
+    if real_usage and real_usage.get("count", 0) > 0 and real_usage.get("last_voucher_number"):
+        last_used_fmt = real_usage["last_voucher_number"]
+        clean_digits = "".join(filter(str.isdigit, last_used_fmt))
+        if clean_digits:
+            try:
+                curr_num = int(clean_digits)
+            except ValueError:
+                curr_num = real_usage["count"]
+        else:
+            curr_num = real_usage["count"]
+    elif s.current_number and s.current_number >= start_num:
+        curr_num = s.current_number
         last_used_fmt = format_series_number(prefix, curr_num, suffix)
+
+    if curr_num >= start_num:
         next_num = curr_num + 1
     else:
-        last_used_fmt = None
         next_num = start_num
 
     next_num_fmt = format_series_number(prefix, next_num, suffix)
@@ -256,6 +367,7 @@ def compute_series_display_data(s: SeriesMaster) -> Dict[str, Any]:
     is_mandatory = norm_doc in MANDATORY_MANUAL_DOC_TYPES
 
     return {
+        "current_number": curr_num,
         "last_used_formatted": last_used_fmt,
         "next_number": next_num,
         "next_number_formatted": next_num_fmt,
@@ -380,14 +492,14 @@ async def allocate_or_validate_voucher_number(
                         except ValueError:
                             pass
             else:
-                # Manual mode, but no manual number provided: assign next sequence number
-                next_num = series.current_number + 1 if series.current_number >= start_num else start_num
+                real_usage = await get_real_voucher_usage(db, norm_type)
+                disp = compute_series_display_data(series, real_usage=real_usage)
+                next_num = disp["next_number"]
                 final_number = format_series_number(prefix, next_num, suffix)
                 series.current_number = next_num
         else:
             # AUTOMATIC Mode
             if manual_number and manual_number.strip():
-                # Allow override if provided
                 clean_val = manual_number.strip()
                 final_number = clean_val
                 digits = "".join(filter(str.isdigit, clean_val))
@@ -399,7 +511,9 @@ async def allocate_or_validate_voucher_number(
                     except ValueError:
                         pass
             else:
-                next_num = series.current_number + 1 if series.current_number >= start_num else start_num
+                real_usage = await get_real_voucher_usage(db, norm_type)
+                disp = compute_series_display_data(series, real_usage=real_usage)
+                next_num = disp["next_number"]
                 final_number = format_series_number(prefix, next_num, suffix)
                 series.current_number = next_num
 
@@ -450,7 +564,8 @@ async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str,
             "message": f"Manual series is mandatory for {readable_title} and is not configured." if is_mandatory_manual else f"Series is not configured for {readable_title}.",
         }
 
-    disp = compute_series_display_data(series)
+    real_usage = await get_real_voucher_usage(db, norm_type)
+    disp = compute_series_display_data(series, real_usage=real_usage)
     return {
         "configured": True,
         "id": series.id,
@@ -459,7 +574,7 @@ async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str,
         "prefix": series.prefix,
         "suffix": series.suffix or "",
         "starting_number": series.starting_number,
-        "current_number": series.current_number,
+        "current_number": disp["current_number"],
         "last_used_formatted": disp["last_used_formatted"],
         "next_number": disp["next_number"],
         "next_number_formatted": disp["next_number_formatted"],
@@ -519,14 +634,15 @@ async def initialize_all_standard_series(db: AsyncSession, financial_year: str =
             )
             db.add(series_obj)
             await db.flush()
-            disp = compute_series_display_data(series_obj)
+            real_usage = await get_real_voucher_usage(db, series_obj.document_type)
+            disp = compute_series_display_data(series_obj, real_usage=real_usage)
             created_list.append({
                 "id": series_obj.id,
                 "document_type": series_obj.document_type,
                 "prefix": series_obj.prefix,
                 "suffix": series_obj.suffix,
                 "starting_number": series_obj.starting_number,
-                "current_number": series_obj.current_number,
+                "current_number": disp["current_number"],
                 "last_used_formatted": disp["last_used_formatted"],
                 "next_number": disp["next_number"],
                 "next_number_formatted": disp["next_number_formatted"],

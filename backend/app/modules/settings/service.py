@@ -252,6 +252,8 @@ from app.modules.settings.series_service import (
     DOC_TYPE_ALIASES,
     initialize_all_standard_series,
     check_series_status,
+    get_real_voucher_usage,
+    STANDARD_VOUCHER_METADATA,
 )
 
 async def get_all_series_masters(db: AsyncSession) -> List[dict]:
@@ -260,8 +262,8 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
     result = await db.execute(stmt)
     series_list = result.scalars().all()
     
-    # Auto-initialize all 15 default voucher series if database is fresh/empty
-    if len(series_list) == 0:
+    # Auto-initialize standard voucher series if any standard voucher type (e.g. JOB) is missing
+    if len(series_list) < len(STANDARD_VOUCHER_METADATA):
         await initialize_all_standard_series(db)
         result = await db.execute(stmt)
         series_list = result.scalars().all()
@@ -269,7 +271,8 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
     out = []
     now_utc = datetime.now(timezone.utc)
     for s in series_list:
-        disp = compute_series_display_data(s)
+        real_usage = await get_real_voucher_usage(db, s.document_type)
+        disp = compute_series_display_data(s, real_usage=real_usage)
         out.append({
             "id": s.id,
             "category_id": s.category_id,
@@ -278,7 +281,7 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
             "prefix": s.prefix,
             "suffix": s.suffix or "",
             "starting_number": s.starting_number,
-            "current_number": s.current_number,
+            "current_number": disp["current_number"],
             "end_number": s.end_number,
             "financial_year": s.financial_year,
             "series_mode": disp["series_mode"],
@@ -329,7 +332,8 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         if c:
             cat_name = c.name
 
-    disp = compute_series_display_data(series)
+    real_usage = await get_real_voucher_usage(db, series.document_type)
+    disp = compute_series_display_data(series, real_usage=real_usage)
     return {
         "id": series.id,
         "category_id": series.category_id,
@@ -338,7 +342,7 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         "prefix": series.prefix,
         "suffix": series.suffix or "",
         "starting_number": series.starting_number,
-        "current_number": series.current_number,
+        "current_number": disp["current_number"],
         "end_number": series.end_number,
         "financial_year": series.financial_year,
         "series_mode": disp["series_mode"],
@@ -395,7 +399,8 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
 
     await db.commit()
     await db.refresh(series)
-    disp = compute_series_display_data(series)
+    real_usage = await get_real_voucher_usage(db, series.document_type)
+    disp = compute_series_display_data(series, real_usage=real_usage)
     return {
         "id": series.id,
         "category_id": series.category_id,
@@ -404,7 +409,7 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
         "prefix": series.prefix,
         "suffix": series.suffix or "",
         "starting_number": series.starting_number,
-        "current_number": series.current_number,
+        "current_number": disp["current_number"],
         "end_number": series.end_number,
         "financial_year": series.financial_year,
         "series_mode": disp["series_mode"],

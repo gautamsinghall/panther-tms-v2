@@ -484,19 +484,18 @@ export default function TransportInvoicePage() {
         <form onSubmit={handleCreateInvoice} className="space-y-5 bg-white p-5 rounded-card border border-[#E4E7EC]">
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-[#172033]">
-              Invoice Number (Manual Series) <span className="text-[#DC2626]">*</span>
+              Invoice Number (Auto Series) <span className="text-slate-400 font-normal">(Locked)</span>
             </label>
             <input
               type="text"
-              required
-              value={invoiceNumber}
-              onChange={(e) => setInvoiceNumber(e.target.value)}
-              placeholder={seriesInfo?.next_number_formatted || "e.g. TI-2026-0043"}
-              className="w-full rounded-control border border-[#E4E7EC] bg-white px-3 py-2 text-xs sm:text-sm text-[#172033] font-mono font-bold placeholder:font-normal placeholder:text-[#98A2B3] focus:outline-none focus:ring-1 focus:ring-[#172033]"
+              readOnly
+              value={invoiceNumber || seriesInfo?.next_number_formatted || ""}
+              placeholder={seriesInfo?.next_number_formatted || "TI-2026-0001"}
+              className="w-full rounded-control border border-slate-200 bg-slate-50 px-3 py-2 text-xs sm:text-sm text-[#172033] font-mono font-bold cursor-not-allowed select-all focus:outline-none"
             />
             {seriesInfo?.configured && (
               <span className="text-[11px] text-[#667085] block">
-                Format: <code className="font-mono text-indigo-600">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
+                Assigned by Series Master: <code className="font-mono text-indigo-600 font-semibold">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
               </span>
             )}
           </div>

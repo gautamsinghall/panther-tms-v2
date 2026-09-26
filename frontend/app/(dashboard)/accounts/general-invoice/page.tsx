@@ -417,19 +417,18 @@ export default function GeneralInvoicePage() {
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">
-                Invoice Number (Manual Series) *
+                Invoice Number (Auto Series) <span className="text-slate-400 font-normal">(Locked)</span>
               </label>
               <input
                 type="text"
-                required
+                readOnly
                 placeholder={seriesInfo?.next_number_formatted || "GI-2026-0001"}
-                value={voucherNumber}
-                onChange={(e) => setVoucherNumber(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono font-bold focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                value={voucherNumber || seriesInfo?.next_number_formatted || ""}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-slate-50 text-text-primary font-mono font-bold cursor-not-allowed select-all focus:outline-hidden"
               />
               {seriesInfo?.configured && (
                 <span className="text-[11px] text-[#667085] mt-1 block">
-                  Format: <code className="font-mono text-indigo-600">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
+                  Assigned by Series Master: <code className="font-mono text-indigo-600 font-semibold">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
                 </span>
               )}
             </div>

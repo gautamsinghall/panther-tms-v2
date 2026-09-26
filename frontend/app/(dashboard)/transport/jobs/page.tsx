@@ -61,6 +61,7 @@ export default function JobsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
+  const [seriesInfo, setSeriesInfo] = useState<any>(null);
   const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
 
   // Quick Create Modals state
@@ -73,16 +74,18 @@ export default function JobsPage() {
     setIsError(false);
     setErrorMessage(null);
     try {
-      const [jobsRes, consignersRes, consigneesRes, locationsRes] = await Promise.all([
+      const [jobsRes, consignersRes, consigneesRes, locationsRes, seriesRes] = await Promise.all([
         apiClient<JobRecord[]>("/api/v1/transport/jobs"),
         apiClient<SelectOption[]>("/api/v1/general/consigners"),
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
         apiClient<SelectOption[]>("/api/v1/general/locations"),
+        apiClient<any>("/api/v1/settings/series/check/JOB").catch(() => null),
       ]);
       setData(Array.isArray(jobsRes) ? jobsRes : []);
       setConsigners(Array.isArray(consignersRes) ? consignersRes : []);
       setConsignees(Array.isArray(consigneesRes) ? consigneesRes : []);
       setLocations(Array.isArray(locationsRes) ? locationsRes : []);
+      setSeriesInfo(seriesRes);
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load jobs.");
@@ -226,10 +229,20 @@ export default function JobsPage() {
   const formSections: FormSectionDef[] = [
     {
       id: "commercial_parties",
-      title: "Commercial Contracting Parties",
-      description: "Select originating customer and destination consignee",
+      title: "Trip Booking Specification",
+      description: "Auto-allocated job number and commercial contracting parties",
       columns: 2,
       fields: [
+        {
+          name: "job_number",
+          label: "Job / Trip Number (Auto Series)",
+          type: "text",
+          disabled: true,
+          disabledReason: "Voucher numbers are auto-assigned by Series Master and cannot be edited",
+          placeholder: seriesInfo?.next_number_formatted || "JOB-2026-0001",
+          defaultValue: seriesInfo?.next_number_formatted || "JOB-2026-0001",
+          colSpan: 2,
+        },
         {
           name: "consigner_id",
           label: "Customer / Consigner",
@@ -321,6 +334,7 @@ export default function JobsPage() {
     try {
       const payload = {
         ...values,
+        job_number: values.job_number || seriesInfo?.next_number_formatted || undefined,
         consigner_id: parseInt(values.consigner_id, 10),
         consignee_id: parseInt(values.consignee_id, 10),
         origin_location_id: parseInt(values.origin_location_id, 10),
@@ -351,7 +365,10 @@ export default function JobsPage() {
           label: "Create Trip Order",
           icon: <Plus className="w-4 h-4" />,
           onClick: () => {
-            setFormInitialValues({ job_date: new Date().toISOString().split("T")[0] });
+            setFormInitialValues({
+              job_number: seriesInfo?.next_number_formatted || "JOB-2026-0001",
+              job_date: new Date().toISOString().split("T")[0],
+            });
             setIsDrawerOpen(true);
           },
         }}

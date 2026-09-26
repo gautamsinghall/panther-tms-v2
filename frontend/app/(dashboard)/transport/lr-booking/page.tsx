@@ -273,10 +273,12 @@ export default function LRBookingPage() {
       fields: [
         {
           name: "lr_number",
-          label: "LR / GR Number (Manual Series)",
+          label: "LR / GR Number (Auto Series)",
           type: "text",
-          required: true,
+          disabled: true,
+          disabledReason: "Voucher numbers are auto-assigned by Series Master and cannot be edited",
           placeholder: seriesInfo?.next_number_formatted || "LR-2026-0001",
+          defaultValue: seriesInfo?.next_number_formatted || "LR-2026-0001",
         },
         {
           name: "lr_date",
@@ -415,7 +417,7 @@ export default function LRBookingPage() {
     try {
       const payload = {
         ...values,
-        lr_number: values.lr_number ? String(values.lr_number).trim() : undefined,
+        lr_number: values.lr_number ? String(values.lr_number).trim() : (seriesInfo?.next_number_formatted || undefined),
         job_id: values.job_id ? parseInt(values.job_id, 10) : null,
         consigner_id: parseInt(values.consigner_id, 10),
         consignee_id: parseInt(values.consignee_id, 10),
@@ -451,7 +453,7 @@ export default function LRBookingPage() {
           onClick: () => {
             setFormInitialValues({
               lr_date: new Date().toISOString().split("T")[0],
-              lr_number: seriesInfo?.next_number_formatted || "",
+              lr_number: seriesInfo?.next_number_formatted || "LR-2026-0001",
             });
             setIsDrawerOpen(true);
           },
