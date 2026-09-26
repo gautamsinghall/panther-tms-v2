@@ -38,7 +38,7 @@ export function Form({
   cancelLabel = "Cancel",
   isLoading = false,
   isSubmitting = false,
-  stickyFooter = true,
+  stickyFooter = false,
   className,
   setFieldValueRef,
 }: FormProps) {
@@ -273,13 +273,8 @@ export function Form({
         );
       })}
 
-      {/* Sticky Action Footer */}
-      <div
-        className={cn(
-          "bg-white border border-slate-200/90 rounded-2xl p-4 flex items-center justify-end gap-3",
-          stickyFooter ? "sticky bottom-4 z-20 shadow-lg shadow-slate-900/5 backdrop-blur-md bg-white/95" : ""
-        )}
-      >
+      {/* Form Action Footer - Permanently positioned at the very end/last of all sections */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">
         {onCancel && (
           <Button
             type="button"
@@ -287,7 +282,7 @@ export function Form({
             size="md"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-xl h-10 px-4 text-xs font-semibold"
+            className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
           >
             {cancelLabel}
           </Button>
@@ -297,7 +292,7 @@ export function Form({
           variant="primary"
           size="md"
           isLoading={loading}
-          className="rounded-xl h-10 px-5 text-xs font-semibold shadow-xs"
+          className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
         >
           {submitLabel}
         </Button>
