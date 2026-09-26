@@ -26,9 +26,9 @@ import { login, getStoredAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [subdomain, setSubdomain] = useState("bharat");
-  const [email, setEmail] = useState("parth@example.com");
-  const [password, setPassword] = useState("•••••••••");
+  const [subdomain, setSubdomain] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -94,8 +94,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const effectivePassword = password === "•••••••••" ? "PantherTMS@2026!" : password;
-      await login(email, effectivePassword, subdomain);
+      await login(email, password, subdomain);
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to log in. Please check your credentials.");
@@ -105,7 +104,7 @@ export default function LoginPage() {
   };
 
   const fillDemo = () => {
-    setSubdomain("bharat");
+    setSubdomain("demo");
     setEmail("admin@demo.com");
     setPassword("PantherTMS@2026!");
     setError(null);
@@ -448,7 +447,7 @@ export default function LoginPage() {
                       type="text"
                       value={subdomain}
                       onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                      placeholder="bharat"
+                      placeholder="your-company"
                       autoComplete="organization"
                       required
                       className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
@@ -460,7 +459,7 @@ export default function LoginPage() {
                   <p className="text-xs text-slate-500 flex items-center gap-1 font-sans">
                     <span>Resolved host:</span>
                     <span className="font-semibold text-indigo-600 font-mono">
-                      {subdomain || "bharat"}{rootDomainSuffix}
+                      {subdomain || "your-company"}{rootDomainSuffix}
                     </span>
                   </p>
                 </div>
@@ -478,7 +477,7 @@ export default function LoginPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="parth@example.com"
+                      placeholder="name@company.com"
                       autoComplete="email"
                       required
                       className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
@@ -508,10 +507,10 @@ export default function LoginPage() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="•••••••••"
+                      placeholder="Enter your password"
                       autoComplete="current-password"
                       required
-                      className="w-full pl-10 pr-10 py-2.5 text-sm font-mono placeholder:font-sans font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
+                      className="w-full pl-10 pr-10 py-2.5 text-sm font-sans font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
                     />
                     <button
                       type="button"

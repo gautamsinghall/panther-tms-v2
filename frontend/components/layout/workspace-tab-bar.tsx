@@ -156,6 +156,10 @@ export function WorkspaceTabBar() {
   const routeInfo = formatRouteTitle(pathname);
   const ListIcon = routeInfo.icon;
 
+  if (pathname === "/" && !isFormOpen) {
+    return null;
+  }
+
   return (
     <div className="h-11 border-b border-slate-200/90 bg-[#F1F5F9]/80 px-4 pt-1.5 flex items-center justify-between select-none shrink-0 min-w-0">
       {/* Tab Items List */}

@@ -78,18 +78,20 @@ export function Header() {
       </div>
 
       {/* Center / Right: Global Search, Notifications & User Profile Menu */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         {/* Interactive Global Search Trigger for Desktop */}
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200/80 bg-slate-50/80 hover:bg-white hover:border-indigo-300 hover:shadow-xs text-xs text-slate-400 w-64 transition-all text-left cursor-pointer group select-none ring-0 focus:outline-hidden"
+          className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-72 lg:w-[420px] transition-all text-left cursor-pointer group select-none ring-0 focus:outline-hidden"
           title="Search records (Ctrl + K)"
         >
-          <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-          <span className="flex-1 text-xs text-slate-400 group-hover:text-slate-600 transition-colors">Search commands, LRs...</span>
-          <kbd className="px-1.5 py-0.5 text-xs font-mono bg-white border border-slate-200 rounded text-slate-500 group-hover:border-indigo-200 group-hover:text-indigo-600 shadow-2xs transition-colors">
-            ⌘K
+          <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" />
+          <span className="flex-1 text-xs text-slate-400 group-hover:text-slate-600 transition-colors truncate">
+            Search commands, LRs, invoices, vehicles, customers...
+          </span>
+          <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-slate-200/90 rounded text-slate-400 group-hover:text-slate-600 shadow-2xs transition-colors shrink-0">
+            Ctrl K
           </kbd>
         </button>
 

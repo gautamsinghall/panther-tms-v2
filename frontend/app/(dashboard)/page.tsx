@@ -12,6 +12,7 @@ import {
   Clock,
   ArrowRight,
   ChevronRight,
+  ChevronDown,
   ShieldCheck,
   Plus,
   TrendingUp,
@@ -27,7 +28,24 @@ import {
   ExternalLink,
   Activity,
   ArrowUpRight,
+  Package,
+  RotateCw,
+  Home,
+  BookOpen,
+  Filter,
+  Zap,
+  Map,
+  Radio,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+} from "recharts";
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
@@ -37,13 +55,113 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { SegmentTabs } from "@/components/ui/tabs";
 import { AreaTrendChart, BarMetricChart, DonutDistributionChart } from "@/components/charts";
 import { apiClient } from "@/lib/api-client";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import TextAnimation from "@/components/ui/staggerText";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 
 type ActiveTab = "overview" | "finance" | "operations" | "own_fleet";
 
+interface MetricKpiProps {
+  icon: React.ReactNode;
+  iconBg: string;
+  title: string;
+  value: string;
+  trend: string;
+  subtext: string;
+  barsColor: string;
+  barHeights: number[];
+}
+
+function MetricKpiCard({
+  icon,
+  iconBg,
+  title,
+  value,
+  trend,
+  subtext,
+  barsColor,
+  barHeights,
+}: MetricKpiProps) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] hover:shadow-[0_4px_20px_rgba(15,23,42,0.06)] transition-all flex flex-col justify-between">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3.5">
+          <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs", iconBg)}>
+            {icon}
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-slate-500 tracking-tight">
+              {title}
+            </div>
+            <div className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight font-sans">
+              {value}
+            </div>
+          </div>
+        </div>
+
+        {/* Mini Sparkline Bar Chart */}
+        <div className="flex items-end gap-1 h-8 self-center shrink-0 pl-2">
+          {barHeights.map((h, i) => (
+            <div
+              key={i}
+              className={cn("w-1.5 rounded-full transition-all", barsColor)}
+              style={{ height: `${h}px` }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/70 text-emerald-700 text-[11px] font-bold shrink-0">
+          <span>↗</span>
+          <span>{trend}</span>
+        </span>
+        <span className="text-[11px] text-slate-500 truncate font-medium">
+          {subtext}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function FunnelRow({
+  icon,
+  label,
+  barBg,
+  fillBg,
+  count,
+  pct,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  barBg: string;
+  fillBg: string;
+  count: number;
+  pct: number;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-xs group cursor-pointer hover:bg-slate-50/70 p-2 rounded-xl transition-colors">
+      <div className="flex items-center gap-2.5 w-28 shrink-0">
+        <span className="shrink-0">{icon}</span>
+        <span className="font-semibold text-slate-800">{label}</span>
+      </div>
+
+      <div className={cn("flex-1 h-2 rounded-full overflow-hidden mx-2", barBg)}>
+        <div
+          className={cn("h-full rounded-full transition-all duration-300", fillBg)}
+          style={{ width: `${Math.max(pct, count > 0 ? 8 : 0)}%` }}
+        />
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0 font-mono text-slate-600 font-medium">
+        <span>{count} ({pct}%)</span>
+        <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
+  const [chartPeriod, setChartPeriod] = useState<"Daily" | "Weekly" | "Monthly">("Monthly");
   const [isLoading, setIsLoading] = useState(true);
 
   // Real data state
@@ -51,6 +169,20 @@ export default function DashboardPage() {
   const [financeData, setFinanceData] = useState<any>(null);
   const [operationsData, setOperationsData] = useState<any>(null);
   const [ownFleetData, setOwnFleetData] = useState<any>(null);
+
+  const defaultMonthlyTrends = [
+    { period: "Apr 2026", revenue: 0 },
+    { period: "May 2026", revenue: 0 },
+    { period: "Jun 2026", revenue: 0 },
+    { period: "Jul 2026", revenue: 0 },
+    { period: "Aug 2026", revenue: 0 },
+    { period: "Sep 2026", revenue: 0 },
+  ];
+
+  const chartData =
+    businessData?.monthly_trends && businessData.monthly_trends.length > 0
+      ? businessData.monthly_trends
+      : defaultMonthlyTrends;
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -80,10 +212,7 @@ export default function DashboardPage() {
         if (ops) setOperationsData(ops);
         if (own) setOwnFleetData(own);
       } catch (err: any) {
-        if (err?.status === 401) {
-          // 401 is handled by apiClient clearing auth and redirecting to /login
-          return;
-        }
+        if (err?.status === 401) return;
         console.warn("Could not fetch home dashboard data:", err);
       } finally {
         setIsLoading(false);
@@ -95,55 +224,131 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top PageHeader */}
-      <PageHeader
-        title={<TextAnimation>Command Cockpit</TextAnimation>}
-        description="Unified enterprise logistics telemetry, financial performance, freight corridor velocity, and asset intelligence."
-        badge={
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200/70 text-emerald-800 text-xs font-semibold select-none shadow-2xs">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span>Live Dispatch Telemetry</span>
+      {/* 1. Breadcrumb navigation */}
+      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+        <Home className="w-3.5 h-3.5 text-slate-400" />
+        <Link href="/" className="hover:text-slate-800 transition-colors">Home</Link>
+        <ChevronRight className="w-3 h-3 text-slate-400" />
+        <span className="text-slate-700 font-semibold">Overview</span>
+      </div>
+
+      {/* 2. Top Header Title & Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Title and Telemetry Badge */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-heading">
+              Command Cockpit
+            </h1>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-xs font-semibold shadow-2xs select-none">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span>Live Dispatch Telemetry</span>
+              <ChevronDown className="w-3 h-3 text-emerald-600/70" />
+            </div>
           </div>
-        }
-        primaryAction={{
-          label: "New Trip Order",
-          icon: <Plus className="w-3.5 h-3.5" />,
-          href: "/transport/jobs",
-        }}
-        secondaryActions={[
-          {
-            label: "Book GR/LR",
-            icon: <Truck className="w-3.5 h-3.5" />,
-            href: "/transport/lr-booking",
-          },
-          {
-            label: "Create Invoice",
-            icon: <Receipt className="w-3.5 h-3.5" />,
-            href: "/accounts/transport-invoice",
-          },
-        ]}
-      />
-
-      {/* Linear-Style Sleek Navigation Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
-        <SegmentTabs<ActiveTab>
-          tabs={[
-            { id: "overview", label: "Business Overview", icon: <BarChart3 className="w-3.5 h-3.5" /> },
-            { id: "finance", label: "Financial Analysis", icon: <Receipt className="w-3.5 h-3.5" /> },
-            { id: "operations", label: "Fleet & Operations", icon: <Truck className="w-3.5 h-3.5" /> },
-            { id: "own_fleet", label: "Own Fleet", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
-          ]}
-          activeTab={activeTab}
-          onChange={setActiveTab}
-        />
-
-        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-mono">
-          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-          <span>FY 2026-27</span>
+          <p className="text-xs sm:text-[13px] text-slate-500 max-w-3xl leading-normal">
+            Unified enterprise logistics telemetry, financial performance, freight corridor velocity, and asset intelligence.
+          </p>
         </div>
+
+        {/* Right Action Controls */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          {/* FY Filter */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer select-none">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <span>FY 2026-27</span>
+            <ChevronDown className="w-3 h-3 text-slate-400" />
+          </div>
+
+          {/* Book GR/LR */}
+          <Link
+            href="/transport/lr-booking"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5 text-slate-500" />
+            <span>Book GR/LR</span>
+          </Link>
+
+          {/* Create Invoice */}
+          <Link
+            href="/accounts/transport-invoice"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
+          >
+            <Receipt className="w-3.5 h-3.5 text-slate-500" />
+            <span>Create Invoice</span>
+          </Link>
+
+          {/* + New Trip Order */}
+          <Link
+            href="/transport/jobs"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] active:bg-[#3730A3] text-white text-xs font-semibold shadow-sm transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Trip Order</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* 3. Horizontal Navigation Tabs */}
+      <div className="border-b border-slate-200 flex items-center gap-8 text-xs font-semibold select-none pt-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("overview")}
+          className={cn(
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            activeTab === "overview"
+              ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
+              : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
+          )}
+        >
+          <BarChart3 className="w-4 h-4 text-indigo-600" />
+          <span>Business Overview</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("finance")}
+          className={cn(
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            activeTab === "finance"
+              ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
+              : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
+          )}
+        >
+          <span className="font-bold text-xs">₹</span>
+          <span>Financial Analysis</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("operations")}
+          className={cn(
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            activeTab === "operations"
+              ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
+              : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
+          )}
+        >
+          <Truck className="w-4 h-4 text-slate-500" />
+          <span>Fleet & Operations</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("own_fleet")}
+          className={cn(
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            activeTab === "own_fleet"
+              ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
+              : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
+          )}
+        >
+          <Package className="w-4 h-4 text-slate-500" />
+          <span>Own Fleet</span>
+        </button>
       </div>
 
       {/* ========================================================================= */}
@@ -151,151 +356,328 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {activeTab === "overview" && (
         <div className="space-y-6">
-          {/* Row 1: Stripe-Style High-Impact KPI Cards */}
+          {/* Row 1: 4 High-Impact KPI Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard
+            <MetricKpiCard
+              icon={<Package className="w-5 h-5 text-blue-600" />}
+              iconBg="bg-blue-50 border border-blue-100/90 text-blue-600"
               title="Total Consignments"
               value={businessData?.total_movements?.toLocaleString() || "0"}
+              trend="14.2%"
               subtext="Active & historical bookings"
-              icon={<Truck className="w-4 h-4" />}
-              trend={{ value: "+14.2%", isPositive: true }}
+              barsColor="bg-blue-300"
+              barHeights={[8, 14, 11, 20, 16, 24]}
             />
-            <KpiCard
+            <MetricKpiCard
+              icon={<Truck className="w-5 h-5 text-emerald-600" />}
+              iconBg="bg-emerald-50 border border-emerald-100/90 text-emerald-600"
               title="In Transit Corridors"
               value={businessData?.in_transit_count?.toLocaleString() || "0"}
+              trend="8.1%"
               subtext="En-route freight shipments"
-              icon={<Clock className="w-4 h-4" />}
-              trend={{ value: "+8.1%", isPositive: true }}
+              barsColor="bg-emerald-300"
+              barHeights={[10, 15, 12, 22, 18, 26]}
             />
-            <KpiCard
+            <MetricKpiCard
+              icon={<Clock className="w-5 h-5 text-amber-600" />}
+              iconBg="bg-amber-50 border border-amber-100/90 text-amber-600"
               title="Delivered / POD"
               value={businessData?.delivered_count?.toLocaleString() || "0"}
-              subtext="Consignments acknowledged"
-              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-              trend={{ value: "+98.4% on-time", isPositive: true }}
+              trend="98.4%"
+              subtext="On-time consignments"
+              barsColor="bg-amber-300"
+              barHeights={[12, 16, 14, 20, 22, 28]}
             />
-            <KpiCard
+            <MetricKpiCard
+              icon={<Receipt className="w-5 h-5 text-purple-600" />}
+              iconBg="bg-purple-50 border border-purple-100/90 text-purple-600"
               title="Billed Freight Sales"
               value={formatCurrency(businessData?.net_billed_revenue || 0)}
+              trend="18.6%"
               subtext="Total invoiced transport freight"
-              icon={<Receipt className="w-4 h-4" />}
-              trend={{ value: "+18.6%", isPositive: true }}
+              barsColor="bg-purple-300"
+              barHeights={[10, 14, 12, 18, 22, 26]}
             />
           </div>
 
-          {/* Row 2: Revenue Trend Chart & Pipeline Stages */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <div>
-                  <CardTitle>Revenue & Booking Trajectory</CardTitle>
-                  <CardDescription>
-                    Billed freight progression across recent operating cycles
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                  <span>Freight Revenue</span>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <AreaTrendChart
-                  data={businessData?.monthly_trends || []}
-                  series={[
-                    { key: "revenue", label: "Freight Revenue (₹)", color: "#4F46E5" },
-                  ]}
-                  height={260}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle>Dispatch Funnel Pipeline</CardTitle>
-                <CardDescription>Live state from order booking to POD clearance</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3.5">
-                {businessData?.pipeline_stages?.map((stage: any) => (
-                  <div key={stage.stage} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-800">{stage.stage}</span>
-                      <span className="font-mono text-slate-500">
-                        {stage.count} ({stage.percentage}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/50">
-                      <div
-                        className="bg-indigo-600 h-full rounded-full transition-all duration-300 shadow-xs"
-                        style={{ width: `${stage.percentage}%` }}
-                      />
-                    </div>
+          {/* Row 2: Revenue Trend Chart & Dispatch Funnel Pipeline */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Revenue & Booking Trajectory (~63% width) */}
+            <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <BarChart3 className="w-4 h-4" />
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">
+                      Revenue & Booking Trajectory
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Billed freight progression across recent operating cycles
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right controls: Daily/Weekly/Monthly + Freight Revenue Dropdown */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <div className="bg-slate-100/90 border border-slate-200/60 p-1 rounded-xl flex items-center gap-1">
+                    {(["Daily", "Weekly", "Monthly"] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setChartPeriod(p)}
+                        className={cn(
+                          "px-2.5 py-1 text-xs rounded-lg transition-all cursor-pointer",
+                          chartPeriod === p
+                            ? "bg-[#4F46E5] text-white font-semibold shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900 font-medium"
+                        )}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-indigo-700 bg-white text-xs font-semibold shadow-2xs cursor-pointer hover:bg-slate-50">
+                    <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Freight Revenue</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Chart Canvas with Callout Tooltip */}
+              <div className="relative pt-4 pb-1 w-full h-[250px]">
+                {/* Floating Tooltip Callout on Sep 2026 matching reference */}
+                <div className="absolute right-8 top-12 bg-white rounded-xl border border-slate-200 px-3.5 py-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.08)] pointer-events-none z-10 hidden sm:block">
+                  <div className="text-[10px] text-slate-400 font-medium">Sep 2026</div>
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mt-0.5 font-mono">
+                    <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                    <span>₹0.00</span>
+                  </div>
+                </div>
+
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartData}
+                    margin={{ top: 15, right: 25, left: -20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                    <XAxis
+                      dataKey="period"
+                      tick={{ fontSize: 11, fill: "#64748B" }}
+                      axisLine={{ stroke: "#E2E8F0" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      domain={[0, 4]}
+                      ticks={[0, 1, 2, 3, 4]}
+                      tick={{ fontSize: 11, fill: "#64748B", fontFamily: "monospace" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(val) => `₹${val}`}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                        fontSize: "12px",
+                      }}
+                      formatter={(v: any) => [`₹${Number(v).toFixed(2)}`, "Revenue"]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#6366F1"
+                      strokeWidth={2.5}
+                      dot={{ r: 3.5, fill: "#6366F1", stroke: "#FFFFFF", strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: "#6366F1", stroke: "#C7D2FE", strokeWidth: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Right: Dispatch Funnel Pipeline (~37% width) */}
+            <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <Filter className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">
+                      Dispatch Funnel Pipeline
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Live state from order booking to POD clearance
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  title="Refresh pipeline"
+                  onClick={() => window.location.reload()}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-2xs"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* 5 Funnel Stages */}
+              <div className="space-y-3 pt-2">
+                <FunnelRow
+                  icon={<FileText className="w-3.5 h-3.5 text-slate-400" />}
+                  label="Draft"
+                  barBg="bg-slate-100"
+                  fillBg="bg-slate-300"
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "Draft")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "Draft")?.percentage || 0}
+                />
+                <FunnelRow
+                  icon={<BookOpen className="w-3.5 h-3.5 text-blue-500" />}
+                  label="Booked"
+                  barBg="bg-blue-50"
+                  fillBg="bg-blue-400"
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "Booked")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "Booked")?.percentage || 0}
+                />
+                <FunnelRow
+                  icon={<Truck className="w-3.5 h-3.5 text-amber-500" />}
+                  label="In Transit"
+                  barBg="bg-amber-50"
+                  fillBg="bg-amber-400"
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "In Transit")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "In Transit")?.percentage || 0}
+                />
+                <FunnelRow
+                  icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                  label="Delivered"
+                  barBg="bg-emerald-50"
+                  fillBg="bg-emerald-400"
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "Delivered")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "Delivered")?.percentage || 0}
+                />
+                <FunnelRow
+                  icon={<ShieldCheck className="w-3.5 h-3.5 text-purple-500" />}
+                  label="POD Verified"
+                  barBg="bg-purple-50"
+                  fillBg="bg-purple-400"
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "POD Verified")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "POD Verified")?.percentage || 0}
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Row 3: Top Traffic Corridors & Recent Operations Table */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle>Top Freight Corridors</CardTitle>
-                <CardDescription>Highest volume origin-to-destination routes</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2.5">
-                {businessData?.top_corridors?.map((corr: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg bg-slate-50/70 border border-slate-200/80 hover:bg-slate-50 transition-colors shadow-2xs"
-                  >
-                    <div>
-                      <div className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
-                        <span>{corr.origin}</span>
-                        <ArrowRight className="w-3 h-3 text-slate-400" />
-                        <span>{corr.destination}</span>
+          {/* Row 3: Top Freight Corridors, Recent Movements & Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Top Freight Corridors (~36% width / 4.2 cols) */}
+            <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">
+                      Top Freight Corridors
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Highest volume corridors by consignments
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/transport-reports/lr-register"
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
+                >
+                  <span>View All</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+
+              {businessData?.top_corridors && businessData.top_corridors.length > 0 ? (
+                <div className="space-y-2.5 pt-2">
+                  {businessData.top_corridors.map((corr: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-200/80 hover:bg-slate-50 transition-colors shadow-2xs"
+                    >
+                      <div>
+                        <div className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+                          <span>{corr.origin}</span>
+                          <ArrowRight className="w-3 h-3 text-slate-400" />
+                          <span>{corr.destination}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5 font-mono">
+                          {corr.trip_count} Consignments
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5 font-mono">
-                        {corr.trip_count} Consignments
-                      </div>
-                    </div>
-                    <div className="text-right">
                       <div className="font-mono text-xs font-bold text-indigo-700">
                         {formatCurrency(corr.total_freight)}
                       </div>
                     </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between pb-3">
-                <div>
-                  <CardTitle>Recent Consignment Movements</CardTitle>
-                  <CardDescription>Latest generated LRs and dispatch status</CardDescription>
+                  ))}
                 </div>
+              ) : (
+                <div className="py-10 flex flex-col items-center justify-center text-center">
+                  <div className="w-11 h-11 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-400 mb-2.5 shadow-2xs">
+                    <Map className="w-5 h-5 text-slate-400" />
+                  </div>
+                  <div className="text-xs font-bold text-slate-700">No corridor data available</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">Data will appear here as consignments are created.</div>
+                </div>
+              )}
+            </div>
+
+            {/* Center: Recent Consignment Movements (~42% width / 5 cols) */}
+            <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">
+                      Recent Consignment Movements
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Latest generated LRs and dispatch status
+                    </p>
+                  </div>
+                </div>
+
                 <Link
                   href="/transport/lr-booking"
                   className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
                 >
-                  <span>View All LRs</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <span>View All</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
+              </div>
+
+              {businessData?.recent_operations && businessData.recent_operations.length > 0 ? (
+                <div className="overflow-x-auto pt-2">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-xs">
                       <tr>
                         <th className="py-2.5 px-3">LR Number</th>
                         <th className="py-2.5 px-3">Vehicle Plate</th>
                         <th className="py-2.5 px-3">Corridor</th>
-                        <th className="py-2.5 px-3 text-right">Freight Amount</th>
+                        <th className="py-2.5 px-3 text-right">Freight</th>
                         <th className="py-2.5 px-3 text-center">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {businessData?.recent_operations?.map((lr: any) => (
+                      {businessData.recent_operations.map((lr: any) => (
                         <tr key={lr.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
                             {lr.lr_number}
@@ -330,8 +712,80 @@ export default function DashboardPage() {
                     </tbody>
                   </table>
                 </div>
-              </CardContent>
-            </Card>
+              ) : (
+                <div className="py-10 flex flex-col items-center justify-center text-center">
+                  <div className="w-11 h-11 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-400 mb-2.5 shadow-2xs">
+                    <FileText className="w-5 h-5 text-slate-400" />
+                  </div>
+                  <div className="text-xs font-bold text-slate-700">No recent consignments</div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">Latest movements will appear here.</div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Quick Actions (~25% width / 3 cols) */}
+            <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+              <div className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">Quick Actions</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Frequently used operations
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2x2 Action Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 pt-2">
+                <Link
+                  href="/transport/lr-booking"
+                  className="rounded-xl border border-indigo-100/90 bg-indigo-50/60 hover:bg-indigo-100/70 p-3 flex items-center justify-between text-indigo-700 group transition-all shadow-2xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 truncate">Book GR/LR</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-indigo-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                </Link>
+
+                <Link
+                  href="/accounts/transport-invoice"
+                  className="rounded-xl border border-emerald-100/90 bg-emerald-50/60 hover:bg-emerald-100/70 p-3 flex items-center justify-between text-emerald-700 group transition-all shadow-2xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Receipt className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 truncate">Create Invoice</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-emerald-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                </Link>
+
+                <Link
+                  href="/transport/jobs"
+                  className="rounded-xl border border-amber-100/90 bg-amber-50/60 hover:bg-amber-100/70 p-3 flex items-center justify-between text-amber-700 group transition-all shadow-2xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Truck className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 truncate">New Trip Order</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-amber-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                </Link>
+
+                <Link
+                  href="/transport-reports/lr-register"
+                  className="rounded-xl border border-blue-100/90 bg-blue-50/60 hover:bg-blue-100/70 p-3 flex items-center justify-between text-blue-700 group transition-all shadow-2xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <BarChart3 className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="text-xs font-bold text-slate-800 truncate">Generate Report</span>
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-blue-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       )}
