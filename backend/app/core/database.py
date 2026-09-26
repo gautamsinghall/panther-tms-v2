@@ -11,10 +11,10 @@ from app.core.config import settings
 control_engine: AsyncEngine = create_async_engine(
     settings.control_db_async_url,
     echo=False,
-    pool_size=3,
-    max_overflow=2,
-    pool_timeout=15,
-    pool_recycle=900,
+    pool_size=10,
+    max_overflow=15,
+    pool_timeout=30,
+    pool_recycle=1800,
     pool_pre_ping=True,
 )
 
@@ -44,10 +44,10 @@ def get_tenant_engine(db_name: str) -> AsyncEngine:
         _tenant_engines[db_name] = create_async_engine(
             url,
             echo=False,
-            pool_size=3,
-            max_overflow=2,
-            pool_timeout=15,
-            pool_recycle=900,
+            pool_size=8,
+            max_overflow=12,
+            pool_timeout=30,
+            pool_recycle=1800,
             pool_pre_ping=True,
         )
     return _tenant_engines[db_name]
