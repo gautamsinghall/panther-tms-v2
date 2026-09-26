@@ -251,6 +251,11 @@ async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] =
     job_dict["job_number"] = job_number
     job_dict["status"] = JobStatus.OPEN.value
     job_dict["created_by_user_id"] = user_id
+    if job_dict.get("billing_client_id") and not job_dict.get("billing_party"):
+        from app.tenant_db.models import BillingClient
+        bc = await db.get(BillingClient, job_dict["billing_client_id"])
+        if bc:
+            job_dict["billing_party"] = bc.name
     
     job = Job(**job_dict)
     db.add(job)

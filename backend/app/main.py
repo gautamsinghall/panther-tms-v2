@@ -75,6 +75,9 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consignees ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
+                        await t_conn.execute(text("ALTER TABLE transport_jobs ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
+                        await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_weight_mt DROP NOT NULL;"))
+                        await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_packages DROP NOT NULL;"))
                         for cs_col in ["city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "logo_url VARCHAR(500)"]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))

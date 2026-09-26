@@ -60,6 +60,202 @@ interface QuickModalBaseProps {
 }
 
 // ---------------------------------------------------------------------------
+// 0. Quick Create Billing Client (Commercial Bill-To Party)
+// ---------------------------------------------------------------------------
+export interface QuickCreateBillingClientProps extends QuickModalBaseProps {
+  onSuccess: (newClient: { id: number; name: string }) => void;
+}
+
+export function QuickCreateBillingClientModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: QuickCreateBillingClientProps) {
+  const [name, setName] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
+  const [gstin, setGstin] = useState("");
+  const [creditPeriodDays, setCreditPeriodDays] = useState("30");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Billing Client Name is required.");
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient<{ id: number; name: string }>("/api/v1/general/billing-clients", {
+        method: "POST",
+        body: JSON.stringify({
+          name: name.trim(),
+          contact_person: contactPerson.trim() || undefined,
+          phone: phone.trim() || undefined,
+          city: city.trim() || undefined,
+          state: state.trim() || undefined,
+          country: country || DEFAULT_COUNTRY,
+          gstin: gstin.trim() ? gstin.trim().toUpperCase() : undefined,
+          credit_period_days: creditPeriodDays ? parseInt(creditPeriodDays, 10) : 30,
+          is_active: true,
+        }),
+      });
+      setName("");
+      setContactPerson("");
+      setPhone("");
+      setCity("");
+      setState("");
+      setCountry(DEFAULT_COUNTRY);
+      setGstin("");
+      setCreditPeriodDays("30");
+      onSuccess(res);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Failed to create billing client.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Quick Add Billing Client</h3>
+              <p className="text-xs text-slate-500">Fast register client for transport booking</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          {error && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-2 text-xs text-rose-700">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Billing Client / Trade Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              autoFocus
+              placeholder="e.g. Tata Steel Ltd"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Person</label>
+              <input
+                type="text"
+                placeholder="e.g. Logistics Head"
+                value={contactPerson}
+                onChange={(e) => setContactPerson(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+              <input
+                type="tel"
+                placeholder="+91 9876543210"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">GSTIN (15 Digits)</label>
+              <input
+                type="text"
+                maxLength={15}
+                placeholder="27AAACT1234F1Z5"
+                value={gstin}
+                onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono uppercase"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Credit Days</label>
+              <input
+                type="number"
+                placeholder="30"
+                value={creditPeriodDays}
+                onChange={(e) => setCreditPeriodDays(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
+              <input
+                type="text"
+                placeholder="e.g. Mumbai"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
+              <input
+                type="text"
+                placeholder="e.g. Maharashtra"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <CountrySelect value={country} onChange={setCountry} />
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-100">
+          <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" size="sm" isLoading={isLoading}>
+            Save Billing Client
+          </Button>
+        </div>
+      </form>
+    </QuickModalWrapper>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 1. Quick Create Consigner (Customer / Shipper)
 // ---------------------------------------------------------------------------
 interface QuickCreateConsignerProps extends QuickModalBaseProps {

@@ -15,6 +15,7 @@ import { apiClient } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import {
+  QuickCreateBillingClientModal,
   QuickCreateConsignerModal,
   QuickCreateConsigneeModal,
   QuickCreateLocationModal,
@@ -26,13 +27,17 @@ interface JobRecord {
   job_date: string;
   consigner_id: number;
   consignee_id: number;
+  billing_client_id?: number;
+  billing_party?: string;
+  billing_client_name?: string;
   consigner_name?: string;
   consignee_name?: string;
   origin_city?: string;
   destination_city?: string;
+  expected_dispatch_date?: string;
   cargo_description?: string;
-  estimated_weight_mt: string | number;
-  estimated_packages: number;
+  estimated_weight_mt?: string | number;
+  estimated_packages?: number;
   status: string;
   created_at: string;
 }
@@ -40,12 +45,15 @@ interface JobRecord {
 interface SelectOption {
   id: number;
   name?: string;
+  code?: string;
   city_name?: string;
+  state?: string;
 }
 
 export default function JobsPage() {
   const router = useRouter();
   const [data, setData] = useState<JobRecord[]>([]);
+  const [billingClients, setBillingClients] = useState<SelectOption[]>([]);
   const [consigners, setConsigners] = useState<SelectOption[]>([]);
   const [consignees, setConsignees] = useState<SelectOption[]>([]);
   const [locations, setLocations] = useState<SelectOption[]>([]);
@@ -65,6 +73,7 @@ export default function JobsPage() {
   const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
 
   // Quick Create Modals state
+  const [quickBillingClientOpen, setQuickBillingClientOpen] = useState(false);
   const [quickConsignerOpen, setQuickConsignerOpen] = useState(false);
   const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
   const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
@@ -74,14 +83,16 @@ export default function JobsPage() {
     setIsError(false);
     setErrorMessage(null);
     try {
-      const [jobsRes, consignersRes, consigneesRes, locationsRes, seriesRes] = await Promise.all([
+      const [jobsRes, billingClientsRes, consignersRes, consigneesRes, locationsRes, seriesRes] = await Promise.all([
         apiClient<JobRecord[]>("/api/v1/transport/jobs"),
+        apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consigners"),
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
         apiClient<SelectOption[]>("/api/v1/general/locations"),
         apiClient<any>("/api/v1/settings/series/check/JOB").catch(() => null),
       ]);
       setData(Array.isArray(jobsRes) ? jobsRes : []);
+      setBillingClients(Array.isArray(billingClientsRes) ? billingClientsRes : []);
       setConsigners(Array.isArray(consignersRes) ? consignersRes : []);
       setConsignees(Array.isArray(consigneesRes) ? consigneesRes : []);
       setLocations(Array.isArray(locationsRes) ? locationsRes : []);
@@ -109,14 +120,27 @@ export default function JobsPage() {
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const match =
+          item.job_number?.toLowerCase().includes(term) ||
+          item.billing_party?.toLowerCase().includes(term) ||
+          item.billing_client_name?.toLowerCase().includes(term) ||
+          item.consigner_name?.toLowerCase().includes(term) ||
+          item.consignee_name?.toLowerCase().includes(term) ||
+          item.origin_city?.toLowerCase().includes(term) ||
+          item.destination_city?.toLowerCase().includes(term) ||
+          item.cargo_description?.toLowerCase().includes(term);
+        if (!match) return false;
+      }
       return true;
     });
-  }, [data, statusFilter]);
+  }, [data, statusFilter, searchTerm]);
 
   const columns: ColumnDef<JobRecord>[] = [
     {
       key: "job_number",
-      header: "Trip / Job No",
+      header: "Job Number",
       sortable: true,
       cell: (row) => (
         <div>
@@ -130,22 +154,34 @@ export default function JobsPage() {
       ),
     },
     {
-      key: "parties",
-      header: "Customer → Receiver",
+      key: "billing_party",
+      header: "Billing Client",
+      sortable: true,
       cell: (row) => (
         <div>
           <span className="font-semibold text-slate-900 block text-xs">
-            {row.consigner_name || `Customer #${row.consigner_id}`}
+            {row.billing_client_name || row.billing_party || "-"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "parties",
+      header: "Consigner → Consignee",
+      cell: (row) => (
+        <div>
+          <span className="font-semibold text-slate-900 block text-xs">
+            {row.consigner_name || `Consigner #${row.consigner_id}`}
           </span>
           <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-            <span className="text-slate-400">To:</span> {row.consignee_name || `Receiver #${row.consignee_id}`}
+            <span className="text-slate-400">To:</span> {row.consignee_name || `Consignee #${row.consignee_id}`}
           </span>
         </div>
       ),
     },
     {
       key: "route",
-      header: "Route Movement",
+      header: "Origin → Destination",
       cell: (row) => (
         <div className="flex items-center gap-1.5 text-xs text-slate-800 font-medium">
           <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-800 border border-slate-200/80 shadow-2xs">
@@ -160,15 +196,15 @@ export default function JobsPage() {
     },
     {
       key: "cargo",
-      header: "Weight / Packages",
+      header: "Estimated Weight / Packages",
       isNumeric: true,
       cell: (row) => (
         <div>
           <span className="font-mono font-semibold text-slate-900 block text-xs tabular-nums">
-            {parseFloat(String(row.estimated_weight_mt || 0)).toFixed(2)} MT
+            {row.estimated_weight_mt ? `${parseFloat(String(row.estimated_weight_mt)).toFixed(2)} MT` : "-"}
           </span>
           <span className="text-[11px] text-slate-500 font-mono">
-            {row.estimated_packages || 0} pkgs
+            {row.estimated_packages ? `${row.estimated_packages} pkgs` : "-"}
           </span>
         </div>
       ),
@@ -191,6 +227,12 @@ export default function JobsPage() {
     },
   ];
 
+  const handleBillingClientCreated = (newClient: { id: number; name: string }) => {
+    setBillingClients((prev) => [{ id: newClient.id, name: newClient.name }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, billing_client_id: String(newClient.id) }));
+    formSetFieldValueRef.current?.("billing_client_id", String(newClient.id));
+  };
+
   const handleConsignerCreated = (newConsigner: { id: number; name: string }) => {
     setConsigners((prev) => [{ id: newConsigner.id, name: newConsigner.name }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, consigner_id: String(newConsigner.id) }));
@@ -211,119 +253,132 @@ export default function JobsPage() {
     setQuickLocationTarget(null);
   };
 
+  const billingClientOptions = billingClients.map((b) => ({
+    label: b.name ? `${b.name}${b.code ? ` (${b.code})` : ""}` : `Billing Client #${b.id}`,
+    value: String(b.id),
+  }));
+
   const consignerOptions = consigners.map((c) => ({
-    label: c.name || `Customer ${c.id}`,
+    label: c.name || `Consigner #${c.id}`,
     value: String(c.id),
   }));
 
   const consigneeOptions = consignees.map((c) => ({
-    label: c.name || `Receiver ${c.id}`,
+    label: c.name || `Consignee #${c.id}`,
     value: String(c.id),
   }));
 
   const locationOptions = locations.map((l) => ({
-    label: l.city_name || `Location ${l.id}`,
+    label: l.city_name ? `${l.city_name}${l.state ? `, ${l.state}` : ""}` : `Location #${l.id}`,
     value: String(l.id),
   }));
 
   const formSections: FormSectionDef[] = [
     {
-      id: "commercial_parties",
-      title: "Trip Booking Specification",
-      description: "Auto-allocated job number and commercial contracting parties",
+      id: "job_order_specification",
+      title: "Job Order Specification",
+      description: "Auto-allocated Job Number, billing party, scheduled dates, and cargo details",
       columns: 2,
       fields: [
         {
           name: "job_number",
-          label: "Job / Trip Number (Auto Series)",
+          label: "Job Number",
           type: "text",
           disabled: true,
-          disabledReason: "Voucher numbers are auto-assigned by Series Master and cannot be edited",
+          disabledReason: "Job Number is auto-assigned by Series Master",
           placeholder: seriesInfo?.next_number_formatted || "JOB-2026-0001",
           defaultValue: seriesInfo?.next_number_formatted || "JOB-2026-0001",
-          colSpan: 2,
+          colSpan: 1,
         },
         {
-          name: "consigner_id",
-          label: "Customer / Consigner",
+          name: "billing_client_id",
+          label: "Billing Client",
           type: "select",
           required: true,
-          options: consignerOptions,
-          onAddNew: () => setQuickConsignerOpen(true),
-          addNewLabel: "+ Add New Customer / Consigner",
-          addNewTitle: "Quickly create and register customer / consigner",
+          options: billingClientOptions,
+          placeholder: "Select Billing Client",
+          onAddNew: () => setQuickBillingClientOpen(true),
+          addNewLabel: "+ Add New Billing Client",
+          addNewTitle: "Quickly register new corporate billing client",
+          colSpan: 1,
         },
-        {
-          name: "consignee_id",
-          label: "Receiving Consignee",
-          type: "select",
-          required: true,
-          options: consigneeOptions,
-          onAddNew: () => setQuickConsigneeOpen(true),
-          addNewLabel: "+ Add New Consignee / Receiver",
-          addNewTitle: "Quickly create and register consignee / receiver",
-        },
-      ],
-    },
-    {
-      id: "trip_schedule",
-      title: "Route & Schedule",
-      description: "Origin, destination, and dispatch date",
-      columns: 2,
-      fields: [
         {
           name: "origin_location_id",
-          label: "Origin Location / City",
+          label: "Origin Location",
           type: "select",
           required: true,
           options: locationOptions,
+          placeholder: "Select Origin Location",
           onAddNew: () => setQuickLocationTarget("origin"),
           addNewLabel: "+ Add New Origin Location",
           addNewTitle: "Quickly create origin city / hub",
         },
         {
           name: "destination_location_id",
-          label: "Destination Location / City",
+          label: "Destination Location",
           type: "select",
           required: true,
           options: locationOptions,
+          placeholder: "Select Destination Location",
           onAddNew: () => setQuickLocationTarget("destination"),
           addNewLabel: "+ Add New Destination Location",
           addNewTitle: "Quickly create destination city / hub",
         },
         {
           name: "job_date",
-          label: "Scheduled Dispatch Date",
+          label: "Date of Job Creation",
           type: "date",
           required: true,
+          defaultValue: new Date().toISOString().split("T")[0],
         },
-      ],
-    },
-    {
-      id: "cargo_specs",
-      title: "Cargo & Load Details",
-      description: "Weight, package count, and consignment commodity",
-      columns: 2,
-      fields: [
+        {
+          name: "expected_dispatch_date",
+          label: "Scheduled Dispatch Date",
+          type: "date",
+          required: false,
+          defaultValue: new Date().toISOString().split("T")[0],
+        },
+        {
+          name: "consigner_id",
+          label: "Consigner",
+          type: "select",
+          required: true,
+          options: consignerOptions,
+          placeholder: "Select Consigner",
+          onAddNew: () => setQuickConsignerOpen(true),
+          addNewLabel: "+ Add New Consigner",
+          addNewTitle: "Quickly create and register consigner",
+        },
+        {
+          name: "consignee_id",
+          label: "Consignee",
+          type: "select",
+          required: true,
+          options: consigneeOptions,
+          placeholder: "Select Consignee",
+          onAddNew: () => setQuickConsigneeOpen(true),
+          addNewLabel: "+ Add New Consignee",
+          addNewTitle: "Quickly create and register consignee",
+        },
         {
           name: "cargo_description",
           label: "Cargo Description",
-          placeholder: "e.g. Industrial Steel Coils",
+          placeholder: "e.g. Industrial Steel Coils, FMCG, Commercial Cargo",
           colSpan: 2,
         },
         {
           name: "estimated_weight_mt",
-          label: "Estimated Weight (MT)",
-          placeholder: "e.g. 24.50",
+          label: "Estimated Weight",
+          placeholder: "e.g. 24.50 MT (Optional)",
           type: "number",
-          required: true,
+          required: false,
         },
         {
           name: "estimated_packages",
           label: "Total Packages",
-          placeholder: "e.g. 150",
+          placeholder: "e.g. 150 pkgs (Optional)",
           type: "number",
-          required: true,
+          required: false,
         },
       ],
     },
@@ -332,15 +387,20 @@ export default function JobsPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
+      const selectedBc = billingClients.find((b) => String(b.id) === String(values.billing_client_id));
       const payload = {
-        ...values,
         job_number: values.job_number || seriesInfo?.next_number_formatted || undefined,
+        job_date: values.job_date || new Date().toISOString().split("T")[0],
+        expected_dispatch_date: values.expected_dispatch_date || undefined,
+        billing_client_id: values.billing_client_id ? parseInt(values.billing_client_id, 10) : undefined,
+        billing_party: selectedBc?.name || undefined,
         consigner_id: parseInt(values.consigner_id, 10),
         consignee_id: parseInt(values.consignee_id, 10),
-        origin_location_id: parseInt(values.origin_location_id, 10),
-        destination_location_id: parseInt(values.destination_location_id, 10),
-        estimated_weight_mt: parseFloat(values.estimated_weight_mt) || 0,
-        estimated_packages: parseInt(values.estimated_packages, 10) || 0,
+        origin_location_id: values.origin_location_id ? parseInt(values.origin_location_id, 10) : undefined,
+        destination_location_id: values.destination_location_id ? parseInt(values.destination_location_id, 10) : undefined,
+        cargo_description: values.cargo_description || undefined,
+        estimated_weight_mt: values.estimated_weight_mt !== undefined && values.estimated_weight_mt !== "" ? parseFloat(values.estimated_weight_mt) : 0,
+        estimated_packages: values.estimated_packages !== undefined && values.estimated_packages !== "" ? parseInt(values.estimated_packages, 10) : 0,
       };
 
       await apiClient("/api/v1/transport/jobs", {
@@ -356,6 +416,15 @@ export default function JobsPage() {
     }
   };
 
+  const openCreateJobDrawer = () => {
+    setFormInitialValues({
+      job_number: seriesInfo?.next_number_formatted || "JOB-2026-0001",
+      job_date: new Date().toISOString().split("T")[0],
+      expected_dispatch_date: new Date().toISOString().split("T")[0],
+    });
+    setIsDrawerOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -364,13 +433,7 @@ export default function JobsPage() {
         primaryAction={{
           label: "Create Trip Order",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => {
-            setFormInitialValues({
-              job_number: seriesInfo?.next_number_formatted || "JOB-2026-0001",
-              job_date: new Date().toISOString().split("T")[0],
-            });
-            setIsDrawerOpen(true);
-          },
+          onClick: openCreateJobDrawer,
         }}
       />
 
@@ -405,7 +468,7 @@ export default function JobsPage() {
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search trip no, customer, route city..."
+        searchPlaceholder="Search job number, billing client, consigner, consignee, route..."
         filters={[
           {
             id: "status",
@@ -438,14 +501,11 @@ export default function JobsPage() {
         onRetry={loadData}
         actions={actions}
         searchable={false}
-        emptyMessage="No trips found"
-        emptySubtext="Create a new trip or transport job order to initiate dispatch and vehicle scheduling."
+        emptyMessage="No jobs found"
+        emptySubtext="Create a new transport job order to initiate dispatch and vehicle scheduling."
         emptyAction={{
           label: "+ Create Trip Order",
-          onClick: () => {
-            setFormInitialValues({ job_date: new Date().toISOString().split("T")[0] });
-            setIsDrawerOpen(true);
-          },
+          onClick: openCreateJobDrawer,
         }}
       />
 
@@ -453,8 +513,7 @@ export default function JobsPage() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         title="Create Trip / Job Order"
-        description="Specify contracting customer, dispatch route corridor, and cargo requirements."
-        width="xl"
+        description="Specify contracting billing client, dispatch route corridor, and cargo requirements."
       >
         <Form
           sections={formSections}
@@ -468,6 +527,11 @@ export default function JobsPage() {
       </EntityDrawer>
 
       {/* Quick Creation Modals */}
+      <QuickCreateBillingClientModal
+        isOpen={quickBillingClientOpen}
+        onClose={() => setQuickBillingClientOpen(false)}
+        onSuccess={handleBillingClientCreated}
+      />
       <QuickCreateConsignerModal
         isOpen={quickConsignerOpen}
         onClose={() => setQuickConsignerOpen(false)}

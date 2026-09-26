@@ -457,11 +457,12 @@ class Job(TenantBase):
     consignee_id = Column(Integer, ForeignKey("general_consignees.id"), nullable=False)
     origin_location_id = Column(Integer, ForeignKey("general_locations.id"), nullable=True)
     destination_location_id = Column(Integer, ForeignKey("general_locations.id"), nullable=True)
+    billing_client_id = Column(Integer, ForeignKey("general_billing_clients.id"), nullable=True)
     billing_party = Column(String(255), nullable=True)
     expected_dispatch_date = Column(Date, nullable=True)
     cargo_description = Column(Text, nullable=True)
-    estimated_weight_mt = Column(Numeric(10, 3), default=0, nullable=False)
-    estimated_packages = Column(Integer, default=0, nullable=False)
+    estimated_weight_mt = Column(Numeric(10, 3), default=0, nullable=True)
+    estimated_packages = Column(Integer, default=0, nullable=True)
     status = Column(String(50), default=JobStatus.OPEN.value, nullable=False, index=True)
     special_instructions = Column(Text, nullable=True)
     created_by_user_id = Column(Integer, nullable=True)
@@ -477,6 +478,7 @@ class Job(TenantBase):
     consignee = relationship("Consignee", lazy="selectin")
     origin_location = relationship("Location", foreign_keys=[origin_location_id], lazy="selectin")
     destination_location = relationship("Location", foreign_keys=[destination_location_id], lazy="selectin")
+    billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
     lrs = relationship("LR", back_populates="job", lazy="selectin")
 
 

@@ -171,11 +171,12 @@ class JobBase(BaseModel):
     consignee_id: int
     origin_location_id: Optional[int] = None
     destination_location_id: Optional[int] = None
+    billing_client_id: Optional[int] = None
     billing_party: Optional[str] = None
     expected_dispatch_date: Optional[date] = None
     cargo_description: Optional[str] = None
-    estimated_weight_mt: Decimal = Decimal("0.000")
-    estimated_packages: int = 0
+    estimated_weight_mt: Optional[Decimal] = Decimal("0.000")
+    estimated_packages: Optional[int] = 0
     special_instructions: Optional[str] = None
 
 class JobCreate(JobBase):
@@ -186,6 +187,7 @@ class JobUpdate(BaseModel):
     consignee_id: Optional[int] = None
     origin_location_id: Optional[int] = None
     destination_location_id: Optional[int] = None
+    billing_client_id: Optional[int] = None
     billing_party: Optional[str] = None
     expected_dispatch_date: Optional[date] = None
     cargo_description: Optional[str] = None
@@ -204,6 +206,7 @@ class JobResponse(JobBase):
     created_by_user_id: Optional[int] = None
     consigner_name: Optional[str] = None
     consignee_name: Optional[str] = None
+    billing_client_name: Optional[str] = None
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None
     created_at: datetime
