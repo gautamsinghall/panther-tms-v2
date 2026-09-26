@@ -113,6 +113,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen xl:h-screen w-full flex flex-col justify-between bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative overflow-x-hidden xl:overflow-hidden">
+      {/* Ambient background soft glow for visual depth */}
+      <div className="absolute -top-32 left-1/4 w-[650px] h-[400px] bg-gradient-to-b from-indigo-100/35 via-blue-50/20 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute -bottom-24 right-1/4 w-[550px] h-[350px] bg-gradient-to-t from-sky-100/25 via-indigo-50/15 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+
       {/* ========================================================================= */}
       {/* TOP HEADER BAR                                                            */}
       {/* ========================================================================= */}
@@ -128,7 +132,7 @@ export default function LoginPage() {
               <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
                 Panther<span className="text-indigo-600">TMS</span>
               </span>
-              <span className="px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100/90 ml-1">
+              <span className="px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100/90 ml-1">
                 v2.0
               </span>
             </div>
@@ -143,7 +147,7 @@ export default function LoginPage() {
           <span className="hidden sm:inline text-slate-500 font-medium">New to PantherTMS?</span>
           <Link
             href="/signup"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/80 border border-indigo-200/70 transition-all shadow-2xs active:scale-[0.98]"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-white hover:bg-indigo-50/80 border border-indigo-200/80 transition-all shadow-2xs active:scale-[0.98]"
           >
             <span>Create workspace</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -159,32 +163,38 @@ export default function LoginPage() {
         {/* LEFT PRODUCT AREA: Brand Hero, Visual Scene, Telemetry Cards           */}
         {/* ======================================================================= */}
         <div className="w-full lg:w-[63%] xl:w-[64%] flex flex-col justify-between py-1 relative z-10">
-          {/* 1. Natural Aspect Ratio Logistics Scene (Truck, Port, Highway) */}
-          <div className="hidden lg:block absolute -right-6 xl:-right-2 bottom-0 top-12 w-[750px] xl:w-[820px] pointer-events-none select-none z-0">
+          {/* 1. Natural Aspect Ratio Logistics Scene (Truck, Port, Highway) with Right Fade */}
+          <div className="hidden lg:block absolute -right-4 xl:right-0 bottom-0 top-10 w-[740px] xl:w-[830px] pointer-events-none select-none z-0">
             <div
-              className="w-full h-full relative"
+              className="w-full h-full relative overflow-hidden"
               style={{
                 maskImage:
-                  "radial-gradient(ellipse 85% 76% at 56% 52%, black 40%, transparent 86%)",
+                  "radial-gradient(ellipse 76% 74% at 46% 50%, black 30%, transparent 76%)",
                 WebkitMaskImage:
-                  "radial-gradient(ellipse 85% 76% at 56% 52%, black 40%, transparent 86%)",
+                  "radial-gradient(ellipse 76% 74% at 46% 50%, black 30%, transparent 76%)",
               }}
             >
               <img
                 src="/logistics-truck-bg.jpg"
                 alt="PantherTMS Freight Operations"
-                className="w-full h-full object-cover object-[58%_center]"
+                className="w-full h-full object-cover object-[56%_center]"
               />
-              {/* Subtle linear soft edge blends */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#F8FAFC] via-transparent to-transparent h-16 bottom-0 top-auto" />
-              <div className="absolute inset-0 bg-gradient-to-b from-[#F8FAFC] via-transparent to-transparent h-16 top-0 bottom-auto" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/40 to-transparent w-28 left-0 right-auto" />
+              {/* Soft directional edge blends - perfectly dissolves into page background */}
+              {/* Top soft blend */}
+              <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/80 to-transparent" />
+              {/* Bottom soft blend */}
+              <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/90 to-transparent" />
+              {/* Left soft blend */}
+              <div className="absolute inset-y-0 left-0 w-36 bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/70 to-transparent" />
+              {/* Right soft blend (smooth gradient fade on right side of image) */}
+              <div className="absolute inset-y-0 right-0 w-52 xl:w-64 bg-gradient-to-l from-[#F8FAFC] via-[#F8FAFC]/95 to-transparent z-10" />
+              <div className="absolute inset-y-0 right-0 w-80 bg-gradient-to-l from-[#F8FAFC] to-transparent opacity-60 z-10" />
             </div>
           </div>
 
           {/* 2. Top Floating Telemetry Card (Directly over truck cab) */}
-          <div className="hidden lg:block absolute right-[30px] xl:right-[50px] top-[140px] xl:top-[150px] z-20">
-            <div className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md px-5 py-3.5 shadow-[0_8px_30px_rgba(15,23,42,0.06)] space-y-2.5">
+          <div className="hidden lg:block absolute right-[35px] xl:right-[60px] top-[135px] xl:top-[145px] z-20">
+            <div className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md px-5 py-3.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] space-y-2.5">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -227,30 +237,34 @@ export default function LoginPage() {
           </div>
 
           {/* 3. Left Headline, Subtitle, and Feature Chips */}
-          <div className="space-y-4 max-w-[460px] z-10">
+          <div className="space-y-4 max-w-[490px] z-10">
             {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50/80 border border-indigo-200/60 text-indigo-700 text-xs font-semibold shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 border border-indigo-200/80 text-indigo-700 text-xs font-semibold shadow-2xs backdrop-blur-md">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600" />
+              </span>
               <span>Next-Gen Autonomous Freight Core</span>
             </div>
 
-            {/* Headline */}
-            <h1 className="text-3xl sm:text-4xl xl:text-[42px] font-extrabold tracking-tight text-slate-900 leading-[1.12]">
-              The operating system
-              <br />
-              for <span className="text-indigo-600">modern logistics.</span>
+            {/* Headline with comfortable line spacing */}
+            <h1 className="text-3xl sm:text-4xl xl:text-[43px] font-extrabold tracking-tight text-slate-900 leading-[1.3] sm:leading-[1.32] xl:leading-[1.35]">
+              <span className="block">The operating system</span>
+              <span className="block mt-1 sm:mt-1.5 xl:mt-2 text-slate-900">
+                for <span className="text-indigo-600">modern logistics.</span>
+              </span>
             </h1>
 
             {/* Supporting Copy */}
-            <p className="text-sm xl:text-base text-slate-600 leading-relaxed font-normal">
+            <p className="text-sm xl:text-[15px] text-slate-600 leading-relaxed font-normal pt-0.5">
               Manage dispatch, tracking, billing and compliance from one intelligent workspace built for real-world enterprise freight operations.
             </p>
 
             {/* 4 Feature Highlights Row */}
-            <div className="grid grid-cols-4 gap-3.5 pt-2 max-w-sm text-center">
+            <div className="grid grid-cols-4 gap-3.5 pt-2.5 max-w-sm text-center">
               {/* Feature 1 */}
               <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50/90 border border-indigo-100/90 flex items-center justify-center text-indigo-600 shadow-2xs group-hover:scale-105 transition-all">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-indigo-600 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
                   <Truck className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
@@ -262,7 +276,7 @@ export default function LoginPage() {
 
               {/* Feature 2 */}
               <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50/90 border border-emerald-100/90 flex items-center justify-center text-emerald-600 shadow-2xs group-hover:scale-105 transition-all">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:border-emerald-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
@@ -274,7 +288,7 @@ export default function LoginPage() {
 
               {/* Feature 3 */}
               <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-amber-50/90 border border-amber-100/90 flex items-center justify-center text-amber-600 shadow-2xs group-hover:scale-105 transition-all">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-amber-600 group-hover:scale-105 group-hover:border-amber-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
                   <FileText className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
@@ -286,7 +300,7 @@ export default function LoginPage() {
 
               {/* Feature 4 */}
               <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-sky-50/90 border border-sky-100/90 flex items-center justify-center text-sky-600 shadow-2xs group-hover:scale-105 transition-all">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-sky-600 group-hover:scale-105 group-hover:border-sky-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
@@ -382,11 +396,11 @@ export default function LoginPage() {
         <div className="w-full lg:w-[36%] xl:w-[35%] flex justify-end z-20 py-4 lg:py-0">
           <div className="w-full max-w-[430px] xl:max-w-[440px]">
             {/* Elevated Card */}
-            <div className="bg-white rounded-[26px] border border-slate-200/90 p-7 sm:p-9 shadow-[0_10px_40px_-10px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] space-y-6">
+            <div className="bg-white/95 backdrop-blur-xl rounded-[26px] border border-slate-200/90 p-7 sm:p-9 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.04)] space-y-6">
               {/* Card Header */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 shadow-2xs">
                     <Building2 className="w-4 h-4" />
                   </div>
                   <span className="text-xs font-bold tracking-wider text-indigo-600 uppercase font-sans">
@@ -429,7 +443,7 @@ export default function LoginPage() {
                   <label className="block text-xs font-semibold text-slate-700 tracking-tight">
                     Company subdomain
                   </label>
-                  <div className="flex items-center rounded-xl border border-slate-200/90 bg-white shadow-2xs focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all overflow-hidden">
+                  <div className="flex items-center rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-slate-300 focus-within:!bg-white focus-within:!border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all overflow-hidden shadow-2xs">
                     <input
                       type="text"
                       value={subdomain}
@@ -439,7 +453,7 @@ export default function LoginPage() {
                       required
                       className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
                     />
-                    <div className="px-3.5 py-2.5 text-xs font-mono text-slate-400 bg-transparent select-none whitespace-nowrap">
+                    <div className="px-3.5 py-2.5 text-xs font-mono text-slate-400 bg-transparent select-none whitespace-nowrap font-medium">
                       {rootDomainSuffix}
                     </div>
                   </div>
@@ -456,7 +470,7 @@ export default function LoginPage() {
                   <label className="block text-xs font-semibold text-slate-700 tracking-tight">
                     Work email
                   </label>
-                  <div className="relative flex items-center rounded-xl border border-slate-200/90 bg-white shadow-2xs focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+                  <div className="relative flex items-center rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-slate-300 focus-within:!bg-white focus-within:!border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-2xs">
                     <div className="absolute left-3.5 pointer-events-none text-slate-400">
                       <Mail className="w-4 h-4" />
                     </div>
@@ -486,7 +500,7 @@ export default function LoginPage() {
                       Forgot password?
                     </button>
                   </div>
-                  <div className="relative flex items-center rounded-xl border border-slate-200/90 bg-white shadow-2xs focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
+                  <div className="relative flex items-center rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-slate-300 focus-within:!bg-white focus-within:!border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-2xs">
                     <div className="absolute left-3.5 pointer-events-none text-slate-400">
                       <Lock className="w-4 h-4" />
                     </div>
@@ -519,7 +533,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full h-12 mt-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm shadow-[0_2px_10px_rgba(79,70,229,0.25)] hover:shadow-[0_4px_16px_rgba(79,70,229,0.35)] transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  className="w-full h-12 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:from-indigo-700 active:to-indigo-800 text-white font-semibold text-sm shadow-[0_4px_16px_rgba(79,70,229,0.28)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.36)] transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   {isLoading ? (
                     <>
@@ -546,10 +560,10 @@ export default function LoginPage() {
               </div>
 
               {/* 6. Demo Workspace Card matching Reference 1:1 */}
-              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 flex items-center justify-between gap-3 transition-all">
+              <div className="rounded-2xl border border-indigo-100/90 bg-gradient-to-r from-indigo-50/50 via-slate-50/70 to-blue-50/30 p-3.5 flex items-center justify-between gap-3 transition-all shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                    <Sparkles className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-xl bg-white border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0 shadow-2xs">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
                   </div>
                   <div>
                     <h3 className="text-xs font-bold text-slate-900 leading-snug">
@@ -580,6 +594,13 @@ export default function LoginPage() {
       {/* ========================================================================= */}
       <footer className="w-full border-t border-slate-200/60 bg-transparent py-3 px-8 sm:px-12 lg:px-16 flex flex-wrap items-center justify-between gap-y-2 text-xs text-slate-500 z-30 shrink-0">
         <div className="flex flex-wrap items-center gap-6 sm:gap-8">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="font-semibold text-slate-700 font-sans">Systems Operational</span>
+          </div>
           <span className="inline-flex items-center gap-1.5 font-medium">
             <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span>Tenant-Isolated architecture</span>
@@ -588,7 +609,7 @@ export default function LoginPage() {
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>256-bit SSL encrypted</span>
           </span>
-          <span className="inline-flex items-center gap-1.5 font-medium">
+          <span className="hidden md:inline-flex items-center gap-1.5 font-medium">
             <Layers className="w-3.5 h-3.5 text-slate-600 shrink-0" />
             <span>Multi-tier RBAC security</span>
           </span>
@@ -597,7 +618,7 @@ export default function LoginPage() {
         <div>
           <a
             href="mailto:support@panthertms.com"
-            className="inline-flex items-center gap-1.5 font-medium text-slate-500 hover:text-slate-800 transition-colors"
+            className="inline-flex items-center gap-1.5 font-medium text-slate-500 hover:text-indigo-600 transition-colors"
           >
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>Need help? Contact support</span>
