@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -251,7 +252,12 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -294,13 +300,13 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#101828]/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
+        className="fixed inset-0 bg-[#101828]/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -308,7 +314,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       {/* Spotlight Dialog */}
       <div className="flex min-h-full items-start justify-center p-4 pt-16 sm:pt-24 text-center">
         <div
-          className="relative w-full max-w-2xl transform overflow-hidden rounded-card bg-white text-left shadow-floating border border-[#E4E7EC] transition-all animate-in zoom-in-95 duration-150 flex flex-col max-h-[75vh]"
+          className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl border border-slate-200 transition-all animate-in zoom-in-95 duration-150 flex flex-col max-h-[75vh] z-10"
           onKeyDown={handleKeyDown}
         >
           {/* Top Search Input Bar */}
@@ -423,6 +429,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

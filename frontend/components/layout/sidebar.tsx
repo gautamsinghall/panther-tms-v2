@@ -91,6 +91,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
 interface NavSubItem {
   feature?: string;
@@ -496,6 +497,7 @@ function getSubItemIcon(sub: NavSubItem): React.ComponentType<{ className?: stri
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isFormOpen, closeFormTab, setActiveTab } = useWorkspaceTabs();
   const [navGroups, setNavGroups] = useState<NavGroup[]>(ALL_NAVIGATION_MODULES);
   
   // Usability Issue 6 Fix: Only keep the active route's group expanded by default (Hick's Law)
@@ -559,7 +561,14 @@ export function Sidebar() {
       {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
       <div className="flex h-16 items-center justify-between px-3.5 border-b border-slate-200/80 bg-white">
         {!isCollapsed && (
-          <Link href="/" className="flex items-center gap-3 group min-w-0">
+          <Link
+            href="/"
+            onClick={() => {
+              if (isFormOpen) closeFormTab(true);
+              setActiveTab("list");
+            }}
+            className="flex items-center gap-3 group min-w-0"
+          >
             <img
               src="/panther-logo.png"
               alt="PantherTMS Logo"
@@ -581,7 +590,15 @@ export function Sidebar() {
           </Link>
         )}
         {isCollapsed && (
-          <Link href="/" className="mx-auto flex items-center justify-center" title="PantherTMS">
+          <Link
+            href="/"
+            onClick={() => {
+              if (isFormOpen) closeFormTab(true);
+              setActiveTab("list");
+            }}
+            className="mx-auto flex items-center justify-center"
+            title="PantherTMS"
+          >
             <img
               src="/panther-logo.png"
               alt="PantherTMS Logo"
@@ -678,6 +695,13 @@ export function Sidebar() {
                             if (sub.is_locked) {
                               e.preventDefault();
                               alert(`This feature requires the ${sub.required_plan || "Pro"} plan. Please upgrade your subscription to access it.`);
+                              return;
+                            }
+                            if (isFormOpen) {
+                              closeFormTab(true);
+                            }
+                            if (pathname === sub.href) {
+                              setActiveTab("list");
                             }
                           }}
                           className={cn(

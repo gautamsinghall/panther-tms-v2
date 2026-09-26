@@ -87,20 +87,28 @@ h1, h2, h3, h4 {
   font-feature-settings: "tnum";
 }
 
-/* Linear-style subtle scrollbar */
+/* Hide all scrollbars globally across all browsers while maintaining smooth scrolling */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+*::-webkit-scrollbar,
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  display: none !important; /* Chrome, Safari, Opera */
+  width: 0 !important;
+  height: 0 !important;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* Card micro-elevation */

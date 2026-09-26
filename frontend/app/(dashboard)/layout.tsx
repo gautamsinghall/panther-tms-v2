@@ -19,7 +19,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
       <main
         id="workspace-main-canvas"
         className={cn(
-          "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 bg-[#F8FAFC]",
+          "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 bg-[#F8FAFC] relative",
           activeTab === "form" ? "hidden" : "block"
         )}
       >
@@ -75,7 +75,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
       <div
         id="workspace-form-canvas"
         className={cn(
-          "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 bg-[#F8FAFC]",
+          "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 bg-[#F8FAFC] relative",
           activeTab === "form" ? "block" : "hidden"
         )}
       />

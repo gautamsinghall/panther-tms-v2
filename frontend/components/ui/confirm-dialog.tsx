@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -43,9 +44,14 @@ export function ConfirmDialog({
   disabled = false,
   children,
 }: ConfirmDialogProps) {
+  const [mounted, setMounted] = useState(false);
   const desc = consequence || description;
   const cLabel = confirmText || confirmLabel || "Confirm";
   const canLabel = cancelText || cancelLabel || "Cancel";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -61,10 +67,10 @@ export function ConfirmDialog({
     };
   }, [isOpen, onClose, isLoading]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4 text-center">
         {/* Backdrop */}
         <div
@@ -137,6 +143,7 @@ export function ConfirmDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

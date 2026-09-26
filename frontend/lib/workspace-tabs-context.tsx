@@ -42,9 +42,17 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
 
   // When pathname changes (user navigated via sidebar), reset to list tab and clear form tab
   useEffect(() => {
+    const cb = onCloseRef.current;
     setActiveTab("list");
     setFormTabInfo(null);
     onCloseRef.current = null;
+    if (cb) {
+      try {
+        cb();
+      } catch (err) {
+        console.error("Error executing form tab onClose callback on pathname change", err);
+      }
+    }
   }, [pathname]);
 
   const openFormTab = useCallback((info: FormTabInfo) => {
