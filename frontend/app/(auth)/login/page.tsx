@@ -48,12 +48,26 @@ export default function LoginPage() {
       }
       setIsCheckingAuth(false);
 
+      // Extract query params if redirected from signup or direct link
+      const searchParams = new URLSearchParams(window.location.search);
+      const subParam = searchParams.get("subdomain");
+      const emailParam = searchParams.get("email");
+      if (subParam) setSubdomain(subParam);
+      if (emailParam) setEmail(emailParam);
+
       const host = window.location.hostname;
+      if (!subParam && host.includes(".")) {
+        const parts = host.split(".");
+        if (parts.length > 2 && parts[0] !== "www" && parts[0] !== "api") {
+          setSubdomain(parts[0]);
+        }
+      }
+
       if (host.includes("panthertms.com")) {
         setRootDomainSuffix(".panthertms.com");
       } else if (host.includes("panthertms.in")) {
         setRootDomainSuffix(".panthertms.in");
-      } else if (host === "localhost" || host === "127.0.0.1") {
+      } else if (host.includes("localhost") || host.includes("127.0.0.1")) {
         setRootDomainSuffix(".panthertms.local");
       } else {
         const parts = host.split(".");

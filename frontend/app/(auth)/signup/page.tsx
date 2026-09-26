@@ -217,9 +217,10 @@ export default function SignupPage() {
       setStep(3);
 
       if (!initData.requires_payment) {
-        // FREE plan: complete signup immediately
-        setProvisioningStatus("Provisioning dedicated PostgreSQL tenant schema...");
-        await completeTenantSignup(subdomain, selectedPlan, null, null, null);
+        // FREE plan: Workspace schema and admin account are provisioned by initiate_signup
+        setProvisioningStatus("Tenant environment ready!");
+        setProvisionComplete(true);
+        setIsLoading(false);
       } else {
         // Paid plan: Razorpay payment
         setProvisioningStatus("Initializing Razorpay Secure Autopay gateway...");

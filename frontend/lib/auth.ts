@@ -81,13 +81,30 @@ export function clearStoredAuth(): void {
 export function getApiBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
 
+  // 1. If explicit environment URL is configured
+  if (envUrl && !envUrl.includes("yourdomain.com") && !envUrl.includes("example.com")) {
+    if (envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
+      if (process.env.NEXT_PUBLIC_USE_LOCAL_BACKEND === "true") {
+        return envUrl;
+      }
+      return "https://api.panthertms.com";
+    }
+    return envUrl;
+  }
+
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
     const protocol = window.location.protocol;
 
-    // Local development
-    if (host === "localhost" || host === "127.0.0.1") {
-      return envUrl && !envUrl.includes("yourdomain.com") ? envUrl : "http://localhost:8000";
+    // Local development:
+    // When running Next.js on localhost (e.g. localhost:3000), default to the live cloud backend
+    // (https://api.panthertms.com) which has CORS allowed for http://localhost:3000.
+    // If developers specifically run a local backend Docker container, they set NEXT_PUBLIC_USE_LOCAL_BACKEND=true.
+    if (host.includes("localhost") || host.includes("127.0.0.1")) {
+      if (process.env.NEXT_PUBLIC_USE_LOCAL_BACKEND === "true") {
+        return "http://localhost:8000";
+      }
+      return "https://api.panthertms.com";
     }
 
     // In production on panthertms.com, panthertms.in, or any workspace subdomains
@@ -104,10 +121,6 @@ export function getApiBaseUrl(): string {
       }
       return `${protocol}//api.${root}`;
     }
-  }
-
-  if (envUrl && !envUrl.includes("yourdomain.com") && !envUrl.includes("example.com")) {
-    return envUrl;
   }
 
   return "https://api.panthertms.com";
