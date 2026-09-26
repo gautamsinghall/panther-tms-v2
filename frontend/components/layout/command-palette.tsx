@@ -319,8 +319,27 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         >
           {/* Top Search Input Bar */}
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#E4E7EC] bg-white">
+            <style dangerouslySetInnerHTML={{ __html: `
+              #command-palette-search-input,
+              #command-palette-search-input:focus,
+              #command-palette-search-input:focus-visible,
+              #command-palette-search-input:active {
+                outline: none !important;
+                outline-width: 0px !important;
+                outline-style: none !important;
+                outline-color: transparent !important;
+                border: none !important;
+                border-width: 0px !important;
+                border-style: none !important;
+                box-shadow: none !important;
+                -webkit-box-shadow: none !important;
+                -webkit-appearance: none !important;
+                appearance: none !important;
+              }
+            `}} />
             <Search className="w-5 h-5 text-[#667085] shrink-0" />
             <input
+              id="command-palette-search-input"
               ref={inputRef}
               type="text"
               value={query}
@@ -330,7 +349,12 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               }}
               placeholder="Search records, modules, bills, vehicles, or ledger... (e.g. 'LR', 'Invoice', 'Fleet')"
               className="flex-1 bg-transparent text-sm text-[#101828] placeholder-[#98A2B3] border-none outline-none ring-0 shadow-none focus:border-none focus:outline-none focus:ring-0 focus:shadow-none"
-              style={{ outline: "none", boxShadow: "none", border: "none" }}
+              style={{
+                outline: "none",
+                boxShadow: "none",
+                border: "none",
+                WebkitAppearance: "none",
+              }}
             />
             {query ? (
               <button

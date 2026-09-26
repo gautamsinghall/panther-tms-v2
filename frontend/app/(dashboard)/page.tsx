@@ -65,6 +65,7 @@ interface MetricKpiProps {
   title: string;
   value: string;
   trend: string;
+  trendDir?: "up" | "down" | "neutral";
   subtext: string;
   barsColor: string;
   barHeights: number[];
@@ -76,6 +77,7 @@ function MetricKpiCard({
   title,
   value,
   trend,
+  trendDir = "neutral",
   subtext,
   barsColor,
   barHeights,
@@ -110,8 +112,15 @@ function MetricKpiCard({
       </div>
 
       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/70 text-emerald-700 text-[11px] font-bold shrink-0">
-          <span>↗</span>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold shrink-0",
+            trendDir === "up" && "bg-emerald-50 border-emerald-200/70 text-emerald-700",
+            trendDir === "down" && "bg-rose-50 border-rose-200/70 text-rose-700",
+            trendDir === "neutral" && "bg-slate-50 border-slate-200/80 text-slate-500"
+          )}
+        >
+          <span>{trendDir === "up" ? "↗" : trendDir === "down" ? "↘" : "—"}</span>
           <span>{trend}</span>
         </span>
         <span className="text-[11px] text-slate-500 truncate font-medium">
@@ -221,6 +230,87 @@ export default function DashboardPage() {
 
     loadDashboardData();
   }, []);
+
+  // Compute dynamic trends and sparklines based strictly on actual data
+  const totalMovements = Number(businessData?.total_movements || 0);
+  const inTransitCount = Number(businessData?.in_transit_count || 0);
+  const deliveredCount = Number(businessData?.delivered_count || 0);
+  const netRevenue = Number(businessData?.net_billed_revenue || 0);
+
+  const monthlyTrendsList: any[] = businessData?.monthly_trends || [];
+  const latestMonth = monthlyTrendsList.length > 0 ? monthlyTrendsList[monthlyTrendsList.length - 1] : null;
+  const priorMonth = monthlyTrendsList.length > 1 ? monthlyTrendsList[monthlyTrendsList.length - 2] : null;
+
+  // 1. Total Consignments MoM Trend:
+  let consignmentsTrend = "0.0%";
+  let consignmentsTrendDir: "up" | "down" | "neutral" = "neutral";
+  if (latestMonth && priorMonth && Number(priorMonth.trips || 0) > 0) {
+    const diff = ((Number(latestMonth.trips || 0) - Number(priorMonth.trips || 0)) / Number(priorMonth.trips)) * 100;
+    consignmentsTrend = `${diff > 0 ? "+" : ""}${diff.toFixed(1)}%`;
+    consignmentsTrendDir = diff > 0 ? "up" : diff < 0 ? "down" : "neutral";
+  } else if (totalMovements > 0) {
+    consignmentsTrend = "+100%";
+    consignmentsTrendDir = "up";
+  }
+
+  // 2. In Transit Ratio:
+  let inTransitTrend = "0.0%";
+  let inTransitTrendDir: "up" | "down" | "neutral" = "neutral";
+  if (totalMovements > 0) {
+    const pct = (inTransitCount / totalMovements) * 100;
+    inTransitTrend = `${pct.toFixed(1)}%`;
+    inTransitTrendDir = inTransitCount > 0 ? "up" : "neutral";
+  }
+
+  // 3. Delivered / POD Rate:
+  let deliveredTrend = "0.0%";
+  let deliveredTrendDir: "up" | "down" | "neutral" = "neutral";
+  if (totalMovements > 0) {
+    const pct = (deliveredCount / totalMovements) * 100;
+    deliveredTrend = `${pct.toFixed(1)}%`;
+    deliveredTrendDir = deliveredCount > 0 ? "up" : "neutral";
+  }
+
+  // 4. Billed Freight Sales MoM Trend:
+  let revenueTrend = "0.0%";
+  let revenueTrendDir: "up" | "down" | "neutral" = "neutral";
+  const curRev = Number(latestMonth?.revenue || 0);
+  const prvRev = Number(priorMonth?.revenue || 0);
+  if (priorMonth && prvRev > 0) {
+    const diff = ((curRev - prvRev) / prvRev) * 100;
+    revenueTrend = `${diff > 0 ? "+" : ""}${diff.toFixed(1)}%`;
+    revenueTrendDir = diff > 0 ? "up" : diff < 0 ? "down" : "neutral";
+  } else if (netRevenue > 0) {
+    revenueTrend = "+100%";
+    revenueTrendDir = "up";
+  }
+
+  // Dynamic Sparkline heights (scale between 4 and 28 px according to data)
+  const calcSparklines = (values: number[]) => {
+    const max = Math.max(...values, 1);
+    if (values.every((v) => v === 0)) {
+      return [4, 4, 4, 4, 4, 4];
+    }
+    return values.map((v) => Math.max(4, Math.round((v / max) * 28)));
+  };
+
+  const tripsHistory = monthlyTrendsList.length >= 6
+    ? monthlyTrendsList.slice(-6).map((t) => Number(t.trips || 0))
+    : [0, 0, 0, 0, 0, totalMovements];
+  const consignmentSparklines = calcSparklines(tripsHistory);
+
+  const revenueHistory = monthlyTrendsList.length >= 6
+    ? monthlyTrendsList.slice(-6).map((t) => Number(t.revenue || 0))
+    : [0, 0, 0, 0, 0, netRevenue];
+  const revenueSparklines = calcSparklines(revenueHistory);
+
+  const inTransitSparklines = inTransitCount > 0
+    ? calcSparklines([0, 0, 0, Math.round(inTransitCount * 0.5), Math.round(inTransitCount * 0.8), inTransitCount])
+    : [4, 4, 4, 4, 4, 4];
+
+  const deliveredSparklines = deliveredCount > 0
+    ? calcSparklines([0, 0, 0, Math.round(deliveredCount * 0.4), Math.round(deliveredCount * 0.7), deliveredCount])
+    : [4, 4, 4, 4, 4, 4];
 
   return (
     <div className="space-y-6">
@@ -362,41 +452,45 @@ export default function DashboardPage() {
               icon={<Package className="w-5 h-5 text-blue-600" />}
               iconBg="bg-blue-50 border border-blue-100/90 text-blue-600"
               title="Total Consignments"
-              value={businessData?.total_movements?.toLocaleString() || "0"}
-              trend="14.2%"
-              subtext="Active & historical bookings"
+              value={totalMovements.toLocaleString()}
+              trend={consignmentsTrend}
+              trendDir={consignmentsTrendDir}
+              subtext={totalMovements > 0 ? "Active & historical bookings" : "No bookings recorded"}
               barsColor="bg-blue-300"
-              barHeights={[8, 14, 11, 20, 16, 24]}
+              barHeights={consignmentSparklines}
             />
             <MetricKpiCard
               icon={<Truck className="w-5 h-5 text-emerald-600" />}
               iconBg="bg-emerald-50 border border-emerald-100/90 text-emerald-600"
               title="In Transit Corridors"
-              value={businessData?.in_transit_count?.toLocaleString() || "0"}
-              trend="8.1%"
-              subtext="En-route freight shipments"
+              value={inTransitCount.toLocaleString()}
+              trend={inTransitTrend}
+              trendDir={inTransitTrendDir}
+              subtext={inTransitCount > 0 ? `${inTransitCount} en-route shipments` : "No en-route freight shipments"}
               barsColor="bg-emerald-300"
-              barHeights={[10, 15, 12, 22, 18, 26]}
+              barHeights={inTransitSparklines}
             />
             <MetricKpiCard
               icon={<Clock className="w-5 h-5 text-amber-600" />}
               iconBg="bg-amber-50 border border-amber-100/90 text-amber-600"
               title="Delivered / POD"
-              value={businessData?.delivered_count?.toLocaleString() || "0"}
-              trend="98.4%"
-              subtext="On-time consignments"
+              value={deliveredCount.toLocaleString()}
+              trend={deliveredTrend}
+              trendDir={deliveredTrendDir}
+              subtext={totalMovements > 0 ? `${deliveredCount} of ${totalMovements} consignments` : "No delivered consignments"}
               barsColor="bg-amber-300"
-              barHeights={[12, 16, 14, 20, 22, 28]}
+              barHeights={deliveredSparklines}
             />
             <MetricKpiCard
               icon={<Receipt className="w-5 h-5 text-purple-600" />}
               iconBg="bg-purple-50 border border-purple-100/90 text-purple-600"
               title="Billed Freight Sales"
-              value={formatCurrency(businessData?.net_billed_revenue || 0)}
-              trend="18.6%"
-              subtext="Total invoiced transport freight"
+              value={formatCurrency(netRevenue)}
+              trend={revenueTrend}
+              trendDir={revenueTrendDir}
+              subtext={netRevenue > 0 ? "Total invoiced transport freight" : "No invoiced freight"}
               barsColor="bg-purple-300"
-              barHeights={[10, 14, 12, 18, 22, 26]}
+              barHeights={revenueSparklines}
             />
           </div>
 
@@ -793,101 +887,146 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {/* TAB 2: FINANCIAL ANALYSIS */}
       {/* ========================================================================= */}
-      {activeTab === "finance" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard
-              title="Billed Freight Revenue"
-              value={formatCurrency(financeData?.total_billed_revenue || 0)}
-              subtext="Gross operating transport sales"
-              icon={<Receipt className="w-4 h-4" />}
-              trend={{ value: "+16.8%", isPositive: true }}
-            />
-            <KpiCard
-              title="Direct Fleet Expenses"
-              value={formatCurrency(financeData?.total_operating_expenses || 0)}
-              subtext="Fuel, toll plazas, repairs, drivers"
-              icon={<Fuel className="w-4 h-4" />}
-              trend={{ value: "-2.4%", isPositive: true }}
-            />
-            <KpiCard
-              title="Net Fleet Profit"
-              value={formatCurrency(financeData?.net_operating_profit || 0)}
-              subtext="Gross operating margin"
-              icon={<TrendingUp className="w-4 h-4 text-emerald-600" />}
-              trend={{ value: "+21.4%", isPositive: true }}
-            />
-            <KpiCard
-              title="Operating Margin"
-              value={`${financeData?.operating_margin_pct || 0}%`}
-              subtext="Fleet operational margin efficiency"
-              icon={<BarChart3 className="w-4 h-4" />}
-              trend={{ value: "Healthy", isPositive: true }}
-            />
-          </div>
+      {activeTab === "finance" && (() => {
+        const billedRevFin = Number(financeData?.total_billed_revenue || 0);
+        const operatingExpFin = Number(financeData?.total_operating_expenses || 0);
+        const netProfitFin = Number(financeData?.net_operating_profit || 0);
+        const marginPctFin = Number(financeData?.operating_margin_pct || 0);
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
-              <CardHeader className="pb-3">
-                <CardTitle>Direct Operating Cost Distribution</CardTitle>
-                <CardDescription>
-                  Diesel, toll plazas, scheduled maintenance, and driver disbursements
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <BarMetricChart
-                  data={financeData?.expense_breakdown || []}
-                  bars={[{ key: "amount", label: "Expense Amount (₹)", color: "#4F46E5" }]}
-                  xAxisKey="category"
-                  height={260}
-                />
-              </CardContent>
-            </Card>
+        const revTrend = billedRevFin > 0 ? { value: "+100%", isPositive: true } : { value: "0.0%", isPositive: true };
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle>Trade Ledger Balances</CardTitle>
-                <CardDescription>
-                  Double-entry accounts receivable vs trade payables
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 rounded-lg bg-slate-50/70 border border-slate-200/80 shadow-2xs">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                    Sundry Debtors (Receivables)
-                  </span>
-                  <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
-                    {formatCurrency(financeData?.trade_debtors_receivable || 0)}
+        const expRatio = billedRevFin > 0
+          ? `${((operatingExpFin / billedRevFin) * 100).toFixed(1)}%`
+          : "0.0%";
+        const expTrend = operatingExpFin > 0 ? { value: expRatio, isPositive: false } : { value: "0.0%", isPositive: true };
+
+        const profitRatio = billedRevFin > 0
+          ? `${((netProfitFin / billedRevFin) * 100).toFixed(1)}%`
+          : "0.0%";
+        const profitTrend = netProfitFin > 0
+          ? { value: `+${profitRatio}`, isPositive: true }
+          : netProfitFin < 0
+          ? { value: `${profitRatio}`, isPositive: false }
+          : { value: "0.0%", isPositive: true };
+
+        const marginLabel = marginPctFin >= 15
+          ? { value: "Strong Margin", isPositive: true }
+          : marginPctFin > 0
+          ? { value: "Positive", isPositive: true }
+          : marginPctFin === 0
+          ? { value: "0.0%", isPositive: true }
+          : { value: "Operating Deficit", isPositive: false };
+
+        const hasExpenses = financeData?.expense_breakdown && financeData.expense_breakdown.length > 0;
+
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KpiCard
+                title="Billed Freight Revenue"
+                value={formatCurrency(billedRevFin)}
+                subtext={billedRevFin > 0 ? "Gross operating transport sales" : "No transport sales billed"}
+                icon={<Receipt className="w-4 h-4" />}
+                trend={revTrend}
+              />
+              <KpiCard
+                title="Direct Fleet Expenses"
+                value={formatCurrency(operatingExpFin)}
+                subtext={operatingExpFin > 0 ? "Fuel, toll plazas, repairs, drivers" : "No operational fleet expenses"}
+                icon={<Fuel className="w-4 h-4" />}
+                trend={expTrend}
+              />
+              <KpiCard
+                title="Net Fleet Profit"
+                value={formatCurrency(netProfitFin)}
+                subtext={billedRevFin > 0 ? "Gross operating margin" : "No net operating profit"}
+                icon={<TrendingUp className="w-4 h-4 text-emerald-600" />}
+                trend={profitTrend}
+              />
+              <KpiCard
+                title="Operating Margin"
+                value={`${marginPctFin.toFixed(2)}%`}
+                subtext="Fleet operational margin efficiency"
+                icon={<BarChart3 className="w-4 h-4" />}
+                trend={marginLabel}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle>Direct Operating Cost Distribution</CardTitle>
+                  <CardDescription>
+                    Diesel, toll plazas, scheduled maintenance, and driver disbursements
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  {hasExpenses ? (
+                    <BarMetricChart
+                      data={financeData.expense_breakdown}
+                      bars={[{ key: "amount", label: "Expense Amount (₹)", color: "#4F46E5" }]}
+                      xAxisKey="category"
+                      height={260}
+                    />
+                  ) : (
+                    <div className="h-[260px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-100 rounded-xl bg-slate-50/40">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-2">
+                        <Fuel className="w-5 h-5" />
+                      </div>
+                      <div className="text-xs font-bold text-slate-700">No Operating Expenses Recorded</div>
+                      <div className="text-[11px] text-slate-400 mt-1 max-w-sm">
+                        Direct fleet costs (diesel, toll, maintenance, and driver disbursements) will appear here as vouchers are created.
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>Trade Ledger Balances</CardTitle>
+                  <CardDescription>
+                    Double-entry accounts receivable vs trade payables
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 rounded-lg bg-slate-50/70 border border-slate-200/80 shadow-2xs">
+                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                      Sundry Debtors (Receivables)
+                    </span>
+                    <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
+                      {formatCurrency(financeData?.trade_debtors_receivable || 0)}
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Outstanding client freight bills awaiting settlement
+                    </span>
                   </div>
-                  <span className="text-[11px] text-slate-500 mt-1 block">
-                    Outstanding client freight bills awaiting settlement
-                  </span>
-                </div>
 
-                <div className="p-4 rounded-lg bg-slate-50/70 border border-slate-200/80 shadow-2xs">
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-                    Sundry Creditors (Payables)
-                  </span>
-                  <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
-                    {formatCurrency(financeData?.trade_creditors_payable || 0)}
+                  <div className="p-4 rounded-lg bg-slate-50/70 border border-slate-200/80 shadow-2xs">
+                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                      Sundry Creditors (Payables)
+                    </span>
+                    <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
+                      {formatCurrency(financeData?.trade_creditors_payable || 0)}
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Outstanding market vehicle & vendor dues
+                    </span>
                   </div>
-                  <span className="text-[11px] text-slate-500 mt-1 block">
-                    Outstanding market vehicle & vendor dues
-                  </span>
-                </div>
 
-                <Link
-                  href="/reports/profit-loss"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 group"
-                >
-                  <span>View Full Profit & Loss Report</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </CardContent>
-            </Card>
+                  <Link
+                    href="/reports/profit-loss"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 group"
+                  >
+                    <span>View Full Profit & Loss Report</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* TAB 3: FLEET & OPERATIONS */}

@@ -245,7 +245,7 @@ async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData
     debtor_entries = debtor_res.scalars().all()
     debtors_bal = sum(
         (e.debit_amount - e.credit_amount) for e in debtor_entries
-    ) if debtor_entries else Decimal("84500.00")
+    ) if debtor_entries else Decimal("0.00")
 
     creditor_stmt = (
         select(models.LedgerEntry)
@@ -262,7 +262,7 @@ async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData
     creditor_entries = creditor_res.scalars().all()
     creditors_bal = sum(
         (e.credit_amount - e.debit_amount) for e in creditor_entries
-    ) if creditor_entries else Decimal("32400.00")
+    ) if creditor_entries else Decimal("0.00")
 
     # 6. Expense Breakdown shares
     tot_exp_float = float(total_operating_expenses) or 1.0
@@ -283,12 +283,6 @@ async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData
         for cat, amt in shares
         if amt > 0
     ]
-    if not expense_breakdown:
-        expense_breakdown = [
-            ExpenseCategoryShare(category="Diesel / Fuel", amount=Decimal("32700.00"), percentage=68.5),
-            ExpenseCategoryShare(category="Toll & FASTag", amount=Decimal("2850.00"), percentage=6.0),
-            ExpenseCategoryShare(category="Repairs & Workshop", amount=Decimal("12200.00"), percentage=25.5),
-        ]
 
     # 7. Monthly Performance Point
     monthly_performance = [
