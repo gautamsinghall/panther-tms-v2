@@ -84,6 +84,23 @@ export default function TransportInvoicePage() {
   const [narration, setNarration] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  interface SeriesRangeItem {
+    id: number;
+    document_type: string;
+    series_name: string;
+    prefix: string;
+    suffix?: string;
+    starting_number: number;
+    end_number?: number;
+    series_mode: string;
+    is_default: boolean;
+    total_count: number;
+    used_count: number;
+    available_count: number;
+    display_label: string;
+    available_options: { value: string; label: string; number: number }[];
+  }
+
   // Series Master state
   const [seriesInfo, setSeriesInfo] = useState<{
     configured: boolean;
@@ -92,6 +109,14 @@ export default function TransportInvoicePage() {
     next_number_formatted?: string;
     series_mode?: string;
   } | null>(null);
+
+  const [manualSeriesData, setManualSeriesData] = useState<{
+    document_type: string;
+    is_mandatory_manual: boolean;
+    default_series_id: number | null;
+    ranges: SeriesRangeItem[];
+  } | null>(null);
+  const [selectedRangeId, setSelectedRangeId] = useState<string>("");
 
   // Void Dialog state
   const [isVoidOpen, setIsVoidOpen] = useState(false);
@@ -107,19 +132,18 @@ export default function TransportInvoicePage() {
     setIsError(false);
     setErrorMessage(null);
     try {
-      const [vouchersRes, lrsRes, taxesRes, seriesRes] = await Promise.all([
+      const [vouchersRes, lrsRes, taxesRes, seriesRes, manualRangesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=TRANSPORT_INVOICE"),
         apiClient<LRRecord[]>("/api/v1/transport/lrs"),
         apiClient<TaxCategoryRecord[]>("/api/v1/misc/tax-categories"),
         apiClient<any>("/api/v1/settings/series/check/TRANSPORT_INVOICE").catch(() => null),
+        apiClient<any>("/api/v1/settings/series/manual-ranges/TRANSPORT_INVOICE").catch(() => null),
       ]);
       setData(Array.isArray(vouchersRes) ? vouchersRes : []);
       setLrs(Array.isArray(lrsRes) ? lrsRes : []);
       setTaxCategories(Array.isArray(taxesRes) ? taxesRes : []);
       setSeriesInfo(seriesRes);
-      if (seriesRes?.next_number_formatted && !invoiceNumber) {
-        setInvoiceNumber(seriesRes.next_number_formatted);
-      }
+      setManualSeriesData(manualRangesRes);
       if (taxesRes.length > 0 && !selectedTaxCatId) {
         const g12 = taxesRes.find((t) => t.name.includes("12")) || taxesRes[0];
         setSelectedTaxCatId(g12.id.toString());
@@ -145,6 +169,28 @@ export default function TransportInvoicePage() {
     });
   }, [data, statusFilter]);
 
+  const isManualSeries = Boolean(manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0);
+
+  const activeRange = useMemo(() => {
+    if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) return null;
+    if (selectedRangeId) {
+      const match = manualSeriesData.ranges.find((r) => String(r.id) === selectedRangeId);
+      if (match) return match;
+    }
+    const def = manualSeriesData.ranges.find((r) => r.id === manualSeriesData.default_series_id);
+    return def || manualSeriesData.ranges[0];
+  }, [manualSeriesData, selectedRangeId]);
+
+  const rangeOptions = (manualSeriesData?.ranges || []).map((r) => ({
+    value: String(r.id),
+    label: `${r.display_label}${r.is_default ? " ★ (Active As Of Now)" : ""}`,
+  }));
+
+  const leafOptions = (activeRange?.available_options || []).map((opt) => ({
+    value: opt.value,
+    label: opt.label,
+  }));
+
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLrId) {
@@ -152,8 +198,13 @@ export default function TransportInvoicePage() {
       return;
     }
 
-    if (seriesInfo && !seriesInfo.configured) {
+    if (seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
       alert("Manual Series is mandatory for Transport Invoices and has not been configured in Series Master.");
+      return;
+    }
+
+    if (isManualSeries && !invoiceNumber) {
+      alert("Please select an available invoice number from the selected series range.");
       return;
     }
 
@@ -344,6 +395,17 @@ export default function TransportInvoicePage() {
     },
   ];
 
+  const openCreateDrawer = () => {
+    const rangeToUse = activeRange;
+    const initialRangeId = rangeToUse ? String(rangeToUse.id) : "";
+    const initialNo = rangeToUse?.available_options?.[0]?.value || seriesInfo?.next_number_formatted || "";
+    if (initialRangeId) {
+      setSelectedRangeId(initialRangeId);
+    }
+    setInvoiceNumber(initialNo);
+    setIsCreateOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -352,16 +414,11 @@ export default function TransportInvoicePage() {
         primaryAction={{
           label: "Create Invoice from LR",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => {
-            if (seriesInfo?.next_number_formatted) {
-              setInvoiceNumber(seriesInfo.next_number_formatted);
-            }
-            setIsCreateOpen(true);
-          },
+          onClick: openCreateDrawer,
         }}
       />
 
-      {seriesInfo && !seriesInfo.configured && (
+      {seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
         <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>
@@ -437,7 +494,7 @@ export default function TransportInvoicePage() {
         emptySubtext="Select a delivered or completed Lorry Receipt to generate a formal freight invoice."
         emptyAction={{
           label: "+ Create Invoice from LR",
-          onClick: () => setIsCreateOpen(true),
+          onClick: openCreateDrawer,
         }}
       />
 
@@ -449,7 +506,33 @@ export default function TransportInvoicePage() {
         description="Select an unbilled Lorry Receipt to calculate freight charges, GST rate, and post double-entry ledger vouchers."
         width="lg"
       >
-        {seriesInfo && !seriesInfo.configured && (
+        {isManualSeries && activeRange && (
+          <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-700">Selected Series:</span>
+                <span className="font-bold text-indigo-700 font-mono bg-white px-2 py-0.5 rounded border border-indigo-200">
+                  {activeRange.series_name} ({activeRange.prefix})
+                </span>
+                {activeRange.is_default && (
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium text-[10px] border border-emerald-300">
+                    ★ Active As Of Now
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-slate-600 text-[11px]">
+                Batch: <span className="font-bold text-slate-900">{activeRange.starting_number} – {activeRange.end_number || "..."}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
+              <span>{activeRange.used_count} vouchers already recorded</span>
+              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {activeRange.available_count} leaves available (used hidden)
+              </span>
+            </div>
+          </div>
+        )}
+        {!isManualSeries && seriesInfo && !seriesInfo.configured && (
           <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
             <div className="font-bold flex items-center gap-1.5 text-amber-800">
               ⚠️ Mandatory Manual Series Not Configured
@@ -468,7 +551,7 @@ export default function TransportInvoicePage() {
             </Button>
           </div>
         )}
-        {seriesInfo && seriesInfo.configured && (
+        {!isManualSeries && seriesInfo && seriesInfo.configured && (
           <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
             <div className="font-mono">
               <span className="text-slate-500 font-sans mr-1">Active Series:</span>
@@ -482,23 +565,71 @@ export default function TransportInvoicePage() {
         )}
 
         <form onSubmit={handleCreateInvoice} className="space-y-5 bg-white p-5 rounded-card border border-[#E4E7EC]">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-[#172033]">
-              Invoice Number (Auto Series) <span className="text-slate-400 font-normal">(Locked)</span>
-            </label>
-            <input
-              type="text"
-              readOnly
-              value={invoiceNumber || seriesInfo?.next_number_formatted || ""}
-              placeholder={seriesInfo?.next_number_formatted || "TI-2026-0001"}
-              className="w-full rounded-control border border-slate-200 bg-slate-50 px-3 py-2 text-xs sm:text-sm text-[#172033] font-mono font-bold cursor-not-allowed select-all focus:outline-none"
-            />
-            {seriesInfo?.configured && (
-              <span className="text-[11px] text-[#667085] block">
-                Assigned by Series Master: <code className="font-mono text-indigo-600 font-semibold">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
-              </span>
-            )}
-          </div>
+          {isManualSeries && activeRange ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-[#172033]">
+                  Select Series Batch / Range <span className="text-[#DC2626]">*</span>
+                </label>
+                <SearchableSelect
+                  value={selectedRangeId || String(activeRange.id)}
+                  onChange={(val) => {
+                    const newId = String(val);
+                    setSelectedRangeId(newId);
+                    const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newId);
+                    const firstOpt = newRange?.available_options?.[0]?.value || "";
+                    setInvoiceNumber(firstOpt);
+                  }}
+                  options={rangeOptions}
+                  placeholder="Select series range..."
+                  searchPlaceholder="Search booklet / series..."
+                  onAddNew={() => router.push("/settings/series-master")}
+                  addNewLabel="+ Create New Series Range"
+                  addNewTitle="Configure new booklet range in Settings > Series Master"
+                />
+                <span className="text-[11px] text-slate-500 block">
+                  {activeRange.is_default
+                    ? "Sticky Active Series: Pre-selected automatically for current billing."
+                    : "Select booklet / batch range."}
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-[#172033]">
+                  Select Invoice Number ({leafOptions.length} Unused Available) <span className="text-[#DC2626]">*</span>
+                </label>
+                <SearchableSelect
+                  value={invoiceNumber}
+                  onChange={(val) => setInvoiceNumber(String(val))}
+                  options={leafOptions}
+                  placeholder={leafOptions.length > 0 ? "Select unused invoice number..." : "All vouchers in this range are used!"}
+                  searchPlaceholder="Search unused invoice number..."
+                  required
+                />
+                <span className="text-[11px] text-slate-500 block">
+                  Used voucher numbers are automatically hidden. Select any available number.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#172033]">
+                Invoice Number (Auto Series) <span className="text-slate-400 font-normal">(Locked)</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={invoiceNumber || seriesInfo?.next_number_formatted || ""}
+                placeholder={seriesInfo?.next_number_formatted || "TI-2026-0001"}
+                className="w-full rounded-control border border-slate-200 bg-slate-50 px-3 py-2 text-xs sm:text-sm text-[#172033] font-mono font-bold cursor-not-allowed select-all focus:outline-none"
+              />
+              {seriesInfo?.configured && (
+                <span className="text-[11px] text-[#667085] block">
+                  Assigned by Series Master: <code className="font-mono text-indigo-600 font-semibold">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-[#172033]">
@@ -558,9 +689,9 @@ export default function TransportInvoicePage() {
               variant="primary"
               size="sm"
               isLoading={isSubmitting}
-              disabled={seriesInfo ? !seriesInfo.configured : false}
+              disabled={isSubmitting || (!isManualSeries && seriesInfo ? !seriesInfo.configured : false)}
             >
-              {seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Generate & Post Invoice"}
+              {!isManualSeries && seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Generate & Post Invoice"}
             </Button>
           </div>
         </form>

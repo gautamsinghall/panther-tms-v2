@@ -76,6 +76,23 @@ export default function LRBookingPage() {
   const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
   const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
 
+  interface SeriesRangeItem {
+    id: number;
+    document_type: string;
+    series_name: string;
+    prefix: string;
+    suffix?: string;
+    starting_number: number;
+    end_number?: number;
+    series_mode: string;
+    is_default: boolean;
+    total_count: number;
+    used_count: number;
+    available_count: number;
+    display_label: string;
+    available_options: { value: string; label: string; number: number }[];
+  }
+
   // Series Master State
   const [seriesInfo, setSeriesInfo] = useState<{
     configured: boolean;
@@ -85,18 +102,27 @@ export default function LRBookingPage() {
     series_mode?: string;
   } | null>(null);
 
+  const [manualSeriesData, setManualSeriesData] = useState<{
+    document_type: string;
+    is_mandatory_manual: boolean;
+    default_series_id: number | null;
+    ranges: SeriesRangeItem[];
+  } | null>(null);
+  const [selectedRangeId, setSelectedRangeId] = useState<string>("");
+
   const loadData = async () => {
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
     try {
-      const [lrsRes, consignersRes, consigneesRes, locationsRes, jobsRes, seriesRes] = await Promise.all([
+      const [lrsRes, consignersRes, consigneesRes, locationsRes, jobsRes, seriesRes, manualRangesRes] = await Promise.all([
         apiClient<LRRecord[]>("/api/v1/transport/lrs"),
         apiClient<SelectOption[]>("/api/v1/general/consigners"),
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
         apiClient<SelectOption[]>("/api/v1/general/locations"),
         apiClient<SelectOption[]>("/api/v1/transport/jobs"),
         apiClient<any>("/api/v1/settings/series/check/LR").catch(() => null),
+        apiClient<any>("/api/v1/settings/series/manual-ranges/LR").catch(() => null),
       ]);
       setData(Array.isArray(lrsRes) ? lrsRes : []);
       setConsigners(Array.isArray(consignersRes) ? consignersRes : []);
@@ -104,6 +130,7 @@ export default function LRBookingPage() {
       setLocations(Array.isArray(locationsRes) ? locationsRes : []);
       setJobs(Array.isArray(jobsRes) ? jobsRes : []);
       setSeriesInfo(seriesRes);
+      setManualSeriesData(manualRangesRes);
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load LRs.");
@@ -264,32 +291,89 @@ export default function LRBookingPage() {
     ...jobs.map((j) => ({ label: `${j.job_number} (ID: ${j.id})`, value: String(j.id) })),
   ];
 
+  const isManualSeries = Boolean(manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0);
+
+  const activeRange = useMemo(() => {
+    if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) return null;
+    if (selectedRangeId) {
+      const match = manualSeriesData.ranges.find((r) => String(r.id) === selectedRangeId);
+      if (match) return match;
+    }
+    const def = manualSeriesData.ranges.find((r) => r.id === manualSeriesData.default_series_id);
+    return def || manualSeriesData.ranges[0];
+  }, [manualSeriesData, selectedRangeId]);
+
+  const rangeOptions = (manualSeriesData?.ranges || []).map((r) => ({
+    value: String(r.id),
+    label: `${r.display_label}${r.is_default ? " ★ (Active As Of Now)" : ""}`,
+  }));
+
+  const leafOptions = (activeRange?.available_options || []).map((opt) => ({
+    value: opt.value,
+    label: opt.label,
+  }));
+
   const formSections: FormSectionDef[] = [
     {
       id: "parties_sec",
       title: "Consignment & Linked Trip",
-      description: "Originating contracting parties and optional Job linkage",
+      description: "Originating contracting parties, series booklet, and optional Job linkage",
       columns: 2,
       fields: [
-        {
-          name: "lr_number",
-          label: "LR / GR Number (Auto Series)",
-          type: "text",
-          disabled: true,
-          disabledReason: "Voucher numbers are auto-assigned by Series Master and cannot be edited",
-          placeholder: seriesInfo?.next_number_formatted || "LR-2026-0001",
-          defaultValue: seriesInfo?.next_number_formatted || "LR-2026-0001",
-        },
+        ...(isManualSeries && activeRange
+          ? [
+              {
+                name: "series_range_id",
+                label: "Select Series Batch / Range",
+                type: "select" as const,
+                required: true,
+                options: rangeOptions,
+                defaultValue: String(activeRange.id),
+                helperText: activeRange.is_default
+                  ? "Sticky Active Series: Pre-selected automatically for current billing."
+                  : "Select physical booklet / series batch.",
+                onChange: (newRangeId: string) => {
+                  setSelectedRangeId(newRangeId);
+                  const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newRangeId);
+                  const firstOpt = newRange?.available_options?.[0]?.value || "";
+                  formSetFieldValueRef.current?.("lr_number", firstOpt);
+                },
+                onAddNew: () => router.push("/settings/series-master"),
+                addNewLabel: "+ Create New Series Range",
+                addNewTitle: "Configure new booklet range in Settings > Series Master",
+              },
+              {
+                name: "lr_number",
+                label: `Voucher Number (${leafOptions.length} Unused Available)`,
+                type: "select" as const,
+                required: true,
+                options: leafOptions,
+                defaultValue: leafOptions[0]?.value || "",
+                placeholder: leafOptions.length > 0 ? "Select unused LR leaf/number" : "All vouchers in this range are used!",
+                helperText: "Used voucher numbers are automatically hidden. Select any available leaf in the batch.",
+              },
+            ]
+          : [
+              {
+                name: "lr_number",
+                label: "LR / GR Number (Auto Series)",
+                type: "text" as const,
+                disabled: true,
+                disabledReason: "Voucher numbers are auto-assigned by Series Master and cannot be edited",
+                placeholder: seriesInfo?.next_number_formatted || "LR-2026-0001",
+                defaultValue: seriesInfo?.next_number_formatted || "LR-2026-0001",
+              },
+            ]),
         {
           name: "lr_date",
           label: "LR Booking Date",
-          type: "date",
+          type: "date" as const,
           required: true,
         },
         {
           name: "job_id",
           label: "Linked Trip / Job Order",
-          type: "select",
+          type: "select" as const,
           options: jobOptions,
           onAddNew: () => router.push("/transport/jobs"),
           addNewLabel: "+ Create New Trip Order",
@@ -409,8 +493,12 @@ export default function LRBookingPage() {
   ];
 
   const handleCreate = async (values: Record<string, any>) => {
-    if (seriesInfo && !seriesInfo.configured) {
+    if (seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
       alert("Manual Series for LR is not configured! Please configure it in Series Master before creating an LR.");
+      return;
+    }
+    if (isManualSeries && !values.lr_number) {
+      alert("Please select an available voucher number from the selected series range.");
       return;
     }
     setIsSubmitting(true);
@@ -442,6 +530,21 @@ export default function LRBookingPage() {
     }
   };
 
+  const openCreateDrawer = () => {
+    const rangeToUse = activeRange;
+    const initialRangeId = rangeToUse ? String(rangeToUse.id) : "";
+    const initialLrNo = rangeToUse?.available_options?.[0]?.value || seriesInfo?.next_number_formatted || "";
+    if (initialRangeId) {
+      setSelectedRangeId(initialRangeId);
+    }
+    setFormInitialValues({
+      lr_date: new Date().toISOString().split("T")[0],
+      series_range_id: initialRangeId,
+      lr_number: initialLrNo,
+    });
+    setIsDrawerOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -450,17 +553,11 @@ export default function LRBookingPage() {
         primaryAction={{
           label: "New LR Booking",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => {
-            setFormInitialValues({
-              lr_date: new Date().toISOString().split("T")[0],
-              lr_number: seriesInfo?.next_number_formatted || "LR-2026-0001",
-            });
-            setIsDrawerOpen(true);
-          },
+          onClick: openCreateDrawer,
         }}
       />
 
-      {seriesInfo && !seriesInfo.configured && (
+      {seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
         <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>
@@ -546,10 +643,7 @@ export default function LRBookingPage() {
         emptySubtext="Create an LR booking from a confirmed transport trip or book directly to generate consignment notes."
         emptyAction={{
           label: "+ New LR Booking",
-          onClick: () => {
-            setFormInitialValues({ lr_date: new Date().toISOString().split("T")[0] });
-            setIsDrawerOpen(true);
-          },
+          onClick: openCreateDrawer,
         }}
       />
 
@@ -560,7 +654,33 @@ export default function LRBookingPage() {
         description="Record commercial consignment, assigned truck, freight charges, and dispatch parties."
         width="xl"
       >
-        {seriesInfo && !seriesInfo.configured && (
+        {isManualSeries && activeRange && (
+          <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-700">Selected Series:</span>
+                <span className="font-bold text-indigo-700 font-mono bg-white px-2 py-0.5 rounded border border-indigo-200">
+                  {activeRange.series_name} ({activeRange.prefix})
+                </span>
+                {activeRange.is_default && (
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium text-[10px] border border-emerald-300">
+                    ★ Active As Of Now
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-slate-600 text-[11px]">
+                Batch: <span className="font-bold text-slate-900">{activeRange.starting_number} – {activeRange.end_number || "..."}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
+              <span>{activeRange.used_count} vouchers already recorded</span>
+              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {activeRange.available_count} leaves available (used hidden)
+              </span>
+            </div>
+          </div>
+        )}
+        {!isManualSeries && seriesInfo && !seriesInfo.configured && (
           <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
             <div className="font-bold flex items-center gap-1.5 text-amber-800">
               ⚠️ Mandatory Manual Series Not Configured
@@ -579,7 +699,7 @@ export default function LRBookingPage() {
             </Button>
           </div>
         )}
-        {seriesInfo && seriesInfo.configured && (
+        {!isManualSeries && seriesInfo && seriesInfo.configured && (
           <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
             <div className="font-mono">
               <span className="text-slate-500 font-sans mr-1">Active Series:</span>
@@ -597,7 +717,7 @@ export default function LRBookingPage() {
           setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
-          submitLabel={seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Create Lorry Receipt"}
+          submitLabel={!isManualSeries && seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Create Lorry Receipt"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Receipt, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 
@@ -41,6 +42,23 @@ interface VoucherRecord {
   created_at: string;
 }
 
+interface SeriesRangeItem {
+  id: number;
+  document_type: string;
+  series_name: string;
+  prefix: string;
+  suffix?: string;
+  starting_number: number;
+  end_number?: number;
+  series_mode: string;
+  is_default: boolean;
+  total_count: number;
+  used_count: number;
+  available_count: number;
+  display_label: string;
+  available_options: { value: string; label: string; number: number }[];
+}
+
 export default function GeneralInvoicePage() {
   const [data, setData] = useState<VoucherRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +84,14 @@ export default function GeneralInvoicePage() {
     series_mode?: string;
   } | null>(null);
 
+  const [manualSeriesData, setManualSeriesData] = useState<{
+    document_type: string;
+    is_mandatory_manual: boolean;
+    default_series_id: number | null;
+    ranges: SeriesRangeItem[];
+  } | null>(null);
+  const [selectedRangeId, setSelectedRangeId] = useState<string>("");
+
   // Void Dialog state
   const [isVoidOpen, setIsVoidOpen] = useState(false);
   const [voidVoucherId, setVoidVoucherId] = useState<number | null>(null);
@@ -79,15 +105,14 @@ export default function GeneralInvoicePage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [res, sInfo] = await Promise.all([
+      const [res, sInfo, manualRangesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=GENERAL_INVOICE"),
         apiClient<any>("/api/v1/settings/series/check/GENERAL_INVOICE").catch(() => null),
+        apiClient<any>("/api/v1/settings/series/manual-ranges/GENERAL_INVOICE").catch(() => null),
       ]);
       setData(res);
       setSeriesInfo(sInfo);
-      if (sInfo?.next_number_formatted && !voucherNumber) {
-        setVoucherNumber(sInfo.next_number_formatted);
-      }
+      setManualSeriesData(manualRangesRes);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load general invoices.");
     } finally {
@@ -99,6 +124,28 @@ export default function GeneralInvoicePage() {
     loadData();
   }, []);
 
+  const isManualSeries = Boolean(manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0);
+
+  const activeRange = useMemo(() => {
+    if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) return null;
+    if (selectedRangeId) {
+      const match = manualSeriesData.ranges.find((r) => String(r.id) === selectedRangeId);
+      if (match) return match;
+    }
+    const def = manualSeriesData.ranges.find((r) => r.id === manualSeriesData.default_series_id);
+    return def || manualSeriesData.ranges[0];
+  }, [manualSeriesData, selectedRangeId]);
+
+  const rangeOptions = (manualSeriesData?.ranges || []).map((r) => ({
+    value: String(r.id),
+    label: `${r.display_label}${r.is_default ? " ★ (Active As Of Now)" : ""}`,
+  }));
+
+  const leafOptions = (activeRange?.available_options || []).map((opt) => ({
+    value: opt.value,
+    label: opt.label,
+  }));
+
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     const tot = parseFloat(totalAmount) || 0;
@@ -108,8 +155,13 @@ export default function GeneralInvoicePage() {
       return;
     }
 
-    if (seriesInfo && !seriesInfo.configured) {
+    if (seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
       alert("Manual Series for General Invoice is not configured! Please configure it in Series Master before creating an invoice.");
+      return;
+    }
+
+    if (isManualSeries && !voucherNumber) {
+      alert("Please select an available invoice number from the selected series range.");
       return;
     }
 
@@ -286,6 +338,17 @@ export default function GeneralInvoicePage() {
     },
   ];
 
+  const openCreateDrawer = () => {
+    const rangeToUse = activeRange;
+    const initialRangeId = rangeToUse ? String(rangeToUse.id) : "";
+    const initialNo = rangeToUse?.available_options?.[0]?.value || seriesInfo?.next_number_formatted || "";
+    if (initialRangeId) {
+      setSelectedRangeId(initialRangeId);
+    }
+    setVoucherNumber(initialNo);
+    setIsCreateOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -297,12 +360,7 @@ export default function GeneralInvoicePage() {
         ]}
         actions={
           <Button
-            onClick={() => {
-              if (seriesInfo?.next_number_formatted) {
-                setVoucherNumber(seriesInfo.next_number_formatted);
-              }
-              setIsCreateOpen(true);
-            }}
+            onClick={openCreateDrawer}
             className="gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -311,7 +369,7 @@ export default function GeneralInvoicePage() {
         }
       />
 
-      {seriesInfo && !seriesInfo.configured && (
+      {seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
         <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>
@@ -374,14 +432,40 @@ export default function GeneralInvoicePage() {
             <Button
               type="submit"
               form="general-invoice-form"
-              disabled={isSubmitting || (seriesInfo ? !seriesInfo.configured : false)}
+              disabled={isSubmitting || (!isManualSeries && seriesInfo ? !seriesInfo.configured : false)}
             >
-              {isSubmitting ? "Posting..." : seriesInfo && !seriesInfo.configured ? "Series Config Required" : "Create & Post"}
+              {isSubmitting ? "Posting..." : !isManualSeries && seriesInfo && !seriesInfo.configured ? "Series Config Required" : "Create & Post"}
             </Button>
           </div>
         }
       >
-        {seriesInfo && !seriesInfo.configured && (
+        {isManualSeries && activeRange && (
+          <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-700">Selected Series:</span>
+                <span className="font-bold text-indigo-700 font-mono bg-white px-2 py-0.5 rounded border border-indigo-200">
+                  {activeRange.series_name} ({activeRange.prefix})
+                </span>
+                {activeRange.is_default && (
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium text-[10px] border border-emerald-300">
+                    ★ Active As Of Now
+                  </span>
+                )}
+              </div>
+              <div className="font-mono text-slate-600 text-[11px]">
+                Batch: <span className="font-bold text-slate-900">{activeRange.starting_number} – {activeRange.end_number || "..."}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
+              <span>{activeRange.used_count} vouchers already recorded</span>
+              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {activeRange.available_count} leaves available (used hidden)
+              </span>
+            </div>
+          </div>
+        )}
+        {!isManualSeries && seriesInfo && !seriesInfo.configured && (
           <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
             <div className="font-bold flex items-center gap-1.5 text-amber-800">
               ⚠️ Mandatory Manual Series Not Configured
@@ -400,7 +484,7 @@ export default function GeneralInvoicePage() {
             </Button>
           </div>
         )}
-        {seriesInfo && seriesInfo.configured && (
+        {!isManualSeries && seriesInfo && seriesInfo.configured && (
           <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
             <div className="font-mono">
               <span className="text-slate-500 font-sans mr-1">Active Series:</span>
@@ -415,23 +499,71 @@ export default function GeneralInvoicePage() {
 
         <form id="general-invoice-form" onSubmit={handleCreateInvoice} className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
-            <div>
-              <label className="block text-xs font-semibold text-text-primary mb-1">
-                Invoice Number (Auto Series) <span className="text-slate-400 font-normal">(Locked)</span>
-              </label>
-              <input
-                type="text"
-                readOnly
-                placeholder={seriesInfo?.next_number_formatted || "GI-2026-0001"}
-                value={voucherNumber || seriesInfo?.next_number_formatted || ""}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-slate-50 text-text-primary font-mono font-bold cursor-not-allowed select-all focus:outline-hidden"
-              />
-              {seriesInfo?.configured && (
-                <span className="text-[11px] text-[#667085] mt-1 block">
-                  Assigned by Series Master: <code className="font-mono text-indigo-600 font-semibold">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
-                </span>
-              )}
-            </div>
+            {isManualSeries && activeRange ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Select Series Batch / Range *
+                  </label>
+                  <SearchableSelect
+                    value={selectedRangeId || String(activeRange.id)}
+                    onChange={(val) => {
+                      const newId = String(val);
+                      setSelectedRangeId(newId);
+                      const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newId);
+                      const firstOpt = newRange?.available_options?.[0]?.value || "";
+                      setVoucherNumber(firstOpt);
+                    }}
+                    options={rangeOptions}
+                    placeholder="Select series range..."
+                    searchPlaceholder="Search booklet or series..."
+                    onAddNew={() => window.location.href = "/settings/series-master"}
+                    addNewLabel="+ Create New Series Range"
+                    addNewTitle="Configure new booklet range in Settings > Series Master"
+                  />
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    {activeRange.is_default
+                      ? "Sticky Active Series: Pre-selected automatically for current billing."
+                      : "Select booklet / batch range."}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-text-primary mb-1">
+                    Select Invoice Number ({leafOptions.length} Unused Available) *
+                  </label>
+                  <SearchableSelect
+                    value={voucherNumber}
+                    onChange={(val) => setVoucherNumber(String(val))}
+                    options={leafOptions}
+                    placeholder={leafOptions.length > 0 ? "Select unused invoice number..." : "All vouchers in this range are used!"}
+                    searchPlaceholder="Search unused invoice number..."
+                    required
+                  />
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    Used voucher numbers are automatically hidden. Select any available number.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1">
+                  Invoice Number (Auto Series) <span className="text-slate-400 font-normal">(Locked)</span>
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  placeholder={seriesInfo?.next_number_formatted || "GI-2026-0001"}
+                  value={voucherNumber || seriesInfo?.next_number_formatted || ""}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-slate-50 text-text-primary font-mono font-bold cursor-not-allowed select-all focus:outline-hidden"
+                />
+                {seriesInfo?.configured && (
+                  <span className="text-[11px] text-[#667085] mt-1 block">
+                    Assigned by Series Master: <code className="font-mono text-indigo-600 font-semibold">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
+                  </span>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-text-primary mb-1">

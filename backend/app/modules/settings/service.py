@@ -285,6 +285,8 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
             "end_number": s.end_number,
             "financial_year": s.financial_year,
             "series_mode": disp["series_mode"],
+            "series_name": s.series_name,
+            "is_default": bool(s.is_default),
             "last_used_formatted": disp["last_used_formatted"],
             "next_number": disp["next_number"],
             "next_number_formatted": disp["next_number_formatted"],
@@ -310,9 +312,16 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
             message=f"Manual series is mandatory for {readable_title} and cannot be set to Automatic."
         )
 
+    if data.is_default:
+        all_same = (await db.execute(select(SeriesMaster).where(SeriesMaster.document_type == norm_doc))).scalars().all()
+        for os in all_same:
+            os.is_default = False
+            db.add(os)
+
     series = SeriesMaster(
         category_id=data.category_id,
         document_type=norm_doc,
+        series_name=data.series_name.strip() if data.series_name else None,
         prefix=data.prefix.strip(),
         suffix=data.suffix or "",
         starting_number=data.starting_number,
@@ -320,6 +329,7 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         end_number=data.end_number,
         financial_year=data.financial_year.strip(),
         series_mode=mode,
+        is_default=bool(data.is_default),
         is_active=data.is_active,
     )
     db.add(series)
@@ -339,6 +349,7 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         "category_id": series.category_id,
         "category_name": cat_name,
         "document_type": series.document_type,
+        "series_name": series.series_name,
         "prefix": series.prefix,
         "suffix": series.suffix or "",
         "starting_number": series.starting_number,
@@ -346,6 +357,7 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         "end_number": series.end_number,
         "financial_year": series.financial_year,
         "series_mode": disp["series_mode"],
+        "is_default": bool(series.is_default),
         "last_used_formatted": disp["last_used_formatted"],
         "next_number": disp["next_number"],
         "next_number_formatted": disp["next_number_formatted"],
@@ -378,6 +390,17 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
     elif is_mandatory:
         series.series_mode = "MANUAL"
 
+    if data.is_default is not None:
+        if data.is_default:
+            all_same = (await db.execute(select(SeriesMaster).where(SeriesMaster.document_type == series.document_type))).scalars().all()
+            for os in all_same:
+                if os.id != series.id:
+                    os.is_default = False
+                    db.add(os)
+        series.is_default = bool(data.is_default)
+
+    if data.series_name is not None:
+        series.series_name = data.series_name.strip() if data.series_name else None
     if data.category_id is not None:
         series.category_id = data.category_id
     if data.document_type:
@@ -406,6 +429,7 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
         "category_id": series.category_id,
         "category_name": series.category.name if series.category else None,
         "document_type": series.document_type,
+        "series_name": series.series_name,
         "prefix": series.prefix,
         "suffix": series.suffix or "",
         "starting_number": series.starting_number,
@@ -413,6 +437,7 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
         "end_number": series.end_number,
         "financial_year": series.financial_year,
         "series_mode": disp["series_mode"],
+        "is_default": bool(series.is_default),
         "last_used_formatted": disp["last_used_formatted"],
         "next_number": disp["next_number"],
         "next_number_formatted": disp["next_number_formatted"],
@@ -428,6 +453,14 @@ async def delete_series_master(db: AsyncSession, series_id: int) -> None:
         raise AppException(status_code=404, error_code="SERIES_NOT_FOUND", message="Series master not found.")
     await db.delete(series)
     await db.commit()
+
+async def get_manual_series_ranges(db: AsyncSession, document_type: str) -> dict:
+    from app.modules.settings.series_service import get_manual_series_ranges as s_get_ranges
+    return await s_get_ranges(db, document_type)
+
+async def set_default_series(db: AsyncSession, series_id: int) -> dict:
+    from app.modules.settings.series_service import set_default_series as s_set_default
+    return await s_set_default(db, series_id)
 
 
 # --- Admin Settings ---

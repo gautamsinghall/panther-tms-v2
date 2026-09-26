@@ -342,6 +342,27 @@ async def check_series(
 ):
     return await service.check_series_status(db, document_type)
 
+@router.get(
+    "/series/manual-ranges/{document_type}",
+    summary="Get all configured manual series ranges and unused available voucher numbers for a document type"
+)
+async def get_manual_series_ranges(
+    document_type: str,
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_manual_series_ranges(db, document_type)
+
+@router.post(
+    "/series/{series_id}/set-default",
+    summary="Set this series range as the current active/default series"
+)
+async def set_default_series(
+    series_id: int,
+    current_user: User = Depends(require_permission("settings", "series_master", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.set_default_series(db, series_id)
+
 
 # --- Admin Settings Endpoints ---
 

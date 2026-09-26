@@ -83,6 +83,7 @@ class SeriesCategoryResponse(SeriesCategoryBase):
 class SeriesMasterBase(BaseModel):
     category_id: Optional[int] = None
     document_type: str = Field(..., min_length=1, max_length=100)
+    series_name: Optional[str] = None
     prefix: str = Field(..., min_length=1, max_length=50)
     suffix: Optional[str] = ""
     starting_number: int = 1
@@ -90,6 +91,7 @@ class SeriesMasterBase(BaseModel):
     end_number: Optional[int] = None
     financial_year: str = Field(default="2026-2027")
     series_mode: str = Field(default="AUTOMATIC", description="'AUTOMATIC' or 'MANUAL'")
+    is_default: bool = False
     is_active: bool = True
 
 class SeriesMasterCreate(SeriesMasterBase):
@@ -98,6 +100,7 @@ class SeriesMasterCreate(SeriesMasterBase):
 class SeriesMasterUpdate(BaseModel):
     category_id: Optional[int] = None
     document_type: Optional[str] = None
+    series_name: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
     starting_number: Optional[int] = None
@@ -105,6 +108,7 @@ class SeriesMasterUpdate(BaseModel):
     end_number: Optional[int] = None
     financial_year: Optional[str] = None
     series_mode: Optional[str] = None
+    is_default: Optional[bool] = None
     is_active: Optional[bool] = None
 
 class SeriesMasterResponse(SeriesMasterBase):
@@ -123,15 +127,18 @@ class SeriesCheckResponse(BaseModel):
     id: Optional[int] = None
     document_type: str
     display_name: Optional[str] = None
+    series_name: Optional[str] = None
     prefix: Optional[str] = None
     suffix: Optional[str] = None
     starting_number: Optional[int] = None
     current_number: Optional[int] = None
+    end_number: Optional[int] = None
     last_used_formatted: Optional[str] = None
     next_number: Optional[int] = None
     next_number_formatted: Optional[str] = None
     financial_year: Optional[str] = None
     series_mode: Optional[str] = None
+    is_default: bool = False
     is_mandatory_manual: bool = False
     is_active: bool = True
     message: Optional[str] = None

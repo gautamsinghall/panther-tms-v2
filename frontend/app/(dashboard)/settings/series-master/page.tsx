@@ -6,13 +6,14 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  RefreshCw,
   Lock,
   Sparkles,
   Search,
   ShieldAlert,
   Edit2,
   Check,
+  Star,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
@@ -28,6 +29,7 @@ interface SeriesMasterItem {
   category_id?: number | null;
   category_name?: string | null;
   document_type: string;
+  series_name?: string | null;
   prefix: string;
   suffix?: string | null;
   starting_number: number;
@@ -35,6 +37,7 @@ interface SeriesMasterItem {
   end_number?: number | null;
   financial_year: string;
   series_mode: "AUTOMATIC" | "MANUAL";
+  is_default?: boolean;
   last_used_formatted?: string | null;
   next_number?: number;
   next_number_formatted?: string;
@@ -242,13 +245,16 @@ export default function SeriesMasterPage() {
   const [initializingDefaults, setInitializingDefaults] = useState(false);
 
   // Form Fields
-  const [docType, setDocType] = useState("");
-  const [prefix, setPrefix] = useState("");
+  const [docType, setDocType] = useState("LR");
+  const [seriesName, setSeriesName] = useState("");
+  const [prefix, setPrefix] = useState("LR-2026-");
   const [suffix, setSuffix] = useState("");
   const [startingNum, setStartingNum] = useState(1);
+  const [endNum, setEndNum] = useState<number | undefined>(undefined);
   const [currentNum, setCurrentNum] = useState(0);
   const [finYear, setFinYear] = useState("2026-2027");
-  const [seriesMode, setSeriesMode] = useState<"AUTOMATIC" | "MANUAL">("AUTOMATIC");
+  const [seriesMode, setSeriesMode] = useState<"AUTOMATIC" | "MANUAL">("MANUAL");
+  const [isDefault, setIsDefault] = useState(false);
   const [selectedCatId, setSelectedCatId] = useState<number | undefined>(undefined);
   const [isActive, setIsActive] = useState(true);
 
@@ -275,13 +281,16 @@ export default function SeriesMasterPage() {
 
   const handleOpenCreate = () => {
     setEditingSeries(null);
-    setDocType("JOB");
-    setPrefix("JOB-2026-");
+    setDocType("LR");
+    setSeriesName("");
+    setPrefix("LR-2026-");
     setSuffix("");
-    setStartingNum(1);
+    setStartingNum(1001);
+    setEndNum(1200);
     setCurrentNum(0);
     setFinYear("2026-2027");
-    setSeriesMode("AUTOMATIC");
+    setSeriesMode("MANUAL");
+    setIsDefault(true);
     setIsActive(true);
     setSelectedCatId(undefined);
     setIsDrawerOpen(true);
@@ -290,12 +299,15 @@ export default function SeriesMasterPage() {
   const handleOpenEdit = (series: SeriesMasterItem) => {
     setEditingSeries(series);
     setDocType(series.document_type);
+    setSeriesName(series.series_name || "");
     setPrefix(series.prefix);
     setSuffix(series.suffix || "");
     setStartingNum(series.starting_number);
+    setEndNum(series.end_number || undefined);
     setCurrentNum(series.current_number);
     setFinYear(series.financial_year);
     setSeriesMode(series.series_mode);
+    setIsDefault(Boolean(series.is_default));
     setIsActive(series.is_active);
     setSelectedCatId(series.category_id || undefined);
     setIsDrawerOpen(true);
@@ -335,12 +347,15 @@ export default function SeriesMasterPage() {
       const mode = isSelectedMandatoryManual ? "MANUAL" : seriesMode;
       const payload = {
         document_type: docType,
-        prefix,
-        suffix: suffix || "",
+        series_name: seriesName.trim() || null,
+        prefix: prefix.trim(),
+        suffix: suffix ? suffix.trim() : "",
         starting_number: startingNum,
         current_number: currentNum,
+        end_number: endNum ? Number(endNum) : null,
         financial_year: finYear,
         series_mode: mode,
+        is_default: Boolean(isDefault),
         category_id: selectedCatId || null,
         is_active: isActive,
       };
@@ -350,13 +365,13 @@ export default function SeriesMasterPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        setSuccessMessage(`Series for ${docType} updated successfully.`);
+        setSuccessMessage(`Series range for ${docType} updated successfully.`);
       } else {
         await apiClient("/api/v1/settings/series", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        setSuccessMessage(`Series for ${docType} configured successfully.`);
+        setSuccessMessage(`New series range for ${docType} added successfully.`);
       }
 
       setIsDrawerOpen(false);
@@ -365,6 +380,35 @@ export default function SeriesMasterPage() {
       setError(err.message || "Failed to save series master.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSetDefault = async (seriesId: number) => {
+    setError(null);
+    try {
+      await apiClient(`/api/v1/settings/series/${seriesId}/set-default`, {
+        method: "POST",
+      });
+      setSuccessMessage("Series set as current active series.");
+      await loadData();
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to set default series.");
+    }
+  };
+
+  const handleDeleteSeries = async (seriesId: number) => {
+    if (!confirm("Are you sure you want to delete this series range? This cannot be undone.")) return;
+    setError(null);
+    try {
+      await apiClient(`/api/v1/settings/series/${seriesId}`, {
+        method: "DELETE",
+      });
+      setSuccessMessage("Series range deleted successfully.");
+      await loadData();
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to delete series.");
     }
   };
 
@@ -450,10 +494,11 @@ export default function SeriesMasterPage() {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesDoc = item.document_type.toLowerCase().includes(q);
+        const matchesName = (item.series_name || "").toLowerCase().includes(q);
         const matchesPrefix = item.prefix.toLowerCase().includes(q);
         const matchesSuffix = (item.suffix || "").toLowerCase().includes(q);
         const matchesCategory = (item.category_name || "").toLowerCase().includes(q);
-        if (!matchesDoc && !matchesPrefix && !matchesSuffix && !matchesCategory) return false;
+        if (!matchesDoc && !matchesName && !matchesPrefix && !matchesSuffix && !matchesCategory) return false;
       }
 
       return true;
@@ -463,7 +508,7 @@ export default function SeriesMasterPage() {
   const seriesColumns: ColumnDef<SeriesMasterItem>[] = [
     {
       key: "document_type",
-      header: "Voucher / Document Type",
+      header: "Voucher / Series Range",
       sortable: true,
       cell: (row) => {
         const std = STANDARD_VOUCHERS.find(
@@ -472,9 +517,18 @@ export default function SeriesMasterPage() {
         const displayName = std?.name || row.document_type.replace(/_/g, " ");
 
         return (
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1.5">
+          <div className="flex flex-col gap-1 py-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-bold text-xs text-[#172033]">{displayName}</span>
+              {row.is_default && (
+                <span
+                  title="Currently active series selected by default when creating vouchers"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs"
+                >
+                  <Star className="w-2.5 h-2.5 fill-emerald-600 text-emerald-600" />
+                  Active As Of Now
+                </span>
+              )}
               {row.is_mandatory_manual && (
                 <span
                   title="Mandatory Manual Series"
@@ -485,8 +539,14 @@ export default function SeriesMasterPage() {
                 </span>
               )}
             </div>
+
             <div className="flex items-center gap-1.5 text-[11px] text-[#667085]">
-              <span className="font-mono font-medium">{row.document_type}</span>
+              <span className="font-mono font-semibold text-slate-700">{row.document_type}</span>
+              {row.series_name && (
+                <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-medium text-[10px] border border-indigo-200">
+                  {row.series_name}
+                </span>
+              )}
               {row.category_name && <span>· {row.category_name}</span>}
             </div>
           </div>
@@ -497,26 +557,18 @@ export default function SeriesMasterPage() {
       key: "series_mode",
       header: "Series Mode",
       cell: (row) => {
-        if (row.is_mandatory_manual) {
-          return (
-            <Badge variant="warning" className="gap-1 font-semibold text-[11px]">
-              <Lock className="w-3 h-3 text-amber-600" />
-              Manual Series (Mandatory)
-            </Badge>
-          );
-        }
         if (row.series_mode === "AUTOMATIC") {
           return (
             <Badge variant="success" className="gap-1 font-semibold text-[11px]">
               <Sparkles className="w-3 h-3 text-emerald-600" />
-              Automatic Series
+              Automatic
             </Badge>
           );
         }
         return (
-          <Badge variant="primary" className="gap-1 font-semibold text-[11px]">
-            <Edit2 className="w-3 h-3 text-blue-600" />
-            Manual Series
+          <Badge variant="warning" className="gap-1 font-semibold text-[11px]">
+            <Edit2 className="w-3 h-3 text-amber-700" />
+            Manual Range
           </Badge>
         );
       },
@@ -543,7 +595,7 @@ export default function SeriesMasterPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSaveInline(row.id);
                 }}
-                placeholder="Prefix (e.g. CV-2026-)"
+                placeholder="Prefix"
                 title="Configure Prefix directly from list"
                 className="w-28 sm:w-32 px-2 py-1 text-xs font-mono font-bold text-slate-800 bg-white border border-slate-300 rounded shadow-2xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
               />
@@ -587,30 +639,32 @@ export default function SeriesMasterPage() {
     },
     {
       key: "current_number",
-      header: "Used Till",
+      header: "Batch Range / Used Till",
       align: "left",
       sortable: true,
       cell: (row) => {
-        if (!row.last_used_formatted || row.current_number === 0) {
-          return (
-            <div className="flex flex-col">
-              <span className="text-xs text-slate-400 font-medium italic">
-                Not used yet
-              </span>
-              <span className="font-mono text-[10px] text-slate-400">
-                0 vouchers
-              </span>
-            </div>
-          );
-        }
+        const isManual = row.series_mode === "MANUAL";
+        const hasRange = isManual && row.end_number;
+
         return (
-          <div className="flex flex-col">
-            <span className="font-mono text-xs font-bold text-[#172033] block">
-              {row.last_used_formatted}
-            </span>
-            <span className="font-mono text-[11px] text-[#667085]">
-              Total Used: #{row.current_number}
-            </span>
+          <div className="flex flex-col gap-0.5">
+            {hasRange ? (
+              <div className="flex items-center gap-1 font-mono text-xs font-bold text-slate-800">
+                <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[11px]">
+                  Batch #{row.starting_number} – #{row.end_number}
+                </span>
+              </div>
+            ) : null}
+
+            {row.last_used_formatted && row.current_number > 0 ? (
+              <span className="font-mono text-[11px] text-slate-600">
+                Last Used: <strong className="text-slate-900">{row.last_used_formatted}</strong> (#{row.current_number})
+              </span>
+            ) : (
+              <span className="text-xs text-slate-400 font-medium italic">
+                Not used yet (0 vouchers)
+              </span>
+            )}
           </div>
         );
       },
@@ -621,7 +675,7 @@ export default function SeriesMasterPage() {
       cell: (row) => {
         const currentPrefix = inlineEdits[row.id]?.prefix ?? row.prefix;
         const currentSuffix = inlineEdits[row.id]?.suffix ?? (row.suffix || "");
-        const nextNum = row.next_number || 1;
+        const nextNum = row.next_number || (row.starting_number || 1);
         const previewNumber = `${currentPrefix}${String(nextNum).padStart(4, "0")}${currentSuffix}`;
 
         return (
@@ -649,9 +703,21 @@ export default function SeriesMasterPage() {
 
   const seriesActions: RowAction<SeriesMasterItem>[] = [
     {
+      label: "Use As Active Now",
+      icon: <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />,
+      onClick: (row) => handleSetDefault(row.id),
+      hidden: (row) => Boolean(row.is_default),
+    },
+    {
       label: "Edit Configuration",
       icon: <Edit2 className="w-3.5 h-3.5" />,
       onClick: (row) => handleOpenEdit(row),
+    },
+    {
+      label: "Delete Range",
+      icon: <Trash2 className="w-3.5 h-3.5 text-rose-500" />,
+      onClick: (row) => handleDeleteSeries(row.id),
+      variant: "danger",
     },
   ];
 
@@ -659,13 +725,13 @@ export default function SeriesMasterPage() {
     <div className="space-y-6">
       <PageHeader
         title="Document Series Master"
-        description="Unified sequence numbering engine: configure Prefix, Postfix, and sequence counters directly from the list with real voucher verification."
+        description="Unified sequence numbering engine: configure custom batch ranges, booklets, prefix/postfix, and set active series for manual & automatic vouchers."
         breadcrumbs={[
           { label: "Settings", href: "/settings/users" },
           { label: "Series Master" },
         ]}
         primaryAction={{
-          label: "Configure Series",
+          label: "Add Series Range / Batch",
           icon: <Plus className="w-4 h-4" />,
           onClick: handleOpenCreate,
         }}
@@ -703,10 +769,10 @@ export default function SeriesMasterPage() {
         {/* Category Filter Pills */}
         <div className="flex flex-wrap items-center gap-1.5">
           {[
-            { id: "ALL", label: `All Vouchers (${seriesList.length})` },
+            { id: "ALL", label: `All Series (${seriesList.length})` },
             {
               id: "MANDATORY_MANUAL",
-              label: `Mandatory Manual (${seriesList.filter((s) => s.is_mandatory_manual).length})`,
+              label: `Manual Ranges (${seriesList.filter((s) => s.series_mode === "MANUAL" || s.is_mandatory_manual).length})`,
             },
             { id: "TRANSPORT", label: "Transport (JOB, LR, HC)" },
             { id: "BILLING", label: "Invoicing & Billing" },
@@ -746,14 +812,14 @@ export default function SeriesMasterPage() {
             onClick={handleInitializeDefaults}
             disabled={initializingDefaults}
             className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50 shrink-0"
-            title="Ensure all 16 standard voucher series are configured in the system"
+            title="Ensure standard document series exist in catalog"
           >
             {initializingDefaults ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
             )}
-            Verify / Initialize All Series
+            Verify / Seed Defaults
           </Button>
         </div>
       </div>
@@ -770,7 +836,7 @@ export default function SeriesMasterPage() {
           data={filteredSeries}
           actions={seriesActions}
           emptyMessage="No document series matching filter"
-          emptySubtext="Click 'Verify / Initialize All Series' to automatically configure standard voucher sequences."
+          emptySubtext="Click 'Add Series Range / Batch' to create a manual series booklet or verify default sequences."
         />
       )}
 
@@ -778,8 +844,8 @@ export default function SeriesMasterPage() {
       <EntityDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title={editingSeries ? `Edit Series: ${editingSeries.document_type}` : "Configure Document Series"}
-        description="Configure prefix, postfix, starting sequence, and enforce Automatic vs Manual numbering mode."
+        title={editingSeries ? `Edit Series: ${editingSeries.document_type}` : "Add Document Series Range / Batch"}
+        description="Configure batch range limits (start & end number), custom prefix, and optionally set as the active series."
         width="lg"
       >
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
@@ -794,7 +860,7 @@ export default function SeriesMasterPage() {
                 onChange={(val) => handleDocTypeChange(String(val))}
                 options={STANDARD_VOUCHERS.map((v) => ({
                   value: v.code,
-                  label: `${v.name} (${v.code}) — ${v.categoryLabel}${v.isMandatoryManual ? " [Manual Mandatory]" : ""}`,
+                  label: `${v.name} (${v.code}) — ${v.categoryLabel}${v.isMandatoryManual ? " [Manual Range]" : ""}`,
                 }))}
                 placeholder="Select or enter voucher type..."
                 searchPlaceholder="Search voucher type..."
@@ -806,15 +872,14 @@ export default function SeriesMasterPage() {
               </span>
             </div>
 
-            {/* Mandatory Manual Series Policy Notice */}
+            {/* Series Mode Selection */}
             {isSelectedMandatoryManual ? (
               <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
                 <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold block">Mandatory Manual Series Enforced</span>
+                  <span className="font-bold block">Manual Series Range Workflow Enforced</span>
                   <span>
-                    LR, HC, General Invoice, and Transport Invoice require Manual Series. Document creation
-                    will validate against this configured series.
+                    LR, HC, General Invoice, and Transport Invoice operate on manual batch ranges. You can configure multiple series ranges/booklets with custom prefixes.
                   </span>
                 </div>
               </div>
@@ -824,6 +889,24 @@ export default function SeriesMasterPage() {
                   Series Mode / Numbering Type <span className="text-rose-600">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSeriesMode("MANUAL")}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      seriesMode === "MANUAL"
+                        ? "border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-xs text-[#172033]">Manual Batch Range</span>
+                      <Edit2 className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <span className="text-[11px] text-[#667085] block">
+                      Define batch start and end range. Users select this series and pick available unused numbers when creating vouchers.
+                    </span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setSeriesMode("AUTOMATIC")}
@@ -838,66 +921,65 @@ export default function SeriesMasterPage() {
                       <Sparkles className="w-4 h-4 text-emerald-600" />
                     </div>
                     <span className="text-[11px] text-[#667085] block">
-                      Sequence counter increments automatically on each voucher creation.
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSeriesMode("MANUAL")}
-                    className={`p-3 rounded-xl border text-left transition-all ${
-                      seriesMode === "MANUAL"
-                        ? "border-indigo-500 bg-indigo-50/60 ring-2 ring-indigo-500/20"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-xs text-[#172033]">Manual Series</span>
-                      <Edit2 className="w-4 h-4 text-indigo-600" />
-                    </div>
-                    <span className="text-[11px] text-[#667085] block">
-                      Format is validated against Prefix / Postfix patterns while enforcing audit tracking.
+                      Sequence increments automatically (1, 2, 3...) and voucher number is non-editable.
                     </span>
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Prefix & Postfix Configuration */}
+            {/* Series Batch Name (e.g. Delhi Booklet #1) */}
+            <div>
+              <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                Series Range / Booklet Name <span className="text-slate-400 font-normal">(Optional Label)</span>
+              </label>
+              <input
+                type="text"
+                value={seriesName}
+                onChange={(e) => setSeriesName(e.target.value)}
+                placeholder="e.g. Delhi Branch Book #1, Market Fleet Book, South Region"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              <span className="text-[11px] text-[#667085] mt-1 block">
+                Helps dispatchers identify this batch range when selecting from the series list during voucher creation.
+              </span>
+            </div>
+
+            {/* Custom Prefix & Postfix Configuration */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Document Prefix <span className="text-rose-600">*</span>
+                  Custom Prefix <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={prefix}
                   onChange={(e) => setPrefix(e.target.value)}
-                  placeholder="e.g. CV-2026- or TI-2026-"
+                  placeholder="e.g. LR-DEL- or HC-MUM-"
                   className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Document Postfix (Suffix)
+                  Custom Postfix (Suffix)
                 </label>
                 <input
                   type="text"
                   value={suffix}
                   onChange={(e) => setSuffix(e.target.value)}
-                  placeholder="e.g. -HO or /26"
+                  placeholder="e.g. -HO or /26 (optional)"
                   className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
-            {/* Starting Sequence & Financial Year */}
+            {/* Batch Range: Start & End Number */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Starting Sequence Number <span className="text-rose-600">*</span>
+                  Range Start Number <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="number"
@@ -906,22 +988,60 @@ export default function SeriesMasterPage() {
                   value={startingNum}
                   onChange={(e) => setStartingNum(parseInt(e.target.value, 10) || 1)}
                   className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="e.g. 1001"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Financial Year <span className="text-rose-600">*</span>
+                  Range End Number <span className="text-slate-400 font-normal">({seriesMode === "MANUAL" ? "Required for batch" : "Optional"})</span>
                 </label>
                 <input
-                  type="text"
-                  required
-                  value={finYear}
-                  onChange={(e) => setFinYear(e.target.value)}
-                  placeholder="2026-2027"
+                  type="number"
+                  min={startingNum}
+                  value={endNum ?? ""}
+                  onChange={(e) => setEndNum(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                   className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  placeholder="e.g. 1200"
                 />
+                <span className="text-[11px] text-[#667085] mt-1 block">
+                  Defines the upper bound of available leaves/numbers in this booklet.
+                </span>
               </div>
+            </div>
+
+            {/* Use as of now (Default Series Option) */}
+            <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200 flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="isDefaultSeries"
+                checked={isDefault}
+                onChange={(e) => setIsDefault(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <div>
+                <label htmlFor="isDefaultSeries" className="text-xs font-bold text-indigo-950 block cursor-pointer">
+                  Use this series as of now (Set as Active Default Series)
+                </label>
+                <span className="text-[11px] text-indigo-800/80 block mt-0.5">
+                  When creating new {docType} vouchers, this series will be pre-selected automatically so the user can stick to this booklet for the time being.
+                </span>
+              </div>
+            </div>
+
+            {/* Financial Year */}
+            <div>
+              <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                Financial Year <span className="text-rose-600">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={finYear}
+                onChange={(e) => setFinYear(e.target.value)}
+                placeholder="2026-2027"
+                className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
             </div>
 
             {/* Submit Action */}
@@ -941,7 +1061,7 @@ export default function SeriesMasterPage() {
                     Saving...
                   </>
                 ) : (
-                  "Save Series Master"
+                  "Save Series Range"
                 )}
               </Button>
             </div>

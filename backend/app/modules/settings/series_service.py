@@ -373,6 +373,8 @@ def compute_series_display_data(s: SeriesMaster, real_usage: Optional[Dict[str, 
         "next_number_formatted": next_num_fmt,
         "is_mandatory_manual": is_mandatory,
         "series_mode": s.series_mode or ("MANUAL" if is_mandatory else "AUTOMATIC"),
+        "series_name": s.series_name,
+        "is_default": bool(s.is_default),
     }
 
 
@@ -381,7 +383,7 @@ _VERIFIED_SERIES_DBS = set()
 
 async def ensure_series_table_schema(db: AsyncSession) -> None:
     """
-    Safely ensures the Series tables and series_mode column exist in tenant database.
+    Safely ensures the Series tables and new columns exist in tenant database.
     Works transparently with Postgres and SQLite without leaving aborted transactions.
     Caches verified databases to eliminate redundant DDL on subsequent requests.
     """
@@ -397,11 +399,17 @@ async def ensure_series_table_schema(db: AsyncSession) -> None:
 
         if bind.dialect.name == "postgresql":
             await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+            await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_name VARCHAR(100);"))
+            await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT FALSE;"))
         elif bind.dialect.name == "sqlite":
             res = await db.execute(text("PRAGMA table_info(settings_series_masters);"))
             cols = [r[1] for r in res.fetchall()]
             if "series_mode" not in cols:
                 await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+            if "series_name" not in cols:
+                await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN series_name VARCHAR(100);"))
+            if "is_default" not in cols:
+                await db.execute(text("ALTER TABLE settings_series_masters ADD COLUMN is_default BOOLEAN DEFAULT 0;"))
         await db.commit()
         _VERIFIED_SERIES_DBS.add(db_name)
     except Exception as e:
@@ -410,6 +418,184 @@ async def ensure_series_table_schema(db: AsyncSession) -> None:
             await db.rollback()
         except Exception:
             pass
+
+
+async def get_all_used_numbers_for_doc(db: AsyncSession, document_type: str) -> Set[str]:
+    """
+    Returns the set of all existing voucher numbers in the database for a document type.
+    Used to guarantee that used numbers are never shown or reused in manual series selection.
+    """
+    raw_doc = document_type.upper().strip()
+    norm = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
+    used_numbers: Set[str] = set()
+
+    try:
+        if norm == "JOB":
+            from app.tenant_db.models import Job
+            res = await db.execute(select(Job.job_number))
+            for (no,) in res.all():
+                if no:
+                    used_numbers.add(str(no).strip())
+        elif norm == "LR":
+            from app.tenant_db.models import LR
+            res = await db.execute(select(LR.lr_number))
+            for (no,) in res.all():
+                if no:
+                    used_numbers.add(str(no).strip())
+        elif norm in ("HIRE_CHALLAN", "HC"):
+            from app.tenant_db.models import HireChallan
+            res = await db.execute(select(HireChallan.challan_number))
+            for (no,) in res.all():
+                if no:
+                    used_numbers.add(str(no).strip())
+        else:
+            from app.tenant_db.models import Voucher
+            v_types = [norm]
+            if norm == "TRANSPORT_INVOICE":
+                v_types = ["TRANSPORT_INVOICE", "INVOICE"]
+            elif norm == "GENERAL_INVOICE":
+                v_types = ["GENERAL_INVOICE"]
+            elif norm == "PROFORMA_INVOICE":
+                v_types = ["PROFORMA_INVOICE"]
+            elif norm == "NORMAL_PURCHASE":
+                v_types = ["NORMAL_PURCHASE", "PURCHASE"]
+            elif norm == "GENERAL_PURCHASE":
+                v_types = ["GENERAL_PURCHASE"]
+            elif norm == "RECEIPT_VOUCHER":
+                v_types = ["RECEIPT_VOUCHER", "RECEIPT"]
+            elif norm == "PAYMENT_VOUCHER":
+                v_types = ["PAYMENT_VOUCHER", "PAYMENT"]
+            elif norm == "PAYMENT_ATH":
+                v_types = ["PAYMENT_ATH", "ATH_PAYMENT", "ATH"]
+            elif norm == "PAYMENT_BTH":
+                v_types = ["PAYMENT_BTH", "BTH_PAYMENT", "BTH"]
+            elif norm == "CREDIT_NOTE":
+                v_types = ["CREDIT_NOTE"]
+            elif norm == "DEBIT_NOTE":
+                v_types = ["DEBIT_NOTE"]
+            elif norm == "GENERAL_VOUCHER":
+                v_types = ["GENERAL_VOUCHER", "JOURNAL", "JV"]
+            elif norm == "CONTRA_VOUCHER":
+                v_types = ["CONTRA_VOUCHER", "CONTRA"]
+
+            res = await db.execute(select(Voucher.voucher_number).where(Voucher.voucher_type.in_(v_types)))
+            for (no,) in res.all():
+                if no:
+                    used_numbers.add(str(no).strip())
+    except Exception as e:
+        logger.warning(f"Error getting used voucher numbers for {norm}: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    return used_numbers
+
+
+async def get_manual_series_ranges(db: AsyncSession, document_type: str) -> Dict[str, Any]:
+    """
+    Returns all configured manual series ranges for a document type.
+    Computes available (unused) voucher numbers for each range, filtering out already used vouchers.
+    """
+    await ensure_series_table_schema(db)
+    raw_doc = document_type.upper().strip()
+    norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
+    is_mandatory_manual = norm_type in MANDATORY_MANUAL_DOC_TYPES
+
+    stmt = (
+        select(SeriesMaster)
+        .where(
+            SeriesMaster.document_type.in_([norm_type, raw_doc]),
+            SeriesMaster.is_active == True,
+        )
+        .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
+    )
+    res = await db.execute(stmt)
+    all_series = res.scalars().all()
+
+    used_numbers_set = await get_all_used_numbers_for_doc(db, norm_type)
+
+    ranges_data = []
+    default_series_id = None
+
+    for s in all_series:
+        prefix = s.prefix or ""
+        suffix = s.suffix or ""
+        start = s.starting_number or 1
+        end = s.end_number if s.end_number and s.end_number >= start else (start + 500)
+        total_in_range = end - start + 1
+
+        available_options = []
+        used_count_in_range = 0
+
+        # Scan batch range
+        for num in range(start, end + 1):
+            formatted = format_series_number(prefix, num, suffix)
+            alt_plain = f"{prefix}{num}{suffix}"
+            if formatted in used_numbers_set or alt_plain in used_numbers_set:
+                used_count_in_range += 1
+            else:
+                if len(available_options) < 500:
+                    available_options.append({
+                        "value": formatted,
+                        "label": formatted,
+                        "number": num,
+                    })
+
+        available_count = total_in_range - used_count_in_range
+        name_str = f"{s.series_name} · " if s.series_name else ""
+        range_label = f"{name_str}{prefix}[{start} – {end}] ({available_count} left)"
+        if s.is_default:
+            default_series_id = s.id
+
+        ranges_data.append({
+            "id": s.id,
+            "document_type": s.document_type,
+            "series_name": s.series_name or f"Series {prefix}",
+            "prefix": prefix,
+            "suffix": suffix,
+            "starting_number": start,
+            "end_number": s.end_number,
+            "series_mode": s.series_mode or ("MANUAL" if is_mandatory_manual else "AUTOMATIC"),
+            "is_default": bool(s.is_default),
+            "total_count": total_in_range,
+            "used_count": used_count_in_range,
+            "available_count": available_count,
+            "display_label": range_label,
+            "available_options": available_options,
+        })
+
+    if not default_series_id and ranges_data:
+        default_series_id = ranges_data[0]["id"]
+
+    return {
+        "document_type": norm_type,
+        "is_mandatory_manual": is_mandatory_manual,
+        "default_series_id": default_series_id,
+        "ranges": ranges_data,
+    }
+
+
+async def set_default_series(db: AsyncSession, series_id: int) -> dict:
+    """
+    Sets the specified series as the active/default series for its document type.
+    """
+    await ensure_series_table_schema(db)
+    target = (await db.execute(select(SeriesMaster).where(SeriesMaster.id == series_id))).scalar_one_or_none()
+    if not target:
+        raise AppException(status_code=404, error_code="SERIES_NOT_FOUND", message="Series master not found.")
+
+    all_same_doc = (await db.execute(
+        select(SeriesMaster).where(SeriesMaster.document_type == target.document_type)
+    )).scalars().all()
+
+    for s in all_same_doc:
+        s.is_default = (s.id == target.id)
+        db.add(s)
+
+    await db.commit()
+    await db.refresh(target)
+    return {"message": f"Series '{target.prefix}' set as current active series for {target.document_type}.", "id": target.id, "is_default": True}
 
 
 async def allocate_or_validate_voucher_number(
@@ -467,30 +653,55 @@ async def allocate_or_validate_voucher_number(
         if mode == "MANUAL":
             if manual_number and manual_number.strip():
                 clean_val = manual_number.strip()
-                # If user entered just sequence digits (e.g. "86" or "104")
-                if clean_val.isdigit():
-                    num_val = int(clean_val)
-                    final_number = format_series_number(prefix, num_val, suffix)
-                    if num_val > series.current_number:
-                        series.current_number = num_val
-                else:
-                    # Check if already formatted with prefix & suffix
-                    temp = clean_val
-                    if not temp.startswith(prefix):
-                        temp = f"{prefix}{temp}"
-                    if suffix and not temp.endswith(suffix):
-                        temp = f"{temp}{suffix}"
-                    final_number = temp
 
-                    # Extract digits to update current_number if it advances sequence
-                    digits = "".join(filter(str.isdigit, clean_val))
-                    if digits:
-                        try:
-                            num_val = int(digits)
-                            if num_val > series.current_number:
-                                series.current_number = num_val
-                        except ValueError:
-                            pass
+                # Check if this voucher number is already used anywhere in database
+                all_used = await get_all_used_numbers_for_doc(db, norm_type)
+                if clean_val in all_used:
+                    raise AppException(
+                        status_code=400,
+                        error_code="VOUCHER_NUMBER_ALREADY_USED",
+                        message=f"Voucher number '{clean_val}' is already used. Please choose an unused voucher number from the active series range.",
+                    )
+
+                # Find which series range owns this voucher number
+                all_ranges = (await db.execute(
+                    select(SeriesMaster)
+                    .where(
+                        SeriesMaster.document_type.in_([norm_type, raw_doc]),
+                        SeriesMaster.is_active == True,
+                    )
+                    .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
+                )).scalars().all()
+
+                digits = "".join(filter(str.isdigit, clean_val))
+                num_val = int(digits) if digits else None
+
+                matched_series = None
+                for sr in all_ranges:
+                    p = sr.prefix or ""
+                    s_suf = sr.suffix or ""
+                    if clean_val.startswith(p) and (not s_suf or clean_val.endswith(s_suf)):
+                        if num_val is not None:
+                            start_n = sr.starting_number or 1
+                            end_n = sr.end_number
+                            if num_val >= start_n and (end_n is None or num_val <= end_n):
+                                matched_series = sr
+                                break
+
+                active_target = matched_series or series
+                if active_target and num_val is not None:
+                    if active_target.end_number and num_val > active_target.end_number:
+                        raise AppException(
+                            status_code=400,
+                            error_code="SERIES_EXHAUSTED",
+                            message=f"Voucher number '{clean_val}' exceeds configured series range limit ({active_target.end_number}).",
+                        )
+                    if num_val > (active_target.current_number or 0):
+                        active_target.current_number = num_val
+                        db.add(active_target)
+                        await db.flush()
+
+                final_number = clean_val
             else:
                 real_usage = await get_real_voucher_usage(db, norm_type)
                 disp = compute_series_display_data(series, real_usage=real_usage)
@@ -506,7 +717,7 @@ async def allocate_or_validate_voucher_number(
                 if digits:
                     try:
                         num_val = int(digits)
-                        if num_val > series.current_number:
+                        if num_val > (series.current_number or 0):
                             series.current_number = num_val
                     except ValueError:
                         pass
@@ -548,7 +759,7 @@ async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str,
             SeriesMaster.document_type.in_([norm_type, raw_doc]),
             SeriesMaster.is_active == True,
         )
-        .order_by(SeriesMaster.id.desc())
+        .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
     )
     res = await db.execute(stmt)
     series = res.scalars().first()
@@ -571,15 +782,18 @@ async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str,
         "id": series.id,
         "document_type": series.document_type,
         "display_name": norm_type.replace("_", " ").title(),
+        "series_name": series.series_name,
         "prefix": series.prefix,
         "suffix": series.suffix or "",
         "starting_number": series.starting_number,
         "current_number": disp["current_number"],
+        "end_number": series.end_number,
         "last_used_formatted": disp["last_used_formatted"],
         "next_number": disp["next_number"],
         "next_number_formatted": disp["next_number_formatted"],
         "financial_year": series.financial_year,
         "series_mode": disp["series_mode"],
+        "is_default": bool(series.is_default),
         "is_mandatory_manual": disp["is_mandatory_manual"],
         "is_active": series.is_active,
     }

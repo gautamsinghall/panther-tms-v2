@@ -218,7 +218,10 @@ export function Form({
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}
                         required={field.required}
-                        onChange={(selectedVal) => handleChange(field.name, selectedVal)}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
                         onBlur={() => handleBlur(field)}
                         onAddNew={
                           field.onAddNew
