@@ -88,11 +88,6 @@ def get_tenant_id_from_request(request: Request) -> Optional[str]:
         except Exception:
             pass
 
-    # 6. Legacy Header
-    legacy_header = request.headers.get("X-Tenant-Subdomain")
-    if legacy_header:
-        return legacy_header.strip().lower()
-
     return None
 
 def _verify_tenant_active(tenant: Tenant, identifier: str) -> None:
@@ -123,12 +118,7 @@ async def get_tenant_by_id(tenant_id: str, session: Optional[AsyncSession] = Non
         result = await s.execute(
             select(Tenant)
             .options(selectinload(Tenant.plan).selectinload(Plan.entitlements))
-            .where(
-                or_(
-                    Tenant.tenant_id == cleaned,
-                    Tenant.subdomain == cleaned,  # Fallback for demo or legacy data
-                )
-            )
+            .where(Tenant.tenant_id == cleaned)
         )
         return result.scalar_one_or_none()
 
@@ -166,12 +156,7 @@ async def get_tenant_by_company_code(company_code: str, session: Optional[AsyncS
         result = await s.execute(
             select(Tenant)
             .options(selectinload(Tenant.plan).selectinload(Plan.entitlements))
-            .where(
-                or_(
-                    Tenant.company_code == cleaned,
-                    Tenant.subdomain == cleaned.lower(),  # Fallback
-                )
-            )
+            .where(Tenant.company_code == cleaned)
         )
         return result.scalar_one_or_none()
 
@@ -191,7 +176,3 @@ async def get_tenant_by_company_code(company_code: str, session: Optional[AsyncS
         _tenant_cache[cleaned] = (tenant, now_monotonic + TENANT_CACHE_TTL_SECONDS)
 
     return tenant
-
-# Legacy alias for backward compatibility across modules/tests
-async def get_tenant_by_subdomain(subdomain: str, session: Optional[AsyncSession] = None) -> Tenant:
-    return await get_tenant_by_id(subdomain, session=session)

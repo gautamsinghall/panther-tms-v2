@@ -187,7 +187,6 @@ export default function SignupPage() {
         body: JSON.stringify({
           company_name: companyName,
           company_code: companyCode,
-          subdomain: companyCode.toLowerCase(),
           admin_email: adminEmail,
           admin_name: adminName,
           admin_password: adminPassword,
@@ -202,7 +201,7 @@ export default function SignupPage() {
       }
 
       const initData = await initRes.json();
-      const resolvedTenantId = initData.tenant_id || initData.subdomain || initData.tenant?.tenant_id || "demo123456";
+      const resolvedTenantId = initData.tenant_id || initData.tenant?.tenant_id || "demo123456";
       setTenantId(resolvedTenantId);
       if (initData.company_code) setCompanyCode(initData.company_code);
       setStep(3);
@@ -309,7 +308,6 @@ export default function SignupPage() {
         body: JSON.stringify({
           tenant_id: targetTenantId,
           company_code: targetCompanyCode,
-          subdomain: targetTenantId,
           plan_code: planCode,
           razorpay_payment_id: paymentId,
           razorpay_subscription_id: subscriptionId,
@@ -1197,7 +1195,7 @@ export default function SignupPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500 font-sans">Tenant DB:</span>
-                    <span className="text-emerald-600 font-semibold">panther_tenant_{tenantId}</span>
+                    <span className="text-emerald-600 font-semibold">panther_tenant_{companyCode ? companyCode.toLowerCase() : "companycode"}</span>
                   </div>
                 </div>
 

@@ -302,7 +302,7 @@ async def provision_tenant(
     5. Saves Tenant record in Control DB
     """
     # 1. Company code sanitization
-    raw_code = data.company_code or data.subdomain or data.company_name
+    raw_code = data.company_code or data.company_name
     company_code = sanitize_company_code(raw_code)
     if not company_code:
         company_code = "COMPANY"
@@ -326,12 +326,15 @@ async def provision_tenant(
         )
 
     # 3. Generate unique 10-character lowercase alphanumeric tenant_id
-    tenant_id = generate_tenant_id()
-    while (await control_session.execute(select(Tenant).where(Tenant.tenant_id == tenant_id))).scalar_one_or_none():
+    if getattr(data, "tenant_id", None):
+        tenant_id = data.tenant_id.lower().strip()
+    else:
         tenant_id = generate_tenant_id()
+        while (await control_session.execute(select(Tenant).where(Tenant.tenant_id == tenant_id))).scalar_one_or_none():
+            tenant_id = generate_tenant_id()
 
-    # 4. Create isolated DB
-    db_name = f"panther_tenant_{tenant_id}"
+    # 4. Create isolated DB named with companycode
+    db_name = f"panther_tenant_{company_code.lower()}"
     await create_postgres_database(db_name)
 
     # 5. Initialize tenant schema & seed admin
@@ -347,7 +350,6 @@ async def provision_tenant(
     tenant = Tenant(
         tenant_id=tenant_id,
         company_code=company_code,
-        subdomain=tenant_id,  # For backward compatibility
         company_name=data.company_name,
         db_name=db_name,
         status="ACTIVE",
@@ -372,7 +374,7 @@ async def initiate_signup(
     - If FREE tier, immediately provisions isolated tenant database and seeds admin
     - If Paid tier, generates Razorpay subscription and pre-stages tenant in PENDING_SETUP
     """
-    raw_code = data.company_code or data.subdomain or data.company_name
+    raw_code = data.company_code or data.company_name
     company_code = sanitize_company_code(raw_code)
     if not company_code:
         company_code = "COMPANY"
@@ -410,7 +412,6 @@ async def initiate_signup(
             company_code=tenant.company_code,
             plan_code=plan.code,
             amount=0.0,
-            subdomain=tenant.tenant_id,
             signup_session_token=tenant.tenant_id,
             redirect_url=f"/login?company_code={tenant.company_code}",
             message=f"Workspace provisioned successfully. Your Company Code is {tenant.company_code} and Tenant ID is {tenant.tenant_id}.",
@@ -436,7 +437,7 @@ async def initiate_signup(
         period=data.billing_cycle,
     )
 
-    db_name = f"panther_tenant_{tenant_id}"
+    db_name = f"panther_tenant_{company_code.lower()}"
     await create_postgres_database(db_name)
     await initialize_tenant_schema_and_admin(
         db_name=db_name,
@@ -449,7 +450,6 @@ async def initiate_signup(
     tenant = Tenant(
         tenant_id=tenant_id,
         company_code=company_code,
-        subdomain=tenant_id,
         company_name=data.company_name,
         db_name=db_name,
         status="PENDING_SETUP",
@@ -469,7 +469,6 @@ async def initiate_signup(
         razorpay_key_id=settings.RAZORPAY_KEY_ID,
         plan_code=plan.code,
         amount=amount,
-        subdomain=tenant_id,
         signup_session_token=tenant_id,
         redirect_url=None,
         message="Subscription initiated. Complete payment to activate workspace.",
@@ -486,7 +485,7 @@ async def complete_signup(
     - Activates tenant from PENDING_SETUP to ACTIVE
     - Sets 30-day period and records subscription status
     """
-    ident = data.tenant_id or data.signup_session_token or data.subdomain or data.company_code or ""
+    ident = data.tenant_id or data.signup_session_token or data.company_code or ""
     ident_clean = ident.strip().lower()
 
     # Find staged or already provisioned tenant
@@ -495,7 +494,6 @@ async def complete_signup(
             or_(
                 Tenant.tenant_id == ident_clean,
                 Tenant.company_code == ident.strip().upper(),
-                Tenant.subdomain == ident_clean,
             )
         )
     )).scalar_one_or_none()
@@ -604,7 +602,6 @@ async def process_razorpay_webhook_event(
     notes = entity.get("notes", {})
     tenant_id = notes.get("tenant_id")
     company_code = notes.get("company_code")
-    subdomain = notes.get("subdomain")
 
     tenant = None
     if sub_id:
@@ -620,11 +617,6 @@ async def process_razorpay_webhook_event(
     if not tenant and company_code:
         tenant = (await control_session.execute(
             select(Tenant).where(Tenant.company_code == company_code.upper().strip())
-        )).scalar_one_or_none()
-
-    if not tenant and subdomain:
-        tenant = (await control_session.execute(
-            select(Tenant).where(Tenant.subdomain == subdomain.lower().strip())
         )).scalar_one_or_none()
 
     if not tenant:
@@ -679,7 +671,6 @@ async def create_tenant_subscription(
             or_(
                 Tenant.tenant_id == clean_id.lower(),
                 Tenant.company_code == clean_id.upper(),
-                Tenant.subdomain == clean_id.lower(),
             )
         )
     )).scalar_one_or_none()

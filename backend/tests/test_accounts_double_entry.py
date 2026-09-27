@@ -7,7 +7,7 @@ from app.main import app
 @pytest.mark.asyncio
 async def test_accounts_double_entry_reconciliation_and_void():
     uid = uuid.uuid4().hex[:6]
-    headers_tenant = {"X-Tenant-Subdomain": "demo"}
+    headers_tenant = {"X-Company-Code": "DEMOLOGISTICS"}
     transport = ASGITransport(app=app)
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -21,7 +21,7 @@ async def test_accounts_double_entry_reconciliation_and_void():
         token = login_res.json()["access_token"]
         auth_headers = {
             "Authorization": f"Bearer {token}",
-            "X-Tenant-Subdomain": "demo",
+            "X-Tenant-ID": "demo123456",
         }
 
         # 2. Test General Invoice Voucher with tax

@@ -5,7 +5,6 @@ export { getApiBaseUrl };
 interface ApiClientOptions extends RequestInit {
   tenantId?: string;
   companyCode?: string;
-  subdomain?: string;
 }
 
 export async function apiClient<T = any>(
@@ -16,7 +15,7 @@ export async function apiClient<T = any>(
   const url = endpoint.startsWith("http") ? endpoint : `${backendBaseUrl}${endpoint}`;
 
   const storedAuth = getStoredAuth();
-  let tenantId = options.tenantId || storedAuth?.tenantId || storedAuth?.subdomain;
+  let tenantId = options.tenantId || storedAuth?.tenantId;
   let companyCode = options.companyCode || storedAuth?.companyCode;
 
   // If not found in storedAuth, try extracting from URL path (e.g. /[tenantId]/...)
@@ -33,7 +32,6 @@ export async function apiClient<T = any>(
 
   if (tenantId) {
     headers["X-Tenant-ID"] = tenantId;
-    headers["X-Tenant-Subdomain"] = tenantId;
   }
   if (companyCode) {
     headers["X-Company-Code"] = companyCode;

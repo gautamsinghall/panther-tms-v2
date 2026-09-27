@@ -21,7 +21,6 @@ async def get_current_tenant(request: Request) -> Tenant:
     request.state.tenant = tenant
     request.state.tenant_id = tenant.tenant_id
     request.state.company_code = tenant.company_code
-    request.state.tenant_subdomain = tenant.tenant_id  # compatibility
     request.state.tenant_db_name = tenant.db_name
     return tenant
 

@@ -12,7 +12,6 @@ export interface StoredAuth {
   tokenType?: string;
   tenantId: string;
   companyCode: string;
-  subdomain?: string;
   tenantName: string;
   user: StoredUser;
 }
@@ -53,13 +52,6 @@ export function getStoredAuth(): StoredAuth | null {
     if (isTokenExpired(data.accessToken)) {
       clearStoredAuth();
       return null;
-    }
-    // Backward compatibility if old object had subdomain instead of tenantId
-    if (!data.tenantId && data.subdomain) {
-      data.tenantId = data.subdomain;
-    }
-    if (!data.companyCode && data.subdomain) {
-      data.companyCode = data.subdomain.toUpperCase();
     }
     return data;
   } catch (err) {
@@ -140,7 +132,7 @@ export function getApiBaseUrl(): string {
 export async function login(
   companyCodeOrEmail: string,
   emailOrPass: string,
-  passwordOrSubdomain?: string
+  passwordParam?: string
 ): Promise<StoredAuth> {
   const backendBaseUrl = getApiBaseUrl();
   const endpoint = `${backendBaseUrl}/api/v1/auth/login`;
@@ -149,16 +141,15 @@ export async function login(
   let email = "";
   let password = "";
 
-  if (passwordOrSubdomain !== undefined) {
-    // 3 parameters passed: companyCode, email, password OR email, password, subdomain
+  if (passwordParam !== undefined) {
     if (emailOrPass.includes("@")) {
       companyCode = companyCodeOrEmail;
       email = emailOrPass;
-      password = passwordOrSubdomain;
+      password = passwordParam;
     } else {
       email = companyCodeOrEmail;
       password = emailOrPass;
-      companyCode = passwordOrSubdomain;
+      companyCode = passwordParam;
     }
   } else {
     // 2 parameters passed: email, password (fallback)
@@ -174,7 +165,6 @@ export async function login(
     headers: {
       "Content-Type": "application/json",
       "X-Company-Code": cleanCompanyCode,
-      "X-Tenant-Subdomain": cleanCompanyCode.toLowerCase(),
     },
     body: JSON.stringify({
       company_code: cleanCompanyCode,
@@ -195,7 +185,7 @@ export async function login(
   }
 
   const result = await res.json();
-  const tenantId = result.tenant_id || result.subdomain || "demo123456";
+  const tenantId = result.tenant_id || "demo123456";
   const finalCode = result.company_code || cleanCompanyCode;
 
   const authData: StoredAuth = {
@@ -204,7 +194,6 @@ export async function login(
     tokenType: result.token_type || "bearer",
     tenantId: tenantId,
     companyCode: finalCode,
-    subdomain: tenantId,
     tenantName: result.tenant_name || result.tenant?.company_name || `${finalCode} Workspace`,
     user: result.user || {
       id: 1,

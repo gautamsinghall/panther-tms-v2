@@ -29,7 +29,6 @@ async def seed_demo():
             or_(
                 Tenant.company_code == "DEMOLOGISTICS",
                 Tenant.tenant_id == "demo123456",
-                Tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN
             )
         )
         result = await session.execute(stmt)

@@ -46,7 +46,7 @@ export default function LoginPage() {
 
       // Extract query params if redirected from signup or direct link
       const searchParams = new URLSearchParams(window.location.search);
-      const codeParam = searchParams.get("company_code") || searchParams.get("code") || searchParams.get("subdomain");
+      const codeParam = searchParams.get("company_code") || searchParams.get("code");
       const emailParam = searchParams.get("email");
       if (codeParam) setCompanyCode(codeParam.replace(/[^a-zA-Z]/g, "").toUpperCase());
       if (emailParam) setEmail(emailParam);

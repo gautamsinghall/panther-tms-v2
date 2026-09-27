@@ -23,11 +23,12 @@ async def test_control_plans_and_tenant():
         assert "FREE" in codes and "PRO" in codes and "ENTERPRISE" in codes
 
         # Check demo tenant
-        tenant_res = await ac.get("/api/v1/control/tenants/demo")
+        tenant_res = await ac.get("/api/v1/control/tenants/DEMOLOGISTICS")
         assert tenant_res.status_code == 200
         tenant = tenant_res.json()
-        assert tenant["subdomain"] == "demo"
-        assert tenant["db_name"] == "panther_tenant_demo"
+        assert tenant["company_code"] == "DEMOLOGISTICS"
+        assert tenant["tenant_id"] == "demo123456"
+        assert tenant["db_name"] == "panther_tenant_demologistics"
         assert tenant["status"] == "ACTIVE"
 
 @pytest.mark.asyncio
@@ -37,7 +38,7 @@ async def test_auth_login_and_me():
         # 1. Invalid login
         bad_login = await ac.post(
             "/api/v1/auth/login",
-            headers={"X-Tenant-Subdomain": "demo"},
+            headers={"X-Company-Code": "DEMOLOGISTICS"},
             json={"email": "admin@demo.com", "password": "WrongPassword!"}
         )
         assert bad_login.status_code == 401
@@ -46,20 +47,20 @@ async def test_auth_login_and_me():
         # 2. Valid login
         login_res = await ac.post(
             "/api/v1/auth/login",
-            headers={"X-Tenant-Subdomain": "demo"},
+            headers={"X-Company-Code": "DEMOLOGISTICS"},
             json={"email": "admin@demo.com", "password": "PantherTMS@2026!"}
         )
         assert login_res.status_code == 200
         token_data = login_res.json()
         assert "access_token" in token_data
-        assert token_data["subdomain"] == "demo"
+        assert token_data["company_code"] == "DEMOLOGISTICS"
         token = token_data["access_token"]
 
         # 3. Authenticated /me endpoint
         me_res = await ac.get(
             "/api/v1/auth/me",
             headers={
-                "X-Tenant-Subdomain": "demo",
+                "X-Tenant-ID": "demo123456",
                 "Authorization": f"Bearer {token}"
             }
         )
@@ -67,7 +68,7 @@ async def test_auth_login_and_me():
         user = me_res.json()
         assert user["email"] == "admin@demo.com"
         assert user["role"] == "COMPANY_ADMIN"
-        assert user["tenant"]["subdomain"] == "demo"
+        assert user["tenant"]["company_code"] == "DEMOLOGISTICS"
 
 @pytest.mark.asyncio
 async def test_cross_tenant_token_rejection():
@@ -77,7 +78,7 @@ async def test_cross_tenant_token_rejection():
         # Login to demo
         login_res = await ac.post(
             "/api/v1/auth/login",
-            headers={"X-Tenant-Subdomain": "demo"},
+            headers={"X-Company-Code": "DEMOLOGISTICS"},
             json={"email": "admin@demo.com", "password": "PantherTMS@2026!"}
         )
         token = login_res.json()["access_token"]
@@ -86,7 +87,7 @@ async def test_cross_tenant_token_rejection():
         cross_res = await ac.get(
             "/api/v1/auth/me",
             headers={
-                "X-Tenant-Subdomain": "nonexistent_tenant",
+                "X-Tenant-ID": "nonexistent9",
                 "Authorization": f"Bearer {token}"
             }
         )

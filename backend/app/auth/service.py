@@ -35,8 +35,8 @@ async def authenticate_user(
         else:
             raise AppException(status_code=403, error_code="USER_INACTIVE", message="User account is inactive.")
 
-    tenant_id_str = getattr(tenant, "tenant_id", None) or getattr(tenant, "subdomain", None) or str(tenant.id)
-    company_code_str = getattr(tenant, "company_code", None) or getattr(tenant, "subdomain", "").upper()
+    tenant_id_str = tenant.tenant_id
+    company_code_str = tenant.company_code
 
     access_token = create_access_token(
         subject=str(user.id),
@@ -66,7 +66,6 @@ async def authenticate_user(
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         tenant_id=tenant_id_str,
         company_code=company_code_str,
-        subdomain=tenant_id_str,
         tenant_name=tenant.company_name,
     )
 
@@ -83,11 +82,11 @@ async def refresh_user_token(
     if payload.get("type") != "refresh":
         raise UnauthorizedException("Invalid token type.")
 
-    tenant_id_str = getattr(tenant, "tenant_id", None) or getattr(tenant, "subdomain", None) or str(tenant.id)
-    company_code_str = getattr(tenant, "company_code", None) or getattr(tenant, "subdomain", "").upper()
+    tenant_id_str = tenant.tenant_id
+    company_code_str = tenant.company_code
 
-    token_tid = payload.get("tenant_id") or payload.get("subdomain")
-    if token_tid and token_tid != tenant_id_str and token_tid != getattr(tenant, "subdomain", None):
+    token_tid = payload.get("tenant_id")
+    if token_tid and token_tid != tenant_id_str:
         raise UnauthorizedException("Token tenant mismatch.")
 
     user_id = int(payload.get("sub"))
@@ -134,6 +133,5 @@ async def refresh_user_token(
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         tenant_id=tenant_id_str,
         company_code=company_code_str,
-        subdomain=tenant_id_str,
         tenant_name=tenant.company_name,
     )

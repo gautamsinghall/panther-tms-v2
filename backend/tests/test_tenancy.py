@@ -41,17 +41,9 @@ def test_get_tenant_id_from_headers():
     req2 = Request(scope2)
     assert get_tenant_id_from_request(req2) == "BHARATLOGISTICS"
 
-    # 3. Legacy header
-    scope3 = {
-        "type": "http",
-        "headers": [(b"x-tenant-subdomain", b"demo123456")],
-    }
-    req3 = Request(scope3)
-    assert get_tenant_id_from_request(req3) == "demo123456"
-
 def test_tenant_engine_isolation():
-    engine_1 = get_tenant_engine("panther_tenant_k9x2m4p8t1")
-    engine_2 = get_tenant_engine("panther_tenant_z7y1w3q5r2")
+    engine_1 = get_tenant_engine("panther_tenant_bharatlogistics")
+    engine_2 = get_tenant_engine("panther_tenant_acmelogistics")
     assert engine_1 is not engine_2
-    assert "panther_tenant_k9x2m4p8t1" in str(engine_1.url)
-    assert "panther_tenant_z7y1w3q5r2" in str(engine_2.url)
+    assert "panther_tenant_bharatlogistics" in str(engine_1.url)
+    assert "panther_tenant_acmelogistics" in str(engine_2.url)

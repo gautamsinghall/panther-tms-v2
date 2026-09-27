@@ -16,15 +16,16 @@ def test_password_hashing():
 def test_jwt_token_payload_and_subdomain_isolation():
     token = create_access_token(
         subject="1",
-        tenant_subdomain="demo",
-        tenant_id=10,
+        tenant_subdomain="demo123456",
+        tenant_id="demo123456",
+        company_code="DEMOLOGISTICS",
         role="COMPANY_ADMIN",
         extra_claims={"email": "admin@demo.com"}
     )
     payload = decode_token(token)
     assert payload["sub"] == "1"
-    assert payload["subdomain"] == "demo"
-    assert payload["tenant_id"] == 10
+    assert payload["tenant_id"] == "demo123456"
+    assert payload["company_code"] == "DEMOLOGISTICS"
     assert payload["role"] == "COMPANY_ADMIN"
     assert payload["type"] == "access"
     assert payload["email"] == "admin@demo.com"
@@ -32,8 +33,9 @@ def test_jwt_token_payload_and_subdomain_isolation():
 def test_token_tampering():
     token = create_access_token(
         subject="1",
-        tenant_subdomain="demo",
-        tenant_id=10,
+        tenant_subdomain="demo123456",
+        tenant_id="demo123456",
+        company_code="DEMOLOGISTICS",
         role="COMPANY_ADMIN"
     )
     # Tamper token
@@ -65,14 +67,15 @@ async def test_demo_admin_auto_reactivation_on_login():
     result_mock.scalar_one_or_none.return_value = user
     db.execute.return_value = result_mock
 
-    tenant = Tenant(id=1, subdomain="demo", company_name="Demo Logistics", db_name="panther_tenant_demo")
+    tenant = Tenant(id=1, tenant_id="demo123456", company_code="DEMOLOGISTICS", company_name="Demo Logistics", db_name="panther_tenant_demologistics")
     login_data = LoginRequest(email="admin@demo.com", password="PantherTMS@2026!")
 
     # authenticate_user should auto-reactivate the demo admin and succeed
     token_response = await authenticate_user(db, tenant, login_data)
     assert user.is_active is True
     assert token_response.access_token is not None
-    assert token_response.subdomain == "demo"
+    assert token_response.company_code == "DEMOLOGISTICS"
+    assert token_response.tenant_id == "demo123456"
 
 @pytest.mark.asyncio
 async def test_non_demo_user_inactive_raises_error():
@@ -96,7 +99,7 @@ async def test_non_demo_user_inactive_raises_error():
     result_mock.scalar_one_or_none.return_value = user
     db.execute.return_value = result_mock
 
-    tenant = Tenant(id=1, subdomain="demo", company_name="Demo Logistics", db_name="panther_tenant_demo")
+    tenant = Tenant(id=1, tenant_id="demo123456", company_code="DEMOLOGISTICS", company_name="Demo Logistics", db_name="panther_tenant_demologistics")
     login_data = LoginRequest(email="employee@demo.com", password="Password123!")
 
     with pytest.raises(AppException) as exc_info:

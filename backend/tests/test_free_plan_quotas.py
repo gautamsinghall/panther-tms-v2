@@ -15,8 +15,8 @@ async def test_free_plan_limits_and_feature_locks():
     6. Verify No E-way Updation & No E-invoicing
     """
     uid = uuid.uuid4().hex[:6].lower()
-    subdomain = f"test-free-q-{uid}"
-    email = f"owner@{subdomain}.com"
+    company_code = f"FREEQ{uid.upper()}"
+    email = f"owner@{uid}.com"
     password = "FreePassword@2026!"
 
     transport = ASGITransport(app=app)
@@ -26,7 +26,7 @@ async def test_free_plan_limits_and_feature_locks():
             "/control/signup/initiate",
             json={
                 "company_name": f"Free Quota Test {uid}",
-                "subdomain": subdomain,
+                "company_code": company_code,
                 "admin_email": email,
                 "admin_password": password,
                 "admin_full_name": "Free Admin",
@@ -36,16 +36,17 @@ async def test_free_plan_limits_and_feature_locks():
         )
         assert init_res.status_code == 200, init_res.text
         assert init_res.json()["requires_payment"] is False
+        tenant_id = init_res.json()["tenant_id"]
 
         # 2. Login
         login_res = await client.post(
             "/api/v1/auth/login",
-            json={"email": email, "password": password},
-            headers={"X-Tenant-Subdomain": subdomain},
+            json={"company_code": company_code, "email": email, "password": password},
+            headers={"X-Tenant-ID": tenant_id},
         )
         assert login_res.status_code == 200
         jwt_token = login_res.json()["access_token"]
-        auth_headers = {"Authorization": f"Bearer {jwt_token}", "X-Tenant-Subdomain": subdomain}
+        auth_headers = {"Authorization": f"Bearer {jwt_token}", "X-Tenant-ID": tenant_id}
 
         # 3. Test Feature Locks: No E-Way Updation & No E-Invoicing
         eway_res = await client.post(

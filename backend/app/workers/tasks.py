@@ -22,18 +22,17 @@ def json_serial(obj):
 async def get_redis_client() -> aioredis.Redis:
     return aioredis.from_url(settings.redis_connection_url, decode_responses=True)
 
-async def process_async_job(ctx: Dict[str, Any], tenant_subdomain: str, job_type: str, payload: Dict[str, Any]):
+async def process_async_job(ctx: Dict[str, Any], company_code: str, job_type: str, payload: Dict[str, Any]):
     """
     Base worker job execution handler.
-    Always receives explicit `tenant_subdomain` per rules.md §3:
-    'Any new background job must carry tenant context explicitly (don't rely on ambient/global state).'
+    Always receives explicit `company_code`.
     """
-    logger.info(f"Processing worker job [{job_type}] for tenant [{tenant_subdomain}] with payload: {payload}")
-    return {"status": "completed", "tenant": tenant_subdomain, "job_type": job_type}
+    logger.info(f"Processing worker job [{job_type}] for company [{company_code}] with payload: {payload}")
+    return {"status": "completed", "tenant": company_code, "job_type": job_type}
 
 async def generate_report_export_job(
     ctx: Optional[Dict[str, Any]],
-    tenant_subdomain: str,
+    company_code: str,
     job_id: str,
     report_name: str,
     export_format: str,
@@ -43,7 +42,7 @@ async def generate_report_export_job(
     Background Arq worker task for generating heavy CSV/JSON report exports
     without blocking synchronous FastAPI request threads (architecture.md §8).
     """
-    logger.info(f"Starting export job {job_id} for tenant {tenant_subdomain}: {report_name} ({export_format})")
+    logger.info(f"Starting export job {job_id} for company {company_code}: {report_name} ({export_format})")
     r = await get_redis_client()
     filters = filters or {}
 
@@ -60,7 +59,7 @@ async def generate_report_export_job(
         }
         await r.set(f"export:{job_id}:meta", json.dumps(meta))
 
-        db_name = f"panther_tenant_{tenant_subdomain}"
+        db_name = f"panther_tenant_{company_code.lower()}"
         session_factory = get_tenant_session_maker(db_name)
 
         async with session_factory() as session:

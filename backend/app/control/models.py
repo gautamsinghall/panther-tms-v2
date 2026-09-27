@@ -57,7 +57,6 @@ class Tenant(ControlBase):
     company_code = Column(String(100), unique=True, index=True, nullable=False)
     company_name = Column(String(255), nullable=False)
     db_name = Column(String(100), unique=True, nullable=False)
-    subdomain = Column(String(63), unique=True, index=True, nullable=True)
     status = Column(String(50), default="ACTIVE", nullable=False)  # ACTIVE, SUSPENDED, PENDING_SETUP, PAST_DUE
     plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False)
     admin_email = Column(String(255), nullable=False)

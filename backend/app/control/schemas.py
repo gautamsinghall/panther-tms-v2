@@ -34,7 +34,7 @@ class PlanResponse(PlanBase):
 class TenantProvisionRequest(BaseModel):
     company_name: str = Field(..., min_length=2, max_length=255)
     company_code: Optional[str] = Field(None, max_length=100)
-    subdomain: Optional[str] = Field(None, max_length=63)
+    tenant_id: Optional[str] = Field(None, max_length=10)
     admin_email: EmailStr
     admin_password: str = Field(..., min_length=8)
     admin_full_name: str = Field(default="Company Admin")
@@ -48,7 +48,6 @@ class TenantResponse(BaseModel):
     db_name: str
     status: str
     admin_email: str
-    subdomain: Optional[str] = None
     plan_id: int
     subscription_id: Optional[str] = None
     subscription_status: Optional[str] = "ACTIVE"
@@ -61,7 +60,6 @@ class TenantResponse(BaseModel):
 class SignupInitiateRequest(BaseModel):
     company_name: str = Field(..., min_length=2, max_length=255)
     company_code: Optional[str] = Field(None, max_length=100)
-    subdomain: Optional[str] = Field(None, max_length=63)
     admin_email: EmailStr
     admin_password: str = Field(..., min_length=8)
     admin_full_name: str = Field(default="Company Admin")
@@ -78,7 +76,6 @@ class SignupInitiateResponse(BaseModel):
     razorpay_key_id: Optional[str] = None
     plan_code: str
     amount: float
-    subdomain: Optional[str] = None
     redirect_url: Optional[str] = None
     message: str
     signup_session_token: Optional[str] = None
@@ -87,7 +84,6 @@ class SignupInitiateResponse(BaseModel):
 class SignupCompleteRequest(BaseModel):
     tenant_id: Optional[str] = None
     company_code: Optional[str] = None
-    subdomain: Optional[str] = Field(None, max_length=63)
     signup_session_token: Optional[str] = None
     subscription_id: Optional[str] = None
     payment_id: Optional[str] = None

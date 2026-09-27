@@ -6,7 +6,7 @@ from app.main import app
 @pytest.mark.asyncio
 async def test_misc_accounting_masters_crud():
     uid = uuid.uuid4().hex[:6]
-    headers_tenant = {"X-Tenant-Subdomain": "demo"}
+    headers_tenant = {"X-Company-Code": "DEMOLOGISTICS"}
     transport = ASGITransport(app=app)
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -20,7 +20,7 @@ async def test_misc_accounting_masters_crud():
         token = login_res.json()["access_token"]
         auth_headers = {
             "Authorization": f"Bearer {token}",
-            "X-Tenant-Subdomain": "demo",
+            "X-Tenant-ID": "demo123456",
         }
 
         # 2. Tax Category CRUD

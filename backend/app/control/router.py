@@ -51,7 +51,6 @@ async def get_tenant_info(
             or_(
                 Tenant.tenant_id == clean_id.lower(),
                 Tenant.company_code == clean_id.upper(),
-                Tenant.subdomain == clean_id.lower(),
             )
         )
     )

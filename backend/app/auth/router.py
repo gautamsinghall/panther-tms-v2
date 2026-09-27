@@ -182,7 +182,7 @@ async def login(
 ):
     # Resolve tenant: from company_code in body, header, or query/token
     company_code = login_data.company_code or request.headers.get("X-Company-Code")
-    tenant_id = request.headers.get("X-Tenant-ID") or request.headers.get("X-Tenant-Subdomain")
+    tenant_id = request.headers.get("X-Tenant-ID")
     
     tenant: Optional[Tenant] = None
     if company_code:
@@ -219,8 +219,6 @@ async def get_me(
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
 ):
-    tenant_id_str = getattr(tenant, "tenant_id", None) or getattr(tenant, "subdomain", None) or str(tenant.id)
-    company_code_str = getattr(tenant, "company_code", None) or getattr(tenant, "subdomain", "").upper()
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
@@ -229,9 +227,8 @@ async def get_me(
         is_active=current_user.is_active,
         created_at=current_user.created_at,
         tenant=TenantContextResponse(
-            tenant_id=tenant_id_str,
-            company_code=company_code_str,
-            subdomain=tenant_id_str,
+            tenant_id=tenant.tenant_id,
+            company_code=tenant.company_code,
             company_name=tenant.company_name,
             status=tenant.status,
         ),

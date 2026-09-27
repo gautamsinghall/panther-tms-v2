@@ -34,7 +34,6 @@ async def lifespan(app: FastAPI):
             from sqlalchemy import text
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS company_code VARCHAR(100);"))
-            await conn.execute(text("ALTER TABLE tenants ALTER COLUMN subdomain DROP NOT NULL;"))
             await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_tenant_id ON tenants(tenant_id);"))
             await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_company_code ON tenants(company_code);"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(100);"))
@@ -44,10 +43,14 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
             # Backfill existing records if any
-            await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (subdomain = 'demo' OR company_name ILIKE '%demo%');"))
-            await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (subdomain = 'demo' OR company_name ILIKE '%demo%');"))
+            await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (company_name ILIKE '%demo%');"))
+            await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (company_name ILIKE '%demo%');"))
             await conn.execute(text("UPDATE tenants SET tenant_id = SUBSTRING(MD5(id::text || clock_timestamp()::text) FROM 1 FOR 10) WHERE tenant_id IS NULL OR tenant_id = '';"))
             await conn.execute(text("UPDATE tenants SET company_code = UPPER(REGEXP_REPLACE(company_name, '[^a-zA-Z]', '', 'g')) WHERE company_code IS NULL OR company_code = '';"))
+            # Drop subdomain column completely from database
+            await conn.execute(text("ALTER TABLE tenants DROP COLUMN IF EXISTS subdomain CASCADE;"))
+            # Ensure db_name is panther_tenant_companycode
+            await conn.execute(text("UPDATE tenants SET db_name = 'panther_tenant_' || LOWER(company_code) WHERE company_code IS NOT NULL AND company_code != '';"))
 
         async with ControlSessionLocal() as session:
             await seed_plans_and_entitlements(session)
@@ -63,7 +66,6 @@ async def lifespan(app: FastAPI):
                 or_(
                     Tenant.company_code == "DEMOLOGISTICS",
                     Tenant.tenant_id == "demo123456",
-                    Tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN
                 )
             )
             res = await session.execute(stmt)
@@ -71,6 +73,7 @@ async def lifespan(app: FastAPI):
                 req = TenantProvisionRequest(
                     company_name=settings.DEMO_TENANT_NAME,
                     company_code="DEMOLOGISTICS",
+                    tenant_id="demo123456",
                     admin_email=settings.DEMO_ADMIN_EMAIL,
                     admin_password=settings.DEMO_ADMIN_PASSWORD,
                     admin_full_name="Operations Manager",
@@ -81,9 +84,10 @@ async def lifespan(app: FastAPI):
             # Ensure tenant tables have country column and extra settings
             res = await session.execute(select(Tenant.db_name))
             tenant_dbs = list(res.scalars().all())
-            demo_db = f"panther_tenant_{settings.DEMO_TENANT_SUBDOMAIN}"
-            if demo_db not in tenant_dbs:
-                tenant_dbs.append(demo_db)
+            demo_dbs = ["panther_tenant_demologistics", "panther_tenant_demo123456", "panther_tenant_demo"]
+            for d_db in demo_dbs:
+                if d_db not in tenant_dbs:
+                    tenant_dbs.append(d_db)
             for t_db in tenant_dbs:
                 try:
                     t_engine = get_tenant_engine(t_db)

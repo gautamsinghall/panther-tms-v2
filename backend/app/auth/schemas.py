@@ -15,7 +15,6 @@ class TokenResponse(BaseModel):
     tenant_id: str
     company_code: str
     tenant_name: str
-    subdomain: Optional[str] = None
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
@@ -25,7 +24,6 @@ class TenantContextResponse(BaseModel):
     company_code: str
     company_name: str
     status: str
-    subdomain: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int

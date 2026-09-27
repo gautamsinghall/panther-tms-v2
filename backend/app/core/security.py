@@ -29,7 +29,6 @@ def create_access_token(
     payload: Dict[str, Any] = {
         "sub": subject,
         "tenant_id": str(tenant_subdomain or tenant_id),
-        "subdomain": tenant_subdomain,
         "company_code": company_code or "",
         "role": role,
         "exp": expire,
@@ -56,7 +55,6 @@ def create_refresh_token(
     payload: Dict[str, Any] = {
         "sub": subject,
         "tenant_id": str(tenant_subdomain or tenant_id),
-        "subdomain": tenant_subdomain,
         "company_code": company_code or "",
         "exp": expire,
         "iat": datetime.now(timezone.utc),

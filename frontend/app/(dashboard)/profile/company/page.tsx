@@ -155,7 +155,7 @@ export default function CompanyProfilePage() {
             </div>
             <div className="flex justify-between py-1 border-b border-[#F2F4F7]">
               <span className="text-[#667085]">Tenant Database</span>
-              <span className="font-mono text-emerald-600 font-semibold">panther_tenant_{tenantId}</span>
+              <span className="font-mono text-emerald-600 font-semibold">panther_tenant_{companyCode ? companyCode.toLowerCase() : "companycode"}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-[#F2F4F7]">
               <span className="text-[#667085]">Database Isolation</span>
