@@ -31,6 +31,7 @@ import TextAnimation from "@/components/ui/staggerText";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
 import { getApiBaseUrl } from "@/lib/auth";
+import { AuthNavbar } from "@/components/layout/auth-navbar";
 
 interface PlanOption {
   code: string;
@@ -335,7 +336,7 @@ export default function SignupPage() {
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         {/* Subtle center ambient glow */}
         <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-indigo-500/[0.03] rounded-full blur-3xl" />
-        
+
         {/* Upper-right faded freight truck background matching reference */}
         <div className="absolute top-0 right-0 w-[55vw] max-w-[900px] h-[580px] pointer-events-none overflow-hidden opacity-75">
           <img
@@ -351,46 +352,9 @@ export default function SignupPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* TOP HEADER BAR: Replicated from reference                                  */}
+      {/* TOP HEADER BAR                                                            */}
       {/* ========================================================================= */}
-      <header className="w-full border-b border-slate-200/80 bg-white/85 backdrop-blur-md px-6 sm:px-10 h-16 flex items-center justify-between z-20 shrink-0">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="inline-flex items-center gap-2 group">
-            <img
-              src="/panther-logo.png"
-              alt="Panther Digital Solutions"
-              className="h-8 w-auto object-contain drop-shadow-xs group-hover:opacity-90 transition-opacity"
-            />
-            <span className="font-bold text-lg tracking-tight text-slate-900">
-              Panther<span className="font-extrabold text-blue-600">TMS</span>
-            </span>
-            <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200/70 rounded-full px-2 py-0.5 font-mono">
-              v2.0
-            </span>
-          </Link>
-          <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-500 font-medium">
-            <span>Enterprise Logistics Operating System</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 text-xs">
-          <button
-            type="button"
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-            title="Help & Documentation"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-          <span className="hidden sm:inline text-slate-500 font-medium">Already have an account?</span>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-white hover:bg-slate-50 border border-indigo-200/70 shadow-2xs transition-all"
-          >
-            <span>Sign in</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </header>
+      <AuthNavbar mode="signup" />
 
       {/* ========================================================================= */}
       {/* MAIN CONTENT AREA: Viewport optimized                                    */}
@@ -493,11 +457,10 @@ export default function SignupPage() {
             {/* 1. FREE STARTER CARD */}
             <div
               onClick={() => setSelectedPlan("FREE")}
-              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${
-                selectedPlan === "FREE"
+              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${selectedPlan === "FREE"
                   ? "border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg"
                   : "border-slate-200/90 shadow-sm hover:border-slate-300 hover:shadow-md"
-              }`}
+                }`}
             >
               <div className="space-y-4">
                 {/* Icon & Title */}
@@ -603,9 +566,8 @@ export default function SignupPage() {
             {/* 2. PRO FLEET CARD (MOST POPULAR) */}
             <div
               onClick={() => setSelectedPlan("PRO")}
-              className={`relative bg-white rounded-2xl border-2 border-indigo-500 ring-4 ring-indigo-500/10 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-indigo-500/10 transition-all duration-200 cursor-pointer ${
-                selectedPlan === "PRO" ? "-translate-y-1" : "hover:-translate-y-0.5"
-              }`}
+              className={`relative bg-white rounded-2xl border-2 border-indigo-500 ring-4 ring-indigo-500/10 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-indigo-500/10 transition-all duration-200 cursor-pointer ${selectedPlan === "PRO" ? "-translate-y-1" : "hover:-translate-y-0.5"
+                }`}
             >
               {/* Floating Top Badge */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -726,11 +688,10 @@ export default function SignupPage() {
             {/* 3. BUSINESS LOGISTICS CARD */}
             <div
               onClick={() => setSelectedPlan("BUSINESS")}
-              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${
-                selectedPlan === "BUSINESS"
+              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${selectedPlan === "BUSINESS"
                   ? "border-amber-500 ring-2 ring-amber-500/20 shadow-lg"
                   : "border-slate-200/90 shadow-sm hover:border-slate-300 hover:shadow-md"
-              }`}
+                }`}
             >
               <div className="space-y-4">
                 {/* Icon & Title */}
@@ -848,11 +809,10 @@ export default function SignupPage() {
             {/* 4. ENTERPRISE SCALE CARD (ENTERPRISE TIER) */}
             <div
               onClick={() => setSelectedPlan("ENTERPRISE")}
-              className={`relative bg-[#0B132B] rounded-2xl border border-slate-700/80 p-5 sm:p-6 flex flex-col justify-between shadow-2xl text-white transition-all duration-200 cursor-pointer ${
-                selectedPlan === "ENTERPRISE"
+              className={`relative bg-[#0B132B] rounded-2xl border border-slate-700/80 p-5 sm:p-6 flex flex-col justify-between shadow-2xl text-white transition-all duration-200 cursor-pointer ${selectedPlan === "ENTERPRISE"
                   ? "ring-2 ring-blue-500/80 -translate-y-1"
                   : "hover:-translate-y-0.5 hover:border-slate-600"
-              }`}
+                }`}
             >
               {/* Floating Top Badge */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
