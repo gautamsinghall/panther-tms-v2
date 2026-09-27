@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Phone } from "lucide-react";
+import { Plus, Trash2, Phone, Pencil, FileText, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -18,11 +18,21 @@ interface DriverRecord {
   id: number;
   name: string;
   phone: string;
-  license_number: string;
+  dl_status?: string;
+  vehicle_classes?: string;
+  valid_from?: string;
+  valid_upto?: string;
+  aadhar_no?: string;
+  pan_no?: string;
+  license_doc?: string;
+  aadhar_doc?: string;
+  pan_doc?: string;
+  license_number?: string;
   license_expiry?: string;
   emergency_contact?: string;
   blood_group?: string;
   is_active: boolean;
+  created_at?: string;
 }
 
 export default function DriversPage() {
@@ -37,6 +47,7 @@ export default function DriversPage() {
 
   // Drawer / Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<DriverRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Confirmation dialog state
@@ -66,9 +77,21 @@ export default function DriversPage() {
     return data.filter((item) => {
       if (statusFilter === "ACTIVE" && !item.is_active) return false;
       if (statusFilter === "INACTIVE" && item.is_active) return false;
+      if (searchTerm.trim()) {
+        const query = searchTerm.toLowerCase();
+        const matchesName = item.name?.toLowerCase().includes(query);
+        const matchesPhone = item.phone?.toLowerCase().includes(query);
+        const matchesClasses = item.vehicle_classes?.toLowerCase().includes(query);
+        const matchesStatus = item.dl_status?.toLowerCase().includes(query);
+        const matchesAadhar = item.aadhar_no?.toLowerCase().includes(query);
+        const matchesPan = item.pan_no?.toLowerCase().includes(query);
+        if (!matchesName && !matchesPhone && !matchesClasses && !matchesStatus && !matchesAadhar && !matchesPan) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [data, statusFilter]);
+  }, [data, statusFilter, searchTerm]);
 
   const columns: ColumnDef<DriverRecord>[] = [
     {
@@ -76,52 +99,105 @@ export default function DriversPage() {
       header: "Driver Name",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-[#172033] block">
+        <span className="font-semibold text-slate-900 block">
           {row.name}
         </span>
       ),
     },
     {
       key: "phone",
-      header: "Mobile Contact",
+      header: "Driver Mobile",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs text-[#172033] inline-flex items-center gap-1">
-          <Phone className="w-3 h-3 text-[#98A2B3]" />
+        <span className="font-mono text-xs text-slate-700 inline-flex items-center gap-1.5">
+          <Phone className="w-3 h-3 text-slate-400 shrink-0" />
           {row.phone}
         </span>
       ),
     },
     {
-      key: "license_number",
-      header: "Commercial License",
-      sortable: true,
+      key: "dl_status",
+      header: "DL Status & Coverage",
       cell: (row) => (
         <div>
-          <span className="font-mono text-xs uppercase bg-[#F8F9FB] text-[#101828] px-2 py-0.5 rounded-[4px] border border-[#E4E7EC]">
-            {row.license_number}
+          <span className="font-mono text-xs bg-slate-50 text-slate-800 px-2 py-0.5 rounded border border-slate-200 shadow-2xs inline-block">
+            {row.dl_status || "Standard"}
           </span>
-          {row.license_expiry && (
-            <span className="block text-[11px] text-[#667085] mt-1">
-              Exp: {formatDate(row.license_expiry)}
+          {row.vehicle_classes && (
+            <span className="block text-[11px] text-slate-500 mt-1 font-medium truncate max-w-[200px]" title={row.vehicle_classes}>
+              {row.vehicle_classes}
             </span>
           )}
         </div>
       ),
     },
     {
-      key: "emergency_contact",
-      header: "Emergency / Blood Group",
-      cell: (row) => (
-        <div className="text-xs text-[#667085]">
-          <div>Contact: {row.emergency_contact || "N/A"}</div>
-          {row.blood_group && (
-            <span className="font-mono text-[11px] font-semibold text-[#101828]">
-              Blood: {row.blood_group}
-            </span>
-          )}
-        </div>
-      ),
+      key: "validity",
+      header: "Validity",
+      cell: (row) => {
+        const upto = row.valid_upto || row.license_expiry;
+        return (
+          <div className="text-xs text-slate-600 space-y-0.5">
+            {row.valid_from && (
+              <div>
+                <span className="text-slate-400">From:</span> {formatDate(row.valid_from)}
+              </div>
+            )}
+            {upto && (
+              <div className="font-semibold text-slate-800">
+                <span className="text-slate-400 font-normal">Upto:</span> {formatDate(upto)}
+              </div>
+            )}
+            {!row.valid_from && !upto && <span className="text-slate-400">—</span>}
+          </div>
+        );
+      },
+    },
+    {
+      key: "kyc",
+      header: "Documents & KYC",
+      cell: (row) => {
+        const hasAadhar = Boolean(row.aadhar_no || row.aadhar_doc);
+        const hasPan = Boolean(row.pan_no || row.pan_doc);
+        const hasLicenseDoc = Boolean(row.license_doc);
+
+        return (
+          <div className="text-xs text-slate-600 space-y-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {row.aadhar_no && (
+                <span className="font-mono text-[11px] bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-slate-700">
+                  UID: {row.aadhar_no}
+                </span>
+              )}
+              {row.pan_no && (
+                <span className="font-mono text-[11px] bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-slate-700 uppercase">
+                  PAN: {row.pan_no}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+              {hasLicenseDoc && (
+                <span className="inline-flex items-center gap-0.5 text-emerald-700 font-medium">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> DL Doc
+                </span>
+              )}
+              {hasAadhar && row.aadhar_doc && (
+                <span className="inline-flex items-center gap-0.5 text-emerald-700 font-medium">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Aadhar Doc
+                </span>
+              )}
+              {hasPan && row.pan_doc && (
+                <span className="inline-flex items-center gap-0.5 text-emerald-700 font-medium">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> PAN Doc
+                </span>
+              )}
+              {!hasAadhar && !hasPan && !hasLicenseDoc && (
+                <span className="text-slate-400 text-xs">No KYC uploaded</span>
+              )}
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: "status",
@@ -138,6 +214,14 @@ export default function DriversPage() {
 
   const actions: RowAction<DriverRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5" />,
       variant: "danger",
@@ -148,71 +232,142 @@ export default function DriversPage() {
     },
   ];
 
+  // Modified Form Sections per final field structure
   const formSections: FormSectionDef[] = [
     {
-      id: "driver_info",
-      title: "Driver Identity & License",
-      description: "Official transport driver qualifications and contacts",
+      id: "driver_details",
+      title: "Driver Details",
+      description: "Fleet driver identity, mobile contact, and licensing validity",
       columns: 2,
       fields: [
         {
           name: "name",
-          label: "Full Name",
+          label: "Driver Name",
           placeholder: "e.g. Rajesh Kumar Yadav",
           required: true,
         },
         {
           name: "phone",
-          label: "Primary Mobile Number",
+          label: "Driver Mobile",
           placeholder: "+91 98765 43210",
           required: true,
         },
         {
-          name: "license_number",
-          label: "Commercial Driving License (DL)",
-          placeholder: "e.g. DL-0420110012345",
-          required: true,
+          name: "dl_status",
+          label: "DL Status",
+          placeholder: "e.g. Active / Valid",
         },
         {
-          name: "license_expiry",
-          label: "License Expiry Date",
+          name: "vehicle_classes",
+          label: "Vehicle Classes (Coverage)",
+          placeholder: "e.g. LMV, HMV, TRANS",
+        },
+        {
+          name: "valid_from",
+          label: "Valid From",
           type: "date",
         },
         {
-          name: "emergency_contact",
-          label: "Emergency Phone / Relation",
-          placeholder: "e.g. +91 98111 22334 (Brother)",
+          name: "valid_upto",
+          label: "Valid Upto",
+          type: "date",
+        },
+      ],
+    },
+    {
+      id: "documents_kyc",
+      title: "Documents & KYC",
+      description: "Official identity verification numbers and document uploads",
+      columns: 2,
+      fields: [
+        {
+          name: "aadhar_no",
+          label: "Aadhar No.",
+          placeholder: "e.g. 1234 5678 9012",
         },
         {
-          name: "blood_group",
-          label: "Blood Group",
-          type: "select",
-          options: [
-            { label: "O Positive (O+)", value: "O+" },
-            { label: "O Negative (O-)", value: "O-" },
-            { label: "A Positive (A+)", value: "A+" },
-            { label: "A Negative (A-)", value: "A-" },
-            { label: "B Positive (B+)", value: "B+" },
-            { label: "B Negative (B-)", value: "B-" },
-            { label: "AB Positive (AB+)", value: "AB+" },
-            { label: "AB Negative (AB-)", value: "AB-" },
-          ],
+          name: "pan_no",
+          label: "PAN No.",
+          placeholder: "e.g. ABCDE1234F",
+        },
+        {
+          name: "license_doc",
+          label: "Upload License",
+          type: "file",
+          accept: ".pdf,.jpg,.jpeg,.png",
+          placeholder: "Select license copy...",
+        },
+        {
+          name: "aadhar_doc",
+          label: "Upload AADHAR",
+          type: "file",
+          accept: ".pdf,.jpg,.jpeg,.png",
+          placeholder: "Select Aadhar copy...",
+        },
+        {
+          name: "pan_doc",
+          label: "Upload PAN",
+          type: "file",
+          accept: ".pdf,.jpg,.jpeg,.png",
+          placeholder: "Select PAN card copy...",
+          colSpan: 2,
         },
       ],
     },
   ];
 
-  const handleCreate = async (values: Record<string, any>) => {
+  const initialFormValues = useMemo(() => {
+    if (!editingRecord) {
+      return {
+        name: "",
+        phone: "",
+        dl_status: "",
+        vehicle_classes: "",
+        valid_from: "",
+        valid_upto: "",
+        aadhar_no: "",
+        pan_no: "",
+        license_doc: "",
+        aadhar_doc: "",
+        pan_doc: "",
+      };
+    }
+    return {
+      name: editingRecord.name || "",
+      phone: editingRecord.phone || "",
+      dl_status: editingRecord.dl_status || "",
+      vehicle_classes: editingRecord.vehicle_classes || "",
+      valid_from: editingRecord.valid_from ? editingRecord.valid_from.split("T")[0] : "",
+      valid_upto: (editingRecord.valid_upto || editingRecord.license_expiry)
+        ? (editingRecord.valid_upto || editingRecord.license_expiry)!.split("T")[0]
+        : "",
+      aadhar_no: editingRecord.aadhar_no || "",
+      pan_no: editingRecord.pan_no || "",
+      license_doc: editingRecord.license_doc || "",
+      aadhar_doc: editingRecord.aadhar_doc || "",
+      pan_doc: editingRecord.pan_doc || "",
+    };
+  }, [editingRecord]);
+
+  const handleSave = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/transport/drivers", {
-        method: "POST",
-        body: JSON.stringify(values),
-      });
+      if (editingRecord) {
+        await apiClient(`/api/v1/transport/drivers/${editingRecord.id}`, {
+          method: "PUT",
+          body: JSON.stringify(values),
+        });
+      } else {
+        await apiClient("/api/v1/transport/drivers", {
+          method: "POST",
+          body: JSON.stringify(values),
+        });
+      }
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create driver record.");
+      alert(err.message || "Failed to save driver record.");
     } finally {
       setIsSubmitting(false);
     }
@@ -242,14 +397,17 @@ export default function DriversPage() {
         primaryAction={{
           label: "Add Driver",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search driver name, phone, DL number..."
+        searchPlaceholder="Search driver name, phone, DL status, coverage..."
         filters={[
           {
             id: "status",
@@ -282,22 +440,37 @@ export default function DriversPage() {
         emptySubtext="Add professional drivers to assign them to active transport movements."
         emptyAction={{
           label: "+ Add Driver",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Register Fleet Driver"
-        description="Enter driver credentials, mobile number, and commercial license validity."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? `Edit Fleet Driver: ${editingRecord.name}` : "Register Fleet Driver"}
+        description={
+          editingRecord
+            ? "Update driver information, mobile contact, licensing coverage, and KYC documents."
+            : "Enter driver credentials, mobile number, and commercial license validity."
+        }
         width="lg"
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "create"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Register Driver"
+          initialValues={initialFormValues}
+          onSubmit={handleSave}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Driver Changes" : "Register Driver"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

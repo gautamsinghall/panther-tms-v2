@@ -128,11 +128,19 @@ async def get_all_drivers(db: AsyncSession) -> List[Driver]:
     return list(result.scalars().all())
 
 async def create_driver(db: AsyncSession, data: DriverCreate) -> Driver:
-    # Check duplicate license
-    existing = await db.execute(select(Driver).where(Driver.license_number == data.license_number))
-    if existing.scalar_one_or_none():
-        raise AppException(status_code=400, error_code="DUPLICATE_LICENSE", message="License number already exists.")
-    driver = Driver(**data.model_dump())
+    # Check duplicate license only if provided
+    if data.license_number and data.license_number.strip():
+        existing = await db.execute(select(Driver).where(Driver.license_number == data.license_number.strip()))
+        if existing.scalar_one_or_none():
+            raise AppException(status_code=400, error_code="DUPLICATE_LICENSE", message="License number already exists.")
+    
+    driver_dict = data.model_dump()
+    if driver_dict.get("valid_upto") and not driver_dict.get("license_expiry"):
+        driver_dict["license_expiry"] = driver_dict["valid_upto"]
+    elif driver_dict.get("license_expiry") and not driver_dict.get("valid_upto"):
+        driver_dict["valid_upto"] = driver_dict["license_expiry"]
+
+    driver = Driver(**driver_dict)
     db.add(driver)
     await db.commit()
     await db.refresh(driver)
@@ -142,7 +150,18 @@ async def update_driver(db: AsyncSession, driver_id: int, data: DriverUpdate) ->
     driver = await db.get(Driver, driver_id)
     if not driver:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="Driver not found.")
-    for field, val in data.model_dump(exclude_unset=True).items():
+    
+    update_data = data.model_dump(exclude_unset=True)
+    if update_data.get("valid_upto") and not update_data.get("license_expiry"):
+        update_data["license_expiry"] = update_data["valid_upto"]
+    
+    if update_data.get("license_number") and update_data["license_number"].strip():
+        lic = update_data["license_number"].strip()
+        existing = await db.execute(select(Driver).where(Driver.license_number == lic, Driver.id != driver_id))
+        if existing.scalar_one_or_none():
+            raise AppException(status_code=400, error_code="DUPLICATE_LICENSE", message="License number already exists.")
+
+    for field, val in update_data.items():
         setattr(driver, field, val)
     await db.commit()
     await db.refresh(driver)

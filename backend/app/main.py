@@ -93,6 +93,19 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE transport_jobs ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_weight_mt DROP NOT NULL;"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_packages DROP NOT NULL;"))
+                        await t_conn.execute(text("ALTER TABLE transport_drivers ALTER COLUMN license_number DROP NOT NULL;"))
+                        for drv_col in [
+                            "dl_status VARCHAR(50)",
+                            "vehicle_classes VARCHAR(255)",
+                            "valid_from DATE",
+                            "valid_upto DATE",
+                            "aadhar_no VARCHAR(50)",
+                            "pan_no VARCHAR(50)",
+                            "license_doc TEXT",
+                            "aadhar_doc TEXT",
+                            "pan_doc TEXT",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS {drv_col};"))
                         for cs_col in ["city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "logo_url VARCHAR(500)"]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))

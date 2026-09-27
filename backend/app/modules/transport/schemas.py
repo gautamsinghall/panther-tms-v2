@@ -57,8 +57,17 @@ class VehicleOwnerResponse(VehicleOwnerBase):
 class DriverBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=150)
     phone: str = Field(..., min_length=10, max_length=20)
-    license_number: str = Field(..., min_length=4, max_length=50)
+    license_number: Optional[str] = None
     license_expiry: Optional[date] = None
+    dl_status: Optional[str] = None
+    vehicle_classes: Optional[str] = None
+    valid_from: Optional[date] = None
+    valid_upto: Optional[date] = None
+    aadhar_no: Optional[str] = None
+    pan_no: Optional[str] = None
+    license_doc: Optional[str] = None
+    aadhar_doc: Optional[str] = None
+    pan_doc: Optional[str] = None
     badge_number: Optional[str] = None
     current_address: Optional[str] = None
     emergency_contact: Optional[str] = None
@@ -73,6 +82,15 @@ class DriverUpdate(BaseModel):
     phone: Optional[str] = None
     license_number: Optional[str] = None
     license_expiry: Optional[date] = None
+    dl_status: Optional[str] = None
+    vehicle_classes: Optional[str] = None
+    valid_from: Optional[date] = None
+    valid_upto: Optional[date] = None
+    aadhar_no: Optional[str] = None
+    pan_no: Optional[str] = None
+    license_doc: Optional[str] = None
+    aadhar_doc: Optional[str] = None
+    pan_doc: Optional[str] = None
     badge_number: Optional[str] = None
     current_address: Optional[str] = None
     emergency_contact: Optional[str] = None

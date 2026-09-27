@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FormSectionDef, FormFieldDef } from "@/types/form";
-import { AlertCircle, HelpCircle } from "lucide-react";
+import { AlertCircle, HelpCircle, Upload, CheckCircle2, X } from "lucide-react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface FormProps {
@@ -268,6 +268,66 @@ export function Form({
                           className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                         />
                         <span className="text-xs font-medium text-slate-700">{field.placeholder || "Enable"}</span>
+                      </div>
+                    ) : field.type === "file" ? (
+                      <div className="space-y-1.5">
+                        <div className="relative">
+                          <input
+                            id={inputId}
+                            type="file"
+                            accept={field.accept}
+                            disabled={field.disabled || loading}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  handleChange(field.name, reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              } else {
+                                handleChange(field.name, "");
+                              }
+                            }}
+                            onBlur={() => handleBlur(field)}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor={inputId}
+                            className={cn(
+                              "flex items-center justify-between w-full h-10 px-3.5 text-xs font-medium rounded-xl border bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-2xs group",
+                              field.disabled && "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200",
+                              fieldError && "border-rose-400"
+                            )}
+                          >
+                            <span className="truncate max-w-[220px] text-slate-600 font-normal">
+                              {val ? (
+                                <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  Document Attached
+                                </span>
+                              ) : (
+                                field.placeholder || "Choose document file..."
+                              )}
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 group-hover:bg-slate-200 text-slate-700 text-xs font-semibold shrink-0 transition-colors">
+                              <Upload className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Browse</span>
+                            </span>
+                          </label>
+                        </div>
+                        {val && typeof val === "string" && (
+                          <div className="flex items-center justify-between text-[11px] px-1 text-slate-500">
+                            <span className="text-emerald-600 font-medium">✓ File ready to save</span>
+                            <button
+                              type="button"
+                              onClick={() => handleChange(field.name, "")}
+                              className="text-rose-500 hover:text-rose-700 hover:underline cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <input
