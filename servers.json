@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Panther TMS - Postgres",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "panther_control",
+      "Username": "panther",
+      "SSLMode": "prefer"
+    }
+  }
+}

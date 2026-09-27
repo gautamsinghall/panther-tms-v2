@@ -37,7 +37,7 @@ const Link000 = ({
         "group relative flex items-center",
         className,
         "before:pointer-events-none before:absolute before:bottom-0 before:left-0 before:h-[0.05em] before:w-full before:bg-current before:content-['']",
-        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-[cubic-bezier(0.4,0,0.2,1)]",
+        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
         "hover:before:origin-left hover:before:scale-x-100",
       )}
     >
@@ -61,7 +61,7 @@ const Link001 = ({
       className={cn(
         "group relative flex items-center",
         "before:pointer-events-none before:absolute before:left-0 before:top-[1.5em] before:h-[0.05em] before:w-full before:bg-current before:content-['']",
-        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-[cubic-bezier(0.4,0,0.2,1)]",
+        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
         "hover:before:origin-left hover:before:scale-x-100",
         className,
       )}
@@ -101,7 +101,7 @@ const Link002 = ({
         "group relative flex items-center",
         className,
         "before:pointer-events-none before:absolute before:left-0 before:top-[1.5em] before:h-[0.05em] before:w-full before:bg-current before:content-['']",
-        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-[cubic-bezier(0.4,0,0.2,1)]",
+        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
         "before:origin-left",
         "hover:before:origin-right hover:before:scale-x-100",
       )}
@@ -141,7 +141,7 @@ const Link003 = ({
         "group relative flex items-center",
         className,
         "before:pointer-events-none before:absolute before:left-0 before:top-[1.5em] before:h-[0.05em] before:w-full before:bg-current before:content-['']",
-        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-[cubic-bezier(0.4,0,0.2,1)]",
+        "before:origin-right before:scale-x-0 before:transition-transform before:duration-300 before:ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
         "before:origin-center",
         "hover:before:scale-x-100",
       )}
@@ -182,7 +182,7 @@ const Link004 = ({
         "group relative flex items-center",
         className,
         "before:pointer-events-none before:absolute before:left-0 before:w-full before:bg-white before:content-['']",
-        "before:origin-right before:scale-x-0 before:transition-all before:duration-300 before:ease-[cubic-bezier(0.4,0,0.2,1)]",
+        "before:origin-right before:scale-x-0 before:transition-all before:duration-300 before:ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
         "before:origin-center md:before:bottom-0",
         "before:z-1 px-2 before:h-0 before:scale-x-100 before:mix-blend-difference hover:before:h-[1.4em]",
       )}
@@ -222,7 +222,7 @@ const Link005 = ({
         className,
         "group relative flex items-center",
         "before:pointer-events-none before:absolute before:left-0 before:w-full before:bg-white before:content-['']",
-        "before:scale-x-1 before:transition-all before:duration-300 before:ease-[cubic-bezier(0.4,0,0.2,1)]",
+        "before:scale-x-1 before:transition-all before:duration-300 before:ease-&lsqb;cubic-bezier(0.4,0,0.2,1)&rsqb;",
         "before:origin-left md:before:top-0",
         "before:z-1 px-2 before:h-full before:scale-x-0 before:mix-blend-difference hover:before:scale-x-100",
       )}
