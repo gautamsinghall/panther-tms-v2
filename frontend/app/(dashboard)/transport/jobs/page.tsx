@@ -231,14 +231,14 @@ export default function JobsPage() {
   const actions: RowAction<JobRecord>[] = [
     {
       label: "View",
-      icon: <Eye className="w-3.5 h-3.5 text-slate-600" />,
+      icon: <Eye className="w-4 h-4 text-slate-600" />,
       onClick: (row) => {
         setViewingJob(row);
       },
     },
     {
       label: "Edit",
-      icon: <Pencil className="w-3.5 h-3.5 text-blue-600" />,
+      icon: <Pencil className="w-4 h-4 text-blue-600" />,
       onClick: (row) => {
         openEditJobDrawer(row);
       },
@@ -246,7 +246,7 @@ export default function JobsPage() {
     },
     {
       label: "Book GR/LR",
-      icon: <Truck className="w-3.5 h-3.5 text-emerald-600" />,
+      icon: <Truck className="w-4 h-4 text-emerald-600" />,
       onClick: (row) => {
         router.push(`/transport/lr-booking?job_id=${row.id}`);
       },
@@ -577,6 +577,7 @@ export default function JobsPage() {
         errorMessage={errorMessage}
         onRetry={loadData}
         actions={actions}
+        actionLayout="inline"
         searchable={false}
         emptyMessage="No jobs found"
         emptySubtext="Create a new transport job order to initiate dispatch and vehicle scheduling."

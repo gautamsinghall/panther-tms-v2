@@ -45,6 +45,7 @@ export interface DataTableProps<T> {
   searchColumn?: keyof T | string;
   searchField?: keyof T | string;
   actions?: RowAction<T>[];
+  actionLayout?: "dropdown" | "inline";
   pageSizeOptions?: number[];
   initialPageSize?: number;
   emptyMessage?: string;
@@ -82,6 +83,7 @@ export function DataTable<T extends Record<string, any>>({
   searchColumn,
   searchField,
   actions = [],
+  actionLayout = "dropdown",
   pageSizeOptions = [10, 25, 50, 100],
   initialPageSize = 10,
   emptyMessage = "No records found",
@@ -389,7 +391,12 @@ export function DataTable<T extends Record<string, any>>({
 
                 {/* Actions Column */}
                 {actions.length > 0 && (
-                  <th className="w-12 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono">
+                  <th
+                    className={cn(
+                      "px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono",
+                      actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
+                    )}
+                  >
                     Actions
                   </th>
                 )}
@@ -413,8 +420,8 @@ export function DataTable<T extends Record<string, any>>({
                       </td>
                     ))}
                     {actions.length > 0 && (
-                      <td className="px-4 py-3 text-right">
-                        <Skeleton className="h-4 w-6 rounded ml-auto" />
+                      <td className={cn("px-4 py-3", actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right")}>
+                        <Skeleton className={cn("h-4 rounded", actionLayout === "inline" ? "w-16 mx-auto" : "w-6 ml-auto")} />
                       </td>
                     )}
                   </tr>
@@ -522,31 +529,67 @@ export function DataTable<T extends Record<string, any>>({
                         );
                       })}
 
-                      {/* Row Actions: Kebab Menu */}
+                      {/* Row Actions: Kebab Menu or Inline Icons */}
                       {actions.length > 0 && (
-                        <td className="w-12 px-4 py-3 text-right">
-                          <DropdownMenu
-                            align="right"
-                            trigger={
-                              <button
-                                type="button"
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                                title="Actions"
-                                aria-label="Row actions"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                            }
-                            items={actions
-                              .filter((a) => (a.hidden ? !a.hidden(row) : true))
-                              .map((a) => ({
-                                label: a.label,
-                                icon: a.icon,
-                                disabled: a.disabled ? a.disabled(row) : false,
-                                variant: a.variant === "danger" ? "danger" : "default",
-                                onClick: () => a.onClick(row),
-                              }))}
-                          />
+                        <td
+                          className={cn(
+                            "px-4 py-3",
+                            actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
+                          )}
+                        >
+                          {actionLayout === "inline" ? (
+                            <div className="inline-flex items-center justify-center gap-1">
+                              {actions
+                                .filter((a) => (a.hidden ? !a.hidden(row) : true))
+                                .map((a, aIdx) => {
+                                  const isDisabled = a.disabled ? a.disabled(row) : false;
+                                  return (
+                                    <button
+                                      key={aIdx}
+                                      type="button"
+                                      disabled={isDisabled}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!isDisabled) a.onClick(row);
+                                      }}
+                                      title={a.label}
+                                      aria-label={a.label}
+                                      className={cn(
+                                        "p-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center",
+                                        isDisabled
+                                          ? "opacity-30 cursor-not-allowed text-slate-300"
+                                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                                      )}
+                                    >
+                                      {a.icon}
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          ) : (
+                            <DropdownMenu
+                              align="right"
+                              trigger={
+                                <button
+                                  type="button"
+                                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  title="Actions"
+                                  aria-label="Row actions"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </button>
+                              }
+                              items={actions
+                                .filter((a) => (a.hidden ? !a.hidden(row) : true))
+                                .map((a) => ({
+                                  label: a.label,
+                                  icon: a.icon,
+                                  disabled: a.disabled ? a.disabled(row) : false,
+                                  variant: a.variant === "danger" ? "danger" : "default",
+                                  onClick: () => a.onClick(row),
+                                }))}
+                            />
+                          )}
                         </td>
                       )}
                     </tr>
