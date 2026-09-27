@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("phase3.migration")
 
 async def run_migration():
-    demo_db = f"panther_tenant_{settings.DEMO_TENANT_SUBDOMAIN}"
+    demo_db = f"panther_tenant_{settings.DEMO_COMPANY_CODE.lower()}"
     logger.info(f"Connecting to {demo_db} and creating Phase 3 Accounts, Misc Masters, and E-Invoicing tables...")
     engine = get_tenant_engine(demo_db)
 

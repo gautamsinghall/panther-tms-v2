@@ -11,12 +11,12 @@ async def test_general_module_crud_masters():
         # 1. Login as Company Admin
         login_res = await ac.post(
             "/api/v1/auth/login",
-            headers={"X-Tenant-Subdomain": "demo"},
+            headers={"X-Company-Code": "DEMOLOGISTICS"},
             json={"email": "admin@demo.com", "password": "PantherTMS@2026!"}
         )
         assert login_res.status_code == 200
         token = login_res.json()["access_token"]
-        headers = {"X-Tenant-Subdomain": "demo", "Authorization": f"Bearer {token}"}
+        headers = {"X-Company-Code": "DEMOLOGISTICS", "Authorization": f"Bearer {token}"}
 
         # 2. Consignee CRUD (Testing without code, with PAN, address, pincode, country & county)
         c_res = await ac.post(

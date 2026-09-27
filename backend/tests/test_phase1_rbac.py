@@ -11,12 +11,12 @@ async def test_rbac_custom_role_and_employee_restrictions():
         # 1. Login as Company Admin
         admin_login = await ac.post(
             "/api/v1/auth/login",
-            headers={"X-Tenant-Subdomain": "demo"},
+            headers={"X-Company-Code": "DEMOLOGISTICS"},
             json={"email": "admin@demo.com", "password": "PantherTMS@2026!"}
         )
         assert admin_login.status_code == 200
         admin_token = admin_login.json()["access_token"]
-        admin_headers = {"X-Tenant-Subdomain": "demo", "Authorization": f"Bearer {admin_token}"}
+        admin_headers = {"X-Company-Code": "DEMOLOGISTICS", "Authorization": f"Bearer {admin_token}"}
 
         # 2. Create custom role 'Dispatch Associate' with ONLY consignee view & create
         role_res = await ac.post(
@@ -52,12 +52,12 @@ async def test_rbac_custom_role_and_employee_restrictions():
         # 4. Login as the newly created employee
         emp_login = await ac.post(
             "/api/v1/auth/login",
-            headers={"X-Tenant-Subdomain": "demo"},
+            headers={"X-Company-Code": "DEMOLOGISTICS"},
             json={"email": emp_email, "password": "Password123!"}
         )
         assert emp_login.status_code == 200
         emp_token = emp_login.json()["access_token"]
-        emp_headers = {"X-Tenant-Subdomain": "demo", "Authorization": f"Bearer {emp_token}"}
+        emp_headers = {"X-Company-Code": "DEMOLOGISTICS", "Authorization": f"Bearer {emp_token}"}
 
         # 5. Verify employee CAN view consignees (Allowed)
         allowed_res = await ac.get("/api/v1/general/consignees", headers=emp_headers)

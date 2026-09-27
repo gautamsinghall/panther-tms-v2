@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     # Demo Tenant
     DEMO_TENANT_ID: str = "demo123456"
     DEMO_COMPANY_CODE: str = "DEMOLOGISTICS"
-    DEMO_TENANT_SUBDOMAIN: str = "demologistics"
     DEMO_TENANT_NAME: str = "Demo Logistics Pvt Ltd"
     DEMO_ADMIN_EMAIL: str = "admin@demo.com"
     DEMO_ADMIN_PASSWORD: str = "PantherTMS@2026!"

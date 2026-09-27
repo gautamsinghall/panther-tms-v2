@@ -35,7 +35,6 @@ async def get_current_user(
 
     token_tenant_id = str(payload.get("tenant_id") or "").strip().lower()
     token_company_code = str(payload.get("company_code") or "").strip().upper()
-    token_subdomain = str(payload.get("subdomain") or "").strip()
 
     tenant_tid = (tenant.tenant_id or "").strip().lower()
     tenant_cc = (tenant.company_code or "").strip().upper()
@@ -44,8 +43,6 @@ async def get_current_user(
     if token_tenant_id and (token_tenant_id == tenant_tid or token_tenant_id == tenant_cc.lower()):
         matches = True
     elif token_company_code and token_company_code == tenant_cc:
-        matches = True
-    elif token_subdomain and (token_subdomain.lower() == tenant_tid or token_subdomain.upper() == tenant_cc or token_subdomain.lower() == "demo"):
         matches = True
 
     if not matches:

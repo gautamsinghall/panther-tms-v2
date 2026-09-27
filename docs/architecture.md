@@ -25,8 +25,8 @@
   cross-tenant events.
 - **Per-tenant DB** (one PostgreSQL database per tenant): all operational data for
   that company — General/Transport/Accounts/Reports/Fleet/Settings modules.
-- **Tenant resolution**: subdomain-based (`{tenant}.panthertms.com`). Middleware
-  resolves subdomain → tenant record (control DB) → tenant DB connection string,
+- **Tenant resolution**: company_code / tenant_id based. Headers (`X-Company-Code`, `X-Tenant-ID`),
+  route prefixes (`/{tenant_id}`), or JWT payload resolve → tenant record (control DB) → tenant DB connection string,
   then routes the request with a per-request DB session bound to that tenant.
 - **Group Company** (General Module) is a within-tenant concept — multiple
   companies under one subscription share the same tenant DB, distinguished by a
@@ -37,7 +37,7 @@
 
 ## 3. High-Level Request Flow
 ```
-Browser (tenant.panthertms.com)
+Browser (app.panthertms.com/{tenant_id} or company code)
    │
    ▼
 Traefik (TLS termination, routing)
@@ -125,8 +125,8 @@ frontend/
   backend (`/me/navigation`), not hardcoded per role.
 
 ## 6. Auth, RBAC & Feature Locking
-- JWT-based auth (access + refresh), scoped to a tenant (tenant id embedded/derived
-  from subdomain, validated against token).
+- JWT-based auth (access + refresh), scoped to a tenant (tenant_id and company_code embedded
+  in token, validated against tenant record).
 - RBAC model: `Role → Module → Permission (view/create/edit/delete/approve) → Action`.
   Company Admin can create custom roles/employee-level overrides.
 - **Two independent locking layers**:
@@ -164,7 +164,7 @@ follow-up actions, scheduled reports (e.g. daily P&L).
 
 ## 10. Environments & Deployment
 - Dokploy manages app deployments (frontend, backend, workers) on the VPS; Traefik
-  handles TLS + subdomain routing including wildcard `*.panthertms.com`.
+  handles TLS and routing to unified domain `panthertms.com`.
 - Environments: local dev (docker-compose: postgres, redis, backend, frontend),
   staging tenant, production.
 - Secrets via Dokploy/VPS env management — never committed to the repo.

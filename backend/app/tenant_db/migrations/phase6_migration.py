@@ -47,7 +47,7 @@ async def run_migration():
         from app.control.models import Tenant
         res = await c_session.execute(select(Tenant.db_name))
         tenant_dbs = list(res.scalars().all())
-    demo_db = f"panther_tenant_{settings.DEMO_TENANT_SUBDOMAIN}"
+    demo_db = f"panther_tenant_{settings.DEMO_COMPANY_CODE.lower()}"
     if demo_db not in tenant_dbs:
         tenant_dbs.append(demo_db)
 
@@ -371,7 +371,7 @@ async def run_migration():
                     action="WORKSPACE_INITIALIZED",
                     module="settings",
                     entity_type="tenant",
-                    entity_id=settings.DEMO_TENANT_SUBDOMAIN,
+                    entity_id=settings.DEMO_COMPANY_CODE,
                     details="Phase 6 Billing, Settings & Profile initialized successfully",
                     ip_address="127.0.0.1",
                     created_at=datetime.now(timezone.utc),

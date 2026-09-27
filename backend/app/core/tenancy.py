@@ -54,7 +54,6 @@ def get_tenant_id_from_request(request: Request) -> Optional[str]:
     3. Path parameter: tenant_id (if matched in route)
     4. Query parameter: tenant_id
     5. Authorization Bearer JWT token claim: tenant_id
-    6. Legacy Header: X-Tenant-Subdomain (for seamless backward compatibility)
     """
     # 1. Primary Header
     header_tid = request.headers.get("X-Tenant-ID")

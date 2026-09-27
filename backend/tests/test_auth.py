@@ -13,10 +13,9 @@ def test_password_hashing():
     assert verify_password(raw_pass, hashed) is True
     assert verify_password("WrongPassword", hashed) is False
 
-def test_jwt_token_payload_and_subdomain_isolation():
+def test_jwt_token_payload_and_tenant_isolation():
     token = create_access_token(
         subject="1",
-        tenant_subdomain="demo123456",
         tenant_id="demo123456",
         company_code="DEMOLOGISTICS",
         role="COMPANY_ADMIN",
@@ -33,7 +32,6 @@ def test_jwt_token_payload_and_subdomain_isolation():
 def test_token_tampering():
     token = create_access_token(
         subject="1",
-        tenant_subdomain="demo123456",
         tenant_id="demo123456",
         company_code="DEMOLOGISTICS",
         role="COMPANY_ADMIN"

@@ -5,7 +5,7 @@ from app.main import app
 @pytest.mark.asyncio
 async def test_job_and_lr_state_machine_transitions():
     transport = ASGITransport(app=app)
-    headers = {"X-Tenant-Subdomain": "demo"}
+    headers = {"X-Company-Code": "DEMOLOGISTICS"}
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Login as Admin
@@ -16,7 +16,7 @@ async def test_job_and_lr_state_machine_transitions():
         )
         assert login.status_code == 200
         token = login.json()["access_token"]
-        auth_headers = {"Authorization": f"Bearer {token}", "X-Tenant-Subdomain": "demo"}
+        auth_headers = {"Authorization": f"Bearer {token}", "X-Tenant-ID": "demo123456"}
 
         # Get consigner and consignee IDs
         consigners = (await client.get("/api/v1/general/consigners", headers=auth_headers)).json()

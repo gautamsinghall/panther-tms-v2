@@ -10,7 +10,7 @@
 ## 2. Product Summary
 PantherTMS is a SaaS product sold to transport/logistics companies ("tenants"). Each
 tenant runs their own isolated instance of the TMS (own data, own users, own branding
-touches) under a subdomain (e.g. `abc.panthertms.com`), while PantherTMS as a business
+touches) identified by a unique company code and tenant ID (e.g. `/{tenant_id}` or `X-Company-Code`), while PantherTMS as a business
 manages tenants, plans, billing, and platform-wide operations from a central control
 plane.
 
@@ -135,7 +135,7 @@ marked `UNKNOWN / NEEDS VERIFICATION`.
   cycle without leaving the product.
 - Accounts module ties out (Daybook/Ledger/Trial Balance) for a seeded tenant.
 - A new tenant can sign up, pick a plan, pay via Razorpay autopay, and get a working
-  subdomain instance without manual intervention.
+  tenant workspace without manual intervention.
 - Feature/module locking correctly reflects plan entitlement and per-employee RBAC.
 
 ## 11. Open Questions

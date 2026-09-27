@@ -12,7 +12,7 @@ async def test_phase2_end_to_end_exit_criteria():
     """
     uid = uuid.uuid4().hex[:6]
     transport = ASGITransport(app=app)
-    headers = {"X-Tenant-Subdomain": "demo"}
+    headers = {"X-Company-Code": "DEMOLOGISTICS"}
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Login as Company Admin
@@ -23,7 +23,7 @@ async def test_phase2_end_to_end_exit_criteria():
         )
         assert login.status_code == 200
         token = login.json()["access_token"]
-        auth_headers = {"Authorization": f"Bearer {token}", "X-Tenant-Subdomain": "demo"}
+        auth_headers = {"Authorization": f"Bearer {token}", "X-Company-Code": "DEMOLOGISTICS"}
 
         # Get Consigner, Consignee, Location
         consigners = (await client.get("/api/v1/general/consigners", headers=auth_headers)).json()

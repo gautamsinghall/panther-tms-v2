@@ -11,7 +11,7 @@ async def test_phase1_exit_criteria_e2e():
     and the employee's navigation and backend access strictly reflects that restriction.
     """
     uid = uuid.uuid4().hex[:6]
-    headers_tenant = {"X-Tenant-Subdomain": "demo"}
+    headers_tenant = {"X-Company-Code": "DEMOLOGISTICS"}
     transport = ASGITransport(app=app)
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -25,7 +25,7 @@ async def test_phase1_exit_criteria_e2e():
         admin_token = admin_login.json()["access_token"]
         admin_auth_headers = {
             "Authorization": f"Bearer {admin_token}",
-            "X-Tenant-Subdomain": "demo",
+            "X-Company-Code": "DEMOLOGISTICS",
         }
 
         # 2. Company Admin creates a restricted role: "Consignment Specialist"
@@ -72,7 +72,7 @@ async def test_phase1_exit_criteria_e2e():
         emp_token = emp_login.json()["access_token"]
         emp_auth_headers = {
             "Authorization": f"Bearer {emp_token}",
-            "X-Tenant-Subdomain": "demo",
+            "X-Company-Code": "DEMOLOGISTICS",
         }
 
         # 5. Check employee navigation tree

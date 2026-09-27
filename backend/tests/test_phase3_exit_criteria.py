@@ -13,7 +13,7 @@ async def test_phase3_end_to_end_exit_criteria():
     - It appears correctly in double-entry ledger data (balanced debits & credits).
     """
     uid = uuid.uuid4().hex[:6]
-    headers_tenant = {"X-Tenant-Subdomain": "demo"}
+    headers_tenant = {"X-Company-Code": "DEMOLOGISTICS"}
     transport = ASGITransport(app=app)
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -27,7 +27,7 @@ async def test_phase3_end_to_end_exit_criteria():
         token = login_res.json()["access_token"]
         auth_headers = {
             "Authorization": f"Bearer {token}",
-            "X-Tenant-Subdomain": "demo",
+            "X-Company-Code": "DEMOLOGISTICS",
         }
 
         # 2. Setup Consigner, Consignee & Locations

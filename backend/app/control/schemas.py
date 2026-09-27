@@ -98,8 +98,6 @@ class SignupCompleteRequest(BaseModel):
     @classmethod
     def map_razorpay_aliases(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            if not data.get("company_code") and data.get("subdomain"):
-                data["company_code"] = data["subdomain"]
             if "razorpay_subscription_id" in data and "subscription_id" not in data:
                 data["subscription_id"] = data["razorpay_subscription_id"]
             if "razorpay_payment_id" in data and "payment_id" not in data:

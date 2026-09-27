@@ -50,8 +50,8 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
     4. Verify entitlement locking: allowed in Transport & Accounts, locked from Fleet & E-Invoicing
     """
     uid = uuid.uuid4().hex[:6].lower()
-    subdomain = f"test-free-{uid}"
-    email = f"admin@{subdomain}.com"
+    comp_code = f"FREE{uid}".upper()
+    email = f"admin@{comp_code.lower()}.com"
     password = "TestPassword@2026!"
 
     transport = ASGITransport(app=app)
@@ -61,7 +61,7 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
             "/control/signup/initiate",
             json={
                 "company_name": f"Free Logistics {uid}",
-                "subdomain": subdomain,
+                "company_code": comp_code,
                 "admin_email": email,
                 "admin_password": password,
                 "admin_full_name": "Free Owner",
@@ -81,7 +81,7 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
         assert comp_res.json()["status"] == "ACTIVE"
 
         # Step 3: Login to tenant
-        headers = {"X-Tenant-Subdomain": subdomain}
+        headers = {"X-Company-Code": comp_code}
         login_res = await client.post(
             "/api/v1/auth/login",
             json={"email": email, "password": password},
@@ -89,7 +89,7 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
         )
         assert login_res.status_code == 200, login_res.text
         token = login_res.json()["access_token"]
-        auth_headers = {"Authorization": f"Bearer {token}", "X-Tenant-Subdomain": subdomain}
+        auth_headers = {"Authorization": f"Bearer {token}", "X-Company-Code": comp_code}
 
         # Step 4: Access permitted module (Transport) -> 200
         tr_res = await client.get("/api/v1/transport/lrs", headers=auth_headers)
@@ -112,7 +112,7 @@ async def test_phase6_self_serve_free_signup_and_entitlement_lock():
         user_res = await client.post(
             "/api/v1/settings/users",
             json={
-                "email": f"driver@{subdomain}.com",
+                "email": f"driver@{comp_code.lower()}.com",
                 "full_name": "Driver Two",
                 "role": "DISPATCHER",
                 "password": "Password@123",
@@ -129,8 +129,8 @@ async def test_phase6_paid_signup_and_razorpay_webhook_lifecycle():
     idempotent event processing, and subscription lifecycle transitions.
     """
     uid = uuid.uuid4().hex[:6].lower()
-    subdomain = f"test-paid-{uid}"
-    email = f"admin@{subdomain}.com"
+    comp_code = f"PAID{uid}".upper()
+    email = f"admin@{comp_code.lower()}.com"
     password = "PaidPassword@2026!"
     sub_id = f"sub_{uid}"
 
@@ -141,18 +141,19 @@ async def test_phase6_paid_signup_and_razorpay_webhook_lifecycle():
             "/control/signup/initiate",
             json={
                 "company_name": f"Paid Fleet {uid}",
-                "subdomain": subdomain,
+                "company_code": comp_code,
                 "admin_email": email,
-                "admin_name": "Paid Admin",
+                "admin_full_name": "Paid Admin",
                 "admin_password": password,
                 "plan_code": "PRO",
-                "billing_cycle": "MONTHLY",
+                "billing_cycle": "monthly",
             },
         )
         assert init_res.status_code == 200
         init_data = init_res.json()
         assert init_data["requires_payment"] is True
         real_sub_id = init_data["subscription_id"]
+        tenant_id = init_data.get("tenant_id")
         pay_id = f"pay_{uid}"
 
         # Generate HMAC payment signature per rules.md §8
@@ -163,11 +164,12 @@ async def test_phase6_paid_signup_and_razorpay_webhook_lifecycle():
         comp_res = await client.post(
             "/control/signup/complete",
             json={
-                "subdomain": subdomain,
+                "company_code": comp_code,
+                "tenant_id": tenant_id,
                 "plan_code": "PRO",
-                "razorpay_payment_id": pay_id,
-                "razorpay_subscription_id": real_sub_id,
-                "razorpay_signature": valid_payment_sig,
+                "payment_id": pay_id,
+                "subscription_id": real_sub_id,
+                "signature": valid_payment_sig,
             },
         )
         assert comp_res.status_code == 200, comp_res.text
@@ -185,7 +187,7 @@ async def test_phase6_paid_signup_and_razorpay_webhook_lifecycle():
                     "entity": {
                         "id": real_sub_id,
                         "status": "active",
-                        "notes": {"subdomain": subdomain},
+                        "notes": {"company_code": comp_code, "tenant_id": tenant_id},
                         "current_start": 1789000000,
                         "current_end": 1791592000,
                     }
@@ -242,7 +244,7 @@ async def test_phase6_paid_signup_and_razorpay_webhook_lifecycle():
                     "entity": {
                         "id": real_sub_id,
                         "status": "halted",
-                        "notes": {"subdomain": subdomain},
+                        "notes": {"company_code": comp_code, "tenant_id": tenant_id},
                     }
                 }
             },
@@ -268,7 +270,7 @@ async def test_phase6_settings_module_and_audit_trail():
     """
     uid = uuid.uuid4().hex[:6].upper()
     transport = ASGITransport(app=app)
-    headers = {"X-Tenant-Subdomain": "demo"}
+    headers = {"X-Company-Code": "DEMOLOGISTICS"}
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Login as demo admin
@@ -279,7 +281,7 @@ async def test_phase6_settings_module_and_audit_trail():
         )
         assert login.status_code == 200
         token = login.json()["access_token"]
-        auth_headers = {"Authorization": f"Bearer {token}", "X-Tenant-Subdomain": "demo"}
+        auth_headers = {"Authorization": f"Bearer {token}", "X-Company-Code": "DEMOLOGISTICS"}
 
         # 1. Create Series Category
         cat_res = await client.post(
@@ -352,7 +354,7 @@ async def test_phase6_profile_module_and_monthly_pnl():
     """
     uid = uuid.uuid4().hex[:6].upper()
     transport = ASGITransport(app=app)
-    headers = {"X-Tenant-Subdomain": "demo"}
+    headers = {"X-Company-Code": "DEMOLOGISTICS"}
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Login as demo admin
@@ -363,7 +365,7 @@ async def test_phase6_profile_module_and_monthly_pnl():
         )
         assert login.status_code == 200
         token = login.json()["access_token"]
-        auth_headers = {"Authorization": f"Bearer {token}", "X-Tenant-Subdomain": "demo"}
+        auth_headers = {"Authorization": f"Bearer {token}", "X-Company-Code": "DEMOLOGISTICS"}
 
         # 1. User Account
         acc = await client.get("/api/v1/profile/account", headers=auth_headers)
@@ -465,7 +467,7 @@ async def test_phase6_profile_module_and_monthly_pnl():
         assert new_token is not None
 
         # Revert password back so demo tenant stays consistent
-        revert_auth = {"Authorization": f"Bearer {new_token}", "X-Tenant-Subdomain": "demo"}
+        revert_auth = {"Authorization": f"Bearer {new_token}", "X-Company-Code": "DEMOLOGISTICS"}
         revert_res = await client.post(
             "/api/v1/profile/change-password",
             json={"current_password": new_pwd, "new_password": "PantherTMS@2026!"},

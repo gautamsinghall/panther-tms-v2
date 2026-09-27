@@ -29,7 +29,7 @@ async def run_migration():
         tenant_dbs = list(result.scalars().all())
 
     # Fallback to demo DB if no tenants returned
-    demo_db = f"panther_tenant_{settings.DEMO_TENANT_SUBDOMAIN}"
+    demo_db = f"panther_tenant_{settings.DEMO_COMPANY_CODE.lower()}"
     if demo_db not in tenant_dbs:
         tenant_dbs.append(demo_db)
 

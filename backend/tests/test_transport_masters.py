@@ -7,7 +7,7 @@ from app.main import app
 async def test_transport_fleet_and_driver_masters_crud():
     uid = uuid.uuid4().hex[:6]
     transport = ASGITransport(app=app)
-    headers = {"X-Tenant-Subdomain": "demo"}
+    headers = {"X-Company-Code": "DEMOLOGISTICS"}
 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Login as Admin
@@ -18,7 +18,7 @@ async def test_transport_fleet_and_driver_masters_crud():
         )
         assert login.status_code == 200
         token = login.json()["access_token"]
-        auth_headers = {"Authorization": f"Bearer {token}", "X-Tenant-Subdomain": "demo"}
+        auth_headers = {"Authorization": f"Bearer {token}", "X-Company-Code": "DEMOLOGISTICS"}
 
         # 2. Vehicle Owner CRUD
         owner_res = await client.post(

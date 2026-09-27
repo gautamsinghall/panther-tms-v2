@@ -40,8 +40,7 @@ async def authenticate_user(
 
     access_token = create_access_token(
         subject=str(user.id),
-        tenant_subdomain=tenant_id_str,
-        tenant_id=tenant.id,
+        tenant_id=tenant_id_str,
         company_code=company_code_str,
         role=user.role,
         extra_claims={
@@ -54,8 +53,7 @@ async def authenticate_user(
 
     refresh_token = create_refresh_token(
         subject=str(user.id),
-        tenant_subdomain=tenant_id_str,
-        tenant_id=tenant.id,
+        tenant_id=tenant_id_str,
         company_code=company_code_str,
     )
 
@@ -107,8 +105,7 @@ async def refresh_user_token(
 
     new_access_token = create_access_token(
         subject=str(user.id),
-        tenant_subdomain=tenant_id_str,
-        tenant_id=tenant.id,
+        tenant_id=tenant_id_str,
         company_code=company_code_str,
         role=user.role,
         extra_claims={
@@ -121,8 +118,7 @@ async def refresh_user_token(
 
     new_refresh_token = create_refresh_token(
         subject=str(user.id),
-        tenant_subdomain=tenant_id_str,
-        tenant_id=tenant.id,
+        tenant_id=tenant_id_str,
         company_code=company_code_str,
     )
 

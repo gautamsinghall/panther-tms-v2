@@ -24,7 +24,7 @@ When implementing or documenting a feature:
 ## 3. Multi-Tenancy Safety (non-negotiable)
 - Every query in tenant-scoped code must run against the resolved tenant's DB
   session — never accept a tenant id from the client body/query params as the
-  source of truth; always derive it from the authenticated session/subdomain.
+  source of truth; always derive it from the authenticated session / company_code / tenant_id.
 - No endpoint may join or query across two tenant databases.
 - Any new background job must carry tenant context explicitly (don't rely on
   ambient/global state).

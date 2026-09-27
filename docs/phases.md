@@ -8,12 +8,12 @@ its `rules.md` §11 knowledge-base update step is complete for anything it built
 - Docker-compose local dev: Postgres, Redis, backend, frontend.
 - Control-plane DB schema: tenants, plans, entitlements (empty/skeleton).
 - Tenant provisioning script: create tenant DB + run tenant-template migrations.
-- Subdomain routing working locally (Traefik or local equivalent) → resolves to a
+- Tenant resolution working locally (Company Code / Tenant ID header & route) → resolves to a
   seeded demo tenant.
 - Base auth: login/logout/JWT, one seeded Company Admin user.
 - Shared frontend shell: layout, sidebar (static for now), shared `DataTable`/`Form`
   components per `design.md`.
-- **Exit criteria**: can log into `demo.panthertms.local`, see an empty dashboard
+- **Exit criteria**: can log into demo tenant via Company Code `DEMOLOGISTICS` or Tenant ID, see an empty dashboard
   shell, and hit at least one authenticated API endpoint.
 
 ## Phase 1 — General Module (master data) + RBAC skeleton

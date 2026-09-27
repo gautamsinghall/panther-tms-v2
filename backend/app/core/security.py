@@ -14,12 +14,12 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(
     subject: str,
-    tenant_subdomain: str,
     tenant_id: Any,
+    company_code: str,
     role: str,
     expires_delta: Optional[timedelta] = None,
-    company_code: Optional[str] = None,
     extra_claims: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
 ) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -28,8 +28,8 @@ def create_access_token(
     
     payload: Dict[str, Any] = {
         "sub": subject,
-        "tenant_id": str(tenant_subdomain or tenant_id),
-        "company_code": company_code or "",
+        "tenant_id": str(tenant_id),
+        "company_code": str(company_code or ""),
         "role": role,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
@@ -42,10 +42,10 @@ def create_access_token(
 
 def create_refresh_token(
     subject: str,
-    tenant_subdomain: str,
     tenant_id: Any,
-    company_code: Optional[str] = None,
+    company_code: str,
     expires_delta: Optional[timedelta] = None,
+    **kwargs: Any,
 ) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -54,8 +54,8 @@ def create_refresh_token(
         
     payload: Dict[str, Any] = {
         "sub": subject,
-        "tenant_id": str(tenant_subdomain or tenant_id),
-        "company_code": company_code or "",
+        "tenant_id": str(tenant_id),
+        "company_code": str(company_code or ""),
         "exp": expire,
         "iat": datetime.now(timezone.utc),
         "type": "refresh",
