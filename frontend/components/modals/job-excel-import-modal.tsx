@@ -254,7 +254,7 @@ export function JobExcelImportModal({
                       Step 1: Download Standard Excel Format
                     </h4>
                     <p className="text-xs text-emerald-800/80 leading-relaxed">
-                      Download the official template pre-configured with all operational fields, instructions, example rows, and your available database master parties.
+                      Download the clean Excel format pre-configured with the exact input fields from the Job Order creation form. Zero demo data included.
                     </p>
                   </div>
                   <Button
@@ -279,24 +279,24 @@ export function JobExcelImportModal({
                   </Button>
                 </div>
 
-                {/* Sub-fields badge catalog */}
+                {/* Real input fields badge catalog */}
                 <div className="pt-2 border-t border-emerald-200/50">
                   <div className="text-[11px] font-semibold text-emerald-900 mb-1.5">
-                    Pre-mapped Fields in Template:
+                    Real Form Input Fields in Template:
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      "Billing Client",
-                      "Origin Location",
-                      "Destination Location",
-                      "Date of Job Creation",
+                      "Job Number",
+                      "Billing Client *",
+                      "Origin Location *",
+                      "Destination Location *",
+                      "Date of Job Creation *",
                       "Scheduled Dispatch Date",
-                      "Consigner",
-                      "Consignee",
+                      "Consigner *",
+                      "Consignee *",
                       "Cargo Description",
-                      "Estimated Weight (MT)",
-                      "Estimated Packages",
-                      "Special Instructions",
+                      "Estimated Weight",
+                      "Total Packages",
                     ].map((f) => (
                       <span
                         key={f}

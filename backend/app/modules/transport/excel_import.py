@@ -21,136 +21,92 @@ from app.tenant_db.models import (
 from app.modules.settings.series_service import allocate_or_validate_voucher_number
 
 # ---------------------------------------------------------------------------
-# Excel Template Generation
+# Excel Template Generation (Strictly Real Input Fields — ZERO Demo Data)
 # ---------------------------------------------------------------------------
 
 HEADER_FILL_COLOR = "1E293B"      # Slate 800
 HEADER_FONT_COLOR = "FFFFFF"      # White
-EXAMPLE_FILL_COLOR = "F8FAFC"     # Slate 50
-BORDER_COLOR = "CBD5E1"           # Slate 300
+BORDER_COLOR = "E2E8F0"           # Slate 200
 
-TEMPLATE_COLUMNS = [
+# Exactly matching the real Job Order form inputs in the UI:
+REAL_INPUT_COLUMNS = [
     {
         "key": "job_number",
         "header": "Job Number",
         "required": False,
         "width": 20,
-        "example1": "JOB-2026-0001",
-        "example2": "",
-        "notes": "Optional. Leave blank to auto-generate next sequence number."
+    },
+    {
+        "key": "billing_client",
+        "header": "Billing Client",
+        "required": True,
+        "width": 28,
+    },
+    {
+        "key": "origin_location",
+        "header": "Origin Location",
+        "required": True,
+        "width": 24,
+    },
+    {
+        "key": "destination_location",
+        "header": "Destination Location",
+        "required": True,
+        "width": 24,
     },
     {
         "key": "job_date",
         "header": "Date of Job Creation",
-        "required": False,
-        "width": 22,
-        "example1": "2026-09-27",
-        "example2": "2026-09-27",
-        "notes": "Format: YYYY-MM-DD or DD/MM/YYYY. Defaults to today if blank."
+        "required": True,
+        "width": 24,
     },
     {
         "key": "scheduled_dispatch_date",
         "header": "Scheduled Dispatch Date",
         "required": False,
         "width": 24,
-        "example1": "2026-09-28",
-        "example2": "2026-09-29",
-        "notes": "Format: YYYY-MM-DD or DD/MM/YYYY. Expected vehicle loading date."
-    },
-    {
-        "key": "billing_client",
-        "header": "Billing Client",
-        "required": False,
-        "width": 28,
-        "example1": "Tata Motors Logistics Division",
-        "example2": "Reliance Retail Supply Chain",
-        "notes": "Contracting customer party. Auto-created if not found."
-    },
-    {
-        "key": "origin_location",
-        "header": "Origin Location",
-        "required": True,
-        "width": 22,
-        "example1": "Mumbai",
-        "example2": "Pune",
-        "notes": "Origin city/hub. Mandatory. Auto-created if not found."
-    },
-    {
-        "key": "destination_location",
-        "header": "Destination Location",
-        "required": True,
-        "width": 22,
-        "example1": "Delhi",
-        "example2": "Bangalore",
-        "notes": "Destination city/hub. Mandatory. Auto-created if not found."
     },
     {
         "key": "consigner",
         "header": "Consigner",
         "required": True,
         "width": 28,
-        "example1": "Tata Motors Ltd Chakan Plant",
-        "example2": "Bajaj Auto Ltd Waluj",
-        "notes": "Dispatching sender party. Mandatory. Auto-created if not found."
     },
     {
         "key": "consignee",
         "header": "Consignee",
         "required": True,
         "width": 28,
-        "example1": "Tata Authorized Hub Delhi",
-        "example2": "Reliance Central Hub Bangalore",
-        "notes": "Receiving party. Mandatory. Auto-created if not found."
     },
     {
         "key": "cargo_description",
         "header": "Cargo Description",
         "required": False,
         "width": 32,
-        "example1": "Automobile Spares & Assemblies",
-        "example2": "FMCG Packaged Goods & Beverages",
-        "notes": "Commodity / cargo description."
     },
     {
         "key": "estimated_weight_mt",
-        "header": "Estimated Weight (MT)",
+        "header": "Estimated Weight",
         "required": False,
-        "width": 22,
-        "example1": "16.500",
-        "example2": "22.000",
-        "notes": "Weight in Metric Tons (e.g. 16.5)."
+        "width": 20,
     },
     {
         "key": "estimated_packages",
-        "header": "Estimated Packages",
+        "header": "Total Packages",
         "required": False,
         "width": 20,
-        "example1": "120",
-        "example2": "450",
-        "notes": "Number of cartons, boxes, or pallets (integer)."
-    },
-    {
-        "key": "special_instructions",
-        "header": "Special Instructions",
-        "required": False,
-        "width": 34,
-        "example1": "Tarpaulin cover mandatory. Express transit.",
-        "example2": "Handle fragile cartons with care.",
-        "notes": "Driver instructions or dispatch routing notes."
     },
 ]
 
 
 async def generate_job_import_template(db: AsyncSession) -> io.BytesIO:
     """
-    Generates a stylized Excel template for importing mass job orders.
-    Includes:
-    - Sheet 1: 'Job_Orders_Import' with styled header row and 2 example rows.
-    - Sheet 2: 'Reference_Masters' listing existing Consigners, Consignees, Locations, and Billing Clients.
+    Generates a clean, professional Excel template with ONLY the real input headers
+    matching the Job Order Creation UI.
+    Contains ZERO demo data — row 2 onwards are clean empty rows ready for user data entry.
     """
     wb = openpyxl.Workbook()
 
-    # Sheet 1: Template
     ws = wb.active
     ws.title = "Job_Orders_Import"
     ws.views.sheetView[0].showGridLines = True
@@ -158,9 +114,7 @@ async def generate_job_import_template(db: AsyncSession) -> io.BytesIO:
     # Styling elements
     header_font = Font(name="Segoe UI", size=11, bold=True, color=HEADER_FONT_COLOR)
     header_fill = PatternFill(start_color=HEADER_FILL_COLOR, end_color=HEADER_FILL_COLOR, fill_type="solid")
-    example_fill = PatternFill(start_color=EXAMPLE_FILL_COLOR, end_color=EXAMPLE_FILL_COLOR, fill_type="solid")
     regular_font = Font(name="Segoe UI", size=10)
-    example_font = Font(name="Segoe UI", size=10, italic=True)
     thin_border_side = Side(border_style="thin", color=BORDER_COLOR)
     cell_border = Border(
         left=thin_border_side,
@@ -172,8 +126,8 @@ async def generate_job_import_template(db: AsyncSession) -> io.BytesIO:
     left_align = Alignment(horizontal="left", vertical="center")
 
     # Set Header row (Row 1)
-    ws.row_dimensions[1].height = 34
-    for col_idx, col_def in enumerate(TEMPLATE_COLUMNS, start=1):
+    ws.row_dimensions[1].height = 32
+    for col_idx, col_def in enumerate(REAL_INPUT_COLUMNS, start=1):
         cell = ws.cell(row=1, column=col_idx)
         cell.value = col_def["header"] + (" *" if col_def["required"] else "")
         cell.font = header_font
@@ -182,78 +136,14 @@ async def generate_job_import_template(db: AsyncSession) -> io.BytesIO:
         cell.border = cell_border
         ws.column_dimensions[get_column_letter(col_idx)].width = col_def["width"]
 
-    # Sample Row 1 (Row 2)
-    ws.row_dimensions[2].height = 24
-    for col_idx, col_def in enumerate(TEMPLATE_COLUMNS, start=1):
-        cell = ws.cell(row=2, column=col_idx)
-        cell.value = col_def["example1"]
-        cell.font = example_font
-        cell.fill = example_fill
-        cell.alignment = left_align
-        cell.border = cell_border
-
-    # Sample Row 2 (Row 3)
-    ws.row_dimensions[3].height = 24
-    for col_idx, col_def in enumerate(TEMPLATE_COLUMNS, start=1):
-        cell = ws.cell(row=3, column=col_idx)
-        cell.value = col_def["example2"]
-        cell.font = example_font
-        cell.fill = example_fill
-        cell.alignment = left_align
-        cell.border = cell_border
-
-    # Blank row 4 for user input start
-    ws.row_dimensions[4].height = 22
-    for col_idx in range(1, len(TEMPLATE_COLUMNS) + 1):
-        cell = ws.cell(row=4, column=col_idx)
-        cell.border = cell_border
-        cell.font = regular_font
-
-    # Sheet 2: Reference Masters from Database
-    try:
-        ws_ref = wb.create_sheet(title="Reference_Masters")
-        ws_ref.views.sheetView[0].showGridLines = True
-        ws_ref.row_dimensions[1].height = 28
-
-        ref_header_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
-        ref_header_font = Font(name="Segoe UI", size=10, bold=True, color="FFFFFF")
-
-        # Fetch existing masters
-        consigners_res = await db.execute(select(Consigner.name).where(Consigner.is_active == True).limit(200))
-        consigners_list = [r[0] for r in consigners_res.fetchall()]
-
-        consignees_res = await db.execute(select(Consignee.name).where(Consignee.is_active == True).limit(200))
-        consignees_list = [r[0] for r in consignees_res.fetchall()]
-
-        locations_res = await db.execute(select(Location.city_name).where(Location.is_active == True).limit(200))
-        locations_list = [r[0] for r in locations_res.fetchall()]
-
-        clients_res = await db.execute(select(BillingClient.name).where(BillingClient.is_active == True).limit(200))
-        clients_list = [r[0] for r in clients_res.fetchall()]
-
-        ref_cols = [
-            ("Available Consigners", consigners_list, 32),
-            ("Available Consignees", consignees_list, 32),
-            ("Available Locations", locations_list, 26),
-            ("Available Billing Clients", clients_list, 32),
-        ]
-
-        for c_idx, (col_name, data_list, width) in enumerate(ref_cols, start=1):
-            h_cell = ws_ref.cell(row=1, column=c_idx, value=col_name)
-            h_cell.font = ref_header_font
-            h_cell.fill = ref_header_fill
-            h_cell.alignment = center_align
-            h_cell.border = cell_border
-            ws_ref.column_dimensions[get_column_letter(c_idx)].width = width
-
-            for r_idx, val in enumerate(data_list, start=2):
-                d_cell = ws_ref.cell(row=r_idx, column=c_idx, value=val)
-                d_cell.font = regular_font
-                d_cell.border = cell_border
-                d_cell.alignment = left_align
-    except Exception as e:
-        # If reference fetch fails, sheet 1 is still pristine
-        pass
+    # Provide 50 clean, pre-bordered blank rows ready for direct data entry (NO DEMO DATA)
+    for r in range(2, 52):
+        ws.row_dimensions[r].height = 22
+        for col_idx in range(1, len(REAL_INPUT_COLUMNS) + 1):
+            cell = ws.cell(row=r, column=col_idx)
+            cell.border = cell_border
+            cell.font = regular_font
+            cell.alignment = left_align
 
     output = io.BytesIO()
     wb.save(output)
@@ -266,31 +156,31 @@ async def generate_job_import_template(db: AsyncSession) -> io.BytesIO:
 # ---------------------------------------------------------------------------
 
 def _normalize_header(header: str) -> str:
-    """Normalize column header to canonical key."""
+    """Normalize column header to canonical key matching real input fields."""
     clean = re.sub(r"[^a-zA-Z0-9]", "_", str(header or "").strip().lower())
     clean = re.sub(r"_+", "_", clean).strip("_")
 
     if any(k in clean for k in ["job_no", "job_number", "job_#", "order_no", "order_number"]):
         return "job_number"
-    if any(k in clean for k in ["date_of_job", "creation_date", "job_date", "booking_date"]):
-        return "job_date"
-    if any(k in clean for k in ["dispatch_date", "scheduled_dispatch", "expected_dispatch", "dispatch"]):
-        return "scheduled_dispatch_date"
     if any(k in clean for k in ["billing_client", "billing_party", "customer", "bill_to"]):
         return "billing_client"
     if any(k in clean for k in ["origin_location", "origin_city", "origin", "from_city", "pickup_location"]):
         return "origin_location"
     if any(k in clean for k in ["destination_location", "destination_city", "destination", "to_city", "drop_location"]):
         return "destination_location"
+    if any(k in clean for k in ["date_of_job", "creation_date", "job_date", "booking_date"]):
+        return "job_date"
+    if any(k in clean for k in ["dispatch_date", "scheduled_dispatch", "expected_dispatch", "dispatch"]):
+        return "scheduled_dispatch_date"
     if any(k in clean for k in ["consigner", "shipper", "sender"]):
         return "consigner"
     if any(k in clean for k in ["consignee", "receiver", "recipient"]):
         return "consignee"
     if any(k in clean for k in ["cargo_description", "cargo", "material", "goods", "commodity", "item"]):
         return "cargo_description"
-    if any(k in clean for k in ["weight", "mt", "ton", "tonnage"]):
+    if any(k in clean for k in ["estimated_weight", "weight", "mt", "ton", "tonnage"]):
         return "estimated_weight_mt"
-    if any(k in clean for k in ["package", "pkg", "box", "carton", "units", "quantity"]):
+    if any(k in clean for k in ["total_packages", "estimated_packages", "packages", "pkg", "box", "carton", "units", "quantity"]):
         return "estimated_packages"
     if any(k in clean for k in ["instruction", "remark", "note"]):
         return "special_instructions"
@@ -354,16 +244,14 @@ async def import_jobs_from_excel(
     else:
         # Excel .xlsx / .xls
         wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
-        # Select first sheet or 'Job_Orders_Import'
         sheet_name = "Job_Orders_Import" if "Job_Orders_Import" in wb.sheetnames else wb.sheetnames[0]
         ws = wb[sheet_name]
 
         header_row = None
         for r in range(1, min(10, ws.max_row + 1)):
             row_vals = [ws.cell(row=r, column=c).value for c in range(1, ws.max_column + 1)]
-            # If contains consigner or consignee or origin or destination
             normalized = [_normalize_header(v) for v in row_vals if v]
-            if "consigner" in normalized or "consignee" in normalized or "origin_location" in normalized:
+            if "consigner" in normalized or "consignee" in normalized or "origin_location" in normalized or "billing_client" in normalized:
                 header_row = r
                 break
 
@@ -400,16 +288,6 @@ async def import_jobs_from_excel(
             "imported_jobs": [],
         }
 
-    # Filter out template example rows if present (e.g. 'JOB-2026-0001' with 'Tata Motors Ltd Chakan Plant')
-    filtered_rows = []
-    for r in rows_data:
-        consigner_val = str(r.get("consigner") or "").strip()
-        job_no_val = str(r.get("job_number") or "").strip()
-        # If it's the exact sample row from template
-        if job_no_val == "JOB-2026-0001" and "Chakan Plant" in consigner_val:
-            continue
-        filtered_rows.append(r)
-
     # In-memory caches to speed up master resolution
     consigner_cache: Dict[str, Consigner] = {}
     consignee_cache: Dict[str, Consignee] = {}
@@ -441,7 +319,7 @@ async def import_jobs_from_excel(
             billing_client_cache[bc.name.strip().lower()] = bc
             if bc.code:
                 billing_client_cache[bc.code.strip().lower()] = bc
-    except Exception as e:
+    except Exception:
         pass
 
     # Tracking sets for In-Excel Duplication Check
@@ -452,16 +330,16 @@ async def import_jobs_from_excel(
     skipped_duplicates: List[Dict[str, Any]] = []
     errors: List[Dict[str, Any]] = []
 
-    for row in filtered_rows:
+    for row in rows_data:
         row_num = row.get("_row_num", 0)
 
         # Extract values
         raw_job_no = str(row.get("job_number") or "").strip()
-        raw_consigner = str(row.get("consigner") or "").strip()
-        raw_consignee = str(row.get("consignee") or "").strip()
+        raw_client = str(row.get("billing_client") or "").strip()
         raw_origin = str(row.get("origin_location") or "").strip()
         raw_dest = str(row.get("destination_location") or "").strip()
-        raw_client = str(row.get("billing_client") or "").strip()
+        raw_consigner = str(row.get("consigner") or "").strip()
+        raw_consignee = str(row.get("consignee") or "").strip()
         raw_cargo = str(row.get("cargo_description") or "").strip()
         raw_weight = row.get("estimated_weight_mt")
         raw_packages = row.get("estimated_packages")
@@ -471,18 +349,21 @@ async def import_jobs_from_excel(
         job_creation_date = _parse_date(row.get("job_date")) or date.today()
         dispatch_date = _parse_date(row.get("scheduled_dispatch_date")) or job_creation_date
 
-        # Check Required Fields
-        if not raw_consigner:
-            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Consigner'."})
-            continue
-        if not raw_consignee:
-            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Consignee'."})
+        # Check Required Fields (Matching the Real Form)
+        if not raw_client:
+            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Billing Client'."})
             continue
         if not raw_origin:
             errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Origin Location'."})
             continue
         if not raw_dest:
             errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Destination Location'."})
+            continue
+        if not raw_consigner:
+            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Consigner'."})
+            continue
+        if not raw_consignee:
+            errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Consignee'."})
             continue
 
         # -------------------------------------------------------------------
@@ -503,7 +384,7 @@ async def import_jobs_from_excel(
 
         # Compute business signature for identical trip order in Excel
         row_signature = (
-            f"{raw_consigner.lower()}|{raw_consignee.lower()}|{raw_origin.lower()}|"
+            f"{raw_client.lower()}|{raw_consigner.lower()}|{raw_consignee.lower()}|{raw_origin.lower()}|"
             f"{raw_dest.lower()}|{dispatch_date.isoformat()}|{raw_cargo.lower()}"
         )
         if row_signature in seen_excel_signatures:
@@ -511,7 +392,7 @@ async def import_jobs_from_excel(
             skipped_duplicates.append({
                 "row": row_num,
                 "job_number": raw_job_no or "AUTO",
-                "reason": f"Duplicate trip order repeated within Excel file: Same Consigner, Consignee, Route, and Date (matches Row {first_row}).",
+                "reason": f"Duplicate trip order repeated within Excel file: Same Client, Consigner, Consignee, Route, and Date (matches Row {first_row}).",
                 "duplicate_type": "EXCEL_FILE_DUPLICATE"
             })
             continue
@@ -538,7 +419,20 @@ async def import_jobs_from_excel(
         # -------------------------------------------------------------------
         # Sub-field Resolution & Auto-creation
         # -------------------------------------------------------------------
-        # 1. Consigner
+        # 1. Billing Client
+        client_key = raw_client.lower()
+        client_obj = billing_client_cache.get(client_key)
+        if not client_obj:
+            client_obj = BillingClient(
+                name=raw_client,
+                country="India",
+                is_active=True
+            )
+            db.add(client_obj)
+            await db.flush()
+            billing_client_cache[client_key] = client_obj
+
+        # 2. Consigner
         consigner_key = raw_consigner.lower()
         consigner_obj = consigner_cache.get(consigner_key)
         if not consigner_obj:
@@ -551,7 +445,7 @@ async def import_jobs_from_excel(
             await db.flush()
             consigner_cache[consigner_key] = consigner_obj
 
-        # 2. Consignee
+        # 3. Consignee
         consignee_key = raw_consignee.lower()
         consignee_obj = consignee_cache.get(consignee_key)
         if not consignee_obj:
@@ -564,7 +458,7 @@ async def import_jobs_from_excel(
             await db.flush()
             consignee_cache[consignee_key] = consignee_obj
 
-        # 3. Origin Location
+        # 4. Origin Location
         origin_key = raw_origin.lower()
         origin_obj = location_cache.get(origin_key)
         if not origin_obj:
@@ -580,7 +474,7 @@ async def import_jobs_from_excel(
             await db.flush()
             location_cache[origin_key] = origin_obj
 
-        # 4. Destination Location
+        # 5. Destination Location
         dest_key = raw_dest.lower()
         dest_obj = location_cache.get(dest_key)
         if not dest_obj:
@@ -595,24 +489,6 @@ async def import_jobs_from_excel(
             db.add(dest_obj)
             await db.flush()
             location_cache[dest_key] = dest_obj
-
-        # 5. Billing Client
-        billing_client_id = None
-        billing_party_name = raw_client or raw_consigner
-        if raw_client:
-            client_key = raw_client.lower()
-            client_obj = billing_client_cache.get(client_key)
-            if not client_obj:
-                client_obj = BillingClient(
-                    name=raw_client,
-                    country="India",
-                    is_active=True
-                )
-                db.add(client_obj)
-                await db.flush()
-                billing_client_cache[client_key] = client_obj
-            billing_client_id = client_obj.id
-            billing_party_name = client_obj.name
 
         # -------------------------------------------------------------------
         # 2b. Database Business Duplicate Check
@@ -681,8 +557,8 @@ async def import_jobs_from_excel(
                 consignee_id=consignee_obj.id,
                 origin_location_id=origin_obj.id,
                 destination_location_id=dest_obj.id,
-                billing_client_id=billing_client_id,
-                billing_party=billing_party_name,
+                billing_client_id=client_obj.id,
+                billing_party=client_obj.name,
                 cargo_description=raw_cargo or None,
                 estimated_weight_mt=weight_val,
                 estimated_packages=packages_val,
@@ -714,7 +590,7 @@ async def import_jobs_from_excel(
         await db.commit()
 
     return {
-        "total_rows": len(filtered_rows),
+        "total_rows": len(rows_data),
         "imported_count": len(imported_jobs),
         "skipped_duplicate_count": len(skipped_duplicates),
         "failed_count": len(errors),

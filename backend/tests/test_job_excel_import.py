@@ -27,9 +27,12 @@ async def test_job_excel_template_and_deduplicated_import():
         assert tpl_res.status_code == 200
         assert "application/vnd.openxmlformats" in tpl_res.headers.get("content-type", "")
         tpl_wb = openpyxl.load_workbook(io.BytesIO(tpl_res.content))
-        assert "Job_Orders_Import" in tpl_wb.sheetnames
+        assert tpl_wb.sheetnames == ["Job_Orders_Import"]
         ws = tpl_wb["Job_Orders_Import"]
         assert ws.cell(row=1, column=1).value is not None
+        # Assert ZERO demo data: row 2 must be completely empty!
+        for col in range(1, 12):
+            assert ws.cell(row=2, column=col).value is None
 
         # 3. Create an in-memory Excel workbook with 3 rows:
         # Row 2: Valid Job A
@@ -39,19 +42,19 @@ async def test_job_excel_template_and_deduplicated_import():
         ws_test = wb.active
         ws_test.title = "Job_Orders_Import"
 
+        # Exactly matches the real form inputs
         headers_list = [
             "Job Number",
-            "Date of Job Creation",
-            "Scheduled Dispatch Date",
             "Billing Client",
             "Origin Location",
             "Destination Location",
+            "Date of Job Creation",
+            "Scheduled Dispatch Date",
             "Consigner",
             "Consignee",
             "Cargo Description",
-            "Estimated Weight (MT)",
-            "Estimated Packages",
-            "Special Instructions",
+            "Estimated Weight",
+            "Total Packages",
         ]
         ws_test.append(headers_list)
 
@@ -63,49 +66,46 @@ async def test_job_excel_template_and_deduplicated_import():
         # Row 2: Job A
         ws_test.append([
             "",  # Auto job number
-            "2026-09-27",
-            "2026-09-28",
             f"Client Alpha {uid}",
             f"Mumbai {uid}",
             f"Delhi {uid}",
+            "2026-09-27",
+            "2026-09-28",
             job_a_consigner,
             job_a_consignee,
             "Auto Components",
             "18.5",
             "120",
-            "Fragile handle with care",
         ])
 
-        # Row 3: Duplicate of Job A (same parties, route, date, cargo)
+        # Row 3: Duplicate of Job A (same client, parties, route, date, cargo)
         ws_test.append([
             "",
-            "2026-09-27",
-            "2026-09-28",
             f"Client Alpha {uid}",
             f"Mumbai {uid}",
             f"Delhi {uid}",
+            "2026-09-27",
+            "2026-09-28",
             job_a_consigner,
             job_a_consignee,
             "Auto Components",
             "18.5",
             "120",
-            "Duplicate entry",
         ])
 
         # Row 4: Job B (different route and parties)
         ws_test.append([
             f"JOB-CUSTOM-{uid}-1",
-            "2026-09-27",
-            "2026-09-29",
             f"Client Beta {uid}",
             f"Pune {uid}",
             f"Bangalore {uid}",
+            "2026-09-27",
+            "2026-09-29",
             job_b_consigner,
             job_b_consignee,
             "Machinery Spares",
             "24.0",
             "80",
-            "Standard loading",
         ])
 
         excel_buf = io.BytesIO()
