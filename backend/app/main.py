@@ -127,32 +127,36 @@ app = FastAPI(
 # Register error handlers for standardized API error envelopes
 register_error_handlers(app)
 
-# CORS configuration
+# Response compression (added BEFORE CORS so CORS wraps the outermost layer)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# CORS configuration — use allow_origins=["*"] for broadest compatibility.
+# NOTE: When allow_origins=["*"], allow_credentials must be False per spec.
+# So we use allow_origin_regex to allow all origins WITH credentials.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://.*",
-    allow_origins=[
-        "https://bharat.panthertms.com",
-        "http://bharat.panthertms.com",
-        "https://api.panthertms.com",
-        "https://panthertms.com",
-        "https://panthertms.in",
-        "http://panthertms.in",
-        "https://demo.panthertms.in",
-        "https://demo.panthertms.com",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-    ],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-# Response compression to reduce bandwidth, memory buffer retention, and network latency
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# Explicit preflight handler for any route — guarantees CORS headers on OPTIONS
+@app.options("/{full_path:path}")
+async def preflight_handler(request: Request, full_path: str):
+    from fastapi.responses import Response
+    origin = request.headers.get("origin", "*")
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": request.headers.get("access-control-request-headers", "*"),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "86400",
+        },
+    )
 
 # Base health & info
 @app.get("/health", tags=["System"])

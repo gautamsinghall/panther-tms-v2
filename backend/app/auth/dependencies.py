@@ -5,6 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 from app.core.errors import (
     UnauthorizedException, ForbiddenException,
     EntitlementLockedException, QuotaExceededException

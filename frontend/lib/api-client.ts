@@ -45,10 +45,18 @@ export async function apiClient<T = any>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (networkErr) {
+    // Network-level failure (CORS block, server down, ERR_FAILED)
+    const error = new Error("Unable to connect to the server. Please check your connection and try again.") as Error & { status: number };
+    error.status = 0;
+    throw error;
+  }
 
   if (!response.ok) {
     if (response.status === 401) {

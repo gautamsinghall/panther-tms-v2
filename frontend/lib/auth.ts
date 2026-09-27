@@ -160,18 +160,24 @@ export async function login(
 
   const cleanCompanyCode = companyCode.replace(/[^a-zA-Z]/g, "").toUpperCase();
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Company-Code": cleanCompanyCode,
-    },
-    body: JSON.stringify({
-      company_code: cleanCompanyCode,
-      email,
-      password,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Company-Code": cleanCompanyCode,
+      },
+      body: JSON.stringify({
+        company_code: cleanCompanyCode,
+        email,
+        password,
+      }),
+    });
+  } catch (networkErr) {
+    // Network error (CORS block, server unreachable, ERR_FAILED)
+    throw new Error("Unable to connect to the server. Please check your internet connection and try again.");
+  }
 
   if (!res.ok) {
     let errorMsg = `Login failed (${res.status})`;
