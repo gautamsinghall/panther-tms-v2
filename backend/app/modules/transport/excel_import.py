@@ -19,7 +19,7 @@ from app.tenant_db.models import (
     BillingClient,
     SeriesMaster,
 )
-from app.core.exceptions import AppException
+from app.core.errors import AppException
 from app.modules.settings.series_service import (
     allocate_or_validate_voucher_number,
     get_real_voucher_usage,
