@@ -1,5 +1,5 @@
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, status, UploadFile, File
+from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
@@ -200,6 +200,8 @@ async def download_job_excel_template(
 @router.post("/jobs/import-excel")
 async def import_jobs_excel(
     file: UploadFile = File(...),
+    apply_series_prefix_suffix: Optional[bool] = Query(None),
+    apply_series_prefix_suffix_form: Optional[str] = Form(None, alias="apply_series_prefix_suffix"),
     current_user: User = Depends(require_permission("transport", "jobs", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
@@ -209,6 +211,7 @@ async def import_jobs_excel(
     - Within Excel: catches duplicated job numbers and duplicated trip order rows.
     - Against Database: catches existing job numbers and active identical trip orders.
     - Resolves and auto-creates sub-fields (Billing Client, Origin/Destination Location, Consigner, Consignee).
+    - Supports importing with or without configured series prefix/postfix.
     """
     if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         raise AppException(
@@ -225,11 +228,18 @@ async def import_jobs_excel(
             message="The uploaded file is empty."
         )
 
+    should_apply_series = True
+    if apply_series_prefix_suffix is not None:
+        should_apply_series = bool(apply_series_prefix_suffix)
+    elif apply_series_prefix_suffix_form is not None:
+        should_apply_series = str(apply_series_prefix_suffix_form).strip().lower() in ("true", "1", "yes")
+
     return await import_jobs_from_excel(
         db=db,
         file_bytes=file_bytes,
         filename=file.filename,
-        user_id=current_user.id
+        user_id=current_user.id,
+        apply_series_prefix_suffix=should_apply_series,
     )
 
 @router.get("/jobs", response_model=List[JobResponse])

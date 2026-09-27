@@ -668,14 +668,20 @@ async def allocate_or_validate_voucher_number(
         if mode == "MANUAL":
             if manual_number and manual_number.strip():
                 clean_val = manual_number.strip()
+                final_number = clean_val
+                # Ensure configured series prefix and postfix are attached if not already present
+                if prefix and not final_number.lower().startswith(prefix.lower()):
+                    final_number = f"{prefix}{final_number}"
+                if suffix and not final_number.lower().endswith(suffix.lower()):
+                    final_number = f"{final_number}{suffix}"
 
                 # Check if this voucher number is already used anywhere in database
                 all_used = await get_all_used_numbers_for_doc(db, norm_type)
-                if clean_val in all_used:
+                if final_number in all_used or clean_val in all_used:
                     raise AppException(
                         status_code=400,
                         error_code="VOUCHER_NUMBER_ALREADY_USED",
-                        message=f"Voucher number '{clean_val}' is already used. Please choose an unused voucher number from the active series range.",
+                        message=f"Voucher number '{final_number}' is already used. Please choose an unused voucher number from the active series range.",
                     )
 
                 # Find which series range owns this voucher number
@@ -688,14 +694,20 @@ async def allocate_or_validate_voucher_number(
                     .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
                 )).scalars().all()
 
-                digits = "".join(filter(str.isdigit, clean_val))
+                # Extract pure sequence number by stripping prefix and suffix first
+                core_val = clean_val
+                if prefix and core_val.lower().startswith(prefix.lower()):
+                    core_val = core_val[len(prefix):]
+                if suffix and core_val.lower().endswith(suffix.lower()):
+                    core_val = core_val[:-len(suffix)]
+                digits = "".join(filter(str.isdigit, core_val))
                 num_val = int(digits) if digits else None
 
                 matched_series = None
                 for sr in all_ranges:
                     p = sr.prefix or ""
                     s_suf = sr.suffix or ""
-                    if clean_val.startswith(p) and (not s_suf or clean_val.endswith(s_suf)):
+                    if final_number.lower().startswith(p.lower()) and (not s_suf or final_number.lower().endswith(s_suf.lower())):
                         if num_val is not None:
                             start_n = sr.starting_number or 1
                             end_n = sr.end_number
@@ -709,14 +721,12 @@ async def allocate_or_validate_voucher_number(
                         raise AppException(
                             status_code=400,
                             error_code="SERIES_EXHAUSTED",
-                            message=f"Voucher number '{clean_val}' exceeds configured series range limit ({active_target.end_number}).",
+                            message=f"Voucher number '{final_number}' exceeds configured series range limit ({active_target.end_number}).",
                         )
                     if num_val > (active_target.current_number or 0):
                         active_target.current_number = num_val
                         db.add(active_target)
                         await db.flush()
-
-                final_number = clean_val
             else:
                 real_usage = await get_real_voucher_usage(db, norm_type)
                 disp = compute_series_display_data(series, real_usage=real_usage)
@@ -728,7 +738,27 @@ async def allocate_or_validate_voucher_number(
             if manual_number and manual_number.strip():
                 clean_val = manual_number.strip()
                 final_number = clean_val
-                digits = "".join(filter(str.isdigit, clean_val))
+                # Ensure configured series prefix and postfix are attached if not already present
+                if prefix and not final_number.lower().startswith(prefix.lower()):
+                    final_number = f"{prefix}{final_number}"
+                if suffix and not final_number.lower().endswith(suffix.lower()):
+                    final_number = f"{final_number}{suffix}"
+
+                all_used = await get_all_used_numbers_for_doc(db, norm_type)
+                if final_number in all_used or clean_val in all_used:
+                    raise AppException(
+                        status_code=400,
+                        error_code="VOUCHER_NUMBER_ALREADY_USED",
+                        message=f"Voucher number '{final_number}' is already used. Please choose an unused voucher number.",
+                    )
+
+                # Extract pure sequence number by stripping prefix and suffix first
+                core_val = clean_val
+                if prefix and core_val.lower().startswith(prefix.lower()):
+                    core_val = core_val[len(prefix):]
+                if suffix and core_val.lower().endswith(suffix.lower()):
+                    core_val = core_val[:-len(suffix)]
+                digits = "".join(filter(str.isdigit, core_val))
                 if digits:
                     try:
                         num_val = int(digits)
@@ -756,6 +786,8 @@ async def allocate_or_validate_voucher_number(
         return final_number
 
     # Fallback for optional voucher types if not configured
+    if manual_number and manual_number.strip():
+        return manual_number.strip()
     next_num = 1
     return f"{raw_doc[:3]}-2026-{next_num:04d}"
 

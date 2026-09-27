@@ -72,6 +72,13 @@ export function JobExcelImportModal({
   const [importResult, setImportResult] = useState<JobExcelImportResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [applySeriesPrefixSuffix, setApplySeriesPrefixSuffix] = useState<boolean>(true);
+  const [seriesInfo, setSeriesInfo] = useState<{
+    prefix?: string;
+    suffix?: string;
+    next_number?: number;
+    next_number_formatted?: string;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,13 +86,24 @@ export function JobExcelImportModal({
     setMounted(true);
   }, []);
 
-  // Reset state when opening/closing
+  // Reset state and fetch Series Master info when opening
   useEffect(() => {
     if (isOpen) {
       setSelectedFile(null);
       setImportResult(null);
       setUploadError(null);
       setIsUploading(false);
+      setApplySeriesPrefixSuffix(true);
+
+      apiClient<any>("/api/v1/settings/series/check/JOB")
+        .then((res) => {
+          if (res && res.configured) {
+            setSeriesInfo(res);
+          } else {
+            setSeriesInfo(null);
+          }
+        })
+        .catch(() => setSeriesInfo(null));
     }
   }, [isOpen]);
 
@@ -180,9 +198,10 @@ export function JobExcelImportModal({
 
       const formData = new FormData();
       formData.append("file", selectedFile);
+      formData.append("apply_series_prefix_suffix", applySeriesPrefixSuffix ? "true" : "false");
 
       const result = await apiClient<JobExcelImportResult>(
-        "/api/v1/transport/jobs/import-excel",
+        `/api/v1/transport/jobs/import-excel?apply_series_prefix_suffix=${applySeriesPrefixSuffix}`,
         {
           method: "POST",
           body: formData,
@@ -368,6 +387,94 @@ export function JobExcelImportModal({
                       </p>
                     </div>
                   )}
+                </div>
+
+                {/* Step 3: Prefix/Postfix Series Formatting Option */}
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      Step 3: Document Number Series Formatting
+                    </h4>
+                    <span className="text-[11px] text-slate-400">Choose prefix/postfix handling</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option A: With Series Prefix & Postfix */}
+                    <div
+                      onClick={() => setApplySeriesPrefixSuffix(true)}
+                      className={`relative rounded-xl border p-3.5 cursor-pointer transition-all duration-150 flex flex-col justify-between ${
+                        applySeriesPrefixSuffix
+                          ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20 shadow-xs"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div
+                          className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
+                            applySeriesPrefixSuffix ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {applySeriesPrefixSuffix && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-900 flex items-center gap-1.5">
+                            With Prefix & Postfix
+                            <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                              Recommended
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Applies Series Master prefix and postfix to all imported jobs (e.g. sequence{" "}
+                            <span className="font-semibold text-slate-700">50</span> will be saved as{" "}
+                            <span className="font-semibold text-emerald-800">
+                              {seriesInfo?.prefix || "job-"}50{seriesInfo?.suffix || "-2026"}
+                            </span>
+                            ).
+                          </p>
+                        </div>
+                      </div>
+                      {seriesInfo && (seriesInfo.prefix || seriesInfo.suffix) && (
+                        <div className="mt-2.5 pt-2 border-t border-emerald-100/80 flex items-center justify-between text-[10px] text-slate-500">
+                          <span>Prefix: <strong className="text-slate-800">{seriesInfo.prefix || "(None)"}</strong></span>
+                          <span>Postfix: <strong className="text-slate-800">{seriesInfo.suffix || "(None)"}</strong></span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Option B: Without Series Prefix & Postfix */}
+                    <div
+                      onClick={() => setApplySeriesPrefixSuffix(false)}
+                      className={`relative rounded-xl border p-3.5 cursor-pointer transition-all duration-150 flex flex-col justify-between ${
+                        !applySeriesPrefixSuffix
+                          ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20 shadow-xs"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div
+                          className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
+                            !applySeriesPrefixSuffix ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {!applySeriesPrefixSuffix && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-900">
+                            Without Prefix & Postfix
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Save exact job numbers as written in Excel without adding series prefix or postfix (e.g. sequence{" "}
+                            <span className="font-semibold text-slate-700">50</span> stays{" "}
+                            <span className="font-semibold text-slate-800">50</span>).
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-400">
+                        Imports exact raw sequence from file
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Duplicacy Protection Feature Notice */}

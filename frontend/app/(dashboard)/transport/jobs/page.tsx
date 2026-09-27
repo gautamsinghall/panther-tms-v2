@@ -308,12 +308,16 @@ export default function JobsPage() {
       fields: [
         {
           name: "job_number",
-          label: "Job Number",
+          label: "Job Number / Sequence",
           type: "text",
-          disabled: true,
-          disabledReason: "Job Number is auto-assigned by Series Master",
-          placeholder: seriesInfo?.next_number_formatted || "JOB-2026-0001",
-          defaultValue: seriesInfo?.next_number_formatted || "JOB-2026-0001",
+          disabled: Boolean(editingJob),
+          disabledReason: editingJob ? "Job Number cannot be modified once created" : undefined,
+          placeholder: seriesInfo?.prefix || seriesInfo?.suffix
+            ? `${seriesInfo.prefix || ""}50${seriesInfo.suffix || ""}`
+            : (seriesInfo?.next_number_formatted || "e.g. 50 or JOB-50-2026"),
+          helperText: seriesInfo?.prefix || seriesInfo?.suffix
+            ? `Series Master: Prefix '${seriesInfo.prefix || ""}', Postfix '${seriesInfo.suffix || ""}'. Enter sequence (e.g. 50) and it will save as ${seriesInfo.prefix || ""}50${seriesInfo.suffix || ""}. Leave blank for auto.`
+            : "Enter sequence or full Job Number, or leave blank for automatic allocation.",
           colSpan: 1,
         },
         {
@@ -413,9 +417,21 @@ export default function JobsPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
+      let finalJobNumber = values.job_number ? String(values.job_number).trim() : "";
+      if (finalJobNumber && seriesInfo && !editingJob) {
+        const prefix = seriesInfo.prefix || "";
+        const suffix = seriesInfo.suffix || "";
+        if (prefix && !finalJobNumber.toLowerCase().startsWith(prefix.toLowerCase())) {
+          finalJobNumber = `${prefix}${finalJobNumber}`;
+        }
+        if (suffix && !finalJobNumber.toLowerCase().endsWith(suffix.toLowerCase())) {
+          finalJobNumber = `${finalJobNumber}${suffix}`;
+        }
+      }
+
       const selectedBc = billingClients.find((b) => String(b.id) === String(values.billing_client_id));
       const payload = {
-        job_number: values.job_number || seriesInfo?.next_number_formatted || undefined,
+        job_number: finalJobNumber || undefined,
         job_date: values.job_date || new Date().toISOString().split("T")[0],
         expected_dispatch_date: values.expected_dispatch_date || undefined,
         billing_client_id: values.billing_client_id ? parseInt(values.billing_client_id, 10) : undefined,
@@ -453,7 +469,7 @@ export default function JobsPage() {
   const openCreateJobDrawer = () => {
     setEditingJob(null);
     setFormInitialValues({
-      job_number: seriesInfo?.next_number_formatted || "JOB-2026-0001",
+      job_number: "",
       job_date: new Date().toISOString().split("T")[0],
       expected_dispatch_date: new Date().toISOString().split("T")[0],
     });

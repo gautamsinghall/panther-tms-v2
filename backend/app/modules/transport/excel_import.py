@@ -17,8 +17,14 @@ from app.tenant_db.models import (
     Consignee,
     Location,
     BillingClient,
+    SeriesMaster,
 )
-from app.modules.settings.series_service import allocate_or_validate_voucher_number
+from app.core.exceptions import AppException
+from app.modules.settings.series_service import (
+    allocate_or_validate_voucher_number,
+    get_real_voucher_usage,
+    compute_series_display_data,
+)
 
 # ---------------------------------------------------------------------------
 # Excel Template Generation (Strictly Real Input Fields — ZERO Demo Data)
@@ -216,12 +222,14 @@ async def import_jobs_from_excel(
     file_bytes: bytes,
     filename: str,
     user_id: Optional[int] = None,
+    apply_series_prefix_suffix: bool = True,
 ) -> Dict[str, Any]:
     """
     Parses Excel (.xlsx/.xls) or CSV file, performs deep 2-level deduplication:
     1. Within-Excel duplicate check (job_number, exact business trip duplicate).
     2. Database duplicate check (existing job_number, existing trip matching route, dates, parties).
     Resolves/auto-creates sub-fields (Billing Client, Origin, Destination, Consigner, Consignee).
+    Supports importing with or without configured series prefix/postfix.
     """
     rows_data: List[Dict[str, Any]] = []
 
@@ -322,6 +330,24 @@ async def import_jobs_from_excel(
     except Exception:
         pass
 
+    # Fetch active SeriesMaster for JOB to determine prefix and suffix
+    job_series = None
+    try:
+        series_res = await db.execute(
+            select(SeriesMaster)
+            .where(
+                SeriesMaster.document_type.in_(["JOB", "TRIP"]),
+                SeriesMaster.is_active == True,
+            )
+            .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+        )
+        job_series = series_res.scalars().first()
+    except Exception:
+        pass
+
+    series_prefix = (job_series.prefix or "") if job_series else ""
+    series_suffix = (job_series.suffix or "") if job_series else ""
+
     # Tracking sets for In-Excel Duplication Check
     seen_excel_job_numbers: Dict[str, int] = {}    # job_number.lower() -> row_num
     seen_excel_signatures: Dict[str, int] = {}     # business signature -> row_num
@@ -366,17 +392,31 @@ async def import_jobs_from_excel(
             errors.append({"row": row_num, "job_number": raw_job_no, "reason": "Missing mandatory field 'Consignee'."})
             continue
 
+        # Determine effective job number based on series prefix/postfix setting
+        if raw_job_no:
+            if apply_series_prefix_suffix:
+                formatted_job_no = raw_job_no
+                if series_prefix and not formatted_job_no.lower().startswith(series_prefix.lower()):
+                    formatted_job_no = f"{series_prefix}{formatted_job_no}"
+                if series_suffix and not formatted_job_no.lower().endswith(series_suffix.lower()):
+                    formatted_job_no = f"{formatted_job_no}{series_suffix}"
+                effective_job_no = formatted_job_no
+            else:
+                effective_job_no = raw_job_no
+        else:
+            effective_job_no = None
+
         # -------------------------------------------------------------------
         # Level 1 Deduplication: Within Excel File
         # -------------------------------------------------------------------
-        if raw_job_no:
-            lower_job = raw_job_no.lower()
+        if effective_job_no:
+            lower_job = effective_job_no.lower()
             if lower_job in seen_excel_job_numbers:
                 first_row = seen_excel_job_numbers[lower_job]
                 skipped_duplicates.append({
                     "row": row_num,
-                    "job_number": raw_job_no,
-                    "reason": f"Duplicate Job Number '{raw_job_no}' repeated within Excel file (first seen on Row {first_row}).",
+                    "job_number": effective_job_no,
+                    "reason": f"Duplicate Job Number '{effective_job_no}' repeated within Excel file (first seen on Row {first_row}).",
                     "duplicate_type": "EXCEL_FILE_DUPLICATE"
                 })
                 continue
@@ -391,7 +431,7 @@ async def import_jobs_from_excel(
             first_row = seen_excel_signatures[row_signature]
             skipped_duplicates.append({
                 "row": row_num,
-                "job_number": raw_job_no or "AUTO",
+                "job_number": effective_job_no or "AUTO",
                 "reason": f"Duplicate trip order repeated within Excel file: Same Client, Consigner, Consignee, Route, and Date (matches Row {first_row}).",
                 "duplicate_type": "EXCEL_FILE_DUPLICATE"
             })
@@ -402,16 +442,19 @@ async def import_jobs_from_excel(
         # Level 2 Deduplication: Database Check
         # -------------------------------------------------------------------
         # 2a. Check if explicit Job Number already exists in DB
-        if raw_job_no:
+        if effective_job_no:
+            check_nums = [effective_job_no.lower()]
+            if raw_job_no and raw_job_no.lower() not in check_nums:
+                check_nums.append(raw_job_no.lower())
             existing_job_res = await db.execute(
-                select(Job.id, Job.job_number, Job.status).where(func.lower(Job.job_number) == raw_job_no.lower())
+                select(Job.id, Job.job_number, Job.status).where(func.lower(Job.job_number).in_(check_nums))
             )
             existing_job = existing_job_res.first()
             if existing_job:
                 skipped_duplicates.append({
                     "row": row_num,
-                    "job_number": raw_job_no,
-                    "reason": f"Job Number '{raw_job_no}' already exists in database (Job #{existing_job.job_number}, Status: {existing_job.status}).",
+                    "job_number": effective_job_no,
+                    "reason": f"Job Number '{effective_job_no}' already exists in database (Job #{existing_job.job_number}, Status: {existing_job.status}).",
                     "duplicate_type": "DATABASE_DUPLICATE"
                 })
                 continue
@@ -518,7 +561,7 @@ async def import_jobs_from_excel(
         if db_dup:
             skipped_duplicates.append({
                 "row": row_num,
-                "job_number": raw_job_no or db_dup.job_number,
+                "job_number": effective_job_no or raw_job_no or db_dup.job_number,
                 "reason": f"Active duplicate trip order already exists in database: Job #{db_dup.job_number} for {consigner_obj.name} -> {consignee_obj.name} ({origin_obj.city_name} to {dest_obj.city_name}) on {dispatch_date}.",
                 "duplicate_type": "DATABASE_DUPLICATE"
             })
@@ -543,11 +586,32 @@ async def import_jobs_from_excel(
         # Allocate Voucher Number & Create Job
         # -------------------------------------------------------------------
         try:
-            allocated_job_number = await allocate_or_validate_voucher_number(
-                db,
-                "JOB",
-                manual_number=raw_job_no if raw_job_no else None
-            )
+            if apply_series_prefix_suffix:
+                allocated_job_number = await allocate_or_validate_voucher_number(
+                    db,
+                    "JOB",
+                    manual_number=effective_job_no if effective_job_no else None
+                )
+            else:
+                if effective_job_no:
+                    allocated_job_number = effective_job_no
+                    digits = "".join(filter(str.isdigit, effective_job_no))
+                    if digits and job_series:
+                        try:
+                            n_val = int(digits)
+                            if n_val > (job_series.current_number or 0):
+                                job_series.current_number = n_val
+                                db.add(job_series)
+                        except ValueError:
+                            pass
+                else:
+                    real_usage = await get_real_voucher_usage(db, "JOB")
+                    disp = compute_series_display_data(job_series, real_usage=real_usage) if job_series else {"next_number": 1}
+                    next_seq = disp["next_number"]
+                    allocated_job_number = str(next_seq)
+                    if job_series:
+                        job_series.current_number = next_seq
+                        db.add(job_series)
 
             new_job = Job(
                 job_number=allocated_job_number,
@@ -578,10 +642,17 @@ async def import_jobs_from_excel(
                 "destination": dest_obj.city_name,
                 "dispatch_date": dispatch_date.isoformat(),
             })
+        except AppException as ae:
+            skipped_duplicates.append({
+                "row": row_num,
+                "job_number": effective_job_no or raw_job_no,
+                "reason": ae.message,
+                "duplicate_type": "DATABASE_DUPLICATE" if ae.error_code == "VOUCHER_NUMBER_ALREADY_USED" else "SERIES_ERROR"
+            })
         except Exception as create_err:
             errors.append({
                 "row": row_num,
-                "job_number": raw_job_no,
+                "job_number": effective_job_no or raw_job_no,
                 "reason": f"Failed to create job: {str(create_err)}"
             })
 
