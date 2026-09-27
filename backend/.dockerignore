@@ -12,3 +12,5 @@ env
 .git
 .gitignore
 .env
+tests/
+pytest.ini

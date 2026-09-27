@@ -79,13 +79,9 @@ async def lifespan(app: FastAPI):
                 )
                 await provision_tenant(req, session)
 
-            # Ensure tenant tables have country column and extra settings
-            res = await session.execute(select(Tenant.db_name))
-            tenant_dbs = list(res.scalars().all())
-            demo_dbs = ["panther_tenant_demologistics", "panther_tenant_demo123456", "panther_tenant_demo"]
-            for d_db in demo_dbs:
-                if d_db not in tenant_dbs:
-                    tenant_dbs.append(d_db)
+            # Ensure active tenant tables have required schema and columns
+            res = await session.execute(select(Tenant.db_name).where(Tenant.db_name.isnot(None)))
+            tenant_dbs = [db for db in res.scalars().all() if db]
             for t_db in tenant_dbs:
                 try:
                     t_engine = get_tenant_engine(t_db)

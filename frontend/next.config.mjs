@@ -3,6 +3,7 @@ const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
   compress: true,
+  productionBrowserSourceMaps: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -10,16 +11,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    optimizePackageImports: [
-      "lucide-react",
-      "recharts",
-      "@radix-ui/react-icons",
-      "@radix-ui/react-dialog",
-      "@radix-ui/react-dropdown-menu",
-      "@radix-ui/react-select",
-      "@radix-ui/react-popover",
-      "@radix-ui/react-tooltip",
-    ],
+    optimizePackageImports: ["lucide-react", "recharts"],
   },
 };
 

@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     container_name: panther-postgres
     restart: unless-stopped
-    command: postgres -c shared_buffers=256MB -c work_mem=8MB -c maintenance_work_mem=64MB -c effective_cache_size=512MB -c max_connections=150 -c random_page_cost=1.1 -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c min_wal_size=32MB -c max_wal_size=256MB
+    command: postgres -c shared_buffers=128MB -c work_mem=4MB -c maintenance_work_mem=32MB -c effective_cache_size=256MB -c max_connections=100 -c random_page_cost=1.1 -c checkpoint_completion_target=0.9 -c wal_buffers=8MB -c min_wal_size=16MB -c max_wal_size=128MB
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 512M
         reservations:
-          memory: 256M
+          memory: 128M
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-panther}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panther_secret}
@@ -116,9 +116,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 256M
         reservations:
-          memory: 128M
+          memory: 64M
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@panthertms.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-panther_secret}

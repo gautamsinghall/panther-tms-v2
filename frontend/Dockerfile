@@ -9,7 +9,7 @@ RUN npm install --prefer-offline --no-audit
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN npm run build
 
 # Stage 2: Ultra-lightweight production runner
@@ -21,7 +21,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-ENV NODE_OPTIONS="--max-old-space-size=384"
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "PantherTMS — Multi-Tenant Transport Management System",
   description: "Enterprise SaaS TMS for logistics companies: jobs, bookings, billing, and fleet operations.",
