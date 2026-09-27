@@ -183,6 +183,7 @@ class JobCreate(JobBase):
     pass
 
 class JobUpdate(BaseModel):
+    job_date: Optional[date] = None
     consigner_id: Optional[int] = None
     consignee_id: Optional[int] = None
     origin_location_id: Optional[int] = None

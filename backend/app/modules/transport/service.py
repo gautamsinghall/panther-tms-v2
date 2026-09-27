@@ -271,6 +271,11 @@ async def update_job(db: AsyncSession, job_id: int, data: JobUpdate) -> Job:
         raise AppException(status_code=400, error_code="JOB_LOCKED", message=f"Job is {job.status} and cannot be modified.")
     for field, val in data.model_dump(exclude_unset=True).items():
         setattr(job, field, val)
+    if data.billing_client_id and not data.billing_party:
+        from app.tenant_db.models import BillingClient
+        bc = await db.get(BillingClient, data.billing_client_id)
+        if bc:
+            job.billing_party = bc.name
     await db.commit()
     await db.refresh(job)
     return job

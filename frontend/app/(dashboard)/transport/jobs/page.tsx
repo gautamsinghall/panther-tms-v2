@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet } from "lucide-react";
+import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet, Eye, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -21,6 +21,7 @@ import {
   QuickCreateLocationModal,
 } from "@/components/modals/quick-create-modal";
 import { JobExcelImportModal } from "@/components/modals/job-excel-import-modal";
+import { JobOrderViewModal } from "@/components/modals/job-order-view-modal";
 
 interface JobRecord {
   id: number;
@@ -28,6 +29,8 @@ interface JobRecord {
   job_date: string;
   consigner_id: number;
   consignee_id: number;
+  origin_location_id?: number;
+  destination_location_id?: number;
   billing_client_id?: number;
   billing_party?: string;
   billing_client_name?: string;
@@ -81,6 +84,10 @@ export default function JobsPage() {
 
   // Excel Import Modal state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // View & Edit Modal states
+  const [viewingJob, setViewingJob] = useState<JobRecord | null>(null);
+  const [editingJob, setEditingJob] = useState<JobRecord | null>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -223,8 +230,23 @@ export default function JobsPage() {
 
   const actions: RowAction<JobRecord>[] = [
     {
+      label: "View",
+      icon: <Eye className="w-3.5 h-3.5 text-slate-600" />,
+      onClick: (row) => {
+        setViewingJob(row);
+      },
+    },
+    {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-blue-600" />,
+      onClick: (row) => {
+        openEditJobDrawer(row);
+      },
+      disabled: (row) => row.status === "CLOSED" || row.status === "CANCELLED",
+    },
+    {
       label: "Book GR/LR",
-      icon: <Truck className="w-3.5 h-3.5" />,
+      icon: <Truck className="w-3.5 h-3.5 text-emerald-600" />,
       onClick: (row) => {
         router.push(`/transport/lr-booking?job_id=${row.id}`);
       },
@@ -407,24 +429,51 @@ export default function JobsPage() {
         estimated_packages: values.estimated_packages !== undefined && values.estimated_packages !== "" ? parseInt(values.estimated_packages, 10) : 0,
       };
 
-      await apiClient("/api/v1/transport/jobs", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (editingJob) {
+        await apiClient(`/api/v1/transport/jobs/${editingJob.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiClient("/api/v1/transport/jobs", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
       setIsDrawerOpen(false);
+      setEditingJob(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create trip / job.");
+      alert(err.message || "Failed to save trip / job.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const openCreateJobDrawer = () => {
+    setEditingJob(null);
     setFormInitialValues({
       job_number: seriesInfo?.next_number_formatted || "JOB-2026-0001",
       job_date: new Date().toISOString().split("T")[0],
       expected_dispatch_date: new Date().toISOString().split("T")[0],
+    });
+    setIsDrawerOpen(true);
+  };
+
+  const openEditJobDrawer = (row: JobRecord) => {
+    setEditingJob(row);
+    setFormInitialValues({
+      job_number: row.job_number,
+      billing_client_id: row.billing_client_id ? String(row.billing_client_id) : "",
+      origin_location_id: row.origin_location_id ? String(row.origin_location_id) : "",
+      destination_location_id: row.destination_location_id ? String(row.destination_location_id) : "",
+      job_date: row.job_date,
+      expected_dispatch_date: row.expected_dispatch_date || "",
+      consigner_id: String(row.consigner_id),
+      consignee_id: String(row.consignee_id),
+      cargo_description: row.cargo_description || "",
+      estimated_weight_mt: row.estimated_weight_mt !== undefined && row.estimated_weight_mt !== null ? String(row.estimated_weight_mt) : "",
+      estimated_packages: row.estimated_packages !== undefined && row.estimated_packages !== null ? String(row.estimated_packages) : "",
     });
     setIsDrawerOpen(true);
   };
@@ -523,17 +572,27 @@ export default function JobsPage() {
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create Trip / Job Order"
-        description="Specify contracting billing client, dispatch route corridor, and cargo requirements."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingJob(null);
+        }}
+        title={editingJob ? `Edit Trip Order: ${editingJob.job_number}` : "Create Trip / Job Order"}
+        description={
+          editingJob
+            ? "Update cargo specifications, contracting parties, or scheduled dispatch timing."
+            : "Specify contracting billing client, dispatch route corridor, and cargo requirements."
+        }
       >
         <Form
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Trip Order"
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingJob(null);
+          }}
+          submitLabel={editingJob ? "Save Changes" : "Create Trip Order"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>
@@ -567,6 +626,19 @@ export default function JobsPage() {
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => {
           loadData();
+        }}
+      />
+
+      {/* View Trip Order Voucher Modal with Print/Download */}
+      <JobOrderViewModal
+        isOpen={viewingJob !== null}
+        job={viewingJob}
+        onClose={() => setViewingJob(null)}
+        onEdit={(job) => {
+          openEditJobDrawer(job);
+        }}
+        onBookLR={(jobId) => {
+          router.push(`/transport/lr-booking?job_id=${jobId}`);
         }}
       />
     </div>
