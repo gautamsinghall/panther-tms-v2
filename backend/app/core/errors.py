@@ -19,21 +19,23 @@ class AppException(Exception):
         super().__init__(message)
 
 class TenantNotFoundException(AppException):
-    def __init__(self, subdomain: str):
+    def __init__(self, tenant_id: str = "", subdomain: str = ""):
+        identifier = tenant_id or subdomain or "<unknown>"
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             error_code="TENANT_NOT_FOUND",
-            message=f"Tenant with subdomain '{subdomain}' does not exist or is inactive.",
-            details={"subdomain": subdomain},
+            message=f"Tenant '{identifier}' does not exist or is inactive.",
+            details={"identifier": identifier, "tenant_id": tenant_id, "subdomain": subdomain},
         )
 
 class TenantInactiveException(AppException):
-    def __init__(self, subdomain: str):
+    def __init__(self, tenant_id: str = "", subdomain: str = ""):
+        identifier = tenant_id or subdomain or "<unknown>"
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
             error_code="TENANT_INACTIVE",
-            message=f"Tenant '{subdomain}' is suspended or inactive.",
-            details={"subdomain": subdomain},
+            message=f"Tenant '{identifier}' is suspended or inactive.",
+            details={"identifier": identifier, "tenant_id": tenant_id, "subdomain": subdomain},
         )
 
 class UnauthorizedException(AppException):

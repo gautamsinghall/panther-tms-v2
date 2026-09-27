@@ -32,8 +32,9 @@ class PlanResponse(PlanBase):
     model_config = ConfigDict(from_attributes=True)
 
 class TenantProvisionRequest(BaseModel):
-    subdomain: str = Field(..., min_length=2, max_length=63, pattern="^[a-z0-9-]+$")
     company_name: str = Field(..., min_length=2, max_length=255)
+    company_code: Optional[str] = Field(None, max_length=100)
+    subdomain: Optional[str] = Field(None, max_length=63)
     admin_email: EmailStr
     admin_password: str = Field(..., min_length=8)
     admin_full_name: str = Field(default="Company Admin")
@@ -41,11 +42,13 @@ class TenantProvisionRequest(BaseModel):
 
 class TenantResponse(BaseModel):
     id: int
-    subdomain: str
+    tenant_id: str
+    company_code: str
     company_name: str
     db_name: str
     status: str
     admin_email: str
+    subdomain: Optional[str] = None
     plan_id: int
     subscription_id: Optional[str] = None
     subscription_status: Optional[str] = "ACTIVE"
@@ -56,8 +59,9 @@ class TenantResponse(BaseModel):
 
 
 class SignupInitiateRequest(BaseModel):
-    subdomain: str = Field(..., min_length=2, max_length=63, pattern="^[a-z0-9-]+$")
     company_name: str = Field(..., min_length=2, max_length=255)
+    company_code: Optional[str] = Field(None, max_length=100)
+    subdomain: Optional[str] = Field(None, max_length=63)
     admin_email: EmailStr
     admin_password: str = Field(..., min_length=8)
     admin_full_name: str = Field(default="Company Admin")
@@ -68,18 +72,22 @@ class SignupInitiateRequest(BaseModel):
 class SignupInitiateResponse(BaseModel):
     requires_payment: bool
     tenant: Optional[TenantResponse] = None
+    tenant_id: Optional[str] = None
+    company_code: Optional[str] = None
     subscription_id: Optional[str] = None
     razorpay_key_id: Optional[str] = None
     plan_code: str
     amount: float
-    subdomain: str
+    subdomain: Optional[str] = None
     redirect_url: Optional[str] = None
     message: str
     signup_session_token: Optional[str] = None
 
 
 class SignupCompleteRequest(BaseModel):
-    subdomain: Optional[str] = Field(None, min_length=2, max_length=63)
+    tenant_id: Optional[str] = None
+    company_code: Optional[str] = None
+    subdomain: Optional[str] = Field(None, max_length=63)
     signup_session_token: Optional[str] = None
     subscription_id: Optional[str] = None
     payment_id: Optional[str] = None
@@ -94,8 +102,8 @@ class SignupCompleteRequest(BaseModel):
     @classmethod
     def map_razorpay_aliases(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            if not data.get("subdomain") and data.get("signup_session_token"):
-                data["subdomain"] = data["signup_session_token"]
+            if not data.get("company_code") and data.get("subdomain"):
+                data["company_code"] = data["subdomain"]
             if "razorpay_subscription_id" in data and "subscription_id" not in data:
                 data["subscription_id"] = data["razorpay_subscription_id"]
             if "razorpay_payment_id" in data and "payment_id" not in data:
@@ -116,4 +124,3 @@ class CreateSubscriptionResponse(BaseModel):
     amount: float
     razorpay_key_id: str
     currency: str = "INR"
-

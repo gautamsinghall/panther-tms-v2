@@ -121,7 +121,7 @@ const PLANS: PlanOption[] = [
       "Unlimited Operational Scale",
       "Priority Webhook & SLA Guarantee",
       "Dedicated PostgreSQL Instance",
-      "Custom Subdomain Branding",
+      "Tenant Database Isolation",
     ],
     limits: {
       users: "Unlimited",
@@ -141,31 +141,11 @@ export default function SignupPage() {
 
   // Form details
   const [companyName, setCompanyName] = useState("");
-  const [subdomain, setSubdomain] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
+  const [tenantId, setTenantId] = useState("");
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const [rootDomainSuffix, setRootDomainSuffix] = useState(".panthertms.com");
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const host = window.location.hostname;
-      if (host.includes("panthertms.com")) {
-        setRootDomainSuffix(".panthertms.com");
-      } else if (host.includes("panthertms.in")) {
-        setRootDomainSuffix(".panthertms.in");
-      } else if (host === "localhost" || host === "127.0.0.1") {
-        setRootDomainSuffix(".panthertms.local");
-      } else {
-        const parts = host.split(".");
-        if (parts.length > 2) {
-          setRootDomainSuffix(`.${parts.slice(-2).join(".")}`);
-        } else {
-          setRootDomainSuffix(`.${host}`);
-        }
-      }
-    }
-  }, []);
 
   // Provisioning & payment state
   const [isLoading, setIsLoading] = useState(false);
@@ -175,9 +155,8 @@ export default function SignupPage() {
 
   const handleCompanyChange = (val: string) => {
     setCompanyName(val);
-    if (!subdomain || subdomain === companyName.toLowerCase().replace(/[^a-z0-9]/g, "")) {
-      setSubdomain(val.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 30));
-    }
+    const sanitized = val.replace(/[^a-zA-Z]/g, "").toUpperCase();
+    setCompanyCode(sanitized);
   };
 
   const handleInitiateSignup = async (e: React.FormEvent) => {
@@ -185,8 +164,8 @@ export default function SignupPage() {
     setError(null);
     setIsLoading(true);
 
-    if (!subdomain.match(/^[a-z0-9-]+$/)) {
-      setError("Subdomain must only contain lowercase alphanumeric characters and hyphens.");
+    if (!companyCode || !companyCode.match(/^[A-Z]+$/)) {
+      setError("Company code must only contain capital alphabets (no numbers, spaces, or special characters).");
       setIsLoading(false);
       return;
     }
@@ -207,12 +186,13 @@ export default function SignupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company_name: companyName,
-          subdomain,
+          company_code: companyCode,
+          subdomain: companyCode.toLowerCase(),
           admin_email: adminEmail,
           admin_name: adminName,
           admin_password: adminPassword,
           plan_code: selectedPlan,
-          billing_cycle: billingCycle,
+          billing_cycle: billingCycle.toLowerCase(),
         }),
       });
 
@@ -222,6 +202,9 @@ export default function SignupPage() {
       }
 
       const initData = await initRes.json();
+      const resolvedTenantId = initData.tenant_id || initData.subdomain || initData.tenant?.tenant_id || "demo123456";
+      setTenantId(resolvedTenantId);
+      if (initData.company_code) setCompanyCode(initData.company_code);
       setStep(3);
 
       if (!initData.requires_payment) {
@@ -250,7 +233,8 @@ export default function SignupPage() {
       handler: async function (response: any) {
         setProvisioningStatus("Payment verified! Provisioning isolated tenant database...");
         await completeTenantSignup(
-          subdomain,
+          tenantId || initData.tenant_id,
+          companyCode,
           selectedPlan,
           response.razorpay_payment_id || `pay_sim_${Date.now()}`,
           response.razorpay_subscription_id || initData.subscription_id,
@@ -262,7 +246,8 @@ export default function SignupPage() {
         email: adminEmail,
       },
       notes: {
-        subdomain: subdomain,
+        tenant_id: tenantId || initData.tenant_id,
+        company_code: companyCode,
         plan: selectedPlan,
       },
       theme: {
@@ -295,7 +280,8 @@ export default function SignupPage() {
     setProvisioningStatus("Processing payment confirmation & verifying HMAC token...");
     setTimeout(async () => {
       await completeTenantSignup(
-        subdomain,
+        tenantId || initData.tenant_id,
+        companyCode,
         selectedPlan,
         `pay_sim_${Date.now()}`,
         initData.subscription_id || `sub_sim_${Date.now()}`,
@@ -305,7 +291,8 @@ export default function SignupPage() {
   };
 
   const completeTenantSignup = async (
-    subdomain: string,
+    targetTenantId: string,
+    targetCompanyCode: string,
     planCode: string,
     paymentId: string | null,
     subscriptionId: string | null,
@@ -320,7 +307,9 @@ export default function SignupPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subdomain,
+          tenant_id: targetTenantId,
+          company_code: targetCompanyCode,
+          subdomain: targetTenantId,
           plan_code: planCode,
           razorpay_payment_id: paymentId,
           razorpay_subscription_id: subscriptionId,
@@ -960,7 +949,7 @@ export default function SignupPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                      <span>Custom Subdomain Branding</span>
+                      <span>Tenant Database Isolation</span>
                     </li>
                   </ul>
                 </div>
@@ -1021,29 +1010,31 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Subdomain */}
+              {/* Company Code */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 tracking-tight">
-                  Tenant subdomain
-                </label>
-                <div className="flex items-center rounded-xl border border-slate-200 bg-white shadow-2xs focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all overflow-hidden group">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    Company Code (Unique Login Identifier)
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">
+                    Letters Only [A-Z]
+                  </span>
+                </div>
+                <div className="relative flex items-center">
+                  <div className="absolute left-3.5 pointer-events-none text-indigo-600 font-mono text-xs font-bold">
+                    #
+                  </div>
                   <input
                     type="text"
                     required
-                    value={subdomain}
-                    onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    placeholder="apex-freight"
-                    className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
+                    value={companyCode}
+                    onChange={(e) => setCompanyCode(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
+                    placeholder="APEXFREIGHT"
+                    className="w-full pl-9 pr-3.5 py-2.5 text-sm font-bold font-mono tracking-wider text-indigo-700 placeholder:text-slate-300 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all uppercase"
                   />
-                  <div className="px-3 py-2.5 bg-slate-50 border-l border-slate-100 text-xs font-mono text-slate-500 select-none whitespace-nowrap">
-                    {rootDomainSuffix}
-                  </div>
                 </div>
-                <p className="text-xs text-slate-500 flex items-center gap-1">
-                  <span>Workspace URL:</span>
-                  <span className="font-mono text-indigo-700 font-semibold truncate">
-                    https://{subdomain || "your-company"}{rootDomainSuffix}
-                  </span>
+                <p className="text-[11px] text-slate-500">
+                  Strictly uppercase alphabets only. You and your team will use this code + email + password to log in.
                 </p>
               </div>
 
@@ -1188,30 +1179,41 @@ export default function SignupPage() {
                 </div>
 
                 <div className="p-3.5 bg-slate-50/90 border border-slate-200/80 rounded-xl space-y-2 text-left text-xs font-mono">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-sans">Subdomain:</span>
-                    <span className="font-semibold text-indigo-600">{subdomain}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-sans">Company Code:</span>
+                    <span className="font-bold text-indigo-700 tracking-wider text-sm">{companyCode}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-sans">Tenant ID:</span>
+                    <span className="font-semibold text-slate-800">{tenantId}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <span className="text-slate-500 font-sans">Plan:</span>
                     <span className="font-semibold text-slate-900">{selectedPlan}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-slate-500 font-sans">Admin Email:</span>
                     <span className="font-semibold text-slate-900">{adminEmail}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-slate-500 font-sans">Tenant DB:</span>
-                    <span className="text-emerald-600 font-semibold">panther_tenant_{subdomain}</span>
+                    <span className="text-emerald-600 font-semibold">panther_tenant_{tenantId}</span>
                   </div>
+                </div>
+
+                <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl text-left text-xs text-indigo-900 space-y-1">
+                  <p className="font-semibold">Save Your Company Code:</p>
+                  <p className="text-[11px] text-indigo-700 font-sans">
+                    You and your team will use Company Code <strong className="font-mono text-indigo-900 font-bold">{companyCode}</strong> + Work Email to log in to PantherTMS.
+                  </p>
                 </div>
 
                 <button
                   type="button"
                   className="w-full h-11 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  onClick={() => router.push(`/login?subdomain=${subdomain}&email=${encodeURIComponent(adminEmail)}`)}
+                  onClick={() => router.push(`/login?company_code=${companyCode}&email=${encodeURIComponent(adminEmail)}`)}
                 >
-                  <span>Launch Workspace Dashboard</span>
+                  <span>Go to Login</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

@@ -138,10 +138,13 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
 };
 
 function formatRouteTitle(pathname: string): RouteInfo {
-  if (ROUTE_INFO_MAP[pathname]) {
-    return ROUTE_INFO_MAP[pathname];
+  const normalized = pathname
+    ? pathname.replace(/^\/[a-z0-9]{10}/, "").replace(/^\/demo123456/, "").replace(/^\/demo/, "") || "/"
+    : "/";
+  if (ROUTE_INFO_MAP[normalized]) {
+    return ROUTE_INFO_MAP[normalized];
   }
-  const clean = pathname.replace(/^\//, "").split("/").pop() || "Records";
+  const clean = normalized.replace(/^\//, "").split("/").pop() || "Records";
   const formatted = clean
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -153,10 +156,14 @@ export function WorkspaceTabBar() {
   const pathname = usePathname();
   const { activeTab, setActiveTab, formTabInfo, closeFormTab, isFormOpen } = useWorkspaceTabs();
 
+  const normalized = pathname
+    ? pathname.replace(/^\/[a-z0-9]{10}/, "").replace(/^\/demo123456/, "").replace(/^\/demo/, "") || "/"
+    : "/";
+
   const routeInfo = formatRouteTitle(pathname);
   const ListIcon = routeInfo.icon;
 
-  if (pathname === "/" && !isFormOpen) {
+  if (normalized === "/" && !isFormOpen) {
     return null;
   }
 

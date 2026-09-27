@@ -24,12 +24,19 @@ async def seed_demo():
         await seed_plans_and_entitlements(session)
 
         # 3. Check if demo tenant already exists
-        stmt = select(Tenant).where(Tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN)
+        from sqlalchemy import or_
+        stmt = select(Tenant).where(
+            or_(
+                Tenant.company_code == "DEMOLOGISTICS",
+                Tenant.tenant_id == "demo123456",
+                Tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN
+            )
+        )
         result = await session.execute(stmt)
         demo_tenant = result.scalar_one_or_none()
 
         if demo_tenant:
-            logger.info(f"Demo tenant '{settings.DEMO_TENANT_SUBDOMAIN}' already exists. (DB: {demo_tenant.db_name})")
+            logger.info(f"Demo tenant '{demo_tenant.company_code}' ({demo_tenant.tenant_id}) already exists. (DB: {demo_tenant.db_name})")
             from sqlalchemy import text
             from app.core.database import get_tenant_engine
             try:
@@ -43,10 +50,11 @@ async def seed_demo():
             except Exception as e:
                 logger.warning(f"Could not reactivate demo admin in {demo_tenant.db_name}: {e}")
         else:
-            logger.info(f"Provisioning demo tenant '{settings.DEMO_TENANT_SUBDOMAIN}'...")
+            logger.info(f"Provisioning demo tenant with company_code='DEMOLOGISTICS' and tenant_id='demo123456'...")
             req = TenantProvisionRequest(
-                subdomain=settings.DEMO_TENANT_SUBDOMAIN,
                 company_name=settings.DEMO_TENANT_NAME,
+                company_code="DEMOLOGISTICS",
+                tenant_id="demo123456",
                 admin_email=settings.DEMO_ADMIN_EMAIL,
                 admin_password=settings.DEMO_ADMIN_PASSWORD,
                 admin_full_name="Company Admin",

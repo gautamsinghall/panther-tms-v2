@@ -16,7 +16,8 @@ export function Header() {
     userName: string;
     userEmail: string;
     role: string;
-    subdomain: string;
+    tenantId: string;
+    companyCode: string;
     companyName: string;
   } | null>(null);
 
@@ -39,8 +40,9 @@ export function Header() {
         userName: auth.user.full_name || "Workspace User",
         userEmail: auth.user.email || "",
         role: auth.user.role || "COMPANY_ADMIN",
-        subdomain: auth.subdomain || "",
-        companyName: auth.tenantName || auth.subdomain || "Workspace",
+        tenantId: auth.tenantId || "",
+        companyCode: auth.companyCode || "",
+        companyName: auth.tenantName || auth.companyCode || "Workspace",
       });
     } else {
       setAuthData(null);
@@ -62,9 +64,9 @@ export function Header() {
             <span className="text-xs font-semibold text-slate-800 group-hover:text-slate-900 transition-colors">
               {authData.companyName}
             </span>
-            {authData.subdomain && (
-              <span className="text-xs font-mono font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200 group-hover:border-slate-300">
-                {authData.subdomain}
+            {authData.companyCode && (
+              <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200/70 group-hover:border-indigo-300 uppercase tracking-wider">
+                {authData.companyCode}
               </span>
             )}
           </div>

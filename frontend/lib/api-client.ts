@@ -3,6 +3,8 @@ import { getStoredAuth, clearStoredAuth, getApiBaseUrl } from "./auth";
 export { getApiBaseUrl };
 
 interface ApiClientOptions extends RequestInit {
+  tenantId?: string;
+  companyCode?: string;
   subdomain?: string;
 }
 
@@ -14,12 +16,14 @@ export async function apiClient<T = any>(
   const url = endpoint.startsWith("http") ? endpoint : `${backendBaseUrl}${endpoint}`;
 
   const storedAuth = getStoredAuth();
-  let subdomain = options.subdomain || storedAuth?.subdomain;
-  if (!subdomain && typeof window !== "undefined") {
-    const host = window.location.hostname;
-    const parts = host.split(".");
-    if (parts.length > 2 && parts[0] !== "www" && parts[0] !== "api") {
-      subdomain = parts[0];
+  let tenantId = options.tenantId || storedAuth?.tenantId || storedAuth?.subdomain;
+  let companyCode = options.companyCode || storedAuth?.companyCode;
+
+  // If not found in storedAuth, try extracting from URL path (e.g. /[tenantId]/...)
+  if (!tenantId && typeof window !== "undefined") {
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    if (pathParts.length > 0 && pathParts[0] !== "login" && pathParts[0] !== "signup") {
+      tenantId = pathParts[0];
     }
   }
 
@@ -27,8 +31,12 @@ export async function apiClient<T = any>(
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  if (subdomain) {
-    headers["X-Tenant-Subdomain"] = subdomain;
+  if (tenantId) {
+    headers["X-Tenant-ID"] = tenantId;
+    headers["X-Tenant-Subdomain"] = tenantId;
+  }
+  if (companyCode) {
+    headers["X-Company-Code"] = companyCode;
   }
 
   if (storedAuth?.accessToken && !headers["Authorization"]) {
@@ -59,24 +67,16 @@ export async function apiClient<T = any>(
     } catch {
       // response wasn't JSON
     }
-    const error = new Error(errorDetail);
-    (error as any).status = response.status;
+
+    const error = new Error(errorDetail) as Error & { status: number };
+    error.status = response.status;
     throw error;
   }
 
-  // If status is 204 No Content, return null
-  if (response.status === 204) {
-    return null as unknown as T;
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    return (await response.json()) as T;
   }
 
-  const text = await response.text();
-  if (!text) {
-    return null as unknown as T;
-  }
-
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    return text as unknown as T;
-  }
+  return (await response.text()) as unknown as T;
 }

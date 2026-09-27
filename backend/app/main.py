@@ -32,29 +32,45 @@ async def lifespan(app: FastAPI):
         async with control_engine.begin() as conn:
             await conn.run_sync(ControlBase.metadata.create_all)
             from sqlalchemy import text
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);"))
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS company_code VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE tenants ALTER COLUMN subdomain DROP NOT NULL;"))
+            await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_tenant_id ON tenants(tenant_id);"))
+            await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_company_code ON tenants(company_code);"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(100);"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
+            # Backfill existing records if any
+            await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (subdomain = 'demo' OR company_name ILIKE '%demo%');"))
+            await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (subdomain = 'demo' OR company_name ILIKE '%demo%');"))
+            await conn.execute(text("UPDATE tenants SET tenant_id = SUBSTRING(MD5(id::text || clock_timestamp()::text) FROM 1 FOR 10) WHERE tenant_id IS NULL OR tenant_id = '';"))
+            await conn.execute(text("UPDATE tenants SET company_code = UPPER(REGEXP_REPLACE(company_name, '[^a-zA-Z]', '', 'g')) WHERE company_code IS NULL OR company_code = '';"))
 
         async with ControlSessionLocal() as session:
             await seed_plans_and_entitlements(session)
 
             # Check and auto-provision demo tenant if missing
-            from sqlalchemy import select, text
+            from sqlalchemy import select, text, or_
             from app.control.models import Tenant
             from app.control.schemas import TenantProvisionRequest
             from app.control.service import provision_tenant
             from app.core.database import get_tenant_engine
 
-            stmt = select(Tenant).where(Tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN)
+            stmt = select(Tenant).where(
+                or_(
+                    Tenant.company_code == "DEMOLOGISTICS",
+                    Tenant.tenant_id == "demo123456",
+                    Tenant.subdomain == settings.DEMO_TENANT_SUBDOMAIN
+                )
+            )
             res = await session.execute(stmt)
             if not res.scalar_one_or_none():
                 req = TenantProvisionRequest(
-                    subdomain=settings.DEMO_TENANT_SUBDOMAIN,
                     company_name=settings.DEMO_TENANT_NAME,
+                    company_code="DEMOLOGISTICS",
                     admin_email=settings.DEMO_ADMIN_EMAIL,
                     admin_password=settings.DEMO_ADMIN_PASSWORD,
                     admin_full_name="Operations Manager",

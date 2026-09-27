@@ -1,10 +1,13 @@
 import logging
+import secrets
+import string
 from typing import List, Optional
-from sqlalchemy import select, text
+from sqlalchemy import select, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.core.config import settings
 from app.core.errors import AppException
 from app.core.security import get_password_hash
+from app.core.tenancy import generate_tenant_id, sanitize_company_code
 import json
 from datetime import datetime, timezone, timedelta
 from app.control.models import ControlBase, Plan, Entitlement, Tenant, WebhookEvent
@@ -292,24 +295,24 @@ async def provision_tenant(
 ) -> Tenant:
     """
     Main tenant provisioning routine:
-    1. Validates subdomain uniqueness
+    1. Generates sanitized uppercase company_code and unique 10-char lowercase alphanumeric tenant_id
     2. Resolves plan
-    3. Creates PostgreSQL tenant database
+    3. Creates PostgreSQL tenant database (panther_tenant_{tenant_id})
     4. Initializes tenant schema and seeds Company Admin
     5. Saves Tenant record in Control DB
     """
-    subdomain = data.subdomain.strip().lower()
+    # 1. Company code sanitization
+    raw_code = data.company_code or data.subdomain or data.company_name
+    company_code = sanitize_company_code(raw_code)
+    if not company_code:
+        company_code = "COMPANY"
 
-    # 1. Subdomain check
-    check_stmt = select(Tenant).where(Tenant.subdomain == subdomain)
+    # Ensure company_code is unique
+    check_stmt = select(Tenant).where(Tenant.company_code == company_code)
     existing = (await control_session.execute(check_stmt)).scalar_one_or_none()
     if existing:
-        raise AppException(
-            status_code=409,
-            error_code="SUBDOMAIN_EXISTS",
-            message=f"Subdomain '{subdomain}' is already registered.",
-            details={"subdomain": subdomain},
-        )
+        suffix = "".join(secrets.choice(string.ascii_uppercase) for _ in range(3))
+        company_code = f"{company_code[:40]}{suffix}"
 
     # 2. Plan check
     plan_stmt = select(Plan).where(Plan.code == data.plan_code.upper())
@@ -322,34 +325,40 @@ async def provision_tenant(
             details={"plan_code": data.plan_code},
         )
 
-    # 3. Create isolated DB
-    sanitized_subdomain = subdomain.replace("-", "_")
-    db_name = f"panther_tenant_{sanitized_subdomain}"
+    # 3. Generate unique 10-character lowercase alphanumeric tenant_id
+    tenant_id = generate_tenant_id()
+    while (await control_session.execute(select(Tenant).where(Tenant.tenant_id == tenant_id))).scalar_one_or_none():
+        tenant_id = generate_tenant_id()
+
+    # 4. Create isolated DB
+    db_name = f"panther_tenant_{tenant_id}"
     await create_postgres_database(db_name)
 
-    # 4. Initialize tenant schema & seed admin
+    # 5. Initialize tenant schema & seed admin
     await initialize_tenant_schema_and_admin(
         db_name=db_name,
         company_name=data.company_name,
-        admin_email=data.admin_email,
+        admin_email=str(data.admin_email),
         admin_password=data.admin_password,
         admin_full_name=data.admin_full_name,
     )
 
-    # 5. Insert control record
+    # 6. Insert control record
     tenant = Tenant(
-        subdomain=subdomain,
+        tenant_id=tenant_id,
+        company_code=company_code,
+        subdomain=tenant_id,  # For backward compatibility
         company_name=data.company_name,
         db_name=db_name,
         status="ACTIVE",
         plan_id=plan.id,
-        admin_email=data.admin_email.lower().strip(),
+        admin_email=str(data.admin_email).lower().strip(),
     )
     control_session.add(tenant)
     await control_session.commit()
     await control_session.refresh(tenant)
 
-    logger.info(f"Successfully provisioned tenant: {subdomain} (DB: {db_name})")
+    logger.info(f"Successfully provisioned tenant: {tenant_id} ({company_code}) (DB: {db_name})")
     return tenant
 
 
@@ -359,24 +368,16 @@ async def initiate_signup(
 ) -> SignupInitiateResponse:
     """
     Step 1 of self-serve onboarding:
-    - Validates subdomain uniqueness and syntax
+    - Generates company_code and unique 10-char tenant_id
     - If FREE tier, immediately provisions isolated tenant database and seeds admin
     - If Paid tier, generates Razorpay subscription and pre-stages tenant in PENDING_SETUP
     """
-    subdomain = data.subdomain.strip().lower()
+    raw_code = data.company_code or data.subdomain or data.company_name
+    company_code = sanitize_company_code(raw_code)
+    if not company_code:
+        company_code = "COMPANY"
 
-    # 1. Subdomain check
-    check_stmt = select(Tenant).where(Tenant.subdomain == subdomain)
-    existing = (await control_session.execute(check_stmt)).scalar_one_or_none()
-    if existing:
-        raise AppException(
-            status_code=409,
-            error_code="SUBDOMAIN_EXISTS",
-            message=f"Subdomain '{subdomain}' is already registered.",
-            details={"subdomain": subdomain},
-        )
-
-    # 2. Plan check
+    # Plan check
     plan_stmt = select(Plan).where(Plan.code == data.plan_code.upper())
     plan = (await control_session.execute(plan_stmt)).scalar_one_or_none()
     if not plan:
@@ -389,11 +390,11 @@ async def initiate_signup(
 
     amount = float(plan.price_yearly if data.billing_cycle == "yearly" else plan.price_monthly)
 
-    # 3. Free plan (or 0 price) -> Immediate self-serve provisioning
+    # Free plan (or 0 price) -> Immediate self-serve provisioning
     if plan.code == "FREE" or amount == 0.0:
         tenant = await provision_tenant(
             TenantProvisionRequest(
-                subdomain=subdomain,
+                company_code=company_code,
                 company_name=data.company_name,
                 admin_email=data.admin_email,
                 admin_password=data.admin_password,
@@ -405,21 +406,28 @@ async def initiate_signup(
         return SignupInitiateResponse(
             requires_payment=False,
             tenant=TenantResponse.model_validate(tenant),
+            tenant_id=tenant.tenant_id,
+            company_code=tenant.company_code,
             plan_code=plan.code,
             amount=0.0,
-            subdomain=subdomain,
-            signup_session_token=subdomain,
-            redirect_url=f"/login?subdomain={subdomain}",
-            message="Free Starter workspace provisioned successfully.",
+            subdomain=tenant.tenant_id,
+            signup_session_token=tenant.tenant_id,
+            redirect_url=f"/login?company_code={tenant.company_code}",
+            message=f"Workspace provisioned successfully. Your Company Code is {tenant.company_code} and Tenant ID is {tenant.tenant_id}.",
         )
 
-    # 4. Paid plan -> Create Razorpay subscription and stage tenant
+    # Paid plan -> Create Razorpay subscription and stage tenant
+    tenant_id = generate_tenant_id()
+    while (await control_session.execute(select(Tenant).where(Tenant.tenant_id == tenant_id))).scalar_one_or_none():
+        tenant_id = generate_tenant_id()
+
     sub = razorpay_client.create_subscription(
         plan_code=plan.code,
         customer_email=str(data.admin_email),
         customer_name=data.company_name,
         notes={
-            "subdomain": subdomain,
+            "tenant_id": tenant_id,
+            "company_code": company_code,
             "company_name": data.company_name,
             "admin_email": str(data.admin_email),
             "plan_code": plan.code,
@@ -428,9 +436,7 @@ async def initiate_signup(
         period=data.billing_cycle,
     )
 
-    # Pre-provision database and admin, but leave tenant in PENDING_SETUP until payment completes
-    sanitized_subdomain = subdomain.replace("-", "_")
-    db_name = f"panther_tenant_{sanitized_subdomain}"
+    db_name = f"panther_tenant_{tenant_id}"
     await create_postgres_database(db_name)
     await initialize_tenant_schema_and_admin(
         db_name=db_name,
@@ -441,7 +447,9 @@ async def initiate_signup(
     )
 
     tenant = Tenant(
-        subdomain=subdomain,
+        tenant_id=tenant_id,
+        company_code=company_code,
+        subdomain=tenant_id,
         company_name=data.company_name,
         db_name=db_name,
         status="PENDING_SETUP",
@@ -455,12 +463,14 @@ async def initiate_signup(
 
     return SignupInitiateResponse(
         requires_payment=True,
+        tenant_id=tenant_id,
+        company_code=company_code,
         subscription_id=sub["id"],
         razorpay_key_id=settings.RAZORPAY_KEY_ID,
         plan_code=plan.code,
         amount=amount,
-        subdomain=subdomain,
-        signup_session_token=subdomain,
+        subdomain=tenant_id,
+        signup_session_token=tenant_id,
         redirect_url=None,
         message="Subscription initiated. Complete payment to activate workspace.",
     )
@@ -472,15 +482,22 @@ async def complete_signup(
 ) -> TenantResponse:
     """
     Step 2 of self-serve onboarding:
-    - Cryptographically validates payment signature (HMAC-SHA256) per rules.md §8
+    - Cryptographically validates payment signature (HMAC-SHA256)
     - Activates tenant from PENDING_SETUP to ACTIVE
     - Sets 30-day period and records subscription status
     """
-    subdomain = data.subdomain.strip().lower()
+    ident = data.tenant_id or data.signup_session_token or data.subdomain or data.company_code or ""
+    ident_clean = ident.strip().lower()
 
     # Find staged or already provisioned tenant
     tenant = (await control_session.execute(
-        select(Tenant).where(Tenant.subdomain == subdomain)
+        select(Tenant).where(
+            or_(
+                Tenant.tenant_id == ident_clean,
+                Tenant.company_code == ident.strip().upper(),
+                Tenant.subdomain == ident_clean,
+            )
+        )
     )).scalar_one_or_none()
 
     if tenant and tenant.status == "ACTIVE":
@@ -505,12 +522,12 @@ async def complete_signup(
             raise AppException(
                 status_code=404,
                 error_code="TENANT_NOT_FOUND",
-                message=f"No registration found for subdomain '{subdomain}'.",
+                message=f"No registration found for '{ident}'.",
             )
         tenant = await provision_tenant(
             TenantProvisionRequest(
-                subdomain=subdomain,
                 company_name=data.company_name,
+                company_code=data.company_code,
                 admin_email=data.admin_email,
                 admin_password=data.admin_password,
                 admin_full_name=data.admin_full_name or "Company Admin",
@@ -530,7 +547,7 @@ async def complete_signup(
     await control_session.commit()
     await control_session.refresh(tenant)
 
-    logger.info(f"Self-serve signup successfully completed & activated for tenant: {subdomain}")
+    logger.info(f"Self-serve signup successfully completed & activated for tenant: {tenant.tenant_id} ({tenant.company_code})")
     return TenantResponse.model_validate(tenant)
 
 
@@ -585,6 +602,8 @@ async def process_razorpay_webhook_event(
              data.get("payload", {}).get("payment", {}).get("entity", {})
     sub_id = entity.get("id") if entity.get("entity") == "subscription" else entity.get("subscription_id")
     notes = entity.get("notes", {})
+    tenant_id = notes.get("tenant_id")
+    company_code = notes.get("company_code")
     subdomain = notes.get("subdomain")
 
     tenant = None
@@ -593,13 +612,23 @@ async def process_razorpay_webhook_event(
             select(Tenant).where(Tenant.subscription_id == sub_id)
         )).scalar_one_or_none()
 
+    if not tenant and tenant_id:
+        tenant = (await control_session.execute(
+            select(Tenant).where(Tenant.tenant_id == tenant_id.lower().strip())
+        )).scalar_one_or_none()
+
+    if not tenant and company_code:
+        tenant = (await control_session.execute(
+            select(Tenant).where(Tenant.company_code == company_code.upper().strip())
+        )).scalar_one_or_none()
+
     if not tenant and subdomain:
         tenant = (await control_session.execute(
             select(Tenant).where(Tenant.subdomain == subdomain.lower().strip())
         )).scalar_one_or_none()
 
     if not tenant:
-        logger.warning(f"Webhook received for unknown tenant (sub_id={sub_id}, subdomain={subdomain})")
+        logger.warning(f"Webhook received for unknown tenant (sub_id={sub_id}, tenant_id={tenant_id}, company_code={company_code})")
         await control_session.commit()
         return {"status": "unmatched_tenant", "event_id": event_id}
 
@@ -634,22 +663,29 @@ async def process_razorpay_webhook_event(
                 tenant.plan_id = new_plan.id
 
     await control_session.commit()
-    logger.info(f"Processed webhook {event_type} for tenant: {tenant.subdomain}")
-    return {"status": "processed", "event_id": event_id, "tenant": tenant.subdomain}
+    logger.info(f"Processed webhook {event_type} for tenant: {tenant.tenant_id} ({tenant.company_code})")
+    return {"status": "processed", "event_id": event_id, "tenant_id": tenant.tenant_id, "company_code": tenant.company_code}
 
 
 async def create_tenant_subscription(
-    subdomain: str,
+    identifier: str,
     data: CreateSubscriptionRequest,
     control_session: AsyncSession
 ) -> CreateSubscriptionResponse:
     """Creates a new recurring subscription for an existing tenant upgrading or changing plans."""
+    clean_id = identifier.strip()
     tenant = (await control_session.execute(
-        select(Tenant).where(Tenant.subdomain == subdomain.lower().strip())
+        select(Tenant).where(
+            or_(
+                Tenant.tenant_id == clean_id.lower(),
+                Tenant.company_code == clean_id.upper(),
+                Tenant.subdomain == clean_id.lower(),
+            )
+        )
     )).scalar_one_or_none()
 
     if not tenant:
-        raise AppException(status_code=404, error_code="TENANT_NOT_FOUND", message=f"Tenant '{subdomain}' not found.")
+        raise AppException(status_code=404, error_code="TENANT_NOT_FOUND", message=f"Tenant '{identifier}' not found.")
 
     plan = (await control_session.execute(
         select(Plan).where(Plan.code == data.plan_code.upper())
@@ -664,7 +700,12 @@ async def create_tenant_subscription(
         plan_code=plan.code,
         customer_email=tenant.admin_email,
         customer_name=tenant.company_name,
-        notes={"subdomain": tenant.subdomain, "plan_code": plan.code, "billing_cycle": data.billing_cycle},
+        notes={
+            "tenant_id": tenant.tenant_id,
+            "company_code": tenant.company_code,
+            "plan_code": plan.code,
+            "billing_cycle": data.billing_cycle,
+        },
         period=data.billing_cycle,
     )
 

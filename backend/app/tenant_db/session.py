@@ -3,18 +3,25 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_tenant_session_maker
 from app.core.errors import TenantNotFoundException
-from app.core.tenancy import get_subdomain_from_request, get_tenant_by_subdomain
+from app.core.tenancy import get_tenant_id_from_request, get_tenant_by_id, get_tenant_by_company_code
 from app.control.models import Tenant
 
 async def get_current_tenant(request: Request) -> Tenant:
-    subdomain = get_subdomain_from_request(request)
-    if not subdomain:
-        raise TenantNotFoundException(subdomain="<missing-subdomain>")
+    tenant_identifier = get_tenant_id_from_request(request)
+    if not tenant_identifier:
+        raise TenantNotFoundException("<missing-tenant-id>")
     
-    tenant = await get_tenant_by_subdomain(subdomain)
+    # Try resolving by tenant_id first, fallback to company_code
+    try:
+        tenant = await get_tenant_by_id(tenant_identifier)
+    except Exception:
+        tenant = await get_tenant_by_company_code(tenant_identifier)
+
     # Stash in request state for downstream handlers
     request.state.tenant = tenant
-    request.state.tenant_subdomain = tenant.subdomain
+    request.state.tenant_id = tenant.tenant_id
+    request.state.company_code = tenant.company_code
+    request.state.tenant_subdomain = tenant.tenant_id  # compatibility
     request.state.tenant_db_name = tenant.db_name
     return tenant
 

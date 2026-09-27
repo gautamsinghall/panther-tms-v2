@@ -91,6 +91,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { getStoredAuth } from "@/lib/auth";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
 interface NavSubItem {
@@ -500,6 +501,23 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isFormOpen, closeFormTab, setActiveTab } = useWorkspaceTabs();
   const [navGroups, setNavGroups] = useState<NavGroup[]>(ALL_NAVIGATION_MODULES);
+  const [tenantPrefix, setTenantPrefix] = useState("");
+
+  useEffect(() => {
+    const auth = getStoredAuth();
+    if (auth?.tenantId) {
+      setTenantPrefix(`/${auth.tenantId}`);
+    } else if (typeof window !== "undefined") {
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      if (parts.length > 0 && (/^[a-z0-9]{10}$/.test(parts[0]) || parts[0] === "demo123456" || parts[0] === "demo")) {
+        setTenantPrefix(`/${parts[0]}`);
+      }
+    }
+  }, []);
+
+  const normalizedPathname = pathname
+    ? pathname.replace(/^\/[a-z0-9]{10}/, "").replace(/^\/demo123456/, "").replace(/^\/demo/, "") || "/"
+    : "/";
   
   // Usability Issue 6 Fix: Only keep the active route's group expanded by default (Hick's Law)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
@@ -515,7 +533,7 @@ export function Sidebar() {
           setNavGroups(data);
           const expanded: Record<string, boolean> = {};
           data.forEach((g) => {
-            if (g.items?.some((it) => it.href === pathname || pathname.startsWith(`/${g.id}`))) {
+            if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
               expanded[g.id] = true;
             }
           });
@@ -532,18 +550,18 @@ export function Sidebar() {
       }
     }
     loadNavigation();
-  }, [pathname]);
+  }, [normalizedPathname]);
 
   // Keep only the active module group open when navigating
   useEffect(() => {
-    if (pathname && navGroups.length > 0) {
+    if (normalizedPathname && navGroups.length > 0) {
       navGroups.forEach((g) => {
-        if (g.items?.some((it) => it.href === pathname || pathname.startsWith(`/${g.id}`))) {
+        if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
           setExpandedGroups((prev) => ({ ...prev, [g.id]: true }));
         }
       });
     }
-  }, [pathname, navGroups]);
+  }, [normalizedPathname, navGroups]);
 
   const toggleGroup = (id: string) => {
     setExpandedGroups((prev) => ({
@@ -563,7 +581,7 @@ export function Sidebar() {
       <div className="flex h-16 items-center justify-between px-3.5 border-b border-slate-200/80 bg-white">
         {!isCollapsed && (
           <Link
-            href="/"
+            href={tenantPrefix || "/"}
             onClick={() => {
               if (isFormOpen) closeFormTab(true);
               setActiveTab("list");
@@ -592,7 +610,7 @@ export function Sidebar() {
         )}
         {isCollapsed && (
           <Link
-            href="/"
+            href={tenantPrefix || "/"}
             onClick={() => {
               if (isFormOpen) closeFormTab(true);
               setActiveTab("list");
@@ -626,7 +644,7 @@ export function Sidebar() {
       <div className="flex-1 overflow-y-auto py-3 px-2.5 space-y-1.5">
         {navGroups.map((group) => {
           const isExpanded = expandedGroups[group.id] ?? false;
-          const hasActiveChild = group.items?.some((item) => item.href === pathname);
+          const hasActiveChild = group.items?.some((item) => item.href === normalizedPathname);
           const icon = MODULE_ICONS[group.id] || <Layers className="w-4 h-4" />;
 
           return (
@@ -678,7 +696,7 @@ export function Sidebar() {
               {!isCollapsed && isExpanded && (
                 <div className="pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 ml-4 my-0.5">
                   {group.items?.map((sub, idx) => {
-                    const isActive = pathname === sub.href;
+                    const isActive = normalizedPathname === sub.href;
                     const prevCategory = idx > 0 ? group.items[idx - 1].category : undefined;
                     const showCategoryHeader = sub.category && sub.category !== prevCategory;
                     const SubIcon = getSubItemIcon(sub);
@@ -691,7 +709,7 @@ export function Sidebar() {
                           </span>
                         )}
                         <Link
-                          href={sub.is_locked ? "#" : sub.href}
+                          href={sub.is_locked ? "#" : `${tenantPrefix}${sub.href}`}
                           onClick={(e) => {
                             if (sub.is_locked) {
                               e.preventDefault();
@@ -701,7 +719,7 @@ export function Sidebar() {
                             if (isFormOpen) {
                               closeFormTab(true);
                             }
-                            if (pathname === sub.href) {
+                            if (normalizedPathname === sub.href) {
                               setActiveTab("list");
                             }
                           }}

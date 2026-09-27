@@ -26,13 +26,12 @@ import { login, getStoredAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [subdomain, setSubdomain] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rootDomainSuffix, setRootDomainSuffix] = useState(".panthertms.com");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [forgotPasswordMsg, setForgotPasswordMsg] = useState(false);
 
@@ -40,40 +39,17 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       const auth = getStoredAuth();
       if (auth && auth.accessToken) {
-        router.replace("/");
+        router.replace(auth.tenantId ? `/${auth.tenantId}` : "/");
         return;
       }
       setIsCheckingAuth(false);
 
       // Extract query params if redirected from signup or direct link
       const searchParams = new URLSearchParams(window.location.search);
-      const subParam = searchParams.get("subdomain");
+      const codeParam = searchParams.get("company_code") || searchParams.get("code") || searchParams.get("subdomain");
       const emailParam = searchParams.get("email");
-      if (subParam) setSubdomain(subParam);
+      if (codeParam) setCompanyCode(codeParam.replace(/[^a-zA-Z]/g, "").toUpperCase());
       if (emailParam) setEmail(emailParam);
-
-      const host = window.location.hostname;
-      if (!subParam && host.includes(".")) {
-        const parts = host.split(".");
-        if (parts.length > 2 && parts[0] !== "www" && parts[0] !== "api") {
-          setSubdomain(parts[0]);
-        }
-      }
-
-      if (host.includes("panthertms.com")) {
-        setRootDomainSuffix(".panthertms.com");
-      } else if (host.includes("panthertms.in")) {
-        setRootDomainSuffix(".panthertms.in");
-      } else if (host.includes("localhost") || host.includes("127.0.0.1")) {
-        setRootDomainSuffix(".panthertms.com");
-      } else {
-        const parts = host.split(".");
-        if (parts.length > 2) {
-          setRootDomainSuffix(`.${parts.slice(-2).join(".")}`);
-        } else {
-          setRootDomainSuffix(".panthertms.com");
-        }
-      }
     }
   }, [router]);
 
@@ -94,8 +70,8 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email, password, subdomain);
-      router.push("/");
+      const auth = await login(companyCode, email, password);
+      router.push(auth.tenantId ? `/${auth.tenantId}` : "/");
     } catch (err: any) {
       setError(err.message || "Failed to log in. Please check your credentials.");
     } finally {
@@ -104,7 +80,7 @@ export default function LoginPage() {
   };
 
   const fillDemo = () => {
-    setSubdomain("demo");
+    setCompanyCode("DEMOLOGISTICS");
     setEmail("admin@demo.com");
     setPassword("PantherTMS@2026!");
     setError(null);
@@ -410,7 +386,7 @@ export default function LoginPage() {
                   Sign in to your workspace
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 leading-normal">
-                  Enter your workspace subdomain and credentials to continue to PantherTMS.
+                  Enter your Company Code and credentials to continue to PantherTMS.
                 </p>
               </div>
 
@@ -437,30 +413,29 @@ export default function LoginPage() {
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* 1. Company Subdomain Field */}
+                {/* 1. Company Code Field */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
-                    Company subdomain
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                      Company Code
+                    </label>
+                    <span className="text-[10px] text-indigo-600 font-medium font-mono">
+                      CAPITAL ALPHABETS ONLY
+                    </span>
+                  </div>
                   <div className="flex items-center rounded-xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-slate-300 focus-within:!bg-white focus-within:!border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all overflow-hidden shadow-2xs">
                     <input
                       type="text"
-                      value={subdomain}
-                      onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                      placeholder="your-company"
+                      value={companyCode}
+                      onChange={(e) => setCompanyCode(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
+                      placeholder="e.g. BHARATROADWAYS"
                       autoComplete="organization"
                       required
-                      className="flex-1 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 bg-transparent focus:outline-none"
+                      className="flex-1 px-3.5 py-2.5 text-sm font-semibold tracking-wider text-slate-900 placeholder:text-slate-400 placeholder:font-normal bg-transparent focus:outline-none uppercase font-mono"
                     />
-                    <div className="px-3.5 py-2.5 text-xs font-mono text-slate-400 bg-transparent select-none whitespace-nowrap font-medium">
-                      {rootDomainSuffix}
-                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 flex items-center gap-1 font-sans">
-                    <span>Resolved host:</span>
-                    <span className="font-semibold text-indigo-600 font-mono">
-                      {subdomain || "your-company"}{rootDomainSuffix}
-                    </span>
+                  <p className="text-[11px] text-slate-500 font-sans">
+                    Formed from your company name during account creation.
                   </p>
                 </div>
 

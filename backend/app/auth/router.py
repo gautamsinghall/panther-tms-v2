@@ -1,9 +1,12 @@
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, status
+from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.tenant_db.session import get_current_tenant, get_tenant_db
+from app.core.database import get_tenant_session_maker
+from app.core.errors import UnauthorizedException
+from app.core.tenancy import get_tenant_by_company_code, get_tenant_by_id, get_tenant_id_from_request
 from app.auth.dependencies import get_current_user
 from app.auth.schemas import (
     LoginRequest, TokenResponse, RefreshTokenRequest,
@@ -174,11 +177,34 @@ ALL_NAVIGATION_MODULES = [
 
 @router.post("/login", response_model=TokenResponse, summary="Login to tenant account")
 async def login(
+    request: Request,
     login_data: LoginRequest,
-    tenant: Tenant = Depends(get_current_tenant),
-    db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await authenticate_user(db=db, tenant=tenant, login_data=login_data)
+    # Resolve tenant: from company_code in body, header, or query/token
+    company_code = login_data.company_code or request.headers.get("X-Company-Code")
+    tenant_id = request.headers.get("X-Tenant-ID") or request.headers.get("X-Tenant-Subdomain")
+    
+    tenant: Optional[Tenant] = None
+    if company_code:
+        tenant = await get_tenant_by_company_code(company_code)
+    elif tenant_id:
+        try:
+            tenant = await get_tenant_by_id(tenant_id)
+        except Exception:
+            tenant = await get_tenant_by_company_code(tenant_id)
+    else:
+        tid = get_tenant_id_from_request(request)
+        if tid:
+            try:
+                tenant = await get_tenant_by_id(tid)
+            except Exception:
+                tenant = await get_tenant_by_company_code(tid)
+        else:
+            raise UnauthorizedException("Company code is required to sign in.")
+
+    session_maker = get_tenant_session_maker(tenant.db_name)
+    async with session_maker() as db:
+        return await authenticate_user(db=db, tenant=tenant, login_data=login_data)
 
 @router.post("/refresh", response_model=TokenResponse, summary="Refresh access token")
 async def refresh_token(
@@ -193,6 +219,8 @@ async def get_me(
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
 ):
+    tenant_id_str = getattr(tenant, "tenant_id", None) or getattr(tenant, "subdomain", None) or str(tenant.id)
+    company_code_str = getattr(tenant, "company_code", None) or getattr(tenant, "subdomain", "").upper()
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
@@ -201,7 +229,9 @@ async def get_me(
         is_active=current_user.is_active,
         created_at=current_user.created_at,
         tenant=TenantContextResponse(
-            subdomain=tenant.subdomain,
+            tenant_id=tenant_id_str,
+            company_code=company_code_str,
+            subdomain=tenant_id_str,
             company_name=tenant.company_name,
             status=tenant.status,
         ),

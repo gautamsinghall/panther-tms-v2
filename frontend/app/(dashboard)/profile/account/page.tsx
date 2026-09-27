@@ -126,8 +126,12 @@ export default function UserAccountPage() {
               <span className="font-medium text-[#172033]">{authData?.tenantName || "Demo Logistics Pvt Ltd"}</span>
             </div>
             <div className="flex justify-between text-[#667085]">
-              <span>Subdomain</span>
-              <span className="font-mono text-[#C9A227] font-semibold">{authData?.subdomain || "demo"}</span>
+              <span>Company Code</span>
+              <span className="font-mono text-indigo-700 font-bold tracking-wider">{authData?.companyCode || "DEMOLOGISTICS"}</span>
+            </div>
+            <div className="flex justify-between text-[#667085]">
+              <span>Tenant ID</span>
+              <span className="font-mono text-slate-800 font-semibold">{authData?.tenantId || "demo123456"}</span>
             </div>
             <div className="flex justify-between text-[#667085]">
               <span>Session Type</span>

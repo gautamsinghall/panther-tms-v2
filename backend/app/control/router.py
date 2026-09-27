@@ -39,17 +39,25 @@ async def provision_new_tenant(
     tenant = await provision_tenant(data, session)
     return tenant
 
-@router.get("/tenants/{subdomain}", response_model=TenantResponse)
+@router.get("/tenants/{identifier}", response_model=TenantResponse)
 async def get_tenant_info(
-    subdomain: str,
+    identifier: str,
     session: AsyncSession = Depends(get_control_db)
 ):
+    from sqlalchemy import or_
+    clean_id = identifier.strip()
     result = await session.execute(
-        select(Tenant).where(Tenant.subdomain == subdomain.lower().strip())
+        select(Tenant).where(
+            or_(
+                Tenant.tenant_id == clean_id.lower(),
+                Tenant.company_code == clean_id.upper(),
+                Tenant.subdomain == clean_id.lower(),
+            )
+        )
     )
     tenant = result.scalar_one_or_none()
     if not tenant:
-        raise TenantNotFoundException(subdomain)
+        raise TenantNotFoundException(identifier)
     return tenant
 
 @router.post(
@@ -91,14 +99,14 @@ async def razorpay_webhook(
     return await process_razorpay_webhook_event(payload_bytes, x_razorpay_signature, session)
 
 @router.post(
-    "/subscriptions/{subdomain}",
+    "/subscriptions/{identifier}",
     response_model=CreateSubscriptionResponse,
     summary="Create or renew recurring subscription for existing tenant"
 )
 async def create_subscription(
-    subdomain: str,
+    identifier: str,
     data: CreateSubscriptionRequest,
     session: AsyncSession = Depends(get_control_db)
 ):
-    return await create_tenant_subscription(subdomain, data, session)
+    return await create_tenant_subscription(identifier, data, session)
 

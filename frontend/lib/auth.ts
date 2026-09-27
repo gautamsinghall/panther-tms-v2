@@ -10,7 +10,9 @@ export interface StoredAuth {
   accessToken: string;
   refreshToken?: string;
   tokenType?: string;
-  subdomain: string;
+  tenantId: string;
+  companyCode: string;
+  subdomain?: string;
   tenantName: string;
   user: StoredUser;
 }
@@ -52,6 +54,13 @@ export function getStoredAuth(): StoredAuth | null {
       clearStoredAuth();
       return null;
     }
+    // Backward compatibility if old object had subdomain instead of tenantId
+    if (!data.tenantId && data.subdomain) {
+      data.tenantId = data.subdomain;
+    }
+    if (!data.companyCode && data.subdomain) {
+      data.companyCode = data.subdomain.toUpperCase();
+    }
     return data;
   } catch (err) {
     console.error("Failed to parse stored auth", err);
@@ -64,6 +73,12 @@ export function setStoredAuth(data: StoredAuth): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+    if (data.tenantId) {
+      document.cookie = `panther_tenant_id=${encodeURIComponent(data.tenantId)}; path=/; max-age=2592000; SameSite=Lax`;
+    }
+    if (data.companyCode) {
+      document.cookie = `panther_company_code=${encodeURIComponent(data.companyCode)}; path=/; max-age=2592000; SameSite=Lax`;
+    }
   } catch (err) {
     console.error("Failed to store auth", err);
   }
@@ -73,6 +88,8 @@ export function clearStoredAuth(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    document.cookie = "panther_tenant_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "panther_company_code=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   } catch (err) {
     console.error("Failed to clear auth", err);
   }
@@ -96,10 +113,6 @@ export function getApiBaseUrl(): string {
     const host = window.location.hostname;
     const protocol = window.location.protocol;
 
-    // Local development:
-    // When running Next.js on localhost (e.g. localhost:3000), default to the live cloud backend
-    // (https://api.panthertms.com) which has CORS allowed for http://localhost:3000.
-    // If developers specifically run a local backend Docker container, they set NEXT_PUBLIC_USE_LOCAL_BACKEND=true.
     if (host.includes("localhost") || host.includes("127.0.0.1")) {
       if (process.env.NEXT_PUBLIC_USE_LOCAL_BACKEND === "true") {
         return "http://localhost:8000";
@@ -107,12 +120,10 @@ export function getApiBaseUrl(): string {
       return "https://api.panthertms.com";
     }
 
-    // In production on panthertms.com, panthertms.in, or any workspace subdomains
     if (host.includes("panthertms.com") || host.includes("panthertms.in")) {
       return "https://api.panthertms.com";
     }
 
-    // Generic domain fallback
     const parts = host.split(".");
     if (parts.length >= 2) {
       const root = parts.slice(-2).join(".");
@@ -126,17 +137,50 @@ export function getApiBaseUrl(): string {
   return "https://api.panthertms.com";
 }
 
-export async function login(email: string, password: string, subdomain: string): Promise<StoredAuth> {
+export async function login(
+  companyCodeOrEmail: string,
+  emailOrPass: string,
+  passwordOrSubdomain?: string
+): Promise<StoredAuth> {
   const backendBaseUrl = getApiBaseUrl();
   const endpoint = `${backendBaseUrl}/api/v1/auth/login`;
+
+  let companyCode = "";
+  let email = "";
+  let password = "";
+
+  if (passwordOrSubdomain !== undefined) {
+    // 3 parameters passed: companyCode, email, password OR email, password, subdomain
+    if (emailOrPass.includes("@")) {
+      companyCode = companyCodeOrEmail;
+      email = emailOrPass;
+      password = passwordOrSubdomain;
+    } else {
+      email = companyCodeOrEmail;
+      password = emailOrPass;
+      companyCode = passwordOrSubdomain;
+    }
+  } else {
+    // 2 parameters passed: email, password (fallback)
+    email = companyCodeOrEmail;
+    password = emailOrPass;
+    companyCode = "DEMOLOGISTICS";
+  }
+
+  const cleanCompanyCode = companyCode.replace(/[^a-zA-Z]/g, "").toUpperCase();
 
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Tenant-Subdomain": subdomain,
+      "X-Company-Code": cleanCompanyCode,
+      "X-Tenant-Subdomain": cleanCompanyCode.toLowerCase(),
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({
+      company_code: cleanCompanyCode,
+      email,
+      password,
+    }),
   });
 
   if (!res.ok) {
@@ -151,12 +195,17 @@ export async function login(email: string, password: string, subdomain: string):
   }
 
   const result = await res.json();
+  const tenantId = result.tenant_id || result.subdomain || "demo123456";
+  const finalCode = result.company_code || cleanCompanyCode;
+
   const authData: StoredAuth = {
     accessToken: result.access_token,
     refreshToken: result.refresh_token,
     tokenType: result.token_type || "bearer",
-    subdomain: result.tenant?.subdomain || subdomain,
-    tenantName: result.tenant?.company_name || `${subdomain} Logistics`,
+    tenantId: tenantId,
+    companyCode: finalCode,
+    subdomain: tenantId,
+    tenantName: result.tenant_name || result.tenant?.company_name || `${finalCode} Workspace`,
     user: result.user || {
       id: 1,
       email,

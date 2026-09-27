@@ -29,7 +29,8 @@ interface CompanySettingData {
 }
 
 export default function CompanyProfilePage() {
-  const [subdomain, setSubdomain] = useState("");
+  const [tenantId, setTenantId] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [gstin, setGstin] = useState("");
   const [pan, setPan] = useState("");
@@ -54,7 +55,10 @@ export default function CompanyProfilePage() {
 
   useEffect(() => {
     const auth = getStoredAuth();
-    if (auth) setSubdomain(auth.subdomain);
+    if (auth) {
+      setTenantId(auth.tenantId || "");
+      setCompanyCode(auth.companyCode || "");
+    }
 
     async function loadCompany() {
       setIsLoading(true);
@@ -140,14 +144,18 @@ export default function CompanyProfilePage() {
             </div>
             <div>
               <h3 className="font-semibold text-sm text-[#172033]">{companyName || "PantherTMS Enterprise"}</h3>
-              <p className="text-xs text-[#667085]">Subdomain: {subdomain}.panthertms.in</p>
+              <p className="text-xs text-[#667085]">Company Code: <span className="font-mono font-bold text-indigo-700">{companyCode}</span></p>
             </div>
           </div>
 
           <div className="space-y-3 text-xs">
             <div className="flex justify-between py-1 border-b border-[#F2F4F7]">
+              <span className="text-[#667085]">Tenant ID</span>
+              <span className="font-mono text-slate-800 font-semibold">{tenantId}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-[#F2F4F7]">
               <span className="text-[#667085]">Tenant Database</span>
-              <span className="font-mono text-emerald-600 font-semibold">panther_tenant_{subdomain}</span>
+              <span className="font-mono text-emerald-600 font-semibold">panther_tenant_{tenantId}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-[#F2F4F7]">
               <span className="text-[#667085]">Database Isolation</span>

@@ -190,7 +190,7 @@ async def trigger_report_export(
         # Run export worker job asynchronously
         res = await generate_report_export_job(
             ctx=None,
-            tenant_subdomain=tenant.subdomain,
+            tenant_subdomain=tenant.tenant_id or tenant.subdomain,
             job_id=job_id,
             report_name=data.report_name,
             export_format=data.format,

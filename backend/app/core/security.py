@@ -15,9 +15,10 @@ def get_password_hash(password: str) -> str:
 def create_access_token(
     subject: str,
     tenant_subdomain: str,
-    tenant_id: int,
+    tenant_id: Any,
     role: str,
     expires_delta: Optional[timedelta] = None,
+    company_code: Optional[str] = None,
     extra_claims: Optional[Dict[str, Any]] = None,
 ) -> str:
     if expires_delta:
@@ -27,8 +28,9 @@ def create_access_token(
     
     payload: Dict[str, Any] = {
         "sub": subject,
+        "tenant_id": str(tenant_subdomain or tenant_id),
         "subdomain": tenant_subdomain,
-        "tenant_id": tenant_id,
+        "company_code": company_code or "",
         "role": role,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
@@ -42,7 +44,8 @@ def create_access_token(
 def create_refresh_token(
     subject: str,
     tenant_subdomain: str,
-    tenant_id: int,
+    tenant_id: Any,
+    company_code: Optional[str] = None,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
     if expires_delta:
@@ -52,8 +55,9 @@ def create_refresh_token(
         
     payload: Dict[str, Any] = {
         "sub": subject,
+        "tenant_id": str(tenant_subdomain or tenant_id),
         "subdomain": tenant_subdomain,
-        "tenant_id": tenant_id,
+        "company_code": company_code or "",
         "exp": expire,
         "iat": datetime.now(timezone.utc),
         "type": "refresh",
