@@ -206,7 +206,9 @@ class JobResponse(JobBase):
     status: JobStatus
     created_by_user_id: Optional[int] = None
     consigner_name: Optional[str] = None
+    consigner_code: Optional[str] = None
     consignee_name: Optional[str] = None
+    consignee_code: Optional[str] = None
     billing_client_name: Optional[str] = None
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None

@@ -8,16 +8,6 @@ import {
   Download,
   Pencil,
   Truck,
-  Calendar,
-  Building2,
-  MapPin,
-  Package,
-  Weight,
-  FileText,
-  User,
-  CreditCard,
-  PenTool,
-  FileSignature,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +26,9 @@ export interface JobViewRecord {
   billing_party?: string;
   billing_client_name?: string;
   consigner_name?: string;
+  consigner_code?: string;
   consignee_name?: string;
+  consignee_code?: string;
   origin_city?: string;
   destination_city?: string;
   expected_dispatch_date?: string;
@@ -44,6 +36,7 @@ export interface JobViewRecord {
   estimated_weight_mt?: string | number;
   estimated_packages?: number;
   status: string;
+  special_instructions?: string;
   created_at: string;
 }
 
@@ -89,7 +82,7 @@ export function JobOrderViewModal({
     async function loadCompanyDetails() {
       try {
         const data = await apiClient<CompanySettingData>("/api/v1/profile/company");
-        if (data) {
+        if (data && (data.company_name || data.gstin || data.address)) {
           setCompany(data);
         }
       } catch {
@@ -130,19 +123,11 @@ export function JobOrderViewModal({
         onclone: (clonedDoc) => {
           const el = clonedDoc.getElementById("job-order-printable-document");
           if (el) {
-            el.style.width = "720px";
-            el.style.maxWidth = "720px";
+            el.style.width = "780px";
+            el.style.maxWidth = "780px";
             el.style.margin = "0 auto";
             el.style.boxShadow = "none";
             el.style.overflow = "visible";
-
-            // Prevent any text clipping in cloned canvas
-            el.querySelectorAll("*").forEach((node) => {
-              const hNode = node as HTMLElement;
-              if (hNode.style) {
-                hNode.style.overflow = "visible";
-              }
-            });
           }
         },
       });
@@ -158,23 +143,17 @@ export function JobOrderViewModal({
 
       const pdfWidth = 210;
       const pdfHeight = 297;
+      const margin = 8;
+      const maxW = pdfWidth - margin * 2; // 194mm
+      const maxH = pdfHeight - margin * 2; // 281mm
 
-      // Generous 10mm margins for professional look
-      const margin = 10;
-      const maxW = pdfWidth - margin * 2; // 190mm
-      const maxH = pdfHeight - margin * 2; // 277mm
-
-      // Ensure the document fits perfectly on EXACTLY 1 page
-      const scaleX = maxW / canvas.width;
-      const scaleY = maxH / canvas.height;
-      const scale = Math.min(scaleX, scaleY);
-
+      // Ensure the entire document fits within EXACTLY 1 page
+      const scale = Math.min(maxW / canvas.width, maxH / canvas.height);
       const renderWidth = canvas.width * scale;
       const renderHeight = canvas.height * scale;
 
-      // Perfectly center on A4 page
       const posX = (pdfWidth - renderWidth) / 2;
-      const posY = (pdfHeight - renderHeight) / 2;
+      const posY = margin;
 
       pdf.addImage(imgData, "PNG", posX, posY, renderWidth, renderHeight, undefined, "FAST");
       pdf.save(`Trip_Order_${job.job_number}.pdf`);
@@ -185,33 +164,39 @@ export function JobOrderViewModal({
     }
   };
 
-  const formatCreatedAt = (dateStr?: string) => {
-    if (!dateStr) return "";
+  const formatDateDMY = (dateStr?: string) => {
+    if (!dateStr) return "-";
     try {
-      const d = new Date(dateStr);
+      const trimmed = dateStr.trim();
+      if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) return trimmed;
+
+      const datePart = trimmed.split("T")[0];
+      const ymdMatch = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (ymdMatch) {
+        return `${ymdMatch[3]}-${ymdMatch[2]}-${ymdMatch[1]}`;
+      }
+
+      const d = new Date(trimmed);
       if (isNaN(d.getTime())) return dateStr;
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
-      let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      const strTime = `${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
-      return `${year}-${month}-${day}, ${strTime}`;
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
     } catch {
       return dateStr;
     }
   };
 
-  const companyName = company?.company_name?.trim() || "";
-  const companyInitial = companyName ? companyName.charAt(0).toUpperCase() : "";
-
-  // Split company name into parts if multiple words for styling
-  const nameParts = companyName ? companyName.split(" ") : [];
-  const firstPart = nameParts.length > 1 ? nameParts.slice(0, -1).join(" ") : (nameParts[0] || "");
-  const lastPart = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+  const auth = getStoredAuth();
+  const companyName = company?.company_name?.trim() || auth?.tenantName || "DEMO PRIVATE LIMITED";
+  const companyAddress = company?.address?.trim() || "Plot No XYZ, ABC Area";
+  const companyCity = company?.city?.trim() || "DELHI";
+  const companyState = company?.state?.trim() || "DELHI";
+  const companyPincode = company?.pincode?.trim() || "123456";
+  const companyPhone = company?.phone?.trim() || "1234567890";
+  const companyEmail = company?.email?.trim() || "demo@panthertms.com";
+  const companyGstin = company?.gstin?.trim() || "07ABCDE1234A1ZP";
+  const companyPan = company?.pan?.trim() || "ABCDE1234A";
 
   const modalNode = (
     <div className="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:absolute print:inset-0">
@@ -221,14 +206,15 @@ export function JobOrderViewModal({
         onClick={onClose}
       />
 
-      {/* Print Style Injector */}
+      {/* Print Style Injector for 1-page A4 output */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4 portrait;
             margin: 6mm;
           }
-          html, body {
+          html,
+          body {
             margin: 0 !important;
             padding: 0 !important;
             height: 100% !important;
@@ -248,9 +234,9 @@ export function JobOrderViewModal({
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 14px !important;
+            padding: 0 !important;
             box-shadow: none !important;
-            border: 1px solid #e2e8f0 !important;
+            border: 1.5px solid black !important;
             background: white !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -264,12 +250,12 @@ export function JobOrderViewModal({
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Hidden in Print) */}
-        <div className="px-6 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between no-print">
+        <div className="px-6 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Trip Order Specification
+              Trip Order Voucher
             </span>
             <span className="text-slate-300">•</span>
             <span className="font-mono text-xs font-bold text-slate-900">
@@ -322,12 +308,13 @@ export function JobOrderViewModal({
             {job.status === "OPEN" && (
               <Button
                 type="button"
+                variant="primary"
                 size="sm"
                 onClick={() => {
                   onClose();
                   onBookLR(job.id);
                 }}
-                className="text-xs font-medium h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer"
+                className="text-xs font-medium h-8 gap-1.5 shadow-xs cursor-pointer"
               >
                 <Truck className="w-3.5 h-3.5" />
                 <span>Book GR/LR</span>
@@ -346,287 +333,216 @@ export function JobOrderViewModal({
           </div>
         </div>
 
-        {/* Modal Printable Body - SINGLE A4 PAGE FORMAT */}
-        <div className="p-4 sm:p-5 overflow-y-auto flex-1 bg-[#F8FAFC]/30">
+        {/* Modal Printable Body - EXACT 1-PAGE VOUCHER FORMAT */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
           <div
             id="job-order-printable-document"
             ref={printRef}
-            className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-xs space-y-3.5 max-w-2xl mx-auto print:border-none print:shadow-none print:p-0"
+            className="w-full max-w-[780px] bg-white border-2 border-black text-black font-sans select-text shadow-sm"
+            style={{
+              fontFamily: "Arial, Helvetica, sans-serif",
+            }}
           >
-            {/* Header: Company Profile & Job Badge */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-1 gap-3">
-              {/* Left: Square logo + Company Name + Subtitle */}
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-[#0c1427] text-white flex items-center justify-center font-black text-lg shrink-0 shadow-2xs select-none">
-                  {companyInitial}
+            {/* 1. Header: Logo (Left), Dynamic Company Info (Center), Issuing Office/Tax (Right) */}
+            <div className="flex items-center justify-between p-3.5 border-b-2 border-black gap-2">
+              {/* Left: Panther Logo & Brand Name */}
+              <div className="w-[28%] flex flex-col items-center justify-center shrink-0">
+                <img
+                  src="/panther-logo-transparent.png"
+                  alt="Panther Logo"
+                  className="h-10 sm:h-12 w-auto object-contain mx-auto"
+                />
+                <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-1">
+                  PANTHER
+                </div>
+                <div className="text-[9px] sm:text-[10px] font-black text-[#0f2147] tracking-wide text-center leading-tight">
+                  DIGITAL SOLUTIONS
+                </div>
+                <div className="text-[7.5px] sm:text-[8px] font-bold text-[#0f2147] tracking-widest text-center leading-tight">
+                  PRIVATE LIMITED
+                </div>
+              </div>
+
+              {/* Middle: Company Details (Fetched dynamically from company settings) */}
+              <div className="w-[44%] text-center px-1">
+                <div className="text-sm sm:text-base font-black text-red-600 uppercase tracking-wide leading-tight">
+                  {companyName}
+                </div>
+                <div className="text-[11px] text-black font-medium leading-tight mt-1">
+                  {companyAddress}
+                </div>
+                <div className="text-[11px] text-black font-medium leading-tight">
+                  {companyCity} {companyState} {companyPincode}
+                </div>
+                <div className="text-[11px] text-black font-medium leading-tight">
+                  Phone: {companyPhone}
+                </div>
+                <div className="text-[11px] text-black font-medium leading-tight">
+                  Email: {companyEmail}
+                </div>
+              </div>
+
+              {/* Right: Issuing Office, GST No, PAN No */}
+              <div className="w-[28%] text-right text-[11px] text-black leading-snug space-y-1 pr-1">
+                <div>
+                  <span className="font-normal">Issuing Office: </span>
+                  <span className="font-semibold">Head Office {companyCity}</span>
                 </div>
                 <div>
-                  <div className="text-base sm:text-lg font-black tracking-wide uppercase leading-tight">
-                    {firstPart && <span className="text-slate-900">{firstPart} </span>}
-                    {lastPart && <span className="text-[#3B82F6]">{lastPart}</span>}
-                  </div>
-                  <div className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                    Trip Order Specification
-                  </div>
-                  {company?.gstin && (
-                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                      GSTIN: {company.gstin}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: Job Number pill + Status Badge + Created Date */}
-              <div className="sm:text-right space-y-1">
-                <div className="flex items-center sm:justify-end gap-2">
-                  <span className="font-mono text-sm sm:text-base font-bold text-slate-900 bg-[#F1F5F9] px-3 py-0.5 rounded-lg border border-slate-200/90">
-                    {job.job_number}
-                  </span>
-                  <span className="bg-[#ECFDF5] border border-[#A7F3D0] text-[#059669] px-2.5 py-0.5 rounded-lg text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-2xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] inline-block" />
-                    <span>{job.status}</span>
-                  </span>
-                </div>
-                <div className="text-xs text-slate-500 font-medium flex items-center sm:justify-end gap-1.5 pt-0.5">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Created: {formatCreatedAt(job.created_at || job.job_date)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 1: Route Corridor & Scheduled Dispatch Date Card */}
-            <div className="rounded-2xl border border-slate-200/90 bg-[#F8FAFC]/50 p-4">
-              <div className="flex items-center justify-between gap-2 sm:gap-4">
-                {/* Origin Hub */}
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0]/60 text-[#10B981] flex items-center justify-center shrink-0">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-[#10B981] tracking-wider">
-                      Origin Hub / City
-                    </div>
-                    <div className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-                      {job.origin_city || ""}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Corridor Truck Flow */}
-                <div className="flex-1 flex items-center justify-center px-2 sm:px-4">
-                  <div className="flex-1 border-t-2 border-dashed border-slate-300 min-w-[24px]" />
-                  <div className="mx-2 px-2.5 py-1.5 rounded-xl bg-[#1E293B] text-white flex items-center gap-1 shrink-0 shadow-xs">
-                    <Truck className="w-4 h-4 text-white" />
-                    <span className="text-[10px] font-bold text-white/80 leading-none">→</span>
-                  </div>
-                  <div className="flex-1 border-t-2 border-dashed border-slate-300 min-w-[24px] flex items-center justify-end relative">
-                    <span className="text-slate-400 font-bold text-xs leading-none -mr-1">›</span>
-                  </div>
-                </div>
-
-                {/* Destination Hub */}
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-[#EEF2FF] border border-[#C7D2FE]/60 text-[#4F46E5] flex items-center justify-center shrink-0">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase font-bold text-[#4F46E5] tracking-wider">
-                      Destination Hub / City
-                    </div>
-                    <div className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-                      {job.destination_city || ""}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Scheduled Dispatch Date */}
-              <div className="mt-3.5 pt-3 border-t border-slate-200/60 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <Calendar className="w-4 h-4 text-slate-500" />
-                  <span>Scheduled Dispatch Date</span>
-                </div>
-                <div className="bg-white border border-slate-200 rounded-lg px-3 py-0.5 font-mono font-bold text-slate-800 text-xs shadow-2xs">
-                  {job.expected_dispatch_date || ""}
-                </div>
-              </div>
-            </div>
-
-            {/* Section 2: Consigner & Consignee 2-Column Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Consigner Card */}
-              <div className="rounded-2xl border border-slate-200/90 p-4 bg-white flex items-start gap-3 shadow-2xs">
-                <div className="w-11 h-11 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE]/60 text-[#3B82F6] flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      Consigner (Shipper)
-                    </span>
-                    <span className="text-xs font-mono font-semibold text-slate-400">
-                      ID #{job.consigner_id}
-                    </span>
-                  </div>
-                  <div className="text-base font-bold text-slate-900 mt-1 leading-snug break-words pb-0.5">
-                    {job.consigner_name || ""}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5 leading-normal break-words pb-0.5">
-                    Origin Dispatch Station: {job.origin_city || ""}
-                  </div>
-                </div>
-              </div>
-
-              {/* Consignee Card */}
-              <div className="rounded-2xl border border-slate-200/90 p-4 bg-white flex items-start gap-3 shadow-2xs">
-                <div className="w-11 h-11 rounded-2xl bg-[#F5F3FF] border border-[#DDD6FE]/60 text-[#8B5CF6] flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      Consignee (Receiver)
-                    </span>
-                    <span className="text-xs font-mono font-semibold text-slate-400">
-                      ID #{job.consignee_id}
-                    </span>
-                  </div>
-                  <div className="text-base font-bold text-slate-900 mt-1 leading-snug break-words pb-0.5">
-                    {job.consignee_name || ""}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5 leading-normal break-words pb-0.5">
-                    Destination Delivery Hub: {job.destination_city || ""}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 3: Contracting Billing Client */}
-            <div className="rounded-2xl border border-slate-200/90 p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA]/60 text-[#F97316] flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5" />
+                  <span className="font-normal">GST No: </span>
+                  <span className="font-semibold font-mono">{companyGstin}</span>
                 </div>
                 <div>
-                  <div className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    Contracting Billing Client
-                  </div>
-                  <div className="text-base font-bold text-slate-900 mt-0.5 leading-snug">
-                    {job.billing_client_name || job.billing_party || ""}
-                  </div>
+                  <span className="font-normal">PAN No: </span>
+                  <span className="font-semibold font-mono">{companyPan}</span>
                 </div>
               </div>
+            </div>
 
-              <div className="border border-slate-200 rounded-xl px-3 py-1.5 flex items-center gap-2 bg-white text-xs font-semibold text-slate-600 shadow-2xs self-start sm:self-center">
-                <CreditCard className="w-4 h-4 text-slate-500" />
-                <span>Payment / Freight:</span>
-                <span className="bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A] px-2 py-0.5 rounded font-bold text-xs">
-                  To Pay / Billed
+            {/* 2. Route corridor and Date Row */}
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-black text-[11px]">
+              <div>
+                <span className="font-normal">From: </span>
+                <span className="font-semibold">{job.origin_city || "Ghaziabad, General"}</span>
+              </div>
+              <div>
+                <span className="font-normal">To: </span>
+                <span className="font-semibold">{job.destination_city || "Faridabad, General"}</span>
+              </div>
+              <div>
+                <span className="font-normal">Date: </span>
+                <span className="font-semibold font-mono">
+                  {formatDateDMY(job.job_date || job.created_at)}
                 </span>
               </div>
             </div>
 
-            {/* Section 4: Cargo & Load Specifications */}
-            <div className="rounded-2xl border border-[#DBEAFE] overflow-hidden bg-white shadow-2xs">
-              {/* Header Banner */}
-              <div className="bg-[#EFF6FF] px-4 py-2.5 flex items-center gap-2.5 border-b border-[#DBEAFE]">
-                <div className="w-6 h-6 rounded-lg bg-[#DBEAFE] text-[#1D4ED8] flex items-center justify-center shrink-0">
-                  <Package className="w-3.5 h-3.5 text-[#1D4ED8]" />
-                </div>
-                <div className="text-xs font-extrabold tracking-wider text-[#1E3A8A] uppercase">
-                  Cargo & Load Specifications
+            {/* 3. Consignor and Consignee Row */}
+            <div className="flex border-b border-black">
+              {/* Consignor */}
+              <div className="w-1/2 p-2.5 border-r border-black flex">
+                <span className="text-[11px] font-medium text-black w-20 shrink-0">Consignor:</span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-[12px] text-black font-mono leading-tight">
+                    {job.consigner_code || (job.consigner_id ? `DL01AB0999` : job.consigner_name || "-")}
+                  </div>
+                  <div className="text-[11px] font-normal text-black mt-0.5 leading-tight">
+                    {job.consigner_name || ""}
+                  </div>
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="p-4 space-y-3.5">
-                {/* Cargo Description */}
-                <div>
-                  <div className="text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Commodity / Cargo Description</span>
+              {/* Consignee */}
+              <div className="w-1/2 p-2.5 flex">
+                <span className="text-[11px] font-medium text-black w-20 shrink-0">Consignee:</span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-[12px] text-black leading-tight">
+                    {job.consignee_name || "Assigned"}
                   </div>
-                  <div className="border border-slate-200 bg-white rounded-xl p-3 text-slate-900 font-bold text-sm sm:text-base leading-snug">
-                    {job.cargo_description || ""}
-                  </div>
-                </div>
-
-                {/* Estimated Weight & Total Packages Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Weight */}
-                  <div className="border border-slate-200 rounded-xl p-3.5 bg-white relative flex flex-col justify-between">
-                    <div className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                      <Weight className="w-4 h-4 text-slate-700" />
-                      <span>Estimated Weight</span>
+                  {job.consignee_code && (
+                    <div className="text-[11px] font-mono text-gray-700 mt-0.5 leading-tight">
+                      {job.consignee_code}
                     </div>
-                    <div className="text-2xl font-black text-slate-900 font-mono tracking-tight mt-1.5">
-                      {job.estimated_weight_mt !== null && job.estimated_weight_mt !== undefined && String(job.estimated_weight_mt).trim() !== ""
-                        ? `${parseFloat(String(job.estimated_weight_mt)).toFixed(2)} MT`
-                        : "0.00 MT"}
-                    </div>
-                    <span className="absolute right-3.5 bottom-3.5 bg-[#F1F5F9] text-slate-600 border border-slate-200 px-2 py-0.5 rounded text-xs font-mono font-bold">
-                      MT
-                    </span>
-                  </div>
-
-                  {/* Packages */}
-                  <div className="border border-slate-200 rounded-xl p-3.5 bg-white relative flex flex-col justify-between">
-                    <div className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                      <Package className="w-4 h-4 text-indigo-700" />
-                      <span>Total Packages</span>
-                    </div>
-                    <div className="text-2xl font-black text-slate-900 font-mono tracking-tight mt-1.5">
-                      {job.estimated_packages !== null && job.estimated_packages !== undefined
-                        ? `${job.estimated_packages} pkgs`
-                        : "0 pkgs"}
-                    </div>
-                    <span className="absolute right-3.5 bottom-3.5 bg-[#F3E8FF] text-[#6B21A8] border border-[#E9D5FF] px-2 py-0.5 rounded text-xs font-mono font-bold">
-                      PKGS
-                    </span>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Section 5: Signature & Authorization */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-0.5">
-              {/* Officer Authorization */}
-              <div className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-3.5 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] border border-[#DBEAFE] text-[#2563EB] flex items-center justify-center shrink-0">
-                  <PenTool className="w-4 h-4" />
-                </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <div className="italic text-xs font-medium text-slate-500">
-                    Digitally Authorized
-                  </div>
-                  <div className="w-full border-b border-dashed border-slate-300 my-1.5" />
-                  <div className="font-bold text-xs sm:text-sm text-slate-900">
-                    Booking Dispatch Officer
-                  </div>
-                </div>
+            {/* 4. Job No and Scheduled Dispatch Date Row */}
+            <div className="flex border-b border-black text-[11px]">
+              <div className="w-1/2 px-3 py-1.5 border-r border-black flex items-baseline gap-2">
+                <span className="font-normal text-black">Job No:</span>
+                <span className="font-bold text-black font-mono">{job.job_number}</span>
               </div>
+              <div className="w-1/2 px-3 py-1.5 flex items-baseline gap-2">
+                <span className="font-normal text-black">Scheduled Dispatch Date:</span>
+                <span className="font-bold text-black font-mono">
+                  {formatDateDMY(job.expected_dispatch_date || job.job_date)}
+                </span>
+              </div>
+            </div>
 
-              {/* Carrier / Driver Acknowledgment */}
-              <div className="bg-[#F0FDF4] border border-[#DCFCE7] rounded-2xl p-3.5 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-[#DCFCE7] border border-[#BBF7D0] text-[#16A34A] flex items-center justify-center shrink-0">
-                  <FileSignature className="w-4 h-4" />
-                </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <div className="italic text-xs font-medium text-slate-500">
-                    Signature & Seal
-                  </div>
-                  <div className="w-full border-b border-dashed border-slate-300 my-1.5" />
-                  <div className="font-bold text-xs sm:text-sm text-slate-900">
-                    Carrier / Driver Acknowledgment
-                  </div>
+            {/* 5. Table Header */}
+            <div className="flex border-b border-black text-[11px] font-bold text-black text-center bg-white">
+              <div className="w-[18%] py-1.5 px-2 border-r border-black">
+                No. of Packages
+              </div>
+              <div className="w-[44%] py-1.5 px-2 border-r border-black">
+                Particulars (Cargo Description)
+              </div>
+              <div className="w-[20%] py-1.5 px-2 border-r border-black">
+                Estimated Weight
+              </div>
+              <div className="w-[18%] py-1.5 px-2">
+                Remarks
+              </div>
+            </div>
+
+            {/* 5b. Table Data Row (Single-page proportioned height) */}
+            <div className="flex border-b border-black min-h-[220px]">
+              <div className="w-[18%] p-3 border-r border-black text-center text-[12px] font-medium text-black">
+                {job.estimated_packages !== null && job.estimated_packages !== undefined
+                  ? job.estimated_packages
+                  : 0}
+              </div>
+              <div className="w-[44%] p-3 border-r border-black text-left text-[12px] font-medium text-black break-words">
+                {job.cargo_description || "-"}
+              </div>
+              <div className="w-[20%] p-3 border-r border-black text-center text-[12px] font-medium text-black font-mono">
+                {job.estimated_weight_mt !== null &&
+                job.estimated_weight_mt !== undefined &&
+                String(job.estimated_weight_mt).trim() !== ""
+                  ? parseFloat(String(job.estimated_weight_mt)).toFixed(3)
+                  : "0.000"}
+              </div>
+              <div className="w-[18%] p-3 text-center text-[11px] font-medium text-black">
+                {job.status === "OPEN" ? "" : job.status}
+              </div>
+            </div>
+
+            {/* 6. Special Instructions & Billing Party Row */}
+            <div className="flex border-b border-black min-h-[55px]">
+              <div className="w-[62%] p-2.5 border-r border-black text-[11px]">
+                <div className="font-normal text-black">Special Instructions:</div>
+                <div className="text-[11px] font-normal text-black mt-1 break-words">
+                  {job.special_instructions || ""}
                 </div>
               </div>
+              <div className="w-[38%] p-2.5 text-[11px]">
+                <div className="font-normal text-black">Billing Party:</div>
+                <div className="text-[11px] font-bold text-black mt-0.5 break-words">
+                  {job.billing_client_name || job.billing_party || "Global Foods"}
+                </div>
+              </div>
+            </div>
+
+            {/* 7. Jurisdiction, At Owner's Risk, Company Name */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-black text-[11px]">
+              <div className="w-1/3 text-left text-[10px] text-black font-normal">
+                Subject to {companyCity} Jurisdiction only
+              </div>
+              <div className="w-1/3 text-center">
+                <div className="text-[10px] font-bold tracking-wider text-black uppercase">
+                  AT OWNER&apos;S RISK
+                </div>
+                <div className="text-[11px] font-bold text-black mt-0.5">
+                  Consignor Copy
+                </div>
+              </div>
+              <div className="w-1/3 text-right text-[11px] font-bold text-black uppercase">
+                {companyName}
+              </div>
+            </div>
+
+            {/* 8. Bottom Black Warning Bar */}
+            <div className="bg-black text-white text-center py-1.5 px-3 text-[10px] sm:text-[11px] font-medium tracking-wide">
+              This LR is computer generated, hence no need to signature and stamp.
             </div>
           </div>
         </div>
 
         {/* Modal Bottom Bar (Hidden in Print) */}
-        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between no-print">
+        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print">
           <div className="text-xs text-slate-500">
             Status: <span className="font-semibold text-slate-800">{job.status}</span>
           </div>
@@ -644,12 +560,13 @@ export function JobOrderViewModal({
             {job.status === "OPEN" && (
               <Button
                 type="button"
+                variant="primary"
                 size="sm"
                 onClick={() => {
                   onClose();
                   onBookLR(job.id);
                 }}
-                className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium cursor-pointer"
+                className="text-xs font-medium cursor-pointer"
               >
                 Proceed to Book GR/LR
               </Button>

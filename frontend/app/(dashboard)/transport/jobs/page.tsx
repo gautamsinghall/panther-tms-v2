@@ -35,7 +35,9 @@ interface JobRecord {
   billing_party?: string;
   billing_client_name?: string;
   consigner_name?: string;
+  consigner_code?: string;
   consignee_name?: string;
+  consignee_code?: string;
   origin_city?: string;
   destination_city?: string;
   expected_dispatch_date?: string;
@@ -43,6 +45,7 @@ interface JobRecord {
   estimated_weight_mt?: string | number;
   estimated_packages?: number;
   status: string;
+  special_instructions?: string;
   created_at: string;
 }
 
