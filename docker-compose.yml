@@ -53,6 +53,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: panther-backend:latest
     container_name: panther-backend
     restart: unless-stopped
     deploy:
@@ -89,6 +90,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: panther-frontend:latest
     container_name: panther-frontend
     restart: unless-stopped
     deploy:
