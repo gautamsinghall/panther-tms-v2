@@ -1,11 +1,14 @@
-from typing import List
-from fastapi import APIRouter, Depends, status
+from typing import List, Dict, Any
+from fastapi import APIRouter, Depends, status, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.errors import AppException
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit
 from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.modules.transport import service
+from app.modules.transport.excel_import import generate_job_import_template, import_jobs_from_excel
 from app.modules.transport.schemas import (
     VehicleOwnerCreate, VehicleOwnerUpdate, VehicleOwnerResponse,
     DriverCreate, DriverUpdate, DriverResponse,
@@ -176,6 +179,59 @@ async def delete_company_vehicle(
 # ==============================================================================
 # 5. Jobs & Workflow Transitions
 # ==============================================================================
+@router.get("/jobs/excel-template")
+async def download_job_excel_template(
+    current_user: User = Depends(require_permission("transport", "jobs", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Generates and downloads the official Job Order Excel Import Template
+    with styled header row, sample data, and reference master lists.
+    """
+    excel_stream = await generate_job_import_template(db)
+    return StreamingResponse(
+        excel_stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=PantherTMS_Job_Orders_Import_Template.xlsx"
+        }
+    )
+
+@router.post("/jobs/import-excel")
+async def import_jobs_excel(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_permission("transport", "jobs", "create")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Mass imports Job Orders from an Excel (.xlsx/.xls) or CSV file.
+    Enforces comprehensive 2-level deduplication:
+    - Within Excel: catches duplicated job numbers and duplicated trip order rows.
+    - Against Database: catches existing job numbers and active identical trip orders.
+    - Resolves and auto-creates sub-fields (Billing Client, Origin/Destination Location, Consigner, Consignee).
+    """
+    if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
+        raise AppException(
+            status_code=400,
+            error_code="INVALID_FILE_FORMAT",
+            message="Only Excel (.xlsx, .xls) and CSV (.csv) files are supported for mass import."
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise AppException(
+            status_code=400,
+            error_code="EMPTY_FILE",
+            message="The uploaded file is empty."
+        )
+
+    return await import_jobs_from_excel(
+        db=db,
+        file_bytes=file_bytes,
+        filename=file.filename,
+        user_id=current_user.id
+    )
+
 @router.get("/jobs", response_model=List[JobResponse])
 async def list_jobs(
     current_user: User = Depends(require_permission("transport", "jobs", "view")),

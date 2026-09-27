@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles } from "lucide-react";
+import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -20,6 +20,7 @@ import {
   QuickCreateConsigneeModal,
   QuickCreateLocationModal,
 } from "@/components/modals/quick-create-modal";
+import { JobExcelImportModal } from "@/components/modals/job-excel-import-modal";
 
 interface JobRecord {
   id: number;
@@ -77,6 +78,9 @@ export default function JobsPage() {
   const [quickConsignerOpen, setQuickConsignerOpen] = useState(false);
   const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
   const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
+
+  // Excel Import Modal state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -435,6 +439,14 @@ export default function JobsPage() {
           icon: <Plus className="w-4 h-4" />,
           onClick: openCreateJobDrawer,
         }}
+        secondaryActions={[
+          {
+            label: "Import from Excel",
+            icon: <FileSpreadsheet className="w-4 h-4 text-emerald-600" />,
+            onClick: () => setIsImportModalOpen(true),
+            variant: "outline",
+          },
+        ]}
       />
 
       {/* Operational KPI Summary */}
@@ -547,6 +559,15 @@ export default function JobsPage() {
         onClose={() => setQuickLocationTarget(null)}
         onSuccess={handleLocationCreated}
         defaultTitle={quickLocationTarget === "origin" ? "Quick Add Origin Hub / City" : "Quick Add Destination Hub / City"}
+      />
+
+      {/* Mass Excel Import Modal */}
+      <JobExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          loadData();
+        }}
       />
     </div>
   );
