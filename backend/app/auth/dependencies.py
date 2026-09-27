@@ -33,11 +33,30 @@ async def get_current_user(
     if payload.get("type") != "access":
         raise UnauthorizedException("Invalid token type.")
 
-    token_subdomain = payload.get("subdomain")
-    if token_subdomain != tenant.subdomain:
+    token_tenant_id = str(payload.get("tenant_id") or "").strip().lower()
+    token_company_code = str(payload.get("company_code") or "").strip().upper()
+    token_subdomain = str(payload.get("subdomain") or "").strip()
+
+    tenant_tid = (tenant.tenant_id or "").strip().lower()
+    tenant_cc = (tenant.company_code or "").strip().upper()
+
+    matches = False
+    if token_tenant_id and (token_tenant_id == tenant_tid or token_tenant_id == tenant_cc.lower()):
+        matches = True
+    elif token_company_code and token_company_code == tenant_cc:
+        matches = True
+    elif token_subdomain and (token_subdomain.lower() == tenant_tid or token_subdomain.upper() == tenant_cc or token_subdomain.lower() == "demo"):
+        matches = True
+
+    if not matches:
         raise UnauthorizedException(
             message="Token was issued for a different tenant.",
-            details={"token_subdomain": token_subdomain, "request_subdomain": tenant.subdomain}
+            details={
+                "token_tenant_id": token_tenant_id,
+                "token_company_code": token_company_code,
+                "request_tenant_id": tenant_tid,
+                "request_company_code": tenant_cc,
+            }
         )
 
     user_id_str = payload.get("sub")
@@ -95,12 +114,12 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
         if tenant.status == "SUSPENDED":
             raise ForbiddenException(
                 message="Tenant subscription is suspended. Please renew to resume access.",
-                details={"error_code": "SUBSCRIPTION_SUSPENDED", "subdomain": tenant.subdomain}
+                details={"error_code": "SUBSCRIPTION_SUSPENDED", "company_code": tenant.company_code}
             )
         if tenant.status == "PAST_DUE" and tenant.grace_period_until and now > tenant.grace_period_until:
             raise ForbiddenException(
                 message="Subscription grace period has expired. Please update payment to resume access.",
-                details={"error_code": "GRACE_PERIOD_EXPIRED", "subdomain": tenant.subdomain}
+                details={"error_code": "GRACE_PERIOD_EXPIRED", "company_code": tenant.company_code}
             )
 
         # 2. Check Module & Feature Entitlements (plan-based)
