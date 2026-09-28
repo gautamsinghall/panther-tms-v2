@@ -59,6 +59,22 @@ interface CompanySettingData {
   issuing_office?: string | null;
 }
 
+interface BranchData {
+  id: number;
+  code: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  address?: string | null;
+  pincode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  gstin?: string | null;
+  pan?: string | null;
+  document_notes?: string | null;
+  is_head_office: boolean;
+}
+
 interface JobOrderViewModalProps {
   isOpen: boolean;
   job: JobViewRecord | null;
@@ -76,6 +92,7 @@ export function JobOrderViewModal({
 }: JobOrderViewModalProps) {
   const [mounted, setMounted] = useState(false);
   const [company, setCompany] = useState<CompanySettingData | null>(null);
+  const [issuingBranch, setIssuingBranch] = useState<BranchData | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -86,9 +103,22 @@ export function JobOrderViewModal({
   useEffect(() => {
     async function loadCompanyDetails() {
       try {
-        const data = await apiClient<CompanySettingData>("/api/v1/profile/company");
-        if (data && (data.company_name || data.gstin || data.address)) {
-          setCompany(data);
+        const [compData, branchList] = await Promise.all([
+          apiClient<CompanySettingData>("/api/v1/profile/company"),
+          apiClient<BranchData[]>("/api/v1/profile/branches").catch(() => []),
+        ]);
+
+        if (compData) {
+          setCompany(compData);
+        }
+
+        const validBranches = Array.isArray(branchList) ? branchList : [];
+        if (validBranches.length > 0) {
+          const selected =
+            validBranches.find((b) => b.id === (compData as any)?.default_issuing_office_id) ||
+            validBranches.find((b) => b.is_head_office) ||
+            validBranches[0];
+          setIssuingBranch(selected);
         }
       } catch {
         const auth = getStoredAuth();
@@ -193,15 +223,17 @@ export function JobOrderViewModal({
   };
 
   const auth = getStoredAuth();
-  const companyName = company?.company_name?.trim() || auth?.tenantName || "DEMO PRIVATE LIMITED";
-  const companyAddress = company?.address?.trim() || "Plot No XYZ, ABC Area";
-  const companyCity = company?.city?.trim() || "DELHI";
-  const companyState = company?.state?.trim() || "DELHI";
-  const companyPincode = company?.pincode?.trim() || "123456";
-  const companyPhone = company?.phone?.trim() || "1234567890";
-  const companyEmail = company?.email?.trim() || "demo@panthertms.com";
-  const companyGstin = company?.gstin?.trim() || "07ABCDE1234A1ZP";
-  const companyPan = company?.pan?.trim() || "ABCDE1234A";
+  const companyName = company?.company_name?.trim() || auth?.tenantName || "PANTHER LOGISTICS";
+  const officeAddress = issuingBranch?.address?.trim() || company?.address?.trim() || "Registered Corporate Office";
+  const officeCity = issuingBranch?.city?.trim() || company?.city?.trim() || "DELHI";
+  const officeState = issuingBranch?.state?.trim() || company?.state?.trim() || "DELHI";
+  const officePincode = issuingBranch?.pincode?.trim() || company?.pincode?.trim() || "";
+  const officePhone = issuingBranch?.phone?.trim() || company?.phone?.trim() || "—";
+  const officeEmail = issuingBranch?.email?.trim() || company?.email?.trim() || "—";
+  const officeGstin = issuingBranch?.gstin?.trim() || company?.gstin?.trim() || "—";
+  const officePan = company?.pan?.trim() || issuingBranch?.pan?.trim() || "—";
+  const officeName = issuingBranch?.name?.trim() || company?.issuing_office?.trim() || `Head Office ${officeCity}`;
+  const jurisdictionText = issuingBranch?.document_notes?.trim() || `Subject to ${officeCity} Jurisdiction only`;
 
   const modalNode = (
     <div className="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:absolute print:inset-0">
@@ -378,22 +410,22 @@ export function JobOrderViewModal({
                 )}
               </div>
 
-              {/* Middle: Company Details (Fetched dynamically from company settings) */}
+              {/* Middle: Company Legal Name & Issuing Office Location */}
               <div className="w-[44%] text-center px-1">
                 <div className="text-sm sm:text-base font-black text-red-600 uppercase tracking-wide leading-tight">
                   {companyName}
                 </div>
                 <div className="text-[11px] text-black font-medium leading-tight mt-1">
-                  {companyAddress}
+                  {officeAddress}
                 </div>
                 <div className="text-[11px] text-black font-medium leading-tight">
-                  {companyCity} {companyState} {companyPincode}
+                  {officeCity} {officeState} {officePincode ? `- ${officePincode}` : ""}
                 </div>
                 <div className="text-[11px] text-black font-medium leading-tight">
-                  Phone: {companyPhone}
+                  Phone: {officePhone}
                 </div>
                 <div className="text-[11px] text-black font-medium leading-tight">
-                  Email: {companyEmail}
+                  Email: {officeEmail}
                 </div>
               </div>
 
@@ -402,16 +434,16 @@ export function JobOrderViewModal({
                 <div>
                   <span className="font-normal">Issuing Office: </span>
                   <span className="font-semibold">
-                    {company?.issuing_office || `Head Office ${companyCity}`}
+                    {officeName}
                   </span>
                 </div>
                 <div>
                   <span className="font-normal">GST No: </span>
-                  <span className="font-semibold font-mono">{companyGstin}</span>
+                  <span className="font-semibold font-mono">{officeGstin}</span>
                 </div>
                 <div>
                   <span className="font-normal">PAN No: </span>
-                  <span className="font-semibold font-mono">{companyPan}</span>
+                  <span className="font-semibold font-mono">{officePan}</span>
                 </div>
               </div>
             </div>
@@ -536,7 +568,7 @@ export function JobOrderViewModal({
             {/* 7. Jurisdiction, At Owner's Risk, Company Name */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-black text-[11px]">
               <div className="w-1/3 text-left text-[10px] text-black font-normal">
-                Subject to {companyCity} Jurisdiction only
+                {jurisdictionText}
               </div>
               <div className="w-1/3 text-center">
                 <div className="text-[10px] font-bold tracking-wider text-black uppercase">

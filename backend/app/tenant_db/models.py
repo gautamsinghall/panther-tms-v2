@@ -80,6 +80,7 @@ class CompanySetting(TenantBase):
     signing_authority_name = Column(String(255), nullable=True)
     signing_authority_designation = Column(String(255), nullable=True)
     issuing_office = Column(String(255), nullable=True)
+    default_issuing_office_id = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -1388,6 +1389,12 @@ class Branch(TenantBase):
     phone = Column(String(50), nullable=True)
     email = Column(String(255), nullable=True)
     gstin = Column(String(15), nullable=True)
+    pan = Column(String(10), nullable=True)
+    bank_name = Column(String(150), nullable=True)
+    bank_account_no = Column(String(50), nullable=True)
+    bank_ifsc = Column(String(20), nullable=True)
+    bank_branch = Column(String(150), nullable=True)
+    document_notes = Column(Text, nullable=True)
     is_head_office = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

@@ -31,6 +31,12 @@ class BranchBase(BaseModel):
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
     gstin: Optional[str] = None
+    pan: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_account_no: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    bank_branch: Optional[str] = None
+    document_notes: Optional[str] = None
     is_head_office: bool = False
     is_active: bool = True
 
@@ -42,6 +48,8 @@ class BranchBase(BaseModel):
                 data["code"] = data["branch_code"]
             if "branch_name" in data and "name" not in data:
                 data["name"] = data["branch_name"]
+            if "bank_account_number" in data and "bank_account_no" not in data:
+                data["bank_account_no"] = data["bank_account_number"]
             if not data.get("city"):
                 data["city"] = "Headquarters"
             if not data.get("state"):
@@ -60,6 +68,12 @@ class BranchUpdate(BaseModel):
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
     gstin: Optional[str] = None
+    pan: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_account_no: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    bank_branch: Optional[str] = None
+    document_notes: Optional[str] = None
     is_head_office: Optional[bool] = None
     is_active: Optional[bool] = None
 
@@ -90,6 +104,7 @@ class CompanySettingUpdate(BaseModel):
     signing_authority_name: Optional[str] = None
     signing_authority_designation: Optional[str] = None
     issuing_office: Optional[str] = None
+    default_issuing_office_id: Optional[int] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -120,6 +135,7 @@ class CompanySettingResponse(BaseModel):
     signing_authority_name: Optional[str] = None
     signing_authority_designation: Optional[str] = None
     issuing_office: Optional[str] = None
+    default_issuing_office_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

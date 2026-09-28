@@ -62,23 +62,44 @@ async def create_branch(db: AsyncSession, data: BranchCreate) -> Branch:
         raise AppException(
             status_code=409,
             error_code="BRANCH_EXISTS",
-            message=f"Branch with code '{code}' already exists.",
+            message=f"Issuing office / branch with code '{code}' already exists.",
         )
+
+    # If this branch is set as head office, unset all existing head offices
+    if data.is_head_office:
+        all_branches = await get_branches(db)
+        for b in all_branches:
+            if b.is_head_office:
+                b.is_head_office = False
 
     branch = Branch(
         code=code,
         name=data.name.strip(),
-        city=data.city.strip(),
-        state=data.state.strip(),
-        address=data.address,
-        pincode=data.pincode,
-        phone=data.phone,
-        email=str(data.email) if data.email else None,
-        gstin=data.gstin,
+        city=data.city.strip() if data.city else "Headquarters",
+        state=data.state.strip() if data.state else "Default State",
+        address=data.address.strip() if data.address else None,
+        pincode=data.pincode.strip() if data.pincode else None,
+        phone=data.phone.strip() if data.phone else None,
+        email=str(data.email).strip() if data.email else None,
+        gstin=data.gstin.strip().upper() if data.gstin else None,
+        pan=data.pan.strip().upper() if data.pan else None,
+        bank_name=data.bank_name.strip() if data.bank_name else None,
+        bank_account_no=data.bank_account_no.strip() if data.bank_account_no else None,
+        bank_ifsc=data.bank_ifsc.strip().upper() if data.bank_ifsc else None,
+        bank_branch=data.bank_branch.strip() if data.bank_branch else None,
+        document_notes=data.document_notes.strip() if data.document_notes else None,
         is_head_office=data.is_head_office,
         is_active=data.is_active,
     )
     db.add(branch)
+    await db.flush()
+
+    # Sync with CompanySetting
+    company_setting = await get_company_setting(db)
+    if data.is_head_office or not company_setting.default_issuing_office_id:
+        company_setting.default_issuing_office_id = branch.id
+        company_setting.issuing_office = branch.name
+
     await db.commit()
     await db.refresh(branch)
     return branch
@@ -88,7 +109,7 @@ async def update_branch(db: AsyncSession, branch_id: int, data: BranchUpdate) ->
     stmt = select(Branch).where(Branch.id == branch_id)
     branch = (await db.execute(stmt)).scalar_one_or_none()
     if not branch:
-        raise AppException(status_code=404, error_code="BRANCH_NOT_FOUND", message="Branch not found.")
+        raise AppException(status_code=404, error_code="BRANCH_NOT_FOUND", message="Issuing office / branch not found.")
 
     if data.name is not None:
         branch.name = data.name.strip()
@@ -97,19 +118,45 @@ async def update_branch(db: AsyncSession, branch_id: int, data: BranchUpdate) ->
     if data.state is not None:
         branch.state = data.state.strip()
     if data.address is not None:
-        branch.address = data.address
+        branch.address = data.address.strip() if data.address else None
     if data.pincode is not None:
-        branch.pincode = data.pincode
+        branch.pincode = data.pincode.strip() if data.pincode else None
     if data.phone is not None:
-        branch.phone = data.phone
+        branch.phone = data.phone.strip() if data.phone else None
     if data.email is not None:
-        branch.email = str(data.email) if data.email else None
+        branch.email = str(data.email).strip() if data.email else None
     if data.gstin is not None:
-        branch.gstin = data.gstin
-    if data.is_head_office is not None:
-        branch.is_head_office = data.is_head_office
+        branch.gstin = data.gstin.strip().upper() if data.gstin else None
+    if data.pan is not None:
+        branch.pan = data.pan.strip().upper() if data.pan else None
+    if data.bank_name is not None:
+        branch.bank_name = data.bank_name.strip() if data.bank_name else None
+    if data.bank_account_no is not None:
+        branch.bank_account_no = data.bank_account_no.strip() if data.bank_account_no else None
+    if data.bank_ifsc is not None:
+        branch.bank_ifsc = data.bank_ifsc.strip().upper() if data.bank_ifsc else None
+    if data.bank_branch is not None:
+        branch.bank_branch = data.bank_branch.strip() if data.bank_branch else None
+    if data.document_notes is not None:
+        branch.document_notes = data.document_notes.strip() if data.document_notes else None
     if data.is_active is not None:
         branch.is_active = data.is_active
+
+    if data.is_head_office is not None:
+        if data.is_head_office:
+            # Unset all other head offices
+            all_branches = await get_branches(db)
+            for b in all_branches:
+                if b.id != branch.id and b.is_head_office:
+                    b.is_head_office = False
+            branch.is_head_office = True
+
+            # Sync with CompanySetting
+            company_setting = await get_company_setting(db)
+            company_setting.default_issuing_office_id = branch.id
+            company_setting.issuing_office = branch.name
+        else:
+            branch.is_head_office = False
 
     branch.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -121,9 +168,21 @@ async def delete_branch(db: AsyncSession, branch_id: int) -> None:
     stmt = select(Branch).where(Branch.id == branch_id)
     branch = (await db.execute(stmt)).scalar_one_or_none()
     if not branch:
-        raise AppException(status_code=404, error_code="BRANCH_NOT_FOUND", message="Branch not found.")
+        raise AppException(status_code=404, error_code="BRANCH_NOT_FOUND", message="Issuing office / branch not found.")
     if branch.is_head_office:
-        raise AppException(status_code=400, error_code="CANNOT_DELETE_HQ", message="Head Office branch cannot be deleted.")
+        raise AppException(status_code=400, error_code="CANNOT_DELETE_HQ", message="Corporate Head Office / Primary Issuing Office cannot be deleted.")
+
+    # If it was the default issuing office in CompanySetting, clear or fallback
+    company_setting = await get_company_setting(db)
+    if company_setting.default_issuing_office_id == branch_id:
+        other_stmt = select(Branch).where(Branch.id != branch_id).order_by(Branch.is_head_office.desc())
+        other_branch = (await db.execute(other_stmt)).scalars().first()
+        if other_branch:
+            company_setting.default_issuing_office_id = other_branch.id
+            company_setting.issuing_office = other_branch.name
+        else:
+            company_setting.default_issuing_office_id = None
+            company_setting.issuing_office = None
 
     await db.delete(branch)
     await db.commit()
@@ -183,6 +242,12 @@ async def update_company_setting(db: AsyncSession, data: CompanySettingUpdate) -
         setting.signing_authority_designation = data.signing_authority_designation
     if data.issuing_office is not None:
         setting.issuing_office = data.issuing_office
+    if data.default_issuing_office_id is not None:
+        setting.default_issuing_office_id = data.default_issuing_office_id
+        branch_stmt = select(Branch).where(Branch.id == data.default_issuing_office_id)
+        selected_branch = (await db.execute(branch_stmt)).scalar_one_or_none()
+        if selected_branch:
+            setting.issuing_office = selected_branch.name
 
     setting.updated_at = datetime.now(timezone.utc)
     await db.commit()

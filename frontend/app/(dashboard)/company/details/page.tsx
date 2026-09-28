@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   FileText,
@@ -12,11 +13,13 @@ import {
   Trash2,
   PenTool,
   MapPin,
-  Landmark,
   Eye,
   ShieldCheck,
   ExternalLink,
   ImageIcon,
+  Plus,
+  Globe,
+  Info,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -25,58 +28,61 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { getStoredAuth } from "@/lib/auth";
 
-interface CompanySettingData {
-  id?: number;
-  company_name: string;
-  gstin?: string | null;
-  pan?: string | null;
-  address?: string | null;
+interface BranchOption {
+  id: number;
+  code: string;
+  name: string;
   city?: string | null;
   state?: string | null;
+  address?: string | null;
   pincode?: string | null;
   phone?: string | null;
   email?: string | null;
-  website?: string | null;
+  gstin?: string | null;
+  pan?: string | null;
   bank_name?: string | null;
   bank_account_no?: string | null;
-  bank_account_number?: string | null;
   bank_ifsc?: string | null;
   bank_branch?: string | null;
+  document_notes?: string | null;
+  is_head_office: boolean;
+  is_active: boolean;
+}
+
+interface CompanySettingData {
+  id?: number;
+  company_name: string;
+  pan?: string | null;
+  website?: string | null;
   logo_url?: string | null;
   signature_url?: string | null;
   signing_authority_name?: string | null;
   signing_authority_designation?: string | null;
   issuing_office?: string | null;
+  default_issuing_office_id?: number | null;
 }
 
 export default function CompanyDetailsPage() {
+  const router = useRouter();
   const [tenantId, setTenantId] = useState("");
   const [companyCode, setCompanyCode] = useState("");
 
-  // Form Fields
+  // Global Company-Wide Information (Shared across all offices)
   const [companyName, setCompanyName] = useState("");
-  const [gstin, setGstin] = useState("");
+  const [legalEntityName, setLegalEntityName] = useState("");
   const [pan, setPan] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [pincode, setPincode] = useState("");
 
-  // Bank details
-  const [bankName, setBankName] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
-  const [bankIfsc, setBankIfsc] = useState("");
-  const [bankBranch, setBankBranch] = useState("");
+  // Default Issuing Office
+  const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [defaultIssuingOfficeId, setDefaultIssuingOfficeId] = useState<number | "">("");
+  const [issuingOfficeLabel, setIssuingOfficeLabel] = useState("");
 
-  // Voucher Printing Options
+  // Global Voucher Branding & Signing Authority (Printed on all vouchers)
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [signingAuthorityName, setSigningAuthorityName] = useState("");
   const [signingAuthorityDesignation, setSigningAuthorityDesignation] = useState("");
-  const [issuingOffice, setIssuingOffice] = useState("");
 
   // Status & State
   const [saved, setSaved] = useState(false);
@@ -95,31 +101,36 @@ export default function CompanyDetailsPage() {
       setCompanyCode(auth.companyCode || "");
     }
 
-    async function loadCompany() {
+    async function loadData() {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await apiClient<CompanySettingData>("/api/v1/profile/company");
-        if (data) {
-          setCompanyName(data.company_name || "");
-          setGstin(data.gstin || "");
-          setPan(data.pan || "");
-          setPhone(data.phone || "");
-          setEmail(data.email || "");
-          setWebsite(data.website || "");
-          setAddress(data.address || "");
-          setCity(data.city || "");
-          setState(data.state || "");
-          setPincode(data.pincode || "");
-          setBankName(data.bank_name || "");
-          setBankAccount(data.bank_account_no || data.bank_account_number || "");
-          setBankIfsc(data.bank_ifsc || "");
-          setBankBranch(data.bank_branch || "");
-          setLogoUrl(data.logo_url || null);
-          setSignatureUrl(data.signature_url || null);
-          setSigningAuthorityName(data.signing_authority_name || "");
-          setSigningAuthorityDesignation(data.signing_authority_designation || "");
-          setIssuingOffice(data.issuing_office || "");
+        const [companyData, branchList] = await Promise.all([
+          apiClient<CompanySettingData>("/api/v1/profile/company"),
+          apiClient<BranchOption[]>("/api/v1/profile/branches").catch(() => []),
+        ]);
+
+        const validBranches = Array.isArray(branchList) ? branchList : [];
+        setBranches(validBranches);
+
+        if (companyData) {
+          setCompanyName(companyData.company_name || "");
+          setLegalEntityName(companyData.company_name || "");
+          setPan(companyData.pan || "");
+          setWebsite(companyData.website || "");
+          setLogoUrl(companyData.logo_url || null);
+          setSignatureUrl(companyData.signature_url || null);
+          setSigningAuthorityName(companyData.signing_authority_name || "");
+          setSigningAuthorityDesignation(companyData.signing_authority_designation || "");
+          setIssuingOfficeLabel(companyData.issuing_office || "");
+
+          if (companyData.default_issuing_office_id) {
+            setDefaultIssuingOfficeId(companyData.default_issuing_office_id);
+          } else if (validBranches.length > 0) {
+            const hq = validBranches.find((b) => b.is_head_office) || validBranches[0];
+            setDefaultIssuingOfficeId(hq.id);
+            setIssuingOfficeLabel(hq.name);
+          }
         }
       } catch (err: any) {
         setError(err.message || "Failed to load company details.");
@@ -128,8 +139,25 @@ export default function CompanyDetailsPage() {
       }
     }
 
-    loadCompany();
+    loadData();
   }, []);
+
+  // Selected office object for voucher preview and metadata
+  const selectedBranch = branches.find((b) => b.id === Number(defaultIssuingOfficeId)) || branches[0] || null;
+
+  // Handle changing the default issuing office
+  const handleDefaultOfficeChange = (branchIdStr: string) => {
+    if (!branchIdStr) {
+      setDefaultIssuingOfficeId("");
+      return;
+    }
+    const id = Number(branchIdStr);
+    setDefaultIssuingOfficeId(id);
+    const chosen = branches.find((b) => b.id === id);
+    if (chosen) {
+      setIssuingOfficeLabel(chosen.name);
+    }
+  };
 
   // Helper to convert and compress image files to lightweight Data URLs
   const processImageFile = (file: File, callback: (dataUrl: string) => void) => {
@@ -203,33 +231,23 @@ export default function CompanyDetailsPage() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setIsSaving(true);
     setError(null);
     try {
       await apiClient<CompanySettingData>("/api/v1/profile/company", {
         method: "PUT",
         body: JSON.stringify({
-          company_name: companyName,
-          gstin: gstin ? gstin.toUpperCase().trim() : null,
+          company_name: (legalEntityName || companyName).trim(),
           pan: pan ? pan.toUpperCase().trim() : null,
-          phone: phone || null,
-          email: email || null,
-          website: website || null,
-          address: address || null,
-          city: city || null,
-          state: state || null,
-          pincode: pincode || null,
-          bank_name: bankName || null,
-          bank_account_no: bankAccount || null,
-          bank_ifsc: bankIfsc ? bankIfsc.toUpperCase().trim() : null,
-          bank_branch: bankBranch || null,
+          website: website ? website.trim() : null,
           logo_url: logoUrl || "",
           signature_url: signatureUrl || "",
-          signing_authority_name: signingAuthorityName || null,
-          signing_authority_designation: signingAuthorityDesignation || null,
-          issuing_office: issuingOffice || null,
+          signing_authority_name: signingAuthorityName ? signingAuthorityName.trim() : null,
+          signing_authority_designation: signingAuthorityDesignation ? signingAuthorityDesignation.trim() : null,
+          default_issuing_office_id: defaultIssuingOfficeId ? Number(defaultIssuingOfficeId) : null,
+          issuing_office: issuingOfficeLabel ? issuingOfficeLabel.trim() : null,
         }),
       });
 
@@ -245,8 +263,8 @@ export default function CompanyDetailsPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <PageHeader
-        title="Company Details & Branding"
-        description="Configure enterprise profile, upload official brand logo, and set signing authority for all printed transport vouchers & LRs."
+        title="Company Details & Global Branding"
+        description="Global corporate profile, brand logo, signing authority, and default issuing office shared across all transport operations."
         breadcrumbs={[
           { label: "Company Settings", href: "/company/details" },
           { label: "Company Details" },
@@ -268,20 +286,42 @@ export default function CompanyDetailsPage() {
             variant="primary"
             size="sm"
             disabled={isSaving || isLoading}
-            onClick={handleSave}
+            onClick={() => handleSave()}
             className="text-xs h-9 gap-1.5 cursor-pointer"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-            <span>Save All Changes</span>
+            <span>Save Company Details</span>
           </Button>
         </div>
       </PageHeader>
+
+      {/* Informative Separation Guide Banner */}
+      <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-xl text-sky-950 flex items-start gap-3 shadow-2xs">
+        <div className="p-1 rounded-md bg-sky-100 text-sky-700 shrink-0 mt-0.5">
+          <Info className="w-4 h-4" />
+        </div>
+        <div className="text-xs space-y-1">
+          <span className="font-semibold text-sky-900 block">
+            Clear Separation of Company-Wide vs. Issuing Office Information
+          </span>
+          <p className="text-sky-700 leading-relaxed">
+            <strong>Company Details</strong> holds only global corporate information common to the entire organization (brand name, legal entity name, corporate PAN, website, official logo, and signing authority). Location-specific details (registered office address, state GSTIN, bank accounts, and local phone/email) belong to each individual location and are configured under{" "}
+            <Link
+              href="/company/branches"
+              className="font-semibold text-sky-900 underline hover:text-indigo-700 inline-flex items-center gap-0.5 ml-1"
+            >
+              Issuing Offices / Branches
+              <ExternalLink className="w-3 h-3" />
+            </Link>.
+          </p>
+        </div>
+      </div>
 
       {saved && (
         <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-lg text-xs font-medium flex items-center justify-between shadow-2xs animate-in fade-in">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Company details, branding logo, and voucher signing authority updated successfully!</span>
+            <span>Company details, official branding, and default issuing office updated successfully!</span>
           </div>
           <span className="text-[11px] text-emerald-700 font-mono">Saved to Tenant DB</span>
         </div>
@@ -294,7 +334,7 @@ export default function CompanyDetailsPage() {
         </div>
       )}
 
-      {/* Interactive Voucher Print Live Preview */}
+      {/* Interactive Live Voucher Preview */}
       {showVoucherPreview && (
         <Card className="p-5 border-2 border-indigo-200 bg-slate-50/80 shadow-md animate-in slide-in-from-top-4 duration-200">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
@@ -307,7 +347,7 @@ export default function CompanyDetailsPage() {
                   Live Voucher Header & Signatory Print Simulation
                 </h4>
                 <p className="text-[11px] text-slate-500">
-                  This preview renders exactly how your logo, issuing office, and signature appear on printed Trip Orders and LRs.
+                  Renders company-wide branding alongside the selected Default Issuing Office location data.
                 </p>
               </div>
             </div>
@@ -319,7 +359,7 @@ export default function CompanyDetailsPage() {
           <div className="bg-white border-2 border-black p-4 text-black max-w-3xl mx-auto shadow-sm">
             {/* Header Preview */}
             <div className="flex items-center justify-between pb-3 border-b-2 border-black gap-2">
-              {/* Logo Preview */}
+              {/* Logo Preview (Company Wide) */}
               <div className="w-[30%] flex flex-col items-center justify-center shrink-0">
                 {logoUrl ? (
                   <img
@@ -335,19 +375,20 @@ export default function CompanyDetailsPage() {
                 )}
               </div>
 
-              {/* Middle Company Details */}
+              {/* Middle Company Details (Global Legal Name + Issuing Office Location) */}
               <div className="w-[42%] text-center px-1">
                 <div className="text-sm font-black text-red-600 uppercase tracking-wide leading-tight">
-                  {companyName || "Panther Logistics"}
+                  {legalEntityName || companyName || "Panther Logistics"}
                 </div>
-                <div className="text-[10px] font-medium leading-tight mt-0.5">
-                  {address || "Registered Corporate Office"}
+                <div className="text-[10px] font-medium leading-tight mt-0.5 text-slate-800">
+                  {selectedBranch?.address || "Address defined by selected Issuing Office / Branch"}
                 </div>
-                <div className="text-[10px] font-medium leading-tight">
-                  {city || "City"} {state || "State"} {pincode || ""}
+                <div className="text-[10px] font-medium leading-tight text-slate-800">
+                  {selectedBranch?.city || "Office City"} {selectedBranch?.state || "State"}{" "}
+                  {selectedBranch?.pincode ? `- ${selectedBranch.pincode}` : ""}
                 </div>
-                <div className="text-[10px] font-medium leading-tight">
-                  Phone: {phone || "-"} | Email: {email || "-"}
+                <div className="text-[10px] font-medium leading-tight text-slate-700">
+                  Phone: {selectedBranch?.phone || "—"} | Email: {selectedBranch?.email || "—"}
                 </div>
               </div>
 
@@ -356,29 +397,31 @@ export default function CompanyDetailsPage() {
                 <div>
                   <span className="font-normal text-slate-600">Issuing Office: </span>
                   <span className="font-semibold text-black">
-                    {issuingOffice || `Head Office ${city || "Main Hub"}`}
+                    {selectedBranch?.name || issuingOfficeLabel || "Default Issuing Office"}
                   </span>
                 </div>
                 <div>
-                  <span className="font-normal text-slate-600">GST No: </span>
-                  <span className="font-semibold font-mono">{gstin || "07AAAAA0000A1Z5"}</span>
+                  <span className="font-normal text-slate-600">GSTIN: </span>
+                  <span className="font-semibold font-mono">
+                    {selectedBranch?.gstin || "Per Issuing Office"}
+                  </span>
                 </div>
                 <div>
-                  <span className="font-normal text-slate-600">PAN No: </span>
-                  <span className="font-semibold font-mono">{pan || "AAAAA0000A"}</span>
+                  <span className="font-normal text-slate-600">PAN: </span>
+                  <span className="font-semibold font-mono">{pan || selectedBranch?.pan || "AAAAA0000A"}</span>
                 </div>
               </div>
             </div>
 
             {/* Simulated Body Bar */}
             <div className="py-4 my-2 text-center text-[10px] text-slate-400 bg-slate-50 border border-slate-200 border-dashed rounded">
-              [ Voucher Items, Freight Particulars, Consignor & Consignee Content Prints Here ]
+              [ Consignment Particulars, LR Packages, Freight Charges & Consignor/Consignee Info Prints Here ]
             </div>
 
             {/* Footer Signatory Preview */}
             <div className="flex items-center justify-between pt-2 border-t border-black text-[10px]">
               <div className="w-1/3 text-left text-[9px] text-slate-500">
-                Subject to {city || "Local"} Jurisdiction
+                Subject to {selectedBranch?.city || "Local"} Jurisdiction
               </div>
               <div className="w-1/3 text-center font-bold uppercase tracking-wider text-[10px]">
                 CONSIGNOR COPY
@@ -402,7 +445,7 @@ export default function CompanyDetailsPage() {
                   {signingAuthorityDesignation ? ` (${signingAuthorityDesignation})` : ""}
                 </div>
                 <div className="text-[10px] font-bold text-black uppercase mt-0.5">
-                  {companyName || "Panther Logistics"}
+                  {legalEntityName || companyName || "Panther Logistics"}
                 </div>
               </div>
             </div>
@@ -410,9 +453,9 @@ export default function CompanyDetailsPage() {
         </Card>
       )}
 
-      {/* Main Grid: Upload Cards */}
+      {/* Top 3 Cards Grid: Logo, Signatory, Default Issuing Office */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Card 1: Official Logo Upload */}
+        {/* Card 1: Official Brand Logo (Header) */}
         <Card className="p-5 flex flex-col justify-between space-y-4 shadow-2xs border-slate-200">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -424,11 +467,11 @@ export default function CompanyDetailsPage() {
                   Official Brand Logo
                 </h3>
               </div>
-              <span className="text-[10px] font-medium text-slate-500">Prints on Header</span>
+              <span className="text-[10px] font-medium text-slate-500">Company-Wide</span>
             </div>
 
             <p className="text-xs text-slate-500 mt-2.5">
-              Upload your company logo. This will print on the top-left of all Trip Order Vouchers, LRs, and Customer Invoices.
+              Upload the official corporate logo. This prints on the top header of all Trip Order Vouchers, LRs, and Invoices.
             </p>
 
             <div className="mt-4 flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/70 hover:bg-slate-50 transition-colors">
@@ -496,7 +539,7 @@ export default function CompanyDetailsPage() {
           </div>
         </Card>
 
-        {/* Card 2: Signing Authority & Stamp */}
+        {/* Card 2: Signing Authority & Stamp (Footer) */}
         <Card className="p-5 flex flex-col justify-between space-y-4 shadow-2xs border-slate-200">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -508,11 +551,11 @@ export default function CompanyDetailsPage() {
                   Signing Authority & Stamp
                 </h3>
               </div>
-              <span className="text-[10px] font-medium text-slate-500">Prints on Footer</span>
+              <span className="text-[10px] font-medium text-slate-500">Company-Wide</span>
             </div>
 
             <p className="text-xs text-slate-500 mt-2.5">
-              Upload the official digital signature or seal that prints automatically in the signatory box on vouchers.
+              Upload the corporate digital signature or seal that prints automatically in the signatory box on vouchers.
             </p>
 
             <div className="mt-4 flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/70 hover:bg-slate-50 transition-colors">
@@ -576,7 +619,7 @@ export default function CompanyDetailsPage() {
             <div className="space-y-2.5 mt-3 pt-2">
               <div>
                 <label className="text-[11px] font-medium text-slate-600 block mb-1">
-                  Signatory Name
+                  Authorized Signatory Name
                 </label>
                 <Input
                   value={signingAuthorityName}
@@ -592,7 +635,7 @@ export default function CompanyDetailsPage() {
                 <Input
                   value={signingAuthorityDesignation}
                   onChange={(e) => setSigningAuthorityDesignation(e.target.value)}
-                  placeholder="e.g. Authorized Signatory / Operations Manager"
+                  placeholder="e.g. Authorized Signatory / Operations Director"
                   className="text-xs h-8"
                 />
               </div>
@@ -601,11 +644,11 @@ export default function CompanyDetailsPage() {
 
           <div className="text-[11px] text-slate-400 pt-2 border-t border-slate-100 flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-            <span>Renders above the company signature label</span>
+            <span>Printed on all vouchers above company name</span>
           </div>
         </Card>
 
-        {/* Card 3: Default Issuing Office */}
+        {/* Card 3: Default Issuing Office (Dropdown or Empty State with Button) */}
         <Card className="p-5 flex flex-col justify-between space-y-4 shadow-2xs border-slate-200">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -621,60 +664,108 @@ export default function CompanyDetailsPage() {
             </div>
 
             <p className="text-xs text-slate-500 mt-2.5">
-              Specify the default branch office shown on vouchers for consignments issued from your primary hub.
+              Select the primary issuing office / branch whose registered address, GSTIN, and contact details are automatically used when issuing vouchers.
             </p>
 
-            <div className="space-y-3 mt-4">
-              <div>
-                <label className="text-[11px] font-medium text-slate-700 block mb-1">
-                  Issuing Office Label
-                </label>
-                <Input
-                  value={issuingOffice}
-                  onChange={(e) => setIssuingOffice(e.target.value)}
-                  placeholder="e.g. Head Office Ghaziabad - Main Hub"
-                  className="text-xs h-9 font-medium"
-                />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Leave blank to auto-use &quot;Head Office [City]&quot;
-                </span>
-              </div>
+            <div className="mt-4 space-y-3">
+              {branches.length === 0 ? (
+                /* Empty state required by prompt: "No issuing office has been created yet. Add an issuing office to continue." with Add Issuing Office button */
+                <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-xl space-y-3 text-center">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-amber-900 block">
+                      No issuing office has been created yet.
+                    </span>
+                    <span className="text-[11px] text-amber-700 block mt-0.5">
+                      Add an issuing office to continue.
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => router.push("/company/branches?add=true")}
+                    className="w-full text-xs h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Issuing Office</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-medium text-slate-700 block mb-1">
+                      Select Default Issuing Office / Branch <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={defaultIssuingOfficeId}
+                      onChange={(e) => handleDefaultOfficeChange(e.target.value)}
+                      className="w-full text-xs h-9 px-3 rounded-lg border border-slate-300 bg-white font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.code}) {b.is_head_office ? "★ Head Office" : ""} - {b.city || "Hub"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1.5">
-                <span className="text-[11px] font-semibold text-slate-700 block">
-                  Multiple Issuing Offices / Branches?
-                </span>
-                <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Manage individual branches with unique GSTINs, branch codes, and addresses across regions.
-                </p>
-                <Link
-                  href="/company/branches"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors pt-1 cursor-pointer"
-                >
-                  <span>Manage All Issuing Offices</span>
-                  <ExternalLink className="w-3 h-3" />
-                </Link>
-              </div>
+                  {selectedBranch && (
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-800">
+                          {selectedBranch.name}
+                        </span>
+                        {selectedBranch.is_head_office && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase">
+                            Head Office
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-600">
+                        {selectedBranch.address ? `${selectedBranch.address}, ` : ""}
+                        {selectedBranch.city || "—"}, {selectedBranch.state || "—"} {selectedBranch.pincode || ""}
+                      </div>
+                      <div className="text-[11px] font-mono text-slate-700 pt-1 border-t border-slate-200/60 flex items-center justify-between">
+                        <span>GSTIN: <strong>{selectedBranch.gstin || "—"}</strong></span>
+                        <span>Code: <strong>{selectedBranch.code}</strong></span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-1">
+                    <Link
+                      href="/company/branches"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                    >
+                      <span>Manage All Issuing Offices / Branches</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="text-[11px] text-slate-400 pt-2 border-t border-slate-100 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <span>Synced automatically across all voucher prints</span>
+            <span>Designated branch address automatically populates on vouchers</span>
           </div>
         </Card>
       </div>
 
-      {/* Statutory, Address, and Banking Details */}
+      {/* Global Corporate Details Form */}
       <form onSubmit={handleSave} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Statutory & Corporate Registration */}
+          {/* Left Column: Common Corporate Information */}
           <div className="lg:col-span-2">
             <Card className="p-6 space-y-5 shadow-2xs border-slate-200">
               <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-indigo-600" />
-                  Statutory & Registered Entity Information
+                  Common Corporate Information (Company-Wide)
                 </h4>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-slate-500 font-medium">Tenant ID:</span>
@@ -687,33 +778,42 @@ export default function CompanyDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Company Registered Legal Name <span className="text-rose-500">*</span>
+                    Overall Company Brand / Trade Name <span className="text-rose-500">*</span>
                   </label>
                   <Input
                     required
                     value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="Panther Digital Solutions Private Limited"
+                    onChange={(e) => {
+                      setCompanyName(e.target.value);
+                      if (!legalEntityName) setLegalEntityName(e.target.value);
+                    }}
+                    placeholder="e.g. Panther Logistics"
                     className="text-xs font-semibold text-slate-900"
                   />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Brand name displayed at the top of software and print templates.
+                  </span>
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    GSTIN (Goods and Services Tax No.)
+                    Legal Entity Name (Incorporated Corporate Entity) <span className="text-rose-500">*</span>
                   </label>
                   <Input
-                    value={gstin}
-                    maxLength={15}
-                    onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                    placeholder="07AAAAA0000A1Z5"
-                    className="font-mono text-xs tracking-wider font-semibold"
+                    required
+                    value={legalEntityName}
+                    onChange={(e) => setLegalEntityName(e.target.value)}
+                    placeholder="e.g. Panther Digital Solutions Private Limited"
+                    className="text-xs font-semibold text-slate-900"
                   />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Registered corporate name common to the entire company regardless of branch location.
+                  </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Company PAN (Income Tax Identifier)
+                    Corporate PAN (Entity-Wide Tax Identifier)
                   </label>
                   <Input
                     value={pan}
@@ -722,163 +822,92 @@ export default function CompanyDetailsPage() {
                     placeholder="AAAAA0000A"
                     className="font-mono text-xs tracking-wider font-semibold"
                   />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Entity-wide 10-character Income Tax PAN.
+                  </span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Official Business Phone
+                    Corporate Website URL
                   </label>
-                  <Input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Official Billing / Contact Email
-                  </label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="ops@panthertms.com"
-                    className="text-xs"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Company Website URL
-                  </label>
-                  <Input
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    placeholder="https://panthertms.com"
-                    className="text-xs"
-                  />
+                  <div className="relative">
+                    <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+                    <Input
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      placeholder="https://pantherlogistics.com"
+                      className="text-xs pl-8"
+                    />
+                  </div>
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Main company website or customer tracking portal.
+                  </span>
                 </div>
               </div>
 
-              {/* Registered Address */}
+              {/* Informative note explaining location-specific details */}
               <div className="pt-4 border-t border-slate-200">
-                <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  Registered Office Address
-                </h5>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="md:col-span-3">
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                      Street Address
-                    </label>
-                    <Input
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Plot No. 42, Transport Nagar, Phase-II"
-                      className="text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                      City
-                    </label>
-                    <Input
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="Ghaziabad"
-                      className="text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                      State / Province
-                    </label>
-                    <Input
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      placeholder="Uttar Pradesh"
-                      className="text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                      PIN Code
-                    </label>
-                    <Input
-                      value={pincode}
-                      maxLength={10}
-                      onChange={(e) => setPincode(e.target.value)}
-                      placeholder="201001"
-                      className="text-xs font-mono"
-                    />
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 flex items-start gap-2.5">
+                  <MapPin className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <span className="font-semibold text-slate-800">
+                      Where are Registered Address, GSTIN, and Bank Details configured?
+                    </span>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      Because companies with multiple issuing offices or branches maintain independent physical addresses, state-specific GSTINs, and separate operational bank accounts, those fields are configured per location in{" "}
+                      <Link
+                        href="/company/branches"
+                        className="font-semibold text-indigo-600 underline hover:text-indigo-800"
+                      >
+                        Issuing Offices / Branches
+                      </Link>
+                      . Each location independently maintains its own address, GSTIN, contact numbers, and bank details.
+                    </p>
                   </div>
                 </div>
               </div>
             </Card>
           </div>
 
-          {/* Right Column: Bank Details & Tenant Status */}
+          {/* Right Column: Multi-Tenant Isolation & Quick Links */}
           <div className="space-y-6">
             <Card className="p-6 space-y-4 shadow-2xs border-slate-200">
               <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-200 flex items-center gap-2">
-                <Landmark className="w-4 h-4 text-emerald-600" />
-                Bank Details for Invoicing
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                Issuing Offices Summary
               </h4>
 
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    Bank Name
-                  </label>
-                  <Input
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    placeholder="HDFC Bank / ICICI Bank"
-                    className="text-xs"
-                  />
+              <div className="space-y-2.5 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500">Registered Offices:</span>
+                  <span className="font-semibold text-slate-900">{branches.length} Location(s)</span>
                 </div>
+                <div className="flex justify-between py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500">Default Office:</span>
+                  <span className="font-semibold text-indigo-700 truncate max-w-[140px]" title={selectedBranch?.name || "None"}>
+                    {selectedBranch?.name || "None Selected"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-slate-500">Head Office Status:</span>
+                  <span className="font-semibold text-emerald-700">
+                    {branches.some((b) => b.is_head_office) ? "Designated" : "Not Set"}
+                  </span>
+                </div>
+              </div>
 
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    Account Number
-                  </label>
-                  <Input
-                    value={bankAccount}
-                    onChange={(e) => setBankAccount(e.target.value)}
-                    placeholder="50200012345678"
-                    className="font-mono text-xs font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    IFSC Code
-                  </label>
-                  <Input
-                    value={bankIfsc}
-                    maxLength={11}
-                    onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
-                    placeholder="HDFC0001234"
-                    className="font-mono text-xs font-semibold tracking-wider"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    Branch Name
-                  </label>
-                  <Input
-                    value={bankBranch}
-                    onChange={(e) => setBankBranch(e.target.value)}
-                    placeholder="Transport Nagar Branch"
-                    className="text-xs"
-                  />
-                </div>
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push("/company/branches")}
+                  className="w-full text-xs h-8 gap-1.5 cursor-pointer bg-slate-50 hover:bg-slate-100"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Register New Issuing Office</span>
+                </Button>
               </div>
             </Card>
 
@@ -927,7 +956,7 @@ export default function CompanyDetailsPage() {
             className="text-xs h-9 px-5 gap-1.5 cursor-pointer shadow-xs"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-            <span>Save Company Settings</span>
+            <span>Save Company Details</span>
           </Button>
         </div>
       </form>
