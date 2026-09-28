@@ -144,18 +144,18 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     id: "transport",
     title: "Transport",
     items: [
-      { category: "Dispatch", feature: "jobs", title: "Job Creation", href: "/transport/jobs" },
-      { category: "Dispatch", feature: "lr_booking", title: "GR/LR Booking", href: "/transport/lr-booking" },
-      { category: "Dispatch", feature: "hire_challan", title: "Hire Challan", href: "/transport/hire-challan" },
-      { category: "Fleet", feature: "drivers", title: "Manage Driver", href: "/transport/drivers" },
-      { category: "Fleet", feature: "company_vehicles", title: "Company Vehicle", href: "/transport/company-vehicles" },
-      { category: "Fleet", feature: "market_vehicles", title: "Market Vehicle", href: "/transport/market-vehicles" },
-      { category: "Fleet", feature: "vehicle_owners", title: "Vehicle Owner", href: "/transport/vehicle-owners" },
-      { category: "Tracking & POD", feature: "arrival_reports", title: "Arrival Report", href: "/transport/arrival-reports" },
-      { category: "Tracking & POD", feature: "pod_records", title: "POD Records", href: "/transport/pod-records" },
-      { category: "Tracking & POD", feature: "truck_hiring_note", title: "Truck Hiring Note", href: "/transport/truck-hiring-note" },
-      { category: "Tracking & POD", feature: "eway_bill", title: "Update E-Way", href: "/transport/eway-bill" },
-      { category: "Tracking & POD", feature: "tracking", title: "Tracking (FASTag/GPS)", href: "/transport/tracking" },
+      { feature: "jobs", title: "Job Creation", href: "/transport/jobs" },
+      { feature: "lr_booking", title: "GR/LR Booking", href: "/transport/lr-booking" },
+      { feature: "hire_challan", title: "Hire Challan", href: "/transport/hire-challan" },
+      { feature: "drivers", title: "Manage Driver", href: "/transport/drivers" },
+      { feature: "company_vehicles", title: "Company Vehicle", href: "/transport/company-vehicles" },
+      { feature: "market_vehicles", title: "Market Vehicle", href: "/transport/market-vehicles" },
+      { feature: "vehicle_owners", title: "Vehicle Owner", href: "/transport/vehicle-owners" },
+      { feature: "arrival_reports", title: "Arrival Report", href: "/transport/arrival-reports" },
+      { feature: "pod_records", title: "POD Records", href: "/transport/pod-records" },
+      { feature: "truck_hiring_note", title: "Truck Hiring Note", href: "/transport/truck-hiring-note" },
+      { feature: "eway_bill", title: "Update E-Way", href: "/transport/eway-bill" },
+      { feature: "tracking", title: "Tracking (FASTag/GPS)", href: "/transport/tracking" },
     ],
   },
   {
@@ -542,26 +542,9 @@ export function Sidebar() {
       try {
         const data = await apiClient<NavGroup[]>("/api/v1/auth/navigation");
         if (Array.isArray(data) && data.length > 0) {
-          // Merge category metadata from fallback if missing from backend item
-          const enriched = data.map((g) => {
-            const fallbackGroup = ALL_NAVIGATION_MODULES.find((fg) => fg.id === g.id);
-            if (!fallbackGroup) return g;
-            return {
-              ...g,
-              items: g.items?.map((it) => {
-                const fallbackItem = fallbackGroup.items?.find(
-                  (fi) => fi.href === it.href || (fi.feature && fi.feature === it.feature)
-                );
-                return {
-                  ...it,
-                  category: it.category || fallbackItem?.category,
-                };
-              }),
-            };
-          });
-          setNavGroups(enriched);
+          setNavGroups(data);
           const expanded: Record<string, boolean> = {};
-          enriched.forEach((g) => {
+          data.forEach((g) => {
             if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
               expanded[g.id] = true;
             }
@@ -724,69 +707,61 @@ export function Sidebar() {
               {/* Sub items — Linear Inset Pill Active State */}
               {!isCollapsed && isExpanded && (
                 <div className="pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 ml-4 my-0.5">
-                  {group.items?.map((sub, idx) => {
+                  {group.items?.map((sub) => {
                     const isActive = normalizedPathname === sub.href;
-                    const prevCategory = idx > 0 ? group.items[idx - 1].category : undefined;
-                    const showCategoryHeader = sub.category && sub.category !== prevCategory;
                     const SubIcon = getSubItemIcon(sub);
 
                     return (
-                      <React.Fragment key={sub.href}>
-                        {showCategoryHeader && (
-                          <span className="block text-xs font-semibold text-slate-500 uppercase tracking-wider pt-2 pb-0.5 px-2">
-                            {sub.category}
-                          </span>
+                      <Link
+                        key={sub.href}
+                        href={sub.is_locked ? "#" : `${tenantPrefix}${sub.href}`}
+                        onClick={(e) => {
+                          if (sub.is_locked) {
+                            e.preventDefault();
+                            alert(`This feature requires the ${sub.required_plan || "Pro"} plan. Please upgrade your subscription to access it.`);
+                            return;
+                          }
+                          if (isFormOpen) {
+                            closeFormTab(true);
+                          }
+                          if (normalizedPathname === sub.href) {
+                            setActiveTab("list");
+                          }
+                        }}
+                        className={cn(
+                          "group flex items-center justify-between px-2 py-1.5 rounded-md text-xs sm:text-[13px] transition-all duration-150 select-none",
+                          sub.is_locked
+                            ? "text-slate-400 opacity-80 cursor-not-allowed hover:bg-slate-50"
+                            : isActive
+                            ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
                         )}
-                        <Link
-                          href={sub.is_locked ? "#" : `${tenantPrefix}${sub.href}`}
-                          onClick={(e) => {
-                            if (sub.is_locked) {
-                              e.preventDefault();
-                              alert(`This feature requires the ${sub.required_plan || "Pro"} plan. Please upgrade your subscription to access it.`);
-                              return;
-                            }
-                            if (isFormOpen) {
-                              closeFormTab(true);
-                            }
-                            if (normalizedPathname === sub.href) {
-                              setActiveTab("list");
-                            }
-                          }}
-                          className={cn(
-                            "group flex items-center justify-between px-2 py-1.5 rounded-md text-xs sm:text-[13px] transition-all duration-150 select-none",
-                            sub.is_locked
-                              ? "text-slate-400 opacity-80 cursor-not-allowed hover:bg-slate-50"
-                              : isActive
-                              ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
-                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
-                          )}
-                        >
-                          <span className="truncate flex items-center gap-2 min-w-0">
-                            <span
-                              className={cn(
-                                "shrink-0 transition-colors",
-                                sub.is_locked
-                                  ? "text-slate-300"
-                                  : isActive
-                                  ? "text-indigo-600"
-                                  : "text-slate-400 group-hover:text-slate-600"
-                              )}
-                            >
-                              <SubIcon className="w-3.5 h-3.5" />
-                            </span>
-                            <span className="truncate">{sub.title}</span>
-                            {sub.is_locked && (
-                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
-                                <Lock className="w-2 h-2" />
-                                {sub.required_plan || "PRO"}
-                              </span>
+                      >
+                        <span className="truncate flex items-center gap-2 min-w-0">
+                          <span
+                            className={cn(
+                              "shrink-0 transition-colors",
+                              sub.is_locked
+                                ? "text-slate-300"
+                                : isActive
+                                ? "text-indigo-600"
+                                : "text-slate-400 group-hover:text-slate-600"
                             )}
+                          >
+                            <SubIcon className="w-3.5 h-3.5" />
                           </span>
-                          {isActive && !sub.is_locked && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs" />
+                          <span className="truncate">{sub.title}</span>
+                          {sub.is_locked && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
+                              <Lock className="w-2 h-2" />
+                              {sub.required_plan || "PRO"}
+                            </span>
                           )}
-                        </Link>
-                      </React.Fragment>
+                        </span>
+                        {isActive && !sub.is_locked && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs" />
+                        )}
+                      </Link>
                     );
                   })}
                 </div>
