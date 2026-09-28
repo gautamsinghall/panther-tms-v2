@@ -44,18 +44,18 @@ ALL_NAVIGATION_MODULES = [
         "id": "transport",
         "title": "Transport",
         "items": [
-            {"feature": "jobs", "title": "Job Creation", "href": "/transport/jobs"},
-            {"feature": "lr_booking", "title": "GR/LR Booking", "href": "/transport/lr-booking"},
-            {"feature": "hire_challan", "title": "Hire Challan", "href": "/transport/hire-challan"},
-            {"feature": "drivers", "title": "Manage Driver", "href": "/transport/drivers"},
-            {"feature": "company_vehicles", "title": "Company Vehicle", "href": "/transport/company-vehicles"},
-            {"feature": "market_vehicles", "title": "Market Vehicle", "href": "/transport/market-vehicles"},
-            {"feature": "vehicle_owners", "title": "Vehicle Owner", "href": "/transport/vehicle-owners"},
-            {"feature": "arrival_reports", "title": "Arrival Report", "href": "/transport/arrival-reports"},
-            {"feature": "pod_records", "title": "POD Records", "href": "/transport/pod-records"},
-            {"feature": "truck_hiring_note", "title": "Truck Hiring Note", "href": "/transport/truck-hiring-note"},
-            {"feature": "eway_bill", "title": "Update E-Way", "href": "/transport/eway-bill"},
-            {"feature": "tracking", "title": "Tracking (FASTag/GPS/SIM)", "href": "/transport/tracking"},
+            {"category": "Dispatch", "feature": "jobs", "title": "Job Creation", "href": "/transport/jobs"},
+            {"category": "Dispatch", "feature": "lr_booking", "title": "GR/LR Booking", "href": "/transport/lr-booking"},
+            {"category": "Dispatch", "feature": "hire_challan", "title": "Hire Challan", "href": "/transport/hire-challan"},
+            {"category": "Fleet", "feature": "drivers", "title": "Manage Driver", "href": "/transport/drivers"},
+            {"category": "Fleet", "feature": "company_vehicles", "title": "Company Vehicle", "href": "/transport/company-vehicles"},
+            {"category": "Fleet", "feature": "market_vehicles", "title": "Market Vehicle", "href": "/transport/market-vehicles"},
+            {"category": "Fleet", "feature": "vehicle_owners", "title": "Vehicle Owner", "href": "/transport/vehicle-owners"},
+            {"category": "Tracking & POD", "feature": "arrival_reports", "title": "Arrival Report", "href": "/transport/arrival-reports"},
+            {"category": "Tracking & POD", "feature": "pod_records", "title": "POD Records", "href": "/transport/pod-records"},
+            {"category": "Tracking & POD", "feature": "truck_hiring_note", "title": "Truck Hiring Note", "href": "/transport/truck-hiring-note"},
+            {"category": "Tracking & POD", "feature": "eway_bill", "title": "Update E-Way", "href": "/transport/eway-bill"},
+            {"category": "Tracking & POD", "feature": "tracking", "title": "Tracking (FASTag/GPS)", "href": "/transport/tracking"},
         ],
     },
     {
@@ -151,6 +151,14 @@ ALL_NAVIGATION_MODULES = [
         ],
     },
     {
+        "id": "company",
+        "title": "Company Settings",
+        "items": [
+            {"feature": "company_details", "title": "Company Details", "href": "/company/details"},
+            {"feature": "branch", "title": "Issuing Offices / Branches", "href": "/company/branches"},
+        ],
+    },
+    {
         "id": "settings",
         "title": "Settings",
         "items": [
@@ -165,9 +173,7 @@ ALL_NAVIGATION_MODULES = [
         "id": "profile",
         "title": "Profile",
         "items": [
-            {"feature": "company", "title": "Company Setting", "href": "/profile/company"},
             {"feature": "account", "title": "User Account", "href": "/profile/account"},
-            {"feature": "branch", "title": "Branch", "href": "/profile/branch"},
             {"feature": "change_password", "title": "Change Password", "href": "/profile/change-password"},
             {"feature": "email", "title": "Email Settings", "href": "/profile/email"},
             {"feature": "monthly_pnl", "title": "Monthly P&L", "href": "/profile/monthly-pnl"},
@@ -258,6 +264,8 @@ async def get_user_navigation(
                         disabled_features.add(ent.feature_key[len("feature_"):])
 
     def is_module_entitled(mod_id: str) -> bool:
+        if mod_id in ("home", "profile", "company"):
+            return True
         norm = mod_id.replace("-", "_").lower()
         return "all" in entitled_modules or norm in entitled_modules
 
@@ -315,6 +323,16 @@ async def get_user_navigation(
                 allowed_items = [
                     map_item(it) for it in mod["items"]
                     if it["feature"] in ("account", "change_password") or (mod["id"], it["feature"]) in allowed_features
+                ]
+                if allowed_items:
+                    result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
+            elif mod["id"] == "company":
+                # Employees can access company settings if they have company or branch permissions
+                allowed_items = [
+                    map_item(it) for it in mod["items"]
+                    if (mod["id"], it["feature"]) in allowed_features
+                    or (it["feature"] == "company_details" and ("profile", "company") in allowed_features)
+                    or (it["feature"] == "branch" and ("profile", "branch") in allowed_features)
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})

@@ -11,8 +11,8 @@ from app.core.config import settings
 control_engine: AsyncEngine = create_async_engine(
     settings.control_db_async_url,
     echo=False,
-    pool_size=5,
-    max_overflow=5,
+    pool_size=15,
+    max_overflow=20,
     pool_timeout=15,
     pool_recycle=300,
     pool_pre_ping=True,
@@ -44,8 +44,8 @@ def get_tenant_engine(db_name: str) -> AsyncEngine:
         _tenant_engines[db_name] = create_async_engine(
             url,
             echo=False,
-            pool_size=3,
-            max_overflow=5,
+            pool_size=10,
+            max_overflow=15,
             pool_timeout=15,
             pool_recycle=300,
             pool_pre_ping=True,

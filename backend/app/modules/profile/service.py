@@ -169,8 +169,20 @@ async def update_company_setting(db: AsyncSession, data: CompanySettingUpdate) -
         setting.bank_account_no = data.bank_account_no
     if data.bank_ifsc is not None:
         setting.bank_ifsc = data.bank_ifsc
+    if data.bank_branch is not None:
+        setting.bank_branch = data.bank_branch
+    if data.website is not None:
+        setting.website = data.website
     if data.logo_url is not None:
-        setting.logo_url = data.logo_url
+        setting.logo_url = data.logo_url if data.logo_url.strip() else None
+    if data.signature_url is not None:
+        setting.signature_url = data.signature_url if data.signature_url.strip() else None
+    if data.signing_authority_name is not None:
+        setting.signing_authority_name = data.signing_authority_name
+    if data.signing_authority_designation is not None:
+        setting.signing_authority_designation = data.signing_authority_designation
+    if data.issuing_office is not None:
+        setting.issuing_office = data.issuing_office
 
     setting.updated_at = datetime.now(timezone.utc)
     await db.commit()

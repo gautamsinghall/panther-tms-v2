@@ -106,8 +106,15 @@ async def lifespan(app: FastAPI):
                             "pan_doc TEXT",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS {drv_col};"))
-                        for cs_col in ["city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "logo_url VARCHAR(500)"]:
+                        for cs_col in [
+                            "city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)",
+                            "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "bank_branch VARCHAR(150)",
+                            "website VARCHAR(255)", "logo_url TEXT", "signature_url TEXT",
+                            "signing_authority_name VARCHAR(255)", "signing_authority_designation VARCHAR(255)",
+                            "issuing_office VARCHAR(255)"
+                        ]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
+                        await t_conn.execute(text("ALTER TABLE company_settings ALTER COLUMN logo_url TYPE TEXT;"))
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
                         await t_conn.execute(
                             text("UPDATE users SET is_active = true WHERE lower(email) = lower(:email);"),

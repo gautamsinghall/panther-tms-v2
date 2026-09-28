@@ -83,7 +83,13 @@ class CompanySettingUpdate(BaseModel):
     bank_name: Optional[str] = None
     bank_account_no: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    bank_branch: Optional[str] = None
+    website: Optional[str] = None
     logo_url: Optional[str] = None
+    signature_url: Optional[str] = None
+    signing_authority_name: Optional[str] = None
+    signing_authority_designation: Optional[str] = None
+    issuing_office: Optional[str] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -107,7 +113,13 @@ class CompanySettingResponse(BaseModel):
     bank_name: Optional[str] = None
     bank_account_no: Optional[str] = None
     bank_ifsc: Optional[str] = None
+    bank_branch: Optional[str] = None
+    website: Optional[str] = None
     logo_url: Optional[str] = None
+    signature_url: Optional[str] = None
+    signing_authority_name: Optional[str] = None
+    signing_authority_designation: Optional[str] = None
+    issuing_office: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

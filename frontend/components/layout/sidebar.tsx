@@ -251,6 +251,14 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     ],
   },
   {
+    id: "company",
+    title: "Company Settings",
+    items: [
+      { feature: "company_details", title: "Company Details", href: "/company/details" },
+      { feature: "branch", title: "Issuing Offices / Branches", href: "/company/branches" },
+    ],
+  },
+  {
     id: "settings",
     title: "Settings",
     items: [
@@ -265,9 +273,7 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     id: "profile",
     title: "Profile",
     items: [
-      { feature: "company", title: "Company Setting", href: "/profile/company" },
       { feature: "account", title: "User Account", href: "/profile/account" },
-      { feature: "branch", title: "Branch", href: "/profile/branch" },
       { feature: "change_password", title: "Change Password", href: "/profile/change-password" },
       { feature: "email", title: "Email Settings", href: "/profile/email" },
       { feature: "monthly_pnl", title: "Monthly P&L", href: "/profile/monthly-pnl" },
@@ -287,6 +293,7 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   reports: <BarChart3 className="w-5 h-5" />,
   statements: <Receipt className="w-5 h-5" />,
   fleet: <Gauge className="w-5 h-5" />,
+  company: <Building2 className="w-5 h-5" />,
   settings: <Settings className="w-5 h-5" />,
   profile: <UserCircle className="w-5 h-5" />,
 };
@@ -385,6 +392,10 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/fleet/tyre": CircleDot,
   "/fleet/service": Wrench,
 
+  // Company Settings
+  "/company/details": Building2,
+  "/company/branches": Network,
+
   // Settings
   "/settings/users": UserCog,
   "/settings/roles": ShieldCheck,
@@ -480,6 +491,7 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   admin_setting: Sliders,
   activity: History,
   company: Building2,
+  company_details: Building2,
   account: UserCircle,
   branch: Network,
   change_password: KeyRound,
@@ -530,9 +542,26 @@ export function Sidebar() {
       try {
         const data = await apiClient<NavGroup[]>("/api/v1/auth/navigation");
         if (Array.isArray(data) && data.length > 0) {
-          setNavGroups(data);
+          // Merge category metadata from fallback if missing from backend item
+          const enriched = data.map((g) => {
+            const fallbackGroup = ALL_NAVIGATION_MODULES.find((fg) => fg.id === g.id);
+            if (!fallbackGroup) return g;
+            return {
+              ...g,
+              items: g.items?.map((it) => {
+                const fallbackItem = fallbackGroup.items?.find(
+                  (fi) => fi.href === it.href || (fi.feature && fi.feature === it.feature)
+                );
+                return {
+                  ...it,
+                  category: it.category || fallbackItem?.category,
+                };
+              }),
+            };
+          });
+          setNavGroups(enriched);
           const expanded: Record<string, boolean> = {};
-          data.forEach((g) => {
+          enriched.forEach((g) => {
             if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
               expanded[g.id] = true;
             }

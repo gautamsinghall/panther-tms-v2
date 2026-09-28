@@ -73,7 +73,13 @@ class CompanySetting(TenantBase):
     bank_name = Column(String(150), nullable=True)
     bank_account_no = Column(String(50), nullable=True)
     bank_ifsc = Column(String(20), nullable=True)
-    logo_url = Column(String(500), nullable=True)
+    bank_branch = Column(String(150), nullable=True)
+    website = Column(String(255), nullable=True)
+    logo_url = Column(Text, nullable=True)
+    signature_url = Column(Text, nullable=True)
+    signing_authority_name = Column(String(255), nullable=True)
+    signing_authority_designation = Column(String(255), nullable=True)
+    issuing_office = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

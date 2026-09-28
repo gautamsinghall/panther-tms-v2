@@ -152,7 +152,7 @@ export function Header() {
             {
               label: "Company Settings",
               icon: <Building2 className="w-4 h-4" />,
-              onClick: () => router.push("/profile/company"),
+              onClick: () => router.push("/company/details"),
             },
             {
               label: "Sign Out",

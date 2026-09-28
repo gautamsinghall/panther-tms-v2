@@ -52,6 +52,11 @@ interface CompanySettingData {
   phone?: string | null;
   email?: string | null;
   website?: string | null;
+  logo_url?: string | null;
+  signature_url?: string | null;
+  signing_authority_name?: string | null;
+  signing_authority_designation?: string | null;
+  issuing_office?: string | null;
 }
 
 interface JobOrderViewModalProps {
@@ -345,22 +350,32 @@ export function JobOrderViewModal({
           >
             {/* 1. Header: Logo (Left), Dynamic Company Info (Center), Issuing Office/Tax (Right) */}
             <div className="flex items-center justify-between p-3.5 border-b-2 border-black gap-2">
-              {/* Left: Panther Logo & Brand Name */}
+              {/* Left: Dynamic Company Logo if available, else Panther Branding */}
               <div className="w-[28%] flex flex-col items-center justify-center shrink-0">
-                <img
-                  src="/panther-logo-transparent.png"
-                  alt="Panther Logo"
-                  className="h-10 sm:h-12 w-auto object-contain mx-auto"
-                />
-                <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-1">
-                  PANTHER
-                </div>
-                <div className="text-[9px] sm:text-[10px] font-black text-[#0f2147] tracking-wide text-center leading-tight">
-                  DIGITAL SOLUTIONS
-                </div>
-                <div className="text-[7.5px] sm:text-[8px] font-bold text-[#0f2147] tracking-widest text-center leading-tight">
-                  PRIVATE LIMITED
-                </div>
+                {company?.logo_url ? (
+                  <img
+                    src={company.logo_url}
+                    alt={companyName}
+                    className="max-h-14 max-w-full object-contain mx-auto"
+                  />
+                ) : (
+                  <>
+                    <img
+                      src="/panther-logo-transparent.png"
+                      alt="Panther Logo"
+                      className="h-10 sm:h-12 w-auto object-contain mx-auto"
+                    />
+                    <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-1">
+                      PANTHER
+                    </div>
+                    <div className="text-[9px] sm:text-[10px] font-black text-[#0f2147] tracking-wide text-center leading-tight">
+                      DIGITAL SOLUTIONS
+                    </div>
+                    <div className="text-[7.5px] sm:text-[8px] font-bold text-[#0f2147] tracking-widest text-center leading-tight">
+                      PRIVATE LIMITED
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Middle: Company Details (Fetched dynamically from company settings) */}
@@ -386,7 +401,9 @@ export function JobOrderViewModal({
               <div className="w-[28%] text-right text-[11px] text-black leading-snug space-y-1 pr-1">
                 <div>
                   <span className="font-normal">Issuing Office: </span>
-                  <span className="font-semibold">Head Office {companyCity}</span>
+                  <span className="font-semibold">
+                    {company?.issuing_office || `Head Office ${companyCity}`}
+                  </span>
                 </div>
                 <div>
                   <span className="font-normal">GST No: </span>
@@ -529,8 +546,23 @@ export function JobOrderViewModal({
                   Consignor Copy
                 </div>
               </div>
-              <div className="w-1/3 text-right text-[11px] font-bold text-black uppercase">
-                {companyName}
+              <div className="w-1/3 text-right">
+                {company?.signature_url && (
+                  <div className="flex justify-end mb-1">
+                    <img
+                      src={company.signature_url}
+                      alt="Signing Authority"
+                      className="h-9 max-w-[110px] object-contain"
+                    />
+                  </div>
+                )}
+                <div className="text-[9.5px] text-gray-700 font-medium">
+                  {company?.signing_authority_name || "Authorized Signatory"}
+                  {company?.signing_authority_designation ? ` (${company.signing_authority_designation})` : ""}
+                </div>
+                <div className="text-[11px] font-bold text-black uppercase mt-0.5">
+                  {companyName}
+                </div>
               </div>
             </div>
 
