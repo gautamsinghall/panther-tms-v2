@@ -15,8 +15,8 @@ from app.modules.settings.series_service import (
 
 @pytest.mark.asyncio
 async def test_standard_vouchers_catalog_and_mandatory_rules():
-    # 1. Total standard vouchers should be 15
-    assert len(STANDARD_VOUCHER_METADATA) == 15
+    # 1. Total standard vouchers should be 16
+    assert len(STANDARD_VOUCHER_METADATA) == 16
 
     # 2. Check 4 mandatory manual vouchers
     mandatory_codes = {"LR", "HIRE_CHALLAN", "TRANSPORT_INVOICE", "GENERAL_INVOICE"}
@@ -51,12 +51,13 @@ async def test_series_allocation_and_manual_enforcement():
         assert exc_info.value.status_code == 400
         assert "Manual series is mandatory" in exc_info.value.message
 
-        # Case 2: Configure LR series as MANUAL
+        # Case 2: Configure LR series as MANUAL with valid range
         lr_series = SeriesMaster(
             document_type="LR",
             prefix="LR-2026-",
             suffix="-DEL",
             starting_number=1,
+            end_number=1000,
             current_number=0,
             financial_year="2026-2027",
             series_mode="MANUAL",
@@ -152,8 +153,8 @@ async def test_initialize_all_standard_series():
         await conn.run_sync(TenantBase.metadata.create_all)
 
     async with async_session() as session:
-        created = await initialize_all_standard_series(session, financial_year="2026-2027")
-        assert len(created) == 15
+        created = await initialize_all_standard_series(session, financial_year="2026-2027", exclude_manual=False)
+        assert len(created) == 16
 
         for item in created:
             if item["document_type"] in ["LR", "HIRE_CHALLAN", "TRANSPORT_INVOICE", "GENERAL_INVOICE"]:

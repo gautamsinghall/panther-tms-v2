@@ -2,10 +2,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
-from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit
+from app.auth.dependencies import (
+    require_permission, get_current_user, get_current_office, check_entitlement_limit
+)
 from app.core.errors import ForbiddenException
 from app.control.models import Tenant
-from app.tenant_db.models import User
+from app.tenant_db.models import User, Branch
 from app.modules.accounts import schemas, service
 
 router = APIRouter(
@@ -39,6 +41,8 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.hire_challan_number = v.hire_challan.challan_number if v.hire_challan else None
     resp.irn = v.einvoice.irn if v.einvoice else None
     resp.irn_status = v.einvoice.status if v.einvoice else None
+    resp.issuing_office_id = v.issuing_office_id
+    resp.issuing_office_name = v.issuing_office.name if getattr(v, "issuing_office", None) else None
 
     # Map item details
     for idx, itm in enumerate(v.items):
@@ -58,10 +62,19 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
 async def list_vouchers(
     voucher_type: Optional[str] = Query(None, description="Filter by VoucherType"),
     lr_id: Optional[int] = Query(None, description="Filter by LR ID"),
+    current_office: Optional[Branch] = Depends(get_current_office),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: User = Depends(require_accounts_permission("view")),
 ):
-    vouchers = await service.get_vouchers(session, voucher_type=voucher_type, lr_id=lr_id)
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    vouchers = await service.get_vouchers(
+        session,
+        voucher_type=voucher_type,
+        lr_id=lr_id,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+    )
     return [map_voucher_response(v) for v in vouchers]
 
 
@@ -78,48 +91,56 @@ async def get_voucher(
 @router.post("/vouchers", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_voucher(
     data: schemas.VoucherCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: User = Depends(require_accounts_permission("create")),
 ):
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
-    voucher = await service.post_voucher(session, data)
+    office_id = current_office.id if current_office else None
+    voucher = await service.post_voucher(session, data, office_id=office_id)
     return map_voucher_response(voucher)
 
 
 @router.post("/transport-invoices", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_transport_invoice(
     data: schemas.TransportInvoiceCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("accounts", "transport_invoice", "create")),
 ):
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
-    voucher = await service.create_transport_invoice_from_lr(session, data)
+    office_id = current_office.id if current_office else None
+    voucher = await service.create_transport_invoice_from_lr(session, data, office_id=office_id)
     return map_voucher_response(voucher)
 
 
 @router.post("/payments/ath", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_ath_payment(
     data: schemas.ATHPaymentCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
 ):
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
-    voucher = await service.create_ath_payment(session, data)
+    office_id = current_office.id if current_office else None
+    voucher = await service.create_ath_payment(session, data, office_id=office_id)
     return map_voucher_response(voucher)
 
 
 @router.post("/payments/bth", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_bth_payment(
     data: schemas.BTHPaymentCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
 ):
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
-    voucher = await service.create_bth_payment(session, data)
+    office_id = current_office.id if current_office else None
+    voucher = await service.create_bth_payment(session, data, office_id=office_id)
     return map_voucher_response(voucher)
 
 

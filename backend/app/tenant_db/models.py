@@ -23,6 +23,26 @@ class User(TenantBase):
     )
 
     custom_role = relationship("Role", back_populates="users", lazy="selectin")
+    office_assignments = relationship("UserOfficeAssignment", back_populates="user", cascade="all, delete-orphan", lazy="selectin")
+
+
+class UserOfficeAssignment(TenantBase):
+    """
+    Junction mapping users to authorized issuing offices / branches.
+    Enforces multi-office authorization, default office context, and optional office-specific roles.
+    """
+    __tablename__ = "user_office_assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    office_id = Column(Integer, ForeignKey("profile_branches.id", ondelete="CASCADE"), nullable=False, index=True)
+    role_id = Column(Integer, ForeignKey("roles.id", ondelete="SET NULL"), nullable=True)
+    is_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = relationship("User", back_populates="office_assignments")
+    office = relationship("Branch", lazy="selectin")
+    role = relationship("Role", lazy="selectin")
 
 
 class Role(TenantBase):
@@ -490,11 +510,14 @@ class Job(TenantBase):
         nullable=False
     )
 
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+
     consigner = relationship("Consigner", lazy="selectin")
     consignee = relationship("Consignee", lazy="selectin")
     origin_location = relationship("Location", foreign_keys=[origin_location_id], lazy="selectin")
     destination_location = relationship("Location", foreign_keys=[destination_location_id], lazy="selectin")
     billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
     lrs = relationship("LR", back_populates="job", lazy="selectin")
 
 
@@ -543,6 +566,9 @@ class LR(TenantBase):
         nullable=False
     )
 
+    # Issuing Office Scoping (Minimal reference - full office details loaded from master)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+
     job = relationship("Job", back_populates="lrs", lazy="selectin")
     consigner = relationship("Consigner", lazy="selectin")
     consignee = relationship("Consignee", lazy="selectin")
@@ -552,6 +578,7 @@ class LR(TenantBase):
     packing_method = relationship("MethodOfPacking", lazy="selectin")
     hire_challan = relationship("HireChallan", back_populates="lr", uselist=False, lazy="selectin")
     pod_record = relationship("PODRecord", back_populates="lr", uselist=False, lazy="selectin")
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
 
 
 class HireChallan(TenantBase):
@@ -583,6 +610,7 @@ class HireChallan(TenantBase):
     
     status = Column(String(50), default=HireChallanStatus.DRAFT.value, nullable=False, index=True)
     remarks = Column(Text, nullable=True)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -593,6 +621,7 @@ class HireChallan(TenantBase):
 
     lr = relationship("LR", back_populates="hire_challan", lazy="selectin")
     owner = relationship("VehicleOwner", lazy="selectin")
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
 
 
 class ArrivalReport(TenantBase):
@@ -979,6 +1008,7 @@ class Voucher(TenantBase):
     lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True)
     hire_challan_id = Column(Integer, ForeignKey("transport_hire_challans.id"), nullable=True)
     account_id = Column(Integer, ForeignKey("misc_accounts.id"), nullable=True)  # Primary party ledger account
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -993,6 +1023,7 @@ class Voucher(TenantBase):
     lr = relationship("LR", lazy="selectin")
     hire_challan = relationship("HireChallan", lazy="selectin")
     einvoice = relationship("EInvoiceRecord", back_populates="voucher", uselist=False, lazy="selectin")
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
 
 
 class VoucherItem(TenantBase):
@@ -1319,6 +1350,7 @@ class SeriesMaster(TenantBase):
     financial_year = Column(String(20), default="2026-2027", nullable=False)
     series_mode = Column(String(20), default="AUTOMATIC", nullable=False)
     series_name = Column(String(100), nullable=True)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
     is_default = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -1330,6 +1362,7 @@ class SeriesMaster(TenantBase):
     )
 
     category = relationship("SeriesCategory", back_populates="series_list")
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
 
 
 class AdminSetting(TenantBase):

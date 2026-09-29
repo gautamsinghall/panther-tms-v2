@@ -1,18 +1,18 @@
 from datetime import datetime, timezone
-from typing import Callable
-from fastapi import Depends
+from typing import Callable, Optional, List
+from fastapi import Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import (
-    UnauthorizedException, ForbiddenException,
+    AppException, UnauthorizedException, ForbiddenException,
     EntitlementLockedException, QuotaExceededException
 )
 from app.core.security import decode_token
 from app.control.models import Tenant
-from app.tenant_db.models import User, Role, RolePermission
+from app.tenant_db.models import User, Role, RolePermission, Branch, UserOfficeAssignment
 from app.tenant_db.session import get_current_tenant, get_tenant_db
 
 security_scheme = HTTPBearer(auto_error=False)
@@ -66,10 +66,13 @@ async def get_current_user(
     except ValueError:
         raise UnauthorizedException("Invalid subject format.")
 
-    # Eager load role and permissions
+    # Eager load role, permissions, and office assignments
     stmt = (
         select(User)
-        .options(selectinload(User.custom_role).selectinload(Role.permissions))
+        .options(
+            selectinload(User.custom_role).selectinload(Role.permissions),
+            selectinload(User.office_assignments).selectinload(UserOfficeAssignment.office),
+        )
         .where(User.id == user_id)
     )
     result = await db.execute(stmt)
@@ -94,6 +97,114 @@ async def get_current_company_admin(
     if user.role != "COMPANY_ADMIN":
         raise ForbiddenException("Company Admin privileges required.")
     return user
+
+async def get_current_office(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+) -> Optional[Branch]:
+    """
+    Enforces tamper-proof issuing office authorization:
+    1. Extracts requested office ID from:
+       - Query parameter: office_id (or issuing_office_id) [takes precedence for specific endpoint calls]
+       - Header: X-Office-ID
+    2. Company Admin: Has universal access across all offices of the company.
+       - If 'all' is requested, returns None (consolidated cross-office view).
+       - If specific office ID is requested, validates and returns it (raises 404 if office ID doesn't exist).
+       - If none requested, defaults to Head Office.
+    3. Employee:
+       - Fetches user's assigned active offices.
+       - If user tries to access an office they are NOT assigned to -> RAISE 403 Forbidden.
+       - If 'all' requested by employee -> RAISE 403 Forbidden.
+       - If no office is requested, returns their primary/default office.
+    """
+    header_val = request.headers.get("X-Office-ID")
+    query_val = request.query_params.get("office_id") or request.query_params.get("issuing_office_id")
+    target_office_id_str = query_val or header_val
+
+    is_all_requested = False
+    target_office_id: Optional[int] = None
+    if target_office_id_str:
+        val_str = str(target_office_id_str).strip()
+        if val_str.lower() in ("all", "consolidated", "0"):
+            is_all_requested = True
+        else:
+            try:
+                target_office_id = int(val_str)
+            except ValueError:
+                target_office_id = None
+
+    # Load all active branches for validation/fallback
+    branches_res = await db.execute(
+        select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc())
+    )
+    all_branches = list(branches_res.scalars().all())
+
+    if not all_branches:
+        branch = Branch(code="HQ", name="Corporate Head Office", city="Headquarters", state="Delhi", is_head_office=True, is_active=True)
+        db.add(branch)
+        await db.commit()
+        await db.refresh(branch)
+        all_branches = [branch]
+
+    default_company_office = next((b for b in all_branches if b.is_head_office), all_branches[0])
+
+    if user.role == "COMPANY_ADMIN":
+        if is_all_requested:
+            request.state.office = None
+            request.state.office_id = None
+            return None
+        if target_office_id is not None:
+            matched = next((b for b in all_branches if b.id == target_office_id), None)
+            if not matched:
+                raise AppException(
+                    status_code=404,
+                    error_code="OFFICE_NOT_FOUND",
+                    message=f"Issuing office {target_office_id} not found."
+                )
+            request.state.office = matched
+            request.state.office_id = matched.id
+            return matched
+        request.state.office = default_company_office
+        request.state.office_id = default_company_office.id
+        return default_company_office
+
+    # For employees: enforce assigned offices
+    if is_all_requested:
+        raise ForbiddenException("Consolidated multi-office access is restricted to Company Administrators.")
+
+    assigned_records = user.office_assignments or []
+    # If no assignments exist in DB yet, auto-assign employee to default_company_office
+    if not assigned_records:
+        assignment = UserOfficeAssignment(user_id=user.id, office_id=default_company_office.id, is_default=True)
+        db.add(assignment)
+        await db.commit()
+        await db.refresh(user)
+        assigned_records = user.office_assignments or [assignment]
+
+    allowed_offices_map = {
+        a.office_id: a.office for a in assigned_records if a.office and a.office.is_active
+    }
+    if not allowed_offices_map:
+        raise ForbiddenException("User is not assigned to any active issuing office.")
+
+    if target_office_id is not None:
+        if target_office_id not in allowed_offices_map:
+            raise ForbiddenException(
+                message=f"Access to issuing office ID {target_office_id} is forbidden for this user.",
+                details={"attempted_office_id": target_office_id}
+            )
+        chosen = allowed_offices_map[target_office_id]
+        request.state.office = chosen
+        request.state.office_id = chosen.id
+        return chosen
+
+    # Default to user's designated primary office, or first assigned office
+    default_assignment = next((a for a in assigned_records if a.is_default and a.office_id in allowed_offices_map), None)
+    chosen = default_assignment.office if default_assignment else next(iter(allowed_offices_map.values()))
+    request.state.office = chosen
+    request.state.office_id = chosen.id
+    return chosen
 
 def require_permission(module: str, feature: str, permission: str) -> Callable:
     """

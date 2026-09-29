@@ -29,18 +29,29 @@ class RoleResponse(RoleBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class AssignedOfficeInfo(BaseModel):
+    office_id: int
+    office_code: str
+    office_name: str
+    is_default: bool = False
+    model_config = ConfigDict(from_attributes=True)
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)
     full_name: str = Field(..., min_length=2, max_length=255)
     role_id: Optional[int] = None
     role: str = Field(default="EMPLOYEE")  # COMPANY_ADMIN or EMPLOYEE
+    assigned_office_ids: Optional[List[int]] = None
+    default_office_id: Optional[int] = None
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     role_id: Optional[int] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    assigned_office_ids: Optional[List[int]] = None
+    default_office_id: Optional[int] = None
 
 class UserListItem(BaseModel):
     id: int
@@ -52,8 +63,11 @@ class UserListItem(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    assigned_offices: List[AssignedOfficeInfo] = []
+    default_office_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 # --- Series Categories ---
@@ -82,6 +96,7 @@ class SeriesCategoryResponse(SeriesCategoryBase):
 # --- Series Masters ---
 class SeriesMasterBase(BaseModel):
     category_id: Optional[int] = None
+    issuing_office_id: Optional[int] = None
     document_type: str = Field(..., min_length=1, max_length=100)
     series_name: Optional[str] = None
     prefix: str = Field(..., min_length=1, max_length=50)
@@ -99,6 +114,7 @@ class SeriesMasterCreate(SeriesMasterBase):
 
 class SeriesMasterUpdate(BaseModel):
     category_id: Optional[int] = None
+    issuing_office_id: Optional[int] = None
     document_type: Optional[str] = None
     series_name: Optional[str] = None
     prefix: Optional[str] = None
@@ -116,6 +132,7 @@ class SeriesMasterResponse(SeriesMasterBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     category_name: Optional[str] = None
+    issuing_office_name: Optional[str] = None
     last_used_formatted: Optional[str] = None
     next_number: Optional[int] = 1
     next_number_formatted: Optional[str] = ""

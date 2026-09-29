@@ -224,7 +224,9 @@ async def refresh_token(
 async def get_me(
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
 ):
+    offices_list, active_summary = await service.get_user_office_context(db, current_user)
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
@@ -238,6 +240,8 @@ async def get_me(
             company_name=tenant.company_name,
             status=tenant.status,
         ),
+        assigned_offices=offices_list,
+        active_office=active_summary,
     )
 
 @router.get("/navigation", summary="Get data-driven permitted navigation tree for current user")

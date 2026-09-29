@@ -184,6 +184,7 @@ class CompanyVehicleResponse(CompanyVehicleBase):
 # ---------------------------------------------------------------------------
 class JobBase(BaseModel):
     job_number: Optional[str] = None
+    issuing_office_id: Optional[int] = None
     job_date: date = Field(default_factory=date.today)
     consigner_id: int
     consignee_id: int
@@ -201,6 +202,7 @@ class JobCreate(JobBase):
     pass
 
 class JobUpdate(BaseModel):
+    issuing_office_id: Optional[int] = None
     job_date: Optional[date] = None
     consigner_id: Optional[int] = None
     consignee_id: Optional[int] = None
@@ -230,6 +232,7 @@ class JobResponse(JobBase):
     billing_client_name: Optional[str] = None
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None
+    issuing_office_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -239,6 +242,7 @@ class JobResponse(JobBase):
 # ---------------------------------------------------------------------------
 class LRBase(BaseModel):
     lr_number: Optional[str] = None
+    issuing_office_id: Optional[int] = None
     lr_date: date = Field(default_factory=date.today)
     job_id: Optional[int] = None
     consigner_id: int
@@ -273,6 +277,7 @@ class LRCreate(LRBase):
     pass
 
 class LRUpdate(BaseModel):
+    issuing_office_id: Optional[int] = None
     job_id: Optional[int] = None
     consigner_id: Optional[int] = None
     consignee_id: Optional[int] = None
@@ -311,6 +316,8 @@ class LRResponse(LRBase):
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None
     job_number: Optional[str] = None
+    issuing_office_name: Optional[str] = None
+    issuing_office_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -320,6 +327,7 @@ class LRResponse(LRBase):
 # ---------------------------------------------------------------------------
 class HireChallanBase(BaseModel):
     challan_number: Optional[str] = None
+    issuing_office_id: Optional[int] = None
     challan_date: date = Field(default_factory=date.today)
     lr_id: Optional[int] = None
     vehicle_number: str = Field(..., min_length=4, max_length=20)
@@ -344,6 +352,7 @@ class HireChallanCreate(HireChallanBase):
     pass
 
 class HireChallanUpdate(BaseModel):
+    issuing_office_id: Optional[int] = None
     vehicle_number: Optional[str] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
@@ -368,6 +377,7 @@ class HireChallanResponse(HireChallanBase):
     status: HireChallanStatus
     lr_number: Optional[str] = None
     owner_name: Optional[str] = None
+    issuing_office_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

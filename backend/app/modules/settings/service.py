@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import AppException
 from app.core.security import get_password_hash
-from app.tenant_db.models import User, Role, RolePermission
+from app.tenant_db.models import User, Role, RolePermission, Branch, UserOfficeAssignment
 from app.modules.settings.schemas import RoleCreate, RoleUpdate, UserCreate, UserUpdate
 
 # --- Roles & Permissions Service ---
@@ -86,7 +86,14 @@ async def delete_existing_role(db: AsyncSession, role_id: int) -> None:
 # --- Users Service ---
 
 async def get_all_users(db: AsyncSession) -> List[User]:
-    stmt = select(User).options(selectinload(User.custom_role)).order_by(User.id)
+    stmt = (
+        select(User)
+        .options(
+            selectinload(User.custom_role),
+            selectinload(User.office_assignments).selectinload(UserOfficeAssignment.office),
+        )
+        .order_by(User.id)
+    )
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -110,9 +117,33 @@ async def create_new_user(db: AsyncSession, data: UserCreate) -> User:
         is_active=True,
     )
     db.add(user)
+    await db.flush()
+
+    # Handle issuing office assignments
+    office_ids = data.assigned_office_ids or []
+    default_id = data.default_office_id
+    if not office_ids:
+        hq_stmt = select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1)
+        hq = (await db.execute(hq_stmt)).scalar_one_or_none()
+        if hq:
+            office_ids = [hq.id]
+            default_id = hq.id
+
+    for oid in office_ids:
+        is_def = (oid == default_id) if default_id else (oid == office_ids[0])
+        assignment = UserOfficeAssignment(user_id=user.id, office_id=oid, is_default=is_def)
+        db.add(assignment)
+
     await db.commit()
-    await db.refresh(user)
-    return user
+    refreshed = (await db.execute(
+        select(User)
+        .options(
+            selectinload(User.custom_role),
+            selectinload(User.office_assignments).selectinload(UserOfficeAssignment.office),
+        )
+        .where(User.id == user.id)
+    )).scalar_one()
+    return refreshed
 
 async def update_existing_user(
     db: AsyncSession,
@@ -120,7 +151,14 @@ async def update_existing_user(
     data: UserUpdate,
     current_user: Optional[User] = None,
 ) -> User:
-    stmt = select(User).where(User.id == user_id)
+    stmt = (
+        select(User)
+        .options(
+            selectinload(User.custom_role),
+            selectinload(User.office_assignments).selectinload(UserOfficeAssignment.office),
+        )
+        .where(User.id == user_id)
+    )
     user = (await db.execute(stmt)).scalar_one_or_none()
     if not user:
         raise AppException(status_code=404, error_code="USER_NOT_FOUND", message="User not found.")
@@ -164,9 +202,25 @@ async def update_existing_user(
     if data.password:
         user.password_hash = get_password_hash(data.password)
 
+    if data.assigned_office_ids is not None:
+        await db.execute(delete(UserOfficeAssignment).where(UserOfficeAssignment.user_id == user.id))
+        office_ids = data.assigned_office_ids
+        default_id = data.default_office_id or (office_ids[0] if office_ids else None)
+        for oid in office_ids:
+            is_def = (oid == default_id)
+            assignment = UserOfficeAssignment(user_id=user.id, office_id=oid, is_default=is_def)
+            db.add(assignment)
+
     await db.commit()
-    await db.refresh(user)
-    return user
+    refreshed = (await db.execute(
+        select(User)
+        .options(
+            selectinload(User.custom_role),
+            selectinload(User.office_assignments).selectinload(UserOfficeAssignment.office),
+        )
+        .where(User.id == user.id)
+    )).scalar_one()
+    return refreshed
 
 
 # --- Series Categories ---
@@ -256,9 +310,23 @@ from app.modules.settings.series_service import (
     STANDARD_VOUCHER_METADATA,
 )
 
-async def get_all_series_masters(db: AsyncSession) -> List[dict]:
+async def get_all_series_masters(db: AsyncSession, office_id: Optional[int] = None) -> List[dict]:
     await ensure_series_table_schema(db)
-    stmt = select(SeriesMaster).options(selectinload(SeriesMaster.category)).order_by(SeriesMaster.document_type)
+    stmt = (
+        select(SeriesMaster)
+        .options(
+            selectinload(SeriesMaster.category),
+            selectinload(SeriesMaster.issuing_office),
+        )
+        .order_by(SeriesMaster.document_type)
+    )
+    if office_id:
+        stmt = stmt.where(
+            or_(
+                SeriesMaster.issuing_office_id == office_id,
+                SeriesMaster.issuing_office_id.is_(None),
+            )
+        )
     result = await db.execute(stmt)
     series_list = result.scalars().all()
     
@@ -280,6 +348,8 @@ async def get_all_series_masters(db: AsyncSession) -> List[dict]:
             "id": s.id,
             "category_id": s.category_id,
             "category_name": s.category.name if s.category else None,
+            "issuing_office_id": s.issuing_office_id,
+            "issuing_office_name": s.issuing_office.name if s.issuing_office else None,
             "document_type": s.document_type,
             "prefix": s.prefix,
             "suffix": s.suffix or "",
@@ -323,6 +393,7 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
 
     series = SeriesMaster(
         category_id=data.category_id,
+        issuing_office_id=data.issuing_office_id,
         document_type=norm_doc,
         series_name=data.series_name.strip() if data.series_name else None,
         prefix=data.prefix.strip(),
@@ -345,12 +416,21 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         if c:
             cat_name = c.name
 
+    office_name = None
+    if series.issuing_office_id:
+        from app.tenant_db.models import Branch
+        b = await db.get(Branch, series.issuing_office_id)
+        if b:
+            office_name = b.name
+
     real_usage = await get_real_voucher_usage(db, series.document_type)
     disp = compute_series_display_data(series, real_usage=real_usage)
     return {
         "id": series.id,
         "category_id": series.category_id,
         "category_name": cat_name,
+        "issuing_office_id": series.issuing_office_id,
+        "issuing_office_name": office_name,
         "document_type": series.document_type,
         "series_name": series.series_name,
         "prefix": series.prefix,
@@ -372,7 +452,14 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
 
 async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMasterUpdate) -> dict:
     await ensure_series_table_schema(db)
-    series = (await db.execute(select(SeriesMaster).options(selectinload(SeriesMaster.category)).where(SeriesMaster.id == series_id))).scalar_one_or_none()
+    series = (await db.execute(
+        select(SeriesMaster)
+        .options(
+            selectinload(SeriesMaster.category),
+            selectinload(SeriesMaster.issuing_office),
+        )
+        .where(SeriesMaster.id == series_id)
+    )).scalar_one_or_none()
     if not series:
         raise AppException(status_code=404, error_code="SERIES_NOT_FOUND", message="Series master not found.")
 
@@ -406,6 +493,8 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
         series.series_name = data.series_name.strip() if data.series_name else None
     if data.category_id is not None:
         series.category_id = data.category_id
+    if data.issuing_office_id is not None:
+        series.issuing_office_id = data.issuing_office_id
     if data.document_type:
         series.document_type = norm_doc
     if data.prefix is not None:
@@ -431,6 +520,8 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
         "id": series.id,
         "category_id": series.category_id,
         "category_name": series.category.name if series.category else None,
+        "issuing_office_id": series.issuing_office_id,
+        "issuing_office_name": series.issuing_office.name if series.issuing_office else None,
         "document_type": series.document_type,
         "series_name": series.series_name,
         "prefix": series.prefix,
@@ -457,9 +548,9 @@ async def delete_series_master(db: AsyncSession, series_id: int) -> None:
     await db.delete(series)
     await db.commit()
 
-async def get_manual_series_ranges(db: AsyncSession, document_type: str) -> dict:
+async def get_manual_series_ranges(db: AsyncSession, document_type: str, office_id: Optional[int] = None) -> dict:
     from app.modules.settings.series_service import get_manual_series_ranges as s_get_ranges
-    return await s_get_ranges(db, document_type)
+    return await s_get_ranges(db, document_type, issuing_office_id=office_id)
 
 async def set_default_series(db: AsyncSession, series_id: int) -> dict:
     from app.modules.settings.series_service import set_default_series as s_set_default

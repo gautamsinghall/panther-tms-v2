@@ -1,6 +1,6 @@
 import logging
 from typing import Optional, List, Dict, Any, Set, Tuple, Union
-from sqlalchemy import select, text
+from sqlalchemy import select, text, or_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.models import SeriesMaster, SeriesCategory
 from app.core.errors import AppException
@@ -502,7 +502,11 @@ async def get_all_used_numbers_for_doc(db: AsyncSession, document_type: str) -> 
     return used_numbers
 
 
-async def get_manual_series_ranges(db: AsyncSession, document_type: str) -> Dict[str, Any]:
+async def get_manual_series_ranges(
+    db: AsyncSession,
+    document_type: str,
+    issuing_office_id: Optional[int] = None,
+) -> Dict[str, Any]:
     """
     Returns all configured manual series ranges for a document type.
     Computes available (unused) voucher numbers for each range, filtering out already used vouchers.
@@ -512,14 +516,23 @@ async def get_manual_series_ranges(db: AsyncSession, document_type: str) -> Dict
     norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
     is_mandatory_manual = norm_type in MANDATORY_MANUAL_DOC_TYPES
 
-    stmt = (
-        select(SeriesMaster)
-        .where(
-            SeriesMaster.document_type.in_([norm_type, raw_doc]),
-            SeriesMaster.is_active == True,
-        )
-        .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
+    stmt = select(SeriesMaster).where(
+        SeriesMaster.document_type.in_([norm_type, raw_doc]),
+        SeriesMaster.is_active == True,
     )
+    if issuing_office_id:
+        stmt = stmt.where(
+            or_(
+                SeriesMaster.issuing_office_id == issuing_office_id,
+                SeriesMaster.issuing_office_id.is_(None),
+            )
+        ).order_by(
+            case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+            SeriesMaster.is_default.desc(),
+            SeriesMaster.id.asc(),
+        )
+    else:
+        stmt = stmt.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
     res = await db.execute(stmt)
     all_series = res.scalars().all()
 
@@ -618,6 +631,7 @@ async def allocate_or_validate_voucher_number(
     document_type: str,
     manual_number: Optional[str] = None,
     financial_year: str = "2026-2027",
+    issuing_office_id: Optional[int] = None,
 ) -> str:
     """
     Allocates the voucher number according to configured SeriesMaster.
@@ -625,20 +639,30 @@ async def allocate_or_validate_voucher_number(
     - If configured as MANUAL: validates/formats provided manual sequence or auto-picks next number,
       and updates SeriesMaster current_number.
     - If configured as AUTOMATIC: auto-increments current_number and formats number with Prefix and Postfix.
+    - If issuing_office_id is provided, prioritizes office-specific series with fallback to global company series.
     """
     raw_doc = document_type.upper().strip()
     norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
     is_mandatory_manual = norm_type in MANDATORY_MANUAL_DOC_TYPES
 
-    # Find active series for this document_type
-    stmt = (
-        select(SeriesMaster)
-        .where(
-            SeriesMaster.document_type.in_([norm_type, raw_doc]),
-            SeriesMaster.is_active == True,
-        )
-        .order_by(SeriesMaster.id.desc())
+    # Find active series for this document_type (prioritizing office if specified)
+    stmt = select(SeriesMaster).where(
+        SeriesMaster.document_type.in_([norm_type, raw_doc]),
+        SeriesMaster.is_active == True,
     )
+    if issuing_office_id:
+        stmt = stmt.where(
+            or_(
+                SeriesMaster.issuing_office_id == issuing_office_id,
+                SeriesMaster.issuing_office_id.is_(None),
+            )
+        ).order_by(
+            case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+            SeriesMaster.is_default.desc(),
+            SeriesMaster.id.desc(),
+        )
+    else:
+        stmt = stmt.order_by(SeriesMaster.id.desc())
     res = await db.execute(stmt)
     series = res.scalars().first()
 
@@ -685,14 +709,24 @@ async def allocate_or_validate_voucher_number(
                     )
 
                 # Find which series range owns this voucher number
-                all_ranges = (await db.execute(
-                    select(SeriesMaster)
-                    .where(
-                        SeriesMaster.document_type.in_([norm_type, raw_doc]),
-                        SeriesMaster.is_active == True,
+                range_stmt = select(SeriesMaster).where(
+                    SeriesMaster.document_type.in_([norm_type, raw_doc]),
+                    SeriesMaster.is_active == True,
+                )
+                if issuing_office_id:
+                    range_stmt = range_stmt.where(
+                        or_(
+                            SeriesMaster.issuing_office_id == issuing_office_id,
+                            SeriesMaster.issuing_office_id.is_(None),
+                        )
+                    ).order_by(
+                        case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+                        SeriesMaster.is_default.desc(),
+                        SeriesMaster.id.asc(),
                     )
-                    .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
-                )).scalars().all()
+                else:
+                    range_stmt = range_stmt.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
+                all_ranges = (await db.execute(range_stmt)).scalars().all()
 
                 # Extract pure sequence number by stripping prefix and suffix first
                 core_val = clean_val
@@ -792,7 +826,11 @@ async def allocate_or_validate_voucher_number(
     return f"{raw_doc[:3]}-2026-{next_num:04d}"
 
 
-async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str, Any]:
+async def check_series_status(
+    db: AsyncSession,
+    document_type: str,
+    issuing_office_id: Optional[int] = None,
+) -> Dict[str, Any]:
     """
     Returns the series configuration and next available series number for a given document type.
     """
@@ -800,14 +838,23 @@ async def check_series_status(db: AsyncSession, document_type: str) -> Dict[str,
     norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
     is_mandatory_manual = norm_type in MANDATORY_MANUAL_DOC_TYPES
 
-    stmt = (
-        select(SeriesMaster)
-        .where(
-            SeriesMaster.document_type.in_([norm_type, raw_doc]),
-            SeriesMaster.is_active == True,
-        )
-        .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+    stmt = select(SeriesMaster).where(
+        SeriesMaster.document_type.in_([norm_type, raw_doc]),
+        SeriesMaster.is_active == True,
     )
+    if issuing_office_id:
+        stmt = stmt.where(
+            or_(
+                SeriesMaster.issuing_office_id == issuing_office_id,
+                SeriesMaster.issuing_office_id.is_(None),
+            )
+        ).order_by(
+            case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+            SeriesMaster.is_default.desc(),
+            SeriesMaster.id.desc(),
+        )
+    else:
+        stmt = stmt.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
     res = await db.execute(stmt)
     series = res.scalars().first()
 

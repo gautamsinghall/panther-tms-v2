@@ -7,6 +7,7 @@ import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/ui/badge";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { NotificationsPopover } from "@/components/layout/notifications-popover";
+import { OfficeSwitcher } from "@/components/layout/office-switcher";
 import { getStoredAuth, clearStoredAuth } from "@/lib/auth";
 
 export function Header() {
@@ -74,7 +75,11 @@ export function Header() {
 
         <div className="h-4 w-[1px] bg-slate-200 hidden sm:block" />
 
-        <div className="hidden sm:block">
+        <OfficeSwitcher />
+
+        <div className="h-4 w-[1px] bg-slate-200 hidden lg:block" />
+
+        <div className="hidden lg:block">
           <StatusBadge status="ACTIVE" />
         </div>
       </div>

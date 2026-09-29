@@ -121,6 +121,54 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE profile_branches ADD COLUMN IF NOT EXISTS {br_col};"))
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+                        
+                        # Issuing Office Schema Evolution & Backfill
+                        for office_col_tbl in [
+                            "transport_lrs", "transport_jobs", "transport_hire_challans",
+                            "accounts_vouchers", "settings_series_masters"
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE {office_col_tbl} ADD COLUMN IF NOT EXISTS issuing_office_id INTEGER REFERENCES profile_branches(id);"))
+                            await t_conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{office_col_tbl}_issuing_office_id ON {office_col_tbl} (issuing_office_id);"))
+
+                        # Ensure at least one default branch exists
+                        br_check = await t_conn.execute(text("SELECT id FROM profile_branches ORDER BY is_head_office DESC, id ASC LIMIT 1;"))
+                        default_branch_id = br_check.scalar()
+                        if not default_branch_id:
+                            cs_res = await t_conn.execute(text("SELECT company_name, city, state, address, pincode, phone, email, gstin FROM company_settings LIMIT 1;"))
+                            cs_row = cs_res.fetchone()
+                            c_name = cs_row[0] if cs_row and cs_row[0] else "Head Office"
+                            c_city = cs_row[1] if cs_row and cs_row[1] else "Headquarters"
+                            c_state = cs_row[2] if cs_row and cs_row[2] else "Delhi"
+                            ins_br = await t_conn.execute(
+                                text("""
+                                    INSERT INTO profile_branches (code, name, city, state, is_head_office, is_active, created_at, updated_at)
+                                    VALUES ('HQ', :name, :city, :state, true, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                    RETURNING id;
+                                """),
+                                {"name": f"{c_name} (HQ)", "city": c_city, "state": c_state}
+                            )
+                            default_branch_id = ins_br.scalar()
+
+                        # Backfill existing unassigned records to default branch
+                        if default_branch_id:
+                            for tbl in ["transport_lrs", "transport_jobs", "transport_hire_challans", "accounts_vouchers", "settings_series_masters"]:
+                                await t_conn.execute(
+                                    text(f"UPDATE {tbl} SET issuing_office_id = :bid WHERE issuing_office_id IS NULL;"),
+                                    {"bid": default_branch_id}
+                                )
+                            # Backfill user_office_assignments for existing users with no assignments
+                            await t_conn.execute(
+                                text("""
+                                    INSERT INTO user_office_assignments (user_id, office_id, is_default, created_at)
+                                    SELECT u.id, :bid, true, CURRENT_TIMESTAMP
+                                    FROM users u
+                                    WHERE NOT EXISTS (
+                                        SELECT 1 FROM user_office_assignments uoa WHERE uoa.user_id = u.id
+                                    );
+                                """),
+                                {"bid": default_branch_id}
+                            )
+
                         await t_conn.execute(
                             text("UPDATE users SET is_active = true WHERE lower(email) = lower(:email);"),
                             {"email": settings.DEMO_ADMIN_EMAIL.lower().strip()}

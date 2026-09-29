@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
-from typing import List
-from sqlalchemy import select, func, desc, case
+from typing import List, Optional
+from sqlalchemy import select, func, desc, case, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.models import (
     LR, Consigner, Consignee, Location, HireChallan,
@@ -14,8 +14,17 @@ from app.modules.transport_reports.schemas import (
 )
 
 # 1. LR Booking Register
-async def get_lr_booking_register(db: AsyncSession) -> List[LRRegisterRow]:
+async def get_lr_booking_register(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[LRRegisterRow]:
     stmt = select(LR).order_by(desc(LR.created_at))
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
     result = await db.execute(stmt)
     lrs = result.scalars().all()
     
@@ -40,7 +49,11 @@ async def get_lr_booking_register(db: AsyncSession) -> List[LRRegisterRow]:
     ]
 
 # 2. LR Client-Wise (Consigner & Consignee aggregation)
-async def get_lr_client_wise(db: AsyncSession) -> List[LRClientWiseRow]:
+async def get_lr_client_wise(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[LRClientWiseRow]:
     # Group by Consigner
     stmt = (
         select(
@@ -56,9 +69,13 @@ async def get_lr_client_wise(db: AsyncSession) -> List[LRClientWiseRow]:
             ).label("in_transit_count"),
         )
         .join(LR, LR.consigner_id == Consigner.id)
-        .group_by(Consigner.id, Consigner.name)
-        .order_by(desc("total_lrs"))
     )
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
+    stmt = stmt.group_by(Consigner.id, Consigner.name).order_by(desc("total_lrs"))
     result = await db.execute(stmt)
     rows = []
     for r in result.all():
@@ -76,8 +93,17 @@ async def get_lr_client_wise(db: AsyncSession) -> List[LRClientWiseRow]:
     return rows
 
 # 3. Hire Challan Register
-async def get_hire_challan_register(db: AsyncSession) -> List[HireChallanRegisterRow]:
+async def get_hire_challan_register(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[HireChallanRegisterRow]:
     stmt = select(HireChallan).order_by(desc(HireChallan.created_at))
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(HireChallan.issuing_office_id == office_id, HireChallan.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(HireChallan.issuing_office_id == office_id)
     result = await db.execute(stmt)
     challans = result.scalars().all()
 
@@ -100,15 +126,24 @@ async def get_hire_challan_register(db: AsyncSession) -> List[HireChallanRegiste
     ]
 
 # 4. Pending HC Report (balance_amount > 0 and not SETTLED)
-async def get_pending_hire_challans(db: AsyncSession) -> List[PendingHCRow]:
+async def get_pending_hire_challans(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[PendingHCRow]:
     stmt = (
         select(HireChallan)
         .where(
             HireChallan.balance_amount > 0,
             HireChallan.status != HireChallanStatus.SETTLED.value,
         )
-        .order_by(desc(HireChallan.created_at))
     )
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(HireChallan.issuing_office_id == office_id, HireChallan.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(HireChallan.issuing_office_id == office_id)
+    stmt = stmt.order_by(desc(HireChallan.created_at))
     result = await db.execute(stmt)
     challans = result.scalars().all()
 
@@ -129,7 +164,11 @@ async def get_pending_hire_challans(db: AsyncSession) -> List[PendingHCRow]:
     ]
 
 # 5. Unbilled Reports (Delivered or Verified LRs ready for Phase 3 Transport Invoicing)
-async def get_unbilled_lrs(db: AsyncSession) -> List[UnbilledLRRow]:
+async def get_unbilled_lrs(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[UnbilledLRRow]:
     stmt = (
         select(LR)
         .where(
@@ -139,8 +178,13 @@ async def get_unbilled_lrs(db: AsyncSession) -> List[UnbilledLRRow]:
                 LRStatus.POD_VERIFIED.value,
             ])
         )
-        .order_by(desc(LR.created_at))
     )
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
+    stmt = stmt.order_by(desc(LR.created_at))
     result = await db.execute(stmt)
     lrs = result.scalars().all()
 
@@ -161,8 +205,17 @@ async def get_unbilled_lrs(db: AsyncSession) -> List[UnbilledLRRow]:
     ]
 
 # 6. Arrival Report Register
-async def get_arrival_report_register(db: AsyncSession) -> List[ArrivalRegisterRow]:
-    stmt = select(ArrivalReport).order_by(desc(ArrivalReport.arrival_date))
+async def get_arrival_report_register(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[ArrivalRegisterRow]:
+    stmt = select(ArrivalReport).outerjoin(ArrivalReport.lr).order_by(desc(ArrivalReport.arrival_date))
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
     result = await db.execute(stmt)
     reports = result.scalars().all()
 
@@ -183,12 +236,18 @@ async def get_arrival_report_register(db: AsyncSession) -> List[ArrivalRegisterR
     ]
 
 # 7. Unused GR/LR Series
-async def get_unused_series(db: AsyncSession) -> List[UnusedSeriesRow]:
-    stmt = select(func.count(LR.id))
-    result = await db.execute(stmt)
+async def get_unused_series(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+) -> List[UnusedSeriesRow]:
+    lr_stmt = select(func.count(LR.id))
+    job_stmt = select(func.count(Job.id))
+    if office_id:
+        lr_stmt = lr_stmt.where(LR.issuing_office_id == office_id)
+        job_stmt = job_stmt.where(Job.issuing_office_id == office_id)
+    result = await db.execute(lr_stmt)
     lr_count = result.scalar() or 0
 
-    job_stmt = select(func.count(Job.id))
     job_result = await db.execute(job_stmt)
     job_count = job_result.scalar() or 0
 
@@ -212,9 +271,19 @@ async def get_unused_series(db: AsyncSession) -> List[UnusedSeriesRow]:
     ]
 
 # 8. Invoice Register (Deliveries ready for invoicing / billable consignments)
-async def get_invoice_register(db: AsyncSession) -> List[InvoiceRegisterRow]:
+async def get_invoice_register(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[InvoiceRegisterRow]:
     # Fetch LRs that are POD_VERIFIED
-    stmt = select(LR).where(LR.status == LRStatus.POD_VERIFIED.value).order_by(desc(LR.created_at))
+    stmt = select(LR).where(LR.status == LRStatus.POD_VERIFIED.value)
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
+    stmt = stmt.order_by(desc(LR.created_at))
     result = await db.execute(stmt)
     lrs = result.scalars().all()
 

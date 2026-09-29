@@ -1,7 +1,8 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, or_
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
 from app.core.errors import AppException
@@ -259,17 +260,28 @@ async def delete_company_vehicle(db: AsyncSession, vehicle_id: int) -> None:
 # Job Services & State Machine
 # ===========================================================================
 
-async def get_all_jobs(db: AsyncSession) -> List[Job]:
+async def get_all_jobs(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False) -> List[Job]:
     stmt = select(Job).order_by(desc(Job.created_at))
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(Job.issuing_office_id == office_id, Job.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(Job.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
-async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] = None) -> Job:
-    job_number = await allocate_or_validate_voucher_number(db, "JOB", manual_number=data.job_number)
+async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] = None, office_id: Optional[int] = None) -> Job:
+    target_office_id = data.issuing_office_id or office_id
+    if not target_office_id:
+        from app.tenant_db.models import Branch
+        br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
+        target_office_id = br_res.scalar_one_or_none()
+    job_number = await allocate_or_validate_voucher_number(db, "JOB", manual_number=data.job_number, issuing_office_id=target_office_id)
     job_dict = data.model_dump()
     job_dict["job_number"] = job_number
     job_dict["status"] = JobStatus.OPEN.value
     job_dict["created_by_user_id"] = user_id
+    job_dict["issuing_office_id"] = target_office_id
     if job_dict.get("billing_client_id") and not job_dict.get("billing_party"):
         from app.tenant_db.models import BillingClient
         bc = await db.get(BillingClient, job_dict["billing_client_id"])
@@ -323,17 +335,28 @@ async def transition_job_status(db: AsyncSession, job_id: int, target_status: Jo
 # LR / GR Services & State Machine
 # ===========================================================================
 
-async def get_all_lrs(db: AsyncSession) -> List[LR]:
+async def get_all_lrs(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False) -> List[LR]:
     stmt = select(LR).order_by(desc(LR.created_at))
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
-async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = None) -> LR:
-    lr_number = await allocate_or_validate_voucher_number(db, "LR", manual_number=data.lr_number)
+async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = None, office_id: Optional[int] = None) -> LR:
+    target_office_id = data.issuing_office_id or office_id
+    if not target_office_id:
+        from app.tenant_db.models import Branch
+        br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
+        target_office_id = br_res.scalar_one_or_none()
+    lr_number = await allocate_or_validate_voucher_number(db, "LR", manual_number=data.lr_number, issuing_office_id=target_office_id)
     lr_dict = data.model_dump()
     lr_dict["lr_number"] = lr_number
     lr_dict["status"] = LRStatus.DRAFT.value
     lr_dict["created_by_user_id"] = user_id
+    lr_dict["issuing_office_id"] = target_office_id
     
     # Calculate total freight if not explicitly provided
     if not lr_dict.get("total_freight_amount"):
@@ -431,16 +454,27 @@ async def transition_lr_status(db: AsyncSession, lr_id: int, target_status: LRSt
 # Hire Challan Services
 # ===========================================================================
 
-async def get_all_hire_challans(db: AsyncSession) -> List[HireChallan]:
+async def get_all_hire_challans(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False) -> List[HireChallan]:
     stmt = select(HireChallan).order_by(desc(HireChallan.created_at))
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(HireChallan.issuing_office_id == office_id, HireChallan.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(HireChallan.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
-async def create_hire_challan(db: AsyncSession, data: HireChallanCreate) -> HireChallan:
-    challan_number = await allocate_or_validate_voucher_number(db, "HIRE_CHALLAN", manual_number=data.challan_number)
+async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_id: Optional[int] = None) -> HireChallan:
+    target_office_id = data.issuing_office_id or office_id
+    if not target_office_id:
+        from app.tenant_db.models import Branch
+        br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
+        target_office_id = br_res.scalar_one_or_none()
+    challan_number = await allocate_or_validate_voucher_number(db, "HIRE_CHALLAN", manual_number=data.challan_number, issuing_office_id=target_office_id)
     hc_dict = data.model_dump()
     hc_dict["challan_number"] = challan_number
     hc_dict["status"] = HireChallanStatus.ISSUED.value  # Confirmed on creation
+    hc_dict["issuing_office_id"] = target_office_id
 
     # Financial calculations
     hire_rate = hc_dict.get("hire_rate") or Decimal("0.00")
@@ -503,8 +537,18 @@ async def settle_hire_challan(db: AsyncSession, hc_id: int, settlement_notes: Op
 # Arrival Report Services
 # ===========================================================================
 
-async def get_all_arrival_reports(db: AsyncSession) -> List[ArrivalReport]:
-    stmt = select(ArrivalReport).order_by(desc(ArrivalReport.created_at))
+async def get_all_arrival_reports(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[ArrivalReport]:
+    stmt = select(ArrivalReport).options(selectinload(ArrivalReport.lr)).order_by(desc(ArrivalReport.created_at))
+    if office_id:
+        stmt = stmt.join(ArrivalReport.lr)
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -538,8 +582,18 @@ async def create_arrival_report(db: AsyncSession, data: ArrivalReportCreate) -> 
 # POD Record Services
 # ===========================================================================
 
-async def get_all_pod_records(db: AsyncSession) -> List[PODRecord]:
-    stmt = select(PODRecord).order_by(desc(PODRecord.created_at))
+async def get_all_pod_records(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[PODRecord]:
+    stmt = select(PODRecord).options(selectinload(PODRecord.lr)).order_by(desc(PODRecord.created_at))
+    if office_id:
+        stmt = stmt.join(PODRecord.lr)
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 

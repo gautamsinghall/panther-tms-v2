@@ -1,5 +1,5 @@
 from typing import List, Optional, Union
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_company_admin, check_entitlement_limit
@@ -7,7 +7,7 @@ from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.modules.settings.schemas import (
     RoleCreate, RoleUpdate, RoleResponse,
-    UserCreate, UserUpdate, UserListItem, PermissionItem,
+    UserCreate, UserUpdate, UserListItem, AssignedOfficeInfo, PermissionItem,
     SeriesCategoryCreate, SeriesCategoryUpdate, SeriesCategoryResponse,
     SeriesMasterCreate, SeriesMasterUpdate, SeriesMasterResponse, SeriesCheckResponse,
     AdminSettingItem, AdminSettingsBulkUpdate, AdminSettingResponse, UserActivityResponse
@@ -16,6 +16,32 @@ from app.modules.settings import service
 
 
 router = APIRouter(prefix="/settings", tags=["Settings & RBAC"])
+
+def map_user_to_list_item(u: User) -> UserListItem:
+    assigned_offices = [
+        AssignedOfficeInfo(
+            office_id=a.office.id,
+            office_code=a.office.code,
+            office_name=a.office.name,
+            is_default=a.is_default,
+        )
+        for a in (u.office_assignments or [])
+        if a.office
+    ]
+    def_id = next((a.office_id for a in (u.office_assignments or []) if a.is_default), (assigned_offices[0].office_id if assigned_offices else None))
+    return UserListItem(
+        id=u.id,
+        email=u.email,
+        full_name=u.full_name,
+        role=u.role,
+        role_id=u.role_id,
+        role_name=u.custom_role.name if u.custom_role else ("Company Admin" if u.role == "COMPANY_ADMIN" else None),
+        is_active=u.is_active,
+        created_at=u.created_at,
+        updated_at=u.updated_at,
+        assigned_offices=assigned_offices,
+        default_office_id=def_id,
+    )
 
 # --- Roles Management Endpoints ---
 
@@ -137,20 +163,7 @@ async def list_users(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     users = await service.get_all_users(db)
-    return [
-        UserListItem(
-            id=u.id,
-            email=u.email,
-            full_name=u.full_name,
-            role=u.role,
-            role_id=u.role_id,
-            role_name=u.custom_role.name if u.custom_role else ("Company Admin" if u.role == "COMPANY_ADMIN" else None),
-            is_active=u.is_active,
-            created_at=u.created_at,
-            updated_at=u.updated_at,
-        )
-        for u in users
-    ]
+    return [map_user_to_list_item(u) for u in users]
 
 @router.post(
     "/users",
@@ -176,17 +189,7 @@ async def create_user(
         entity_id=str(user.id),
         details=f"Created user {user.email} ({user.role})"
     )
-    return UserListItem(
-        id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        role=user.role,
-        role_id=user.role_id,
-        role_name=user.custom_role.name if user.custom_role else None,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
+    return map_user_to_list_item(user)
 
 @router.put(
     "/users/{user_id}",
@@ -200,17 +203,7 @@ async def update_user(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     user = await service.update_existing_user(db, user_id, data, current_user=current_user)
-    return UserListItem(
-        id=user.id,
-        email=user.email,
-        full_name=user.full_name,
-        role=user.role,
-        role_id=user.role_id,
-        role_name=user.custom_role.name if user.custom_role else None,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-    )
+    return map_user_to_list_item(user)
 
 
 # --- Series Categories Endpoints ---
@@ -275,10 +268,11 @@ async def delete_series_category(
     summary="List all document series numbering masters"
 )
 async def list_series_masters(
+    office_id: Optional[int] = Query(None),
     current_user: User = Depends(require_permission("settings", "series_master", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_all_series_masters(db)
+    return await service.get_all_series_masters(db, office_id=office_id)
 
 @router.post(
     "/series",
@@ -338,9 +332,10 @@ async def initialize_standard_series(
 )
 async def check_series(
     document_type: str,
+    office_id: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.check_series_status(db, document_type)
+    return await service.check_series_status(db, document_type, office_id=office_id)
 
 @router.get(
     "/series/manual-ranges/{document_type}",
@@ -348,9 +343,10 @@ async def check_series(
 )
 async def get_manual_series_ranges(
     document_type: str,
+    office_id: Optional[int] = Query(None),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_manual_series_ranges(db, document_type)
+    return await service.get_manual_series_ranges(db, document_type, office_id=office_id)
 
 @router.post(
     "/series/{series_id}/set-default",

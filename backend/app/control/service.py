@@ -18,7 +18,7 @@ from app.control.schemas import (
 )
 from app.integrations.razorpay.client import razorpay_client
 from app.tenant_db.base import TenantBase
-from app.tenant_db.models import User, Role, CompanySetting
+from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment
 from app.core.database import get_tenant_session_maker
 
 logger = logging.getLogger("panther.control.service")
@@ -268,6 +268,37 @@ async def initialize_tenant_schema_and_admin(
                 is_active=True,
             )
             session.add(admin_user)
+            await session.flush()
+        else:
+            admin_user = existing_user
+
+        # Ensure default Head Office branch exists
+        branch_stmt = select(Branch).where(Branch.is_head_office == True)
+        branch_res = await session.execute(branch_stmt)
+        head_office = branch_res.scalar_one_or_none()
+        if not head_office:
+            head_office = Branch(
+                code="HQ",
+                name=f"{company_name} (HQ)",
+                is_head_office=True,
+                is_active=True,
+            )
+            session.add(head_office)
+            await session.flush()
+
+        # Ensure admin user has default assignment to head office
+        assign_stmt = select(UserOfficeAssignment).where(
+            UserOfficeAssignment.user_id == admin_user.id,
+            UserOfficeAssignment.office_id == head_office.id
+        )
+        assign_res = await session.execute(assign_stmt)
+        if not assign_res.scalar_one_or_none():
+            assignment = UserOfficeAssignment(
+                user_id=admin_user.id,
+                office_id=head_office.id,
+                is_default=True,
+            )
+            session.add(assignment)
 
         # Company setting
         comp_stmt = select(CompanySetting).limit(1)

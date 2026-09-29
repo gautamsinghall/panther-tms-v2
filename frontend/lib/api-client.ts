@@ -5,6 +5,7 @@ export { getApiBaseUrl };
 interface ApiClientOptions extends RequestInit {
   tenantId?: string;
   companyCode?: string;
+  officeId?: number | string;
 }
 
 export async function apiClient<T = any>(
@@ -26,6 +27,14 @@ export async function apiClient<T = any>(
     }
   }
 
+  let officeId = options.officeId !== undefined ? options.officeId : storedAuth?.activeOffice?.id;
+  if (officeId === undefined && typeof window !== "undefined") {
+    const match = document.cookie.match(/panther_office_id=([^;]+)/);
+    if (match) {
+      officeId = match[1];
+    }
+  }
+
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
   };
@@ -35,6 +44,9 @@ export async function apiClient<T = any>(
   }
   if (companyCode) {
     headers["X-Company-Code"] = companyCode;
+  }
+  if (officeId !== undefined && officeId !== null && !headers["X-Office-ID"]) {
+    headers["X-Office-ID"] = String(officeId);
   }
 
   if (storedAuth?.accessToken && !headers["Authorization"]) {

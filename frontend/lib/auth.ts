@@ -6,6 +6,16 @@ export interface StoredUser {
   is_active?: boolean;
 }
 
+export interface OfficeSummary {
+  id: number;
+  code: string;
+  name: string;
+  city?: string;
+  state?: string;
+  is_head_office?: boolean;
+  is_default?: boolean;
+}
+
 export interface StoredAuth {
   accessToken: string;
   refreshToken?: string;
@@ -14,6 +24,8 @@ export interface StoredAuth {
   companyCode: string;
   tenantName: string;
   user: StoredUser;
+  assignedOffices?: OfficeSummary[];
+  activeOffice?: OfficeSummary | null;
 }
 
 const AUTH_STORAGE_KEY = "panther_tms_auth";
@@ -71,6 +83,9 @@ export function setStoredAuth(data: StoredAuth): void {
     if (data.companyCode) {
       document.cookie = `panther_company_code=${encodeURIComponent(data.companyCode)}; path=/; max-age=2592000; SameSite=Lax`;
     }
+    if (data.activeOffice?.id) {
+      document.cookie = `panther_office_id=${encodeURIComponent(String(data.activeOffice.id))}; path=/; max-age=2592000; SameSite=Lax`;
+    }
   } catch (err) {
     console.error("Failed to store auth", err);
   }
@@ -82,8 +97,30 @@ export function clearStoredAuth(): void {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     document.cookie = "panther_tenant_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "panther_company_code=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "panther_office_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   } catch (err) {
     console.error("Failed to clear auth", err);
+  }
+}
+
+export function getActiveOffice(): OfficeSummary | null {
+  const auth = getStoredAuth();
+  return auth?.activeOffice || null;
+}
+
+export function getAssignedOffices(): OfficeSummary[] {
+  const auth = getStoredAuth();
+  return auth?.assignedOffices || [];
+}
+
+export function setActiveOffice(office: OfficeSummary): void {
+  const auth = getStoredAuth();
+  if (auth) {
+    auth.activeOffice = office;
+    setStoredAuth(auth);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("panther_office_changed", { detail: office }));
+    }
   }
 }
 
@@ -207,6 +244,8 @@ export async function login(
       full_name: "Operations Manager",
       role: "COMPANY_ADMIN",
     },
+    assignedOffices: result.assigned_offices || [],
+    activeOffice: result.active_office || (result.assigned_offices && result.assigned_offices[0]) || null,
   };
 
   setStoredAuth(authData);

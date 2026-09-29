@@ -4,9 +4,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
 from app.tenant_db.session import get_tenant_db, get_current_tenant
-from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit
+from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User
+from app.tenant_db.models import User, Branch
 from app.modules.transport import service
 from app.modules.transport.excel_import import generate_job_import_template, import_jobs_from_excel
 from app.modules.transport.schemas import (
@@ -245,13 +245,18 @@ async def import_jobs_excel(
 @router.get("/jobs", response_model=List[JobResponse])
 async def list_jobs(
     current_user: User = Depends(require_permission("transport", "jobs", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    jobs = await service.get_all_jobs(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    jobs = await service.get_all_jobs(db, office_id=target_office_id, include_unassigned=include_unassigned)
     return [
         JobResponse(
             id=j.id,
             job_number=j.job_number,
+            issuing_office_id=j.issuing_office_id,
+            issuing_office_name=j.issuing_office.name if j.issuing_office else None,
             job_date=j.job_date,
             consigner_id=j.consigner_id,
             consignee_id=j.consignee_id,
@@ -283,12 +288,15 @@ async def list_jobs(
 async def create_job(
     data: JobCreate,
     current_user: User = Depends(require_permission("transport", "jobs", "create")),
+    current_office: Branch = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    job = await service.create_job(db, data, user_id=current_user.id)
+    job = await service.create_job(db, data, user_id=current_user.id, office_id=current_office.id)
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
+        issuing_office_id=job.issuing_office_id,
+        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
         job_date=job.job_date,
         consigner_id=job.consigner_id,
         consignee_id=job.consignee_id,
@@ -325,6 +333,8 @@ async def update_job(
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
+        issuing_office_id=job.issuing_office_id,
+        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
         job_date=job.job_date,
         consigner_id=job.consigner_id,
         consignee_id=job.consignee_id,
@@ -361,6 +371,8 @@ async def transition_job_status(
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
+        issuing_office_id=job.issuing_office_id,
+        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
         job_date=job.job_date,
         consigner_id=job.consigner_id,
         consignee_id=job.consignee_id,
@@ -392,13 +404,19 @@ async def transition_job_status(
 @router.get("/lrs", response_model=List[LRResponse])
 async def list_lrs(
     current_user: User = Depends(require_permission("transport", "lr_booking", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    lrs = await service.get_all_lrs(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    lrs = await service.get_all_lrs(db, office_id=target_office_id, include_unassigned=include_unassigned)
     return [
         LRResponse(
             id=l.id,
             lr_number=l.lr_number,
+            issuing_office_id=l.issuing_office_id,
+            issuing_office_name=l.issuing_office.name if l.issuing_office else None,
+            issuing_office_code=l.issuing_office.code if l.issuing_office else None,
             lr_date=l.lr_date,
             job_id=l.job_id,
             consigner_id=l.consigner_id,
@@ -442,14 +460,18 @@ async def list_lrs(
 async def create_lr(
     data: LRCreate,
     current_user: User = Depends(require_permission("transport", "lr_booking", "create")),
+    current_office: Branch = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_lrs_per_month")
-    lr = await service.create_lr(db, data, user_id=current_user.id)
+    lr = await service.create_lr(db, data, user_id=current_user.id, office_id=current_office.id)
     return LRResponse(
         id=lr.id,
         lr_number=lr.lr_number,
+        issuing_office_id=lr.issuing_office_id,
+        issuing_office_name=lr.issuing_office.name if lr.issuing_office else None,
+        issuing_office_code=lr.issuing_office.code if lr.issuing_office else None,
         lr_date=lr.lr_date,
         job_id=lr.job_id,
         consigner_id=lr.consigner_id,
@@ -498,6 +520,9 @@ async def update_lr(
     return LRResponse(
         id=lr.id,
         lr_number=lr.lr_number,
+        issuing_office_id=lr.issuing_office_id,
+        issuing_office_name=lr.issuing_office.name if lr.issuing_office else None,
+        issuing_office_code=lr.issuing_office.code if lr.issuing_office else None,
         lr_date=lr.lr_date,
         job_id=lr.job_id,
         consigner_id=lr.consigner_id,
@@ -541,6 +566,9 @@ async def transition_lr_status(
     return LRResponse(
         id=lr.id,
         lr_number=lr.lr_number,
+        issuing_office_id=lr.issuing_office_id,
+        issuing_office_name=lr.issuing_office.name if lr.issuing_office else None,
+        issuing_office_code=lr.issuing_office.code if lr.issuing_office else None,
         lr_date=lr.lr_date,
         job_id=lr.job_id,
         consigner_id=lr.consigner_id,
@@ -572,20 +600,24 @@ async def transition_lr_status(
         created_at=lr.created_at,
         updated_at=lr.updated_at,
     )
-
 # ==============================================================================
 # 7. Hire Challans
 # ==============================================================================
 @router.get("/hire-challans", response_model=List[HireChallanResponse])
 async def list_hire_challans(
     current_user: User = Depends(require_permission("transport", "hire_challan", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    challans = await service.get_all_hire_challans(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    challans = await service.get_all_hire_challans(db, office_id=target_office_id, include_unassigned=include_unassigned)
     return [
         HireChallanResponse(
             id=c.id,
             challan_number=c.challan_number,
+            issuing_office_id=c.issuing_office_id,
+            issuing_office_name=c.issuing_office.name if c.issuing_office else None,
             challan_date=c.challan_date,
             lr_id=c.lr_id,
             vehicle_number=c.vehicle_number,
@@ -618,14 +650,17 @@ async def list_hire_challans(
 async def create_hire_challan(
     data: HireChallanCreate,
     current_user: User = Depends(require_permission("transport", "hire_challan", "create")),
+    current_office: Branch = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_hire_challans_per_month")
-    hc = await service.create_hire_challan(db, data)
+    hc = await service.create_hire_challan(db, data, office_id=current_office.id)
     return HireChallanResponse(
         id=hc.id,
         challan_number=hc.challan_number,
+        issuing_office_id=hc.issuing_office_id,
+        issuing_office_name=hc.issuing_office.name if hc.issuing_office else None,
         challan_date=hc.challan_date,
         lr_id=hc.lr_id,
         vehicle_number=hc.vehicle_number,
@@ -663,6 +698,8 @@ async def update_hire_challan(
     return HireChallanResponse(
         id=hc.id,
         challan_number=hc.challan_number,
+        issuing_office_id=hc.issuing_office_id,
+        issuing_office_name=hc.issuing_office.name if hc.issuing_office else None,
         challan_date=hc.challan_date,
         lr_id=hc.lr_id,
         vehicle_number=hc.vehicle_number,
@@ -728,9 +765,12 @@ async def settle_hire_challan(
 @router.get("/arrival-reports", response_model=List[ArrivalReportResponse])
 async def list_arrival_reports(
     current_user: User = Depends(require_permission("transport", "arrival_reports", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    reports = await service.get_all_arrival_reports(db)
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    reports = await service.get_all_arrival_reports(db, office_id=office_id, include_unassigned=include_unassigned)
     return [
         ArrivalReportResponse(
             id=r.id,
@@ -785,9 +825,12 @@ async def create_arrival_report(
 @router.get("/pod-records", response_model=List[PODRecordResponse])
 async def list_pod_records(
     current_user: User = Depends(require_permission("transport", "pod_records", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    pods = await service.get_all_pod_records(db)
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    pods = await service.get_all_pod_records(db, office_id=office_id, include_unassigned=include_unassigned)
     return [
         PODRecordResponse(
             id=p.id,

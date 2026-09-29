@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Plus, ArrowRight, Truck, CheckCircle2, Send, Navigation, FileText, IndianRupee, Clock } from "lucide-react";
+import { Plus, ArrowRight, Truck, CheckCircle2, Send, Navigation, FileText, IndianRupee, Clock, Printer } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -21,11 +21,15 @@ import {
   QuickCreateConsigneeModal,
   QuickCreateLocationModal,
 } from "@/components/modals/quick-create-modal";
+import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
 
 interface LRRecord {
   id: number;
   lr_number: string;
   lr_date: string;
+  issuing_office_id?: number;
+  issuing_office_name?: string;
+  issuing_office_code?: string;
   job_number?: string;
   consigner_name?: string;
   consignee_name?: string;
@@ -70,6 +74,10 @@ export default function LRBookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
   const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
+
+  // View & Print LR state
+  const [selectedLrForView, setSelectedLrForView] = useState<LRRecord | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   // Quick Create Modals state
   const [quickConsignerOpen, setQuickConsignerOpen] = useState(false);
@@ -141,6 +149,12 @@ export default function LRBookingPage() {
 
   useEffect(() => {
     loadData();
+
+    const handleOfficeChange = () => {
+      loadData();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
   const stats = useMemo(() => {
@@ -165,9 +179,26 @@ export default function LRBookingPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 block">
-            {row.lr_number}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              onClick={() => {
+                setSelectedLrForView(row);
+                setIsViewModalOpen(true);
+              }}
+              className="font-mono font-bold text-slate-900 block hover:text-blue-600 hover:underline cursor-pointer"
+              title="Click to view & print LR voucher"
+            >
+              {row.lr_number}
+            </span>
+            {(row.issuing_office_code || row.issuing_office_name) && (
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200"
+                title={`Issuing Office: ${row.issuing_office_name || row.issuing_office_code}`}
+              >
+                {row.issuing_office_code || row.issuing_office_name}
+              </span>
+            )}
+          </div>
           <span className="text-[11px] font-mono text-slate-500">
             {formatDate(row.lr_date)} {row.job_number ? `· ${row.job_number}` : ""}
           </span>
@@ -225,6 +256,14 @@ export default function LRBookingPage() {
   ];
 
   const actions: RowAction<LRRecord>[] = [
+    {
+      label: "View & Print LR",
+      icon: <Printer className="w-3.5 h-3.5" />,
+      onClick: (row) => {
+        setSelectedLrForView(row);
+        setIsViewModalOpen(true);
+      },
+    },
     {
       label: "Dispatch / In Transit",
       disabled: (row) => row.status !== "BOOKED" && row.status !== "LOADED",
@@ -750,6 +789,16 @@ export default function LRBookingPage() {
         onClose={() => setQuickLocationTarget(null)}
         onSuccess={handleLocationCreated}
         defaultTitle={quickLocationTarget === "origin" ? "Quick Add Origin Hub / City" : "Quick Add Destination Hub / City"}
+      />
+
+      {/* LR View & Print Modal */}
+      <LRViewModal
+        isOpen={isViewModalOpen}
+        lr={selectedLrForView as any}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedLrForView(null);
+        }}
       />
     </div>
   );

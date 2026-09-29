@@ -53,6 +53,7 @@ class VoucherBase(BaseModel):
     account_id: Optional[int] = None  # Primary party account or debit account
     lr_id: Optional[int] = None
     hire_challan_id: Optional[int] = None
+    issuing_office_id: Optional[int] = None
 
 class VoucherCreate(VoucherBase):
     credit_account_id: Optional[int] = None  # For receipt, payment, contra, general voucher
@@ -97,6 +98,7 @@ class VoucherResponse(VoucherBase):
     lr_number: Optional[str] = None
     hire_challan_number: Optional[str] = None
     account_name: Optional[str] = None
+    issuing_office_name: Optional[str] = None
     irn: Optional[str] = None
     irn_status: Optional[str] = None
     items: List[VoucherItemResponse] = []

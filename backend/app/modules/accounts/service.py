@@ -2,7 +2,7 @@ from datetime import datetime, date, timezone
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -17,6 +17,7 @@ from app.tenant_db.models import (
     LR,
     HireChallan,
     EInvoiceRecord,
+    Branch,
 )
 from app.modules.accounts.schemas import (
     VoucherCreate,
@@ -79,6 +80,8 @@ async def get_vouchers(
     session: AsyncSession,
     voucher_type: Optional[str] = None,
     lr_id: Optional[int] = None,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
 ) -> List[Voucher]:
     stmt = select(Voucher).options(
         selectinload(Voucher.items).selectinload(VoucherItem.charge_head),
@@ -87,12 +90,18 @@ async def get_vouchers(
         selectinload(Voucher.lr),
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
+        selectinload(Voucher.issuing_office),
     ).order_by(Voucher.id.desc())
 
     if voucher_type:
         stmt = stmt.where(Voucher.voucher_type == voucher_type)
     if lr_id:
         stmt = stmt.where(Voucher.lr_id == lr_id)
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(Voucher.issuing_office_id == office_id)
 
     res = await session.execute(stmt)
     return list(res.scalars().all())
@@ -105,6 +114,7 @@ async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
         selectinload(Voucher.lr),
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
+        selectinload(Voucher.issuing_office),
     ).where(Voucher.id == voucher_id)
     res = await session.execute(stmt)
     voucher = res.scalar_one_or_none()
@@ -116,11 +126,17 @@ async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
 # ------------------------------------------------------------------------------
 # Double-Entry Posting Engine
 # ------------------------------------------------------------------------------
-async def post_voucher(session: AsyncSession, data: VoucherCreate) -> Voucher:
+async def post_voucher(session: AsyncSession, data: VoucherCreate, office_id: Optional[int] = None) -> Voucher:
+    target_office_id = getattr(data, "issuing_office_id", None) or office_id
+    if not target_office_id:
+        br_res = await session.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
+        target_office_id = br_res.scalar_one_or_none()
+
     v_num = await allocate_or_validate_voucher_number(
         session,
         data.voucher_type,
         manual_number=data.voucher_number,
+        issuing_office_id=target_office_id,
     )
 
     net_amt = data.net_amount
@@ -146,6 +162,7 @@ async def post_voucher(session: AsyncSession, data: VoucherCreate) -> Voucher:
         account_id=data.account_id,
         lr_id=data.lr_id,
         hire_challan_id=data.hire_challan_id,
+        issuing_office_id=target_office_id,
     )
     session.add(voucher)
     await session.flush()
@@ -427,6 +444,7 @@ async def post_voucher(session: AsyncSession, data: VoucherCreate) -> Voucher:
 async def create_transport_invoice_from_lr(
     session: AsyncSession,
     data: TransportInvoiceCreate,
+    office_id: Optional[int] = None,
 ) -> Voucher:
     # 1. Fetch LR
     stmt = select(LR).options(
@@ -465,6 +483,7 @@ async def create_transport_invoice_from_lr(
     all_items = [freight_item] + [item.model_dump() for item in data.additional_charges]
 
     party_name = lr.consigner.name if lr.consigner else (lr.consignee.name if lr.consignee else "Transport Client")
+    target_office = office_id or lr.issuing_office_id
 
     voucher_create = VoucherCreate(
         voucher_number=data.voucher_number or data.invoice_number,
@@ -480,13 +499,14 @@ async def create_transport_invoice_from_lr(
         narration=data.narration or f"Transport Invoice for Consignment LR {lr.lr_number}",
         account_id=data.party_account_id,
         lr_id=lr.id,
+        issuing_office_id=target_office,
         items=all_items,
     )
 
-    return await post_voucher(session, voucher_create)
+    return await post_voucher(session, voucher_create, office_id=target_office)
 
 
-async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate) -> Voucher:
+async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate, office_id: Optional[int] = None) -> Voucher:
     stmt = select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == data.hire_challan_id)
     res = await session.execute(stmt)
     hc = res.scalar_one_or_none()
@@ -498,6 +518,7 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate) -> V
     hire_exp_id = await get_fallback_account_id(session, "ACC_TRUCK_HIRE_EXP", "EXPENSE")
 
     owner_name = hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner")
+    target_office = office_id or hc.issuing_office_id
     voucher_create = VoucherCreate(
         voucher_type=VoucherType.PAYMENT_ATH.value,
         voucher_date=data.voucher_date or date.today(),
@@ -512,9 +533,10 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate) -> V
         credit_account_id=bank_id,
         hire_challan_id=hc.id,
         lr_id=hc.lr_id,
+        issuing_office_id=target_office,
         items=[],
     )
-    voucher = await post_voucher(session, voucher_create)
+    voucher = await post_voucher(session, voucher_create, office_id=target_office)
 
     # Update hire challan advance paid
     hc.advance_amount = (hc.advance_amount or Decimal("0.00")) + data.amount
@@ -523,7 +545,7 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate) -> V
     return voucher
 
 
-async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate) -> Voucher:
+async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate, office_id: Optional[int] = None) -> Voucher:
     stmt = select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == data.hire_challan_id)
     res = await session.execute(stmt)
     hc = res.scalar_one_or_none()
@@ -535,6 +557,7 @@ async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate) -> V
     hire_exp_id = await get_fallback_account_id(session, "ACC_TRUCK_HIRE_EXP", "EXPENSE")
 
     owner_name = hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner")
+    target_office = office_id or hc.issuing_office_id
     voucher_create = VoucherCreate(
         voucher_type=VoucherType.PAYMENT_BTH.value,
         voucher_date=data.voucher_date or date.today(),
@@ -549,9 +572,10 @@ async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate) -> V
         credit_account_id=bank_id,
         hire_challan_id=hc.id,
         lr_id=hc.lr_id,
+        issuing_office_id=target_office,
         items=[],
     )
-    voucher = await post_voucher(session, voucher_create)
+    voucher = await post_voucher(session, voucher_create, office_id=target_office)
 
     # Settle hire challan
     hc.balance_amount = max(Decimal("0.00"), (hc.balance_amount or Decimal("0.00")) - data.amount)
