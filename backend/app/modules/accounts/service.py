@@ -94,7 +94,15 @@ async def get_vouchers(
     ).order_by(Voucher.id.desc())
 
     if voucher_type:
-        stmt = stmt.where(Voucher.voucher_type == voucher_type)
+        v_upper = voucher_type.upper()
+        if v_upper in ("ATH_PAYMENT", "PAYMENT_ATH", "ATH"):
+            stmt = stmt.where(Voucher.voucher_type.in_(["ATH_PAYMENT", "PAYMENT_ATH"]))
+        elif v_upper in ("BTH_PAYMENT", "PAYMENT_BTH", "BTH"):
+            stmt = stmt.where(Voucher.voucher_type.in_(["BTH_PAYMENT", "PAYMENT_BTH"]))
+        elif v_upper in ("PAYMENT_VOUCHER", "PAYMENT"):
+            stmt = stmt.where(Voucher.voucher_type.in_(["PAYMENT_VOUCHER", "PAYMENT"]))
+        else:
+            stmt = stmt.where(Voucher.voucher_type == voucher_type)
     if lr_id:
         stmt = stmt.where(Voucher.lr_id == lr_id)
     if office_id:

@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.errors import AppException
+from app.core.errors import AppException, ForbiddenException
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
@@ -626,10 +626,31 @@ async def transition_lr_status(
 # ==============================================================================
 @router.get("/hire-challans", response_model=List[HireChallanResponse])
 async def list_hire_challans(
-    current_user: User = Depends(require_permission("transport", "hire_challan", "view")),
+    current_user: User = Depends(get_current_user),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    if current_user.role != "COMPANY_ADMIN":
+        if not current_user.custom_role or not current_user.custom_role.permissions:
+            raise ForbiddenException(
+                message="Access denied. Missing permission: transport.hire_challan.view",
+                details={"required": "transport.hire_challan.view"}
+            )
+        has_perm = any(
+            (
+                (p.module == "transport" and p.feature == "hire_challan" and (p.permission in ("view", "all")))
+                or (p.module == "accounts" and p.feature in ("payment_voucher", "voucher", "all", "*", "general") and (p.permission in ("view", "create", "all")))
+                or (p.module.replace("-", "_") in ("transport_reports", "transport-reports") and p.feature in ("hc_register", "pending_hc") and (p.permission in ("view", "all")))
+            )
+            and p.is_allowed
+            for p in current_user.custom_role.permissions
+        )
+        if not has_perm:
+            raise ForbiddenException(
+                message="Access denied. Missing permission: transport.hire_challan.view",
+                details={"required": "transport.hire_challan.view"}
+            )
+
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
     challans = await service.get_all_hire_challans(db, office_id=target_office_id, include_unassigned=include_unassigned)

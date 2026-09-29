@@ -100,16 +100,18 @@ export default function PaymentVoucherPage() {
     setErrorMessage(null);
     try {
       const [stdRes, athRes, bthRes, hcRes, sStd, sAth, sBth] = await Promise.all([
-        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_VOUCHER"),
-        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=ATH_PAYMENT"),
-        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=BTH_PAYMENT"),
-        apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans"),
+        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_VOUCHER").catch(() => []),
+        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=ATH_PAYMENT").catch(() => []),
+        apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=BTH_PAYMENT").catch(() => []),
+        apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans").catch(() => []),
         apiClient<any>("/api/v1/settings/series/check/PAYMENT_VOUCHER").catch(() => null),
         apiClient<any>("/api/v1/settings/series/check/PAYMENT_ATH").catch(() => null),
         apiClient<any>("/api/v1/settings/series/check/PAYMENT_BTH").catch(() => null),
       ]);
-      setData([...stdRes, ...athRes, ...bthRes]);
-      setChallans(hcRes);
+      const allVouchers = [...(stdRes || []), ...(athRes || []), ...(bthRes || [])];
+      const uniqueVouchers = Array.from(new Map(allVouchers.map((v) => [v.id, v])).values());
+      setData(uniqueVouchers);
+      setChallans(hcRes || []);
       setStdSeries(sStd);
       setAthSeries(sAth);
       setBthSeries(sBth);
@@ -254,8 +256,15 @@ export default function PaymentVoucherPage() {
     }
   };
 
+  const isAth = (t: string) => t === "ATH_PAYMENT" || t === "PAYMENT_ATH";
+  const isBth = (t: string) => t === "BTH_PAYMENT" || t === "PAYMENT_BTH";
+  const isStd = (t: string) => t === "PAYMENT_VOUCHER" || t === "PAYMENT";
+
   const filteredData = data.filter((v) => {
     if (activeTab === "ALL") return true;
+    if (activeTab === "ATH_PAYMENT") return isAth(v.voucher_type);
+    if (activeTab === "BTH_PAYMENT") return isBth(v.voucher_type);
+    if (activeTab === "PAYMENT_VOUCHER") return isStd(v.voucher_type);
     return v.voucher_type === activeTab;
   });
 
@@ -282,10 +291,10 @@ export default function PaymentVoucherPage() {
       key: "voucher_type",
       header: "Type",
       cell: (row) => {
-        if (row.voucher_type === "ATH_PAYMENT") {
+        if (isAth(row.voucher_type)) {
           return <Badge variant="warning" dot className="text-xs">ATH (Advance)</Badge>;
         }
-        if (row.voucher_type === "BTH_PAYMENT") {
+        if (isBth(row.voucher_type)) {
           return <Badge variant="success" dot className="text-xs">BTH (Balance)</Badge>;
         }
         return <Badge variant="primary" dot className="text-xs">Standard Payment</Badge>;
@@ -396,7 +405,7 @@ export default function PaymentVoucherPage() {
               : "text-[#667085] hover:bg-[#F2F4F7]"
           }`}
         >
-          ATH Advances ({data.filter((d) => d.voucher_type === "ATH_PAYMENT").length})
+          ATH Advances ({data.filter((d) => isAth(d.voucher_type)).length})
         </button>
         <button
           onClick={() => setActiveTab("BTH_PAYMENT")}
@@ -406,7 +415,7 @@ export default function PaymentVoucherPage() {
               : "text-[#667085] hover:bg-[#F2F4F7]"
           }`}
         >
-          BTH Balances ({data.filter((d) => d.voucher_type === "BTH_PAYMENT").length})
+          BTH Balances ({data.filter((d) => isBth(d.voucher_type)).length})
         </button>
         <button
           onClick={() => setActiveTab("PAYMENT_VOUCHER")}
@@ -416,7 +425,7 @@ export default function PaymentVoucherPage() {
               : "text-[#667085] hover:bg-[#F2F4F7]"
           }`}
         >
-          Standard Payments ({data.filter((d) => d.voucher_type === "PAYMENT_VOUCHER").length})
+          Standard Payments ({data.filter((d) => isStd(d.voucher_type)).length})
         </button>
       </div>
 
