@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getStoredAuth } from "@/lib/auth";
+import { getStoredAuth, getActiveOffice, OfficeSummary } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { WorkspaceTabBar } from "@/components/layout/workspace-tab-bar";
@@ -12,11 +12,31 @@ import { FileEdit, ArrowRight } from "lucide-react";
 
 function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
   const { activeTab, isFormOpen, formTabInfo, setActiveTab, closeFormTab } = useWorkspaceTabs();
+  const [officeKey, setOfficeKey] = useState<string>(() => {
+    const off = getActiveOffice();
+    return off?.id !== undefined ? String(off.id) : "default";
+  });
+
+  useEffect(() => {
+    const handleOfficeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<OfficeSummary>;
+      const off = customEvent.detail;
+      const keyId = off?.id !== undefined ? String(off.id) : "all";
+      if (isFormOpen) {
+        closeFormTab(false);
+      }
+      setOfficeKey(`${keyId}-${Date.now()}`);
+    };
+
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
+  }, [isFormOpen, closeFormTab]);
 
   return (
     <div className="flex-1 relative overflow-hidden flex flex-col min-w-0">
       {/* Main List Canvas (Visible when activeTab is "list") */}
       <main
+        key={officeKey}
         id="workspace-main-canvas"
         className={cn(
           "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 bg-[#F8FAFC] relative",

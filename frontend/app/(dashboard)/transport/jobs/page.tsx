@@ -121,6 +121,12 @@ export default function JobsPage() {
 
   useEffect(() => {
     loadData();
+
+    const handleOfficeChange = () => {
+      loadData();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
   const stats = useMemo(() => {

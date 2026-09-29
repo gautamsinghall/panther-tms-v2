@@ -83,8 +83,10 @@ export function setStoredAuth(data: StoredAuth): void {
     if (data.companyCode) {
       document.cookie = `panther_company_code=${encodeURIComponent(data.companyCode)}; path=/; max-age=2592000; SameSite=Lax`;
     }
-    if (data.activeOffice?.id) {
+    if (data.activeOffice?.id !== undefined && data.activeOffice?.id !== null) {
       document.cookie = `panther_office_id=${encodeURIComponent(String(data.activeOffice.id))}; path=/; max-age=2592000; SameSite=Lax`;
+    } else {
+      document.cookie = "panther_office_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     }
   } catch (err) {
     console.error("Failed to store auth", err);

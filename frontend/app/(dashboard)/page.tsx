@@ -229,6 +229,12 @@ export default function DashboardPage() {
     }
 
     loadDashboardData();
+
+    const handleOfficeChange = () => {
+      loadDashboardData();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
   // Compute dynamic trends and sparklines based strictly on actual data

@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Building2, MapPin, ChevronDown, Check, Globe } from "lucide-react";
 import { getStoredAuth, getActiveOffice, setActiveOffice, OfficeSummary } from "@/lib/auth";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 export function OfficeSwitcher() {
+  const router = useRouter();
   const [offices, setOffices] = useState<OfficeSummary[]>([]);
   const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -105,6 +107,7 @@ export function OfficeSwitcher() {
       setActiveOfficeState(allOfficesSummary);
     }
     setIsOpen(false);
+    router.refresh();
   };
 
   if (!activeOffice && offices.length === 0) {

@@ -27,7 +27,11 @@ from app.modules.home.schemas import (
 # 1. Business Overview Service
 # ==============================================================================
 
-async def get_business_overview(session: AsyncSession) -> BusinessOverviewData:
+async def get_business_overview(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = True,
+) -> BusinessOverviewData:
     # 1. Fetch all LRs
     lr_stmt = (
         select(models.LR)
@@ -37,8 +41,13 @@ async def get_business_overview(session: AsyncSession) -> BusinessOverviewData:
             selectinload(models.LR.origin_location),
             selectinload(models.LR.destination_location),
         )
-        .order_by(models.LR.lr_date.desc(), models.LR.id.desc())
     )
+    if office_id is not None:
+        if include_unassigned:
+            lr_stmt = lr_stmt.where(or_(models.LR.issuing_office_id == office_id, models.LR.issuing_office_id == None))
+        else:
+            lr_stmt = lr_stmt.where(models.LR.issuing_office_id == office_id)
+    lr_stmt = lr_stmt.order_by(models.LR.lr_date.desc(), models.LR.id.desc())
     lr_res = await session.execute(lr_stmt)
     lrs = lr_res.scalars().all()
 
@@ -48,6 +57,11 @@ async def get_business_overview(session: AsyncSession) -> BusinessOverviewData:
 
     # 2. Fetch Vouchers for revenue & reconciled count
     v_stmt = select(models.Voucher).where(models.Voucher.is_void == False)
+    if office_id is not None:
+        if include_unassigned:
+            v_stmt = v_stmt.where(or_(models.Voucher.issuing_office_id == office_id, models.Voucher.issuing_office_id == None))
+        else:
+            v_stmt = v_stmt.where(models.Voucher.issuing_office_id == office_id)
     v_res = await session.execute(v_stmt)
     vouchers = v_res.scalars().all()
 
@@ -177,7 +191,11 @@ async def get_business_overview(session: AsyncSession) -> BusinessOverviewData:
 # 2. Financial Analysis Service
 # ==============================================================================
 
-async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData:
+async def get_financial_analysis(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = True,
+) -> FinancialAnalysisData:
     # 1. Total Billed Revenue from Transport Invoices
     v_stmt = select(models.Voucher).where(
         models.Voucher.is_void == False,
@@ -186,6 +204,11 @@ async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData
             models.VoucherType.GENERAL_INVOICE.value,
         ])
     )
+    if office_id is not None:
+        if include_unassigned:
+            v_stmt = v_stmt.where(or_(models.Voucher.issuing_office_id == office_id, models.Voucher.issuing_office_id == None))
+        else:
+            v_stmt = v_stmt.where(models.Voucher.issuing_office_id == office_id)
     v_res = await session.execute(v_stmt)
     invs = v_res.scalars().all()
     billed_rev = sum(Decimal(str(v.net_amount or v.total_amount or "0.00")) for v in invs)
@@ -193,6 +216,11 @@ async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData
     # Fallback to LR freights if no vouchers yet
     if billed_rev == Decimal("0.00"):
         lr_stmt = select(func.sum(models.LR.total_freight_amount))
+        if office_id is not None:
+            if include_unassigned:
+                lr_stmt = lr_stmt.where(or_(models.LR.issuing_office_id == office_id, models.LR.issuing_office_id == None))
+            else:
+                lr_stmt = lr_stmt.where(models.LR.issuing_office_id == office_id)
         lr_res = await session.execute(lr_stmt)
         billed_rev = lr_res.scalar() or Decimal("0.00")
 
@@ -217,6 +245,11 @@ async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData
 
     # 4. Hire Challan costs for market vehicles
     hc_stmt = select(func.sum(models.HireChallan.hire_rate))
+    if office_id is not None:
+        if include_unassigned:
+            hc_stmt = hc_stmt.where(or_(models.HireChallan.issuing_office_id == office_id, models.HireChallan.issuing_office_id == None))
+        else:
+            hc_stmt = hc_stmt.where(models.HireChallan.issuing_office_id == office_id)
     hc_res = await session.execute(hc_stmt)
     hire_tot = hc_res.scalar() or Decimal("0.00")
 
@@ -311,9 +344,18 @@ async def get_financial_analysis(session: AsyncSession) -> FinancialAnalysisData
 # 3. Fleet & Operations Service
 # ==============================================================================
 
-async def get_fleet_operations(session: AsyncSession) -> FleetOperationsData:
+async def get_fleet_operations(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = True,
+) -> FleetOperationsData:
     # 1. Company & Market Vehicles
     cv_count_stmt = select(func.count(models.CompanyVehicle.id)).where(models.CompanyVehicle.is_active == True)
+    if office_id is not None:
+        if include_unassigned:
+            cv_count_stmt = cv_count_stmt.where(or_(models.CompanyVehicle.issuing_office_id == office_id, models.CompanyVehicle.issuing_office_id == None))
+        else:
+            cv_count_stmt = cv_count_stmt.where(models.CompanyVehicle.issuing_office_id == office_id)
     cv_res = await session.execute(cv_count_stmt)
     cv_count = cv_res.scalar() or 0
 
@@ -335,15 +377,26 @@ async def get_fleet_operations(session: AsyncSession) -> FleetOperationsData:
     # If no records, fallback to count from active LRs
     if not health_records:
         lr_in_transit_stmt = select(func.count(models.LR.id)).where(models.LR.status.in_(["BOOKED", "DISPATCHED", "IN_TRANSIT"]))
+        if office_id is not None:
+            if include_unassigned:
+                lr_in_transit_stmt = lr_in_transit_stmt.where(or_(models.LR.issuing_office_id == office_id, models.LR.issuing_office_id == None))
+            else:
+                lr_in_transit_stmt = lr_in_transit_stmt.where(models.LR.issuing_office_id == office_id)
         res_lr = await session.execute(lr_in_transit_stmt)
         in_transit_cnt = res_lr.scalar() or 0
         available_cnt = max(0, total_fleet - in_transit_cnt)
 
     # 3. Pending PODs
-    pod_stmt = select(func.count(models.LR.id)).where(
+    pod_conditions = [
         models.LR.status.in_(["DELIVERED", "IN_TRANSIT"]),
         ~models.LR.id.in_(select(models.PODRecord.lr_id).where(models.PODRecord.verification_status == "APPROVED"))
-    )
+    ]
+    if office_id is not None:
+        if include_unassigned:
+            pod_conditions.append(or_(models.LR.issuing_office_id == office_id, models.LR.issuing_office_id == None))
+        else:
+            pod_conditions.append(models.LR.issuing_office_id == office_id)
+    pod_stmt = select(func.count(models.LR.id)).where(*pod_conditions)
     pod_res = await session.execute(pod_stmt)
     pending_pods = pod_res.scalar() or 0
 
@@ -386,8 +439,13 @@ async def get_fleet_operations(session: AsyncSession) -> FleetOperationsData:
             selectinload(models.LR.destination_location),
         )
         .where(models.LR.status.in_(["DISPATCHED", "IN_TRANSIT", "BOOKED"]))
-        .order_by(desc(models.LR.lr_date))
     )
+    if office_id is not None:
+        if include_unassigned:
+            active_lr_stmt = active_lr_stmt.where(or_(models.LR.issuing_office_id == office_id, models.LR.issuing_office_id == None))
+        else:
+            active_lr_stmt = active_lr_stmt.where(models.LR.issuing_office_id == office_id)
+    active_lr_stmt = active_lr_stmt.order_by(desc(models.LR.lr_date))
     active_lr_res = await session.execute(active_lr_stmt)
     active_lrs = active_lr_res.scalars().all()
 
@@ -421,8 +479,17 @@ async def get_fleet_operations(session: AsyncSession) -> FleetOperationsData:
 # 4. Own Fleet Service
 # ==============================================================================
 
-async def get_own_fleet(session: AsyncSession) -> OwnFleetData:
+async def get_own_fleet(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = True,
+) -> OwnFleetData:
     cv_stmt = select(models.CompanyVehicle).options(selectinload(models.CompanyVehicle.default_driver))
+    if office_id is not None:
+        if include_unassigned:
+            cv_stmt = cv_stmt.where(or_(models.CompanyVehicle.issuing_office_id == office_id, models.CompanyVehicle.issuing_office_id == None))
+        else:
+            cv_stmt = cv_stmt.where(models.CompanyVehicle.issuing_office_id == office_id)
     cv_res = await session.execute(cv_stmt)
     company_vehicles = cv_res.scalars().all()
 
