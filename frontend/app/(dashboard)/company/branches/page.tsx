@@ -70,7 +70,6 @@ export default function IssuingOfficesPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [gstin, setGstin] = useState("");
-  const [pan, setPan] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccountNo, setBankAccountNo] = useState("");
   const [bankIfsc, setBankIfsc] = useState("");
@@ -89,7 +88,6 @@ export default function IssuingOfficesPage() {
     setPhone("");
     setEmail("");
     setGstin("");
-    setPan("");
     setBankName("");
     setBankAccountNo("");
     setBankIfsc("");
@@ -114,7 +112,6 @@ export default function IssuingOfficesPage() {
     setPhone(branch.phone || "");
     setEmail(branch.email || "");
     setGstin(branch.gstin || "");
-    setPan(branch.pan || "");
     setBankName(branch.bank_name || "");
     setBankAccountNo(branch.bank_account_no || "");
     setBankIfsc(branch.bank_ifsc || "");
@@ -165,7 +162,6 @@ export default function IssuingOfficesPage() {
         phone: phone ? phone.trim() : null,
         email: email ? email.trim() : null,
         gstin: gstin ? gstin.toUpperCase().trim() : null,
-        pan: pan ? pan.toUpperCase().trim() : null,
         bank_name: bankName ? bankName.trim() : null,
         bank_account_no: bankAccountNo ? bankAccountNo.trim() : null,
         bank_account_number: bankAccountNo ? bankAccountNo.trim() : null,
@@ -271,15 +267,10 @@ export default function IssuingOfficesPage() {
     },
     {
       key: "gstin",
-      header: "GSTIN & PAN",
+      header: "Office GSTIN",
       cell: (row) => (
-        <div className="text-xs font-mono space-y-0.5">
-          <div className="font-semibold text-slate-800">
-            GSTIN: <span className="text-indigo-700">{row.gstin || "—"}</span>
-          </div>
-          <div className="text-slate-500">
-            PAN: {row.pan || "—"}
-          </div>
+        <div className="text-xs font-mono">
+          <span className="font-semibold text-indigo-700">{row.gstin || "—"}</span>
         </div>
       ),
     },
@@ -557,34 +548,18 @@ export default function IssuingOfficesPage() {
                 Statutory & Tax Details (Location Specific)
               </h4>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    Office GSTIN
-                  </label>
-                  <Input
-                    maxLength={15}
-                    placeholder="e.g. 09AAAAA0000A1Z5"
-                    value={gstin}
-                    onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                    className="font-mono text-xs font-semibold tracking-wider uppercase"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">State-specific GST registration number</span>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    Office / Location PAN
-                  </label>
-                  <Input
-                    maxLength={10}
-                    placeholder="e.g. AAAAA0000A"
-                    value={pan}
-                    onChange={(e) => setPan(e.target.value.toUpperCase())}
-                    className="font-mono text-xs font-semibold tracking-wider uppercase"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">Permanent Account Number for this location</span>
-                </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                  Office GSTIN
+                </label>
+                <Input
+                  maxLength={15}
+                  placeholder="e.g. 09AAAAA0000A1Z5"
+                  value={gstin}
+                  onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                  className="font-mono text-xs font-semibold tracking-wider uppercase"
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">State-specific GST registration number</span>
               </div>
             </div>
 
