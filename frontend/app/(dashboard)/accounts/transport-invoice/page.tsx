@@ -134,8 +134,8 @@ export default function TransportInvoicePage() {
     try {
       const [vouchersRes, lrsRes, taxesRes, seriesRes, manualRangesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=TRANSPORT_INVOICE"),
-        apiClient<LRRecord[]>("/api/v1/transport/lrs"),
-        apiClient<TaxCategoryRecord[]>("/api/v1/misc/tax-categories"),
+        apiClient<LRRecord[]>("/api/v1/transport/lrs").catch(() => []),
+        apiClient<TaxCategoryRecord[]>("/api/v1/misc/tax-categories").catch(() => []),
         apiClient<any>("/api/v1/settings/series/check/TRANSPORT_INVOICE").catch(() => null),
         apiClient<any>("/api/v1/settings/series/manual-ranges/TRANSPORT_INVOICE").catch(() => null),
       ]);

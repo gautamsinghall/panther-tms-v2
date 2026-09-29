@@ -17,6 +17,18 @@ router = APIRouter(
 )
 
 
+VOUCHER_TYPE_TO_FEATURE = {
+    "TRANSPORT_INVOICE": "transport_invoice",
+    "GENERAL_INVOICE": "general_invoice",
+    "RECEIPT_VOUCHER": "receipt_voucher",
+    "PAYMENT_VOUCHER": "payment_voucher",
+    "PROFORMA_INVOICE": "proforma_invoice",
+    "CONTRA_VOUCHER": "contra_voucher",
+    "CREDIT_NOTE": "credit_debit_notes",
+    "DEBIT_NOTE": "credit_debit_notes",
+}
+
+
 def require_accounts_permission(permission: str = "view", feature: Optional[str] = None):
     async def _check(current_user: User = Depends(get_current_user)):
         if current_user.role == "COMPANY_ADMIN":
@@ -31,6 +43,12 @@ def require_accounts_permission(permission: str = "view", feature: Optional[str]
             if not has_perm:
                 raise ForbiddenException(f"Access denied. Missing permission: accounts.{feature}.{permission}")
             return current_user
+        has_any = any(
+            p.module == "accounts" and (p.permission == permission or p.permission == "all") and p.is_allowed
+            for p in current_user.custom_role.permissions
+        )
+        if not has_any:
+            raise ForbiddenException(f"Access denied. Missing permission: accounts.*.{permission}")
         return current_user
     return _check
 
@@ -64,8 +82,33 @@ async def list_vouchers(
     lr_id: Optional[int] = Query(None, description="Filter by LR ID"),
     current_office: Optional[Branch] = Depends(get_current_office),
     session: AsyncSession = Depends(get_tenant_db),
-    _perm: User = Depends(require_accounts_permission("view")),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.role != "COMPANY_ADMIN":
+        if not current_user.custom_role or not current_user.custom_role.permissions:
+            raise ForbiddenException("Access denied to accounts.vouchers.view")
+        
+        target_feat = VOUCHER_TYPE_TO_FEATURE.get(voucher_type.upper()) if voucher_type else None
+        if target_feat:
+            has_perm = any(
+                p.module == "accounts"
+                and p.feature == target_feat
+                and (p.permission in ("view", "all"))
+                and p.is_allowed
+                for p in current_user.custom_role.permissions
+            )
+            if not has_perm:
+                raise ForbiddenException(f"Access denied. Missing permission: accounts.{target_feat}.view")
+        else:
+            has_any = any(
+                p.module == "accounts"
+                and (p.permission in ("view", "all"))
+                and p.is_allowed
+                for p in current_user.custom_role.permissions
+            )
+            if not has_any:
+                raise ForbiddenException("Access denied. Missing permission in accounts.")
+
     office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
     vouchers = await service.get_vouchers(
@@ -94,8 +137,23 @@ async def create_voucher(
     current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
-    _perm: User = Depends(require_accounts_permission("create")),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.role != "COMPANY_ADMIN":
+        if not current_user.custom_role or not current_user.custom_role.permissions:
+            raise ForbiddenException("Access denied to accounts.vouchers.create")
+        
+        target_feat = VOUCHER_TYPE_TO_FEATURE.get(data.voucher_type.upper(), "general_invoice")
+        has_perm = any(
+            p.module == "accounts"
+            and p.feature == target_feat
+            and (p.permission in ("create", "all"))
+            and p.is_allowed
+            for p in current_user.custom_role.permissions
+        )
+        if not has_perm:
+            raise ForbiddenException(f"Access denied. Missing permission: accounts.{target_feat}.create")
+
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     office_id = current_office.id if current_office else None
     voucher = await service.post_voucher(session, data, office_id=office_id)

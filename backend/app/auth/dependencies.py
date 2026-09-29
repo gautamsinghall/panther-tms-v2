@@ -251,14 +251,15 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
                 )
 
             # Check individual feature restriction (e.g., feature_eway_bill = false)
-            for ent in tenant.plan.entitlements:
-                if ent.feature_key == feat_key and ent.is_enabled:
-                    if ent.limit_value.lower() in ("false", "0", "no"):
-                        raise EntitlementLockedException(
-                            module=feature.replace("_", " ").title(),
-                            plan_name=tenant.plan.name,
-                            details={"module": module, "feature": feature, "plan": tenant.plan.code}
-                        )
+            if feature not in ("*", "all", "general", "any"):
+                for ent in tenant.plan.entitlements:
+                    if ent.feature_key == feat_key and ent.is_enabled:
+                        if ent.limit_value.lower() in ("false", "0", "no"):
+                            raise EntitlementLockedException(
+                                module=feature.replace("_", " ").title(),
+                                plan_name=tenant.plan.name,
+                                details={"module": module, "feature": feature, "plan": tenant.plan.code}
+                            )
 
         # 3. Check Employee RBAC (employee-based)
         if user.role == "COMPANY_ADMIN":
@@ -270,13 +271,22 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
                 details={"required": f"{module}.{feature}.{permission}"}
             )
 
-        has_perm = any(
-            p.module == module
-            and p.feature == feature
-            and (p.permission == permission or p.permission == "all")
-            and p.is_allowed
-            for p in user.custom_role.permissions
-        )
+        norm_mod_target = module.replace("-", "_").lower()
+        if feature in ("*", "all", "general", "any"):
+            has_perm = any(
+                (p.module.replace("-", "_").lower() == norm_mod_target or module in ("*", "all"))
+                and (p.permission == permission or p.permission == "all" or permission == "all")
+                and p.is_allowed
+                for p in user.custom_role.permissions
+            )
+        else:
+            has_perm = any(
+                p.module.replace("-", "_").lower() == norm_mod_target
+                and p.feature == feature
+                and (p.permission == permission or p.permission == "all" or permission == "all")
+                and p.is_allowed
+                for p in user.custom_role.permissions
+            )
 
         if not has_perm:
             raise ForbiddenException(

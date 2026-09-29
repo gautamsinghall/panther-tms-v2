@@ -2,8 +2,10 @@ from typing import List
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
-from app.auth.dependencies import require_permission, check_entitlement_limit
+from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user
+from app.core.errors import ForbiddenException
 from app.control.models import Tenant
+from app.tenant_db.models import User
 from app.modules.misc import schemas, service
 
 router = APIRouter(prefix="/misc", tags=["Misc Masters"])
@@ -304,8 +306,23 @@ async def delete_employee(
 @router.get("/charge-heads", response_model=List[schemas.ChargeHeadResponse])
 async def list_charge_heads(
     session: AsyncSession = Depends(get_tenant_db),
-    _perm: bool = Depends(require_permission("misc", "charge_head", "view")),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.role != "COMPANY_ADMIN":
+        if not current_user.custom_role or not current_user.custom_role.permissions:
+            raise ForbiddenException("Access denied to misc.charge_head.view")
+        has_perm = any(
+            (
+                (p.module == "misc" and p.feature == "charge_head" and (p.permission in ("view", "all")))
+                or (p.module == "accounts" and (p.permission in ("view", "all")))
+                or (p.module == "transport" and (p.permission in ("view", "all")))
+            )
+            and p.is_allowed
+            for p in current_user.custom_role.permissions
+        )
+        if not has_perm:
+            raise ForbiddenException("Access denied. Missing permission: misc.charge_head.view")
+
     items = await service.get_charge_heads(session)
     result = []
     for i in items:
@@ -363,8 +380,23 @@ async def delete_charge_head(
 @router.get("/tax-categories", response_model=List[schemas.TaxCategoryResponse])
 async def list_tax_categories(
     session: AsyncSession = Depends(get_tenant_db),
-    _perm: bool = Depends(require_permission("misc", "tax_category", "view")),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.role != "COMPANY_ADMIN":
+        if not current_user.custom_role or not current_user.custom_role.permissions:
+            raise ForbiddenException("Access denied to misc.tax_category.view")
+        has_perm = any(
+            (
+                (p.module == "misc" and p.feature == "tax_category" and (p.permission in ("view", "all")))
+                or (p.module == "accounts" and (p.permission in ("view", "all")))
+                or (p.module == "transport" and (p.permission in ("view", "all")))
+            )
+            and p.is_allowed
+            for p in current_user.custom_role.permissions
+        )
+        if not has_perm:
+            raise ForbiddenException("Access denied. Missing permission: misc.tax_category.view")
+
     items = await service.get_tax_categories(session)
     return [schemas.TaxCategoryResponse.model_validate(i) for i in items]
 

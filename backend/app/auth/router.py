@@ -288,6 +288,8 @@ async def get_user_navigation(
         for p in current_user.custom_role.permissions:
             if p.is_allowed and p.permission in ("view", "all"):
                 allowed_features.add((p.module, p.feature))
+                allowed_features.add((p.module.replace("_", "-"), p.feature))
+                allowed_features.add((p.module.replace("-", "_"), p.feature))
 
     for mod in ALL_NAVIGATION_MODULES:
         entitled = is_module_entitled(mod["id"])

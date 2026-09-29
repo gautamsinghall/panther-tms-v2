@@ -403,10 +403,31 @@ async def transition_job_status(
 # ==============================================================================
 @router.get("/lrs", response_model=List[LRResponse])
 async def list_lrs(
-    current_user: User = Depends(require_permission("transport", "lr_booking", "view")),
+    current_user: User = Depends(get_current_user),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    if current_user.role != "COMPANY_ADMIN":
+        if not current_user.custom_role or not current_user.custom_role.permissions:
+            raise ForbiddenException(
+                message="Access denied. Missing permission: transport.lr_booking.view",
+                details={"required": "transport.lr_booking.view"}
+            )
+        has_perm = any(
+            (
+                (p.module == "transport" and p.feature == "lr_booking" and (p.permission in ("view", "all")))
+                or (p.module == "accounts" and p.feature == "transport_invoice" and (p.permission in ("view", "create", "all")))
+                or (p.module.replace("-", "_") in ("transport_reports", "transport-reports") and p.feature in ("lr_register", "unbilled") and (p.permission in ("view", "all")))
+            )
+            and p.is_allowed
+            for p in current_user.custom_role.permissions
+        )
+        if not has_perm:
+            raise ForbiddenException(
+                message="Access denied. Missing permission: transport.lr_booking.view",
+                details={"required": "transport.lr_booking.view"}
+            )
+
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
     lrs = await service.get_all_lrs(db, office_id=target_office_id, include_unassigned=include_unassigned)
