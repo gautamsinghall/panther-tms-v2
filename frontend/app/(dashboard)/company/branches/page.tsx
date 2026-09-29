@@ -75,7 +75,6 @@ export default function IssuingOfficesPage() {
   const [bankAccountNo, setBankAccountNo] = useState("");
   const [bankIfsc, setBankIfsc] = useState("");
   const [bankBranch, setBankBranch] = useState("");
-  const [documentNotes, setDocumentNotes] = useState("");
   const [isHeadOffice, setIsHeadOffice] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
@@ -95,7 +94,6 @@ export default function IssuingOfficesPage() {
     setBankAccountNo("");
     setBankIfsc("");
     setBankBranch("");
-    setDocumentNotes("");
     setIsHeadOffice(false);
     setIsActive(true);
   };
@@ -121,7 +119,6 @@ export default function IssuingOfficesPage() {
     setBankAccountNo(branch.bank_account_no || "");
     setBankIfsc(branch.bank_ifsc || "");
     setBankBranch(branch.bank_branch || "");
-    setDocumentNotes(branch.document_notes || "");
     setIsHeadOffice(branch.is_head_office || false);
     setIsActive(branch.is_active ?? true);
     setShowDrawer(true);
@@ -174,7 +171,6 @@ export default function IssuingOfficesPage() {
         bank_account_number: bankAccountNo ? bankAccountNo.trim() : null,
         bank_ifsc: bankIfsc ? bankIfsc.toUpperCase().trim() : null,
         bank_branch: bankBranch ? bankBranch.trim() : null,
-        document_notes: documentNotes ? documentNotes.trim() : null,
         is_head_office: isHeadOffice,
         is_active: isActive,
       };
@@ -686,31 +682,7 @@ export default function IssuingOfficesPage() {
               </div>
             </div>
 
-            {/* Section 6: Document Notes & Jurisdiction */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider pb-1.5 border-b border-slate-200 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-indigo-600" />
-                Document Particulars & Local Jurisdiction
-              </h4>
-
-              <div>
-                <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                  Document Notes & Print Conditions (Jurisdiction / Carrier Terms)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Subject to Ghaziabad Jurisdiction. Consignments covered under Carriage by Road Act 2007."
-                  value={documentNotes}
-                  onChange={(e) => setDocumentNotes(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Prints on vouchers and LRs issued from this location.
-                </span>
-              </div>
-            </div>
-
-            {/* Section 7: Primary Office Designation Checkbox */}
+            {/* Section 6: Primary Office Designation Checkbox */}
             <div className="p-4 bg-indigo-50/70 border border-indigo-200/80 rounded-xl space-y-3">
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input
