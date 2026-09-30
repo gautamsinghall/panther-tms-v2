@@ -55,6 +55,10 @@ export default function LoadTypePage() {
 
   useEffect(() => {
     loadData();
+    if (typeof window !== "undefined" && window.location.search.includes("add=true")) {
+      setEditingRecord(null);
+      setIsDrawerOpen(true);
+    }
   }, []);
 
   const stats = useMemo(() => {
@@ -178,13 +182,14 @@ export default function LoadTypePage() {
   const handleSubmit = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
+      let saved: LoadTypeRecord | undefined;
       if (editingRecord) {
-        await apiClient(`/api/v1/general/load-types/${editingRecord.id}`, {
+        saved = await apiClient<LoadTypeRecord>(`/api/v1/general/load-types/${editingRecord.id}`, {
           method: "PUT",
           body: JSON.stringify(values),
         });
       } else {
-        await apiClient("/api/v1/general/load-types", {
+        saved = await apiClient<LoadTypeRecord>("/api/v1/general/load-types", {
           method: "POST",
           body: JSON.stringify(values),
         });
@@ -195,6 +200,17 @@ export default function LoadTypePage() {
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("panther_load_types_changed"));
         localStorage.setItem("panther_load_types_updated", Date.now().toString());
+        if (saved?.id) {
+          localStorage.setItem(
+            "panther_party_created",
+            JSON.stringify({
+              type: "load_type",
+              id: saved.id,
+              name: saved.name,
+              timestamp: Date.now(),
+            })
+          );
+        }
       }
     } catch (err: any) {
       alert(err.message || "Failed to save load type.");

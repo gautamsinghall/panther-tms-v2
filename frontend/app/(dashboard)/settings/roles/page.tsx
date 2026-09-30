@@ -49,6 +49,7 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
       { id: "group_company", label: "Group Companies" },
       { id: "unit", label: "Units of Measurement" },
       { id: "method_of_packing", label: "Methods of Packing" },
+      { id: "load_type", label: "Load Types" },
       { id: "billing_client", label: "Billing Clients" },
     ],
   },

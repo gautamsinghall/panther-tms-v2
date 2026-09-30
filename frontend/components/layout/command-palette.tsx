@@ -20,6 +20,7 @@ import {
   CreditCard,
   CheckCircle2,
   Percent,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -173,6 +174,15 @@ const COMMAND_ITEMS: CommandItem[] = [
     href: "/general/location",
     icon: <MapPin className="w-4 h-4 text-[#B54708]" />,
     keywords: ["location", "city", "hub", "origin", "destination", "state"],
+  },
+  {
+    id: "load-type",
+    title: "Load Types Master",
+    description: "Carriage load types: FTL, LTL, Part Load, Parcel, ODC, Containerized",
+    category: "Masters",
+    href: "/general/load-type",
+    icon: <Layers className="w-4 h-4 text-[#B54708]" />,
+    keywords: ["load", "load type", "ftl", "ltl", "part load", "odc", "carriage"],
   },
   {
     id: "tax-category",

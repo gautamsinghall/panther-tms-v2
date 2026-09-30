@@ -60,6 +60,7 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/general/group-company": { title: "Group Company", icon: Building2 },
   "/general/unit": { title: "Unit", icon: Scale },
   "/general/packing-method": { title: "Method of Packing", icon: Package },
+  "/general/load-type": { title: "Load Type", icon: Layers },
 
   // Transport
   "/transport/jobs": { title: "Job Creation", icon: FileText },

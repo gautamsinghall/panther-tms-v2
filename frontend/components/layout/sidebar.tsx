@@ -314,6 +314,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/general/group-company": Building,
   "/general/unit": Scale,
   "/general/packing-method": Package,
+  "/general/load-type": Layers,
 
   // Transport
   "/transport/jobs": ClipboardList,
@@ -424,6 +425,7 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   group_company: Building,
   unit: Scale,
   method_of_packing: Package,
+  load_type: Layers,
   jobs: ClipboardList,
   lr_booking: FileText,
   hire_challan: FileSpreadsheet,

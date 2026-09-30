@@ -79,6 +79,13 @@ export default function GeneralOverviewPage() {
       icon: <Briefcase className="w-5 h-5 text-[#4F46E5]" />,
       badge: "Organization",
     },
+    {
+      title: "Load Type Master",
+      desc: "Cargo carriage categories: FTL (Full Truck Load), LTL / Part Load, Parcel, ODC, Containerized.",
+      href: "/general/load-type",
+      icon: <Layers className="w-5 h-5 text-[#4F46E5]" />,
+      badge: "Carriage",
+    },
   ];
 
   return (

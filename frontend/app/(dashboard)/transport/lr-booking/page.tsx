@@ -282,6 +282,8 @@ export default function LRBookingPage() {
             } else if (parsed.type === "consignee" && formSetFieldValueRef.current) {
               formSetFieldValueRef.current("consignee_id", String(parsed.id));
               setSelectedConsigneeId(String(parsed.id));
+            } else if (parsed.type === "load_type" && formSetFieldValueRef.current) {
+              formSetFieldValueRef.current("load_type_id", String(parsed.id));
             }
             localStorage.removeItem("panther_party_created");
           } catch {}
@@ -918,7 +920,7 @@ export default function LRBookingPage() {
           label: "30. Load Type",
           type: "select",
           options: loadTypeOptions,
-          onAddNew: () => window.open("/general/load-type", "_blank"),
+          onAddNew: () => window.open("/general/load-type?add=true", "_blank"),
           addNewLabel: "+ Manage Load Types",
           addNewTitle: "Opens Load Type master in General menu where you can manage carriage categories",
           helperText: "Managed under General > Load Type master; automatically populates here.",
