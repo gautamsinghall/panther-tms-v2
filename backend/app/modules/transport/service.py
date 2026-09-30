@@ -345,6 +345,12 @@ async def get_all_lrs(db: AsyncSession, office_id: Optional[int] = None, include
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
+async def get_lr_by_id(db: AsyncSession, lr_id: int) -> LR:
+    lr = await db.get(LR, lr_id)
+    if not lr:
+        raise AppException(status_code=404, error_code="NOT_FOUND", message="LR not found.")
+    return lr
+
 async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = None, office_id: Optional[int] = None) -> LR:
     target_office_id = data.issuing_office_id or office_id
     if not target_office_id:
@@ -354,10 +360,26 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
     lr_number = await allocate_or_validate_voucher_number(db, "LR", manual_number=data.lr_number, issuing_office_id=target_office_id)
     lr_dict = data.model_dump()
     lr_dict["lr_number"] = lr_number
-    lr_dict["status"] = LRStatus.DRAFT.value
     lr_dict["created_by_user_id"] = user_id
     lr_dict["issuing_office_id"] = target_office_id
-    
+
+    # Handle booking status
+    b_status = data.booking_status or "Booked"
+    lr_dict["booking_status"] = b_status
+    if b_status == "Canceled":
+        lr_dict["status"] = LRStatus.CANCELLED.value
+    elif b_status == "Reserved":
+        lr_dict["status"] = "RESERVED"
+    else:
+        lr_dict["status"] = LRStatus.BOOKED.value
+
+    # Auto-populate load_type from LoadType master if load_type_id is provided
+    if data.load_type_id and not data.load_type:
+        from app.tenant_db.models import LoadType
+        lt_obj = await db.get(LoadType, data.load_type_id)
+        if lt_obj:
+            lr_dict["load_type"] = lt_obj.name
+
     # Calculate total freight if not explicitly provided
     if not lr_dict.get("total_freight_amount"):
         freight = lr_dict.get("freight_amount") or Decimal("0.00")
@@ -380,9 +402,6 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
         if job and job.status == JobStatus.OPEN.value:
             job.status = JobStatus.BOOKED.value
 
-    # Auto-advance LR from DRAFT to BOOKED upon creation
-    lr.status = LRStatus.BOOKED.value
-
     await db.commit()
     await db.refresh(lr)
     return lr
@@ -391,16 +410,38 @@ async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
     lr = await db.get(LR, lr_id)
     if not lr:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="LR not found.")
-    if lr.status in (LRStatus.POD_VERIFIED.value, LRStatus.CANCELLED.value):
-        raise AppException(status_code=400, error_code="LR_LOCKED", message=f"LR is {lr.status} and cannot be modified.")
+    if lr.status == LRStatus.POD_VERIFIED.value:
+        raise AppException(status_code=400, error_code="LR_LOCKED", message="LR is POD_VERIFIED and cannot be modified.")
     
     for field, val in data.model_dump(exclude_unset=True).items():
         setattr(lr, field, val)
 
+    # Sync status with booking_status if provided
+    if data.booking_status:
+        if data.booking_status == "Canceled":
+            lr.status = LRStatus.CANCELLED.value
+        elif data.booking_status == "Reserved":
+            lr.status = "RESERVED"
+        elif data.booking_status == "Booked" and lr.status in (LRStatus.CANCELLED.value, "RESERVED", LRStatus.DRAFT.value):
+            lr.status = LRStatus.BOOKED.value
+
+    # Auto-populate load_type from master if load_type_id changed
+    if data.load_type_id and not data.load_type:
+        from app.tenant_db.models import LoadType
+        lt_obj = await db.get(LoadType, data.load_type_id)
+        if lt_obj:
+            lr.load_type = lt_obj.name
+
     # Recalculate totals
-    total = lr.freight_amount + lr.loading_charges + lr.unloading_charges + lr.other_charges
-    lr.total_freight_amount = total
-    lr.balance_amount = total - lr.advance_amount
+    freight = lr.freight_amount or Decimal("0.00")
+    loading = lr.loading_charges or Decimal("0.00")
+    unloading = lr.unloading_charges or Decimal("0.00")
+    other = lr.other_charges or Decimal("0.00")
+    advance = lr.advance_amount or Decimal("0.00")
+    total = freight + loading + unloading + other
+    if total > 0:
+        lr.total_freight_amount = total
+        lr.balance_amount = total - advance
 
     await db.commit()
     await db.refresh(lr)

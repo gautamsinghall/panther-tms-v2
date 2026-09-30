@@ -401,6 +401,13 @@ export function Form({
                         <span>{fieldError}</span>
                       </p>
                     )}
+
+                    {/* Inline Helper / Address Preview */}
+                    {field.helperText && !fieldError && (
+                      <p className="text-[11px] text-slate-500 font-normal pt-0.5 leading-tight">
+                        {field.helperText}
+                      </p>
+                    )}
                   </div>
                 );
               })}

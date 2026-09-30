@@ -317,6 +317,24 @@ class MethodOfPacking(TenantBase):
     )
 
 
+class LoadType(TenantBase):
+    """Load Type master (e.g. Full Truck Load, Part Truck Load, Container, ODC, Parcel)"""
+    __tablename__ = "general_load_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(150), unique=True, nullable=False, index=True)
+    code = Column(String(50), nullable=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+
 # ==============================================================================
 # Phase 2: Transport Module Enums & Entities (PRD §7.3, §7.4 & Architecture §9)
 # ==============================================================================
@@ -569,9 +587,31 @@ class LR(TenantBase):
     # Issuing Office Scoping (Minimal reference - full office details loaded from master)
     issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
 
+    # 36-Field Standard LR Specification
+    booking_status = Column(String(50), default="Booked", nullable=True)
+    dispatch_date = Column(Date, default=date.today, nullable=True)
+    appointment_date = Column(Date, nullable=True)
+    billing_customer_id = Column(Integer, ForeignKey("general_billing_clients.id"), nullable=True)
+    via = Column(String(255), nullable=True)
+    vehicle_type = Column(String(100), nullable=True)
+    eway_bill_date = Column(Date, nullable=True)
+    eway_bill_expiry = Column(Date, nullable=True)
+    invoice_no = Column(String(100), nullable=True)
+    invoice_date = Column(Date, nullable=True)
+    invoice_value = Column(Numeric(14, 2), default=0.00, nullable=True)
+    cha_job_number = Column(String(100), nullable=True)
+    bill_of_entry = Column(String(100), nullable=True)
+    container_no = Column(String(100), nullable=True)
+    load_type_id = Column(Integer, ForeignKey("general_load_types.id"), nullable=True)
+    load_type = Column(String(100), nullable=True)
+    payment_type = Column(String(50), default="To Be Billed", nullable=True)
+    eta = Column(String(100), nullable=True)
+    particulars = Column(Text, nullable=True)
+    lr_series_id = Column(Integer, ForeignKey("settings_series_masters.id"), nullable=True)
+
     job = relationship("Job", back_populates="lrs", lazy="selectin")
-    consigner = relationship("Consigner", lazy="selectin")
-    consignee = relationship("Consignee", lazy="selectin")
+    consigner = relationship("Consigner", foreign_keys=[consigner_id], lazy="selectin")
+    consignee = relationship("Consignee", foreign_keys=[consignee_id], lazy="selectin")
     origin_location = relationship("Location", foreign_keys=[origin_location_id], lazy="selectin")
     destination_location = relationship("Location", foreign_keys=[destination_location_id], lazy="selectin")
     unit = relationship("Unit", lazy="selectin")
@@ -579,6 +619,9 @@ class LR(TenantBase):
     hire_challan = relationship("HireChallan", back_populates="lr", uselist=False, lazy="selectin")
     pod_record = relationship("PODRecord", back_populates="lr", uselist=False, lazy="selectin")
     issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
+    billing_customer = relationship("BillingClient", foreign_keys=[billing_customer_id], lazy="selectin")
+    load_type_rel = relationship("LoadType", foreign_keys=[load_type_id], lazy="selectin")
+    lr_series = relationship("SeriesMaster", foreign_keys=[lr_series_id], lazy="selectin")
 
 
 class HireChallan(TenantBase):

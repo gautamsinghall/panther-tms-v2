@@ -108,6 +108,10 @@ export default function BillingClientPage() {
 
   useEffect(() => {
     loadData();
+    if (typeof window !== "undefined" && window.location.search.includes("add=true")) {
+      setEditingRecord(null);
+      setIsDrawerOpen(true);
+    }
   }, []);
 
   const openCreateDrawer = () => {
@@ -153,10 +157,14 @@ export default function BillingClientPage() {
           body: JSON.stringify(payload),
         });
       } else {
-        await apiClient("/api/v1/general/billing-clients", {
+        const created = await apiClient<any>("/api/v1/general/billing-clients", {
           method: "POST",
           body: JSON.stringify(payload),
         });
+        if (typeof window !== "undefined" && created) {
+          localStorage.setItem("panther_party_created", JSON.stringify({ type: "billing_client", id: created.id, name: created.name }));
+          window.dispatchEvent(new Event("panther_billing_client_created"));
+        }
       }
 
       setIsDrawerOpen(false);

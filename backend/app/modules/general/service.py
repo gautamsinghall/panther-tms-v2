@@ -12,6 +12,7 @@ from app.tenant_db.models import (
     GroupCompany,
     Unit,
     MethodOfPacking,
+    LoadType,
 )
 
 T = TypeVar("T")
@@ -281,3 +282,32 @@ async def update_packing_method(db: AsyncSession, mid: int, data) -> MethodOfPac
 
 async def delete_packing_method(db: AsyncSession, mid: int) -> MethodOfPacking:
     return await _soft_delete(db, MethodOfPacking, mid)
+
+# --- Load Type Service ---
+async def list_load_types(db: AsyncSession) -> List[LoadType]:
+    return await _get_all(db, LoadType)
+
+async def get_load_type(db: AsyncSession, lid: int) -> LoadType:
+    return await _get_by_id(db, LoadType, lid)
+
+async def create_load_type(db: AsyncSession, data) -> LoadType:
+    stmt = select(LoadType).where(LoadType.name == data.name.strip())
+    if (await db.execute(stmt)).scalar_one_or_none():
+        raise AppException(status_code=409, error_code="LOAD_TYPE_EXISTS", message="Load type with this name already exists.")
+    entity = LoadType(**data.model_dump())
+    db.add(entity)
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+async def update_load_type(db: AsyncSession, lid: int, data) -> LoadType:
+    entity = await _get_by_id(db, LoadType, lid)
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(entity, k, v)
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+async def delete_load_type(db: AsyncSession, lid: int) -> LoadType:
+    return await _soft_delete(db, LoadType, lid)
+

@@ -138,6 +138,7 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "group_company", title: "Group Company", href: "/general/group-company" },
       { feature: "unit", title: "Unit", href: "/general/unit" },
       { feature: "method_of_packing", title: "Method of Packing", href: "/general/packing-method" },
+      { feature: "load_type", title: "Load Type", href: "/general/load-type" },
     ],
   },
   {

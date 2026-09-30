@@ -245,20 +245,40 @@ class LRBase(BaseModel):
     issuing_office_id: Optional[int] = None
     lr_date: date = Field(default_factory=date.today)
     job_id: Optional[int] = None
+    booking_status: Optional[str] = "Booked"
+    dispatch_date: Optional[date] = Field(default_factory=date.today)
+    appointment_date: Optional[date] = None
+    billing_customer_id: Optional[int] = None
     consigner_id: int
     consignee_id: int
     origin_location_id: Optional[int] = None
     destination_location_id: Optional[int] = None
+    via: Optional[str] = None
     vehicle_source: str = "MARKET"
-    vehicle_number: str = Field(..., min_length=4, max_length=20)
+    vehicle_number: str = Field(..., min_length=2, max_length=50)
+    vehicle_type: Optional[str] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
     eway_bill_number: Optional[str] = None
+    eway_bill_date: Optional[date] = None
+    eway_bill_expiry: Optional[date] = None
+    invoice_no: Optional[str] = None
+    invoice_date: Optional[date] = None
+    invoice_value: Optional[Decimal] = Decimal("0.00")
+    cha_job_number: Optional[str] = None
     unit_id: Optional[int] = None
     packing_method_id: Optional[int] = None
     package_count: int = 0
     actual_weight_mt: Decimal = Decimal("0.000")
     chargeable_weight_mt: Decimal = Decimal("0.000")
+    bill_of_entry: Optional[str] = None
+    container_no: Optional[str] = None
+    load_type_id: Optional[int] = None
+    load_type: Optional[str] = None
+    payment_type: Optional[str] = "To Be Billed"
+    eta: Optional[str] = None
+    particulars: Optional[str] = None
+    lr_series_id: Optional[int] = None
     
     # Financials (Numeric(12, 2) fixed point)
     freight_rate: Decimal = Decimal("0.00")
@@ -277,20 +297,44 @@ class LRCreate(LRBase):
     pass
 
 class LRUpdate(BaseModel):
+    lr_number: Optional[str] = None
     issuing_office_id: Optional[int] = None
+    lr_date: Optional[date] = None
     job_id: Optional[int] = None
+    booking_status: Optional[str] = None
+    dispatch_date: Optional[date] = None
+    appointment_date: Optional[date] = None
+    billing_customer_id: Optional[int] = None
     consigner_id: Optional[int] = None
     consignee_id: Optional[int] = None
     origin_location_id: Optional[int] = None
     destination_location_id: Optional[int] = None
+    via: Optional[str] = None
     vehicle_source: Optional[str] = None
     vehicle_number: Optional[str] = None
+    vehicle_type: Optional[str] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
     eway_bill_number: Optional[str] = None
+    eway_bill_date: Optional[date] = None
+    eway_bill_expiry: Optional[date] = None
+    invoice_no: Optional[str] = None
+    invoice_date: Optional[date] = None
+    invoice_value: Optional[Decimal] = None
+    cha_job_number: Optional[str] = None
+    unit_id: Optional[int] = None
+    packing_method_id: Optional[int] = None
     package_count: Optional[int] = None
     actual_weight_mt: Optional[Decimal] = None
     chargeable_weight_mt: Optional[Decimal] = None
+    bill_of_entry: Optional[str] = None
+    container_no: Optional[str] = None
+    load_type_id: Optional[int] = None
+    load_type: Optional[str] = None
+    payment_type: Optional[str] = None
+    eta: Optional[str] = None
+    particulars: Optional[str] = None
+    lr_series_id: Optional[int] = None
     freight_rate: Optional[Decimal] = None
     freight_amount: Optional[Decimal] = None
     loading_charges: Optional[Decimal] = None
@@ -309,10 +353,16 @@ class LRStatusTransitionRequest(BaseModel):
 class LRResponse(LRBase):
     id: int
     lr_number: str
-    status: LRStatus
+    status: str
+    booking_status: Optional[str] = "Booked"
     created_by_user_id: Optional[int] = None
     consigner_name: Optional[str] = None
+    consigner_address: Optional[str] = None
     consignee_name: Optional[str] = None
+    consignee_address: Optional[str] = None
+    billing_customer_name: Optional[str] = None
+    load_type_name: Optional[str] = None
+    packing_method_name: Optional[str] = None
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None
     job_number: Optional[str] = None

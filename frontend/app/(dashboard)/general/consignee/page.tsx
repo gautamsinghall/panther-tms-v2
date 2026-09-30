@@ -59,6 +59,9 @@ export default function ConsigneePage() {
 
   useEffect(() => {
     loadData();
+    if (typeof window !== "undefined" && window.location.search.includes("add=true")) {
+      setIsDrawerOpen(true);
+    }
   }, []);
 
   const filteredData = useMemo(() => {
@@ -260,13 +263,17 @@ export default function ConsigneePage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/general/consignees", {
+      const created = await apiClient<any>("/api/v1/general/consignees", {
         method: "POST",
         body: JSON.stringify({
           ...values,
           country: values.country || "India",
         }),
       });
+      if (typeof window !== "undefined" && created) {
+        localStorage.setItem("panther_party_created", JSON.stringify({ type: "consignee", id: created.id, name: created.name }));
+        window.dispatchEvent(new Event("panther_consignee_created"));
+      }
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {

@@ -67,6 +67,9 @@ export default function ConsignerPage() {
 
   useEffect(() => {
     loadData();
+    if (typeof window !== "undefined" && window.location.search.includes("add=true")) {
+      setIsDrawerOpen(true);
+    }
   }, []);
 
   // Filtered dataset
@@ -279,13 +282,17 @@ export default function ConsignerPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/general/consigners", {
+      const created = await apiClient<any>("/api/v1/general/consigners", {
         method: "POST",
         body: JSON.stringify({
           ...values,
           country: values.country || "India",
         }),
       });
+      if (typeof window !== "undefined" && created) {
+        localStorage.setItem("panther_party_created", JSON.stringify({ type: "consigner", id: created.id, name: created.name }));
+        window.dispatchEvent(new Event("panther_consigner_created"));
+      }
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {

@@ -431,51 +431,122 @@ async def list_lrs(
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
     lrs = await service.get_all_lrs(db, office_id=target_office_id, include_unassigned=include_unassigned)
-    return [
-        LRResponse(
-            id=l.id,
-            lr_number=l.lr_number,
-            issuing_office_id=l.issuing_office_id,
-            issuing_office_name=l.issuing_office.name if l.issuing_office else None,
-            issuing_office_code=l.issuing_office.code if l.issuing_office else None,
-            lr_date=l.lr_date,
-            job_id=l.job_id,
-            consigner_id=l.consigner_id,
-            consignee_id=l.consignee_id,
-            origin_location_id=l.origin_location_id,
-            destination_location_id=l.destination_location_id,
-            vehicle_source=l.vehicle_source,
-            vehicle_number=l.vehicle_number,
-            driver_name=l.driver_name,
-            driver_phone=l.driver_phone,
-            eway_bill_number=l.eway_bill_number,
-            unit_id=l.unit_id,
-            packing_method_id=l.packing_method_id,
-            package_count=l.package_count,
-            actual_weight_mt=l.actual_weight_mt,
-            chargeable_weight_mt=l.chargeable_weight_mt,
-            freight_rate=l.freight_rate,
-            freight_amount=l.freight_amount,
-            loading_charges=l.loading_charges,
-            unloading_charges=l.unloading_charges,
-            other_charges=l.other_charges,
-            total_freight_amount=l.total_freight_amount,
-            advance_amount=l.advance_amount,
-            balance_amount=l.balance_amount,
-            payment_terms=l.payment_terms,
-            status=l.status,
-            remarks=l.remarks,
-            created_by_user_id=l.created_by_user_id,
-            consigner_name=l.consigner.name if l.consigner else None,
-            consignee_name=l.consignee.name if l.consignee else None,
-            origin_city=l.origin_location.city_name if l.origin_location else None,
-            destination_city=l.destination_location.city_name if l.destination_location else None,
-            job_number=l.job.job_number if l.job else None,
-            created_at=l.created_at,
-            updated_at=l.updated_at,
+def _build_lr_response(l: LR) -> LRResponse:
+    consigner_addr_parts = []
+    if l.consigner:
+        consigner_addr_parts = [p for p in [l.consigner.address, l.consigner.city, l.consigner.state, l.consigner.pincode] if p]
+    consignee_addr_parts = []
+    if l.consignee:
+        consignee_addr_parts = [p for p in [l.consignee.address, l.consignee.city, l.consignee.state, l.consignee.pincode] if p]
+
+    return LRResponse(
+        id=l.id,
+        lr_number=l.lr_number,
+        issuing_office_id=l.issuing_office_id,
+        issuing_office_name=l.issuing_office.name if l.issuing_office else None,
+        issuing_office_code=l.issuing_office.code if l.issuing_office else None,
+        lr_date=l.lr_date,
+        job_id=l.job_id,
+        booking_status=l.booking_status or "Booked",
+        dispatch_date=l.dispatch_date or l.lr_date,
+        appointment_date=l.appointment_date,
+        billing_customer_id=l.billing_customer_id,
+        billing_customer_name=l.billing_customer.name if l.billing_customer else None,
+        consigner_id=l.consigner_id,
+        consigner_name=l.consigner.name if l.consigner else None,
+        consigner_address=", ".join(consigner_addr_parts) if consigner_addr_parts else None,
+        consignee_id=l.consignee_id,
+        consignee_name=l.consignee.name if l.consignee else None,
+        consignee_address=", ".join(consignee_addr_parts) if consignee_addr_parts else None,
+        origin_location_id=l.origin_location_id,
+        origin_city=l.origin_location.city_name if l.origin_location else None,
+        destination_location_id=l.destination_location_id,
+        destination_city=l.destination_location.city_name if l.destination_location else None,
+        via=l.via,
+        vehicle_source=l.vehicle_source,
+        vehicle_number=l.vehicle_number,
+        vehicle_type=l.vehicle_type,
+        driver_name=l.driver_name,
+        driver_phone=l.driver_phone,
+        eway_bill_number=l.eway_bill_number,
+        eway_bill_date=l.eway_bill_date,
+        eway_bill_expiry=l.eway_bill_expiry,
+        invoice_no=l.invoice_no,
+        invoice_date=l.invoice_date,
+        invoice_value=l.invoice_value,
+        cha_job_number=l.cha_job_number,
+        unit_id=l.unit_id,
+        packing_method_id=l.packing_method_id,
+        packing_method_name=l.packing_method.name if l.packing_method else None,
+        package_count=l.package_count,
+        actual_weight_mt=l.actual_weight_mt,
+        chargeable_weight_mt=l.chargeable_weight_mt,
+        bill_of_entry=l.bill_of_entry,
+        container_no=l.container_no,
+        load_type_id=l.load_type_id,
+        load_type=l.load_type,
+        load_type_name=l.load_type_rel.name if l.load_type_rel else l.load_type,
+        payment_type=l.payment_type or "To Be Billed",
+        eta=l.eta,
+        particulars=l.particulars,
+        lr_series_id=l.lr_series_id,
+        freight_rate=l.freight_rate,
+        freight_amount=l.freight_amount,
+        loading_charges=l.loading_charges,
+        unloading_charges=l.unloading_charges,
+        other_charges=l.other_charges,
+        total_freight_amount=l.total_freight_amount,
+        advance_amount=l.advance_amount,
+        balance_amount=l.balance_amount,
+        payment_terms=l.payment_terms,
+        status=l.status,
+        remarks=l.remarks,
+        created_by_user_id=l.created_by_user_id,
+        job_number=l.job.job_number if l.job else None,
+        created_at=l.created_at,
+        updated_at=l.updated_at,
+    )
+
+@router.get("/lrs", response_model=List[LRResponse])
+async def list_lrs(
+    current_user: User = Depends(get_current_user),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    if current_user.role != "COMPANY_ADMIN":
+        if not current_user.custom_role or not current_user.custom_role.permissions:
+            raise ForbiddenException(
+                message="Access denied. Missing permission: transport.lr_booking.view",
+                details={"required": "transport.lr_booking.view"}
+            )
+        has_perm = any(
+            (
+                (p.module == "transport" and p.feature == "lr_booking" and (p.permission in ("view", "all")))
+                or (p.module == "accounts" and p.feature == "transport_invoice" and (p.permission in ("view", "create", "all")))
+                or (p.module.replace("-", "_") in ("transport_reports", "transport-reports") and p.feature in ("lr_register", "unbilled") and (p.permission in ("view", "all")))
+            )
+            and p.is_allowed
+            for p in current_user.custom_role.permissions
         )
-        for l in lrs
-    ]
+        if not has_perm:
+            raise ForbiddenException(
+                message="Access denied. Missing permission: transport.lr_booking.view",
+                details={"required": "transport.lr_booking.view"}
+            )
+
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    lrs = await service.get_all_lrs(db, office_id=target_office_id, include_unassigned=include_unassigned)
+    return [_build_lr_response(l) for l in lrs]
+
+@router.get("/lrs/{id}", response_model=LRResponse)
+async def get_lr(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    lr = await service.get_lr_by_id(db, id)
+    return _build_lr_response(lr)
 
 @router.post("/lrs", response_model=LRResponse, status_code=status.HTTP_201_CREATED)
 async def create_lr(
@@ -487,48 +558,7 @@ async def create_lr(
 ):
     await check_entitlement_limit(tenant, db, "max_lrs_per_month")
     lr = await service.create_lr(db, data, user_id=current_user.id, office_id=current_office.id)
-    return LRResponse(
-        id=lr.id,
-        lr_number=lr.lr_number,
-        issuing_office_id=lr.issuing_office_id,
-        issuing_office_name=lr.issuing_office.name if lr.issuing_office else None,
-        issuing_office_code=lr.issuing_office.code if lr.issuing_office else None,
-        lr_date=lr.lr_date,
-        job_id=lr.job_id,
-        consigner_id=lr.consigner_id,
-        consignee_id=lr.consignee_id,
-        origin_location_id=lr.origin_location_id,
-        destination_location_id=lr.destination_location_id,
-        vehicle_source=lr.vehicle_source,
-        vehicle_number=lr.vehicle_number,
-        driver_name=lr.driver_name,
-        driver_phone=lr.driver_phone,
-        eway_bill_number=lr.eway_bill_number,
-        unit_id=lr.unit_id,
-        packing_method_id=lr.packing_method_id,
-        package_count=lr.package_count,
-        actual_weight_mt=lr.actual_weight_mt,
-        chargeable_weight_mt=lr.chargeable_weight_mt,
-        freight_rate=lr.freight_rate,
-        freight_amount=lr.freight_amount,
-        loading_charges=lr.loading_charges,
-        unloading_charges=lr.unloading_charges,
-        other_charges=lr.other_charges,
-        total_freight_amount=lr.total_freight_amount,
-        advance_amount=lr.advance_amount,
-        balance_amount=lr.balance_amount,
-        payment_terms=lr.payment_terms,
-        status=lr.status,
-        remarks=lr.remarks,
-        created_by_user_id=lr.created_by_user_id,
-        consigner_name=lr.consigner.name if lr.consigner else None,
-        consignee_name=lr.consignee.name if lr.consignee else None,
-        origin_city=lr.origin_location.city_name if lr.origin_location else None,
-        destination_city=lr.destination_location.city_name if lr.destination_location else None,
-        job_number=lr.job.job_number if lr.job else None,
-        created_at=lr.created_at,
-        updated_at=lr.updated_at,
-    )
+    return _build_lr_response(lr)
 
 @router.put("/lrs/{id}", response_model=LRResponse)
 async def update_lr(
@@ -538,43 +568,7 @@ async def update_lr(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     lr = await service.update_lr(db, id, data)
-    return LRResponse(
-        id=lr.id,
-        lr_number=lr.lr_number,
-        issuing_office_id=lr.issuing_office_id,
-        issuing_office_name=lr.issuing_office.name if lr.issuing_office else None,
-        issuing_office_code=lr.issuing_office.code if lr.issuing_office else None,
-        lr_date=lr.lr_date,
-        job_id=lr.job_id,
-        consigner_id=lr.consigner_id,
-        consignee_id=lr.consignee_id,
-        origin_location_id=lr.origin_location_id,
-        destination_location_id=lr.destination_location_id,
-        vehicle_source=lr.vehicle_source,
-        vehicle_number=lr.vehicle_number,
-        driver_name=lr.driver_name,
-        driver_phone=lr.driver_phone,
-        eway_bill_number=lr.eway_bill_number,
-        unit_id=lr.unit_id,
-        packing_method_id=lr.packing_method_id,
-        package_count=lr.package_count,
-        actual_weight_mt=lr.actual_weight_mt,
-        chargeable_weight_mt=lr.chargeable_weight_mt,
-        freight_rate=lr.freight_rate,
-        freight_amount=lr.freight_amount,
-        loading_charges=lr.loading_charges,
-        unloading_charges=lr.unloading_charges,
-        other_charges=lr.other_charges,
-        total_freight_amount=lr.total_freight_amount,
-        advance_amount=lr.advance_amount,
-        balance_amount=lr.balance_amount,
-        payment_terms=lr.payment_terms,
-        status=lr.status,
-        remarks=lr.remarks,
-        created_by_user_id=lr.created_by_user_id,
-        created_at=lr.created_at,
-        updated_at=lr.updated_at,
-    )
+    return _build_lr_response(lr)
 
 @router.post("/lrs/{id}/transition", response_model=LRResponse)
 async def transition_lr_status(

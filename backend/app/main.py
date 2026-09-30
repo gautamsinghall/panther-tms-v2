@@ -130,6 +130,48 @@ async def lifespan(app: FastAPI):
                             await t_conn.execute(text(f"ALTER TABLE {office_col_tbl} ADD COLUMN IF NOT EXISTS issuing_office_id INTEGER REFERENCES profile_branches(id);"))
                             await t_conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{office_col_tbl}_issuing_office_id ON {office_col_tbl} (issuing_office_id);"))
 
+                        # 36-Field Standard LR Schema Evolution
+                        for lr_col in [
+                            "booking_status VARCHAR(50) DEFAULT 'Booked'",
+                            "dispatch_date DATE DEFAULT CURRENT_DATE",
+                            "appointment_date DATE",
+                            "billing_customer_id INTEGER REFERENCES general_billing_clients(id)",
+                            "via VARCHAR(255)",
+                            "vehicle_type VARCHAR(100)",
+                            "eway_bill_date DATE",
+                            "eway_bill_expiry DATE",
+                            "invoice_no VARCHAR(100)",
+                            "invoice_date DATE",
+                            "invoice_value NUMERIC(14, 2) DEFAULT 0.00",
+                            "cha_job_number VARCHAR(100)",
+                            "bill_of_entry VARCHAR(100)",
+                            "container_no VARCHAR(100)",
+                            "load_type_id INTEGER REFERENCES general_load_types(id)",
+                            "load_type VARCHAR(100)",
+                            "payment_type VARCHAR(50) DEFAULT 'To Be Billed'",
+                            "eta VARCHAR(100)",
+                            "particulars TEXT",
+                            "lr_series_id INTEGER REFERENCES settings_series_masters(id)",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS {lr_col};"))
+
+                        # Seed default Load Types if empty
+                        lt_check = await t_conn.execute(text("SELECT COUNT(*) FROM general_load_types;"))
+                        if (lt_check.scalar() or 0) == 0:
+                            default_load_types = [
+                                ("Full Truck Load (FTL)", "FTL", "Full vehicle dedicated exclusively to one consignment"),
+                                ("Part Truck Load (PTL / LTL)", "PTL", "Partial truck capacity sharing transit corridor"),
+                                ("Parcel / Sundry", "PARCEL", "Small package or loose parcel consignment"),
+                                ("Containerized Cargo", "CONTAINER", "ISO Standard 20ft / 40ft maritime and domestic container"),
+                                ("Over Dimensional Cargo (ODC)", "ODC", "Heavy machinery / extra width/length cargo exceeding normal trailer"),
+                                ("Bulk Cargo", "BULK", "Raw material / uncontained aggregates or loose commodity"),
+                            ]
+                            for lt_name, lt_code, lt_desc in default_load_types:
+                                await t_conn.execute(
+                                    text("INSERT INTO general_load_types (name, code, description, is_active, created_at, updated_at) VALUES (:name, :code, :desc, TRUE, NOW(), NOW()) ON CONFLICT (name) DO NOTHING;"),
+                                    {"name": lt_name, "code": lt_code, "desc": lt_desc}
+                                )
+
                         # Ensure at least one default branch exists
                         br_check = await t_conn.execute(text("SELECT id FROM profile_branches ORDER BY is_head_office DESC, id ASC LIMIT 1;"))
                         default_branch_id = br_check.scalar()

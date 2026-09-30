@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
-from app.auth.dependencies import require_permission, check_entitlement_limit
+from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user
 from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.modules.general import schemas, service
@@ -363,3 +363,47 @@ async def delete_packing_method(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.delete_packing_method(db, id)
+
+# ==============================================================================
+# 9. Load Type
+# ==============================================================================
+@router.get("/load-types", response_model=List[schemas.LoadTypeResponse], summary="List all load types")
+async def list_load_types(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.list_load_types(db)
+
+@router.post("/load-types", response_model=schemas.LoadTypeResponse, status_code=status.HTTP_201_CREATED, summary="Create a load type")
+async def create_load_type(
+    data: schemas.LoadTypeCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.create_load_type(db, data)
+
+@router.get("/load-types/{id}", response_model=schemas.LoadTypeResponse, summary="Get load type by ID")
+async def get_load_type(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_load_type(db, id)
+
+@router.put("/load-types/{id}", response_model=schemas.LoadTypeResponse, summary="Update load type")
+async def update_load_type(
+    id: int,
+    data: schemas.LoadTypeUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.update_load_type(db, id, data)
+
+@router.delete("/load-types/{id}", response_model=schemas.LoadTypeResponse, summary="Deactivate load type")
+async def delete_load_type(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.delete_load_type(db, id)
+
