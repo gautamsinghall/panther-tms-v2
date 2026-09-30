@@ -6,7 +6,7 @@ from app.core.errors import AppException, ForbiddenException
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch
+from app.tenant_db.models import User, Branch, LR
 from app.modules.transport import service
 from app.modules.transport.excel_import import generate_job_import_template, import_jobs_from_excel
 from app.modules.transport.schemas import (
@@ -401,36 +401,6 @@ async def transition_job_status(
 # ==============================================================================
 # 6. GR / LR Booking & Transitions
 # ==============================================================================
-@router.get("/lrs", response_model=List[LRResponse])
-async def list_lrs(
-    current_user: User = Depends(get_current_user),
-    current_office: Optional[Branch] = Depends(get_current_office),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    if current_user.role != "COMPANY_ADMIN":
-        if not current_user.custom_role or not current_user.custom_role.permissions:
-            raise ForbiddenException(
-                message="Access denied. Missing permission: transport.lr_booking.view",
-                details={"required": "transport.lr_booking.view"}
-            )
-        has_perm = any(
-            (
-                (p.module == "transport" and p.feature == "lr_booking" and (p.permission in ("view", "all")))
-                or (p.module == "accounts" and p.feature == "transport_invoice" and (p.permission in ("view", "create", "all")))
-                or (p.module.replace("-", "_") in ("transport_reports", "transport-reports") and p.feature in ("lr_register", "unbilled") and (p.permission in ("view", "all")))
-            )
-            and p.is_allowed
-            for p in current_user.custom_role.permissions
-        )
-        if not has_perm:
-            raise ForbiddenException(
-                message="Access denied. Missing permission: transport.lr_booking.view",
-                details={"required": "transport.lr_booking.view"}
-            )
-
-    target_office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
-    lrs = await service.get_all_lrs(db, office_id=target_office_id, include_unassigned=include_unassigned)
 def _build_lr_response(l: LR) -> LRResponse:
     consigner_addr_parts = []
     if l.consigner:
@@ -578,43 +548,7 @@ async def transition_lr_status(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     lr = await service.transition_lr_status(db, id, req.target_status, req.remarks)
-    return LRResponse(
-        id=lr.id,
-        lr_number=lr.lr_number,
-        issuing_office_id=lr.issuing_office_id,
-        issuing_office_name=lr.issuing_office.name if lr.issuing_office else None,
-        issuing_office_code=lr.issuing_office.code if lr.issuing_office else None,
-        lr_date=lr.lr_date,
-        job_id=lr.job_id,
-        consigner_id=lr.consigner_id,
-        consignee_id=lr.consignee_id,
-        origin_location_id=lr.origin_location_id,
-        destination_location_id=lr.destination_location_id,
-        vehicle_source=lr.vehicle_source,
-        vehicle_number=lr.vehicle_number,
-        driver_name=lr.driver_name,
-        driver_phone=lr.driver_phone,
-        eway_bill_number=lr.eway_bill_number,
-        unit_id=lr.unit_id,
-        packing_method_id=lr.packing_method_id,
-        package_count=lr.package_count,
-        actual_weight_mt=lr.actual_weight_mt,
-        chargeable_weight_mt=lr.chargeable_weight_mt,
-        freight_rate=lr.freight_rate,
-        freight_amount=lr.freight_amount,
-        loading_charges=lr.loading_charges,
-        unloading_charges=lr.unloading_charges,
-        other_charges=lr.other_charges,
-        total_freight_amount=lr.total_freight_amount,
-        advance_amount=lr.advance_amount,
-        balance_amount=lr.balance_amount,
-        payment_terms=lr.payment_terms,
-        status=lr.status,
-        remarks=lr.remarks,
-        created_by_user_id=lr.created_by_user_id,
-        created_at=lr.created_at,
-        updated_at=lr.updated_at,
-    )
+    return _build_lr_response(lr)
 # ==============================================================================
 # 7. Hire Challans
 # ==============================================================================
