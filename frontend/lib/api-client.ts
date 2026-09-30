@@ -98,3 +98,24 @@ export async function apiClient<T = any>(
 
   return (await response.text()) as unknown as T;
 }
+
+apiClient.get = <T = any>(endpoint: string, options?: ApiClientOptions) =>
+  apiClient<T>(endpoint, { ...options, method: "GET" });
+
+apiClient.post = <T = any>(endpoint: string, body?: any, options?: ApiClientOptions) =>
+  apiClient<T>(endpoint, {
+    ...options,
+    method: "POST",
+    body: body !== undefined ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
+  });
+
+apiClient.put = <T = any>(endpoint: string, body?: any, options?: ApiClientOptions) =>
+  apiClient<T>(endpoint, {
+    ...options,
+    method: "PUT",
+    body: body !== undefined ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
+  });
+
+apiClient.delete = <T = any>(endpoint: string, options?: ApiClientOptions) =>
+  apiClient<T>(endpoint, { ...options, method: "DELETE" });
+

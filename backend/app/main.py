@@ -111,7 +111,10 @@ async def lifespan(app: FastAPI):
                             "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "bank_branch VARCHAR(150)",
                             "website VARCHAR(255)", "logo_url TEXT", "signature_url TEXT",
                             "signing_authority_name VARCHAR(255)", "signing_authority_designation VARCHAR(255)",
-                            "issuing_office VARCHAR(255)", "default_issuing_office_id INTEGER"
+                            "issuing_office VARCHAR(255)", "default_issuing_office_id INTEGER",
+                            "ewb_username VARCHAR(100)", "ewb_password VARCHAR(255)", "ewb_gstin VARCHAR(20)",
+                            "is_ewb_active BOOLEAN DEFAULT TRUE",
+                            "gsp_client_id_override VARCHAR(255)", "gsp_client_secret_override VARCHAR(255)", "gsp_base_url_override VARCHAR(255)"
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
                         await t_conn.execute(text("ALTER TABLE company_settings ALTER COLUMN logo_url TYPE TEXT;"))

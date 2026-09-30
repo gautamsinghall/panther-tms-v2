@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     RAZORPAY_WEBHOOK_SECRET: str = "rzp_webhook_secret_panther_2026"
     RAZORPAY_GRACE_PERIOD_DAYS: int = 7
 
+    # E-Way Bill / GSP (GST Suvidha Provider) Platform Credentials (loaded from project env / Dokploy)
+    GSP_BASE_URL: str = "https://gsp.adaequare.com"
+    GSP_CLIENT_ID: Optional[str] = None
+    GSP_CLIENT_SECRET: Optional[str] = None
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

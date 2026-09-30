@@ -1,10 +1,14 @@
+import json
+import time
+import httpx
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
+from app.core.config import settings
 from app.core.errors import AppException
 from app.tenant_db.models import (
     JobStatus,
@@ -25,6 +29,7 @@ from app.tenant_db.models import (
     TruckHiringNote,
     EWayBill,
     TrackingPing,
+    CompanySetting,
 )
 from app.modules.transport.schemas import (
     VehicleOwnerCreate, VehicleOwnerUpdate,
@@ -808,3 +813,211 @@ async def record_tracking_ping(db: AsyncSession, data: TrackingPingCreate) -> Tr
     await db.commit()
     await db.refresh(ping)
     return ping
+
+
+# ===========================================================================
+# Live E-Way Bill Auto-Fetch Integration (NIC / Adaequare GSP)
+# ===========================================================================
+
+def format_ewb_date(date_str: Optional[str]) -> Optional[str]:
+    if not date_str:
+        return None
+    date_clean = str(date_str).strip()
+    if not date_clean:
+        return None
+    # Handle DD/MM/YYYY or DD/MM/YYYY HH:MM:SS
+    parts = date_clean.split(" ")[0].split("/")
+    if len(parts) == 3:
+        # DD/MM/YYYY -> YYYY-MM-DD
+        day = parts[0].zfill(2)
+        month = parts[1].zfill(2)
+        year = parts[2]
+        return f"{year}-{month}-{day}"
+    # Already YYYY-MM-DD?
+    if len(date_clean.split("-")) == 3:
+        return date_clean.split(" ")[0]
+    return date_clean
+
+
+async def fetch_live_eway_bill(db: AsyncSession, ewb_no: str) -> Dict[str, Any]:
+    ewb_clean = str(ewb_no).strip().replace(" ", "").replace("-", "")
+    if not ewb_clean:
+        raise AppException(status_code=400, error_code="INVALID_EWB", message="E-Way Bill number is required.")
+
+    # Retrieve company settings from tenant DB
+    stmt = select(CompanySetting).limit(1)
+    company = (await db.execute(stmt)).scalar_one_or_none()
+
+    client_id = (company.gsp_client_id_override if company and company.gsp_client_id_override else None) or settings.GSP_CLIENT_ID
+    client_secret = (company.gsp_client_secret_override if company and company.gsp_client_secret_override else None) or settings.GSP_CLIENT_SECRET
+    base_url = ((company.gsp_base_url_override if company and company.gsp_base_url_override else None) or settings.GSP_BASE_URL).rstrip("/")
+    ewb_username = company.ewb_username if company and company.ewb_username else None
+    ewb_password = company.ewb_password if company and company.ewb_password else None
+    gstin = (company.ewb_gstin if company and company.ewb_gstin else (company.gstin if company else None))
+
+    if not client_id or not client_secret:
+        raise AppException(
+            status_code=500,
+            error_code="GSP_CONFIG_ERROR",
+            message="GSP_CLIENT_ID / GSP_CLIENT_SECRET are not configured in project environment (Dokploy) or API Center."
+        )
+
+    if not ewb_username or not ewb_password or not gstin:
+        raise AppException(
+            status_code=400,
+            error_code="EWB_CREDENTIALS_MISSING",
+            message="E-Way Bill credentials (username, password, GSTIN) are not set. Please configure them in Company Settings -> API Center."
+        )
+
+    # 1. Authenticate with GSP
+    token_url = f"{base_url}/gsp/authenticate?grant_type=token"
+    token_headers = {
+        "gspappid": client_id,
+        "gspappsecret": client_secret,
+    }
+
+    async with httpx.AsyncClient(timeout=25.0) as client:
+        try:
+            token_resp = await client.post(token_url, headers=token_headers)
+        except Exception as e:
+            raise AppException(
+                status_code=502,
+                error_code="GSP_GATEWAY_ERROR",
+                message=f"Failed to connect to GSP gateway at {base_url}: {e}"
+            )
+
+        if token_resp.status_code != 200:
+            raise AppException(
+                status_code=502,
+                error_code="GSP_AUTH_FAILED",
+                message=f"GSP Token generation failed ({token_resp.status_code}): {token_resp.text[:250]}"
+            )
+
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise AppException(
+                status_code=502,
+                error_code="GSP_NO_TOKEN",
+                message="GSP authentication succeeded but did not return access_token."
+            )
+
+        # 2. Fetch E-Way Bill Details
+        req_id = f"PLPLDEL{int(time.time())}"
+        fetch_url = f"{base_url}/enriched/ewb/ewayapi/GetEwayBill?ewbNo={ewb_clean}"
+        fetch_headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "username": ewb_username,
+            "password": ewb_password,
+            "GSTIN": gstin,
+            "requestid": req_id,
+        }
+
+        try:
+            ewb_resp = await client.get(fetch_url, headers=fetch_headers)
+        except Exception as e:
+            raise AppException(
+                status_code=502,
+                error_code="EWB_FETCH_ERROR",
+                message=f"Failed to query E-Way bill API: {e}"
+            )
+
+        try:
+            raw_json = ewb_resp.json()
+        except Exception:
+            raise AppException(
+                status_code=502,
+                error_code="INVALID_API_RESPONSE",
+                message=f"EWB API returned non-JSON response: {ewb_resp.text[:200]}"
+            )
+
+    # 3. Parse and standardize response
+    data = raw_json.get("result") or raw_json.get("data") or raw_json
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except Exception:
+            pass
+
+    if not isinstance(data, dict):
+        raise AppException(
+            status_code=400,
+            error_code="EWB_NOT_FOUND",
+            message=raw_json.get("message") or raw_json.get("error_message") or "E-Way Bill details not found."
+        )
+
+    # Check for failure status
+    if raw_json.get("success") is False or raw_json.get("status_cd") == "0":
+        msg = raw_json.get("message") or raw_json.get("status_desc") or "Failed to fetch E-Way Bill details."
+        raise AppException(status_code=400, error_code="EWB_FETCH_FAILED", message=msg)
+
+    # Extract items
+    item_list = data.get("itemList") or []
+    first_item = item_list[0] if item_list and isinstance(item_list, list) else {}
+    particulars_parts = []
+    if first_item.get("productName"):
+        particulars_parts.append(str(first_item["productName"]))
+    if first_item.get("productDesc"):
+        particulars_parts.append(f"({first_item['productDesc']})")
+    if first_item.get("hsnCode"):
+        particulars_parts.append(f"HSN: {first_item['hsnCode']}")
+    particulars = " ".join(particulars_parts) if particulars_parts else ""
+
+    # Extract vehicle
+    vehicles = data.get("VehiclListDetails") or []
+    vehicle_no = vehicles[0].get("vehicleNo") if vehicles and isinstance(vehicles, list) else ""
+
+    # Build remarks
+    remarks_list = []
+    from_trd = data.get("fromTrdName")
+    from_place = data.get("fromPlace")
+    from_pin = data.get("fromPincode")
+    to_trd = data.get("toTrdName")
+    to_place = data.get("toPlace")
+    to_pin = data.get("toPincode")
+    transporter = data.get("transporterName")
+
+    if from_trd or from_place:
+        from_str = f"From: {from_trd or ''}"
+        if from_place:
+            from_str += f", {from_place}"
+        if from_pin:
+            from_str += f" ({from_pin})"
+        remarks_list.append(from_str)
+
+    if to_trd or to_place:
+        to_str = f"To: {to_trd or ''}"
+        if to_place:
+            to_str += f", {to_place}"
+        if to_pin:
+            to_str += f" ({to_pin})"
+        remarks_list.append(to_str)
+
+    if transporter:
+        remarks_list.append(f"Transporter: {transporter}")
+
+    remarks = " | ".join(remarks_list)
+
+    return {
+        "success": True,
+        "eway_bill_number": str(data.get("ewayBillNo") or ewb_clean),
+        "eway_bill_date": format_ewb_date(data.get("ewayBillDate")),
+        "eway_bill_expiry": format_ewb_date(data.get("validUpto")),
+        "invoice_no": str(data.get("docNo") or ""),
+        "invoice_date": format_ewb_date(data.get("docDate")),
+        "invoice_value": float(data.get("totInvValue") or data.get("totalValue") or 0.0),
+        "particulars": particulars,
+        "vehicle_number": vehicle_no,
+        "actual_weight": float(first_item.get("quantity") or 0.0) if first_item and first_item.get("quantity") else None,
+        "remarks": remarks,
+        "from_trade_name": from_trd,
+        "to_trade_name": to_trd,
+        "from_place": from_place,
+        "to_place": to_place,
+        "from_pincode": from_pin,
+        "to_pincode": to_pin,
+        "transporter_name": transporter,
+        "raw": data,
+    }
+

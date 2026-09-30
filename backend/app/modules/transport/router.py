@@ -896,8 +896,21 @@ async def create_truck_hiring_note(
     return await service.create_truck_hiring_note(db, data)
 
 # ==============================================================================
-# 11. E-Way Bills (Manual Entry per Rules §2)
+# 11. E-Way Bills (Manual Entry & Live Portal Fetch)
 # ==============================================================================
+@router.get("/eway-bill/fetch")
+async def fetch_eway_bill_details(
+    ewb_number: Optional[str] = Query(None, description="12-digit E-Way Bill Number"),
+    ewbNo: Optional[str] = Query(None, description="Legacy ewbNo parameter matching ajax_get_ewb.php"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    target = ewb_number or ewbNo
+    if not target or not target.strip():
+        raise AppException(status_code=400, error_code="MISSING_EWB_PARAM", message="Please provide an E-Way Bill Number to fetch.")
+    return await service.fetch_live_eway_bill(db, target.strip())
+
+
 @router.get("/eway-bills", response_model=List[EWayBillResponse])
 async def list_eway_bills(
     current_user: User = Depends(require_permission("transport", "eway_bill", "view")),

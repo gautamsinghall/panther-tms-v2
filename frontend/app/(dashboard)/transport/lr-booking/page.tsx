@@ -1015,10 +1015,18 @@ export default function LRBookingPage() {
           type: "custom",
           colSpan: 4,
           defaultValue: [createEmptyInvoiceItem()],
-          customRender: ({ value, onChange }) => (
+          customRender: ({ value, onChange, values, setFieldValue }) => (
             <LRInvoiceItemsTable
               items={value || []}
               onChange={onChange}
+              onEwbFetched={(ewbData) => {
+                if (ewbData?.vehicle_number && (!values?.vehicle_number || String(values.vehicle_number).trim() === "")) {
+                  setFieldValue("vehicle_number", ewbData.vehicle_number);
+                }
+                if (ewbData?.remarks && (!values?.remarks || String(values.remarks).trim() === "")) {
+                  setFieldValue("remarks", ewbData.remarks);
+                }
+              }}
             />
           ),
         },

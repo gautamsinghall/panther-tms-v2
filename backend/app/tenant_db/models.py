@@ -101,6 +101,16 @@ class CompanySetting(TenantBase):
     signing_authority_designation = Column(String(255), nullable=True)
     issuing_office = Column(String(255), nullable=True)
     default_issuing_office_id = Column(Integer, nullable=True)
+
+    # API Center & E-Way Bill Integration
+    ewb_username = Column(String(100), nullable=True)
+    ewb_password = Column(String(255), nullable=True)
+    ewb_gstin = Column(String(20), nullable=True)
+    is_ewb_active = Column(Boolean, default=True, nullable=False)
+    gsp_client_id_override = Column(String(255), nullable=True)
+    gsp_client_secret_override = Column(String(255), nullable=True)
+    gsp_base_url_override = Column(String(255), nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

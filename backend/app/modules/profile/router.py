@@ -11,7 +11,9 @@ from app.modules.profile.schemas import (
     BranchCreate, BranchUpdate, BranchResponse,
     CompanySettingUpdate, CompanySettingResponse,
     EmailSettingUpdate, EmailSettingResponse,
-    MonthlyPnLResponse
+    MonthlyPnLResponse,
+    ApiCenterSettingResponse, ApiCenterSettingUpdate,
+    ApiCenterTestRequest, ApiCenterTestResponse
 )
 from app.modules.profile import service
 
@@ -182,3 +184,44 @@ async def get_monthly_pnl(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.calculate_monthly_pnl(db, month=month)
+
+
+# --- API Center Settings (Admin Gated) ---
+
+@router.get(
+    "/api-center",
+    response_model=ApiCenterSettingResponse,
+    summary="Get tenant API center & E-Way Bill configurations"
+)
+async def get_api_center(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_api_center_setting(db)
+
+
+@router.put(
+    "/api-center",
+    response_model=ApiCenterSettingResponse,
+    summary="Update tenant API center & E-Way Bill configurations (Admin Only)"
+)
+async def update_api_center(
+    data: ApiCenterSettingUpdate,
+    current_admin: User = Depends(get_current_company_admin),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.update_api_center_setting(db, data)
+
+
+@router.post(
+    "/api-center/test-ewb",
+    response_model=ApiCenterTestResponse,
+    summary="Test GSP / NIC E-Way Bill gateway authentication & credentials"
+)
+async def test_ewb(
+    req: ApiCenterTestRequest,
+    current_admin: User = Depends(get_current_company_admin),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.test_ewb_connection(db, req)
+

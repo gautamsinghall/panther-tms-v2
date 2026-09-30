@@ -9,6 +9,11 @@
 *.env
 !*.env.example
 
+# Legacy reference files with credentials
+*.php
+add_lr.php
+ajax_get_ewb.php
+
 # Python
 __pycache__/
 *.py[cod]

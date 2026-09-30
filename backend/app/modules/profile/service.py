@@ -1,9 +1,11 @@
 import logging
+import httpx
 from typing import List, Optional
 from datetime import datetime, timezone, date
 from decimal import Decimal
 from sqlalchemy import select, func, extract
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.config import settings
 from app.core.errors import AppException
 from app.core.security import verify_password, get_password_hash
 from app.tenant_db.models import (
@@ -14,7 +16,9 @@ from app.modules.profile.schemas import (
     ChangePasswordRequest, UserProfileUpdate,
     BranchCreate, BranchUpdate,
     CompanySettingUpdate, EmailSettingUpdate,
-    MonthlyPnLResponse, MonthlyPnLItem
+    MonthlyPnLResponse, MonthlyPnLItem,
+    ApiCenterSettingResponse, ApiCenterSettingUpdate,
+    ApiCenterTestRequest, ApiCenterTestResponse
 )
 
 logger = logging.getLogger("panther.profile.service")
@@ -456,3 +460,111 @@ async def calculate_monthly_pnl(db: AsyncSession, month: Optional[str] = None) -
         months=items,
         branch_count=branch_count,
     )
+
+
+# --- API Center & E-Way Bill Integration ---
+
+async def get_api_center_setting(db: AsyncSession) -> ApiCenterSettingResponse:
+    company = await get_company_setting(db)
+    return ApiCenterSettingResponse(
+        ewb_username=company.ewb_username,
+        ewb_password=company.ewb_password,
+        ewb_gstin=company.ewb_gstin or company.gstin,
+        is_ewb_active=company.is_ewb_active if company.is_ewb_active is not None else True,
+        gsp_client_id_override=company.gsp_client_id_override,
+        gsp_base_url_override=company.gsp_base_url_override,
+        has_gsp_secret_override=bool(company.gsp_client_secret_override),
+        platform_gsp_configured=bool(settings.GSP_CLIENT_ID and settings.GSP_CLIENT_SECRET),
+        platform_gsp_base_url=settings.GSP_BASE_URL,
+    )
+
+
+async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpdate) -> ApiCenterSettingResponse:
+    company = await get_company_setting(db)
+
+    if data.ewb_username is not None:
+        company.ewb_username = data.ewb_username.strip() if data.ewb_username else None
+    if data.ewb_password is not None:
+        company.ewb_password = data.ewb_password.strip() if data.ewb_password else None
+    if data.ewb_gstin is not None:
+        company.ewb_gstin = data.ewb_gstin.strip().upper() if data.ewb_gstin else None
+    if data.is_ewb_active is not None:
+        company.is_ewb_active = data.is_ewb_active
+    if data.gsp_client_id_override is not None:
+        company.gsp_client_id_override = data.gsp_client_id_override.strip() if data.gsp_client_id_override else None
+    if data.gsp_client_secret_override is not None:
+        company.gsp_client_secret_override = data.gsp_client_secret_override.strip() if data.gsp_client_secret_override else None
+    if data.gsp_base_url_override is not None:
+        company.gsp_base_url_override = data.gsp_base_url_override.strip() if data.gsp_base_url_override else None
+
+    company.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(company)
+
+    return await get_api_center_setting(db)
+
+
+async def test_ewb_connection(db: AsyncSession, req: ApiCenterTestRequest) -> ApiCenterTestResponse:
+    company = await get_company_setting(db)
+
+    client_id = req.gsp_client_id or company.gsp_client_id_override or settings.GSP_CLIENT_ID
+    client_secret = req.gsp_client_secret or company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET
+    base_url = (req.gsp_base_url or company.gsp_base_url_override or settings.GSP_BASE_URL).rstrip("/")
+    ewb_username = req.ewb_username or company.ewb_username
+    ewb_password = req.ewb_password or company.ewb_password
+    gstin = req.ewb_gstin or company.ewb_gstin or company.gstin
+
+    if not client_id or not client_secret:
+        return ApiCenterTestResponse(
+            success=False,
+            message="GSP_CLIENT_ID or GSP_CLIENT_SECRET is missing. Please configure them in project environment (.env / Dokploy) or in API Center."
+        )
+
+    # Attempt token acquisition
+    token_url = f"{base_url}/gsp/authenticate?grant_type=token"
+    headers = {
+        "gspappid": client_id,
+        "gspappsecret": client_secret,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(token_url, headers=headers)
+            if resp.status_code != 200:
+                return ApiCenterTestResponse(
+                    success=False,
+                    message=f"GSP Authentication failed with HTTP {resp.status_code}: {resp.text[:300]}"
+                )
+            
+            token_json = resp.json()
+            access_token = token_json.get("access_token")
+            if not access_token:
+                return ApiCenterTestResponse(
+                    success=False,
+                    message=f"GSP Authentication did not return an access token: {token_json}"
+                )
+
+            token_preview = f"{access_token[:8]}...{access_token[-8:]}" if len(access_token) > 16 else access_token
+            return ApiCenterTestResponse(
+                success=True,
+                message="Connection test successful! Authenticated with GSP and generated access token.",
+                token_preview=token_preview,
+                details={
+                    "base_url": base_url,
+                    "gstin": gstin,
+                    "ewb_username": ewb_username,
+                    "token_type": token_json.get("token_type", "Bearer"),
+                    "expires_in": token_json.get("expires_in"),
+                }
+            )
+    except httpx.RequestError as e:
+        return ApiCenterTestResponse(
+            success=False,
+            message=f"Network error connecting to GSP Gateway at {base_url}: {str(e)}"
+        )
+    except Exception as e:
+        return ApiCenterTestResponse(
+            success=False,
+            message=f"Unexpected error during connection test: {str(e)}"
+        )
+

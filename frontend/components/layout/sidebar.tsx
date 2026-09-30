@@ -257,6 +257,7 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     items: [
       { feature: "company_details", title: "Company Details", href: "/company/details" },
       { feature: "branch", title: "Issuing Offices / Branches", href: "/company/branches" },
+      { feature: "api_center", title: "API Center", href: "/company/api-center" },
     ],
   },
   {
@@ -397,6 +398,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   // Company Settings
   "/company/details": Building2,
   "/company/branches": Network,
+  "/company/api-center": KeyRound,
 
   // Settings
   "/settings/users": UserCog,
@@ -495,6 +497,7 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   activity: History,
   company: Building2,
   company_details: Building2,
+  api_center: KeyRound,
   account: UserCircle,
   branch: Network,
   change_password: KeyRound,

@@ -28,6 +28,7 @@ import { CountrySelect } from "@/components/ui/country-select";
 import { StateSelect } from "@/components/ui/state-select";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { apiClient } from "@/lib/api-client";
+import { CompanyNavTabs } from "@/components/company/company-nav-tabs";
 
 interface BranchItem {
   id: number;
@@ -372,6 +373,8 @@ export default function IssuingOfficesPage() {
           onClick: openCreateDrawer,
         }}
       />
+
+      <CompanyNavTabs />
 
       {successMessage && (
         <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-lg text-xs font-medium flex items-center gap-2 shadow-2xs animate-in fade-in">

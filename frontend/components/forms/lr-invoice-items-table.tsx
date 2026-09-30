@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Plus,
   Trash2,
   FileSpreadsheet,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
-  ChevronsLeft,
-  ArrowRight,
-  Info,
+  DownloadCloud,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { apiClient } from "@/lib/api-client";
 
 export interface LRInvoiceItem {
   id?: string;
@@ -32,6 +32,7 @@ interface LRInvoiceItemsTableProps {
   items: LRInvoiceItem[];
   onChange: (items: LRInvoiceItem[]) => void;
   disabled?: boolean;
+  onEwbFetched?: (data: any, rowIndex: number) => void;
 }
 
 export function createEmptyInvoiceItem(): LRInvoiceItem {
@@ -54,8 +55,11 @@ export function LRInvoiceItemsTable({
   items = [],
   onChange,
   disabled = false,
+  onEwbFetched,
 }: LRInvoiceItemsTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [fetchingRowIdx, setFetchingRowIdx] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Ensure at least one row exists
   const rows = useMemo(() => {
@@ -89,25 +93,64 @@ export function LRInvoiceItemsTable({
     onChange(updated);
   };
 
-  // Scroll helper controls
-  const scrollLeft = () => {
-    tableContainerRef.current?.scrollBy({ left: -380, behavior: "smooth" });
-  };
+  // Auto-Fetch E-Way Bill Details from Portal
+  const handleFetchEwb = async (index: number) => {
+    const rawNo = String(rows[index]?.eway_bill_number || "").trim();
+    if (!rawNo) {
+      setFeedback({ type: "error", message: "Please enter an E-Way Bill Number to fetch details." });
+      return;
+    }
 
-  const scrollRight = () => {
-    tableContainerRef.current?.scrollBy({ left: 380, behavior: "smooth" });
-  };
+    try {
+      setFetchingRowIdx(index);
+      setFeedback(null);
 
-  const scrollToStart = () => {
-    tableContainerRef.current?.scrollTo({ left: 0, behavior: "smooth" });
-  };
+      const res = await apiClient.get<any>(`/transport/eway-bill/fetch?ewbNo=${encodeURIComponent(rawNo)}`);
 
-  const scrollToEnd = () => {
-    if (tableContainerRef.current) {
-      tableContainerRef.current.scrollTo({
-        left: tableContainerRef.current.scrollWidth,
-        behavior: "smooth",
+      if (res && res.success) {
+        const updated = rows.map((r, i) => {
+          if (i === index) {
+            return {
+              ...r,
+              eway_bill_number: res.eway_bill_number || rawNo,
+              eway_bill_date: res.eway_bill_date || r.eway_bill_date,
+              eway_bill_expiry: res.eway_bill_expiry || r.eway_bill_expiry,
+              invoice_no: res.invoice_no || r.invoice_no,
+              invoice_date: res.invoice_date || r.invoice_date,
+              invoice_value:
+                res.invoice_value !== undefined && res.invoice_value !== null && res.invoice_value !== ""
+                  ? res.invoice_value
+                  : r.invoice_value,
+              particulars: res.particulars || r.particulars,
+              remarks: res.remarks || r.remarks,
+            };
+          }
+          return r;
+        });
+
+        onChange(updated);
+        setFeedback({
+          type: "success",
+          message: `E-Way Bill ${res.eway_bill_number || rawNo} fetched successfully! Row #${index + 1} populated.`,
+        });
+
+        if (onEwbFetched) {
+          onEwbFetched(res, index);
+        }
+      } else {
+        setFeedback({
+          type: "error",
+          message: res?.message || "Failed to fetch E-Way Bill details. Check portal credentials in API Center.",
+        });
+      }
+    } catch (err: any) {
+      console.error("EWB fetch error:", err);
+      setFeedback({
+        type: "error",
+        message: err?.message || "Server error while querying E-Way Bill. Please verify API Center settings.",
       });
+    } finally {
+      setFetchingRowIdx(null);
     }
   };
 
@@ -129,7 +172,7 @@ export function LRInvoiceItemsTable({
 
   return (
     <div className="w-full space-y-3">
-      {/* Top Header Bar & Horizontal Navigation Controls */}
+      {/* Top Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 pb-0.5">
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
@@ -138,104 +181,69 @@ export function LRInvoiceItemsTable({
           </span>
           {totalInvoices > 0 && (
             <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              ({totalEwb} E-Way Bills · {totalInvoices} Invoices linked)
+              ({totalEwb} E-Way Bills · {totalInvoices} Invoices recorded)
             </span>
           )}
         </div>
 
-        {/* Scroll navigation arrows & Add Row */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
-            <button
-              type="button"
-              onClick={scrollToStart}
-              title="Scroll to beginning (E-Way Bills)"
-              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors cursor-pointer"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={scrollLeft}
-              title="Scroll left"
-              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-[10px] font-semibold text-slate-500 px-1.5 select-none">
-              Slide Columns
-            </span>
-            <button
-              type="button"
-              onClick={scrollRight}
-              title="Scroll right"
-              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={scrollToEnd}
-              title="Scroll to Particulars & Remarks"
-              className="p-1 text-slate-600 hover:text-slate-900 hover:bg-white rounded transition-colors cursor-pointer"
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Add Row Button */}
+        {!disabled && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddRow}
+            className="h-8 text-xs font-semibold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white border-transparent transition-colors cursor-pointer shadow-2xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Row</span>
+          </Button>
+        )}
+      </div>
 
+      {/* Notification Banner for EWB Fetch Feedback */}
+      {feedback && (
+        <div
+          className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs border transition-all ${
+            feedback.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-rose-50 text-rose-800 border-rose-200"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {feedback.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span className="font-medium">{feedback.message}</span>
+          </div>
           <button
             type="button"
-            onClick={scrollToEnd}
-            className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer shadow-2xs"
+            onClick={() => setFeedback(null)}
+            className="p-1 hover:bg-black/5 rounded transition-colors cursor-pointer"
           >
-            <span>Particulars & Remarks</span>
-            <ArrowRight className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
-
-          {!disabled && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddRow}
-              className="h-8 text-xs font-semibold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white border-transparent transition-colors cursor-pointer shadow-2xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Row</span>
-            </Button>
-          )}
         </div>
-      </div>
+      )}
 
-      {/* Helper Bar indicating horizontal scroll */}
-      <div className="flex items-center justify-between text-[11px] text-slate-600 bg-gradient-to-r from-indigo-50/60 to-slate-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-        <span className="flex items-center gap-1.5">
-          <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-          <span>
-            Columns order: <strong>E-Way Bill No.</strong> → <strong>EWB Date</strong> → <strong>EWB Expiry</strong> → <strong>Invoice No.</strong> → <strong>Invoice Date</strong> → <strong>Invoice Value (₹)</strong> → <strong>CHA Job</strong> → <strong>Particulars</strong> → <strong>Remarks</strong>
-          </span>
-        </span>
-        <span className="text-slate-400 font-medium hidden lg:inline">
-          Use the navigation buttons above or drag the horizontal scrollbar below
-        </span>
-      </div>
-
-      {/* Horizontal Scrollable Table Container */}
+      {/* Horizontal Scrollable Table Container (Basic Slider) */}
       <div
         ref={tableContainerRef}
         className="overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs bg-white custom-horizontal-scrollbar"
         style={{
           overflowX: "auto",
           scrollbarWidth: "auto",
-          scrollbarColor: "#6366f1 #f1f5f9",
+          scrollbarColor: "#94a3b8 #f1f5f9",
         }}
       >
         <table className="min-w-[1450px] w-full text-left border-collapse text-xs">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-700 uppercase tracking-wider divide-x divide-slate-200">
               <th className="py-2.5 px-2 text-center w-10 sticky left-0 bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">#</th>
-              {/* 1. E-Way Bill No. */}
-              <th className="py-2.5 px-2.5 min-w-[145px]">E-Way Bill No.</th>
+              {/* 1. E-Way Bill No. with Auto-Fetch */}
+              <th className="py-2.5 px-2.5 min-w-[210px]">E-Way Bill No.</th>
               {/* 2. EWB Date */}
               <th className="py-2.5 px-2.5 min-w-[130px]">EWB Date</th>
               {/* 3. EWB Expiry */}
@@ -251,7 +259,7 @@ export function LRInvoiceItemsTable({
               {/* 8. Particulars */}
               <th className="py-2.5 px-2.5 min-w-[180px]">Particulars</th>
               {/* 9. Remarks */}
-              <th className="py-2.5 px-2.5 min-w-[160px]">Remarks</th>
+              <th className="py-2.5 px-2.5 min-w-[180px]">Remarks</th>
               {/* 10. Action */}
               <th className="py-2.5 px-2 text-center w-12 sticky right-0 bg-slate-50 z-10 shadow-[-1px_0_0_0_#e2e8f0]">Action</th>
             </tr>
@@ -264,17 +272,44 @@ export function LRInvoiceItemsTable({
                   {idx + 1}
                 </td>
 
-                {/* 1. E-Way Bill No */}
+                {/* 1. E-Way Bill No + Auto Fetch Button */}
                 <td className="p-1">
-                  <input
-                    type="text"
-                    maxLength={12}
-                    value={row.eway_bill_number || ""}
-                    disabled={disabled}
-                    placeholder="12-digit number"
-                    onChange={(e) => handleFieldChange(idx, "eway_bill_number", e.target.value)}
-                    className="w-full h-8 px-2 text-xs font-mono font-medium text-slate-900 placeholder:text-slate-300 rounded-md border border-slate-200 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
-                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      maxLength={12}
+                      value={row.eway_bill_number || ""}
+                      disabled={disabled}
+                      placeholder="12-digit number"
+                      onChange={(e) => handleFieldChange(idx, "eway_bill_number", e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleFetchEwb(idx);
+                        }
+                      }}
+                      className="flex-1 min-w-0 h-8 px-2 text-xs font-mono font-medium text-slate-900 placeholder:text-slate-300 rounded-md border border-slate-200 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleFetchEwb(idx)}
+                      disabled={
+                        disabled ||
+                        fetchingRowIdx === idx ||
+                        !row.eway_bill_number ||
+                        String(row.eway_bill_number).trim().length < 6
+                      }
+                      title="Auto-fetch details from E-Way Bill portal"
+                      className="h-8 px-2 text-[11px] font-semibold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+                    >
+                      {fetchingRowIdx === idx ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                      ) : (
+                        <DownloadCloud className="w-3.5 h-3.5 text-indigo-600" />
+                      )}
+                      <span>{fetchingRowIdx === idx ? "Fetching..." : "Fetch"}</span>
+                    </button>
+                  </div>
                 </td>
 
                 {/* 2. EWB Date */}
@@ -409,14 +444,6 @@ export function LRInvoiceItemsTable({
               <span>Add Another Row</span>
             </Button>
           )}
-
-          <button
-            type="button"
-            onClick={scrollToEnd}
-            className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer ml-2"
-          >
-            Slide to Particulars & Remarks →
-          </button>
         </div>
 
         <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
@@ -434,7 +461,7 @@ export function LRInvoiceItemsTable({
         </div>
       </div>
 
-      {/* Custom Scrollbar CSS */}
+      {/* Basic Slider / Horizontal Scrollbar Styling */}
       <style jsx>{`
         .custom-horizontal-scrollbar::-webkit-scrollbar {
           height: 10px;
@@ -444,11 +471,11 @@ export function LRInvoiceItemsTable({
           border-radius: 6px;
         }
         .custom-horizontal-scrollbar::-webkit-scrollbar-thumb {
-          background: #818cf8;
+          background: #94a3b8;
           border-radius: 6px;
         }
         .custom-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #4f46e5;
+          background: #64748b;
         }
       `}</style>
     </div>

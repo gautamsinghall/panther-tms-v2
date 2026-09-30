@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 class ChangePasswordRequest(BaseModel):
@@ -196,3 +196,43 @@ class MonthlyPnLResponse(BaseModel):
     branches_included: List[str] = Field(default_factory=list)
     months: List[MonthlyPnLItem] = Field(default_factory=list)
     branch_count: int = 1
+
+
+# API Center & E-Way Bill Schemas
+class ApiCenterSettingResponse(BaseModel):
+    ewb_username: Optional[str] = None
+    ewb_password: Optional[str] = None
+    ewb_gstin: Optional[str] = None
+    is_ewb_active: bool = True
+    gsp_client_id_override: Optional[str] = None
+    gsp_base_url_override: Optional[str] = None
+    has_gsp_secret_override: bool = False
+    platform_gsp_configured: bool = True
+    platform_gsp_base_url: str = "https://gsp.adaequare.com"
+
+
+class ApiCenterSettingUpdate(BaseModel):
+    ewb_username: Optional[str] = None
+    ewb_password: Optional[str] = None
+    ewb_gstin: Optional[str] = None
+    is_ewb_active: Optional[bool] = True
+    gsp_client_id_override: Optional[str] = None
+    gsp_client_secret_override: Optional[str] = None
+    gsp_base_url_override: Optional[str] = None
+
+
+class ApiCenterTestRequest(BaseModel):
+    ewb_username: Optional[str] = None
+    ewb_password: Optional[str] = None
+    ewb_gstin: Optional[str] = None
+    gsp_client_id: Optional[str] = None
+    gsp_client_secret: Optional[str] = None
+    gsp_base_url: Optional[str] = None
+
+
+class ApiCenterTestResponse(BaseModel):
+    success: bool
+    message: str
+    token_preview: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
