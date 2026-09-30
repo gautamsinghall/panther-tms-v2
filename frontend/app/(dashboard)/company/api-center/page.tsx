@@ -83,7 +83,11 @@ export default function ApiCenterPage() {
         setGspBaseUrlOverride(data.gsp_base_url_override || "");
         setGspClientIdOverride(data.gsp_client_id_override || "");
         setPlatformGspBaseUrl(data.platform_gsp_base_url || "https://gsp.adaequare.com");
-        setPlatformConfigured(data.platform_gsp_configured ?? true);
+        setPlatformConfigured(data.platform_gsp_configured ?? false);
+
+        if (!data.platform_gsp_configured || data.gsp_client_id_override) {
+          setShowAdvanced(true);
+        }
       }
     } catch (err: any) {
       console.error("Failed to load API Center settings:", err);
@@ -302,16 +306,39 @@ export default function ApiCenterPage() {
           </div>
         </div>
 
-        {/* Informational Callout */}
-        <div className="p-3.5 bg-indigo-50/60 border border-indigo-100 rounded-xl text-indigo-950 flex items-start gap-2.5 text-xs">
-          <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-          <div className="space-y-1 leading-relaxed">
-            <p>
-              <strong>Zero-Configuration Platform Gateway:</strong> Common GSP keys (App ID, Secret & Gateway URL) are stored securely in the platform environment (<code className="font-mono text-indigo-700">{platformGspBaseUrl}</code>).
-            </p>
-            <p className="text-indigo-700">
-              Only company-specific portal details (your E-Way bill username, password, and registered GSTIN) are required below.
-            </p>
+        {/* Informational Callout with Gateway Status */}
+        <div
+          className={`p-3.5 border rounded-xl flex items-start gap-2.5 text-xs transition-colors ${
+            platformConfigured
+              ? "bg-indigo-50/60 border-indigo-100 text-indigo-950"
+              : "bg-amber-50/80 border-amber-200 text-amber-950"
+          }`}
+        >
+          <Info className={`w-4 h-4 shrink-0 mt-0.5 ${platformConfigured ? "text-indigo-600" : "text-amber-600"}`} />
+          <div className="space-y-1.5 leading-relaxed flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p>
+                <strong>Zero-Configuration Platform Gateway:</strong> Common GSP keys (App ID, Secret & Gateway URL) are stored securely in the platform environment (<code className="font-mono text-indigo-700">{platformGspBaseUrl}</code>).
+              </p>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${
+                  platformConfigured
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {platformConfigured ? "Platform Keys Loaded" : "Environment Keys Pending Redeploy"}
+              </span>
+            </div>
+            {platformConfigured ? (
+              <p className="text-indigo-700">
+                Only company-specific portal details (your E-Way bill username, password, and registered GSTIN) are required below.
+              </p>
+            ) : (
+              <p className="text-amber-800">
+                GSP environment keys are not yet active in the running container. If you recently saved them in Dokploy, please <strong>redeploy the Dokploy Compose service</strong> so the updated environment takes effect. You can also expand <strong>Advanced Gateway Overrides</strong> below to enter your App ID and Secret directly.
+              </p>
+            )}
           </div>
         </div>
 

@@ -62,6 +62,9 @@ services:
           memory: 768M
         reservations:
           memory: 256M
+    env_file:
+      - path: .env
+        required: false
     environment:
       - WEB_CONCURRENCY=${WEB_CONCURRENCY:-2}
       - POSTGRES_USER=${POSTGRES_USER:-panther}
@@ -76,6 +79,17 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-panther-tms-super-secret-key-change-in-production-min-32-chars}
       - BASE_DOMAIN=${BASE_DOMAIN:-panthertms.com}
+      - GSP_BASE_URL=${GSP_BASE_URL:-https://gsp.adaequare.com}
+      - GSP_CLIENT_ID=${GSP_CLIENT_ID:-}
+      - GSP_CLIENT_SECRET=${GSP_CLIENT_SECRET:-}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_panther_tms}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-rzp_secret_panther_tms_secure}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-rzp_webhook_secret_panther_2026}
+      - DEMO_TENANT_ID=${DEMO_TENANT_ID:-demo123456}
+      - DEMO_COMPANY_CODE=${DEMO_COMPANY_CODE:-DEMOLOGISTICS}
+      - DEMO_TENANT_NAME=${DEMO_TENANT_NAME:-Demo Logistics Pvt Ltd}
+      - DEMO_ADMIN_EMAIL=${DEMO_ADMIN_EMAIL:-admin@demo.com}
+      - DEMO_ADMIN_PASSWORD=${DEMO_ADMIN_PASSWORD:-PantherTMS@2026!}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -99,6 +113,9 @@ services:
           memory: 512M
         reservations:
           memory: 192M
+    env_file:
+      - path: .env
+        required: false
     environment:
       - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
       - NEXT_PUBLIC_ROOT_DOMAIN=${NEXT_PUBLIC_ROOT_DOMAIN:-localhost:3000}
