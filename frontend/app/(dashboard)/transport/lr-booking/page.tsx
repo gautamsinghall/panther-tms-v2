@@ -698,13 +698,13 @@ export default function LRBookingPage() {
   const formSections: FormSectionDef[] = useMemo(() => [
     {
       id: "sec_booking_header",
-      title: "1. Booking & Voucher Authorization",
+      title: "Booking & Voucher Authorization",
       description: "Job order linkage, booking status, issuing branch context, and series voucher number",
       columns: 2,
       fields: [
         {
           name: "job_id",
-          label: "1. Select Job No.",
+          label: "Select Job No.",
           type: "select",
           options: jobOptions,
           placeholder: "Choose linked job or Direct Booking",
@@ -735,7 +735,7 @@ export default function LRBookingPage() {
         },
         {
           name: "booking_status",
-          label: "2. Booking Status",
+          label: "Booking Status",
           type: "select",
           required: true,
           options: bookingStatusOptions,
@@ -743,7 +743,7 @@ export default function LRBookingPage() {
         },
         {
           name: "issuing_office_display",
-          label: "3. Issuing Office",
+          label: "Issuing Office",
           type: "text",
           disabled: true,
           disabledReason: "Autofetched from current active issuing office and fixed / read-only.",
@@ -751,7 +751,7 @@ export default function LRBookingPage() {
         },
         {
           name: "lr_series_id",
-          label: "4. LR Series",
+          label: "LR Series",
           type: "select",
           required: true,
           options: seriesRangeOptions,
@@ -768,7 +768,7 @@ export default function LRBookingPage() {
         },
         {
           name: "lr_number",
-          label: "5. LR No.",
+          label: "LR No.",
           type: "select",
           required: true,
           options: lrNumberOptions,
@@ -777,7 +777,7 @@ export default function LRBookingPage() {
         },
         {
           name: "dispatch_date",
-          label: "6. Dispatch Date",
+          label: "Dispatch Date",
           type: "date",
           required: true,
           defaultValue: new Date().toISOString().split("T")[0],
@@ -785,13 +785,13 @@ export default function LRBookingPage() {
         },
         {
           name: "appointment_date",
-          label: "7. Appointment Date",
+          label: "Appointment Date",
           type: "date",
           placeholder: "Appointment date for scheduling",
         },
         {
           name: "payment_type",
-          label: "31. Payment Type",
+          label: "Payment Type",
           type: "select",
           required: true,
           options: paymentTypeOptions,
@@ -801,13 +801,13 @@ export default function LRBookingPage() {
     },
     {
       id: "sec_parties_route",
-      title: "2. Commercial Parties & Transit Route",
+      title: "Commercial Parties & Transit Route",
       description: "Billing customer, origin/destination hubs, transit corridors, and party address validation",
       columns: 2,
       fields: [
         {
           name: "billing_customer_id",
-          label: "8. Billing Customer",
+          label: "Billing Customer",
           type: "select",
           options: billingCustomerOptions,
           onAddNew: () => window.open("/general/billing-client?add=true", "_blank"),
@@ -817,7 +817,7 @@ export default function LRBookingPage() {
         },
         {
           name: "origin_location_id",
-          label: "9. Origin Hub",
+          label: "Origin Hub",
           type: "select",
           required: true,
           options: locationOptions,
@@ -825,7 +825,7 @@ export default function LRBookingPage() {
         },
         {
           name: "destination_location_id",
-          label: "10. Destination Hub",
+          label: "Destination Hub",
           type: "select",
           required: true,
           options: locationOptions,
@@ -833,14 +833,14 @@ export default function LRBookingPage() {
         },
         {
           name: "via",
-          label: "11. Via",
+          label: "Via",
           type: "text",
           placeholder: "e.g. Jaipur - Delhi Bypass / Ahmedabad",
           helperText: "Route transit information.",
         },
         {
           name: "consigner_id",
-          label: "12. Consignor",
+          label: "Consignor",
           type: "select",
           required: true,
           options: consignerOptions,
@@ -854,7 +854,7 @@ export default function LRBookingPage() {
         },
         {
           name: "consignee_id",
-          label: "13. Consignee",
+          label: "Consignee",
           type: "select",
           required: true,
           options: consigneeOptions,
@@ -870,40 +870,40 @@ export default function LRBookingPage() {
     },
     {
       id: "sec_vehicle_driver",
-      title: "3. Vehicle Fleet & Driver Assignment",
+      title: "Vehicle Fleet & Driver Assignment",
       description: "Truck registration, vehicle configuration, operating driver credentials, and ETA",
       columns: 2,
       fields: [
         {
           name: "vehicle_number",
-          label: "14. Truck No.",
+          label: "Truck No.",
           type: "text",
           required: true,
           placeholder: "e.g. RJ-14-GH-1234",
         },
         {
           name: "vehicle_type",
-          label: "27. Vehicle Type",
+          label: "Vehicle Type",
           type: "select",
           options: vehicleTypeOptions,
           placeholder: "Select vehicle chassis / body type",
         },
         {
           name: "driver_name",
-          label: "33. Driver Name",
+          label: "Driver Name",
           type: "text",
           placeholder: "e.g. Ramesh Singh",
         },
         {
           name: "driver_phone",
-          label: "34. Driver Mobile No.",
+          label: "Driver Mobile No.",
           type: "text",
           placeholder: "e.g. 9876543210",
           helperText: "Valid 10-digit mobile number.",
         },
         {
           name: "eta",
-          label: "32. ETA (Estimated Time of Arrival)",
+          label: "ETA (Estimated Time of Arrival)",
           type: "date",
           placeholder: "Estimated delivery date",
         },
@@ -911,13 +911,13 @@ export default function LRBookingPage() {
     },
     {
       id: "sec_cargo_pack",
-      title: "4. Cargo Packaging & Weight Specifications",
+      title: "Cargo Packaging & Weight Specifications",
       description: "Load category, package count, packing method, container notes, and scale weights",
       columns: 2,
       fields: [
         {
           name: "load_type_id",
-          label: "30. Load Type",
+          label: "Load Type",
           type: "select",
           options: loadTypeOptions,
           onAddNew: () => window.open("/general/load-type?add=true", "_blank"),
@@ -927,41 +927,41 @@ export default function LRBookingPage() {
         },
         {
           name: "package_count",
-          label: "22. No. of Packages",
+          label: "No. of Packages",
           type: "number",
           placeholder: "e.g. 50",
           required: true,
         },
         {
           name: "packing_method_id",
-          label: "23. Method of Packing",
+          label: "Method of Packing",
           type: "select",
           options: packingMethodOptions,
           placeholder: "e.g. Wooden Pallet, Gunny Bag, Corrugated Box",
         },
         {
           name: "actual_weight_mt",
-          label: "24. Actual Weight (MT)",
+          label: "Actual Weight (MT)",
           type: "number",
           placeholder: "e.g. 15.500",
           helperText: "Actual weighbridge weight in Metric Tonnes.",
         },
         {
           name: "chargeable_weight_mt",
-          label: "25. Charged Weight (MT)",
+          label: "Charged Weight (MT)",
           type: "number",
           placeholder: "e.g. 16.000",
           helperText: "Billed / chargeable weight in Metric Tonnes.",
         },
         {
           name: "bill_of_entry",
-          label: "28. Bill of Entry",
+          label: "Bill of Entry",
           type: "text",
           placeholder: "Import/Export Bill of Entry reference",
         },
         {
           name: "container_no",
-          label: "29. Container No.",
+          label: "Container No.",
           type: "text",
           placeholder: "e.g. MSKU-123456-7",
         },
@@ -969,46 +969,46 @@ export default function LRBookingPage() {
     },
     {
       id: "sec_compliance_invoicing",
-      title: "5. Invoicing & Compliance Verification",
+      title: "Invoicing & Compliance Verification",
       description: "E-Way bill lifecycle, commercial invoice values, and CHA brokerage linkage",
       columns: 2,
       fields: [
         {
           name: "eway_bill_number",
-          label: "15. E-Way Bill No.",
+          label: "E-Way Bill No.",
           type: "text",
           placeholder: "12-digit E-Way Bill number",
         },
         {
           name: "eway_bill_date",
-          label: "16. E-Way Bill Date",
+          label: "E-Way Bill Date",
           type: "date",
         },
         {
           name: "eway_bill_expiry",
-          label: "17. E-Way Bill Expiry",
+          label: "E-Way Bill Expiry",
           type: "date",
         },
         {
           name: "invoice_no",
-          label: "18. Invoice No.",
+          label: "Invoice No.",
           type: "text",
           placeholder: "Commercial invoice reference",
         },
         {
           name: "invoice_date",
-          label: "19. Invoice Date",
+          label: "Invoice Date",
           type: "date",
         },
         {
           name: "invoice_value",
-          label: "20. Invoice Value (₹)",
+          label: "Invoice Value (₹)",
           type: "number",
           placeholder: "e.g. 250000",
         },
         {
           name: "cha_job_number",
-          label: "21. CHA Job No./Booking No.",
+          label: "CHA Job No./Booking No.",
           type: "text",
           placeholder: "Customs broker job or carrier booking number",
         },
@@ -1016,20 +1016,20 @@ export default function LRBookingPage() {
     },
     {
       id: "sec_particulars_remarks",
-      title: "6. Particulars & Remarks",
+      title: "Particulars & Remarks",
       description: "Detailed commodity description, cargo contents, and driver/delivery remarks",
       columns: 2,
       fields: [
         {
           name: "particulars",
-          label: "35. Particulars",
+          label: "Particulars",
           type: "textarea",
           placeholder: "Consignment commodity details, cargo description, container contents...",
           colSpan: 2,
         },
         {
           name: "remarks",
-          label: "36. Remarks",
+          label: "Remarks",
           type: "textarea",
           placeholder: "Delivery instructions, unloading requirements, transit notes...",
           colSpan: 2,
