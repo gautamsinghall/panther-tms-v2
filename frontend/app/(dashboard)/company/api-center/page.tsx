@@ -326,7 +326,7 @@ export default function ApiCenterPage() {
             <Input
               type="text"
               value={ewbUsername}
-              placeholder="e.g. USER_API_1"
+              placeholder=""
               onChange={(e) => setEwbUsername(e.target.value)}
               className="h-10 text-xs font-mono font-medium"
             />
@@ -342,7 +342,7 @@ export default function ApiCenterPage() {
               <Input
                 type={showPassword ? "text" : "password"}
                 value={ewbPassword}
-                placeholder="Enter portal password"
+                placeholder=""
                 onChange={(e) => setEwbPassword(e.target.value)}
                 className="h-10 text-xs pr-10 font-mono font-medium"
               />
@@ -366,7 +366,7 @@ export default function ApiCenterPage() {
               type="text"
               maxLength={15}
               value={ewbGstin}
-              placeholder="e.g. 07AAAAA0000A1Z5"
+              placeholder=""
               onChange={(e) => setEwbGstin(e.target.value.toUpperCase())}
               className="h-10 text-xs font-mono font-semibold uppercase"
             />
@@ -396,7 +396,7 @@ export default function ApiCenterPage() {
                   <Input
                     type="text"
                     value={gspBaseUrlOverride}
-                    placeholder="https://gsp.adaequare.com"
+                    placeholder=""
                     onChange={(e) => setGspBaseUrlOverride(e.target.value)}
                     className="h-9 text-xs font-mono bg-white"
                   />
@@ -407,7 +407,7 @@ export default function ApiCenterPage() {
                   <Input
                     type="text"
                     value={gspClientIdOverride}
-                    placeholder="B3F04B51..."
+                    placeholder=""
                     onChange={(e) => setGspClientIdOverride(e.target.value)}
                     className="h-9 text-xs font-mono bg-white"
                   />
@@ -418,7 +418,7 @@ export default function ApiCenterPage() {
                   <Input
                     type="password"
                     value={gspClientSecretOverride}
-                    placeholder="Leave blank to keep current"
+                    placeholder=""
                     onChange={(e) => setGspClientSecretOverride(e.target.value)}
                     className="h-9 text-xs font-mono bg-white"
                   />

@@ -13,19 +13,19 @@ export function CompanyNavTabs() {
       label: "Company Details & Branding",
       href: "/company/details",
       icon: Building2,
-      active: pathname === "/company/details",
+      active: pathname?.endsWith("/company/details"),
     },
     {
       label: "Issuing Offices / Branches",
       href: "/company/branches",
       icon: GitBranch,
-      active: pathname === "/company/branches",
+      active: pathname?.endsWith("/company/branches"),
     },
     {
       label: "API Center",
       href: "/company/api-center",
       icon: KeyRound,
-      active: pathname === "/company/api-center",
+      active: pathname?.endsWith("/company/api-center"),
     },
   ];
 

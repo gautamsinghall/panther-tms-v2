@@ -157,6 +157,7 @@ ALL_NAVIGATION_MODULES = [
         "items": [
             {"feature": "company_details", "title": "Company Details", "href": "/company/details"},
             {"feature": "branch", "title": "Issuing Offices / Branches", "href": "/company/branches"},
+            {"feature": "api_center", "title": "API Center", "href": "/company/api-center"},
         ],
     },
     {

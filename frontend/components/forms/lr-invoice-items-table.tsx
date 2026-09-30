@@ -231,12 +231,7 @@ export function LRInvoiceItemsTable({
       {/* Horizontal Scrollable Table Container (Basic Slider) */}
       <div
         ref={tableContainerRef}
-        className="overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs bg-white custom-horizontal-scrollbar"
-        style={{
-          overflowX: "auto",
-          scrollbarWidth: "auto",
-          scrollbarColor: "#94a3b8 #f1f5f9",
-        }}
+        className="overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs bg-white show-scrollbar"
       >
         <table className="min-w-[1450px] w-full text-left border-collapse text-xs">
           <thead>
@@ -340,7 +335,7 @@ export function LRInvoiceItemsTable({
                     type="text"
                     value={row.invoice_no || ""}
                     disabled={disabled}
-                    placeholder="e.g. INV-1001"
+                    placeholder=""
                     onChange={(e) => handleFieldChange(idx, "invoice_no", e.target.value)}
                     className="w-full h-8 px-2 text-xs font-semibold text-slate-900 placeholder:text-slate-300 rounded-md border border-slate-200 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                   />
@@ -461,23 +456,7 @@ export function LRInvoiceItemsTable({
         </div>
       </div>
 
-      {/* Basic Slider / Horizontal Scrollbar Styling */}
-      <style jsx>{`
-        .custom-horizontal-scrollbar::-webkit-scrollbar {
-          height: 10px;
-        }
-        .custom-horizontal-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 6px;
-        }
-        .custom-horizontal-scrollbar::-webkit-scrollbar-thumb {
-          background: #94a3b8;
-          border-radius: 6px;
-        }
-        .custom-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #64748b;
-        }
-      `}</style>
+
     </div>
   );
 }

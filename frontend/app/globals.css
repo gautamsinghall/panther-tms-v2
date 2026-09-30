@@ -140,3 +140,31 @@ button:focus-visible,
   border-color: #CBD5E1;
   box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.06), 0 1px 3px -1px rgba(15, 23, 42, 0.08);
 }
+
+/* Re-enable visible scrollbar for specific containers (e.g. horizontal data tables) */
+.show-scrollbar {
+  scrollbar-width: auto !important;
+  -ms-overflow-style: auto !important;
+  scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.show-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: auto !important;
+  height: 10px !important;
+}
+
+.show-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 6px;
+}
+
+.show-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
