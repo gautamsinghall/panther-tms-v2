@@ -240,6 +240,17 @@ class JobResponse(JobBase):
 # ---------------------------------------------------------------------------
 # LR / GR Schemas & State Transitions
 # ---------------------------------------------------------------------------
+class LRInvoiceItem(BaseModel):
+    invoice_no: Optional[str] = None
+    invoice_date: Optional[date] = None
+    invoice_value: Optional[Decimal] = Decimal("0.00")
+    eway_bill_number: Optional[str] = None
+    eway_bill_date: Optional[date] = None
+    eway_bill_expiry: Optional[date] = None
+    cha_job_number: Optional[str] = None
+    particulars: Optional[str] = None
+    remarks: Optional[str] = None
+
 class LRBase(BaseModel):
     lr_number: Optional[str] = None
     issuing_office_id: Optional[int] = None
@@ -279,6 +290,7 @@ class LRBase(BaseModel):
     eta: Optional[str] = None
     particulars: Optional[str] = None
     lr_series_id: Optional[int] = None
+    invoice_items: Optional[List[LRInvoiceItem]] = Field(default_factory=list)
     
     # Financials (Numeric(12, 2) fixed point)
     freight_rate: Decimal = Decimal("0.00")
@@ -335,6 +347,7 @@ class LRUpdate(BaseModel):
     eta: Optional[str] = None
     particulars: Optional[str] = None
     lr_series_id: Optional[int] = None
+    invoice_items: Optional[List[LRInvoiceItem]] = None
     freight_rate: Optional[Decimal] = None
     freight_amount: Optional[Decimal] = None
     loading_charges: Optional[Decimal] = None

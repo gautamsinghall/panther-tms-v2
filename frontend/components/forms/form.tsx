@@ -193,37 +193,50 @@ export function Form({
                     )}
                   >
                     {/* Label Above Input */}
-                    <div className="flex items-center justify-between">
-                      <label
-                        htmlFor={inputId}
-                        className="block text-xs font-semibold text-slate-700 tracking-tight"
-                      >
-                        {field.label}
-                        {field.required && (
-                          <span className="text-rose-500 ml-0.5 font-bold" title="Required">
-                            *
-                          </span>
-                        )}
-                      </label>
+                    {!field.hideLabel && field.label && (
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor={inputId}
+                          className="block text-xs font-semibold text-slate-700 tracking-tight"
+                        >
+                          {field.label}
+                          {field.required && (
+                            <span className="text-rose-500 ml-0.5 font-bold" title="Required">
+                              *
+                            </span>
+                          )}
+                        </label>
 
-                      {/* Tooltip for Disabled Fields or Helpers */}
-                      {field.disabled ? (
-                        <Tooltip content={field.disabledReason || "This field is locked and cannot be edited in current state"}>
-                          <span className="cursor-help text-slate-400 hover:text-slate-700">
-                            <HelpCircle className="w-3.5 h-3.5" />
-                          </span>
-                        </Tooltip>
-                      ) : field.helperText ? (
-                        <Tooltip content={field.helperText}>
-                          <span className="cursor-help text-slate-400 hover:text-slate-700">
-                            <HelpCircle className="w-3.5 h-3.5" />
-                          </span>
-                        </Tooltip>
-                      ) : null}
-                    </div>
+                        {/* Tooltip for Disabled Fields or Helpers */}
+                        {field.disabled ? (
+                          <Tooltip content={field.disabledReason || "This field is locked and cannot be edited in current state"}>
+                            <span className="cursor-help text-slate-400 hover:text-slate-700">
+                              <HelpCircle className="w-3.5 h-3.5" />
+                            </span>
+                          </Tooltip>
+                        ) : field.helperText ? (
+                          <Tooltip content={field.helperText}>
+                            <span className="cursor-help text-slate-400 hover:text-slate-700">
+                              <HelpCircle className="w-3.5 h-3.5" />
+                            </span>
+                          </Tooltip>
+                        ) : null}
+                      </div>
+                    )}
 
                     {/* Inputs */}
-                    {field.type === "state" || field.name === "state" ? (
+                    {field.type === "custom" && field.customRender ? (
+                      field.customRender({
+                        value: val,
+                        onChange: (selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        },
+                        values,
+                        setFieldValue: handleChange,
+                        error: fieldError,
+                      })
+                    ) : field.type === "state" || field.name === "state" ? (
                       <StateSelect
                         id={inputId}
                         name={field.name}
@@ -412,6 +425,11 @@ export function Form({
                 );
               })}
             </div>
+            {section.customContent && (
+              <div className="pt-1">
+                {section.customContent}
+              </div>
+            )}
           </div>
         );
       })}

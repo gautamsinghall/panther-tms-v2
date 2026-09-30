@@ -40,6 +40,11 @@ import {
   QuickCreateLocationModal,
 } from "@/components/modals/quick-create-modal";
 import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
+import {
+  LRInvoiceItemsTable,
+  LRInvoiceItem,
+  createEmptyInvoiceItem,
+} from "@/components/forms/lr-invoice-items-table";
 
 interface LRRecord {
   id: number;
@@ -97,6 +102,7 @@ interface LRRecord {
   balance_amount: string | number;
   status: string;
   lr_series_id?: number;
+  invoice_items?: LRInvoiceItem[];
 }
 
 interface SelectOption {
@@ -525,6 +531,24 @@ export default function LRBookingPage() {
     setSelectedConsignerId(String(freshData.consigner_id || ""));
     setSelectedConsigneeId(String(freshData.consignee_id || ""));
 
+    const initialItems: LRInvoiceItem[] =
+      freshData.invoice_items && freshData.invoice_items.length > 0
+        ? freshData.invoice_items
+        : [
+            {
+              id: `init-${freshData.id || Date.now()}`,
+              invoice_no: freshData.invoice_no || "",
+              invoice_date: freshData.invoice_date || freshData.lr_date || new Date().toISOString().split("T")[0],
+              invoice_value: freshData.invoice_value ? String(freshData.invoice_value) : "",
+              eway_bill_number: freshData.eway_bill_number || "",
+              eway_bill_date: freshData.eway_bill_date || freshData.lr_date || new Date().toISOString().split("T")[0],
+              eway_bill_expiry: freshData.eway_bill_expiry || "",
+              cha_job_number: freshData.cha_job_number || "",
+              particulars: freshData.particulars || "",
+              remarks: "",
+            },
+          ];
+
     setFormInitialValues({
       job_id: freshData.job_id ? String(freshData.job_id) : "",
       booking_status: freshData.booking_status || "Booked",
@@ -544,13 +568,6 @@ export default function LRBookingPage() {
       consignee_id: String(freshData.consignee_id || ""),
       vehicle_number: freshData.vehicle_number || "",
       vehicle_type: freshData.vehicle_type || "",
-      eway_bill_number: freshData.eway_bill_number || "",
-      eway_bill_date: freshData.eway_bill_date || "",
-      eway_bill_expiry: freshData.eway_bill_expiry || "",
-      invoice_no: freshData.invoice_no || "",
-      invoice_date: freshData.invoice_date || "",
-      invoice_value: freshData.invoice_value ? String(freshData.invoice_value) : "",
-      cha_job_number: freshData.cha_job_number || "",
       package_count: freshData.package_count || 0,
       packing_method_id: freshData.packing_method_id ? String(freshData.packing_method_id) : "",
       actual_weight_mt: freshData.actual_weight_mt ? String(freshData.actual_weight_mt) : "0.000",
@@ -562,7 +579,7 @@ export default function LRBookingPage() {
       eta: freshData.eta || "",
       driver_name: freshData.driver_name || "",
       driver_phone: freshData.driver_phone || "",
-      particulars: freshData.particulars || "",
+      invoice_items: initialItems,
       remarks: freshData.remarks || "",
     });
 
@@ -616,7 +633,7 @@ export default function LRBookingPage() {
       eta: "",
       driver_name: "",
       driver_phone: "",
-      particulars: "",
+      invoice_items: [createEmptyInvoiceItem()],
       remarks: "",
     });
 
@@ -627,6 +644,23 @@ export default function LRBookingPage() {
     setIsSubmitting(true);
     try {
       const selectedLoadType = loadTypes.find((lt) => String(lt.id) === String(values.load_type_id));
+
+      const rawItems: LRInvoiceItem[] = values.invoice_items || [];
+      const validItems = rawItems.filter(
+        (it) =>
+          (it.invoice_no && String(it.invoice_no).trim().length > 0) ||
+          (it.eway_bill_number && String(it.eway_bill_number).trim().length > 0) ||
+          (it.invoice_value && parseFloat(String(it.invoice_value)) > 0) ||
+          (it.particulars && String(it.particulars).trim().length > 0) ||
+          (it.cha_job_number && String(it.cha_job_number).trim().length > 0)
+      );
+      const itemsToSave = validItems.length > 0 ? validItems : rawItems;
+
+      const invNos = itemsToSave.map((i) => String(i.invoice_no || "").trim()).filter(Boolean);
+      const ewbNos = itemsToSave.map((i) => String(i.eway_bill_number || "").trim()).filter(Boolean);
+      const firstItem = itemsToSave[0] || {};
+      const totalInvVal = itemsToSave.reduce((sum, i) => sum + (parseFloat(String(i.invoice_value || 0)) || 0), 0);
+      const combinedParts = itemsToSave.map((i) => String(i.particulars || "").trim()).filter(Boolean).join("; ");
 
       const payload = {
         ...values,
@@ -648,13 +682,14 @@ export default function LRBookingPage() {
         vehicle_type: values.vehicle_type ? String(values.vehicle_type).trim() : null,
         driver_name: values.driver_name ? String(values.driver_name).trim() : null,
         driver_phone: values.driver_phone ? String(values.driver_phone).trim() : null,
-        eway_bill_number: values.eway_bill_number ? String(values.eway_bill_number).trim() : null,
-        eway_bill_date: values.eway_bill_date || null,
-        eway_bill_expiry: values.eway_bill_expiry || null,
-        invoice_no: values.invoice_no ? String(values.invoice_no).trim() : null,
-        invoice_date: values.invoice_date || null,
-        invoice_value: parseFloat(values.invoice_value) || 0,
-        cha_job_number: values.cha_job_number ? String(values.cha_job_number).trim() : null,
+        invoice_items: itemsToSave,
+        eway_bill_number: ewbNos.length > 0 ? ewbNos.join(", ") : (values.eway_bill_number ? String(values.eway_bill_number).trim() : null),
+        eway_bill_date: firstItem.eway_bill_date || values.eway_bill_date || null,
+        eway_bill_expiry: firstItem.eway_bill_expiry || values.eway_bill_expiry || null,
+        invoice_no: invNos.length > 0 ? invNos.join(", ") : (values.invoice_no ? String(values.invoice_no).trim() : null),
+        invoice_date: firstItem.invoice_date || values.invoice_date || null,
+        invoice_value: totalInvVal > 0 ? totalInvVal : (parseFloat(values.invoice_value) || 0),
+        cha_job_number: firstItem.cha_job_number || (values.cha_job_number ? String(values.cha_job_number).trim() : null),
         package_count: parseInt(values.package_count, 10) || 0,
         packing_method_id: values.packing_method_id ? parseInt(values.packing_method_id, 10) : null,
         actual_weight_mt: parseFloat(values.actual_weight_mt) || 0,
@@ -665,7 +700,7 @@ export default function LRBookingPage() {
         load_type: selectedLoadType?.name || null,
         payment_type: values.payment_type || "To Be Billed",
         eta: values.eta || null,
-        particulars: values.particulars ? String(values.particulars).trim() : null,
+        particulars: combinedParts || (values.particulars ? String(values.particulars).trim() : null),
         remarks: values.remarks ? String(values.remarks).trim() : null,
       };
 
@@ -968,71 +1003,31 @@ export default function LRBookingPage() {
       ],
     },
     {
-      id: "sec_compliance_invoicing",
-      title: "Invoicing & Compliance Verification",
-      description: "E-Way bill lifecycle, commercial invoice values, and CHA brokerage linkage",
-      columns: 2,
+      id: "sec_compliance_invoicing_table",
+      title: "Invoicing, E-Way Bills & Consignment Particulars",
+      description: "Record multiple commercial invoices, E-Way bill compliance lifecycles, and cargo descriptions under this single Lorry Receipt.",
+      columns: 1,
       fields: [
         {
-          name: "eway_bill_number",
-          label: "E-Way Bill No.",
-          type: "text",
-          placeholder: "12-digit E-Way Bill number",
-        },
-        {
-          name: "eway_bill_date",
-          label: "E-Way Bill Date",
-          type: "date",
-        },
-        {
-          name: "eway_bill_expiry",
-          label: "E-Way Bill Expiry",
-          type: "date",
-        },
-        {
-          name: "invoice_no",
-          label: "Invoice No.",
-          type: "text",
-          placeholder: "Commercial invoice reference",
-        },
-        {
-          name: "invoice_date",
-          label: "Invoice Date",
-          type: "date",
-        },
-        {
-          name: "invoice_value",
-          label: "Invoice Value (₹)",
-          type: "number",
-          placeholder: "e.g. 250000",
-        },
-        {
-          name: "cha_job_number",
-          label: "CHA Job No./Booking No.",
-          type: "text",
-          placeholder: "Customs broker job or carrier booking number",
-        },
-      ],
-    },
-    {
-      id: "sec_particulars_remarks",
-      title: "Particulars & Remarks",
-      description: "Detailed commodity description, cargo contents, and driver/delivery remarks",
-      columns: 2,
-      fields: [
-        {
-          name: "particulars",
-          label: "Particulars",
-          type: "textarea",
-          placeholder: "Consignment commodity details, cargo description, container contents...",
-          colSpan: 2,
+          name: "invoice_items",
+          label: "",
+          hideLabel: true,
+          type: "custom",
+          colSpan: 4,
+          defaultValue: [createEmptyInvoiceItem()],
+          customRender: ({ value, onChange }) => (
+            <LRInvoiceItemsTable
+              items={value || []}
+              onChange={onChange}
+            />
+          ),
         },
         {
           name: "remarks",
-          label: "Remarks",
+          label: "Overall Consignment Remarks / Instructions",
           type: "textarea",
-          placeholder: "Delivery instructions, unloading requirements, transit notes...",
-          colSpan: 2,
+          placeholder: "General delivery instructions, unloading requirements, transit notes for driver & consignee...",
+          colSpan: 4,
         },
       ],
     },

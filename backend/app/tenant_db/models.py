@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone, date
-from sqlalchemy import Boolean, Column, DateTime, Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Date, ForeignKey, Integer, Numeric, String, Text, JSON
 from sqlalchemy.orm import relationship
 from app.tenant_db.base import TenantBase
 
@@ -608,6 +608,7 @@ class LR(TenantBase):
     eta = Column(String(100), nullable=True)
     particulars = Column(Text, nullable=True)
     lr_series_id = Column(Integer, ForeignKey("settings_series_masters.id"), nullable=True)
+    invoice_items = Column(JSON, default=list, nullable=True)
 
     job = relationship("Job", back_populates="lrs", lazy="selectin")
     consigner = relationship("Consigner", foreign_keys=[consigner_id], lazy="selectin")

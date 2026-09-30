@@ -152,6 +152,7 @@ async def lifespan(app: FastAPI):
                             "eta VARCHAR(100)",
                             "particulars TEXT",
                             "lr_series_id INTEGER REFERENCES settings_series_masters(id)",
+                            "invoice_items JSONB DEFAULT '[]'::jsonb",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS {lr_col};"))
 

@@ -8,7 +8,7 @@ export interface FormFieldOption {
 export interface FormFieldDef {
   name: string;
   label: string;
-  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state";
+  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "custom";
   placeholder?: string;
   required?: boolean;
   options?: FormFieldOption[]; // for select
@@ -24,6 +24,14 @@ export interface FormFieldDef {
   addNewTitle?: string;
   addNewHref?: string;
   accept?: string;
+  hideLabel?: boolean;
+  customRender?: (props: {
+    value: any;
+    onChange: (value: any) => void;
+    values: Record<string, any>;
+    setFieldValue: (name: string, value: any) => void;
+    error?: string;
+  }) => React.ReactNode;
 }
 
 export interface FormSectionDef {
@@ -32,4 +40,5 @@ export interface FormSectionDef {
   description?: string;
   fields: FormFieldDef[];
   columns?: 1 | 2 | 3 | 4;
+  customContent?: React.ReactNode;
 }

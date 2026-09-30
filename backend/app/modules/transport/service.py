@@ -380,6 +380,33 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
         if lt_obj:
             lr_dict["load_type"] = lt_obj.name
 
+    # Handle invoice_items if provided
+    items = data.invoice_items or []
+    if items:
+        serialized_items = []
+        for it in items:
+            d = it.model_dump() if hasattr(it, "model_dump") else (it if isinstance(it, dict) else dict(it))
+            if "invoice_date" in d and d["invoice_date"] is not None:
+                d["invoice_date"] = str(d["invoice_date"])
+            if "eway_bill_date" in d and d["eway_bill_date"] is not None:
+                d["eway_bill_date"] = str(d["eway_bill_date"])
+            if "eway_bill_expiry" in d and d["eway_bill_expiry"] is not None:
+                d["eway_bill_expiry"] = str(d["eway_bill_expiry"])
+            if "invoice_value" in d and d["invoice_value"] is not None:
+                d["invoice_value"] = float(d["invoice_value"])
+            serialized_items.append(d)
+        lr_dict["invoice_items"] = serialized_items
+
+        inv_nos = [str(it.get("invoice_no") or "").strip() for it in serialized_items if (it.get("invoice_no") or "").strip()]
+        ewb_nos = [str(it.get("eway_bill_number") or "").strip() for it in serialized_items if (it.get("eway_bill_number") or "").strip()]
+        if inv_nos and not lr_dict.get("invoice_no"):
+            lr_dict["invoice_no"] = ", ".join(inv_nos)
+        if ewb_nos and not lr_dict.get("eway_bill_number"):
+            lr_dict["eway_bill_number"] = ", ".join(ewb_nos)
+        total_inv_val = sum(Decimal(str(it.get("invoice_value") or 0)) for it in serialized_items)
+        if total_inv_val > 0 and (not lr_dict.get("invoice_value") or lr_dict.get("invoice_value") == Decimal("0.00")):
+            lr_dict["invoice_value"] = total_inv_val
+
     # Calculate total freight if not explicitly provided
     if not lr_dict.get("total_freight_amount"):
         freight = lr_dict.get("freight_amount") or Decimal("0.00")
@@ -431,6 +458,32 @@ async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
         lt_obj = await db.get(LoadType, data.load_type_id)
         if lt_obj:
             lr.load_type = lt_obj.name
+
+    # Handle invoice_items if updated
+    if data.invoice_items is not None:
+        serialized_items = []
+        for it in data.invoice_items:
+            d = it.model_dump() if hasattr(it, "model_dump") else (it if isinstance(it, dict) else dict(it))
+            if "invoice_date" in d and d["invoice_date"] is not None:
+                d["invoice_date"] = str(d["invoice_date"])
+            if "eway_bill_date" in d and d["eway_bill_date"] is not None:
+                d["eway_bill_date"] = str(d["eway_bill_date"])
+            if "eway_bill_expiry" in d and d["eway_bill_expiry"] is not None:
+                d["eway_bill_expiry"] = str(d["eway_bill_expiry"])
+            if "invoice_value" in d and d["invoice_value"] is not None:
+                d["invoice_value"] = float(d["invoice_value"])
+            serialized_items.append(d)
+        lr.invoice_items = serialized_items
+
+        inv_nos = [str(it.get("invoice_no") or "").strip() for it in serialized_items if (it.get("invoice_no") or "").strip()]
+        ewb_nos = [str(it.get("eway_bill_number") or "").strip() for it in serialized_items if (it.get("eway_bill_number") or "").strip()]
+        if inv_nos and not data.invoice_no:
+            lr.invoice_no = ", ".join(inv_nos)
+        if ewb_nos and not data.eway_bill_number:
+            lr.eway_bill_number = ", ".join(ewb_nos)
+        total_inv_val = sum(Decimal(str(it.get("invoice_value") or 0)) for it in serialized_items)
+        if total_inv_val > 0 and (not data.invoice_value or data.invoice_value == Decimal("0.00")):
+            lr.invoice_value = total_inv_val
 
     # Recalculate totals
     freight = lr.freight_amount or Decimal("0.00")

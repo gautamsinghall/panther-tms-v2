@@ -48,9 +48,19 @@ export interface LRViewRecord {
   advance_amount: string | number;
   balance_amount: string | number;
   payment_terms?: string;
-  status: string;
   remarks?: string;
   created_at?: string;
+  invoice_items?: {
+    invoice_no?: string;
+    invoice_date?: string;
+    invoice_value?: string | number;
+    eway_bill_number?: string;
+    eway_bill_date?: string;
+    eway_bill_expiry?: string;
+    cha_job_number?: string;
+    particulars?: string;
+    remarks?: string;
+  }[];
 }
 
 interface CompanySettingData {
@@ -547,6 +557,50 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                 </tr>
               </tbody>
             </table>
+
+            {/* 6b. Invoices & E-Way Bills Compliance Table */}
+            {Boolean((lr.invoice_items && lr.invoice_items.length > 0) || lr.eway_bill_number) && (
+              <div className="border-b border-black">
+                <div className="bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 border-b border-black">
+                  Invoices & E-Way Bills Compliance
+                </div>
+                <table className="w-full text-[10px] text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-black font-semibold text-slate-800 divide-x divide-black bg-slate-50">
+                      <th className="p-1 text-center w-8">#</th>
+                      <th className="p-1 pl-2">Invoice No & Date</th>
+                      <th className="p-1 pl-2 text-right">Invoice Value</th>
+                      <th className="p-1 pl-2">E-Way Bill No.</th>
+                      <th className="p-1 pl-2">EWB Expiry</th>
+                      <th className="p-1 pl-2">Particulars / Commodity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-black">
+                    {lr.invoice_items && lr.invoice_items.length > 0 ? (
+                      lr.invoice_items.map((it: any, i: number) => (
+                        <tr key={i} className="divide-x divide-black">
+                          <td className="p-1 text-center font-mono">{i + 1}</td>
+                          <td className="p-1 pl-2 font-medium">{it.invoice_no || "—"} {it.invoice_date ? `(${it.invoice_date})` : ""}</td>
+                          <td className="p-1 pl-2 text-right font-mono font-medium">{it.invoice_value ? formatCurrency(parseFloat(it.invoice_value)) : "—"}</td>
+                          <td className="p-1 pl-2 font-mono">{it.eway_bill_number || "—"}</td>
+                          <td className="p-1 pl-2">{it.eway_bill_expiry || "—"}</td>
+                          <td className="p-1 pl-2 text-slate-700">{it.particulars || it.remarks || "—"}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="divide-x divide-black">
+                        <td className="p-1 text-center font-mono">1</td>
+                        <td className="p-1 pl-2 font-medium">—</td>
+                        <td className="p-1 pl-2 text-right font-mono">—</td>
+                        <td className="p-1 pl-2 font-mono">{lr.eway_bill_number || "—"}</td>
+                        <td className="p-1 pl-2">—</td>
+                        <td className="p-1 pl-2 text-slate-700">—</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* 7. Financial Breakdown & Payment Terms */}
             <div className="flex border-b border-black text-[11px]">

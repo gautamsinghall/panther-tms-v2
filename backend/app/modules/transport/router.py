@@ -472,6 +472,7 @@ def _build_lr_response(l: LR) -> LRResponse:
         status=l.status,
         remarks=l.remarks,
         created_by_user_id=l.created_by_user_id,
+        invoice_items=l.invoice_items or [],
         job_number=l.job.job_number if l.job else None,
         created_at=l.created_at,
         updated_at=l.updated_at,
