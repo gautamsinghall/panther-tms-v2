@@ -6,6 +6,7 @@ import { X, Building2, MapPin, User, Truck, AlertCircle, Loader2 } from "lucide-
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { CountrySelect } from "@/components/ui/country-select";
+import { StateSelect } from "@/components/ui/state-select";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 
 function QuickModalWrapper({
@@ -228,18 +229,20 @@ export function QuickCreateBillingClientModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
-              <input
-                type="text"
-                placeholder="e.g. Maharashtra"
+              <label className="block text-xs font-semibold text-slate-700 mb-1">State / UT</label>
+              <StateSelect
+                country={country}
                 value={state}
-                onChange={(e) => setState(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                onChange={setState}
+                placeholder="Select State / UT"
               />
             </div>
           </div>
 
-          <CountrySelect value={country} onChange={setCountry} />
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
+            <CountrySelect value={country} onChange={setCountry} />
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-100">
@@ -408,13 +411,13 @@ export function QuickCreateConsignerModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
-              <input
-                type="text"
+              <label className="block text-xs font-semibold text-slate-700 mb-1">State / UT</label>
+              <StateSelect
+                country={country}
                 value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="e.g. Maharashtra"
-                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                onChange={setState}
+                placeholder="Select State / UT"
+                size="sm"
               />
             </div>
             <div>
@@ -613,13 +616,13 @@ export function QuickCreateConsigneeModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
-              <input
-                type="text"
+              <label className="block text-xs font-semibold text-slate-700 mb-1">State / UT</label>
+              <StateSelect
+                country={country}
                 value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="e.g. Maharashtra"
-                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                onChange={setState}
+                placeholder="Select State / UT"
+                size="sm"
               />
             </div>
             <div>
@@ -683,7 +686,6 @@ export function QuickCreateLocationModal({
   const [cityName, setCityName] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
-  const [locationCode, setLocationCode] = useState("");
   const [address, setAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -705,7 +707,6 @@ export function QuickCreateLocationModal({
           city_name: cityName.trim(),
           state: state.trim(),
           country: country || DEFAULT_COUNTRY,
-          location_code: locationCode.trim() || undefined,
           address: address.trim() || undefined,
           is_pickup_point: true,
           is_drop_point: true,
@@ -715,7 +716,6 @@ export function QuickCreateLocationModal({
       setCityName("");
       setState("");
       setCountry(DEFAULT_COUNTRY);
-      setLocationCode("");
       setAddress("");
       onSuccess(res);
       onClose();
@@ -772,15 +772,15 @@ export function QuickCreateLocationModal({
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                State <span className="text-rose-500">*</span>
+                State / UT <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="text"
-                required
+              <StateSelect
+                country={country}
                 value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="e.g. Maharashtra"
-                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                onChange={setState}
+                required
+                placeholder="Select State / UT"
+                size="sm"
               />
             </div>
             <div>
@@ -794,19 +794,6 @@ export function QuickCreateLocationModal({
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Location / Hub Code (optional)
-            </label>
-            <input
-              type="text"
-              value={locationCode}
-              onChange={(e) => setLocationCode(e.target.value.toUpperCase())}
-              placeholder="e.g. PNQ-HUB-01"
-              className="w-full h-9 px-3 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-            />
           </div>
 
           <div>
@@ -850,6 +837,7 @@ export function QuickCreateVehicleOwnerModal({
   const [pan, setPan] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -880,6 +868,7 @@ export function QuickCreateVehicleOwnerModal({
       setPan("");
       setCity("");
       setState("");
+      setCountry(DEFAULT_COUNTRY);
       onSuccess(res);
       onClose();
     } catch (err: any) {
@@ -961,7 +950,25 @@ export function QuickCreateVehicleOwnerModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
+              <CountrySelect
+                value={country}
+                onChange={setCountry}
+                size="sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">State / UT</label>
+              <StateSelect
+                country={country}
+                value={state}
+                onChange={setState}
+                placeholder="Select State / UT"
+                size="sm"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
               <input
@@ -969,16 +976,6 @@ export function QuickCreateVehicleOwnerModal({
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="e.g. Nagpur"
-                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
-              <input
-                type="text"
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="e.g. Maharashtra"
                 className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
               />
             </div>

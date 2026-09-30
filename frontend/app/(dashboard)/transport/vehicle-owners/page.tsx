@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Form } from "@/components/forms/form";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
+import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { apiClient } from "@/lib/api-client";
 
 interface VehicleOwnerRecord {
@@ -167,9 +168,16 @@ export default function VehicleOwnersPage() {
           placeholder: "Jaipur",
         },
         {
+          name: "country",
+          label: "Country",
+          type: "country",
+          defaultValue: DEFAULT_COUNTRY,
+        },
+        {
           name: "state",
-          label: "State",
-          placeholder: "Rajasthan",
+          label: "State / UT",
+          type: "state",
+          placeholder: "Select State / UT",
         },
       ],
     },

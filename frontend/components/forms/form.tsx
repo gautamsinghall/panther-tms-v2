@@ -7,6 +7,10 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { FormSectionDef, FormFieldDef } from "@/types/form";
 import { AlertCircle, HelpCircle, Upload, CheckCircle2, X } from "lucide-react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { StateSelect } from "@/components/ui/state-select";
+import { CountrySelect } from "@/components/ui/country-select";
+import { isIndia } from "@/lib/states";
+import { DEFAULT_COUNTRY } from "@/lib/countries";
 
 interface FormProps {
   sections: FormSectionDef[];
@@ -73,7 +77,18 @@ export function Form({
   }, [initialValues]);
 
   const handleChange = (name: string, value: any) => {
-    setValues((prev) => ({ ...prev, [name]: value }));
+    setValues((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "country") {
+        const prevCountry = prev.country ?? DEFAULT_COUNTRY;
+        const wasIndia = isIndia(prevCountry);
+        const nowIndia = isIndia(value);
+        if (wasIndia !== nowIndia) {
+          next["state"] = "";
+        }
+      }
+      return next;
+    });
     if (errors[name]) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -208,7 +223,38 @@ export function Form({
                     </div>
 
                     {/* Inputs */}
-                    {field.type === "select" ? (
+                    {field.type === "state" || field.name === "state" ? (
+                      <StateSelect
+                        id={inputId}
+                        name={field.name}
+                        country={values[field.countryFieldName || "country"] ?? DEFAULT_COUNTRY}
+                        value={val}
+                        placeholder={field.placeholder || `Select ${field.label}`}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={field.required}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                      />
+                    ) : field.type === "country" || (field.name === "country" && field.type === "select") ? (
+                      <CountrySelect
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        placeholder={field.placeholder || `Select ${field.label}`}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={field.required}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                      />
+                    ) : field.type === "select" ? (
                       <SearchableSelect
                         id={inputId}
                         name={field.name}

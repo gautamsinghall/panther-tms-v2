@@ -166,23 +166,17 @@ export default function LocationPage() {
         },
         {
           name: "state",
-          label: "State",
-          placeholder: "e.g. Gujarat",
+          label: "State / UT",
+          type: "state",
+          placeholder: "Select State / UT",
           required: true,
         },
         {
           name: "country",
           label: "Country",
-          type: "select",
-          options: COUNTRY_OPTIONS,
-          placeholder: "Select Country",
+          type: "country",
           defaultValue: DEFAULT_COUNTRY,
           required: true,
-        },
-        {
-          name: "location_code",
-          label: "Location Code",
-          placeholder: "e.g. MUN-01",
         },
         {
           name: "pincode",

@@ -24,6 +24,9 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { CountrySelect } from "@/components/ui/country-select";
+import { StateSelect } from "@/components/ui/state-select";
+import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { apiClient } from "@/lib/api-client";
 
 interface BranchItem {
@@ -63,6 +66,7 @@ export default function IssuingOfficesPage() {
   // Form Fields - All Location-Specific Details
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [address, setAddress] = useState("");
@@ -81,6 +85,7 @@ export default function IssuingOfficesPage() {
     setEditingBranchId(null);
     setCode("");
     setName("");
+    setCountry(DEFAULT_COUNTRY);
     setCity("");
     setState("");
     setAddress("");
@@ -105,6 +110,7 @@ export default function IssuingOfficesPage() {
     setEditingBranchId(branch.id);
     setCode(branch.code || "");
     setName(branch.name || "");
+    setCountry(DEFAULT_COUNTRY);
     setCity(branch.city || "");
     setState(branch.state || "");
     setAddress(branch.address || "");
@@ -499,7 +505,32 @@ export default function IssuingOfficesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                    Country <span className="text-rose-500">*</span>
+                  </label>
+                  <CountrySelect
+                    value={country}
+                    onChange={setCountry}
+                    size="sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                    State / Province <span className="text-rose-500">*</span>
+                  </label>
+                  <StateSelect
+                    country={country}
+                    value={state}
+                    onChange={setState}
+                    required
+                    placeholder="Select State / UT"
+                    size="sm"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-medium text-slate-700 mb-1">
                     City <span className="text-rose-500">*</span>
@@ -509,19 +540,6 @@ export default function IssuingOfficesPage() {
                     placeholder="e.g. Ghaziabad"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    State / Province <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    required
-                    placeholder="e.g. Uttar Pradesh"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
                     className="text-xs"
                   />
                 </div>
