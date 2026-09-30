@@ -1354,7 +1354,7 @@ export default function LRBookingPage() {
             ? "Update commercial consignment fields, transit routes, and compliance data without creating duplicate records."
             : "Record commercial consignment, assigned truck, freight terms, and dispatch parties according to 36-field standard."
         }
-        width="xl"
+        width="full"
       >
         {/* Office & Series Context Banner */}
         <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
@@ -1385,6 +1385,7 @@ export default function LRBookingPage() {
         </div>
 
         <Form
+          className="max-w-full"
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
