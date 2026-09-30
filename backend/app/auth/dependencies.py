@@ -94,7 +94,8 @@ async def get_current_user(
 async def get_current_company_admin(
     user: User = Depends(get_current_user)
 ) -> User:
-    if user.role != "COMPANY_ADMIN":
+    role_upper = (user.role or "").upper().strip()
+    if role_upper not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
         raise ForbiddenException("Company Admin privileges required.")
     return user
 

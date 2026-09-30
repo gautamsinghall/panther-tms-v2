@@ -506,11 +506,13 @@ async def get_manual_series_ranges(
     db: AsyncSession,
     document_type: str,
     issuing_office_id: Optional[int] = None,
+    office_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Returns all configured manual series ranges for a document type.
     Computes available (unused) voucher numbers for each range, filtering out already used vouchers.
     """
+    issuing_office_id = issuing_office_id or office_id
     await ensure_series_table_schema(db)
     raw_doc = document_type.upper().strip()
     norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
@@ -830,10 +832,12 @@ async def check_series_status(
     db: AsyncSession,
     document_type: str,
     issuing_office_id: Optional[int] = None,
+    office_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Returns the series configuration and next available series number for a given document type.
     """
+    issuing_office_id = issuing_office_id or office_id
     raw_doc = document_type.upper().strip()
     norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
     is_mandatory_manual = norm_type in MANDATORY_MANUAL_DOC_TYPES

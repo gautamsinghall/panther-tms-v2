@@ -203,11 +203,11 @@ async def get_api_center(
 @router.put(
     "/api-center",
     response_model=ApiCenterSettingResponse,
-    summary="Update tenant API center & E-Way Bill configurations (Admin Only)"
+    summary="Update tenant API center & E-Way Bill configurations"
 )
 async def update_api_center(
     data: ApiCenterSettingUpdate,
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.update_api_center_setting(db, data)
@@ -220,7 +220,7 @@ async def update_api_center(
 )
 async def test_ewb(
     req: ApiCenterTestRequest,
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.test_ewb_connection(db, req)

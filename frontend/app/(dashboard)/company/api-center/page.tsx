@@ -74,7 +74,7 @@ export default function ApiCenterPage() {
   const fetchSettings = async () => {
     try {
       setIsLoading(true);
-      const data = await apiClient.get<ApiCenterData>("/profile/api-center");
+      const data = await apiClient.get<ApiCenterData>("/api/v1/profile/api-center");
       if (data) {
         setEwbUsername(data.ewb_username || "");
         setEwbPassword(data.ewb_password || "");
@@ -119,7 +119,7 @@ export default function ApiCenterPage() {
         payload.gsp_client_secret_override = gspClientSecretOverride.trim();
       }
 
-      await apiClient.put("/profile/api-center", payload);
+      await apiClient.put("/api/v1/profile/api-center", payload);
       setFeedback({
         type: "success",
         message: "API Center settings saved successfully! Live E-Way Bill fetch will use these credentials.",
@@ -150,7 +150,7 @@ export default function ApiCenterPage() {
         gsp_client_secret: gspClientSecretOverride.trim() || undefined,
       };
 
-      const res = await apiClient.post<any>("/profile/api-center/test-ewb", payload);
+      const res = await apiClient.post<any>("/api/v1/profile/api-center/test-ewb", payload);
       setTestResult(res);
     } catch (err: any) {
       setTestResult({

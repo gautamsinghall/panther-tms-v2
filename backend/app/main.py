@@ -306,5 +306,7 @@ app.include_router(statements_router, prefix=settings.API_V1_PREFIX)
 app.include_router(fleet_router, prefix=settings.API_V1_PREFIX)
 app.include_router(home_router, prefix=settings.API_V1_PREFIX)
 app.include_router(profile_router, prefix=settings.API_V1_PREFIX)
+app.include_router(profile_router)
+app.include_router(transport_router)
 
 

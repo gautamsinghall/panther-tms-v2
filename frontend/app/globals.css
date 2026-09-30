@@ -104,17 +104,16 @@ button:focus-visible,
   outline-color: transparent !important;
 }
 
-/* Hide all scrollbars globally across all browsers while maintaining smooth scrolling */
-* {
-  scrollbar-width: none !important; /* Firefox */
-  -ms-overflow-style: none !important; /* IE and Edge */
+/* Hide all scrollbars globally across all browsers while maintaining smooth scrolling (except for .show-scrollbar) */
+*:not(.show-scrollbar):not(.show-scrollbar *) {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
-*::-webkit-scrollbar,
-::-webkit-scrollbar {
-  display: none !important; /* Chrome, Safari, Opera */
-  width: 0 !important;
-  height: 0 !important;
+*:not(.show-scrollbar):not(.show-scrollbar *)::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 .no-scrollbar {
@@ -141,30 +140,39 @@ button:focus-visible,
   box-shadow: 0 4px 12px 0 rgba(15, 23, 42, 0.06), 0 1px 3px -1px rgba(15, 23, 42, 0.08);
 }
 
-/* Re-enable visible scrollbar for specific containers (e.g. horizontal data tables) */
-.show-scrollbar {
-  scrollbar-width: auto !important;
-  -ms-overflow-style: auto !important;
-  scrollbar-color: #94a3b8 #f1f5f9;
+/* Re-enable prominent visible scrollbar for specific containers (e.g. horizontal data tables) */
+.show-scrollbar,
+div.show-scrollbar {
+  scrollbar-width: thin !important;
+  -ms-overflow-style: scrollbar !important;
+  scrollbar-color: #6366f1 #f1f5f9 !important;
 }
 
-.show-scrollbar::-webkit-scrollbar {
+.show-scrollbar::-webkit-scrollbar,
+div.show-scrollbar::-webkit-scrollbar {
   display: block !important;
   width: auto !important;
-  height: 10px !important;
+  height: 12px !important;
 }
 
-.show-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 6px;
+.show-scrollbar::-webkit-scrollbar-track,
+div.show-scrollbar::-webkit-scrollbar-track {
+  display: block !important;
+  background: #f1f5f9 !important;
+  border-radius: 6px !important;
+  border: 1px solid #e2e8f0 !important;
 }
 
-.show-scrollbar::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 6px;
+.show-scrollbar::-webkit-scrollbar-thumb,
+div.show-scrollbar::-webkit-scrollbar-thumb {
+  display: block !important;
+  background: #6366f1 !important;
+  border-radius: 6px !important;
+  border: 2px solid #f1f5f9 !important;
 }
 
-.show-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+.show-scrollbar::-webkit-scrollbar-thumb:hover,
+div.show-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #4f46e5 !important;
 }
 

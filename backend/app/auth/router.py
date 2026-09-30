@@ -282,7 +282,7 @@ async def get_user_navigation(
         return {**it, "is_locked": False}
 
     result = []
-    is_admin = current_user.role == "COMPANY_ADMIN"
+    is_admin = (current_user.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER")
 
     # Permitted employee features
     allowed_features = set()
@@ -341,6 +341,7 @@ async def get_user_navigation(
                     if (mod["id"], it["feature"]) in allowed_features
                     or (it["feature"] == "company_details" and ("profile", "company") in allowed_features)
                     or (it["feature"] == "branch" and ("profile", "branch") in allowed_features)
+                    or (it["feature"] == "api_center" and (("profile", "company") in allowed_features or ("company", "api_center") in allowed_features))
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})

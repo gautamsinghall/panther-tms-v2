@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import {
   Plus,
   Trash2,
@@ -10,6 +10,9 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
@@ -60,6 +63,54 @@ export function LRInvoiceItemsTable({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [fetchingRowIdx, setFetchingRowIdx] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  // Sync scrollbar state with slider
+  const handleScroll = () => {
+    if (!tableContainerRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = tableContainerRef.current;
+    const maxScroll = scrollWidth - clientWidth;
+    if (maxScroll > 0) {
+      const pct = Math.min(100, Math.max(0, Math.round((scrollLeft / maxScroll) * 100)));
+      setScrollProgress(pct);
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < maxScroll - 10);
+    }
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const pct = Number(e.target.value);
+    setScrollProgress(pct);
+    if (tableContainerRef.current) {
+      const { scrollWidth, clientWidth } = tableContainerRef.current;
+      const maxScroll = scrollWidth - clientWidth;
+      tableContainerRef.current.scrollLeft = (pct / 100) * maxScroll;
+    }
+  };
+
+  const scrollToPercent = (pct: number) => {
+    if (tableContainerRef.current) {
+      const { scrollWidth, clientWidth } = tableContainerRef.current;
+      const maxScroll = scrollWidth - clientWidth;
+      tableContainerRef.current.scrollTo({
+        left: (pct / 100) * maxScroll,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const scrollStep = (direction: "left" | "right") => {
+    if (tableContainerRef.current) {
+      const delta = direction === "left" ? -400 : 400;
+      tableContainerRef.current.scrollBy({ left: delta, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    handleScroll();
+  }, []);
 
   // Ensure at least one row exists
   const rows = useMemo(() => {
@@ -105,7 +156,7 @@ export function LRInvoiceItemsTable({
       setFetchingRowIdx(index);
       setFeedback(null);
 
-      const res = await apiClient.get<any>(`/transport/eway-bill/fetch?ewbNo=${encodeURIComponent(rawNo)}`);
+      const res = await apiClient.get<any>(`/api/v1/transport/eway-bill/fetch?ewbNo=${encodeURIComponent(rawNo)}`);
 
       if (res && res.success) {
         const updated = rows.map((r, i) => {
@@ -228,9 +279,90 @@ export function LRInvoiceItemsTable({
         </div>
       )}
 
-      {/* Horizontal Scrollable Table Container (Basic Slider) */}
+      {/* Horizontal Slider Bar & Quick Column Navigator */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 text-[11px] uppercase tracking-wider">
+            <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Table Slider:</span>
+          </span>
+          {/* Quick Jump Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => scrollToPercent(0)}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
+                scrollProgress < 25
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              E-Way Bill & Invoices
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToPercent(50)}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
+                scrollProgress >= 25 && scrollProgress <= 75
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              Invoice Value & CHA Ref
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToPercent(100)}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
+                scrollProgress > 75
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              Particulars & Remarks →
+            </button>
+          </div>
+        </div>
+
+        {/* Range Slider and Arrow Controls */}
+        <div className="flex items-center gap-2 flex-1 max-w-xs sm:max-w-sm justify-end">
+          <button
+            type="button"
+            onClick={() => scrollStep("left")}
+            disabled={!canScrollLeft}
+            title="Slide Left"
+            className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={scrollProgress}
+            onChange={handleSliderChange}
+            className="w-full accent-indigo-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
+            title="Slide horizontally across table columns"
+          />
+
+          <button
+            type="button"
+            onClick={() => scrollStep("right")}
+            disabled={!canScrollRight}
+            title="Slide Right"
+            className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+          <span className="font-mono text-[10px] text-slate-400 w-7 text-right">{scrollProgress}%</span>
+        </div>
+      </div>
+
+      {/* Horizontal Scrollable Table Container */}
       <div
         ref={tableContainerRef}
+        onScroll={handleScroll}
         className="overflow-x-auto rounded-xl border border-slate-200/90 shadow-2xs bg-white show-scrollbar"
       >
         <table className="min-w-[1450px] w-full text-left border-collapse text-xs">
@@ -275,7 +407,7 @@ export function LRInvoiceItemsTable({
                       maxLength={12}
                       value={row.eway_bill_number || ""}
                       disabled={disabled}
-                      placeholder="12-digit number"
+                      placeholder=""
                       onChange={(e) => handleFieldChange(idx, "eway_bill_number", e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
@@ -362,7 +494,7 @@ export function LRInvoiceItemsTable({
                       min="0"
                       value={row.invoice_value ?? ""}
                       disabled={disabled}
-                      placeholder="0.00"
+                      placeholder=""
                       onChange={(e) => handleFieldChange(idx, "invoice_value", e.target.value)}
                       className="w-full h-8 pl-5 pr-2 text-xs font-mono font-medium text-slate-900 text-right placeholder:text-slate-300 rounded-md border border-slate-200 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                     />
@@ -375,7 +507,7 @@ export function LRInvoiceItemsTable({
                     type="text"
                     value={row.cha_job_number || ""}
                     disabled={disabled}
-                    placeholder="CHA / Booking ref"
+                    placeholder=""
                     onChange={(e) => handleFieldChange(idx, "cha_job_number", e.target.value)}
                     className="w-full h-8 px-2 text-xs font-medium text-slate-800 placeholder:text-slate-300 rounded-md border border-slate-200 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                   />
@@ -387,7 +519,7 @@ export function LRInvoiceItemsTable({
                     type="text"
                     value={row.particulars || ""}
                     disabled={disabled}
-                    placeholder="Cargo contents / goods..."
+                    placeholder=""
                     onChange={(e) => handleFieldChange(idx, "particulars", e.target.value)}
                     className="w-full h-8 px-2 text-xs font-medium text-slate-800 placeholder:text-slate-300 rounded-md border border-slate-200 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                   />
@@ -399,11 +531,12 @@ export function LRInvoiceItemsTable({
                     type="text"
                     value={row.remarks || ""}
                     disabled={disabled}
-                    placeholder="Transit notes..."
+                    placeholder=""
                     onChange={(e) => handleFieldChange(idx, "remarks", e.target.value)}
                     className="w-full h-8 px-2 text-xs font-medium text-slate-800 placeholder:text-slate-300 rounded-md border border-slate-200 bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
                   />
                 </td>
+
 
                 {/* 10. Delete Action */}
                 <td className="p-1 text-center sticky right-0 bg-white z-10 shadow-[-1px_0_0_0_#f1f5f9]">

@@ -1,12 +1,26 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Building2, GitBranch, KeyRound } from "lucide-react";
+import { getStoredAuth } from "@/lib/auth";
 
 export function CompanyNavTabs() {
   const pathname = usePathname();
+  const [tenantPrefix, setTenantPrefix] = useState("");
+
+  useEffect(() => {
+    const auth = getStoredAuth();
+    if (auth?.tenantId) {
+      setTenantPrefix(`/${auth.tenantId}`);
+    } else if (typeof window !== "undefined") {
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      if (parts.length > 0 && (/^[a-z0-9]{10}$/.test(parts[0]) || parts[0] === "demo123456" || parts[0] === "demo")) {
+        setTenantPrefix(`/${parts[0]}`);
+      }
+    }
+  }, []);
 
   const tabs = [
     {
@@ -36,7 +50,7 @@ export function CompanyNavTabs() {
         return (
           <Link
             key={tab.href}
-            href={tab.href}
+            href={`${tenantPrefix}${tab.href}`}
             className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
               tab.active
                 ? "border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-lg"
