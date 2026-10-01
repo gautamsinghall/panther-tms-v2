@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
+import { getActiveOffice } from "@/lib/auth";
 
 interface LedgerEntry {
   id: number;
@@ -65,9 +66,11 @@ export default function ContraVoucherPage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const activeOffice = getActiveOffice();
+      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
       const [res, sInfo] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=CONTRA_VOUCHER"),
-        apiClient<any>("/api/v1/settings/series/check/CONTRA_VOUCHER").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/CONTRA_VOUCHER${officeParam}`).catch(() => null),
       ]);
       setData(res);
       setSeriesInfo(sInfo);
@@ -84,6 +87,11 @@ export default function ContraVoucherPage() {
 
   const handleCreateContra = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!seriesInfo?.configured || !seriesInfo?.next_number_formatted) {
+      alert("Contra Voucher cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      return;
+    }
+
     const amt = parseFloat(amount) || 0;
     if (amt <= 0) {
       alert("Transfer amount must be greater than 0.");
@@ -104,7 +112,7 @@ export default function ContraVoucherPage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "CONTRA_VOUCHER",
-          voucher_number: seriesInfo?.next_number_formatted || undefined,
+          voucher_number: seriesInfo.next_number_formatted,
           party_name: typeDesc,
           reference_number: referenceNumber.trim() || undefined,
           total_amount: amt,
@@ -295,7 +303,7 @@ export default function ContraVoucherPage() {
             <Button
               type="submit"
               form="contra-voucher-form"
-              disabled={isSubmitting}
+              disabled={!seriesInfo?.configured || isSubmitting}
             >
               {isSubmitting ? "Posting..." : "Record Contra Transfer"}
             </Button>
@@ -303,6 +311,24 @@ export default function ContraVoucherPage() {
         }
       >
         <form id="contra-voucher-form" onSubmit={handleCreateContra} className="space-y-4">
+          {!seriesInfo?.configured && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">Series Not Configured</span>
+                <p className="mt-0.5 text-amber-700">
+                  No series is configured for Contra Voucher in the active issuing office. Vouchers cannot be created until a series is configured or imported.
+                </p>
+                <a
+                  href="/settings/series-master"
+                  className="inline-block mt-1.5 font-semibold text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Setup Series in Master &rarr;
+                </a>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
             {/* Series Master Info / Voucher Number */}
             <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
@@ -310,12 +336,12 @@ export default function ContraVoucherPage() {
                 <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
                   Contra Voucher Number (Auto Series)
                 </div>
-                <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
-                  {seriesInfo?.next_number_formatted || "CV-2026-0001"}
+                <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5 min-h-[1.25rem]">
+                  {seriesInfo?.configured ? seriesInfo.next_number_formatted : ""}
                 </div>
               </div>
               <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
-                Auto-Assigned & Locked
+                Auto-Assigned &amp; Locked
               </span>
             </div>
 

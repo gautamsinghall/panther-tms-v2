@@ -397,8 +397,8 @@ export default function LRBookingPage() {
   // Dynamic LR numbers belonging to selected series (e.g. LR-001, LR-002 ... LR-100)
   const lrNumberOptions = useMemo(() => {
     if (!activeSeriesObj) {
-      const fallback = editingLrRecord?.lr_number || seriesInfo?.next_number_formatted || "LR-001";
-      return [{ label: fallback, value: fallback }];
+      const fallback = editingLrRecord?.lr_number || (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "";
+      return [{ label: fallback || "No Active Series", value: fallback }];
     }
 
     const start = activeSeriesObj.starting_number || 1;
@@ -596,7 +596,7 @@ export default function LRBookingPage() {
     setSelectedConsignerId("");
     setSelectedConsigneeId("");
 
-    const initialLrNo = defaultSeries?.available_options?.[0]?.value || seriesInfo?.next_number_formatted || "";
+    const initialLrNo = editingLrRecord?.lr_number || (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || (defaultSeries?.available_options?.[0]?.value || "");
 
     setFormInitialValues({
       job_id: "",
@@ -641,6 +641,10 @@ export default function LRBookingPage() {
   };
 
   const handleSubmit = async (values: Record<string, any>) => {
+    if (!editingLrId && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
+      alert("No active LR series configured for this issuing office. Please setup or import the default series template in Settings > Series Master before creating an LR.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const selectedLoadType = loadTypes.find((lt) => String(lt.id) === String(values.load_type_id));
@@ -804,11 +808,14 @@ export default function LRBookingPage() {
         {
           name: "lr_number",
           label: "LR No.",
-          type: "select",
+          type: "text",
+          disabled: true,
+          disabledReason: "Locked — automatically allocated from Series Master for this issuing office.",
           required: true,
-          options: lrNumberOptions,
-          placeholder: "Select LR voucher number",
-          helperText: `Dynamically populated from selected series (${lrNumberOptions.length} numbers available).`,
+          placeholder: (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "",
+          helperText: seriesInfo?.configured
+            ? `🔒 Auto-allocated from Series Master (${seriesInfo.next_number_formatted}). Non-editable.`
+            : "⚠️ No series configured for this office. Please setup the series in Settings > Series Master.",
         },
         {
           name: "dispatch_date",
@@ -1392,6 +1399,30 @@ export default function LRBookingPage() {
           )}
         </div>
 
+        {/* Unconfigured Series Warning Alert */}
+        {!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
+          <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-rose-950">LR Series Not Configured</h4>
+                <p className="text-xs text-rose-700 mt-0.5">
+                  No active series configured for Lorry Receipt in this issuing office ({activeOfficeDisplay}). LR numbers cannot be generated and this entry cannot be saved until you setup or import the default series template.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => window.open("/settings/series-master", "_blank")}
+              className="bg-white text-rose-700 border-rose-300 hover:bg-rose-50 text-xs shrink-0 font-semibold"
+            >
+              Setup Series in Settings
+            </Button>
+          </div>
+        )}
+
         <Form
           className="max-w-full"
           sections={formSections}
@@ -1405,6 +1436,7 @@ export default function LRBookingPage() {
           }}
           submitLabel={editingLrRecord ? "Save Changes" : "Create Lorry Receipt"}
           isLoading={isSubmitting}
+          submitDisabled={!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)}
         />
       </EntityDrawer>
 

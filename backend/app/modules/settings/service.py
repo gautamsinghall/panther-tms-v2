@@ -321,23 +321,9 @@ async def get_all_series_masters(db: AsyncSession, office_id: Optional[int] = No
         .order_by(SeriesMaster.document_type)
     )
     if office_id:
-        stmt = stmt.where(
-            or_(
-                SeriesMaster.issuing_office_id == office_id,
-                SeriesMaster.issuing_office_id.is_(None),
-            )
-        )
+        stmt = stmt.where(SeriesMaster.issuing_office_id == office_id)
     result = await db.execute(stmt)
     series_list = result.scalars().all()
-    
-    # Auto-initialize standard automatic voucher series if any automatic series is missing
-    auto_metadata = [m for m in STANDARD_VOUCHER_METADATA if m.get("series_mode") != "MANUAL" and not m.get("is_mandatory_manual")]
-    existing_types = {s.document_type for s in series_list}
-    missing_auto = any(m["document_type"] not in existing_types for m in auto_metadata)
-    if missing_auto:
-        await initialize_all_standard_series(db, exclude_manual=True)
-        result = await db.execute(stmt)
-        series_list = result.scalars().all()
 
     out = []
     now_utc = datetime.now(timezone.utc)
@@ -386,7 +372,12 @@ async def create_series_master(db: AsyncSession, data: SeriesMasterCreate) -> di
         )
 
     if data.is_default:
-        all_same = (await db.execute(select(SeriesMaster).where(SeriesMaster.document_type == norm_doc))).scalars().all()
+        stmt = select(SeriesMaster).where(SeriesMaster.document_type == norm_doc)
+        if data.issuing_office_id is not None:
+            stmt = stmt.where(SeriesMaster.issuing_office_id == data.issuing_office_id)
+        else:
+            stmt = stmt.where(SeriesMaster.issuing_office_id.is_(None))
+        all_same = (await db.execute(stmt)).scalars().all()
         for os in all_same:
             os.is_default = False
             db.add(os)
@@ -482,7 +473,13 @@ async def update_series_master(db: AsyncSession, series_id: int, data: SeriesMas
 
     if data.is_default is not None:
         if data.is_default:
-            all_same = (await db.execute(select(SeriesMaster).where(SeriesMaster.document_type == series.document_type))).scalars().all()
+            target_office = data.issuing_office_id if data.issuing_office_id is not None else series.issuing_office_id
+            stmt = select(SeriesMaster).where(SeriesMaster.document_type == series.document_type)
+            if target_office is not None:
+                stmt = stmt.where(SeriesMaster.issuing_office_id == target_office)
+            else:
+                stmt = stmt.where(SeriesMaster.issuing_office_id.is_(None))
+            all_same = (await db.execute(stmt)).scalars().all()
             for os in all_same:
                 if os.id != series.id:
                     os.is_default = False
@@ -553,8 +550,21 @@ async def get_manual_series_ranges(db: AsyncSession, document_type: str, office_
     return await s_get_ranges(db, document_type, issuing_office_id=office_id)
 
 async def set_default_series(db: AsyncSession, series_id: int) -> dict:
-    from app.modules.settings.series_service import set_default_series as s_set_default
-    return await s_set_default(db, series_id)
+    series = (await db.execute(select(SeriesMaster).where(SeriesMaster.id == series_id))).scalar_one_or_none()
+    if not series:
+        raise AppException(status_code=404, error_code="SERIES_NOT_FOUND", message="Series master not found.")
+
+    stmt = select(SeriesMaster).where(SeriesMaster.document_type == series.document_type)
+    if series.issuing_office_id is not None:
+        stmt = stmt.where(SeriesMaster.issuing_office_id == series.issuing_office_id)
+    else:
+        stmt = stmt.where(SeriesMaster.issuing_office_id.is_(None))
+    all_same = (await db.execute(stmt)).scalars().all()
+    for os in all_same:
+        os.is_default = (os.id == series.id)
+        db.add(os)
+    await db.commit()
+    return {"message": "Default series updated successfully."}
 
 
 # --- Admin Settings ---

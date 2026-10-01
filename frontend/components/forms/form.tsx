@@ -21,6 +21,7 @@ interface FormProps {
   cancelLabel?: string;
   isLoading?: boolean;
   isSubmitting?: boolean;
+  submitDisabled?: boolean;
   stickyFooter?: boolean;
   className?: string;
   setFieldValueRef?: React.MutableRefObject<((name: string, value: any) => void) | null>;
@@ -42,6 +43,7 @@ export function Form({
   cancelLabel = "Cancel",
   isLoading = false,
   isSubmitting = false,
+  submitDisabled = false,
   stickyFooter = false,
   className,
   setFieldValueRef,
@@ -453,6 +455,7 @@ export function Form({
           variant="primary"
           size="md"
           isLoading={loading}
+          disabled={loading || submitDisabled}
           className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
         >
           {submitLabel}

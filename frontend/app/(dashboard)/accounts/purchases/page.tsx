@@ -10,6 +10,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
+import { getActiveOffice } from "@/lib/auth";
 
 interface LedgerEntry {
   id: number;
@@ -73,11 +74,13 @@ export default function PurchasesPage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const activeOffice = getActiveOffice();
+      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
       const [normalRes, generalRes, sNorm, sGen] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=NORMAL_PURCHASE"),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=GENERAL_PURCHASE"),
-        apiClient<any>("/api/v1/settings/series/check/NORMAL_PURCHASE").catch(() => null),
-        apiClient<any>("/api/v1/settings/series/check/GENERAL_PURCHASE").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/NORMAL_PURCHASE${officeParam}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/GENERAL_PURCHASE${officeParam}`).catch(() => null),
       ]);
       setData([...normalRes, ...generalRes]);
       setNormalSeries(sNorm);
@@ -95,6 +98,11 @@ export default function PurchasesPage() {
 
   const handleCreatePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeSeries?.configured || !activeSeries?.next_number_formatted) {
+      alert("Purchase Bill cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      return;
+    }
+
     const tot = parseFloat(totalAmount) || 0;
     const tax = parseFloat(taxAmount) || 0;
     if (tot <= 0) {
@@ -109,7 +117,7 @@ export default function PurchasesPage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: purchaseType,
-          voucher_number: activeSeries?.next_number_formatted || undefined,
+          voucher_number: activeSeries.next_number_formatted,
           party_name: vendorName.trim(),
           reference_number: billNumber.trim() || undefined,
           total_amount: tot,
@@ -330,6 +338,24 @@ export default function PurchasesPage() {
         size="md"
       >
         <form onSubmit={handleCreatePurchase} className="space-y-6">
+          {!activeSeries?.configured && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">Series Not Configured</span>
+                <p className="mt-0.5 text-amber-700">
+                  No series is configured for {purchaseType === "NORMAL_PURCHASE" ? "Normal Purchase" : "General Purchase"} in the active issuing office. Bills cannot be created until a series is configured or imported.
+                </p>
+                <a
+                  href="/settings/series-master"
+                  className="inline-block mt-1.5 font-semibold text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Setup Series in Master &rarr;
+                </a>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
           {/* Series Master Info / Voucher Number */}
           <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
@@ -337,12 +363,12 @@ export default function PurchasesPage() {
               <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
                 {purchaseType === "NORMAL_PURCHASE" ? "Purchase Voucher Number" : "General Purchase Voucher Number"} (Auto Series)
               </div>
-              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
-                {activeSeries?.next_number_formatted || (purchaseType === "NORMAL_PURCHASE" ? "NP-2026-0001" : "GP-2026-0001")}
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5 min-h-[1.25rem]">
+                {activeSeries?.configured ? activeSeries.next_number_formatted : ""}
               </div>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
-              Auto-Assigned & Locked
+              Auto-Assigned &amp; Locked
             </span>
           </div>
 
@@ -451,7 +477,14 @@ export default function PurchasesPage() {
             <Button type="button" variant="outline" size="md" onClick={() => setIsCreateOpen(false)} className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer">
               Cancel
             </Button>
-            <Button type="submit" variant="primary" size="md" isLoading={isSubmitting} className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer">
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              isLoading={isSubmitting}
+              disabled={!activeSeries?.configured || isSubmitting}
+              className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
+            >
               Record & Post
             </Button>
           </div>

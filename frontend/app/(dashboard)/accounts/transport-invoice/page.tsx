@@ -14,6 +14,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { getActiveOffice } from "@/lib/auth";
 
 interface LedgerEntry {
   id: number;
@@ -132,12 +133,14 @@ export default function TransportInvoicePage() {
     setIsError(false);
     setErrorMessage(null);
     try {
+      const activeOffice = getActiveOffice();
+      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
       const [vouchersRes, lrsRes, taxesRes, seriesRes, manualRangesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=TRANSPORT_INVOICE"),
         apiClient<LRRecord[]>("/api/v1/transport/lrs").catch(() => []),
         apiClient<TaxCategoryRecord[]>("/api/v1/misc/tax-categories").catch(() => []),
-        apiClient<any>("/api/v1/settings/series/check/TRANSPORT_INVOICE").catch(() => null),
-        apiClient<any>("/api/v1/settings/series/manual-ranges/TRANSPORT_INVOICE").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/TRANSPORT_INVOICE${officeParam}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/manual-ranges/TRANSPORT_INVOICE${officeParam}`).catch(() => null),
       ]);
       setData(Array.isArray(vouchersRes) ? vouchersRes : []);
       setLrs(Array.isArray(lrsRes) ? lrsRes : []);
@@ -198,13 +201,25 @@ export default function TransportInvoicePage() {
       return;
     }
 
-    if (seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
-      alert("Manual Series is mandatory for Transport Invoices and has not been configured in Series Master.");
+    const isConfigured = Boolean(
+      seriesInfo?.configured ||
+      (manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0)
+    );
+    if (!isConfigured) {
+      alert("Transport Invoice cannot be generated because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     if (isManualSeries && !invoiceNumber) {
       alert("Please select an available invoice number from the selected series range.");
+      return;
+    }
+
+    const effectiveNumber = isManualSeries
+      ? invoiceNumber.trim()
+      : (seriesInfo?.configured ? seriesInfo.next_number_formatted : "");
+    if (!effectiveNumber) {
+      alert("Invoice number is missing. Please ensure a series is configured in Settings > Series Master.");
       return;
     }
 
@@ -215,8 +230,8 @@ export default function TransportInvoicePage() {
         method: "POST",
         body: JSON.stringify({
           lr_id: parseInt(selectedLrId, 10),
-          invoice_number: invoiceNumber.trim() || undefined,
-          voucher_number: invoiceNumber.trim() || undefined,
+          invoice_number: effectiveNumber,
+          voucher_number: effectiveNumber,
           tax_category_id: selectedTaxCatId ? parseInt(selectedTaxCatId, 10) : undefined,
           narration: narration || undefined,
         }),
@@ -532,22 +547,25 @@ export default function TransportInvoicePage() {
             </div>
           </div>
         )}
-        {!isManualSeries && seriesInfo && !seriesInfo.configured && (
-          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
-            <div className="font-bold flex items-center gap-1.5 text-amber-800">
-              ⚠️ Mandatory Manual Series Not Configured
+        {!isManualSeries && (!seriesInfo || !seriesInfo.configured) && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-amber-900">Series Not Configured for this Office</h4>
+                <p className="text-amber-700 mt-0.5">
+                  No Transport Invoice series is configured for the active issuing office. You cannot generate an invoice until a series is configured or imported in Settings.
+                </p>
+              </div>
             </div>
-            <p>
-              By TMS operational policy, Transport Invoice creation requires a configured Manual Series. You cannot generate an invoice until an active series is set up in Settings &gt; Series Master.
-            </p>
             <Button
               type="button"
               size="sm"
               variant="outline"
               onClick={() => router.push("/settings/series-master")}
-              className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
+              className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100 shrink-0 font-semibold"
             >
-              Go to Series Master
+              Setup Series in Master
             </Button>
           </div>
         )}
@@ -637,8 +655,8 @@ export default function TransportInvoicePage() {
               <input
                 type="text"
                 readOnly
-                value={invoiceNumber || seriesInfo?.next_number_formatted || ""}
-                placeholder={seriesInfo?.next_number_formatted || "TI-2026-0001"}
+                value={invoiceNumber || (seriesInfo?.configured ? seriesInfo.next_number_formatted : "")}
+                placeholder={seriesInfo?.configured ? seriesInfo.next_number_formatted : ""}
                 className="w-full rounded-control border border-slate-200 bg-slate-50 px-3 py-2 text-xs sm:text-sm text-[#172033] font-mono font-bold cursor-not-allowed select-all focus:outline-none"
               />
               {seriesInfo?.configured && (
@@ -707,9 +725,9 @@ export default function TransportInvoicePage() {
               variant="primary"
               size="sm"
               isLoading={isSubmitting}
-              disabled={isSubmitting || (!isManualSeries && seriesInfo ? !seriesInfo.configured : false)}
+              disabled={isSubmitting || (isManualSeries ? !invoiceNumber : !seriesInfo?.configured)}
             >
-              {!isManualSeries && seriesInfo && !seriesInfo.configured ? "Series Configuration Required" : "Generate & Post Invoice"}
+              {!isManualSeries && (!seriesInfo || !seriesInfo.configured) ? "Series Configuration Required" : "Generate & Post Invoice"}
             </Button>
           </div>
         </form>

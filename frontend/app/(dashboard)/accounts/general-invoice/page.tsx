@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
+import { getActiveOffice } from "@/lib/auth";
 
 interface LedgerEntry {
   id: number;
@@ -105,10 +106,12 @@ export default function GeneralInvoicePage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const activeOffice = getActiveOffice();
+      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
       const [res, sInfo, manualRangesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=GENERAL_INVOICE"),
-        apiClient<any>("/api/v1/settings/series/check/GENERAL_INVOICE").catch(() => null),
-        apiClient<any>("/api/v1/settings/series/manual-ranges/GENERAL_INVOICE").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/GENERAL_INVOICE${officeParam}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/manual-ranges/GENERAL_INVOICE${officeParam}`).catch(() => null),
       ]);
       setData(res);
       setSeriesInfo(sInfo);
@@ -155,13 +158,25 @@ export default function GeneralInvoicePage() {
       return;
     }
 
-    if (seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
-      alert("Manual Series for General Invoice is not configured! Please configure it in Series Master before creating an invoice.");
+    const isConfigured = Boolean(
+      seriesInfo?.configured ||
+      (manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0)
+    );
+    if (!isConfigured) {
+      alert("General Invoice cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     if (isManualSeries && !voucherNumber) {
       alert("Please select an available invoice number from the selected series range.");
+      return;
+    }
+
+    const effectiveNumber = isManualSeries
+      ? voucherNumber.trim()
+      : (seriesInfo?.configured ? seriesInfo.next_number_formatted : "");
+    if (!effectiveNumber) {
+      alert("Invoice number is missing. Please ensure a series is configured in Settings > Series Master.");
       return;
     }
 
@@ -172,7 +187,7 @@ export default function GeneralInvoicePage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "GENERAL_INVOICE",
-          voucher_number: voucherNumber.trim() || undefined,
+          voucher_number: effectiveNumber,
           party_name: partyName.trim(),
           reference_number: refNumber.trim() || undefined,
           total_amount: tot,
@@ -432,9 +447,9 @@ export default function GeneralInvoicePage() {
             <Button
               type="submit"
               form="general-invoice-form"
-              disabled={isSubmitting || (!isManualSeries && seriesInfo ? !seriesInfo.configured : false)}
+              disabled={isSubmitting || (isManualSeries ? !voucherNumber : !seriesInfo?.configured)}
             >
-              {isSubmitting ? "Posting..." : !isManualSeries && seriesInfo && !seriesInfo.configured ? "Series Config Required" : "Create & Post"}
+              {isSubmitting ? "Posting..." : (isManualSeries ? !activeRange : !seriesInfo?.configured) ? "Series Config Required" : "Create & Post"}
             </Button>
           </div>
         }
@@ -481,6 +496,28 @@ export default function GeneralInvoicePage() {
               className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
             >
               Go to Series Master
+            </Button>
+          </div>
+        )}
+        {!isManualSeries && (!seriesInfo || !seriesInfo.configured) && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-amber-900">Series Not Configured for this Office</h4>
+                <p className="text-amber-700 mt-0.5">
+                  No General Invoice series is configured for the active issuing office. You cannot generate an invoice until a series is configured or imported in Settings.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="bg-white border-amber-300 text-amber-900 hover:bg-amber-100 shrink-0 font-semibold"
+              onClick={() => window.location.href = "/settings/series-master"}
+            >
+              Setup Series in Master
             </Button>
           </div>
         )}
@@ -571,8 +608,8 @@ export default function GeneralInvoicePage() {
                 <input
                   type="text"
                   readOnly
-                  placeholder={seriesInfo?.next_number_formatted || "GI-2026-0001"}
-                  value={voucherNumber || seriesInfo?.next_number_formatted || ""}
+                  placeholder={seriesInfo?.configured ? seriesInfo.next_number_formatted : ""}
+                  value={voucherNumber || (seriesInfo?.configured ? seriesInfo.next_number_formatted : "")}
                   className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-slate-50 text-text-primary font-mono font-bold cursor-not-allowed select-all focus:outline-none"
                 />
                 {seriesInfo?.configured && (

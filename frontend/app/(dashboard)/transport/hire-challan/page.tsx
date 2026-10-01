@@ -511,11 +511,13 @@ export default function HireChallansPage() {
         value: opt.value,
       }));
     }
-    if (challanNumber) {
-      return [{ label: challanNumber, value: challanNumber }];
-    }
     return [];
-  }, [activeSeriesRange, challanNumber]);
+  }, [activeSeriesRange]);
+
+  const isSeriesConfigured = Boolean(
+    seriesInfo?.configured ||
+    (manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0)
+  );
 
   const availableChargeHeads = useMemo(() => {
     const list = [...DEFAULT_CHARGE_HEADS];
@@ -906,12 +908,17 @@ export default function HireChallansPage() {
       }
     }
 
+    if (!editingId && (!isSeriesConfigured || !challanNumber.trim())) {
+      alert("Hire Challan cannot be saved because no series is configured for this issuing office. Please setup or import the series in Settings > Series Master.");
+      return;
+    }
+
     if (!effectiveOfficeId) {
       alert("No active issuing office / branch found. Please ensure an active office is configured.");
       return;
     }
     if (!challanNumber.trim()) {
-      alert("Please enter or select an HC Number.");
+      alert("Hire Challan number is missing. Please ensure a series is configured in Settings > Series Master.");
       return;
     }
     if (!fromLocation.trim()) {
@@ -1289,6 +1296,29 @@ export default function HireChallansPage() {
           )}
         </div>
 
+        {!editingId && !isSeriesConfigured && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-amber-900">Series Not Configured for this Office</h4>
+                <p className="text-amber-700 mt-0.5">
+                  No Hire Challan series is configured for <span className="font-semibold">{currentOfficeDisplay}</span>. You cannot issue a hire challan until a series is configured or imported in Settings.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="bg-white border-amber-300 text-amber-900 hover:bg-amber-100 shrink-0 font-semibold"
+              onClick={() => router.push("/settings/series-master")}
+            >
+              Setup Series in Master
+            </Button>
+          </div>
+        )}
+
         {/* Structured Form Container */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Section 1: Numbering & Branch Scoping */}
@@ -1357,8 +1387,13 @@ export default function HireChallansPage() {
 
               {/* HC No */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  HC No <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>
+                    HC No <span className="text-rose-500">*</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                    <Lock className="w-2.5 h-2.5 text-slate-500" /> Auto / Locked
+                  </span>
                 </label>
                 {hcNoOptions.length > 0 ? (
                   <select
@@ -1374,17 +1409,24 @@ export default function HireChallansPage() {
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    required
-                    value={challanNumber}
-                    onChange={(e) => setChallanNumber(e.target.value)}
-                    placeholder="e.g. HC-DEL-26-0001"
-                    className="w-full h-9 px-3 text-xs font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={challanNumber || ""}
+                      placeholder={isSeriesConfigured ? "" : "Not configured (Setup in Series Master)"}
+                      className="w-full h-9 pl-3 pr-8 text-xs font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  </div>
                 )}
                 <span className="text-[11px] text-slate-400 mt-1 block">
-                  Unused voucher leaf automatically assigned.
+                  {challanNumber
+                    ? "Unused voucher leaf automatically assigned from Series Master."
+                    : "No series configured for this office. Must be set up in Settings."}
                 </span>
               </div>
             </div>
@@ -2040,6 +2082,7 @@ export default function HireChallansPage() {
               type="submit"
               variant="primary"
               isLoading={isSubmitting}
+              disabled={isSubmitting || (!editingId && (!isSeriesConfigured || !challanNumber.trim()))}
             >
               {editingId ? "Save Changes" : "Issue Hire Challan"}
             </Button>

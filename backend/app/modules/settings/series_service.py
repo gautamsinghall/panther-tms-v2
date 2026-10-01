@@ -7,13 +7,7 @@ from app.core.errors import AppException
 
 logger = logging.getLogger(__name__)
 
-MANDATORY_MANUAL_DOC_TYPES = {
-    "LR",
-    "HIRE_CHALLAN",
-    "HC",
-    "GENERAL_INVOICE",
-    "TRANSPORT_INVOICE",
-}
+MANDATORY_MANUAL_DOC_TYPES: Set[str] = set()
 
 DOC_TYPE_ALIASES = {
     "JOB": "JOB",
@@ -36,6 +30,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     # 1. Transport Operations Documents
     {
         "document_type": "JOB",
+        "code": "JOB",
         "name": "Trip / Job Order (Job Creation)",
         "category_code": "TRANSPORT",
         "category_name": "Transport Documents",
@@ -49,6 +44,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "LR",
+        "code": "LR",
         "name": "Lorry Receipt (GR / LR)",
         "category_code": "TRANSPORT",
         "category_name": "Transport Documents",
@@ -56,12 +52,13 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
-        "series_mode": "MANUAL",
-        "is_mandatory_manual": True,
+        "series_mode": "AUTOMATIC",
+        "is_mandatory_manual": False,
         "description": "Consignment note issued to shipper / consignee for cargo transit.",
     },
     {
         "document_type": "HIRE_CHALLAN",
+        "code": "HC",
         "name": "Truck Hire Challan (HC)",
         "category_code": "TRANSPORT",
         "category_name": "Transport Documents",
@@ -69,13 +66,14 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
-        "series_mode": "MANUAL",
-        "is_mandatory_manual": True,
+        "series_mode": "AUTOMATIC",
+        "is_mandatory_manual": False,
         "description": "Lorry hire contract slip issued to market truck owner / driver.",
     },
-    # 2. Billing & Invoicing (Mandatory Manual for TI & GI)
+    # 2. Billing & Invoicing
     {
         "document_type": "TRANSPORT_INVOICE",
+        "code": "TI",
         "name": "Transport / Freight Invoice",
         "category_code": "BILLING",
         "category_name": "Customer Invoicing",
@@ -83,12 +81,13 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
-        "series_mode": "MANUAL",
-        "is_mandatory_manual": True,
+        "series_mode": "AUTOMATIC",
+        "is_mandatory_manual": False,
         "description": "Tax invoice issued for freight charges linked to delivered LRs.",
     },
     {
         "document_type": "GENERAL_INVOICE",
+        "code": "GI",
         "name": "General Commercial Invoice",
         "category_code": "BILLING",
         "category_name": "Customer Invoicing",
@@ -96,12 +95,13 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
-        "series_mode": "MANUAL",
-        "is_mandatory_manual": True,
+        "series_mode": "AUTOMATIC",
+        "is_mandatory_manual": False,
         "description": "Direct sales & services invoice with balanced double-entry ledger postings.",
     },
     {
         "document_type": "PROFORMA_INVOICE",
+        "code": "PI",
         "name": "Proforma Invoice",
         "category_code": "BILLING",
         "category_name": "Customer Invoicing",
@@ -116,6 +116,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     # 3. Accounts & Double-Entry Vouchers
     {
         "document_type": "NORMAL_PURCHASE",
+        "code": "NP",
         "name": "Purchase Invoice (Operational / Spares)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -129,6 +130,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "GENERAL_PURCHASE",
+        "code": "GP",
         "name": "General Purchase (Admin / Expense)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -142,6 +144,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "RECEIPT_VOUCHER",
+        "code": "RV",
         "name": "Receipt Voucher (Customer / Cash-Bank)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -155,6 +158,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "PAYMENT_VOUCHER",
+        "code": "PV",
         "name": "Payment Voucher (Vendor / General)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -168,6 +172,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "PAYMENT_ATH",
+        "code": "ATH",
         "name": "Advance To Hired (ATH Payment)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -181,6 +186,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "PAYMENT_BTH",
+        "code": "BTH",
         "name": "Balance To Hired (BTH Settlement)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -194,6 +200,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "CREDIT_NOTE",
+        "code": "CN",
         "name": "Credit Note",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -207,6 +214,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "DEBIT_NOTE",
+        "code": "DN",
         "name": "Debit Note",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -220,6 +228,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "GENERAL_VOUCHER",
+        "code": "JV",
         "name": "Journal Voucher (General Journal)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -233,6 +242,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
     },
     {
         "document_type": "CONTRA_VOUCHER",
+        "code": "CV",
         "name": "Contra Voucher (Bank-Cash Transfer)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
@@ -523,13 +533,7 @@ async def get_manual_series_ranges(
         SeriesMaster.is_active == True,
     )
     if issuing_office_id:
-        stmt = stmt.where(
-            or_(
-                SeriesMaster.issuing_office_id == issuing_office_id,
-                SeriesMaster.issuing_office_id.is_(None),
-            )
-        ).order_by(
-            case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+        stmt = stmt.where(SeriesMaster.issuing_office_id == issuing_office_id).order_by(
             SeriesMaster.is_default.desc(),
             SeriesMaster.id.asc(),
         )
@@ -653,13 +657,7 @@ async def allocate_or_validate_voucher_number(
         SeriesMaster.is_active == True,
     )
     if issuing_office_id:
-        stmt = stmt.where(
-            or_(
-                SeriesMaster.issuing_office_id == issuing_office_id,
-                SeriesMaster.issuing_office_id.is_(None),
-            )
-        ).order_by(
-            case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+        stmt = stmt.where(SeriesMaster.issuing_office_id == issuing_office_id).order_by(
             SeriesMaster.is_default.desc(),
             SeriesMaster.id.desc(),
         )
@@ -716,13 +714,7 @@ async def allocate_or_validate_voucher_number(
                     SeriesMaster.is_active == True,
                 )
                 if issuing_office_id:
-                    range_stmt = range_stmt.where(
-                        or_(
-                            SeriesMaster.issuing_office_id == issuing_office_id,
-                            SeriesMaster.issuing_office_id.is_(None),
-                        )
-                    ).order_by(
-                        case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+                    range_stmt = range_stmt.where(SeriesMaster.issuing_office_id == issuing_office_id).order_by(
                         SeriesMaster.is_default.desc(),
                         SeriesMaster.id.asc(),
                     )
@@ -821,11 +813,16 @@ async def allocate_or_validate_voucher_number(
         await db.flush()
         return final_number
 
-    # Fallback for optional voucher types if not configured
-    if manual_number and manual_number.strip():
-        return manual_number.strip()
-    next_num = 1
-    return f"{raw_doc[:3]}-2026-{next_num:04d}"
+    # If series is NOT found, reject saving as per requirement
+    readable_title = norm_type.replace("_", " ").title()
+    raise AppException(
+        status_code=400,
+        error_code="SERIES_NOT_CONFIGURED",
+        message=(
+            f"No active series configured for this issuing office for {readable_title}. "
+            "Please setup or import the default series template in Settings > Series Master before creating this entry."
+        ),
+    )
 
 
 async def check_series_status(
@@ -836,41 +833,38 @@ async def check_series_status(
 ) -> Dict[str, Any]:
     """
     Returns the series configuration and next available series number for a given document type.
+    Enforces issuing office isolation: if an office is specified, only that office's active series qualifies.
     """
-    issuing_office_id = issuing_office_id or office_id
+    target_office_id = issuing_office_id or office_id
     raw_doc = document_type.upper().strip()
     norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
-    is_mandatory_manual = norm_type in MANDATORY_MANUAL_DOC_TYPES
+    readable_title = norm_type.replace("_", " ").title()
 
     stmt = select(SeriesMaster).where(
         SeriesMaster.document_type.in_([norm_type, raw_doc]),
         SeriesMaster.is_active == True,
     )
-    if issuing_office_id:
-        stmt = stmt.where(
-            or_(
-                SeriesMaster.issuing_office_id == issuing_office_id,
-                SeriesMaster.issuing_office_id.is_(None),
-            )
-        ).order_by(
-            case((SeriesMaster.issuing_office_id == issuing_office_id, 0), else_=1),
+    if target_office_id:
+        stmt = stmt.where(SeriesMaster.issuing_office_id == target_office_id).order_by(
             SeriesMaster.is_default.desc(),
             SeriesMaster.id.desc(),
         )
     else:
         stmt = stmt.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+
     res = await db.execute(stmt)
     series = res.scalars().first()
 
+    # If target_office_id was specified, but no office-specific series was matched
     if not series:
-        readable_title = norm_type.replace("_", " ").title()
         return {
             "configured": False,
             "document_type": norm_type,
             "display_name": readable_title,
-            "is_mandatory_manual": is_mandatory_manual,
-            "series_mode": "MANUAL" if is_mandatory_manual else "AUTOMATIC",
-            "message": f"Manual series is mandatory for {readable_title} and is not configured." if is_mandatory_manual else f"Series is not configured for {readable_title}.",
+            "is_mandatory_manual": False,
+            "series_mode": "AUTOMATIC",
+            "next_number_formatted": "",
+            "message": f"No active series configured for issuing office for {readable_title}. Please setup the series in Settings > Series Master before creating this entry.",
         }
 
     real_usage = await get_real_voucher_usage(db, norm_type)
@@ -878,13 +872,13 @@ async def check_series_status(
 
     # For manual series: if range is not set, treat series as not configured
     if disp["series_mode"] == "MANUAL" and (series.end_number is None or series.end_number < (series.starting_number or 1)):
-        readable_title = norm_type.replace("_", " ").title()
         return {
             "configured": False,
             "document_type": norm_type,
             "display_name": readable_title,
-            "is_mandatory_manual": is_mandatory_manual,
+            "is_mandatory_manual": False,
             "series_mode": "MANUAL",
+            "next_number_formatted": "",
             "message": f"Manual series batch range is not configured for {readable_title}. Please set up a series range in Settings > Series Master.",
         }
 
@@ -892,7 +886,7 @@ async def check_series_status(
         "configured": True,
         "id": series.id,
         "document_type": series.document_type,
-        "display_name": norm_type.replace("_", " ").title(),
+        "display_name": readable_title,
         "series_name": series.series_name,
         "prefix": series.prefix,
         "suffix": series.suffix or "",
@@ -905,22 +899,25 @@ async def check_series_status(
         "financial_year": series.financial_year,
         "series_mode": disp["series_mode"],
         "is_default": bool(series.is_default),
-        "is_mandatory_manual": disp["is_mandatory_manual"],
+        "is_mandatory_manual": False,
         "is_active": series.is_active,
+        "issuing_office_id": series.issuing_office_id,
     }
 
 
 async def initialize_all_standard_series(
     db: AsyncSession,
     financial_year: str = "2026-2027",
-    exclude_manual: bool = True,
+    exclude_manual: bool = False,
+    office_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Initializes standard voucher series across Panther TMS.
-    By default (exclude_manual=True), creates all automatic series (Job, Receipts, Payments,
-    Purchases, Contra, Credit/Debit Notes, Journal). Manual series (LR, Hire Challan,
-    Transport & General Invoice) are excluded so users configure their own physical ranges.
+    Initializes default series templates for all 16 automatic voucher types.
+    Can be targeted to a specific issuing office or all active offices.
+    Each issuing office receives its own unique prefix with its branch code and separate sequence.
     """
+    from app.tenant_db.models import Branch
+
     # 1. Ensure categories exist
     cat_map = {}
     categories = [
@@ -943,53 +940,81 @@ async def initialize_all_standard_series(
         else:
             cat_map[c["code"]] = existing_cat.id
 
-    # 2. Seed standard series
-    created_list = []
-    for meta in STANDARD_VOUCHER_METADATA:
-        # Exclude manual series if requested (e.g. on new tenant signup or auto-init)
-        if exclude_manual and (
-            meta.get("series_mode") == "MANUAL"
-            or meta.get("is_mandatory_manual")
-            or meta["document_type"] in MANDATORY_MANUAL_DOC_TYPES
-        ):
-            continue
+    # 2. Resolve target issuing offices
+    if office_id:
+        target_branches = (await db.execute(select(Branch).where(Branch.id == office_id))).scalars().all()
+    else:
+        target_branches = (await db.execute(select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()))).scalars().all()
 
-        stmt = select(SeriesMaster).where(
-            SeriesMaster.document_type == meta["document_type"],
-            SeriesMaster.financial_year == financial_year,
-        )
-        existing = (await db.execute(stmt)).scalar_one_or_none()
-        if not existing:
-            cat_id = cat_map.get(meta["category_code"])
-            series_obj = SeriesMaster(
-                category_id=cat_id,
-                document_type=meta["document_type"],
-                prefix=meta["prefix"],
-                suffix=meta["suffix"],
-                starting_number=meta["starting_number"],
-                current_number=meta["current_number"],
-                financial_year=financial_year,
-                series_mode=meta["series_mode"],
+    if not target_branches:
+        any_branch = (await db.execute(select(Branch).order_by(Branch.id.asc()))).scalars().first()
+        if any_branch:
+            target_branches = [any_branch]
+        else:
+            default_ho = Branch(
+                code="HO",
+                name="Head Office",
+                city="Delhi",
+                state="Delhi",
+                is_head_office=True,
                 is_active=True,
             )
-            db.add(series_obj)
+            db.add(default_ho)
             await db.flush()
-            real_usage = await get_real_voucher_usage(db, series_obj.document_type)
-            disp = compute_series_display_data(series_obj, real_usage=real_usage)
-            created_list.append({
-                "id": series_obj.id,
-                "document_type": series_obj.document_type,
-                "prefix": series_obj.prefix,
-                "suffix": series_obj.suffix,
-                "starting_number": series_obj.starting_number,
-                "current_number": disp["current_number"],
-                "last_used_formatted": disp["last_used_formatted"],
-                "next_number": disp["next_number"],
-                "next_number_formatted": disp["next_number_formatted"],
-                "financial_year": series_obj.financial_year,
-                "series_mode": disp["series_mode"],
-                "is_mandatory_manual": disp["is_mandatory_manual"],
-                "is_active": True,
-            })
+            target_branches = [default_ho]
+
+    # 3. Seed office-isolated standard series
+    created_list = []
+    for branch in target_branches:
+        branch_code = (branch.code or f"OFF{branch.id}").upper().strip()
+        for meta in STANDARD_VOUCHER_METADATA:
+            doc_type = meta["document_type"]
+            doc_tag = meta.get("code") or doc_type[:3]
+            office_prefix = f"{branch_code}-{doc_tag}-2026-"
+
+            stmt = select(SeriesMaster).where(
+                SeriesMaster.document_type == doc_type,
+                SeriesMaster.issuing_office_id == branch.id,
+                SeriesMaster.financial_year == financial_year,
+            )
+            existing = (await db.execute(stmt)).scalar_one_or_none()
+            if not existing:
+                cat_id = cat_map.get(meta["category_code"])
+                series_obj = SeriesMaster(
+                    category_id=cat_id,
+                    issuing_office_id=branch.id,
+                    document_type=doc_type,
+                    series_name=f"{branch.name} {meta['name']}",
+                    prefix=office_prefix,
+                    suffix=meta.get("suffix", ""),
+                    starting_number=meta.get("starting_number", 1),
+                    current_number=0,
+                    financial_year=financial_year,
+                    series_mode="AUTOMATIC",
+                    is_default=True,
+                    is_active=True,
+                )
+                db.add(series_obj)
+                await db.flush()
+                real_usage = await get_real_voucher_usage(db, series_obj.document_type)
+                disp = compute_series_display_data(series_obj, real_usage=real_usage)
+                created_list.append({
+                    "id": series_obj.id,
+                    "document_type": series_obj.document_type,
+                    "issuing_office_id": branch.id,
+                    "issuing_office_name": branch.name,
+                    "prefix": series_obj.prefix,
+                    "suffix": series_obj.suffix,
+                    "starting_number": series_obj.starting_number,
+                    "current_number": disp["current_number"],
+                    "last_used_formatted": disp["last_used_formatted"],
+                    "next_number": disp["next_number"],
+                    "next_number_formatted": disp["next_number_formatted"],
+                    "financial_year": series_obj.financial_year,
+                    "series_mode": disp["series_mode"],
+                    "is_mandatory_manual": False,
+                    "is_active": True,
+                })
+
     await db.commit()
     return created_list

@@ -10,6 +10,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
+import { getActiveOffice } from "@/lib/auth";
 
 interface LedgerEntry {
   id: number;
@@ -73,11 +74,13 @@ export default function CreditDebitNotesPage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const activeOffice = getActiveOffice();
+      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
       const [crRes, drRes, sCr, sDr] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=CREDIT_NOTE"),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=DEBIT_NOTE"),
-        apiClient<any>("/api/v1/settings/series/check/CREDIT_NOTE").catch(() => null),
-        apiClient<any>("/api/v1/settings/series/check/DEBIT_NOTE").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/CREDIT_NOTE${officeParam}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/DEBIT_NOTE${officeParam}`).catch(() => null),
       ]);
       setData([...crRes, ...drRes]);
       setCreditSeries(sCr);
@@ -95,6 +98,11 @@ export default function CreditDebitNotesPage() {
 
   const handleCreateNote = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeSeries?.configured || !activeSeries?.next_number_formatted) {
+      alert(`${noteType === "CREDIT_NOTE" ? "Credit Note" : "Debit Note"} cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.`);
+      return;
+    }
+
     const tot = parseFloat(totalAmount) || 0;
     const tax = parseFloat(taxAmount) || 0;
     if (tot <= 0) {
@@ -109,7 +117,7 @@ export default function CreditDebitNotesPage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: noteType,
-          voucher_number: activeSeries?.next_number_formatted || undefined,
+          voucher_number: activeSeries.next_number_formatted,
           party_name: partyName.trim(),
           reference_number: refNumber.trim() || undefined,
           total_amount: tot,
@@ -346,7 +354,7 @@ export default function CreditDebitNotesPage() {
             <Button
               type="submit"
               form="credit-debit-note-form"
-              disabled={isSubmitting}
+              disabled={!activeSeries?.configured || isSubmitting}
             >
               {isSubmitting ? "Posting..." : "Issue & Post"}
             </Button>
@@ -354,6 +362,24 @@ export default function CreditDebitNotesPage() {
         }
       >
         <form id="credit-debit-note-form" onSubmit={handleCreateNote} className="space-y-4">
+          {!activeSeries?.configured && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">Series Not Configured</span>
+                <p className="mt-0.5 text-amber-700">
+                  No series is configured for {noteType === "CREDIT_NOTE" ? "Credit Note" : "Debit Note"} in the active issuing office. Notes cannot be created until a series is configured or imported.
+                </p>
+                <a
+                  href="/settings/series-master"
+                  className="inline-block mt-1.5 font-semibold text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Setup Series in Master &rarr;
+                </a>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
             {/* Series Master Info / Voucher Number */}
             <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
@@ -361,12 +387,12 @@ export default function CreditDebitNotesPage() {
                 <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
                   {noteType === "CREDIT_NOTE" ? "Credit Note Number" : "Debit Note Number"} (Auto Series)
                 </div>
-                <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
-                  {activeSeries?.next_number_formatted || (noteType === "CREDIT_NOTE" ? "CN-2026-0001" : "DN-2026-0001")}
+                <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5 min-h-[1.25rem]">
+                  {activeSeries?.configured ? activeSeries.next_number_formatted : ""}
                 </div>
               </div>
               <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
-                Auto-Assigned & Locked
+                Auto-Assigned &amp; Locked
               </span>
             </div>
 

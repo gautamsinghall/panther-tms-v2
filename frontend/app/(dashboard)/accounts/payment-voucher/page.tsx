@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
+import { getActiveOffice } from "@/lib/auth";
 
 interface LedgerEntry {
   id: number;
@@ -99,14 +100,16 @@ export default function PaymentVoucherPage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      const activeOffice = getActiveOffice();
+      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
       const [stdRes, athRes, bthRes, hcRes, sStd, sAth, sBth] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PAYMENT_VOUCHER").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=ATH_PAYMENT").catch(() => []),
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=BTH_PAYMENT").catch(() => []),
         apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans").catch(() => []),
-        apiClient<any>("/api/v1/settings/series/check/PAYMENT_VOUCHER").catch(() => null),
-        apiClient<any>("/api/v1/settings/series/check/PAYMENT_ATH").catch(() => null),
-        apiClient<any>("/api/v1/settings/series/check/PAYMENT_BTH").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/PAYMENT_VOUCHER${officeParam}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/PAYMENT_ATH${officeParam}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/PAYMENT_BTH${officeParam}`).catch(() => null),
       ]);
       const allVouchers = [...(stdRes || []), ...(athRes || []), ...(bthRes || [])];
       const uniqueVouchers = Array.from(new Map(allVouchers.map((v) => [v.id, v])).values());
@@ -128,6 +131,11 @@ export default function PaymentVoucherPage() {
 
   const handleCreateStandardPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!stdSeries?.configured || !stdSeries?.next_number_formatted) {
+      alert("Payment Voucher cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      return;
+    }
+
     const amt = parseFloat(amount) || 0;
     if (amt <= 0) {
       alert("Payment amount must be greater than 0.");
@@ -141,7 +149,7 @@ export default function PaymentVoucherPage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "PAYMENT_VOUCHER",
-          voucher_number: stdSeries?.next_number_formatted || undefined,
+          voucher_number: stdSeries.next_number_formatted,
           party_name: partyName.trim(),
           reference_number: referenceNumber.trim() || undefined,
           total_amount: amt,
@@ -166,6 +174,11 @@ export default function PaymentVoucherPage() {
 
   const handleCreateAth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!athSeries?.configured || !athSeries?.next_number_formatted) {
+      alert("ATH Payment cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      return;
+    }
+
     const amt = parseFloat(athAmount) || 0;
     if (!athChallanId || amt <= 0) {
       alert("Please select a valid Hire Challan and enter an amount.");
@@ -199,6 +212,11 @@ export default function PaymentVoucherPage() {
 
   const handleCreateBth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!bthSeries?.configured || !bthSeries?.next_number_formatted) {
+      alert("BTH Payment cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      return;
+    }
+
     const amt = parseFloat(bthAmount) || 0;
     if (!bthChallanId || amt <= 0) {
       alert("Please select a valid Hire Challan and enter an amount.");
@@ -464,18 +482,36 @@ export default function PaymentVoucherPage() {
         size="md"
       >
         <form onSubmit={handleCreateStandardPayment} className="space-y-4">
+          {!stdSeries?.configured && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">Series Not Configured</span>
+                <p className="mt-0.5 text-amber-700">
+                  No series is configured for Payment Voucher in the active issuing office. Vouchers cannot be created until a series is configured or imported.
+                </p>
+                <a
+                  href="/settings/series-master"
+                  className="inline-block mt-1.5 font-semibold text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Setup Series in Master &rarr;
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* Series Master Info / Voucher Number */}
           <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
             <div>
               <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
                 Payment Voucher Number (Auto Series)
               </div>
-              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
-                {stdSeries?.next_number_formatted || "PV-2026-0001"}
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5 min-h-[1.25rem]">
+                {stdSeries?.configured ? stdSeries.next_number_formatted : ""}
               </div>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
-              Auto-Assigned & Locked
+              Auto-Assigned &amp; Locked
             </span>
           </div>
 
@@ -556,7 +592,12 @@ export default function PaymentVoucherPage() {
             <Button type="button" variant="secondary" onClick={() => setIsStandardOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isSubmitting}
+              disabled={!stdSeries?.configured || isSubmitting}
+            >
               Record Payment
             </Button>
           </div>
@@ -572,18 +613,36 @@ export default function PaymentVoucherPage() {
         size="md"
       >
         <form onSubmit={handleCreateAth} className="space-y-4">
+          {!athSeries?.configured && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">Series Not Configured</span>
+                <p className="mt-0.5 text-amber-700">
+                  No series is configured for ATH Payment in the active issuing office. Vouchers cannot be created until a series is configured or imported.
+                </p>
+                <a
+                  href="/settings/series-master"
+                  className="inline-block mt-1.5 font-semibold text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Setup Series in Master &rarr;
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* Series Master Info / Voucher Number */}
           <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
             <div>
               <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
                 ATH Voucher Number (Auto Series)
               </div>
-              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
-                {athSeries?.next_number_formatted || "ATH-2026-0001"}
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5 min-h-[1.25rem]">
+                {athSeries?.configured ? athSeries.next_number_formatted : ""}
               </div>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
-              Auto-Assigned & Locked
+              Auto-Assigned &amp; Locked
             </span>
           </div>
 
@@ -660,7 +719,12 @@ export default function PaymentVoucherPage() {
             <Button type="button" variant="secondary" onClick={() => setIsAthOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isSubmitting}
+              disabled={!athSeries?.configured || isSubmitting}
+            >
               Disburse ATH Advance
             </Button>
           </div>
@@ -676,18 +740,36 @@ export default function PaymentVoucherPage() {
         size="md"
       >
         <form onSubmit={handleCreateBth} className="space-y-4">
+          {!bthSeries?.configured && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">Series Not Configured</span>
+                <p className="mt-0.5 text-amber-700">
+                  No series is configured for BTH Payment in the active issuing office. Vouchers cannot be created until a series is configured or imported.
+                </p>
+                <a
+                  href="/settings/series-master"
+                  className="inline-block mt-1.5 font-semibold text-indigo-600 hover:text-indigo-800 underline"
+                >
+                  Setup Series in Master &rarr;
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* Series Master Info / Voucher Number */}
           <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
             <div>
               <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
                 BTH Voucher Number (Auto Series)
               </div>
-              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5">
-                {bthSeries?.next_number_formatted || "BTH-2026-0001"}
+              <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5 min-h-[1.25rem]">
+                {bthSeries?.configured ? bthSeries.next_number_formatted : ""}
               </div>
             </div>
             <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
-              Auto-Assigned & Locked
+              Auto-Assigned &amp; Locked
             </span>
           </div>
 
@@ -764,7 +846,12 @@ export default function PaymentVoucherPage() {
             <Button type="button" variant="secondary" onClick={() => setIsBthOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isSubmitting}
+              disabled={!bthSeries?.configured || isSubmitting}
+            >
               Settle Lorry Hire Balance
             </Button>
           </div>

@@ -2,9 +2,9 @@ from typing import List, Optional, Union
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
-from app.auth.dependencies import require_permission, get_current_company_admin, check_entitlement_limit
+from app.auth.dependencies import require_permission, get_current_company_admin, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User
+from app.tenant_db.models import User, Branch
 from app.modules.settings.schemas import (
     RoleCreate, RoleUpdate, RoleResponse,
     UserCreate, UserUpdate, UserListItem, AssignedOfficeInfo, PermissionItem,
@@ -316,14 +316,35 @@ async def delete_series_master(
 
 @router.post(
     "/series/initialize",
-    summary="Initialize all 15 default voucher series across Panther TMS"
+    summary="Initialize default voucher series across Panther TMS"
 )
 async def initialize_standard_series(
+    office_id: Optional[int] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
     current_user: User = Depends(require_permission("settings", "series_master", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    created = await service.initialize_all_standard_series(db)
+    target_office_id = office_id or (current_office.id if current_office else None)
+    created = await service.initialize_all_standard_series(db, office_id=target_office_id)
     return {"message": f"Successfully ensured all standard document series are configured.", "initialized_count": len(created), "series": created}
+
+@router.post(
+    "/series/import-template",
+    summary="Import default template for all 16 automatic vouchers for an issuing office"
+)
+async def import_default_series_template(
+    office_id: Optional[int] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    current_user: User = Depends(require_permission("settings", "series_master", "create")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    target_office_id = office_id or (current_office.id if current_office else None)
+    created = await service.initialize_all_standard_series(db, office_id=target_office_id)
+    return {
+        "message": f"Successfully imported default series templates ({len(created)} vouchers configured).",
+        "initialized_count": len(created),
+        "series": created,
+    }
 
 @router.get(
     "/series/check/{document_type}",
@@ -333,9 +354,11 @@ async def initialize_standard_series(
 async def check_series(
     document_type: str,
     office_id: Optional[int] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.check_series_status(db, document_type, office_id=office_id)
+    target_office_id = office_id or (current_office.id if current_office else None)
+    return await service.check_series_status(db, document_type, office_id=target_office_id)
 
 @router.get(
     "/series/manual-ranges/{document_type}",
@@ -344,9 +367,11 @@ async def check_series(
 async def get_manual_series_ranges(
     document_type: str,
     office_id: Optional[int] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_manual_series_ranges(db, document_type, office_id=office_id)
+    target_office_id = office_id or (current_office.id if current_office else None)
+    return await service.get_manual_series_ranges(db, document_type, office_id=target_office_id)
 
 @router.post(
     "/series/{series_id}/set-default",

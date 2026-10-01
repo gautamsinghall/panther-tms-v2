@@ -14,6 +14,7 @@ import {
   Check,
   Star,
   Trash2,
+  Building2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
@@ -23,11 +24,14 @@ import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { apiClient } from "@/lib/api-client";
+import { getActiveOffice, getAssignedOffices } from "@/lib/auth";
 
 interface SeriesMasterItem {
   id: number;
   category_id?: number | null;
   category_name?: string | null;
+  issuing_office_id?: number | null;
+  issuing_office_name?: string | null;
   document_type: string;
   series_name?: string | null;
   prefix: string;
@@ -73,7 +77,7 @@ const STANDARD_VOUCHERS = [
     name: "Lorry Receipt (GR / LR)",
     category: "TRANSPORT",
     categoryLabel: "Transport Documents",
-    isMandatoryManual: true,
+    isMandatoryManual: false,
     defaultPrefix: "LR-2026-",
     defaultSuffix: "",
     description: "Consignment note issued to shipper / consignee for cargo transit.",
@@ -83,7 +87,7 @@ const STANDARD_VOUCHERS = [
     name: "Truck Hire Challan (HC)",
     category: "TRANSPORT",
     categoryLabel: "Transport Documents",
-    isMandatoryManual: true,
+    isMandatoryManual: false,
     defaultPrefix: "HC-2026-",
     defaultSuffix: "",
     description: "Lorry hire contract slip issued to market truck owner / driver.",
@@ -94,7 +98,7 @@ const STANDARD_VOUCHERS = [
     name: "Transport / Freight Invoice",
     category: "BILLING",
     categoryLabel: "Customer Invoicing",
-    isMandatoryManual: true,
+    isMandatoryManual: false,
     defaultPrefix: "TI-2026-",
     defaultSuffix: "",
     description: "Tax invoice issued for freight charges linked to delivered LRs.",
@@ -104,7 +108,7 @@ const STANDARD_VOUCHERS = [
     name: "General Commercial Invoice",
     category: "BILLING",
     categoryLabel: "Customer Invoicing",
-    isMandatoryManual: true,
+    isMandatoryManual: false,
     defaultPrefix: "GI-2026-",
     defaultSuffix: "",
     description: "Direct sales & services invoice with balanced double-entry ledger postings.",
@@ -225,11 +229,16 @@ const STANDARD_VOUCHERS = [
 export default function SeriesMasterPage() {
   const [seriesList, setSeriesList] = useState<SeriesMasterItem[]>([]);
   const [categoryList, setCategoryList] = useState<SeriesCategoryItem[]>([]);
+  const [branchList, setBranchList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Filters
+  const [filterOfficeId, setFilterOfficeId] = useState<string>(() => {
+    const active = getActiveOffice();
+    return active ? String(active.id) : "ALL";
+  });
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -246,6 +255,7 @@ export default function SeriesMasterPage() {
 
   // Form Fields
   const [docType, setDocType] = useState("LR");
+  const [issuingOfficeId, setIssuingOfficeId] = useState<number | undefined>(undefined);
   const [seriesName, setSeriesName] = useState("");
   const [prefix, setPrefix] = useState("LR-2026-");
   const [suffix, setSuffix] = useState("");
@@ -253,21 +263,34 @@ export default function SeriesMasterPage() {
   const [endNum, setEndNum] = useState<number | undefined>(undefined);
   const [currentNum, setCurrentNum] = useState(0);
   const [finYear, setFinYear] = useState("2026-2027");
-  const [seriesMode, setSeriesMode] = useState<"AUTOMATIC" | "MANUAL">("MANUAL");
-  const [isDefault, setIsDefault] = useState(false);
+  const [seriesMode, setSeriesMode] = useState<"AUTOMATIC" | "MANUAL">("AUTOMATIC");
+  const [isDefault, setIsDefault] = useState(true);
   const [selectedCatId, setSelectedCatId] = useState<number | undefined>(undefined);
   const [isActive, setIsActive] = useState(true);
 
-  const loadData = async () => {
+  const loadData = async (targetOffice?: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const [seriesRes, catRes] = await Promise.all([
-        apiClient<SeriesMasterItem[]>("/api/v1/settings/series"),
+      const officeParam = targetOffice !== undefined ? targetOffice : filterOfficeId;
+      const seriesUrl = officeParam && officeParam !== "ALL"
+        ? `/api/v1/settings/series?office_id=${officeParam}`
+        : "/api/v1/settings/series";
+      const [seriesRes, catRes, branchesRes] = await Promise.all([
+        apiClient<SeriesMasterItem[]>(seriesUrl),
         apiClient<SeriesCategoryItem[]>("/api/v1/settings/series-categories"),
+        apiClient<any[]>("/api/v1/profile/branches").catch(() => []),
       ]);
       setSeriesList(Array.isArray(seriesRes) ? seriesRes : []);
       setCategoryList(Array.isArray(catRes) ? catRes : []);
+      if (Array.isArray(branchesRes) && branchesRes.length > 0) {
+        setBranchList(branchesRes);
+      } else {
+        const storedOffices = getAssignedOffices();
+        if (storedOffices.length > 0) {
+          setBranchList(storedOffices);
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load series configuration.");
     } finally {
@@ -285,14 +308,16 @@ export default function SeriesMasterPage() {
     setSeriesName("");
     setPrefix("LR-2026-");
     setSuffix("");
-    setStartingNum(1001);
-    setEndNum(1200);
+    setStartingNum(1);
+    setEndNum(undefined);
     setCurrentNum(0);
     setFinYear("2026-2027");
-    setSeriesMode("MANUAL");
+    setSeriesMode("AUTOMATIC");
     setIsDefault(true);
     setIsActive(true);
     setSelectedCatId(undefined);
+    const defaultOffice = filterOfficeId !== "ALL" ? Number(filterOfficeId) : (getActiveOffice()?.id || undefined);
+    setIssuingOfficeId(defaultOffice);
     setIsDrawerOpen(true);
   };
 
@@ -310,6 +335,7 @@ export default function SeriesMasterPage() {
     setIsDefault(Boolean(series.is_default));
     setIsActive(series.is_active);
     setSelectedCatId(series.category_id || undefined);
+    setIssuingOfficeId(series.issuing_office_id || undefined);
     setIsDrawerOpen(true);
   };
 
@@ -320,11 +346,7 @@ export default function SeriesMasterPage() {
       if (!editingSeries) {
         setPrefix(standard.defaultPrefix);
         setSuffix(standard.defaultSuffix);
-        setSeriesMode(standard.isMandatoryManual ? "MANUAL" : "AUTOMATIC");
-      } else {
-        if (standard.isMandatoryManual) {
-          setSeriesMode("MANUAL");
-        }
+        setSeriesMode("AUTOMATIC");
       }
       if (standard.category) {
         const matchingCat = categoryList.find((c) => c.code === standard.category);
@@ -333,23 +355,18 @@ export default function SeriesMasterPage() {
     }
   };
 
-  const isSelectedMandatoryManual = useMemo(() => {
-    const raw = docType.toUpperCase().trim();
-    return ["LR", "HIRE_CHALLAN", "HC", "TRANSPORT_INVOICE", "GENERAL_INVOICE"].includes(raw);
-  }, [docType]);
-
   const handleSaveSeries = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      const mode = isSelectedMandatoryManual ? "MANUAL" : seriesMode;
-      if (mode === "MANUAL" && (!endNum || Number(endNum) < startingNum)) {
+      if (seriesMode === "MANUAL" && (!endNum || Number(endNum) < startingNum)) {
         throw new Error("For manual series, Range End Number is required and must be greater than or equal to Range Start Number.");
       }
       const payload = {
         document_type: docType,
+        issuing_office_id: issuingOfficeId || null,
         series_name: seriesName.trim() || null,
         prefix: prefix.trim(),
         suffix: suffix ? suffix.trim() : "",
@@ -357,7 +374,7 @@ export default function SeriesMasterPage() {
         current_number: currentNum,
         end_number: endNum ? Number(endNum) : null,
         financial_year: finYear,
-        series_mode: mode,
+        series_mode: seriesMode,
         is_default: Boolean(isDefault),
         category_id: selectedCatId || null,
         is_active: isActive,
@@ -420,7 +437,8 @@ export default function SeriesMasterPage() {
     setError(null);
     setSuccessMessage(null);
     try {
-      const res = await apiClient<any>("/api/v1/settings/series/initialize", {
+      const officeParam = filterOfficeId !== "ALL" ? `?office_id=${filterOfficeId}` : "";
+      const res = await apiClient<any>(`/api/v1/settings/series/import-template${officeParam}`, {
         method: "POST",
       });
       setSuccessMessage(res.message || "All standard voucher series verified and configured.");
@@ -553,6 +571,25 @@ export default function SeriesMasterPage() {
               {row.category_name && <span>· {row.category_name}</span>}
             </div>
           </div>
+        );
+      },
+    },
+    {
+      key: "issuing_office_name",
+      header: "Issuing Office",
+      cell: (row) => {
+        if (row.issuing_office_name) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold">
+              <Building2 className="w-3 h-3 text-slate-500" />
+              {row.issuing_office_name}
+            </span>
+          );
+        }
+        return (
+          <span className="text-xs text-slate-400 italic">
+            Global / All Offices
+          </span>
         );
       },
     },
@@ -776,8 +813,8 @@ export default function SeriesMasterPage() {
       )}
 
       {/* Filters Bar & Quick Action */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
-        {/* Category Filter Pills */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+        {/* Left side: Category Filter Pills */}
         <div className="flex flex-wrap items-center gap-1.5">
           {[
             { id: "ALL", label: `All Series (${seriesList.length})` },
@@ -803,9 +840,29 @@ export default function SeriesMasterPage() {
           ))}
         </div>
 
-        {/* Right side: Search & Reset Defaults */}
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-[200px]">
+        {/* Right side: Office Selector, Search & Import Defaults */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Office Switcher */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+            <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <select
+              value={filterOfficeId}
+              onChange={(e) => {
+                setFilterOfficeId(e.target.value);
+                loadData(e.target.value);
+              }}
+              className="text-xs font-semibold text-slate-800 bg-transparent border-0 focus:outline-none cursor-pointer"
+            >
+              <option value="ALL">All Issuing Offices</option>
+              {branchList.map((b) => (
+                <option key={b.id} value={String(b.id)}>
+                  {b.name} ({b.code || `OFF${b.id}`})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="relative min-w-[170px]">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -818,22 +875,50 @@ export default function SeriesMasterPage() {
 
           <Button
             type="button"
-            variant="outline"
+            variant="primary"
             size="sm"
             onClick={handleInitializeDefaults}
             disabled={initializingDefaults}
-            className="gap-1.5 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50 shrink-0"
-            title="Ensure standard document series exist in catalog"
+            className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs shrink-0"
+            title="Import all 16 standard automatic voucher templates for the active issuing office"
           >
             {initializingDefaults ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <Sparkles className="w-3.5 h-3.5" />
             )}
-            Verify / Seed Defaults
+            Import Default Series Template
           </Button>
         </div>
       </div>
+
+      {/* Unconfigured Office Warning Banner */}
+      {!isLoading && filteredSeries.length === 0 && (
+        <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-sm font-bold text-amber-950">
+                No Series Configured for {filterOfficeId !== "ALL" ? (branchList.find((b) => String(b.id) === filterOfficeId)?.name || "Selected Office") : "Current Office"}
+              </h4>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Vouchers, LRs, and Challans cannot be booked or saved without an active series. Click <strong>&quot;Import Default Series Template&quot;</strong> to set up all 16 standard automatic series with branch code prefixes.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={handleInitializeDefaults}
+            disabled={initializingDefaults}
+            className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 font-semibold text-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 mr-1" />
+            Import Default Series Template
+          </Button>
+        </div>
+      )}
 
       {/* Main Series Table */}
       {isLoading ? (
@@ -861,6 +946,28 @@ export default function SeriesMasterPage() {
       >
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 shadow-2xs">
           <form onSubmit={handleSaveSeries} className="space-y-5">
+            {/* Issuing Office Assignment */}
+            <div>
+              <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                Issuing Office / Branch
+              </label>
+              <select
+                value={issuingOfficeId || ""}
+                onChange={(e) => setIssuingOfficeId(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+              >
+                <option value="">-- All Offices (Global Default) --</option>
+                {branchList.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code || `OFF${b.id}`})
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-[#667085] mt-1 block">
+                Number sequence operates strictly within this issuing office.
+              </span>
+            </div>
+
             {/* Voucher Document Type Selector */}
             <div>
               <label className="block text-xs font-semibold text-[#172033] mb-1.5">
@@ -871,7 +978,7 @@ export default function SeriesMasterPage() {
                 onChange={(val) => handleDocTypeChange(String(val))}
                 options={STANDARD_VOUCHERS.map((v) => ({
                   value: v.code,
-                  label: `${v.name} (${v.code}) — ${v.categoryLabel}${v.isMandatoryManual ? " [Manual Range]" : ""}`,
+                  label: `${v.name} (${v.code}) — ${v.categoryLabel}`,
                 }))}
                 placeholder="Select or enter voucher type..."
                 searchPlaceholder="Search voucher type..."
@@ -884,60 +991,48 @@ export default function SeriesMasterPage() {
             </div>
 
             {/* Series Mode Selection */}
-            {isSelectedMandatoryManual ? (
-              <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold block">Manual Series Range Workflow Enforced</span>
-                  <span>
-                    LR, HC, General Invoice, and Transport Invoice operate on manual batch ranges. You can configure multiple series ranges/booklets with custom prefixes.
+            <div>
+              <label className="block text-xs font-semibold text-[#172033] mb-1.5">
+                Series Mode / Numbering Type <span className="text-rose-600">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSeriesMode("AUTOMATIC")}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    seriesMode === "AUTOMATIC"
+                      ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-xs text-[#172033]">Automatic Series</span>
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <span className="text-[11px] text-[#667085] block">
+                    Sequence increments automatically (1, 2, 3...) and voucher number is non-editable.
                   </span>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-xs font-semibold text-[#172033] mb-1.5">
-                  Series Mode / Numbering Type <span className="text-rose-600">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSeriesMode("MANUAL")}
-                    className={`p-3 rounded-xl border text-left transition-all ${
-                      seriesMode === "MANUAL"
-                        ? "border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-xs text-[#172033]">Manual Batch Range</span>
-                      <Edit2 className="w-4 h-4 text-amber-700" />
-                    </div>
-                    <span className="text-[11px] text-[#667085] block">
-                      Define batch start and end range. Users select this series and pick available unused numbers when creating vouchers.
-                    </span>
-                  </button>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setSeriesMode("AUTOMATIC")}
-                    className={`p-3 rounded-xl border text-left transition-all ${
-                      seriesMode === "AUTOMATIC"
-                        ? "border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20"
-                        : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-xs text-[#172033]">Automatic Series</span>
-                      <Sparkles className="w-4 h-4 text-emerald-600" />
-                    </div>
-                    <span className="text-[11px] text-[#667085] block">
-                      Sequence increments automatically (1, 2, 3...) and voucher number is non-editable.
-                    </span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setSeriesMode("MANUAL")}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    seriesMode === "MANUAL"
+                      ? "border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-xs text-[#172033]">Manual Batch Range</span>
+                    <Edit2 className="w-4 h-4 text-amber-700" />
+                  </div>
+                  <span className="text-[11px] text-[#667085] block">
+                    Define batch start and end range. Users pick available unused numbers when creating vouchers.
+                  </span>
+                </button>
               </div>
-            )}
+            </div>
 
             {/* Series Batch Name (e.g. Delhi Booklet #1) */}
             <div>
