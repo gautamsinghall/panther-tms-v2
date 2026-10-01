@@ -553,6 +553,44 @@ async def transition_lr_status(
 # ==============================================================================
 # 7. Hire Challans
 # ==============================================================================
+def _build_hire_challan_response(c: Any) -> HireChallanResponse:
+    return HireChallanResponse(
+        id=c.id,
+        challan_number=c.challan_number,
+        issuing_office_id=c.issuing_office_id,
+        issuing_office_name=c.issuing_office.name if c.issuing_office else None,
+        issuing_office_code=c.issuing_office.code if c.issuing_office else None,
+        hc_series_id=c.hc_series_id,
+        challan_date=c.challan_date,
+        lr_id=c.lr_id,
+        vehicle_number=c.vehicle_number,
+        market_vehicle_id=c.market_vehicle_id,
+        owner_id=c.owner_id,
+        driver_id=c.driver_id,
+        driver_name=c.driver_name,
+        driver_phone=c.driver_phone,
+        from_location=c.from_location,
+        to_location=c.to_location,
+        hire_rate=c.hire_rate,
+        advance_amount=c.advance_amount,
+        balance_amount=c.balance_amount,
+        tds_category=c.tds_category,
+        tds_rate=c.tds_rate,
+        tds_amount=c.tds_amount,
+        vendor_ref_no=c.vendor_ref_no,
+        detention_charge=c.detention_charge,
+        mamul_charges=c.mamul_charges,
+        net_payable_amount=c.net_payable_amount,
+        loading_expenses=c.loading_expenses or [],
+        unloading_expenses=c.unloading_expenses or [],
+        status=c.status,
+        remarks=c.remarks,
+        lr_number=c.lr.lr_number if c.lr else None,
+        owner_name=c.owner.name if c.owner else None,
+        created_at=c.created_at,
+        updated_at=c.updated_at,
+    )
+
 @router.get("/hire-challans", response_model=List[HireChallanResponse])
 async def list_hire_challans(
     current_user: User = Depends(get_current_user),
@@ -583,39 +621,19 @@ async def list_hire_challans(
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
     challans = await service.get_all_hire_challans(db, office_id=target_office_id, include_unassigned=include_unassigned)
-    return [
-        HireChallanResponse(
-            id=c.id,
-            challan_number=c.challan_number,
-            issuing_office_id=c.issuing_office_id,
-            issuing_office_name=c.issuing_office.name if c.issuing_office else None,
-            challan_date=c.challan_date,
-            lr_id=c.lr_id,
-            vehicle_number=c.vehicle_number,
-            market_vehicle_id=c.market_vehicle_id,
-            owner_id=c.owner_id,
-            driver_id=c.driver_id,
-            driver_name=c.driver_name,
-            driver_phone=c.driver_phone,
-            from_location=c.from_location,
-            to_location=c.to_location,
-            hire_rate=c.hire_rate,
-            advance_amount=c.advance_amount,
-            balance_amount=c.balance_amount,
-            tds_rate=c.tds_rate,
-            tds_amount=c.tds_amount,
-            detention_charge=c.detention_charge,
-            mamul_charges=c.mamul_charges,
-            net_payable_amount=c.net_payable_amount,
-            status=c.status,
-            remarks=c.remarks,
-            lr_number=c.lr.lr_number if c.lr else None,
-            owner_name=c.owner.name if c.owner else None,
-            created_at=c.created_at,
-            updated_at=c.updated_at,
-        )
-        for c in challans
-    ]
+    return [_build_hire_challan_response(c) for c in challans]
+
+@router.get("/hire-challans/{id}", response_model=HireChallanResponse)
+async def get_hire_challan(
+    id: int,
+    current_user: User = Depends(require_permission("transport", "hire_challan", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    from app.tenant_db.models import HireChallan
+    hc = await db.get(HireChallan, id)
+    if not hc:
+        raise AppException(status_code=404, error_code="NOT_FOUND", message="Hire Challan not found.")
+    return _build_hire_challan_response(hc)
 
 @router.post("/hire-challans", response_model=HireChallanResponse, status_code=status.HTTP_201_CREATED)
 async def create_hire_challan(
@@ -627,36 +645,7 @@ async def create_hire_challan(
 ):
     await check_entitlement_limit(tenant, db, "max_hire_challans_per_month")
     hc = await service.create_hire_challan(db, data, office_id=current_office.id)
-    return HireChallanResponse(
-        id=hc.id,
-        challan_number=hc.challan_number,
-        issuing_office_id=hc.issuing_office_id,
-        issuing_office_name=hc.issuing_office.name if hc.issuing_office else None,
-        challan_date=hc.challan_date,
-        lr_id=hc.lr_id,
-        vehicle_number=hc.vehicle_number,
-        market_vehicle_id=hc.market_vehicle_id,
-        owner_id=hc.owner_id,
-        driver_id=hc.driver_id,
-        driver_name=hc.driver_name,
-        driver_phone=hc.driver_phone,
-        from_location=hc.from_location,
-        to_location=hc.to_location,
-        hire_rate=hc.hire_rate,
-        advance_amount=hc.advance_amount,
-        balance_amount=hc.balance_amount,
-        tds_rate=hc.tds_rate,
-        tds_amount=hc.tds_amount,
-        detention_charge=hc.detention_charge,
-        mamul_charges=hc.mamul_charges,
-        net_payable_amount=hc.net_payable_amount,
-        status=hc.status,
-        remarks=hc.remarks,
-        lr_number=hc.lr.lr_number if hc.lr else None,
-        owner_name=hc.owner.name if hc.owner else None,
-        created_at=hc.created_at,
-        updated_at=hc.updated_at,
-    )
+    return _build_hire_challan_response(hc)
 
 @router.put("/hire-challans/{id}", response_model=HireChallanResponse)
 async def update_hire_challan(
@@ -666,34 +655,7 @@ async def update_hire_challan(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     hc = await service.update_hire_challan(db, id, data)
-    return HireChallanResponse(
-        id=hc.id,
-        challan_number=hc.challan_number,
-        issuing_office_id=hc.issuing_office_id,
-        issuing_office_name=hc.issuing_office.name if hc.issuing_office else None,
-        challan_date=hc.challan_date,
-        lr_id=hc.lr_id,
-        vehicle_number=hc.vehicle_number,
-        market_vehicle_id=hc.market_vehicle_id,
-        owner_id=hc.owner_id,
-        driver_id=hc.driver_id,
-        driver_name=hc.driver_name,
-        driver_phone=hc.driver_phone,
-        from_location=hc.from_location,
-        to_location=hc.to_location,
-        hire_rate=hc.hire_rate,
-        advance_amount=hc.advance_amount,
-        balance_amount=hc.balance_amount,
-        tds_rate=hc.tds_rate,
-        tds_amount=hc.tds_amount,
-        detention_charge=hc.detention_charge,
-        mamul_charges=hc.mamul_charges,
-        net_payable_amount=hc.net_payable_amount,
-        status=hc.status,
-        remarks=hc.remarks,
-        created_at=hc.created_at,
-        updated_at=hc.updated_at,
-    )
+    return _build_hire_challan_response(hc)
 
 @router.post("/hire-challans/{id}/settle", response_model=HireChallanResponse)
 async def settle_hire_challan(
@@ -703,32 +665,7 @@ async def settle_hire_challan(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     hc = await service.settle_hire_challan(db, id, req.settlement_notes)
-    return HireChallanResponse(
-        id=hc.id,
-        challan_number=hc.challan_number,
-        challan_date=hc.challan_date,
-        lr_id=hc.lr_id,
-        vehicle_number=hc.vehicle_number,
-        market_vehicle_id=hc.market_vehicle_id,
-        owner_id=hc.owner_id,
-        driver_id=hc.driver_id,
-        driver_name=hc.driver_name,
-        driver_phone=hc.driver_phone,
-        from_location=hc.from_location,
-        to_location=hc.to_location,
-        hire_rate=hc.hire_rate,
-        advance_amount=hc.advance_amount,
-        balance_amount=hc.balance_amount,
-        tds_rate=hc.tds_rate,
-        tds_amount=hc.tds_amount,
-        detention_charge=hc.detention_charge,
-        mamul_charges=hc.mamul_charges,
-        net_payable_amount=hc.net_payable_amount,
-        status=hc.status,
-        remarks=hc.remarks,
-        created_at=hc.created_at,
-        updated_at=hc.updated_at,
-    )
+    return _build_hire_challan_response(hc)
 
 # ==============================================================================
 # 8. Arrival Reports

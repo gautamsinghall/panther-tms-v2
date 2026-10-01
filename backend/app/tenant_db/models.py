@@ -665,6 +665,11 @@ class HireChallan(TenantBase):
     status = Column(String(50), default=HireChallanStatus.DRAFT.value, nullable=False, index=True)
     remarks = Column(Text, nullable=True)
     issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+    hc_series_id = Column(Integer, ForeignKey("settings_series_masters.id"), nullable=True)
+    vendor_ref_no = Column(String(100), nullable=True)
+    tds_category = Column(String(100), nullable=True)
+    loading_expenses = Column(JSON, default=list, nullable=True)
+    unloading_expenses = Column(JSON, default=list, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -675,7 +680,9 @@ class HireChallan(TenantBase):
 
     lr = relationship("LR", back_populates="hire_challan", lazy="selectin")
     owner = relationship("VehicleOwner", lazy="selectin")
+    driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
     issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
+    hc_series = relationship("SeriesMaster", foreign_keys=[hc_series_id], lazy="selectin")
 
 
 class ArrivalReport(TenantBase):

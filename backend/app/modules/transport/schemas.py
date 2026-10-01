@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 from app.tenant_db.models import (
     JobStatus,
@@ -391,9 +391,10 @@ class LRResponse(LRBase):
 class HireChallanBase(BaseModel):
     challan_number: Optional[str] = None
     issuing_office_id: Optional[int] = None
+    hc_series_id: Optional[int] = None
     challan_date: date = Field(default_factory=date.today)
     lr_id: Optional[int] = None
-    vehicle_number: str = Field(..., min_length=4, max_length=20)
+    vehicle_number: str = Field(..., min_length=1, max_length=50)
     market_vehicle_id: Optional[int] = None
     owner_id: Optional[int] = None
     driver_id: Optional[int] = None
@@ -404,11 +405,15 @@ class HireChallanBase(BaseModel):
     hire_rate: Decimal = Decimal("0.00")
     advance_amount: Decimal = Decimal("0.00")
     balance_amount: Decimal = Decimal("0.00")
+    tds_category: Optional[str] = None
     tds_rate: Decimal = Decimal("0.00")
     tds_amount: Decimal = Decimal("0.00")
+    vendor_ref_no: Optional[str] = None
     detention_charge: Decimal = Decimal("0.00")
     mamul_charges: Decimal = Decimal("0.00")
     net_payable_amount: Decimal = Decimal("0.00")
+    loading_expenses: Optional[List[Dict[str, Any]]] = None
+    unloading_expenses: Optional[List[Dict[str, Any]]] = None
     remarks: Optional[str] = None
 
 class HireChallanCreate(HireChallanBase):
@@ -416,7 +421,10 @@ class HireChallanCreate(HireChallanBase):
 
 class HireChallanUpdate(BaseModel):
     issuing_office_id: Optional[int] = None
+    hc_series_id: Optional[int] = None
     vehicle_number: Optional[str] = None
+    owner_id: Optional[int] = None
+    driver_id: Optional[int] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
     from_location: Optional[str] = None
@@ -424,11 +432,15 @@ class HireChallanUpdate(BaseModel):
     hire_rate: Optional[Decimal] = None
     advance_amount: Optional[Decimal] = None
     balance_amount: Optional[Decimal] = None
+    tds_category: Optional[str] = None
     tds_rate: Optional[Decimal] = None
     tds_amount: Optional[Decimal] = None
+    vendor_ref_no: Optional[str] = None
     detention_charge: Optional[Decimal] = None
     mamul_charges: Optional[Decimal] = None
     net_payable_amount: Optional[Decimal] = None
+    loading_expenses: Optional[List[Dict[str, Any]]] = None
+    unloading_expenses: Optional[List[Dict[str, Any]]] = None
     remarks: Optional[str] = None
 
 class HireChallanSettleRequest(BaseModel):
@@ -441,6 +453,7 @@ class HireChallanResponse(HireChallanBase):
     lr_number: Optional[str] = None
     owner_name: Optional[str] = None
     issuing_office_name: Optional[str] = None
+    issuing_office_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

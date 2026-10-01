@@ -159,6 +159,16 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS {lr_col};"))
 
+                        # Hire Challan Standard Fields Evolution
+                        for hc_col in [
+                            "hc_series_id INTEGER REFERENCES settings_series_masters(id)",
+                            "vendor_ref_no VARCHAR(100)",
+                            "tds_category VARCHAR(100)",
+                            "loading_expenses JSONB DEFAULT '[]'::jsonb",
+                            "unloading_expenses JSONB DEFAULT '[]'::jsonb",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE transport_hire_challans ADD COLUMN IF NOT EXISTS {hc_col};"))
+
                         # Seed default Load Types if empty
                         lt_check = await t_conn.execute(text("SELECT COUNT(*) FROM general_load_types;"))
                         if (lt_check.scalar() or 0) == 0:

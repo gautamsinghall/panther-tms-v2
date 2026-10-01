@@ -575,11 +575,48 @@ async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_
     hc_dict["status"] = HireChallanStatus.ISSUED.value  # Confirmed on creation
     hc_dict["issuing_office_id"] = target_office_id
 
+    # If driver_id is provided but driver_name is not, resolve from Driver model
+    if hc_dict.get("driver_id") and not hc_dict.get("driver_name"):
+        from app.tenant_db.models import Driver
+        drv = await db.get(Driver, hc_dict["driver_id"])
+        if drv:
+            hc_dict["driver_name"] = drv.name
+            if not hc_dict.get("driver_phone"):
+                hc_dict["driver_phone"] = drv.phone
+
+    # Calculate total from loading/unloading expenses if provided
+    loading_expenses = hc_dict.get("loading_expenses") or []
+    unloading_expenses = hc_dict.get("unloading_expenses") or []
+    loading_total = Decimal("0.00")
+    for item in loading_expenses:
+        try:
+            amt = Decimal(str(item.get("inr_amount") or item.get("amount") or 0))
+            loading_total += amt
+        except Exception:
+            pass
+    unloading_total = Decimal("0.00")
+    for item in unloading_expenses:
+        try:
+            amt = Decimal(str(item.get("inr_amount") or item.get("amount") or 0))
+            unloading_total += amt
+        except Exception:
+            pass
+
     # Financial calculations
     hire_rate = hc_dict.get("hire_rate") or Decimal("0.00")
+    if hire_rate == Decimal("0.00") and (loading_total > Decimal("0.00") or unloading_total > Decimal("0.00")):
+        hire_rate = loading_total + unloading_total
+        hc_dict["hire_rate"] = hire_rate
+
     advance = hc_dict.get("advance_amount") or Decimal("0.00")
     tds_rate = hc_dict.get("tds_rate") or Decimal("0.00")
-    tds = (hire_rate * tds_rate) / Decimal("100.00")
+    tds_amount = hc_dict.get("tds_amount") or Decimal("0.00")
+    
+    if (tds_amount is None or tds_amount == Decimal("0.00")) and tds_rate > Decimal("0.00"):
+        tds = (hire_rate * tds_rate) / Decimal("100.00")
+    else:
+        tds = tds_amount or Decimal("0.00")
+
     detention = hc_dict.get("detention_charge") or Decimal("0.00")
     mamul = hc_dict.get("mamul_charges") or Decimal("0.00")
     
@@ -607,8 +644,10 @@ async def update_hire_challan(db: AsyncSession, hc_id: int, data: HireChallanUpd
         setattr(hc, field, val)
 
     # Recalculate
-    tds = (hc.hire_rate * hc.tds_rate) / Decimal("100.00")
-    net_payable = (hc.hire_rate + hc.detention_charge) - (tds + hc.mamul_charges)
+    hire_rate = hc.hire_rate or Decimal("0.00")
+    tds_rate = hc.tds_rate or Decimal("0.00")
+    tds = (hire_rate * tds_rate) / Decimal("100.00") if tds_rate > Decimal("0.00") else (hc.tds_amount or Decimal("0.00"))
+    net_payable = (hire_rate + hc.detention_charge) - (tds + hc.mamul_charges)
     hc.tds_amount = tds
     hc.net_payable_amount = net_payable
     hc.balance_amount = net_payable - hc.advance_amount
