@@ -13,18 +13,19 @@ import {
   AlertCircle,
   Eye,
   FileText,
-  ChevronDown,
-  ChevronUp,
-  MapPin,
-  Briefcase,
-  DollarSign,
+  Clock,
+  Lock,
+  IndianRupee,
   X,
   CreditCard,
+  Edit2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
 import { StatusBadge } from "@/components/ui/badge";
+import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
@@ -155,6 +156,8 @@ interface SeriesRangeItem {
 
 const DEFAULT_CHARGE_HEADS = [
   "Loading Charges",
+  "Lorry Freight / Carriage",
+  "Freight Charges",
   "Hamali Charges",
   "Labour Charges",
   "Crane Charges",
@@ -178,7 +181,7 @@ const TDS_CATEGORIES = [
 export default function HireChallansPage() {
   const router = useRouter();
 
-  // Primary Data
+  // Primary Data State
   const [data, setData] = useState<HireChallanRecord[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -188,20 +191,21 @@ export default function HireChallansPage() {
   const [lrs, setLrs] = useState<LROption[]>([]);
   const [chargeHeads, setChargeHeads] = useState<ChargeHeadOption[]>([]);
 
-  // UI State
+  // Page State
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [isFormOpen, setIsFormOpen] = useState(true);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedChallanDetail, setSelectedChallanDetail] = useState<HireChallanRecord | null>(null);
   const [isRefreshingDrivers, setIsRefreshingDrivers] = useState(false);
 
-  // Quick Create Modals
+  // Quick Create Modals State
   const [quickDriverOpen, setQuickDriverOpen] = useState(false);
   const [quickOwnerOpen, setQuickOwnerOpen] = useState(false);
 
-  // Series Master for Hire Challan
+  // Series Master Data State
   const [manualSeriesData, setManualSeriesData] = useState<{
     document_type: string;
     is_mandatory_manual: boolean;
@@ -214,7 +218,7 @@ export default function HireChallansPage() {
   } | null>(null);
 
   // -------------------------------------------------------------
-  // FORM FIELDS STATE (Exact match to screenshot)
+  // FORM FIELDS STATE (Exact fields from reference)
   // -------------------------------------------------------------
   const [issuingOfficeId, setIssuingOfficeId] = useState<string>("");
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
@@ -231,6 +235,7 @@ export default function HireChallansPage() {
   const [driverPhone, setDriverPhone] = useState<string>("");
   const [ownerId, setOwnerId] = useState<string>("");
 
+  const [baseHireRate, setBaseHireRate] = useState<string>("");
   const [tdsCategory, setTdsCategory] = useState<string>("");
   const [tdsRate, setTdsRate] = useState<number>(0);
   const [tdsAmountInput, setTdsAmountInput] = useState<string>("");
@@ -336,7 +341,7 @@ export default function HireChallansPage() {
       setLrs(Array.isArray(lrsRes) ? lrsRes : []);
       setChargeHeads(Array.isArray(chargeHeadsRes) ? chargeHeadsRes : []);
 
-      // Determine initial office to auto-fill
+      // Initial active office selection
       let defaultOfficeId = "";
       if (activeOffice && activeOffice.id) {
         defaultOfficeId = String(activeOffice.id);
@@ -345,16 +350,15 @@ export default function HireChallansPage() {
         defaultOfficeId = String(ho.id);
       }
 
-      if (defaultOfficeId) {
+      if (defaultOfficeId && !issuingOfficeId) {
         setIssuingOfficeId(defaultOfficeId);
-        await autoFillSeriesAndHCNo(defaultOfficeId, branchList);
       }
     } catch (err: any) {
       console.error("Failed to load initial data:", err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [issuingOfficeId]);
 
   useEffect(() => {
     loadData();
@@ -397,7 +401,6 @@ export default function HireChallansPage() {
 
       // Auto-fill Series and HC No
       if (manualRangesRes && manualRangesRes.ranges && manualRangesRes.ranges.length > 0) {
-        // Pick default series or first range
         const defaultSeries =
           manualRangesRes.ranges.find(
             (r: SeriesRangeItem) => r.id === manualRangesRes.default_series_id
@@ -405,7 +408,6 @@ export default function HireChallansPage() {
 
         setSelectedSeriesId(String(defaultSeries.id));
 
-        // Auto-fill HC No with first available unused leaf
         const nextLeaf =
           defaultSeries.available_options?.[0]?.value ||
           seriesCheckRes?.next_number_formatted ||
@@ -423,13 +425,11 @@ export default function HireChallansPage() {
     }
   };
 
-  // When user selects / changes Issuing Office
   const handleOfficeChange = (newOfficeId: string) => {
     setIssuingOfficeId(newOfficeId);
     autoFillSeriesAndHCNo(newOfficeId);
   };
 
-  // When user selects a different HC Series
   const handleSeriesChange = (newSeriesId: string) => {
     setSelectedSeriesId(newSeriesId);
     if (!newSeriesId) return;
@@ -438,12 +438,10 @@ export default function HireChallansPage() {
       (r) => String(r.id) === String(newSeriesId)
     );
     if (matched && matched.available_options && matched.available_options.length > 0) {
-      // Auto-fill HC No to first available in selected series
       setChallanNumber(matched.available_options[0].value);
     }
   };
 
-  // Available Series Options for selected office
   const seriesOptions = useMemo(() => {
     if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) {
       if (seriesInfo?.next_number_formatted) {
@@ -452,7 +450,7 @@ export default function HireChallansPage() {
       return [{ label: "- Select Series -", value: "" }];
     }
     return [
-      { label: "- Select -", value: "" },
+      { label: "- Select Series Booklet -", value: "" },
       ...manualSeriesData.ranges.map((r) => ({
         label: `${r.series_name || "HC Series"} · ${r.prefix}[${r.starting_number}–${r.end_number || "..."}] (${r.available_count} available)${
           r.is_default ? " ★" : ""
@@ -462,7 +460,6 @@ export default function HireChallansPage() {
     ];
   }, [manualSeriesData, seriesInfo]);
 
-  // Available HC No leaf options for selected series
   const activeSeriesRange = useMemo(() => {
     if (!manualSeriesData || !manualSeriesData.ranges) return null;
     return (
@@ -485,7 +482,18 @@ export default function HireChallansPage() {
     return [];
   }, [activeSeriesRange, challanNumber]);
 
-  // Refresh drivers list
+  const availableChargeHeads = useMemo(() => {
+    const list = [...DEFAULT_CHARGE_HEADS];
+    if (Array.isArray(chargeHeads)) {
+      chargeHeads.forEach((ch) => {
+        if (ch.name && !list.includes(ch.name)) {
+          list.push(ch.name);
+        }
+      });
+    }
+    return list;
+  }, [chargeHeads]);
+
   const refreshDrivers = async () => {
     setIsRefreshingDrivers(true);
     try {
@@ -500,7 +508,6 @@ export default function HireChallansPage() {
     }
   };
 
-  // Auto-fill owner when vehicle selected
   const handleVehicleSelect = (val: string) => {
     setVehicleNumber(val);
     const matchedVehicle = vehicles.find(
@@ -511,7 +518,6 @@ export default function HireChallansPage() {
     }
   };
 
-  // Handle Driver Select
   const handleDriverSelect = (selectedId: string) => {
     setDriverId(selectedId);
     const matched = drivers.find((d) => String(d.id) === selectedId);
@@ -521,7 +527,6 @@ export default function HireChallansPage() {
     }
   };
 
-  // Handle TDS Category Change
   const handleTdsCategoryChange = (val: string) => {
     setTdsCategory(val);
     const matched = TDS_CATEGORIES.find((t) => t.value === val);
@@ -542,7 +547,6 @@ export default function HireChallansPage() {
       const next = [...prev];
       const current = { ...next[index], [field]: value };
 
-      // If GR/LR is selected, auto-populate Pkg Ct & Gross Wt
       if (field === "lr_id" || field === "lr_no") {
         const matched = lrs.find(
           (l) => String(l.id) === String(value) || l.lr_number === value
@@ -686,8 +690,9 @@ export default function HireChallansPage() {
   }, [unloadingExpenses]);
 
   const totalGrossExpenses = useMemo(() => {
-    return totalLoadingAmount + totalUnloadingAmount;
-  }, [totalLoadingAmount, totalUnloadingAmount]);
+    const base = parseFloat(baseHireRate) || 0;
+    return base + totalLoadingAmount + totalUnloadingAmount;
+  }, [baseHireRate, totalLoadingAmount, totalUnloadingAmount]);
 
   const calculatedTdsAmount = useMemo(() => {
     if (tdsAmountInput !== "") {
@@ -707,6 +712,132 @@ export default function HireChallansPage() {
     const adv = parseFloat(advancePaid) || 0;
     return Math.max(0, netPayable - adv);
   }, [netPayable, advancePaid]);
+
+  // Open Create Drawer
+  const openCreateDrawer = () => {
+    setEditingId(null);
+    const activeOffice = getActiveOffice();
+    const officeToUse = activeOffice?.id ? String(activeOffice.id) : issuingOfficeId || (branches[0] ? String(branches[0].id) : "");
+    if (officeToUse) {
+      setIssuingOfficeId(officeToUse);
+      autoFillSeriesAndHCNo(officeToUse);
+    }
+    setChallanDate(new Date().toISOString().split("T")[0]);
+    setVehicleNumber("");
+    setDriverId("");
+    setDriverName("");
+    setDriverPhone("");
+    setOwnerId("");
+    setTdsCategory("");
+    setTdsRate(0);
+    setTdsAmountInput("");
+    setBaseHireRate("");
+    setAdvancePaid("");
+    setVendorRefNo("");
+    setRemarks("");
+    setLoadingExpenses([
+      {
+        id: "load-1",
+        lr_id: "",
+        lr_no: "",
+        pkg_count: "",
+        gross_weight: "",
+        charge_head: "Loading Charges",
+        narration: "",
+        tds_applicable: false,
+        inr_amount: "",
+      },
+    ]);
+    setUnloadingExpenses([
+      {
+        id: "unload-1",
+        lr_id: "",
+        lr_no: "",
+        pkg_count: "",
+        gross_weight: "",
+        charge_head: "Unloading Charges",
+        narration: "",
+        tds_applicable: false,
+        inr_amount: "",
+      },
+    ]);
+    setIsDrawerOpen(true);
+  };
+
+  // Open Edit Drawer
+  const openEditDrawer = (row: HireChallanRecord) => {
+    setEditingId(row.id);
+    setIssuingOfficeId(row.issuing_office_id ? String(row.issuing_office_id) : "");
+    setSelectedSeriesId(row.hc_series_id ? String(row.hc_series_id) : "");
+    setChallanNumber(row.challan_number || "");
+    setFromLocation(row.from_location || "");
+    setToLocation(row.to_location || "");
+    setChallanDate(row.challan_date ? row.challan_date.split("T")[0] : new Date().toISOString().split("T")[0]);
+    setVehicleNumber(row.vehicle_number || "");
+    setDriverId(row.driver_id ? String(row.driver_id) : "");
+    setDriverName(row.driver_name || "");
+    setDriverPhone(row.driver_phone || "");
+    setOwnerId(row.owner_id ? String(row.owner_id) : "");
+    setTdsCategory(row.tds_category || "");
+    setTdsRate(row.tds_rate ? parseFloat(String(row.tds_rate)) : 0);
+    setTdsAmountInput(row.tds_amount ? String(row.tds_amount) : "");
+    setAdvancePaid(row.advance_amount ? String(row.advance_amount) : "");
+    setVendorRefNo(row.vendor_ref_no || "");
+    setRemarks(row.remarks || "");
+
+    const loadSum = (row.loading_expenses || []).reduce(
+      (s: number, r: any) => s + (parseFloat(String(r.inr_amount || r.amount)) || 0),
+      0
+    );
+    const unloadSum = (row.unloading_expenses || []).reduce(
+      (s: number, r: any) => s + (parseFloat(String(r.inr_amount || r.amount)) || 0),
+      0
+    );
+    const grossRate = parseFloat(String(row.hire_rate)) || 0;
+    if (grossRate > (loadSum + unloadSum)) {
+      setBaseHireRate(String(grossRate - (loadSum + unloadSum)));
+    } else {
+      setBaseHireRate("");
+    }
+
+    if (row.loading_expenses && row.loading_expenses.length > 0) {
+      setLoadingExpenses(row.loading_expenses);
+    } else {
+      setLoadingExpenses([
+        {
+          id: "load-1",
+          lr_id: "",
+          lr_no: "",
+          pkg_count: "",
+          gross_weight: "",
+          charge_head: "Loading Charges",
+          narration: "",
+          tds_applicable: false,
+          inr_amount: "",
+        },
+      ]);
+    }
+
+    if (row.unloading_expenses && row.unloading_expenses.length > 0) {
+      setUnloadingExpenses(row.unloading_expenses);
+    } else {
+      setUnloadingExpenses([
+        {
+          id: "unload-1",
+          lr_id: "",
+          lr_no: "",
+          pkg_count: "",
+          gross_weight: "",
+          charge_head: "Unloading Charges",
+          narration: "",
+          tds_applicable: false,
+          inr_amount: "",
+        },
+      ]);
+    }
+
+    setIsDrawerOpen(true);
+  };
 
   // -------------------------------------------------------------
   // SUBMIT HANDLER
@@ -737,7 +868,6 @@ export default function HireChallansPage() {
 
     setIsSubmitting(true);
     try {
-      // Find linked LR id if present in first row
       const primaryLrId =
         loadingExpenses[0]?.lr_id || unloadingExpenses[0]?.lr_id || undefined;
 
@@ -769,60 +899,28 @@ export default function HireChallansPage() {
         remarks: remarks.trim() || undefined,
       };
 
-      await apiClient("/api/v1/transport/hire-challans", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (editingId) {
+        await apiClient(`/api/v1/transport/hire-challans/${editingId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        alert(`Hire Challan ${challanNumber} updated successfully!`);
+      } else {
+        await apiClient("/api/v1/transport/hire-challans", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        alert(`Hire Challan ${challanNumber} issued successfully!`);
+      }
 
-      alert(`Hire Challan ${challanNumber} issued successfully!`);
+      setIsDrawerOpen(false);
+      setEditingId(null);
 
       // Reload records list
       const freshChallans = await apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans");
       setData(Array.isArray(freshChallans) ? freshChallans : []);
-
-      // Auto-populate next series number for current office
-      await autoFillSeriesAndHCNo(issuingOfficeId);
-
-      // Reset form non-key fields
-      setVehicleNumber("");
-      setDriverId("");
-      setDriverName("");
-      setDriverPhone("");
-      setOwnerId("");
-      setTdsCategory("");
-      setTdsRate(0);
-      setTdsAmountInput("");
-      setAdvancePaid("");
-      setVendorRefNo("");
-      setRemarks("");
-      setLoadingExpenses([
-        {
-          id: `load-${Date.now()}`,
-          lr_id: "",
-          lr_no: "",
-          pkg_count: "",
-          gross_weight: "",
-          charge_head: "Loading Charges",
-          narration: "",
-          tds_applicable: false,
-          inr_amount: "",
-        },
-      ]);
-      setUnloadingExpenses([
-        {
-          id: `unload-${Date.now()}`,
-          lr_id: "",
-          lr_no: "",
-          pkg_count: "",
-          gross_weight: "",
-          charge_head: "Unloading Charges",
-          narration: "",
-          tds_applicable: false,
-          inr_amount: "",
-        },
-      ]);
     } catch (err: any) {
-      alert(err.message || "Failed to issue hire challan.");
+      alert(err.message || "Failed to save hire challan.");
     } finally {
       setIsSubmitting(false);
     }
@@ -844,6 +942,15 @@ export default function HireChallansPage() {
       alert(err.message || "Failed to settle challan.");
     }
   };
+
+  // KPI Calculations
+  const stats = useMemo(() => {
+    const total = data.length;
+    const inTransit = data.filter((d) => d.status === "TRANSIT" || d.status === "IN_TRANSIT" || d.status === "ISSUED").length;
+    const pendingSettlement = data.filter((d) => parseFloat(String(d.balance_amount)) > 0 && d.status !== "SETTLED" && d.status !== "CANCELLED").length;
+    const totalHireValue = data.reduce((acc, d) => acc + (parseFloat(String(d.hire_rate)) || 0), 0);
+    return { total, inTransit, pendingSettlement, totalHireValue };
+  }, [data]);
 
   // Filtered Records for Table
   const filteredData = useMemo(() => {
@@ -928,7 +1035,7 @@ export default function HireChallansPage() {
     },
     {
       key: "hire_rate",
-      header: "Total Hire / Exp.",
+      header: "Agreed Rate / Exp.",
       isNumeric: true,
       cell: (row) => (
         <span className="text-xs font-semibold text-slate-900">
@@ -978,6 +1085,11 @@ export default function HireChallansPage() {
       onClick: (row) => setSelectedChallanDetail(row),
     },
     {
+      label: "Edit Challan",
+      icon: <Edit2 className="w-3.5 h-3.5" />,
+      onClick: (row) => openEditDrawer(row),
+    },
+    {
       label: "Settle Balance",
       icon: <CreditCard className="w-3.5 h-3.5" />,
       disabled: (row) =>
@@ -989,90 +1101,157 @@ export default function HireChallansPage() {
   ];
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* 1. Header with 'HC Records' and '+ Add New' button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            HC Records
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Issue hire challans, track advance payments, manage loading/unloading expenses & settle lorry hire.
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* 1. Standard TMS PageHeader */}
+      <PageHeader
+        title="Hire Challans"
+        description="Issue hire challans for market fleet vehicles, track advances, and manage loading/unloading expenses."
+        breadcrumbs={[
+          { label: "Transport", href: "/transport/jobs" },
+          { label: "Hire Challans" },
+        ]}
+        primaryAction={{
+          label: "+ Issue Hire Challan",
+          icon: <Plus className="w-3.5 h-3.5" />,
+          onClick: openCreateDrawer,
+        }}
+      />
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            type="button"
-            onClick={() => {
-              setIsFormOpen((prev) => !prev);
-              if (!isFormOpen && issuingOfficeId) {
-                autoFillSeriesAndHCNo(issuingOfficeId);
-              }
-            }}
-            className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-medium text-xs sm:text-sm px-4 py-2 rounded-lg shadow-sm transition-all flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Add New</span>
-          </Button>
-        </div>
+      {/* 2. Standard TMS KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          title="Total Hire Challans"
+          value={stats.total.toLocaleString()}
+          subtext="Issued lorry contracts"
+          icon={<FileText className="w-4 h-4 text-indigo-600" />}
+        />
+        <KpiCard
+          title="Active In Transit"
+          value={stats.inTransit.toLocaleString()}
+          subtext="Line-haul market trucks"
+          icon={<Truck className="w-4 h-4 text-blue-600" />}
+        />
+        <KpiCard
+          title="Pending Settlements"
+          value={stats.pendingSettlement.toLocaleString()}
+          subtext="Lorry balances awaiting payout"
+          icon={<Clock className="w-4 h-4 text-amber-600" />}
+        />
+        <KpiCard
+          title="Total Lorry Hire"
+          value={formatCurrency(stats.totalHireValue)}
+          subtext="Cumulative agreed hire & expenses"
+          icon={<IndianRupee className="w-4 h-4 text-emerald-600" />}
+        />
       </div>
 
-      {/* Warning banner if Series Master is unconfigured */}
-      {seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
-        <div className="p-3.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>
-              <strong>Manual Series Notice:</strong> Please configure a series booklet for Hire Challan (HC) in{" "}
-              <strong>Settings &gt; Series Master</strong> to enable sequence tracking for this branch.
-            </span>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => router.push("/settings/series-master")}
-            className="text-xs bg-white text-amber-800 border-amber-300 hover:bg-amber-100 shrink-0"
-          >
-            Configure Series
-          </Button>
-        </div>
-      )}
+      {/* 3. Filter Bar & Data Table */}
+      <FilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search challan number, vehicle, driver, vendor..."
+        filters={[
+          {
+            id: "status",
+            label: "Filter Status",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { label: "All Statuses", value: "ALL" },
+              { label: "Draft", value: "DRAFT" },
+              { label: "Issued", value: "ISSUED" },
+              { label: "In Transit", value: "TRANSIT" },
+              { label: "Settled", value: "SETTLED" },
+              { label: "Cancelled", value: "CANCELLED" },
+            ],
+          },
+        ]}
+        onClear={() => {
+          setSearchTerm("");
+          setStatusFilter("ALL");
+        }}
+      />
 
-      {/* 2. HC RECORDS FORM CARD (Exact match to the screenshot) */}
-      {isFormOpen && (
-        <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-5 sm:p-6 transition-all animate-in fade-in duration-200">
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        actions={actions}
+        isLoading={isLoading}
+        emptyMessage="No Hire Challans Found"
+        emptySubtext="Issue a hire challan for market fleet vehicles to record contracts and advance settlements."
+        emptyAction={{
+          label: "+ Issue Hire Challan",
+          onClick: openCreateDrawer,
+        }}
+      />
+
+      {/* 4. Standard TMS EntityDrawer (Opens as clean in-app workspace tab, exactly like LR Booking & Invoicing) */}
+      <EntityDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingId(null);
+        }}
+        title={editingId ? `Edit Hire Challan: ${challanNumber}` : "Issue Hire Challan"}
+        description={
+          editingId
+            ? "Update commercial terms, transit route, and expense breakdown for this vehicle contract."
+            : "Issue a market truck hire challan with automated branch numbering and loading/unloading expenses."
+        }
+        width="full"
+      >
+        {/* Office & Series Context Banner */}
+        <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#7c3aed]" />
-              <h2 className="text-sm sm:text-base font-bold text-slate-900">
-                New Hire Challan Entry
-              </h2>
+              <span className="font-semibold text-slate-700 flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-slate-500" />
+                Selected Branch:
+              </span>
+              <span className="font-bold text-indigo-800 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                {branches.find((b) => String(b.id) === issuingOfficeId)?.name || "Select Issuing Office"}
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsFormOpen(false)}
-              className="text-xs text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100 transition-colors"
-              title="Hide Form"
-            >
-              <ChevronUp className="w-4 h-4" />
-            </button>
+            {activeSeriesRange && (
+              <div className="font-mono text-slate-600 text-[11px]">
+                Active Booklet: <span className="font-bold text-slate-900">{activeSeriesRange.prefix}[{activeSeriesRange.starting_number} – {activeSeriesRange.end_number || "..."}]</span>
+              </div>
+            )}
           </div>
+          {activeSeriesRange && (
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
+              <span>{activeSeriesRange.used_count} vouchers recorded</span>
+              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {activeSeriesRange.available_count} leaves available
+              </span>
+            </div>
+          )}
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* ROW 1: Issuing Office*, HC Series*, HC No*, From*, To* */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
-              {/* Issuing Office* */}
+        {/* Structured Form Container */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Section 1: Numbering & Branch Scoping */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
+            <div className="border-b border-slate-100 pb-2.5">
+              <h3 className="text-sm font-bold text-slate-900">
+                1. Branch &amp; Sequence Allocation
+              </h3>
+              <p className="text-xs text-slate-500">
+                Select issuing office to automatically load and assign the configured numbering sequence.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {/* Issuing Office */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Issuing Office <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={issuingOfficeId}
                   onChange={(e) => handleOfficeChange(e.target.value)}
                   required
-                  className="w-full h-8.5 px-2.5 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 >
                   <option value="">Select Branch</option>
                   {branches.map((b) => (
@@ -1081,17 +1260,20 @@ export default function HireChallansPage() {
                     </option>
                   ))}
                 </select>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Autofills HC Series and HC No when selected.
+                </span>
               </div>
 
-              {/* HC Series* (Autofills on office selection) */}
+              {/* HC Series */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   HC Series <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={selectedSeriesId}
                   onChange={(e) => handleSeriesChange(e.target.value)}
-                  className="w-full h-8.5 px-2.5 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 >
                   {seriesOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -1099,11 +1281,14 @@ export default function HireChallansPage() {
                     </option>
                   ))}
                 </select>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Booklet series configured in Series Master.
+                </span>
               </div>
 
-              {/* HC No* (Autofills on series selection) */}
+              {/* HC No */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   HC No <span className="text-rose-500">*</span>
                 </label>
                 {hcNoOptions.length > 0 ? (
@@ -1111,7 +1296,7 @@ export default function HireChallansPage() {
                     value={challanNumber}
                     onChange={(e) => setChallanNumber(e.target.value)}
                     required
-                    className="w-full h-8.5 px-2.5 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                    className="w-full h-9 px-3 text-xs font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                   >
                     {hcNoOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -1126,115 +1311,137 @@ export default function HireChallansPage() {
                     value={challanNumber}
                     onChange={(e) => setChallanNumber(e.target.value)}
                     placeholder="e.g. HC-DEL-26-0001"
-                    className="w-full h-8.5 px-2.5 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                    className="w-full h-9 px-3 text-xs font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                   />
                 )}
-              </div>
-
-              {/* From* */}
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  From <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    list="from-locations-list"
-                    value={fromLocation}
-                    onChange={(e) => setFromLocation(e.target.value)}
-                    placeholder="Select origin city"
-                    className="w-full h-8.5 px-2.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
-                  />
-                  <datalist id="from-locations-list">
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.city_name}>
-                        {loc.city_name} {loc.state ? `(${loc.state})` : ""}
-                      </option>
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-
-              {/* To* */}
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  To <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    list="to-locations-list"
-                    value={toLocation}
-                    onChange={(e) => setToLocation(e.target.value)}
-                    placeholder="Select destination city"
-                    className="w-full h-8.5 px-2.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
-                  />
-                  <datalist id="to-locations-list">
-                    {locations.map((loc) => (
-                      <option key={loc.id} value={loc.city_name}>
-                        {loc.city_name} {loc.state ? `(${loc.state})` : ""}
-                      </option>
-                    ))}
-                  </datalist>
-                </div>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Unused voucher leaf automatically assigned.
+                </span>
               </div>
             </div>
 
-            {/* ROW 2: Date*, Vehicle No*, Driver Name*, Vendor* */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
-              {/* Date* */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+              {/* Challan Date */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Date <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Challan Date <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    required
-                    value={challanDate}
-                    onChange={(e) => setChallanDate(e.target.value)}
-                    className="w-full h-8.5 px-2.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
-                  />
-                </div>
+                <input
+                  type="date"
+                  required
+                  value={challanDate}
+                  onChange={(e) => setChallanDate(e.target.value)}
+                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                />
               </div>
 
-              {/* Vehicle No* */}
+              {/* Vendor Ref. No. */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Vendor Ref. No.
+                </label>
+                <input
+                  type="text"
+                  value={vendorRefNo}
+                  onChange={(e) => setVendorRefNo(e.target.value)}
+                  placeholder="e.g. VREF-12345"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Commercial Parties & Transit Corridor */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
+            <div className="border-b border-slate-100 pb-2.5">
+              <h3 className="text-sm font-bold text-slate-900">
+                2. Commercial Parties &amp; Transit Corridor
+              </h3>
+              <p className="text-xs text-slate-500">
+                Specify origin, destination, vehicle, driver, and vendor owner details.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {/* From */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  From (Origin) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  list="from-locations-list"
+                  value={fromLocation}
+                  onChange={(e) => setFromLocation(e.target.value)}
+                  placeholder="Select origin city"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                />
+                <datalist id="from-locations-list">
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.city_name}>
+                      {loc.city_name} {loc.state ? `(${loc.state})` : ""}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+
+              {/* To */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  To (Destination) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  list="to-locations-list"
+                  value={toLocation}
+                  onChange={(e) => setToLocation(e.target.value)}
+                  placeholder="Select destination city"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                />
+                <datalist id="to-locations-list">
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.city_name}>
+                      {loc.city_name} {loc.state ? `(${loc.state})` : ""}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+
+              {/* Vehicle No */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Vehicle No <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    list="vehicles-list"
-                    value={vehicleNumber}
-                    onChange={(e) => handleVehicleSelect(e.target.value)}
-                    placeholder="e.g. DL-01-AB-1234"
-                    className="w-full h-8.5 px-2.5 text-xs font-mono font-bold uppercase rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
-                  />
-                  <datalist id="vehicles-list">
-                    {vehicles.map((v) => (
-                      <option key={v.id} value={v.vehicle_number}>
-                        {v.vehicle_number} {v.vehicle_type ? `(${v.vehicle_type})` : ""}
-                      </option>
-                    ))}
-                  </datalist>
-                </div>
+                <input
+                  type="text"
+                  required
+                  list="vehicles-list"
+                  value={vehicleNumber}
+                  onChange={(e) => handleVehicleSelect(e.target.value)}
+                  placeholder="e.g. DL-01-AB-1234"
+                  className="w-full h-9 px-3 text-xs font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                />
+                <datalist id="vehicles-list">
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.vehicle_number}>
+                      {v.vehicle_number} {v.vehicle_type ? `(${v.vehicle_type})` : ""}
+                    </option>
+                  ))}
+                </datalist>
               </div>
 
-              {/* Driver Name* with Blue '+' and Yellow Reload buttons */}
+              {/* Driver Name with Blue '+' and Yellow Reload */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Driver Name <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex items-center gap-1.5">
                   <select
                     value={driverId}
                     onChange={(e) => handleDriverSelect(e.target.value)}
-                    className="w-full h-8.5 px-2 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all truncate"
+                    className="w-full h-9 px-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all truncate"
                   >
                     <option value="">- Select Driver -</option>
                     {drivers.map((d) => (
@@ -1244,23 +1451,21 @@ export default function HireChallansPage() {
                     ))}
                   </select>
 
-                  {/* Blue '+' Quick Add Driver Button */}
                   <button
                     type="button"
                     onClick={() => setQuickDriverOpen(true)}
                     title="Quick Add Driver"
-                    className="w-8.5 h-8.5 bg-[#0284c7] hover:bg-[#0369a1] text-white rounded-lg flex items-center justify-center shrink-0 shadow-2xs transition-colors"
+                    className="w-9 h-9 bg-sky-600 hover:bg-sky-700 text-white rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
 
-                  {/* Yellow Reload Driver Button */}
                   <button
                     type="button"
                     onClick={refreshDrivers}
                     title="Refresh Drivers List"
                     className={cn(
-                      "w-8.5 h-8.5 bg-[#eab308] hover:bg-[#ca8a04] text-white rounded-lg flex items-center justify-center shrink-0 shadow-2xs transition-all",
+                      "w-9 h-9 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-all",
                       isRefreshingDrivers && "animate-spin"
                     )}
                   >
@@ -1269,17 +1474,17 @@ export default function HireChallansPage() {
                 </div>
               </div>
 
-              {/* Vendor* with '+ Add New' button */}
+              {/* Vendor / Owner */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Vendor <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Vendor / Vehicle Owner <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex items-center gap-1.5">
                   <select
                     value={ownerId}
                     onChange={(e) => setOwnerId(e.target.value)}
                     required
-                    className="w-full h-8.5 px-2 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all truncate"
+                    className="w-full h-9 px-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all truncate"
                   >
                     <option value="">- Select Vendor / Owner -</option>
                     {owners.map((o) => (
@@ -1292,25 +1497,350 @@ export default function HireChallansPage() {
                     type="button"
                     onClick={() => setQuickOwnerOpen(true)}
                     title="Add New Vendor / Owner"
-                    className="w-8.5 h-8.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+                    className="w-9 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* ROW 3: TDS Category, TDS Amount, Advance Paid, Vendor Ref. No. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+          {/* Section 3: Loading Expenses Table */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  3. Loading Expenses
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Select linked GR/LR consignment to auto-fill package count and gross weight.
+                </p>
+              </div>
+              <span className="text-xs font-mono font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                Subtotal: {formatCurrency(totalLoadingAmount)}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
+                    <th className="py-2.5 px-3 min-w-[160px]">GR/LR No</th>
+                    <th className="py-2.5 px-3 w-24">Pkg Ct.</th>
+                    <th className="py-2.5 px-3 w-28">Gross Wt</th>
+                    <th className="py-2.5 px-3 min-w-[160px]">Charge Head</th>
+                    <th className="py-2.5 px-3 min-w-[180px]">Narration</th>
+                    <th className="py-2.5 px-3 w-16 text-center">TDS</th>
+                    <th className="py-2.5 px-3 w-32 text-right">INR Amount</th>
+                    <th className="py-2.5 px-2 w-10 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {loadingExpenses.map((row, idx) => (
+                    <tr key={row.id || idx} className="hover:bg-slate-50/50">
+                      {/* GR/LR No */}
+                      <td className="py-2 px-2.5">
+                        <select
+                          value={row.lr_no || ""}
+                          onChange={(e) => updateLoadingRow(idx, "lr_no", e.target.value)}
+                          className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          <option value="">- Select GR/LR -</option>
+                          {lrs.map((lr) => (
+                            <option key={lr.id} value={lr.lr_number}>
+                              {lr.lr_number} ({lr.package_count || 0} pkgs)
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Pkg Ct. */}
+                      <td className="py-2 px-2.5">
+                        <input
+                          type="number"
+                          value={row.pkg_count || ""}
+                          onChange={(e) => updateLoadingRow(idx, "pkg_count", e.target.value)}
+                          placeholder="0"
+                          className="w-full h-8 px-2 text-xs font-mono rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* Gross Wt */}
+                      <td className="py-2 px-2.5">
+                        <input
+                          type="text"
+                          value={row.gross_weight || ""}
+                          onChange={(e) => updateLoadingRow(idx, "gross_weight", e.target.value)}
+                          placeholder="0.00"
+                          className="w-full h-8 px-2 text-xs font-mono rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* Charge Head */}
+                      <td className="py-2 px-2.5">
+                        <select
+                          value={row.charge_head || "Loading Charges"}
+                          onChange={(e) => updateLoadingRow(idx, "charge_head", e.target.value)}
+                          className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          {availableChargeHeads.map((head) => (
+                            <option key={head} value={head}>
+                              {head}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Narration */}
+                      <td className="py-2 px-2.5">
+                        <input
+                          type="text"
+                          value={row.narration || ""}
+                          onChange={(e) => updateLoadingRow(idx, "narration", e.target.value)}
+                          placeholder="Remarks / notes"
+                          className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* TDS Checkbox */}
+                      <td className="py-2 px-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(row.tds_applicable)}
+                          onChange={(e) => updateLoadingRow(idx, "tds_applicable", e.target.checked)}
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* INR Amount */}
+                      <td className="py-2 px-2.5 text-right">
+                        <input
+                          type="number"
+                          step="any"
+                          value={row.inr_amount || ""}
+                          onChange={(e) => updateLoadingRow(idx, "inr_amount", e.target.value)}
+                          placeholder="0.00"
+                          className="w-full h-8 px-2 text-xs font-mono font-semibold text-right rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* Delete Row */}
+                      <td className="py-2 px-1.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeLoadingRow(idx)}
+                          className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                          title="Remove line"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addLoadingRow}
+              className="text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50 flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Loading Expense Line</span>
+            </Button>
+          </div>
+
+          {/* Section 4: Unloading Expenses Table */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  4. Unloading Expenses
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Unloading, hamali, and destination terminal delivery expenses.
+                </p>
+              </div>
+              <span className="text-xs font-mono font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                Subtotal: {formatCurrency(totalUnloadingAmount)}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
+                    <th className="py-2.5 px-3 min-w-[160px]">GR/LR No</th>
+                    <th className="py-2.5 px-3 w-24">Pkg Ct.</th>
+                    <th className="py-2.5 px-3 w-28">Gross Wt</th>
+                    <th className="py-2.5 px-3 min-w-[160px]">Charge Head</th>
+                    <th className="py-2.5 px-3 min-w-[180px]">Narration</th>
+                    <th className="py-2.5 px-3 w-16 text-center">TDS</th>
+                    <th className="py-2.5 px-3 w-32 text-right">INR Amount</th>
+                    <th className="py-2.5 px-2 w-10 text-center"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {unloadingExpenses.map((row, idx) => (
+                    <tr key={row.id || idx} className="hover:bg-slate-50/50">
+                      {/* GR/LR No */}
+                      <td className="py-2 px-2.5">
+                        <select
+                          value={row.lr_no || ""}
+                          onChange={(e) => updateUnloadingRow(idx, "lr_no", e.target.value)}
+                          className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          <option value="">- Select GR/LR -</option>
+                          {lrs.map((lr) => (
+                            <option key={lr.id} value={lr.lr_number}>
+                              {lr.lr_number} ({lr.package_count || 0} pkgs)
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Pkg Ct. */}
+                      <td className="py-2 px-2.5">
+                        <input
+                          type="number"
+                          value={row.pkg_count || ""}
+                          onChange={(e) => updateUnloadingRow(idx, "pkg_count", e.target.value)}
+                          placeholder="0"
+                          className="w-full h-8 px-2 text-xs font-mono rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* Gross Wt */}
+                      <td className="py-2 px-2.5">
+                        <input
+                          type="text"
+                          value={row.gross_weight || ""}
+                          onChange={(e) => updateUnloadingRow(idx, "gross_weight", e.target.value)}
+                          placeholder="0.00"
+                          className="w-full h-8 px-2 text-xs font-mono rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* Charge Head */}
+                      <td className="py-2 px-2.5">
+                        <select
+                          value={row.charge_head || "Unloading Charges"}
+                          onChange={(e) => updateUnloadingRow(idx, "charge_head", e.target.value)}
+                          className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          {availableChargeHeads.map((head) => (
+                            <option key={head} value={head}>
+                              {head}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Narration */}
+                      <td className="py-2 px-2.5">
+                        <input
+                          type="text"
+                          value={row.narration || ""}
+                          onChange={(e) => updateUnloadingRow(idx, "narration", e.target.value)}
+                          placeholder="Remarks / notes"
+                          className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* TDS Checkbox */}
+                      <td className="py-2 px-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(row.tds_applicable)}
+                          onChange={(e) => updateUnloadingRow(idx, "tds_applicable", e.target.checked)}
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* INR Amount */}
+                      <td className="py-2 px-2.5 text-right">
+                        <input
+                          type="number"
+                          step="any"
+                          value={row.inr_amount || ""}
+                          onChange={(e) => updateUnloadingRow(idx, "inr_amount", e.target.value)}
+                          placeholder="0.00"
+                          className="w-full h-8 px-2 text-xs font-mono font-semibold text-right rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </td>
+
+                      {/* Delete Row */}
+                      <td className="py-2 px-1.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeUnloadingRow(idx)}
+                          className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                          title="Remove line"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addUnloadingRow}
+              className="text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50 flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Unloading Expense Line</span>
+            </Button>
+          </div>
+
+          {/* Section 5: Commercial Terms, TDS & Advance Payment */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4">
+            <div className="border-b border-slate-100 pb-2.5">
+              <h3 className="text-sm font-bold text-slate-900">
+                5. Commercial Terms &amp; Settlement
+              </h3>
+              <p className="text-xs text-slate-500">
+                TDS deduction, advance payment, and final balance calculation.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+              {/* Base Freight */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Base Freight (₹)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  value={baseHireRate}
+                  onChange={(e) => setBaseHireRate(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full h-9 px-3 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Fixed lorry freight (optional).
+                </span>
+              </div>
+
               {/* TDS Category */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   TDS Category
                 </label>
                 <select
                   value={tdsCategory}
                   onChange={(e) => handleTdsCategoryChange(e.target.value)}
-                  className="w-full h-8.5 px-2.5 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 >
                   {TDS_CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>
@@ -1318,12 +1848,15 @@ export default function HireChallansPage() {
                     </option>
                   ))}
                 </select>
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Applicable TDS tax section and standard rate.
+                </span>
               </div>
 
-              {/* TDS Amount (Disabled / Gray look per screenshot) */}
+              {/* TDS Amount */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  TDS Amount
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  TDS Amount (₹)
                 </label>
                 <input
                   type="number"
@@ -1331,14 +1864,17 @@ export default function HireChallansPage() {
                   value={calculatedTdsAmount > 0 ? calculatedTdsAmount : ""}
                   onChange={(e) => setTdsAmountInput(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-8.5 px-2.5 text-xs font-mono font-semibold rounded-lg border border-slate-300 bg-slate-100 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                  className="w-full h-9 px-3 text-xs font-mono font-semibold rounded-xl border border-slate-200 bg-slate-100 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Auto-calculated from rate ({tdsRate}%).
+                </span>
               </div>
 
               {/* Advance Paid */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Advance Paid
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Advance Paid (₹)
                 </label>
                 <input
                   type="number"
@@ -1346,322 +1882,41 @@ export default function HireChallansPage() {
                   value={advancePaid}
                   onChange={(e) => setAdvancePaid(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-8.5 px-2.5 text-xs font-mono rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                  className="w-full h-9 px-3 text-xs font-mono rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Amount paid immediately to driver/owner.
+                </span>
               </div>
 
-              {/* Vendor Ref. No. */}
+              {/* Remarks */}
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Vendor Ref. No.
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Remarks / Notes
                 </label>
                 <input
                   type="text"
-                  value={vendorRefNo}
-                  onChange={(e) => setVendorRefNo(e.target.value)}
-                  placeholder="e.g. VREF-12345"
-                  className="w-full h-8.5 px-2.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed] transition-all"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Operational instructions"
+                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 />
               </div>
             </div>
 
-            {/* SECTION 1: LOADING EXPENSES TABLE */}
-            <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight">
-                  Loading Expenses
-                </h3>
-                <span className="text-[11px] font-mono text-slate-500">
-                  Subtotal: {formatCurrency(totalLoadingAmount)}
-                </span>
-              </div>
-
-              <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
-                      <th className="py-2 px-3 min-w-[150px]">GR/LR No</th>
-                      <th className="py-2 px-3 w-24">Pkg Ct.</th>
-                      <th className="py-2 px-3 w-28">Gross Wt</th>
-                      <th className="py-2 px-3 min-w-[160px]">Charge Head</th>
-                      <th className="py-2 px-3 min-w-[180px]">Narration</th>
-                      <th className="py-2 px-3 w-16 text-center">TDS</th>
-                      <th className="py-2 px-3 w-32">INR Amount</th>
-                      <th className="py-2 px-2 w-10 text-center"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {loadingExpenses.map((row, idx) => (
-                      <tr key={row.id || idx} className="hover:bg-slate-50/50">
-                        {/* GR/LR No */}
-                        <td className="py-1.5 px-2">
-                          <select
-                            value={row.lr_no || ""}
-                            onChange={(e) => updateLoadingRow(idx, "lr_no", e.target.value)}
-                            className="w-full h-7.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          >
-                            <option value="">- Select GR/LR -</option>
-                            {lrs.map((lr) => (
-                              <option key={lr.id} value={lr.lr_number}>
-                                {lr.lr_number} ({lr.package_count || 0} pkgs)
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        {/* Pkg Ct. */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="number"
-                            value={row.pkg_count || ""}
-                            onChange={(e) => updateLoadingRow(idx, "pkg_count", e.target.value)}
-                            placeholder="0"
-                            className="w-full h-7.5 px-2 text-xs font-mono rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* Gross Wt */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="text"
-                            value={row.gross_weight || ""}
-                            onChange={(e) => updateLoadingRow(idx, "gross_weight", e.target.value)}
-                            placeholder="0.00"
-                            className="w-full h-7.5 px-2 text-xs font-mono rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* Charge Head */}
-                        <td className="py-1.5 px-2">
-                          <select
-                            value={row.charge_head || "Loading Charges"}
-                            onChange={(e) => updateLoadingRow(idx, "charge_head", e.target.value)}
-                            className="w-full h-7.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          >
-                            {DEFAULT_CHARGE_HEADS.map((head) => (
-                              <option key={head} value={head}>
-                                {head}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        {/* Narration */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="text"
-                            value={row.narration || ""}
-                            onChange={(e) => updateLoadingRow(idx, "narration", e.target.value)}
-                            placeholder="Remarks / notes"
-                            className="w-full h-7.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* TDS Checkbox */}
-                        <td className="py-1.5 px-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(row.tds_applicable)}
-                            onChange={(e) => updateLoadingRow(idx, "tds_applicable", e.target.checked)}
-                            className="w-4 h-4 text-[#7c3aed] border-slate-300 rounded focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* INR Amount */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="number"
-                            step="any"
-                            value={row.inr_amount || ""}
-                            onChange={(e) => updateLoadingRow(idx, "inr_amount", e.target.value)}
-                            placeholder="0.00"
-                            className="w-full h-7.5 px-2 text-xs font-mono font-semibold text-right rounded border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* Delete Row */}
-                        <td className="py-1.5 px-1 text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeLoadingRow(idx)}
-                            className="text-slate-400 hover:text-rose-600 transition-colors p-1"
-                            title="Remove line"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Green '+' button to add row */}
-              <button
-                type="button"
-                onClick={addLoadingRow}
-                title="Add Loading Expense Line"
-                className="w-7 h-7 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-md flex items-center justify-center shadow-xs transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* SECTION 2: UNLOADING EXPENSES TABLE */}
-            <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight">
-                  Unloading Expenses
-                </h3>
-                <span className="text-[11px] font-mono text-slate-500">
-                  Subtotal: {formatCurrency(totalUnloadingAmount)}
-                </span>
-              </div>
-
-              <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
-                      <th className="py-2 px-3 min-w-[150px]">GR/LR No</th>
-                      <th className="py-2 px-3 w-24">Pkg Ct.</th>
-                      <th className="py-2 px-3 w-28">Gross Wt</th>
-                      <th className="py-2 px-3 min-w-[160px]">Charge Head</th>
-                      <th className="py-2 px-3 min-w-[180px]">Narration</th>
-                      <th className="py-2 px-3 w-16 text-center">TDS</th>
-                      <th className="py-2 px-3 w-32">INR Amount</th>
-                      <th className="py-2 px-2 w-10 text-center"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {unloadingExpenses.map((row, idx) => (
-                      <tr key={row.id || idx} className="hover:bg-slate-50/50">
-                        {/* GR/LR No */}
-                        <td className="py-1.5 px-2">
-                          <select
-                            value={row.lr_no || ""}
-                            onChange={(e) => updateUnloadingRow(idx, "lr_no", e.target.value)}
-                            className="w-full h-7.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          >
-                            <option value="">- Select GR/LR -</option>
-                            {lrs.map((lr) => (
-                              <option key={lr.id} value={lr.lr_number}>
-                                {lr.lr_number} ({lr.package_count || 0} pkgs)
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        {/* Pkg Ct. */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="number"
-                            value={row.pkg_count || ""}
-                            onChange={(e) => updateUnloadingRow(idx, "pkg_count", e.target.value)}
-                            placeholder="0"
-                            className="w-full h-7.5 px-2 text-xs font-mono rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* Gross Wt */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="text"
-                            value={row.gross_weight || ""}
-                            onChange={(e) => updateUnloadingRow(idx, "gross_weight", e.target.value)}
-                            placeholder="0.00"
-                            className="w-full h-7.5 px-2 text-xs font-mono rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* Charge Head */}
-                        <td className="py-1.5 px-2">
-                          <select
-                            value={row.charge_head || "Unloading Charges"}
-                            onChange={(e) => updateUnloadingRow(idx, "charge_head", e.target.value)}
-                            className="w-full h-7.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          >
-                            {DEFAULT_CHARGE_HEADS.map((head) => (
-                              <option key={head} value={head}>
-                                {head}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        {/* Narration */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="text"
-                            value={row.narration || ""}
-                            onChange={(e) => updateUnloadingRow(idx, "narration", e.target.value)}
-                            placeholder="Remarks / notes"
-                            className="w-full h-7.5 px-2 text-xs rounded border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* TDS Checkbox */}
-                        <td className="py-1.5 px-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(row.tds_applicable)}
-                            onChange={(e) => updateUnloadingRow(idx, "tds_applicable", e.target.checked)}
-                            className="w-4 h-4 text-[#7c3aed] border-slate-300 rounded focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* INR Amount */}
-                        <td className="py-1.5 px-2">
-                          <input
-                            type="number"
-                            step="any"
-                            value={row.inr_amount || ""}
-                            onChange={(e) => updateUnloadingRow(idx, "inr_amount", e.target.value)}
-                            placeholder="0.00"
-                            className="w-full h-7.5 px-2 text-xs font-mono font-semibold text-right rounded border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
-                          />
-                        </td>
-
-                        {/* Delete Row */}
-                        <td className="py-1.5 px-1 text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeUnloadingRow(idx)}
-                            className="text-slate-400 hover:text-rose-600 transition-colors p-1"
-                            title="Remove line"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Green '+' button to add row */}
-              <button
-                type="button"
-                onClick={addUnloadingRow}
-                title="Add Unloading Expense Line"
-                className="w-7 h-7 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-md flex items-center justify-center shadow-xs transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-
             {/* LIVE FINANCIAL BREAKDOWN BAR */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 text-xs">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 text-xs mt-3">
               <div>
                 <span className="text-[10px] text-slate-500 uppercase block font-semibold">
                   Gross Lorry Hire
                 </span>
-                <span className="font-bold text-slate-800 text-sm">
+                <span className="font-bold text-slate-900 text-sm">
                   {formatCurrency(totalGrossExpenses)}
                 </span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-500 uppercase block font-semibold">
-                  TDS Rate & Amt
+                  TDS Rate &amp; Amt
                 </span>
                 <span className="font-semibold text-slate-700">
                   {tdsRate}% · {formatCurrency(calculatedTdsAmount)}
@@ -1697,76 +1952,40 @@ export default function HireChallansPage() {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* SUBMIT BUTTON (Matching the purple button in the screenshot) */}
-            <div className="pt-2 flex items-center justify-start">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-[#6f42c1] hover:bg-[#5b21b6] text-white font-semibold text-xs sm:text-sm px-6 py-2 rounded-md shadow-sm transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <RotateCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <span>Submit</span>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          {/* Form Actions Footer */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDrawerOpen(false);
+                setEditingId(null);
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isSubmitting}
+            >
+              {editingId ? "Save Changes" : "Issue Hire Challan"}
+            </Button>
+          </div>
+        </form>
+      </EntityDrawer>
 
-      {/* 3. HC RECORDS TABLE SECTION */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h2 className="text-base font-bold text-slate-900">
-            Registered Hire Challans ({filteredData.length})
-          </h2>
-
-          <FilterBar
-            searchValue={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Search challan number, vehicle, driver, vendor..."
-            filters={[
-              {
-                id: "status",
-                label: "All Statuses",
-                value: statusFilter,
-                options: [
-                  { label: "All Statuses", value: "ALL" },
-                  { label: "Draft", value: "DRAFT" },
-                  { label: "Issued", value: "ISSUED" },
-                  { label: "In Transit", value: "TRANSIT" },
-                  { label: "Settled", value: "SETTLED" },
-                  { label: "Cancelled", value: "CANCELLED" },
-                ],
-                onChange: setStatusFilter,
-              },
-            ]}
-          />
-        </div>
-
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          actions={actions}
-          isLoading={isLoading}
-          emptyMessage="No Hire Challans Found"
-          emptySubtext='Fill the form above or click "+ Add New" to issue your first Hire Challan.'
-        />
-      </div>
-
-      {/* 4. CHALLAN DETAIL VIEW MODAL */}
+      {/* 5. CHALLAN DETAIL VIEW MODAL */}
       {selectedChallanDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-purple-50 text-[#7c3aed] border border-purple-100">
+                <div className="p-2 rounded-xl bg-purple-50 text-indigo-600 border border-indigo-100">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>

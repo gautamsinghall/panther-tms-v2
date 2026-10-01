@@ -647,10 +647,13 @@ async def update_hire_challan(db: AsyncSession, hc_id: int, data: HireChallanUpd
     hire_rate = hc.hire_rate or Decimal("0.00")
     tds_rate = hc.tds_rate or Decimal("0.00")
     tds = (hire_rate * tds_rate) / Decimal("100.00") if tds_rate > Decimal("0.00") else (hc.tds_amount or Decimal("0.00"))
-    net_payable = (hire_rate + hc.detention_charge) - (tds + hc.mamul_charges)
+    detention = hc.detention_charge or Decimal("0.00")
+    mamul = hc.mamul_charges or Decimal("0.00")
+    advance = hc.advance_amount or Decimal("0.00")
+    net_payable = (hire_rate + detention) - (tds + mamul)
     hc.tds_amount = tds
     hc.net_payable_amount = net_payable
-    hc.balance_amount = net_payable - hc.advance_amount
+    hc.balance_amount = net_payable - advance
 
     await db.commit()
     await db.refresh(hc)
