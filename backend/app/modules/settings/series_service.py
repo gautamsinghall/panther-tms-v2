@@ -762,44 +762,12 @@ async def allocate_or_validate_voucher_number(
                 final_number = format_series_number(prefix, next_num, suffix)
                 series.current_number = next_num
         else:
-            # AUTOMATIC Mode
-            if manual_number and manual_number.strip():
-                clean_val = manual_number.strip()
-                final_number = clean_val
-                # Ensure configured series prefix and postfix are attached if not already present
-                if prefix and not final_number.lower().startswith(prefix.lower()):
-                    final_number = f"{prefix}{final_number}"
-                if suffix and not final_number.lower().endswith(suffix.lower()):
-                    final_number = f"{final_number}{suffix}"
-
-                all_used = await get_all_used_numbers_for_doc(db, norm_type)
-                if final_number in all_used or clean_val in all_used:
-                    raise AppException(
-                        status_code=400,
-                        error_code="VOUCHER_NUMBER_ALREADY_USED",
-                        message=f"Voucher number '{final_number}' is already used. Please choose an unused voucher number.",
-                    )
-
-                # Extract pure sequence number by stripping prefix and suffix first
-                core_val = clean_val
-                if prefix and core_val.lower().startswith(prefix.lower()):
-                    core_val = core_val[len(prefix):]
-                if suffix and core_val.lower().endswith(suffix.lower()):
-                    core_val = core_val[:-len(suffix)]
-                digits = "".join(filter(str.isdigit, core_val))
-                if digits:
-                    try:
-                        num_val = int(digits)
-                        if num_val > (series.current_number or 0):
-                            series.current_number = num_val
-                    except ValueError:
-                        pass
-            else:
-                real_usage = await get_real_voucher_usage(db, norm_type)
-                disp = compute_series_display_data(series, real_usage=real_usage)
-                next_num = disp["next_number"]
-                final_number = format_series_number(prefix, next_num, suffix)
-                series.current_number = next_num
+            # AUTOMATIC Mode: Always auto-allocate next sequential number from series master
+            real_usage = await get_real_voucher_usage(db, norm_type)
+            disp = compute_series_display_data(series, real_usage=real_usage)
+            next_num = disp["next_number"]
+            final_number = format_series_number(prefix, next_num, suffix)
+            series.current_number = next_num
 
         # Check end number bounds if configured
         if series.end_number and series.current_number > series.end_number:

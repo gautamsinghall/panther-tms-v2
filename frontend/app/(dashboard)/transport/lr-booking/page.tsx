@@ -18,6 +18,7 @@ import {
   Lock,
   Layers,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -237,8 +238,8 @@ export default function LRBookingPage() {
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/packing-methods").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/load-types").catch(() => []),
-        apiClient<any>("/api/v1/settings/series/check/LR").catch(() => null),
-        apiClient<any>("/api/v1/settings/series/manual-ranges/LR").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/LR${office?.id ? `?office_id=${office.id}` : ""}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/manual-ranges/LR${office?.id ? `?office_id=${office.id}` : ""}`).catch(() => null),
       ]);
 
       setData(Array.isArray(lrsRes) ? lrsRes : []);
@@ -373,13 +374,18 @@ export default function LRBookingPage() {
 
   const seriesRangeOptions = useMemo(() => {
     if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) {
-      return [{ label: "Default LR Sequence", value: "default" }];
+      return [{
+        label: seriesInfo?.configured
+          ? `Automatic Series (${seriesInfo.next_number_formatted})`
+          : "Default LR Sequence",
+        value: "default",
+      }];
     }
     return manualSeriesData.ranges.map((r) => ({
       value: String(r.id),
       label: `${r.series_name || "LR Series"} · ${r.prefix || ""}${r.starting_number} to ${r.prefix || ""}${r.end_number || "..."}${r.suffix || ""} (${r.available_count} available)`,
     }));
-  }, [manualSeriesData]);
+  }, [manualSeriesData, seriesInfo]);
 
   // Selected series object
   const activeSeriesObj = useMemo(() => {
@@ -526,7 +532,7 @@ export default function LRBookingPage() {
       }
     } catch {}
 
-    const seriesId = freshData.lr_series_id ? String(freshData.lr_series_id) : "";
+    const seriesId = freshData.lr_series_id ? String(freshData.lr_series_id) : "default";
     setSelectedSeriesId(seriesId);
     setSelectedConsignerId(String(freshData.consigner_id || ""));
     setSelectedConsigneeId(String(freshData.consignee_id || ""));
@@ -591,12 +597,12 @@ export default function LRBookingPage() {
     setEditingLrRecord(null);
 
     const defaultSeries = manualSeriesData?.ranges?.find((r) => r.is_default) || manualSeriesData?.ranges?.[0];
-    const initialSeriesId = defaultSeries ? String(defaultSeries.id) : "";
+    const initialSeriesId = defaultSeries ? String(defaultSeries.id) : "default";
     setSelectedSeriesId(initialSeriesId);
     setSelectedConsignerId("");
     setSelectedConsigneeId("");
 
-    const initialLrNo = editingLrRecord?.lr_number || (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || (defaultSeries?.available_options?.[0]?.value || "");
+    const initialLrNo = (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || (defaultSeries?.available_options?.[0]?.value || "");
 
     setFormInitialValues({
       job_id: "",
@@ -792,7 +798,10 @@ export default function LRBookingPage() {
           name: "lr_series_id",
           label: "LR Series",
           type: "select",
-          required: true,
+          required: Boolean(manualSeriesData?.ranges && manualSeriesData.ranges.length > 0),
+          disabled: !manualSeriesData?.ranges || manualSeriesData.ranges.length === 0,
+          disabledReason: "Using active automatic series from Series Master.",
+          defaultValue: "default",
           options: seriesRangeOptions,
           onChange: (newSeriesId) => {
             setSelectedSeriesId(newSeriesId);
@@ -811,7 +820,7 @@ export default function LRBookingPage() {
           type: "text",
           disabled: true,
           disabledReason: "Locked — automatically allocated from Series Master for this issuing office.",
-          required: true,
+          required: false,
           placeholder: (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "",
           helperText: seriesInfo?.configured
             ? `🔒 Auto-allocated from Series Master (${seriesInfo.next_number_formatted}). Non-editable.`
@@ -1383,11 +1392,15 @@ export default function LRBookingPage() {
                 {activeOfficeDisplay}
               </span>
             </div>
-            {activeSeriesObj && (
+            {activeSeriesObj ? (
               <div className="font-mono text-slate-600 text-[11px]">
                 Series Batch: <span className="font-bold text-slate-900">{activeSeriesObj.starting_number} – {activeSeriesObj.end_number || "..."}</span>
               </div>
-            )}
+            ) : seriesInfo?.configured ? (
+              <div className="font-mono text-slate-600 text-[11px] flex items-center gap-1.5">
+                Next LR No: <span className="font-bold text-indigo-900 bg-white px-2 py-0.5 rounded border border-indigo-200">{seriesInfo.next_number_formatted}</span>
+              </div>
+            ) : null}
           </div>
           {activeSeriesObj && (
             <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
