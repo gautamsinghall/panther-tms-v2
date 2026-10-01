@@ -220,6 +220,7 @@ export default function HireChallansPage() {
   // -------------------------------------------------------------
   // FORM FIELDS STATE (Exact fields from reference)
   // -------------------------------------------------------------
+  const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(() => getActiveOffice());
   const [issuingOfficeId, setIssuingOfficeId] = useState<string>("");
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
   const [challanNumber, setChallanNumber] = useState<string>("");
@@ -274,12 +275,96 @@ export default function HireChallansPage() {
   ]);
 
   // -------------------------------------------------------------
+  // CORE FEATURE: Auto-fill HC Series and HC No by Issuing Office
+  // -------------------------------------------------------------
+  const autoFillSeriesAndHCNo = useCallback(
+    async (officeId: string | number, branchList?: BranchOption[]) => {
+      if (!officeId) {
+        setSelectedSeriesId("");
+        setChallanNumber("");
+        setManualSeriesData(null);
+        setSeriesInfo(null);
+        return;
+      }
+
+      try {
+        const [manualRangesRes, seriesCheckRes] = await Promise.all([
+          apiClient<any>(
+            `/api/v1/settings/series/manual-ranges/HIRE_CHALLAN?office_id=${officeId}`
+          ).catch(() => null),
+          apiClient<any>(
+            `/api/v1/settings/series/check/HIRE_CHALLAN?office_id=${officeId}`
+          ).catch(() => null),
+        ]);
+
+        setManualSeriesData(manualRangesRes);
+        setSeriesInfo(seriesCheckRes);
+
+        // Default From to branch city if From is empty
+        const currentBranches = branchList || branches;
+        const branch = currentBranches.find((b) => String(b.id) === String(officeId));
+        if (branch && branch.city) {
+          setFromLocation((prev) => (prev ? prev : branch.city || ""));
+        }
+
+        // Auto-fill Series and HC No
+        if (manualRangesRes && manualRangesRes.ranges && manualRangesRes.ranges.length > 0) {
+          const defaultSeries =
+            manualRangesRes.ranges.find(
+              (r: SeriesRangeItem) => r.id === manualRangesRes.default_series_id
+            ) || manualRangesRes.ranges[0];
+
+          setSelectedSeriesId(String(defaultSeries.id));
+
+          const nextLeaf =
+            defaultSeries.available_options?.[0]?.value ||
+            seriesCheckRes?.next_number_formatted ||
+            "";
+          setChallanNumber(nextLeaf);
+        } else if (seriesCheckRes && seriesCheckRes.next_number_formatted) {
+          setSelectedSeriesId("");
+          setChallanNumber(seriesCheckRes.next_number_formatted);
+        } else {
+          setSelectedSeriesId("");
+          setChallanNumber("");
+        }
+      } catch (err) {
+        console.error("Error auto-filling series and HC No:", err);
+      }
+    },
+    [branches]
+  );
+
+  // Computed display string for the fixed issuing office
+  const currentOfficeDisplay = useMemo(() => {
+    if (issuingOfficeId) {
+      const branch = branches.find((b) => String(b.id) === String(issuingOfficeId));
+      if (branch) {
+        return `${branch.name}${branch.code ? ` (${branch.code})` : ""}`;
+      }
+    }
+    if (activeOffice && (!issuingOfficeId || String(activeOffice.id) === String(issuingOfficeId))) {
+      return `${activeOffice.name}${activeOffice.code ? ` (${activeOffice.code})` : ""}`;
+    }
+    if (branches.length > 0) {
+      const b = branches.find((br) => br.is_head_office) || branches[0];
+      return `${b.name}${b.code ? ` (${b.code})` : ""}`;
+    }
+    return activeOffice?.name
+      ? `${activeOffice.name}${activeOffice.code ? ` (${activeOffice.code})` : ""}`
+      : "Active Issuing Office";
+  }, [branches, issuingOfficeId, activeOffice]);
+
+  // -------------------------------------------------------------
   // Load Master Data
   // -------------------------------------------------------------
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const activeOffice = getActiveOffice();
+      const activeOfficeData = getActiveOffice();
+      if (activeOfficeData) {
+        setActiveOfficeState(activeOfficeData);
+      }
 
       const [
         challansRes,
@@ -343,92 +428,42 @@ export default function HireChallansPage() {
 
       // Initial active office selection
       let defaultOfficeId = "";
-      if (activeOffice && activeOffice.id) {
-        defaultOfficeId = String(activeOffice.id);
+      if (activeOfficeData && activeOfficeData.id && activeOfficeData.id > 0) {
+        defaultOfficeId = String(activeOfficeData.id);
       } else if (branchList.length > 0) {
         const ho = branchList.find((b) => b.is_head_office) || branchList[0];
         defaultOfficeId = String(ho.id);
       }
 
-      if (defaultOfficeId && !issuingOfficeId) {
-        setIssuingOfficeId(defaultOfficeId);
+      if (defaultOfficeId) {
+        setIssuingOfficeId((prev) => (prev ? prev : defaultOfficeId));
+        autoFillSeriesAndHCNo(defaultOfficeId, branchList);
       }
     } catch (err: any) {
       console.error("Failed to load initial data:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [issuingOfficeId]);
+  }, [autoFillSeriesAndHCNo]);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
 
-  // -------------------------------------------------------------
-  // CORE FEATURE: Auto-fill HC Series and HC No by Issuing Office
-  // -------------------------------------------------------------
-  const autoFillSeriesAndHCNo = async (
-    officeId: string | number,
-    branchList?: BranchOption[]
-  ) => {
-    if (!officeId) {
-      setSelectedSeriesId("");
-      setChallanNumber("");
-      setManualSeriesData(null);
-      setSeriesInfo(null);
-      return;
-    }
-
-    try {
-      const [manualRangesRes, seriesCheckRes] = await Promise.all([
-        apiClient<any>(
-          `/api/v1/settings/series/manual-ranges/HIRE_CHALLAN?office_id=${officeId}`
-        ).catch(() => null),
-        apiClient<any>(
-          `/api/v1/settings/series/check/HIRE_CHALLAN?office_id=${officeId}`
-        ).catch(() => null),
-      ]);
-
-      setManualSeriesData(manualRangesRes);
-      setSeriesInfo(seriesCheckRes);
-
-      // Default From to branch city if From is empty
-      const currentBranches = branchList || branches;
-      const branch = currentBranches.find((b) => String(b.id) === String(officeId));
-      if (branch && branch.city) {
-        setFromLocation((prev) => (prev ? prev : branch.city || ""));
+    const handleOfficeChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<OfficeSummary>;
+      if (customEvent.detail) {
+        setActiveOfficeState(customEvent.detail);
+        if (customEvent.detail.id && customEvent.detail.id > 0 && !editingId) {
+          const newOfficeId = String(customEvent.detail.id);
+          setIssuingOfficeId(newOfficeId);
+          autoFillSeriesAndHCNo(newOfficeId, branches);
+        }
       }
+    };
 
-      // Auto-fill Series and HC No
-      if (manualRangesRes && manualRangesRes.ranges && manualRangesRes.ranges.length > 0) {
-        const defaultSeries =
-          manualRangesRes.ranges.find(
-            (r: SeriesRangeItem) => r.id === manualRangesRes.default_series_id
-          ) || manualRangesRes.ranges[0];
-
-        setSelectedSeriesId(String(defaultSeries.id));
-
-        const nextLeaf =
-          defaultSeries.available_options?.[0]?.value ||
-          seriesCheckRes?.next_number_formatted ||
-          "";
-        setChallanNumber(nextLeaf);
-      } else if (seriesCheckRes && seriesCheckRes.next_number_formatted) {
-        setSelectedSeriesId("");
-        setChallanNumber(seriesCheckRes.next_number_formatted);
-      } else {
-        setSelectedSeriesId("");
-        setChallanNumber("");
-      }
-    } catch (err) {
-      console.error("Error auto-filling series and HC No:", err);
-    }
-  };
-
-  const handleOfficeChange = (newOfficeId: string) => {
-    setIssuingOfficeId(newOfficeId);
-    autoFillSeriesAndHCNo(newOfficeId);
-  };
+    window.addEventListener("panther_office_changed", handleOfficeChanged);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChanged);
+  }, [loadData, editingId, branches, autoFillSeriesAndHCNo]);
 
   const handleSeriesChange = (newSeriesId: string) => {
     setSelectedSeriesId(newSeriesId);
@@ -716,11 +751,24 @@ export default function HireChallansPage() {
   // Open Create Drawer
   const openCreateDrawer = () => {
     setEditingId(null);
-    const activeOffice = getActiveOffice();
-    const officeToUse = activeOffice?.id ? String(activeOffice.id) : issuingOfficeId || (branches[0] ? String(branches[0].id) : "");
+    const activeOfficeData = getActiveOffice();
+    if (activeOfficeData) {
+      setActiveOfficeState(activeOfficeData);
+    }
+
+    let officeToUse = "";
+    if (activeOfficeData && activeOfficeData.id && activeOfficeData.id > 0) {
+      officeToUse = String(activeOfficeData.id);
+    } else if (branches.length > 0) {
+      const ho = branches.find((b) => b.is_head_office) || branches[0];
+      officeToUse = String(ho.id);
+    } else if (issuingOfficeId) {
+      officeToUse = issuingOfficeId;
+    }
+
     if (officeToUse) {
       setIssuingOfficeId(officeToUse);
-      autoFillSeriesAndHCNo(officeToUse);
+      autoFillSeriesAndHCNo(officeToUse, branches);
     }
     setChallanDate(new Date().toISOString().split("T")[0]);
     setVehicleNumber("");
@@ -845,8 +893,21 @@ export default function HireChallansPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!issuingOfficeId) {
-      alert("Please select an Issuing Office (Branch).");
+    let effectiveOfficeId = issuingOfficeId;
+    if (!effectiveOfficeId) {
+      const active = getActiveOffice();
+      if (active && active.id && active.id > 0) {
+        effectiveOfficeId = String(active.id);
+        setIssuingOfficeId(effectiveOfficeId);
+      } else if (branches.length > 0) {
+        const ho = branches.find((b) => b.is_head_office) || branches[0];
+        effectiveOfficeId = String(ho.id);
+        setIssuingOfficeId(effectiveOfficeId);
+      }
+    }
+
+    if (!effectiveOfficeId) {
+      alert("No active issuing office / branch found. Please ensure an active office is configured.");
       return;
     }
     if (!challanNumber.trim()) {
@@ -873,7 +934,7 @@ export default function HireChallansPage() {
 
       const payload = {
         challan_number: challanNumber.trim(),
-        issuing_office_id: parseInt(issuingOfficeId, 10),
+        issuing_office_id: parseInt(effectiveOfficeId, 10),
         hc_series_id: selectedSeriesId ? parseInt(selectedSeriesId, 10) : undefined,
         challan_date: challanDate,
         lr_id: primaryLrId ? parseInt(String(primaryLrId), 10) : undefined,
@@ -1209,7 +1270,7 @@ export default function HireChallansPage() {
                 Selected Branch:
               </span>
               <span className="font-bold text-indigo-800 bg-white px-2 py-0.5 rounded border border-indigo-200">
-                {branches.find((b) => String(b.id) === issuingOfficeId)?.name || "Select Issuing Office"}
+                {currentOfficeDisplay}
               </span>
             </div>
             {activeSeriesRange && (
@@ -1237,31 +1298,39 @@ export default function HireChallansPage() {
                 1. Branch &amp; Sequence Allocation
               </h3>
               <p className="text-xs text-slate-500">
-                Select issuing office to automatically load and assign the configured numbering sequence.
+                Issuing office is automatically linked to your current active office. Sequence and booklet numbering are allocated accordingly.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {/* Issuing Office */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Issuing Office <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>
+                    Issuing Office <span className="text-rose-500">*</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                    <Lock className="w-2.5 h-2.5 text-slate-500" /> Current Office
+                  </span>
                 </label>
-                <select
-                  value={issuingOfficeId}
-                  onChange={(e) => handleOfficeChange(e.target.value)}
-                  required
-                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-                >
-                  <option value="">Select Branch</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    readOnly
+                    tabIndex={-1}
+                    value={currentOfficeDisplay}
+                    aria-label="Issuing Office"
+                    className="w-full h-9 pl-8 pr-8 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none focus:ring-0 shadow-2xs"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                </div>
                 <span className="text-[11px] text-slate-400 mt-1 block">
-                  Autofills HC Series and HC No when selected.
+                  Autofetched from current active issuing office and locked.
                 </span>
               </div>
 
