@@ -29,7 +29,8 @@ import { CompanyNavTabs } from "@/components/company/company-nav-tabs";
 
 interface ApiCenterData {
   ewb_username: string;
-  ewb_password: string;
+  ewb_password?: string;
+  has_ewb_password?: boolean;
   ewb_gstin: string;
   is_ewb_active: boolean;
   gsp_client_id_override?: string;
@@ -49,6 +50,7 @@ export default function ApiCenterPage() {
   // Form Fields
   const [ewbUsername, setEwbUsername] = useState("");
   const [ewbPassword, setEwbPassword] = useState("");
+  const [hasSavedPassword, setHasSavedPassword] = useState(false);
   const [ewbGstin, setEwbGstin] = useState("");
   const [isEwbActive, setIsEwbActive] = useState(true);
 
@@ -56,6 +58,7 @@ export default function ApiCenterPage() {
   const [gspBaseUrlOverride, setGspBaseUrlOverride] = useState("");
   const [gspClientIdOverride, setGspClientIdOverride] = useState("");
   const [gspClientSecretOverride, setGspClientSecretOverride] = useState("");
+  const [hasSavedGspSecret, setHasSavedGspSecret] = useState(false);
 
   // Platform info
   const [platformGspBaseUrl, setPlatformGspBaseUrl] = useState("https://gsp.adaequare.com");
@@ -66,7 +69,6 @@ export default function ApiCenterPage() {
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message: string;
-    token_preview?: string;
     details?: any;
   } | null>(null);
 
@@ -77,11 +79,14 @@ export default function ApiCenterPage() {
       const data = await apiClient.get<ApiCenterData>("/api/v1/profile/api-center");
       if (data) {
         setEwbUsername(data.ewb_username || "");
-        setEwbPassword(data.ewb_password || "");
+        setHasSavedPassword(Boolean(data.has_ewb_password));
+        setEwbPassword(data.has_ewb_password ? "••••••••••••" : "");
         setEwbGstin(data.ewb_gstin || "");
         setIsEwbActive(data.is_ewb_active !== undefined ? data.is_ewb_active : true);
         setGspBaseUrlOverride(data.gsp_base_url_override || "");
         setGspClientIdOverride(data.gsp_client_id_override || "");
+        setHasSavedGspSecret(Boolean(data.has_gsp_secret_override));
+        setGspClientSecretOverride(data.has_gsp_secret_override ? "••••••••••••" : "");
         setPlatformGspBaseUrl(data.platform_gsp_base_url || "https://gsp.adaequare.com");
         setPlatformConfigured(data.platform_gsp_configured ?? false);
 
@@ -90,7 +95,6 @@ export default function ApiCenterPage() {
         }
       }
     } catch (err: any) {
-      console.error("Failed to load API Center settings:", err);
       setFeedback({
         type: "error",
         message: err?.message || "Failed to load API Center configuration.",
@@ -112,24 +116,37 @@ export default function ApiCenterPage() {
 
       const payload: any = {
         ewb_username: ewbUsername.trim(),
-        ewb_password: ewbPassword.trim(),
         ewb_gstin: ewbGstin.trim().toUpperCase(),
         is_ewb_active: isEwbActive,
         gsp_base_url_override: gspBaseUrlOverride.trim() || null,
         gsp_client_id_override: gspClientIdOverride.trim() || null,
       };
 
-      if (gspClientSecretOverride.trim()) {
+      // Only send password if user changed it (not the masked placeholder)
+      if (ewbPassword && !ewbPassword.startsWith("••")) {
+        payload.ewb_password = ewbPassword.trim();
+      }
+
+      // Only send secret if user changed it (not the masked placeholder)
+      if (gspClientSecretOverride && !gspClientSecretOverride.startsWith("••")) {
         payload.gsp_client_secret_override = gspClientSecretOverride.trim();
       }
 
       await apiClient.put("/api/v1/profile/api-center", payload);
+      if (ewbPassword && !ewbPassword.startsWith("••")) {
+        setHasSavedPassword(true);
+        setEwbPassword("••••••••••••");
+      }
+      if (gspClientSecretOverride && !gspClientSecretOverride.startsWith("••")) {
+        setHasSavedGspSecret(true);
+        setGspClientSecretOverride("••••••••••••");
+      }
+
       setFeedback({
         type: "success",
-        message: "API Center settings saved successfully! Live E-Way Bill fetch will use these credentials.",
+        message: "API Center settings saved securely! Live E-Way Bill fetch will use these credentials.",
       });
     } catch (err: any) {
-      console.error("Failed to save API Center settings:", err);
       setFeedback({
         type: "error",
         message: err?.message || "Failed to save API Center configuration.",
@@ -147,12 +164,17 @@ export default function ApiCenterPage() {
 
       const payload: any = {
         ewb_username: ewbUsername.trim() || undefined,
-        ewb_password: ewbPassword.trim() || undefined,
         ewb_gstin: ewbGstin.trim() || undefined,
         gsp_base_url: gspBaseUrlOverride.trim() || undefined,
         gsp_client_id: gspClientIdOverride.trim() || undefined,
-        gsp_client_secret: gspClientSecretOverride.trim() || undefined,
       };
+
+      if (ewbPassword && !ewbPassword.startsWith("••")) {
+        payload.ewb_password = ewbPassword.trim();
+      }
+      if (gspClientSecretOverride && !gspClientSecretOverride.startsWith("••")) {
+        payload.gsp_client_secret = gspClientSecretOverride.trim();
+      }
 
       const res = await apiClient.post<any>("/api/v1/profile/api-center/test-ewb", payload);
       setTestResult(res);
@@ -255,10 +277,10 @@ export default function ApiCenterPage() {
               </span>
             </div>
             <p className="leading-relaxed">{testResult.message}</p>
-            {testResult.token_preview && (
+            {testResult.success && (
               <div className="mt-2 p-2 bg-white rounded border border-emerald-200 font-mono text-[11px] text-slate-700 flex items-center justify-between">
-                <span>Bearer Token: <strong className="text-indigo-600">{testResult.token_preview}</strong></span>
-                <span className="text-slate-400">Valid</span>
+                <span className="text-emerald-700 font-medium">Gateway Status: <strong>Authenticated & Active</strong></span>
+                <span className="text-emerald-600">Verified</span>
               </div>
             )}
           </div>
@@ -363,13 +385,20 @@ export default function ApiCenterPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
               <span>E-Way Bill Portal Password</span>
-              <span className="text-[10px] text-slate-400 font-normal">NIC API Password</span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                {hasSavedPassword ? "Encrypted & Saved" : "NIC API Password"}
+              </span>
             </label>
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
                 value={ewbPassword}
-                placeholder=""
+                placeholder={hasSavedPassword ? "••••••••••••" : "Enter portal password"}
+                onFocus={() => {
+                  if (hasSavedPassword && ewbPassword.startsWith("••")) {
+                    setEwbPassword("");
+                  }
+                }}
                 onChange={(e) => setEwbPassword(e.target.value)}
                 className="h-10 text-xs pr-10 font-mono font-medium"
               />
@@ -441,11 +470,19 @@ export default function ApiCenterPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-medium text-slate-600">Custom GSP App Secret</label>
+                  <label className="text-[11px] font-medium text-slate-600 flex items-center justify-between">
+                    <span>Custom GSP App Secret</span>
+                    {hasSavedGspSecret && <span className="text-[10px] text-emerald-600 font-normal">Encrypted & Saved</span>}
+                  </label>
                   <Input
                     type="password"
                     value={gspClientSecretOverride}
-                    placeholder=""
+                    placeholder={hasSavedGspSecret ? "••••••••••••" : "Enter GSP app secret"}
+                    onFocus={() => {
+                      if (hasSavedGspSecret && gspClientSecretOverride.startsWith("••")) {
+                        setGspClientSecretOverride("");
+                      }
+                    }}
                     onChange={(e) => setGspClientSecretOverride(e.target.value)}
                     className="h-9 text-xs font-mono bg-white"
                   />

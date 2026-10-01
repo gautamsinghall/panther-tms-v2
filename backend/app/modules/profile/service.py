@@ -468,7 +468,8 @@ async def get_api_center_setting(db: AsyncSession) -> ApiCenterSettingResponse:
     company = await get_company_setting(db)
     return ApiCenterSettingResponse(
         ewb_username=company.ewb_username,
-        ewb_password=company.ewb_password,
+        ewb_password=None,  # Never leak password to the frontend or browser console
+        has_ewb_password=bool(company.ewb_password),
         ewb_gstin=company.ewb_gstin or company.gstin,
         is_ewb_active=company.is_ewb_active if company.is_ewb_active is not None else True,
         gsp_client_id_override=company.gsp_client_id_override,
@@ -485,7 +486,10 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
     if data.ewb_username is not None:
         company.ewb_username = data.ewb_username.strip() if data.ewb_username else None
     if data.ewb_password is not None:
-        company.ewb_password = data.ewb_password.strip() if data.ewb_password else None
+        pw = data.ewb_password.strip()
+        # Only overwrite if user actually typed a new password, not the masked placeholder
+        if pw and not pw.startswith("••"):
+            company.ewb_password = pw
     if data.ewb_gstin is not None:
         company.ewb_gstin = data.ewb_gstin.strip().upper() if data.ewb_gstin else None
     if data.is_ewb_active is not None:
@@ -493,7 +497,9 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
     if data.gsp_client_id_override is not None:
         company.gsp_client_id_override = data.gsp_client_id_override.strip() if data.gsp_client_id_override else None
     if data.gsp_client_secret_override is not None:
-        company.gsp_client_secret_override = data.gsp_client_secret_override.strip() if data.gsp_client_secret_override else None
+        secret = data.gsp_client_secret_override.strip()
+        if secret and not secret.startswith("••"):
+            company.gsp_client_secret_override = secret
     if data.gsp_base_url_override is not None:
         company.gsp_base_url_override = data.gsp_base_url_override.strip() if data.gsp_base_url_override else None
 
@@ -507,12 +513,12 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
 async def test_ewb_connection(db: AsyncSession, req: ApiCenterTestRequest) -> ApiCenterTestResponse:
     company = await get_company_setting(db)
 
-    client_id = req.gsp_client_id or company.gsp_client_id_override or settings.GSP_CLIENT_ID
-    client_secret = req.gsp_client_secret or company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET
-    base_url = (req.gsp_base_url or company.gsp_base_url_override or settings.GSP_BASE_URL).rstrip("/")
-    ewb_username = req.ewb_username or company.ewb_username
-    ewb_password = req.ewb_password or company.ewb_password
-    gstin = req.ewb_gstin or company.ewb_gstin or company.gstin
+    client_id = (req.gsp_client_id or company.gsp_client_id_override or settings.GSP_CLIENT_ID or "").strip()
+    client_secret = (req.gsp_client_secret or company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET or "").strip()
+    base_url = (req.gsp_base_url or company.gsp_base_url_override or settings.GSP_BASE_URL or "").rstrip("/")
+    ewb_username = (req.ewb_username or company.ewb_username or "").strip()
+    ewb_password = (req.ewb_password or company.ewb_password or "").strip()
+    gstin = (req.ewb_gstin or company.ewb_gstin or company.gstin or "").strip()
 
     if not client_id or not client_secret:
         return ApiCenterTestResponse(
@@ -531,9 +537,10 @@ async def test_ewb_connection(db: AsyncSession, req: ApiCenterTestRequest) -> Ap
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(token_url, headers=headers)
             if resp.status_code != 200:
+                err_text = resp.text[:300] if resp.text else f"Status code {resp.status_code}"
                 return ApiCenterTestResponse(
                     success=False,
-                    message=f"GSP Authentication failed with HTTP {resp.status_code}: {resp.text[:300]}"
+                    message=f"GSP Authentication failed with HTTP {resp.status_code}: {err_text}"
                 )
             
             token_json = resp.json()
@@ -541,14 +548,12 @@ async def test_ewb_connection(db: AsyncSession, req: ApiCenterTestRequest) -> Ap
             if not access_token:
                 return ApiCenterTestResponse(
                     success=False,
-                    message=f"GSP Authentication did not return an access token: {token_json}"
+                    message="GSP Authentication succeeded but did not return a valid access token."
                 )
 
-            token_preview = f"{access_token[:8]}...{access_token[-8:]}" if len(access_token) > 16 else access_token
             return ApiCenterTestResponse(
                 success=True,
-                message="Connection test successful! Authenticated with GSP and generated access token.",
-                token_preview=token_preview,
+                message="Authentication successful! Connection to GSP Gateway verified (200 OK).",
                 details={
                     "base_url": base_url,
                     "gstin": gstin,
