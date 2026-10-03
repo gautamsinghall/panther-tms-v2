@@ -40,7 +40,13 @@ export default function LoginPage() {
     if (typeof window !== "undefined") {
       const auth = getStoredAuth();
       if (auth && auth.accessToken) {
-        router.replace(auth.tenantId ? `/${auth.tenantId}` : "/");
+        const searchParams = new URLSearchParams(window.location.search);
+        const redirectParam = searchParams.get("redirect");
+        if (redirectParam && redirectParam.startsWith("/")) {
+          router.replace(auth.tenantId ? `/${auth.tenantId}${redirectParam}` : redirectParam);
+        } else {
+          router.replace(auth.tenantId ? `/${auth.tenantId}` : "/");
+        }
         return;
       }
       setIsCheckingAuth(false);
@@ -72,7 +78,13 @@ export default function LoginPage() {
 
     try {
       const auth = await login(companyCode, email, password);
-      router.push(auth.tenantId ? `/${auth.tenantId}` : "/");
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectParam = searchParams.get("redirect");
+      if (redirectParam && redirectParam.startsWith("/")) {
+        router.push(auth.tenantId ? `/${auth.tenantId}${redirectParam}` : redirectParam);
+      } else {
+        router.push(auth.tenantId ? `/${auth.tenantId}` : "/");
+      }
     } catch (err: any) {
       setError(err.message || "Failed to log in. Please check your credentials.");
     } finally {

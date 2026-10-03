@@ -34,7 +34,7 @@ import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { getActiveOffice, OfficeSummary } from "@/lib/auth";
+import { getActiveOffice, OfficeSummary, getStoredAuth } from "@/lib/auth";
 import {
   QuickCreateConsignerModal,
   QuickCreateConsigneeModal,
@@ -46,6 +46,7 @@ import {
   LRInvoiceItem,
   createEmptyInvoiceItem,
 } from "@/components/forms/lr-invoice-items-table";
+import { LinkedJobSummaryCard, LinkedJobData } from "@/components/cards/linked-job-summary-card";
 
 interface LRRecord {
   id: number;
@@ -158,7 +159,7 @@ export default function LRBookingPage() {
   const [consigners, setConsigners] = useState<SelectOption[]>([]);
   const [consignees, setConsignees] = useState<SelectOption[]>([]);
   const [locations, setLocations] = useState<SelectOption[]>([]);
-  const [jobs, setJobs] = useState<SelectOption[]>([]);
+  const [jobs, setJobs] = useState<LinkedJobData[]>([]);
   const [billingCustomers, setBillingCustomers] = useState<SelectOption[]>([]);
   const [packingMethods, setPackingMethods] = useState<SelectOption[]>([]);
   const [loadTypes, setLoadTypes] = useState<SelectOption[]>([]);
@@ -184,6 +185,18 @@ export default function LRBookingPage() {
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
   const [selectedConsignerId, setSelectedConsignerId] = useState<string>("");
   const [selectedConsigneeId, setSelectedConsigneeId] = useState<string>("");
+  const [selectedJob, setSelectedJob] = useState<LinkedJobData | null>(null);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
+
+  // Helper to open related masters in a new tab while preserving active tenant workspace context
+  const openInNewTab = useCallback((path: string) => {
+    const auth = getStoredAuth();
+    const tId = auth?.tenantId || "";
+    const prefix = tId ? `/${tId}` : "";
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    const targetUrl = path.startsWith("http") ? path : `${prefix}${cleanPath}`;
+    window.open(targetUrl, "_blank");
+  }, []);
 
   // View & Print LR state
   const [selectedLrForView, setSelectedLrForView] = useState<LRRecord | null>(null);
@@ -234,7 +247,7 @@ export default function LRBookingPage() {
         apiClient<SelectOption[]>("/api/v1/general/consigners").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consignees").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/locations").catch(() => []),
-        apiClient<SelectOption[]>("/api/v1/transport/jobs").catch(() => []),
+        apiClient<LinkedJobData[]>("/api/v1/transport/jobs").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/packing-methods").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/load-types").catch(() => []),
@@ -356,7 +369,16 @@ export default function LRBookingPage() {
   // Derived options for dropdowns
   const jobOptions = useMemo(() => [
     { label: "Direct Booking (No Job)", value: "" },
-    ...jobs.map((j) => ({ label: `${j.job_number} (ID: ${j.id})`, value: String(j.id) })),
+    ...jobs.map((j: any) => {
+      const routeText = [j.origin_city, j.destination_city].filter(Boolean).join(" → ");
+      const displayLabel = routeText
+        ? `${j.job_number} · ${routeText} (ID: ${j.id})`
+        : `${j.job_number} (ID: ${j.id})`;
+      return {
+        label: displayLabel,
+        value: String(j.id),
+      };
+    }),
   ], [jobs]);
 
   const bookingStatusOptions = [
@@ -518,6 +540,7 @@ export default function LRBookingPage() {
 
   // Open edit drawer and populate all 36 fields
   const openEditDrawer = async (row: LRRecord) => {
+    setDrawerError(null);
     setIsSubmitting(false);
     setEditingLrId(row.id);
     setEditingLrRecord(row);
@@ -531,6 +554,9 @@ export default function LRBookingPage() {
         setEditingLrRecord(fullRes);
       }
     } catch {}
+
+    const matchedJob = freshData.job_id ? jobs.find((j: any) => String(j.id) === String(freshData.job_id)) : null;
+    setSelectedJob(matchedJob || null);
 
     const seriesId = freshData.lr_series_id ? String(freshData.lr_series_id) : "default";
     setSelectedSeriesId(seriesId);
@@ -586,40 +612,53 @@ export default function LRBookingPage() {
       driver_name: freshData.driver_name || "",
       driver_phone: freshData.driver_phone || "",
       invoice_items: initialItems,
+      particulars: freshData.particulars || "",
       remarks: freshData.remarks || "",
     });
 
     setIsDrawerOpen(true);
   };
 
-  const openCreateDrawer = () => {
+  const openCreateDrawer = useCallback((initialJobId?: string | number) => {
+    setDrawerError(null);
     setEditingLrId(null);
     setEditingLrRecord(null);
 
     const defaultSeries = manualSeriesData?.ranges?.find((r) => r.is_default) || manualSeriesData?.ranges?.[0];
     const initialSeriesId = defaultSeries ? String(defaultSeries.id) : "default";
     setSelectedSeriesId(initialSeriesId);
-    setSelectedConsignerId("");
-    setSelectedConsigneeId("");
+
+    const matchedJob = initialJobId ? jobs.find((j: any) => String(j.id) === String(initialJobId)) : null;
+    setSelectedJob(matchedJob || null);
+
+    const initialConsignerId = matchedJob?.consigner_id ? String(matchedJob.consigner_id) : "";
+    const initialConsigneeId = matchedJob?.consignee_id ? String(matchedJob.consignee_id) : "";
+    setSelectedConsignerId(initialConsignerId);
+    setSelectedConsigneeId(initialConsigneeId);
 
     const initialLrNo = (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || (defaultSeries?.available_options?.[0]?.value || "");
 
+    const initialInvoiceItem = createEmptyInvoiceItem();
+    if (matchedJob?.cargo_description) {
+      initialInvoiceItem.particulars = matchedJob.cargo_description;
+    }
+
     setFormInitialValues({
-      job_id: "",
+      job_id: matchedJob ? String(matchedJob.id) : "",
       booking_status: "Booked",
       issuing_office_display: activeOfficeDisplay,
       issuing_office_id: activeOffice?.id,
       lr_series_id: initialSeriesId,
       lr_number: initialLrNo,
-      dispatch_date: new Date().toISOString().split("T")[0],
+      dispatch_date: matchedJob?.expected_dispatch_date || new Date().toISOString().split("T")[0],
       appointment_date: "",
-      billing_customer_id: "",
-      origin_location_id: "",
-      destination_location_id: "",
+      billing_customer_id: matchedJob?.billing_client_id ? String(matchedJob.billing_client_id) : "",
+      origin_location_id: matchedJob?.origin_location_id ? String(matchedJob.origin_location_id) : "",
+      destination_location_id: matchedJob?.destination_location_id ? String(matchedJob.destination_location_id) : "",
       via: "",
-      consigner_id: "",
-      consignee_id: "",
-      vehicle_number: "",
+      consigner_id: initialConsignerId,
+      consignee_id: initialConsigneeId,
+      vehicle_number: "", // Intentionally blank: Jobs do not specify a vehicle
       vehicle_type: "",
       eway_bill_number: "",
       eway_bill_date: "",
@@ -628,10 +667,10 @@ export default function LRBookingPage() {
       invoice_date: "",
       invoice_value: "",
       cha_job_number: "",
-      package_count: 0,
+      package_count: matchedJob?.estimated_packages ?? 0,
       packing_method_id: "",
-      actual_weight_mt: "0.000",
-      chargeable_weight_mt: "0.000",
+      actual_weight_mt: matchedJob?.estimated_weight_mt ? String(matchedJob.estimated_weight_mt) : "0.000",
+      chargeable_weight_mt: matchedJob?.estimated_weight_mt ? String(matchedJob.estimated_weight_mt) : "0.000",
       bill_of_entry: "",
       container_no: "",
       load_type_id: "",
@@ -639,19 +678,32 @@ export default function LRBookingPage() {
       eta: "",
       driver_name: "",
       driver_phone: "",
-      invoice_items: [createEmptyInvoiceItem()],
-      remarks: "",
+      invoice_items: [initialInvoiceItem],
+      particulars: matchedJob?.cargo_description || "",
+      remarks: matchedJob?.special_instructions || "",
     });
 
     setIsDrawerOpen(true);
-  };
+  }, [manualSeriesData, seriesInfo, jobs, activeOfficeDisplay, activeOffice]);
+
+  // Auto-open create drawer if URL contains ?job_id=...
+  useEffect(() => {
+    if (typeof window !== "undefined" && jobs.length > 0 && !isDrawerOpen && !editingLrId) {
+      const sp = new URLSearchParams(window.location.search);
+      const qJobId = sp.get("job_id");
+      if (qJobId) {
+        openCreateDrawer(qJobId);
+      }
+    }
+  }, [jobs, isDrawerOpen, editingLrId, openCreateDrawer]);
 
   const handleSubmit = async (values: Record<string, any>) => {
     if (!editingLrId && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
-      alert("No active LR series configured for this issuing office. Please setup or import the default series template in Settings > Series Master before creating an LR.");
+      setDrawerError("No active LR series configured for this issuing office. Please setup or import the default series template in Settings > Series Master before creating an LR.");
       return;
     }
     setIsSubmitting(true);
+    setDrawerError(null);
     try {
       const selectedLoadType = loadTypes.find((lt) => String(lt.id) === String(values.load_type_id));
 
@@ -664,7 +716,7 @@ export default function LRBookingPage() {
           (it.particulars && String(it.particulars).trim().length > 0) ||
           (it.cha_job_number && String(it.cha_job_number).trim().length > 0)
       );
-      const itemsToSave = validItems.length > 0 ? validItems : rawItems;
+      const itemsToSave = validItems; // Discard blank unused rows
 
       const invNos = itemsToSave.map((i) => String(i.invoice_no || "").trim()).filter(Boolean);
       const ewbNos = itemsToSave.map((i) => String(i.eway_bill_number || "").trim()).filter(Boolean);
@@ -733,7 +785,7 @@ export default function LRBookingPage() {
       setEditingLrRecord(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to save Lorry Receipt.");
+      setDrawerError(err.message || "Failed to save Lorry Receipt. Please review the form and correct the required fields.");
     } finally {
       setIsSubmitting(false);
     }
@@ -746,6 +798,15 @@ export default function LRBookingPage() {
       title: "Booking & Voucher Authorization",
       description: "Job order linkage, booking status, issuing branch context, and series voucher number",
       columns: 2,
+      customContent: selectedJob ? (
+        <LinkedJobSummaryCard
+          job={selectedJob}
+          onUnlink={() => {
+            setSelectedJob(null);
+            formSetFieldValueRef.current?.("job_id", "");
+          }}
+        />
+      ) : null,
       fields: [
         {
           name: "job_id",
@@ -753,10 +814,14 @@ export default function LRBookingPage() {
           type: "select",
           options: jobOptions,
           placeholder: "Choose linked job or Direct Booking",
+          onAddNew: () => openInNewTab("/transport/jobs?add=true"),
+          addNewLabel: "+ Create New Job",
+          addNewTitle: "Opens Trip Order creation in a new tab without losing current LR form progress",
           onChange: (newJobId) => {
             if (newJobId) {
               const matchedJob = jobs.find((j: any) => String(j.id) === String(newJobId)) as any;
               if (matchedJob) {
+                setSelectedJob(matchedJob);
                 if (matchedJob.consigner_id) {
                   formSetFieldValueRef.current?.("consigner_id", String(matchedJob.consigner_id));
                   setSelectedConsignerId(String(matchedJob.consigner_id));
@@ -774,7 +839,26 @@ export default function LRBookingPage() {
                 if (matchedJob.billing_client_id) {
                   formSetFieldValueRef.current?.("billing_customer_id", String(matchedJob.billing_client_id));
                 }
+                if (matchedJob.estimated_packages !== undefined && matchedJob.estimated_packages !== null) {
+                  formSetFieldValueRef.current?.("package_count", matchedJob.estimated_packages);
+                }
+                if (matchedJob.estimated_weight_mt !== undefined && matchedJob.estimated_weight_mt !== null) {
+                  const wt = String(matchedJob.estimated_weight_mt);
+                  formSetFieldValueRef.current?.("actual_weight_mt", wt);
+                  formSetFieldValueRef.current?.("chargeable_weight_mt", wt);
+                }
+                if (matchedJob.expected_dispatch_date) {
+                  formSetFieldValueRef.current?.("dispatch_date", matchedJob.expected_dispatch_date);
+                }
+                if (matchedJob.cargo_description) {
+                  formSetFieldValueRef.current?.("particulars", matchedJob.cargo_description);
+                }
+                if (matchedJob.special_instructions) {
+                  formSetFieldValueRef.current?.("remarks", matchedJob.special_instructions);
+                }
               }
+            } else {
+              setSelectedJob(null);
             }
           },
         },
@@ -810,7 +894,7 @@ export default function LRBookingPage() {
               formSetFieldValueRef.current?.("lr_number", matched.available_options[0].value);
             }
           },
-          onAddNew: () => window.open("/settings/series-master", "_blank"),
+          onAddNew: () => openInNewTab("/settings/series-master"),
           addNewLabel: "+ Manage LR Series",
           addNewTitle: "Configure Series Batches in Settings",
         },
@@ -832,7 +916,7 @@ export default function LRBookingPage() {
           type: "date",
           required: true,
           defaultValue: new Date().toISOString().split("T")[0],
-          helperText: "Defaults to current date.",
+          helperText: "Defaults to current or scheduled dispatch date.",
         },
         {
           name: "appointment_date",
@@ -861,7 +945,7 @@ export default function LRBookingPage() {
           label: "Billing Customer",
           type: "select",
           options: billingCustomerOptions,
-          onAddNew: () => window.open("/general/billing-client?add=true", "_blank"),
+          onAddNew: () => openInNewTab("/general/billing-client?add=true"),
           addNewLabel: "+ New Customer",
           addNewTitle: "Opens Billing Customer creation in a new tab without losing current LR form progress",
           helperText: "Click '+' to create customer in a new tab; automatically available upon return.",
@@ -896,7 +980,7 @@ export default function LRBookingPage() {
           required: true,
           options: consignerOptions,
           onChange: (val) => setSelectedConsignerId(String(val)),
-          onAddNew: () => window.open("/general/consigner?add=true", "_blank"),
+          onAddNew: () => openInNewTab("/general/consigner?add=true"),
           addNewLabel: "+ New Consignor",
           addNewTitle: "Opens Consignor creation in a new tab without losing current LR form progress",
           helperText: selectedConsignerAddress
@@ -910,7 +994,7 @@ export default function LRBookingPage() {
           required: true,
           options: consigneeOptions,
           onChange: (val) => setSelectedConsigneeId(String(val)),
-          onAddNew: () => window.open("/general/consignee?add=true", "_blank"),
+          onAddNew: () => openInNewTab("/general/consignee?add=true"),
           addNewLabel: "+ New Consignee",
           addNewTitle: "Opens Consignee creation in a new tab without losing current LR form progress",
           helperText: selectedConsigneeAddress
@@ -931,6 +1015,9 @@ export default function LRBookingPage() {
           type: "text",
           required: true,
           placeholder: "e.g. RJ-14-GH-1234",
+          helperText: selectedJob
+            ? "⚠️ Truck assignment required — Job order indents do not specify a vehicle registration."
+            : "Enter registration number of assigned vehicle.",
         },
         {
           name: "vehicle_type",
@@ -971,7 +1058,7 @@ export default function LRBookingPage() {
           label: "Load Type",
           type: "select",
           options: loadTypeOptions,
-          onAddNew: () => window.open("/general/load-type?add=true", "_blank"),
+          onAddNew: () => openInNewTab("/general/load-type?add=true"),
           addNewLabel: "+ Manage Load Types",
           addNewTitle: "Opens Load Type master in General menu where you can manage carriage categories",
           helperText: "Managed under General > Load Type master; automatically populates here.",
@@ -1073,6 +1160,8 @@ export default function LRBookingPage() {
     packingMethodOptions,
     jobs,
     manualSeriesData,
+    selectedJob,
+    openInNewTab,
   ]);
 
   const columns: ColumnDef<LRRecord>[] = [
@@ -1428,11 +1517,37 @@ export default function LRBookingPage() {
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => window.open("/settings/series-master", "_blank")}
+              onClick={() => openInNewTab("/settings/series-master")}
               className="bg-white text-rose-700 border-rose-300 hover:bg-rose-50 text-xs shrink-0 font-semibold"
             >
               Setup Series in Settings
             </Button>
+          </div>
+        )}
+
+        {/* In-drawer Error Alert */}
+        {drawerError && (
+          <div
+            role="alert"
+            className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start justify-between gap-3 shadow-2xs animate-in fade-in slide-in-from-top-2 duration-200"
+          >
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-rose-950">Unable to Save Lorry Receipt</h4>
+                <p className="text-xs text-rose-800 mt-0.5">{drawerError}</p>
+                <p className="text-[11px] text-rose-600 mt-1">
+                  All entered details have been preserved. Please resolve the highlighted issue and submit again.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDrawerError(null)}
+              className="text-rose-500 hover:text-rose-800 text-xs font-semibold px-2 py-1 rounded cursor-pointer"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 

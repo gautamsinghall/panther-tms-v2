@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet, Eye, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -475,7 +475,7 @@ export default function JobsPage() {
     }
   };
 
-  const openCreateJobDrawer = () => {
+  const openCreateJobDrawer = useCallback(() => {
     setEditingJob(null);
     setFormInitialValues({
       job_number: "",
@@ -483,7 +483,17 @@ export default function JobsPage() {
       expected_dispatch_date: new Date().toISOString().split("T")[0],
     });
     setIsDrawerOpen(true);
-  };
+  }, []);
+
+  // Auto-open create drawer if URL contains ?add=true
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("add") === "true") {
+        openCreateJobDrawer();
+      }
+    }
+  }, [openCreateJobDrawer]);
 
   const openEditJobDrawer = (row: JobRecord) => {
     setEditingJob(row);

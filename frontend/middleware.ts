@@ -89,6 +89,7 @@ export function middleware(request: NextRequest) {
   // Default: unauthenticated user trying to access dashboard routes -> redirect to login
   const loginUrl = request.nextUrl.clone();
   loginUrl.pathname = "/login";
+  loginUrl.searchParams.set("redirect", pathname + request.nextUrl.search);
   return NextResponse.redirect(loginUrl);
 }
 

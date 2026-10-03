@@ -48,6 +48,7 @@ export interface LRViewRecord {
   advance_amount: string | number;
   balance_amount: string | number;
   payment_terms?: string;
+  particulars?: string;
   remarks?: string;
   created_at?: string;
   invoice_items?: {
@@ -547,13 +548,24 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
               </thead>
               <tbody>
                 <tr className="min-h-[45px]">
-                  <td className="p-2 border-r border-black text-center font-mono font-bold">{lr.package_count || 1}</td>
+                  <td className="p-2 border-r border-black text-center font-mono font-bold">
+                    {lr.package_count !== undefined && lr.package_count !== null ? lr.package_count : 0}
+                  </td>
                   <td className="p-2 border-r border-black">
-                    <span className="font-medium text-slate-900">Commercial Cargo Freight Consignment</span>
+                    <span className="font-medium text-slate-900">
+                      {lr.particulars || "Commercial Cargo Freight Consignment"}
+                    </span>
                     {lr.remarks && <div className="text-[10px] text-slate-500 mt-0.5">Note: {lr.remarks}</div>}
                   </td>
-                  <td className="p-2 border-r border-black text-right font-mono">{lr.actual_weight_mt || lr.chargeable_weight_mt || 0} MT</td>
-                  <td className="p-2 text-right font-mono font-bold">{lr.chargeable_weight_mt || 0} MT</td>
+                  <td className="p-2 border-r border-black text-right font-mono">
+                    {lr.actual_weight_mt !== undefined && lr.actual_weight_mt !== null && String(lr.actual_weight_mt).trim() !== ""
+                      ? lr.actual_weight_mt
+                      : (lr.chargeable_weight_mt || 0)}{" "}
+                    MT
+                  </td>
+                  <td className="p-2 text-right font-mono font-bold">
+                    {lr.chargeable_weight_mt || 0} MT
+                  </td>
                 </tr>
               </tbody>
             </table>

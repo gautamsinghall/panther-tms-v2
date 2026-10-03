@@ -64,6 +64,7 @@ export function Form({
 
   const [values, setValues] = useState<Record<string, any>>(getMergedInitialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errorList, setErrorList] = useState<Array<{ name: string; label: string; message: string; id: string }>>([]);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export function Form({
         delete next[name];
         return next;
       });
+      setErrorList((prev) => prev.filter((item) => item.name !== name));
     }
   };
 
@@ -111,30 +113,68 @@ export function Form({
     if (field.required && !field.disabled) {
       const val = values[field.name] ?? field.defaultValue;
       if (val === undefined || val === null || String(val).trim() === "") {
-        setErrors((prev) => ({ ...prev, [field.name]: `${field.label} is required` }));
+        const msg = `${field.label} is required`;
+        setErrors((prev) => ({ ...prev, [field.name]: msg }));
+        setErrorList((prev) => {
+          if (prev.some((p) => p.name === field.name)) return prev;
+          return [...prev, { name: field.name, label: field.label, message: msg, id: `form-field-${field.name}` }];
+        });
+      }
+    }
+  };
+
+  const scrollToField = (fieldId: string, fieldName: string) => {
+    const el = document.getElementById(fieldId) || (document.querySelector(`[name="${fieldName}"]`) as HTMLElement);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if ("focus" in el && typeof el.focus === "function") {
+        el.focus();
       }
     }
   };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
+    const newErrorList: Array<{ name: string; label: string; message: string; id: string }> = [];
+
     for (const section of sections) {
       for (const field of section.fields) {
         if (field.required && !field.disabled) {
           const val = values[field.name] ?? field.defaultValue;
           if (val === undefined || val === null || String(val).trim() === "") {
-            newErrors[field.name] = `${field.label} is required`;
+            const msg = `${field.label} is required`;
+            newErrors[field.name] = msg;
+            newErrorList.push({
+              name: field.name,
+              label: field.label,
+              message: msg,
+              id: `form-field-${field.name}`,
+            });
           }
         }
       }
     }
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrorList(newErrorList);
+
+    if (newErrorList.length > 0) {
+      // Auto-scroll and focus the first invalid field
+      const firstError = newErrorList[0];
+      setTimeout(() => {
+        scrollToField(firstError.id, firstError.name);
+      }, 50);
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || isSubmitting) return; // Prevent duplicate submissions
     if (!validate()) return;
+
     const finalValues = { ...values };
     for (const section of sections) {
       for (const field of section.fields) {
@@ -397,6 +437,8 @@ export function Form({
                         value={val}
                         disabled={field.disabled || loading}
                         placeholder={field.placeholder}
+                        aria-invalid={Boolean(fieldError)}
+                        aria-describedby={fieldError ? `error-${field.name}` : undefined}
                         onChange={(e) => handleChange(field.name, e.target.value)}
                         onBlur={() => handleBlur(field)}
                         className={cn(
@@ -411,7 +453,11 @@ export function Form({
 
                     {/* Inline Validation Error */}
                     {fieldError && (
-                      <p className="flex items-center gap-1.5 text-xs text-rose-600 font-medium pt-0.5 animate-in fade-in">
+                      <p
+                        id={`error-${field.name}`}
+                        role="alert"
+                        className="flex items-center gap-1.5 text-xs text-rose-600 font-medium pt-0.5 animate-in fade-in"
+                      >
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>{fieldError}</span>
                       </p>
@@ -435,6 +481,34 @@ export function Form({
           </div>
         );
       })}
+
+      {/* Visible Error Summary Banner on failed submission */}
+      {errorList.length > 0 && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="bg-rose-50/95 border border-rose-300 rounded-2xl p-4 sm:p-5 text-rose-900 shadow-sm space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200"
+        >
+          <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-rose-800">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Please resolve {errorList.length} required field{errorList.length === 1 ? "" : "s"} before saving:</span>
+          </div>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-rose-700 font-medium pl-1">
+            {errorList.map((err) => (
+              <li key={err.name} className="flex items-center gap-1.5">
+                <span className="text-rose-400">•</span>
+                <button
+                  type="button"
+                  onClick={() => scrollToField(err.id, err.name)}
+                  className="underline hover:text-rose-950 font-semibold cursor-pointer text-left"
+                >
+                  {err.message}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Form Action Footer - Permanently positioned at the very end/last of all sections */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">

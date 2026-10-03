@@ -61,7 +61,11 @@ export function getStoredAuth(): StoredAuth | null {
       clearStoredAuth();
       return null;
     }
+    // If access token is expired, only clear if refresh token is also missing or expired
     if (isTokenExpired(data.accessToken)) {
+      if (data.refreshToken && !isTokenExpired(data.refreshToken)) {
+        return data; // Return data so apiClient can seamlessly refresh the token
+      }
       clearStoredAuth();
       return null;
     }

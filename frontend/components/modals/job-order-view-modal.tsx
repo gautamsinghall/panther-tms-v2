@@ -473,11 +473,13 @@ export function JobOrderViewModal({
                 <span className="text-[11px] font-medium text-black w-20 shrink-0">Consignor:</span>
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-[12px] text-black font-mono leading-tight">
-                    {job.consigner_code || (job.consigner_id ? `DL01AB0999` : job.consigner_name || "-")}
+                    {job.consigner_name || job.consigner_code || "-"}
                   </div>
-                  <div className="text-[11px] font-normal text-black mt-0.5 leading-tight">
-                    {job.consigner_name || ""}
-                  </div>
+                  {job.consigner_code && job.consigner_name && (
+                    <div className="text-[11px] font-normal text-gray-700 mt-0.5 leading-tight font-mono">
+                      {job.consigner_code}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -486,7 +488,7 @@ export function JobOrderViewModal({
                 <span className="text-[11px] font-medium text-black w-20 shrink-0">Consignee:</span>
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-[12px] text-black leading-tight">
-                    {job.consignee_name || "Assigned"}
+                    {job.consignee_name || job.consignee_code || "-"}
                   </div>
                   {job.consignee_code && (
                     <div className="text-[11px] font-mono text-gray-700 mt-0.5 leading-tight">
@@ -560,7 +562,7 @@ export function JobOrderViewModal({
               <div className="w-[38%] p-2.5 text-[11px]">
                 <div className="font-normal text-black">Billing Party:</div>
                 <div className="text-[11px] font-bold text-black mt-0.5 break-words">
-                  {job.billing_client_name || job.billing_party || "Global Foods"}
+                  {job.billing_client_name || job.billing_party || "-"}
                 </div>
               </div>
             </div>

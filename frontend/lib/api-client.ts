@@ -1,4 +1,4 @@
-import { getStoredAuth, clearStoredAuth, getApiBaseUrl } from "./auth";
+import { getStoredAuth, setStoredAuth, clearStoredAuth, getApiBaseUrl } from "./auth";
 
 export { getApiBaseUrl };
 
@@ -72,6 +72,51 @@ export async function apiClient<T = any>(
 
   if (!response.ok) {
     if (response.status === 401) {
+      // Attempt token refresh if refresh_token is present
+      if (storedAuth?.refreshToken && tenantId && !endpoint.includes("/auth/")) {
+        try {
+          const refreshRes = await fetch(`${backendBaseUrl}/api/v1/auth/refresh`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Tenant-ID": tenantId,
+              "X-Company-Code": companyCode || "",
+            },
+            body: JSON.stringify({ refresh_token: storedAuth.refreshToken }),
+          });
+
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            const updatedAuth = {
+              ...storedAuth,
+              accessToken: refreshData.access_token,
+              refreshToken: refreshData.refresh_token || storedAuth.refreshToken,
+            };
+            setStoredAuth(updatedAuth);
+
+            // Retry original request with newly refreshed token
+            const retryHeaders = {
+              ...headers,
+              Authorization: `Bearer ${refreshData.access_token}`,
+            };
+            const retryRes = await fetch(url, {
+              ...options,
+              headers: retryHeaders,
+            });
+
+            if (retryRes.ok) {
+              const retryContentType = retryRes.headers.get("content-type");
+              if (retryContentType && retryContentType.includes("application/json")) {
+                return (await retryRes.json()) as T;
+              }
+              return (await retryRes.text()) as unknown as T;
+            }
+          }
+        } catch {
+          // Token refresh failed, proceed to logout
+        }
+      }
+
       clearStoredAuth();
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
         window.location.href = "/login";
