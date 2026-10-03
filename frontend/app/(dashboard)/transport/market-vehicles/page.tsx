@@ -1291,30 +1291,25 @@ export default function MarketVehiclesPage() {
           {/* ===================================================================== */}
           {/* 4. EQUIPMENT & MAINTENANCE                                            */}
           {/* ===================================================================== */}
-          <div className="space-y-6">
-            {/* Header Box */}
-            <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold flex items-center gap-2">
-                    <Wrench className="w-5 h-5 text-indigo-400" />
-                    4. Equipment & Maintenance
-                  </h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Driver cabin toolkit checklist, service odometer benchmarks, and compliance document copies.
-                  </p>
-                </div>
-              </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-2xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-indigo-600" />
+                4. Equipment & Maintenance
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Driver cabin toolkit checklist, service odometer benchmarks, and compliance document copies.
+              </p>
             </div>
 
-              {/* Equipment Availability (Yes / No Controls) */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-2xs">
-                <div className="border-b border-slate-100 pb-2.5">
-                  <h4 className="text-sm font-bold text-slate-900">Equipment Availability</h4>
-                  <p className="text-xs text-slate-500">
-                    Verify availability of standard onboard safety tools and transit securement equipment.
-                  </p>
-                </div>
+            {/* Equipment Availability (Yes / No Controls) */}
+            <div className="space-y-4">
+              <div className="border-b border-slate-100 pb-2.5">
+                <h4 className="text-sm font-bold text-slate-900">Equipment Availability</h4>
+                <p className="text-xs text-slate-500">
+                  Verify availability of standard onboard safety tools and transit securement equipment.
+                </p>
+              </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Jack */}
@@ -1509,7 +1504,7 @@ export default function MarketVehiclesPage() {
               </div>
 
               {/* Service and Maintenance Details */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-2xs">
+              <div className="pt-4 border-t border-slate-100 space-y-4">
                 <div className="border-b border-slate-100 pb-2.5">
                   <h4 className="text-sm font-bold text-slate-900">Service and Maintenance Details</h4>
                   <p className="text-xs text-slate-500">
@@ -1626,7 +1621,7 @@ export default function MarketVehiclesPage() {
               </div>
 
               {/* Documents */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
+              <div className="pt-4 border-t border-slate-100 space-y-5">
                 <div className="border-b border-slate-100 pb-2.5">
                   <h4 className="text-sm font-bold text-slate-900">Documents</h4>
                   <p className="text-xs text-slate-500">

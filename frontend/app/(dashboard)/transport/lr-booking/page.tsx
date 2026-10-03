@@ -686,18 +686,36 @@ export default function LRBookingPage() {
     setIsDrawerOpen(true);
   }, [manualSeriesData, seriesInfo, jobs, activeOfficeDisplay, activeOffice]);
 
+  const handledJobIdsRef = useRef<Set<string>>(new Set());
+
+  const handleCloseDrawer = useCallback(() => {
+    setIsDrawerOpen(false);
+    setEditingLrId(null);
+    setEditingLrRecord(null);
+    setDrawerError(null);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("job_id")) {
+        url.searchParams.delete("job_id");
+        window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+      }
+    }
+  }, []);
+
   // Auto-open create drawer if URL contains ?job_id=...
   useEffect(() => {
     if (typeof window !== "undefined" && jobs.length > 0 && !isDrawerOpen && !editingLrId) {
       const sp = new URLSearchParams(window.location.search);
       const qJobId = sp.get("job_id");
-      if (qJobId) {
+      if (qJobId && !handledJobIdsRef.current.has(qJobId)) {
+        handledJobIdsRef.current.add(qJobId);
         openCreateDrawer(qJobId);
       }
     }
   }, [jobs, isDrawerOpen, editingLrId, openCreateDrawer]);
 
   const handleSubmit = async (values: Record<string, any>) => {
+    if (isSubmitting) return;
     if (!editingLrId && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
       setDrawerError("No active LR series configured for this issuing office. Please setup or import the default series template in Settings > Series Master before creating an LR.");
       return;
@@ -716,7 +734,18 @@ export default function LRBookingPage() {
           (it.particulars && String(it.particulars).trim().length > 0) ||
           (it.cha_job_number && String(it.cha_job_number).trim().length > 0)
       );
-      const itemsToSave = validItems; // Discard blank unused rows
+      const itemsToSave = validItems.map((it) => ({
+        id: it.id || undefined,
+        invoice_no: it.invoice_no && String(it.invoice_no).trim() ? String(it.invoice_no).trim() : null,
+        invoice_date: it.invoice_date && String(it.invoice_date).trim() ? String(it.invoice_date).trim() : null,
+        invoice_value: it.invoice_value && !isNaN(parseFloat(String(it.invoice_value))) ? parseFloat(String(it.invoice_value)) : 0,
+        eway_bill_number: it.eway_bill_number && String(it.eway_bill_number).trim() ? String(it.eway_bill_number).trim() : null,
+        eway_bill_date: it.eway_bill_date && String(it.eway_bill_date).trim() ? String(it.eway_bill_date).trim() : null,
+        eway_bill_expiry: it.eway_bill_expiry && String(it.eway_bill_expiry).trim() ? String(it.eway_bill_expiry).trim() : null,
+        cha_job_number: it.cha_job_number && String(it.cha_job_number).trim() ? String(it.cha_job_number).trim() : null,
+        particulars: it.particulars && String(it.particulars).trim() ? String(it.particulars).trim() : null,
+        remarks: it.remarks && String(it.remarks).trim() ? String(it.remarks).trim() : null,
+      }));
 
       const invNos = itemsToSave.map((i) => String(i.invoice_no || "").trim()).filter(Boolean);
       const ewbNos = itemsToSave.map((i) => String(i.eway_bill_number || "").trim()).filter(Boolean);
@@ -732,7 +761,7 @@ export default function LRBookingPage() {
         issuing_office_id: activeOffice?.id || (editingLrRecord ? editingLrRecord.issuing_office_id : undefined),
         lr_series_id: values.lr_series_id && values.lr_series_id !== "default" ? parseInt(values.lr_series_id, 10) : null,
         dispatch_date: values.dispatch_date || new Date().toISOString().split("T")[0],
-        appointment_date: values.appointment_date || null,
+        appointment_date: values.appointment_date && String(values.appointment_date).trim() ? String(values.appointment_date).trim() : null,
         billing_customer_id: values.billing_customer_id ? parseInt(values.billing_customer_id, 10) : null,
         origin_location_id: values.origin_location_id ? parseInt(values.origin_location_id, 10) : null,
         destination_location_id: values.destination_location_id ? parseInt(values.destination_location_id, 10) : null,
@@ -745,13 +774,13 @@ export default function LRBookingPage() {
         driver_name: values.driver_name ? String(values.driver_name).trim() : null,
         driver_phone: values.driver_phone ? String(values.driver_phone).trim() : null,
         invoice_items: itemsToSave,
-        eway_bill_number: ewbNos.length > 0 ? ewbNos.join(", ") : (values.eway_bill_number ? String(values.eway_bill_number).trim() : null),
-        eway_bill_date: firstItem.eway_bill_date || values.eway_bill_date || null,
-        eway_bill_expiry: firstItem.eway_bill_expiry || values.eway_bill_expiry || null,
-        invoice_no: invNos.length > 0 ? invNos.join(", ") : (values.invoice_no ? String(values.invoice_no).trim() : null),
-        invoice_date: firstItem.invoice_date || values.invoice_date || null,
+        eway_bill_number: ewbNos.length > 0 ? ewbNos.join(", ") : (values.eway_bill_number && String(values.eway_bill_number).trim() ? String(values.eway_bill_number).trim() : null),
+        eway_bill_date: firstItem.eway_bill_date || (values.eway_bill_date && String(values.eway_bill_date).trim() ? String(values.eway_bill_date).trim() : null),
+        eway_bill_expiry: firstItem.eway_bill_expiry || (values.eway_bill_expiry && String(values.eway_bill_expiry).trim() ? String(values.eway_bill_expiry).trim() : null),
+        invoice_no: invNos.length > 0 ? invNos.join(", ") : (values.invoice_no && String(values.invoice_no).trim() ? String(values.invoice_no).trim() : null),
+        invoice_date: firstItem.invoice_date || (values.invoice_date && String(values.invoice_date).trim() ? String(values.invoice_date).trim() : null),
         invoice_value: totalInvVal > 0 ? totalInvVal : (parseFloat(values.invoice_value) || 0),
-        cha_job_number: firstItem.cha_job_number || (values.cha_job_number ? String(values.cha_job_number).trim() : null),
+        cha_job_number: firstItem.cha_job_number || (values.cha_job_number && String(values.cha_job_number).trim() ? String(values.cha_job_number).trim() : null),
         package_count: parseInt(values.package_count, 10) || 0,
         packing_method_id: values.packing_method_id ? parseInt(values.packing_method_id, 10) : null,
         actual_weight_mt: parseFloat(values.actual_weight_mt) || 0,
@@ -766,24 +795,41 @@ export default function LRBookingPage() {
         remarks: values.remarks ? String(values.remarks).trim() : null,
       };
 
+      let savedRecord: LRRecord;
       if (editingLrId) {
         // Edit existing LR record (PUT) - does NOT create duplicate records
-        await apiClient(`/api/v1/transport/lrs/${editingLrId}`, {
+        savedRecord = await apiClient<LRRecord>(`/api/v1/transport/lrs/${editingLrId}`, {
           method: "PUT",
           body: JSON.stringify(payload),
         });
       } else {
         // Create new LR record (POST)
-        await apiClient("/api/v1/transport/lrs", {
+        savedRecord = await apiClient<LRRecord>("/api/v1/transport/lrs", {
           method: "POST",
           body: JSON.stringify(payload),
         });
       }
 
+      // Clear URL query parameter to avoid auto-reopening or duplicate submissions
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("job_id")) {
+          url.searchParams.delete("job_id");
+          window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+        }
+      }
+
       setIsDrawerOpen(false);
       setEditingLrId(null);
       setEditingLrRecord(null);
-      loadData();
+      setDrawerError(null);
+      await loadData();
+
+      // Show the saved record in the view modal
+      if (savedRecord) {
+        setSelectedLrForView(savedRecord);
+        setIsViewModalOpen(true);
+      }
     } catch (err: any) {
       setDrawerError(err.message || "Failed to save Lorry Receipt. Please review the form and correct the required fields.");
     } finally {
@@ -1456,11 +1502,7 @@ export default function LRBookingPage() {
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingLrId(null);
-          setEditingLrRecord(null);
-        }}
+        onClose={handleCloseDrawer}
         title={editingLrRecord ? `Edit Lorry Receipt: ${editingLrRecord.lr_number}` : "Create Lorry Receipt (GR / LR)"}
         description={
           editingLrRecord
@@ -1557,11 +1599,7 @@ export default function LRBookingPage() {
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleSubmit}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingLrId(null);
-            setEditingLrRecord(null);
-          }}
+          onCancel={handleCloseDrawer}
           submitLabel={editingLrRecord ? "Save Changes" : "Create Lorry Receipt"}
           isLoading={isSubmitting}
           submitDisabled={!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)}

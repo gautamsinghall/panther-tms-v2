@@ -262,10 +262,51 @@ def format_series_number(prefix: str, num: int, suffix: Optional[str] = "") -> s
     return f"{prefix}{num:04d}{s}"
 
 
-async def get_real_voucher_usage(db: AsyncSession, document_type: str) -> Dict[str, Any]:
+def extract_sequence_number(voucher: str, prefix: str = "", suffix: str = "") -> Optional[int]:
+    """
+    Extracts the pure integer sequence number from a formatted voucher string.
+    Properly strips prefix and suffix (e.g. 'LR-2026-0001' with prefix 'LR-2026-' yields 1, not 20260001).
+    Also detects and heals legacy corrupted numbers where prefix digits were concatenated (e.g. 'LR-2026-20260002').
+    """
+    if not voucher:
+        return None
+    core = str(voucher).strip()
+    if prefix and core.lower().startswith(prefix.lower()):
+        core = core[len(prefix):]
+    if suffix and core.lower().endswith(suffix.lower()):
+        core = core[:-len(suffix)]
+
+    digits = "".join(filter(str.isdigit, core))
+    if not digits:
+        import re
+        match = re.search(r"(\d+)(?:[^\d]*)$", str(voucher))
+        if match:
+            digits = match.group(1)
+
+    if digits:
+        # Check if digits were accidentally prefixed with year/digits from the prefix (e.g. '20260002' when prefix had '2026')
+        pref_digits = "".join(filter(str.isdigit, prefix))
+        if pref_digits and digits.startswith(pref_digits) and len(digits) > len(pref_digits):
+            remainder = digits[len(pref_digits):]
+            if remainder and remainder.isdigit():
+                try:
+                    return int(remainder)
+                except ValueError:
+                    pass
+        try:
+            return int(digits)
+        except ValueError:
+            pass
+
+    return None
+
+
+
+async def get_real_voucher_usage(db: AsyncSession, document_type: str, prefix: Optional[str] = None) -> Dict[str, Any]:
     """
     Connects Series Master directly to REAL vouchers in the database.
-    Queries the actual table for the last used voucher number and count.
+    Queries the actual table for the last used voucher number and count,
+    optionally filtering by prefix to isolate series sequences.
     """
     raw_doc = document_type.upper().strip()
     norm = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
@@ -277,21 +318,39 @@ async def get_real_voucher_usage(db: AsyncSession, document_type: str) -> Dict[s
         from sqlalchemy import func
         if norm == "JOB":
             from app.tenant_db.models import Job
-            res = await db.execute(select(Job.job_number).order_by(Job.id.desc()).limit(1))
+            stmt = select(Job.job_number)
+            cnt_stmt = select(func.count(Job.id))
+            if prefix:
+                stmt = stmt.where(Job.job_number.ilike(f"{prefix}%"))
+                cnt_stmt = cnt_stmt.where(Job.job_number.ilike(f"{prefix}%"))
+            stmt = stmt.order_by(Job.id.desc()).limit(1)
+            res = await db.execute(stmt)
             last_voucher_no = res.scalar_one_or_none()
-            cnt_res = await db.execute(select(func.count(Job.id)))
+            cnt_res = await db.execute(cnt_stmt)
             real_count = cnt_res.scalar() or 0
         elif norm == "LR":
             from app.tenant_db.models import LR
-            res = await db.execute(select(LR.lr_number).order_by(LR.id.desc()).limit(1))
+            stmt = select(LR.lr_number)
+            cnt_stmt = select(func.count(LR.id))
+            if prefix:
+                stmt = stmt.where(LR.lr_number.ilike(f"{prefix}%"))
+                cnt_stmt = cnt_stmt.where(LR.lr_number.ilike(f"{prefix}%"))
+            stmt = stmt.order_by(LR.id.desc()).limit(1)
+            res = await db.execute(stmt)
             last_voucher_no = res.scalar_one_or_none()
-            cnt_res = await db.execute(select(func.count(LR.id)))
+            cnt_res = await db.execute(cnt_stmt)
             real_count = cnt_res.scalar() or 0
         elif norm in ("HIRE_CHALLAN", "HC"):
             from app.tenant_db.models import HireChallan
-            res = await db.execute(select(HireChallan.challan_number).order_by(HireChallan.id.desc()).limit(1))
+            stmt = select(HireChallan.challan_number)
+            cnt_stmt = select(func.count(HireChallan.id))
+            if prefix:
+                stmt = stmt.where(HireChallan.challan_number.ilike(f"{prefix}%"))
+                cnt_stmt = cnt_stmt.where(HireChallan.challan_number.ilike(f"{prefix}%"))
+            stmt = stmt.order_by(HireChallan.id.desc()).limit(1)
+            res = await db.execute(stmt)
             last_voucher_no = res.scalar_one_or_none()
-            cnt_res = await db.execute(select(func.count(HireChallan.id)))
+            cnt_res = await db.execute(cnt_stmt)
             real_count = cnt_res.scalar() or 0
         else:
             from app.tenant_db.models import Voucher
@@ -323,10 +382,14 @@ async def get_real_voucher_usage(db: AsyncSession, document_type: str) -> Dict[s
             elif norm == "CONTRA_VOUCHER":
                 v_types = ["CONTRA_VOUCHER", "CONTRA"]
             
-            stmt = select(Voucher.voucher_number).where(Voucher.voucher_type.in_(v_types)).order_by(Voucher.id.desc()).limit(1)
+            stmt = select(Voucher.voucher_number).where(Voucher.voucher_type.in_(v_types))
+            cnt_stmt = select(func.count(Voucher.id)).where(Voucher.voucher_type.in_(v_types))
+            if prefix:
+                stmt = stmt.where(Voucher.voucher_number.ilike(f"{prefix}%"))
+                cnt_stmt = cnt_stmt.where(Voucher.voucher_number.ilike(f"{prefix}%"))
+            stmt = stmt.order_by(Voucher.id.desc()).limit(1)
             res = await db.execute(stmt)
             last_voucher_no = res.scalar_one_or_none()
-            cnt_stmt = select(func.count(Voucher.id)).where(Voucher.voucher_type.in_(v_types))
             cnt_res = await db.execute(cnt_stmt)
             real_count = cnt_res.scalar() or 0
     except Exception as e:
@@ -355,16 +418,20 @@ def compute_series_display_data(s: SeriesMaster, real_usage: Optional[Dict[str, 
 
     if real_usage and real_usage.get("count", 0) > 0 and real_usage.get("last_voucher_number"):
         last_used_fmt = real_usage["last_voucher_number"]
-        clean_digits = "".join(filter(str.isdigit, last_used_fmt))
-        if clean_digits:
-            try:
-                curr_num = int(clean_digits)
-            except ValueError:
-                curr_num = real_usage["count"]
+        parsed_seq = extract_sequence_number(last_used_fmt, prefix, suffix)
+        if parsed_seq is not None:
+            curr_num = parsed_seq
         else:
             curr_num = real_usage["count"]
     elif s.current_number and s.current_number >= start_num:
-        curr_num = s.current_number
+        # If current_number was accidentally corrupted by prefix digits (e.g. 20260001), heal it:
+        c_num = s.current_number
+        pref_digits = "".join(filter(str.isdigit, prefix))
+        if pref_digits and str(c_num).startswith(pref_digits) and len(str(c_num)) > len(pref_digits):
+            remainder = str(c_num)[len(pref_digits):]
+            if remainder and remainder.isdigit():
+                c_num = int(remainder)
+        curr_num = c_num
         last_used_fmt = format_series_number(prefix, curr_num, suffix)
 
     if curr_num >= start_num:
@@ -723,13 +790,7 @@ async def allocate_or_validate_voucher_number(
                 all_ranges = (await db.execute(range_stmt)).scalars().all()
 
                 # Extract pure sequence number by stripping prefix and suffix first
-                core_val = clean_val
-                if prefix and core_val.lower().startswith(prefix.lower()):
-                    core_val = core_val[len(prefix):]
-                if suffix and core_val.lower().endswith(suffix.lower()):
-                    core_val = core_val[:-len(suffix)]
-                digits = "".join(filter(str.isdigit, core_val))
-                num_val = int(digits) if digits else None
+                num_val = extract_sequence_number(clean_val, prefix, suffix)
 
                 matched_series = None
                 for sr in all_ranges:
@@ -756,17 +817,25 @@ async def allocate_or_validate_voucher_number(
                         db.add(active_target)
                         await db.flush()
             else:
-                real_usage = await get_real_voucher_usage(db, norm_type)
+                real_usage = await get_real_voucher_usage(db, norm_type, prefix=prefix)
                 disp = compute_series_display_data(series, real_usage=real_usage)
                 next_num = disp["next_number"]
                 final_number = format_series_number(prefix, next_num, suffix)
+                all_used = await get_all_used_numbers_for_doc(db, norm_type)
+                while final_number in all_used:
+                    next_num += 1
+                    final_number = format_series_number(prefix, next_num, suffix)
                 series.current_number = next_num
         else:
             # AUTOMATIC Mode: Always auto-allocate next sequential number from series master
-            real_usage = await get_real_voucher_usage(db, norm_type)
+            real_usage = await get_real_voucher_usage(db, norm_type, prefix=prefix)
             disp = compute_series_display_data(series, real_usage=real_usage)
             next_num = disp["next_number"]
             final_number = format_series_number(prefix, next_num, suffix)
+            all_used = await get_all_used_numbers_for_doc(db, norm_type)
+            while final_number in all_used:
+                next_num += 1
+                final_number = format_series_number(prefix, next_num, suffix)
             series.current_number = next_num
 
         # Check end number bounds if configured
@@ -835,8 +904,14 @@ async def check_series_status(
             "message": f"No active series configured for issuing office for {readable_title}. Please setup the series in Settings > Series Master before creating this entry.",
         }
 
-    real_usage = await get_real_voucher_usage(db, norm_type)
+    real_usage = await get_real_voucher_usage(db, norm_type, prefix=series.prefix)
     disp = compute_series_display_data(series, real_usage=real_usage)
+    next_fmt = disp["next_number_formatted"]
+    next_num = disp["next_number"]
+    all_used = await get_all_used_numbers_for_doc(db, norm_type)
+    while next_fmt in all_used:
+        next_num += 1
+        next_fmt = format_series_number(series.prefix or "", next_num, series.suffix or "")
 
     # For manual series: if range is not set, treat series as not configured
     if disp["series_mode"] == "MANUAL" and (series.end_number is None or series.end_number < (series.starting_number or 1)):
@@ -862,8 +937,8 @@ async def check_series_status(
         "current_number": disp["current_number"],
         "end_number": series.end_number,
         "last_used_formatted": disp["last_used_formatted"],
-        "next_number": disp["next_number"],
-        "next_number_formatted": disp["next_number_formatted"],
+        "next_number": next_num,
+        "next_number_formatted": next_fmt,
         "financial_year": series.financial_year,
         "series_mode": disp["series_mode"],
         "is_default": bool(series.is_default),

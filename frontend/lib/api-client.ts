@@ -124,15 +124,48 @@ export async function apiClient<T = any>(
     }
 
     let errorDetail = `API Error ${response.status}: ${response.statusText}`;
+    let errorPayload: any = null;
     try {
       const errorJson = await response.json();
-      errorDetail = errorJson.detail || errorJson.message || errorDetail;
+      errorPayload = errorJson;
+
+      const rawErrors = Array.isArray(errorJson.details)
+        ? errorJson.details
+        : Array.isArray(errorJson.detail)
+        ? errorJson.detail
+        : null;
+
+      if (rawErrors && rawErrors.length > 0) {
+        const messages = rawErrors.map((d: any) => {
+          if (typeof d === "string") return d;
+          let locPath = Array.isArray(d.loc)
+            ? d.loc.filter((p: any) => p !== "body").join(" → ")
+            : (d.loc || "");
+
+          if (locPath.includes("invoice_items")) {
+            locPath = locPath.replace(/invoice_items\s*→\s*(\d+)\s*→\s*([a-zA-Z0-9_]+)/g, (_: any, idx: string, field: string) => {
+              const prettyField = field.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+              return `Invoice Line #${Number(idx) + 1} (${prettyField})`;
+            });
+          } else if (locPath) {
+            locPath = locPath.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+          }
+
+          const msg = d.msg || "Invalid value";
+          return locPath ? `${locPath}: ${msg}` : msg;
+        });
+        errorDetail = messages.join("; ");
+      } else {
+        errorDetail = errorJson.detail || errorJson.message || errorDetail;
+      }
     } catch {
       // response wasn't JSON
     }
 
-    const error = new Error(errorDetail) as Error & { status: number };
+    const error = new Error(errorDetail) as Error & { status: number; details?: any; data?: any };
     error.status = response.status;
+    error.details = errorPayload?.details || errorPayload?.detail || null;
+    error.data = errorPayload;
     throw error;
   }
 

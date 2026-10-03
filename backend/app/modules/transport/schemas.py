@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.tenant_db.models import (
     JobStatus,
     LRStatus,
@@ -317,6 +317,7 @@ class JobResponse(JobBase):
 # LR / GR Schemas & State Transitions
 # ---------------------------------------------------------------------------
 class LRInvoiceItem(BaseModel):
+    id: Optional[str] = None
     invoice_no: Optional[str] = None
     invoice_date: Optional[date] = None
     invoice_value: Optional[Decimal] = Decimal("0.00")
@@ -326,6 +327,20 @@ class LRInvoiceItem(BaseModel):
     cha_job_number: Optional[str] = None
     particulars: Optional[str] = None
     remarks: Optional[str] = None
+
+    @field_validator("invoice_date", "eway_bill_date", "eway_bill_expiry", mode="before")
+    @classmethod
+    def coerce_empty_dates(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("invoice_value", mode="before")
+    @classmethod
+    def coerce_empty_decimal(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return Decimal("0.00")
+        return v
 
 class LRBase(BaseModel):
     lr_number: Optional[str] = None
@@ -381,6 +396,34 @@ class LRBase(BaseModel):
     payment_terms: str = "TO_PAY"
     remarks: Optional[str] = None
 
+    @field_validator("invoice_date", "eway_bill_date", "eway_bill_expiry", "appointment_date", "dispatch_date", "lr_date", mode="before")
+    @classmethod
+    def coerce_empty_lr_dates(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("invoice_value", "freight_rate", "freight_amount", "loading_charges", "unloading_charges", "other_charges", "total_freight_amount", "advance_amount", "balance_amount", "actual_weight_mt", "chargeable_weight_mt", mode="before")
+    @classmethod
+    def coerce_empty_lr_decimals(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return Decimal("0.00")
+        return v
+
+    @field_validator("package_count", mode="before")
+    @classmethod
+    def coerce_empty_lr_package_count(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return 0
+        return v
+
+    @field_validator("unit_id", "packing_method_id", "load_type_id", "billing_customer_id", "origin_location_id", "destination_location_id", "job_id", "lr_series_id", mode="before")
+    @classmethod
+    def coerce_empty_lr_optional_ids(cls, v):
+        if v == "" or v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
 class LRCreate(LRBase):
     pass
 
@@ -434,6 +477,27 @@ class LRUpdate(BaseModel):
     balance_amount: Optional[Decimal] = None
     payment_terms: Optional[str] = None
     remarks: Optional[str] = None
+
+    @field_validator("invoice_date", "eway_bill_date", "eway_bill_expiry", "appointment_date", "dispatch_date", "lr_date", mode="before")
+    @classmethod
+    def coerce_empty_update_dates(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("invoice_value", "freight_rate", "freight_amount", "loading_charges", "unloading_charges", "other_charges", "total_freight_amount", "advance_amount", "balance_amount", "actual_weight_mt", "chargeable_weight_mt", mode="before")
+    @classmethod
+    def coerce_empty_update_decimals(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("package_count", "unit_id", "packing_method_id", "load_type_id", "billing_customer_id", "origin_location_id", "destination_location_id", "job_id", "lr_series_id", "consigner_id", "consignee_id", "issuing_office_id", mode="before")
+    @classmethod
+    def coerce_empty_update_ints(cls, v):
+        if v == "" or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
 
 class LRStatusTransitionRequest(BaseModel):
     target_status: LRStatus

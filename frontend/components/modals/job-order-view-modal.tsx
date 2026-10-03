@@ -950,7 +950,7 @@ export function JobOrderViewModal({
                   </div>
 
                   {/* 7. Jurisdiction, At Owner's Risk, Company Name */}
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-black text-[11px]">
+                  <div className="flex items-center justify-between px-3 py-2 text-[11px]">
                     <div className="w-1/3 text-left text-[10px] text-black font-normal">
                       {jurisdictionText}
                     </div>
@@ -980,11 +980,6 @@ export function JobOrderViewModal({
                         {companyName}
                       </div>
                     </div>
-                  </div>
-
-                  {/* 8. Correct Legal / Status Footer Text */}
-                  <div className="bg-black text-white text-center py-1.5 px-3 text-[10px] sm:text-[11px] font-medium tracking-wide">
-                    This Trip Job Order is computer generated and valid for transport dispatch authorization.
                   </div>
                 </div>
               </div>
