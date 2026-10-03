@@ -766,7 +766,7 @@ class PODRecord(TenantBase):
     receiver_phone = Column(String(20), nullable=True)
     received_condition = Column(String(50), default=PODCondition.OK.value, nullable=False)
     packages_delivered = Column(Integer, default=0, nullable=False)
-    document_path = Column(String(500), nullable=True)  # R2 / secure store path per rules.md §8
+    document_path = Column(Text, nullable=True)
     remarks = Column(Text, nullable=True)
     verification_status = Column(String(50), default=PODVerificationStatus.PENDING.value, nullable=False, index=True)
     verified_by_user_id = Column(Integer, nullable=True)

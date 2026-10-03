@@ -2137,31 +2137,37 @@ export default function HireChallansPage() {
             </div>
           </div>
 
-          {/* Form Actions Footer Card */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              onClick={() => {
-                setIsDrawerOpen(false);
-                setEditingId(null);
-              }}
-              disabled={isSubmitting}
-              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              isLoading={isSubmitting}
-              disabled={isSubmitting || (!editingId && (!isSeriesConfigured || !challanNumber.trim()))}
-              className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
-            >
-              {editingId ? "Save Changes" : "Issue Hire Challan"}
-            </Button>
+          {/* Form Actions Footer Card - Shared sticky bottom bar accessible while scrolling */}
+          <div className="sticky bottom-4 z-20 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.06),0_10px_25px_-5px_rgba(0,0,0,0.08)] mt-8">
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="hidden sm:inline">{editingId ? "Editing Hire Challan" : "Active Hire Challan Draft"}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => {
+                  setIsDrawerOpen(false);
+                  setEditingId(null);
+                }}
+                disabled={isSubmitting}
+                className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                isLoading={isSubmitting}
+                disabled={isSubmitting || (!editingId && (!isSeriesConfigured || !challanNumber.trim()))}
+                className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
+              >
+                {editingId ? "Save Changes" : "Issue Hire Challan"}
+              </Button>
+            </div>
           </div>
         </form>
       </EntityDrawer>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, CheckCircle, FileCheck } from "lucide-react";
+import { Plus, CheckCircle, FileCheck, Paperclip } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -40,6 +40,27 @@ export default function PODRecordsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const viewDocument = (docPath?: string, podNumber?: string) => {
+    if (!docPath) return;
+    if (docPath.startsWith("data:")) {
+      const newWindow = window.open();
+      if (newWindow) {
+        if (docPath.startsWith("data:image/")) {
+          newWindow.document.write(
+            `<html><head><title>POD ${podNumber || ""}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:#0f172a;min-height:100vh;}img{max-width:95vw;max-height:95vh;object-fit:contain;box-shadow:0 10px 25px rgba(0,0,0,0.5);border-radius:8px;}</style></head><body><img src="${docPath}" alt="POD Document" /></body></html>`
+          );
+        } else {
+          newWindow.document.write(
+            `<html><head><title>POD ${podNumber || ""}</title><style>body{margin:0;height:100vh;}iframe{width:100%;height:100%;border:none;}</style></head><body><iframe src="${docPath}"></iframe></body></html>`
+          );
+        }
+        newWindow.document.close();
+      }
+    } else {
+      window.open(docPath, "_blank", "noopener,noreferrer");
+    }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -127,6 +148,28 @@ export default function PODRecordsPage() {
       ),
     },
     {
+      key: "document_path",
+      header: "Attachment",
+      align: "center",
+      cell: (row) =>
+        row.document_path ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              viewDocument(row.document_path, row.pod_number);
+            }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-md transition-colors"
+            title="View signed POD document"
+          >
+            <Paperclip className="w-3.5 h-3.5" />
+            <span>View POD</span>
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground italic">No file</span>
+        ),
+    },
+    {
       key: "verification_status",
       header: "Audit Status",
       align: "center",
@@ -135,6 +178,11 @@ export default function PODRecordsPage() {
   ];
 
   const actions: RowAction<PODRecord>[] = [
+    {
+      label: "View Attachment",
+      disabled: (row) => !row.document_path,
+      onClick: (row) => viewDocument(row.document_path, row.pod_number),
+    },
     {
       label: "Verify & Approve",
       disabled: (row) => row.verification_status === "VERIFIED",

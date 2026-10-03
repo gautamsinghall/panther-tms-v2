@@ -261,7 +261,14 @@ export default function DriversPage() {
         {
           name: "dl_status",
           label: "Driving License Status",
-          placeholder: "e.g. Active / Valid",
+          type: "select",
+          options: [
+            { label: "UNVERIFIED - Verification Pending", value: "UNVERIFIED" },
+            { label: "ACTIVE - Valid License", value: "ACTIVE" },
+            { label: "SUSPENDED - Temporarily Suspended", value: "SUSPENDED" },
+            { label: "EXPIRED - Renewal Due", value: "EXPIRED" },
+          ],
+          defaultValue: "UNVERIFIED",
         },
         {
           name: "vehicle_classes",
@@ -331,7 +338,7 @@ export default function DriversPage() {
         name: "",
         phone: "",
         license_number: "",
-        dl_status: "",
+        dl_status: "UNVERIFIED",
         vehicle_classes: "",
         valid_from: "",
         valid_upto: "",

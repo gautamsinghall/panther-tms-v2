@@ -126,6 +126,7 @@ const EMISSION_OPTIONS = [
 ];
 
 const RC_STATUS_OPTIONS = [
+  { label: "UNVERIFIED - Verification Pending", value: "UNVERIFIED" },
   { label: "ACTIVE - Valid Registration", value: "ACTIVE" },
   { label: "SUSPENDED - Temporarily Suspended", value: "SUSPENDED" },
   { label: "CANCELLED - Cancelled / Scrap", value: "CANCELLED" },
@@ -134,6 +135,7 @@ const RC_STATUS_OPTIONS = [
 ];
 
 const SERVICE_STATUS_OPTIONS = [
+  { label: "Not Inspected / Verification Pending", value: "Pending" },
   { label: "Completed - Roadworthy", value: "Completed" },
   { label: "Scheduled Maintenance Due", value: "Scheduled" },
   { label: "Overdue Service", value: "Due" },
@@ -142,6 +144,7 @@ const SERVICE_STATUS_OPTIONS = [
 ];
 
 const RC_ORIGINAL_OPTIONS = [
+  { label: "Not Confirmed / Pending Verification", value: "Pending" },
   { label: "With Active Driver in Cabin", value: "With Driver" },
   { label: "At Head Office Central Vault", value: "Head Office Vault" },
   { label: "At Regional Branch Office", value: "Regional Branch" },
@@ -350,7 +353,7 @@ export default function MarketVehiclesPage() {
       color: "",
       cylinders: "",
       seating_capacity: "2",
-      rc_status: "ACTIVE",
+      rc_status: "UNVERIFIED",
       fitness_expiry: "",
       insurance_expiry: "",
       tax_validity: "",
@@ -363,11 +366,11 @@ export default function MarketVehiclesPage() {
       has_tarpaulin_rassi: false,
       last_service_km: "",
       last_service_done_at: "",
-      last_service_status: "Completed",
+      last_service_status: "Pending",
       driver_at_last_service: "",
       driver_phone_at_last_service: "",
       tyre_numbers: "",
-      rc_original_status: "With Driver",
+      rc_original_status: "Pending",
       rc_copy_doc: "",
       last_repair_bill_doc: "",
     });
@@ -1652,12 +1655,19 @@ export default function MarketVehiclesPage() {
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png,.webp"
                         onChange={(e) => handleFileUpload(e, "rc_copy_doc")}
-                        className="hidden"
+                        className="sr-only peer"
                       />
                       <label
                         htmlFor="rc_copy_file_input"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            document.getElementById("rc_copy_file_input")?.click();
+                          }
+                        }}
                         className={cn(
-                          "flex items-center justify-between w-full h-10 px-3.5 text-xs font-medium rounded-xl border bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-2xs group",
+                          "flex items-center justify-between w-full h-10 px-3.5 text-xs font-medium rounded-xl border bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500/20 peer-focus-visible:border-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 focus-visible:border-indigo-600 transition-all cursor-pointer shadow-2xs group",
                           formValues.rc_copy_doc ? "border-emerald-300 bg-emerald-50/20" : "border-slate-200"
                         )}
                       >
@@ -1709,12 +1719,19 @@ export default function MarketVehiclesPage() {
                         type="file"
                         accept=".pdf,.jpg,.jpeg,.png,.webp"
                         onChange={(e) => handleFileUpload(e, "last_repair_bill_doc")}
-                        className="hidden"
+                        className="sr-only peer"
                       />
                       <label
                         htmlFor="repair_bill_file_input"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            document.getElementById("repair_bill_file_input")?.click();
+                          }
+                        }}
                         className={cn(
-                          "flex items-center justify-between w-full h-10 px-3.5 text-xs font-medium rounded-xl border bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-2xs group",
+                          "flex items-center justify-between w-full h-10 px-3.5 text-xs font-medium rounded-xl border bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500/20 peer-focus-visible:border-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 focus-visible:border-indigo-600 transition-all cursor-pointer shadow-2xs group",
                           formValues.last_repair_bill_doc ? "border-emerald-300 bg-emerald-50/20" : "border-slate-200"
                         )}
                       >
@@ -1758,29 +1775,35 @@ export default function MarketVehiclesPage() {
             </div>
           </div>
 
-          {/* Form Footer Action Bar */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              onClick={() => setIsDrawerOpen(false)}
-              disabled={isSubmitting}
-              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
-            >
-              Cancel
-            </Button>
+          {/* Form Footer Action Bar - Shared sticky bottom bar accessible while scrolling */}
+          <div className="sticky bottom-4 z-20 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.06),0_10px_25px_-5px_rgba(0,0,0,0.08)] mt-8">
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="hidden sm:inline">{editingRecord ? "Editing Market Vehicle" : "Active Market Vehicle Draft"}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => setIsDrawerOpen(false)}
+                disabled={isSubmitting}
+                className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </Button>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              isLoading={isSubmitting}
-              disabled={isSubmitting}
-              className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
-            >
-              {editingRecord ? "Save Vehicle Changes" : "Register Market Vehicle"}
-            </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                isLoading={isSubmitting}
+                disabled={isSubmitting}
+                className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
+              >
+                {editingRecord ? "Save Vehicle Changes" : "Register Market Vehicle"}
+              </Button>
+            </div>
           </div>
         </form>
       </EntityDrawer>

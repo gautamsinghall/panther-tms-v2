@@ -118,6 +118,7 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
                         await t_conn.execute(text("ALTER TABLE company_settings ALTER COLUMN logo_url TYPE TEXT;"))
+                        await t_conn.execute(text("ALTER TABLE transport_pod_records ALTER COLUMN document_path TYPE TEXT;"))
                         for br_col in [
                             "pan VARCHAR(10)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)",
                             "bank_ifsc VARCHAR(20)", "bank_branch VARCHAR(150)", "document_notes TEXT"

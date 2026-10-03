@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { FormSectionDef, FormFieldDef } from "@/types/form";
@@ -391,12 +391,19 @@ export function Form({
                               }
                             }}
                             onBlur={() => handleBlur(field)}
-                            className="hidden"
+                            className="sr-only peer"
                           />
                           <label
                             htmlFor={inputId}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                document.getElementById(inputId)?.click();
+                              }
+                            }}
                             className={cn(
-                              "flex items-center justify-between w-full h-10 px-3.5 text-xs font-medium rounded-xl border bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer shadow-2xs group",
+                              "flex items-center justify-between w-full h-10 px-3.5 text-xs font-medium rounded-xl border bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500/20 peer-focus-visible:border-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 focus-visible:border-indigo-600 transition-all cursor-pointer shadow-2xs group",
                               field.disabled && "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200",
                               fieldError && "border-rose-400"
                             )}
@@ -436,7 +443,7 @@ export function Form({
                         type={field.type || "text"}
                         value={val}
                         disabled={field.disabled || loading}
-                        placeholder={field.placeholder}
+                        placeholder={field.placeholder || (field.type === "date" ? "YYYY-MM-DD" : undefined)}
                         aria-invalid={Boolean(fieldError)}
                         aria-describedby={fieldError ? `error-${field.name}` : undefined}
                         onChange={(e) => handleChange(field.name, e.target.value)}
@@ -449,6 +456,14 @@ export function Form({
                           fieldError && "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
                         )}
                       />
+                    )}
+
+                    {/* Unambiguous Date Confirmation Display */}
+                    {field.type === "date" && val && !fieldError && (
+                      <p className="text-[11px] text-indigo-700 font-medium pt-0.5 flex items-center gap-1.5">
+                        <span className="text-slate-400 font-normal">Date:</span>
+                        <span className="font-semibold bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">{formatDate(val)}</span>
+                      </p>
                     )}
 
                     {/* Inline Validation Error */}
@@ -510,30 +525,36 @@ export function Form({
         </div>
       )}
 
-      {/* Form Action Footer - Permanently positioned at the very end/last of all sections */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">
-        {onCancel && (
+      {/* Form Action Footer - Shared sticky bottom bar accessible while scrolling */}
+      <div className="sticky bottom-4 z-20 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.06),0_10px_25px_-5px_rgba(0,0,0,0.08)] mt-8">
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="hidden sm:inline">Active Form Draft</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={onCancel}
+              disabled={loading}
+              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
+            >
+              {cancelLabel}
+            </Button>
+          )}
           <Button
-            type="button"
-            variant="outline"
+            type="submit"
+            variant="primary"
             size="md"
-            onClick={onCancel}
-            disabled={loading}
-            className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
+            isLoading={loading}
+            disabled={loading || submitDisabled}
+            className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
           >
-            {cancelLabel}
+            {submitLabel}
           </Button>
-        )}
-        <Button
-          type="submit"
-          variant="primary"
-          size="md"
-          isLoading={loading}
-          disabled={loading || submitDisabled}
-          className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
-        >
-          {submitLabel}
-        </Button>
+        </div>
       </div>
     </form>
   );
