@@ -183,6 +183,18 @@ export default function TruckHiringNotePage() {
           type: "number",
           placeholder: "20000",
         },
+        {
+          name: "broker_name",
+          label: "Broker / Agent Name",
+          placeholder: "e.g. Standard Freight Broker",
+        },
+        {
+          name: "terms_and_conditions",
+          label: "Terms & Conditions / Remarks",
+          type: "textarea",
+          colSpan: 2,
+          placeholder: "e.g. Balance payable within 15 days upon original POD submission...",
+        },
       ],
     },
   ];
@@ -195,6 +207,8 @@ export default function TruckHiringNotePage() {
         agreed_rate: parseFloat(values.agreed_rate) || 0,
         advance_cash: parseFloat(values.advance_cash) || 0,
         advance_diesel_slip: parseFloat(values.advance_diesel_slip) || 0,
+        broker_name: values.broker_name || null,
+        terms_and_conditions: values.terms_and_conditions || null,
       };
       await apiClient("/api/v1/transport/truck-hiring-notes", {
         method: "POST",
@@ -246,6 +260,7 @@ export default function TruckHiringNotePage() {
         onClose={() => setIsDrawerOpen(false)}
         title="Issue Truck Hiring Note"
         description="Record driver cash advance, diesel slip, and destination payment terms."
+        width="xl"
       >
         <Form
           sections={formSections}

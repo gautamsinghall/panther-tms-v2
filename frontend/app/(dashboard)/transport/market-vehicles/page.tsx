@@ -194,10 +194,10 @@ export default function MarketVehiclesPage() {
     tax_validity: "",
     puc_expiry: "",
     permit_validity: "",
-    has_jack: true,
-    has_raad: true,
-    has_pana: true,
-    has_stepney: true,
+    has_jack: false,
+    has_raad: false,
+    has_pana: false,
+    has_stepney: false,
     has_tarpaulin_rassi: false,
     last_service_km: "",
     last_service_done_at: "",
@@ -356,10 +356,10 @@ export default function MarketVehiclesPage() {
       tax_validity: "",
       puc_expiry: "",
       permit_validity: "",
-      has_jack: true,
-      has_raad: true,
-      has_pana: true,
-      has_stepney: true,
+      has_jack: false,
+      has_raad: false,
+      has_pana: false,
+      has_stepney: false,
       has_tarpaulin_rassi: false,
       last_service_km: "",
       last_service_done_at: "",
@@ -402,11 +402,11 @@ export default function MarketVehiclesPage() {
       tax_validity: record.tax_validity ? record.tax_validity.slice(0, 10) : "",
       puc_expiry: record.puc_expiry ? record.puc_expiry.slice(0, 10) : "",
       permit_validity: record.permit_validity ? record.permit_validity.slice(0, 10) : "",
-      has_jack: record.has_jack ?? true,
-      has_raad: record.has_raad ?? true,
-      has_pana: record.has_pana ?? true,
-      has_stepney: record.has_stepney ?? true,
-      has_tarpaulin_rassi: record.has_tarpaulin_rassi ?? false,
+      has_jack: Boolean(record.has_jack),
+      has_raad: Boolean(record.has_raad),
+      has_pana: Boolean(record.has_pana),
+      has_stepney: Boolean(record.has_stepney),
+      has_tarpaulin_rassi: Boolean(record.has_tarpaulin_rassi),
       last_service_km: record.last_service_km ? String(record.last_service_km) : "",
       last_service_done_at: record.last_service_done_at || "",
       last_service_status: record.last_service_status || "Completed",
@@ -838,28 +838,18 @@ export default function MarketVehiclesPage() {
                       />
                     </div>
 
-                    {/* "Add Owner" Button Beside Dropdown */}
+                    {/* "+ Quick Add Owner" Popup Trigger Beside Dropdown */}
                     <Button
                       type="button"
                       variant="outline"
                       size="md"
-                      onClick={() => router.push("/transport/vehicle-owners?action=add")}
+                      onClick={() => setQuickOwnerOpen(true)}
                       className="h-10 px-3.5 rounded-xl border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs shrink-0 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                      title="Redirect to Vehicle Owner → Add section"
+                      title="Quick register new vehicle owner in popup dialog without leaving this form"
                     >
                       <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Add Owner</span>
-                      <ExternalLink className="w-3 h-3 text-indigo-400 ml-0.5" />
+                      <span>+ Quick Add Owner</span>
                     </Button>
-
-                    {/* Quick Add Modal Option */}
-                    <button
-                      type="button"
-                      onClick={() => setQuickOwnerOpen(true)}
-                      className="text-[11px] text-slate-500 hover:text-indigo-600 underline whitespace-nowrap cursor-pointer hidden lg:inline"
-                    >
-                      Quick Inline
-                    </button>
                   </div>
 
                   {formValues.owner_id && (
@@ -1769,7 +1759,7 @@ export default function MarketVehiclesPage() {
           </div>
 
           {/* Form Footer Action Bar */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-2xs mt-8">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">
             <Button
               type="button"
               variant="outline"
@@ -1783,18 +1773,13 @@ export default function MarketVehiclesPage() {
 
             <Button
               type="submit"
+              variant="primary"
               size="md"
+              isLoading={isSubmitting}
               disabled={isSubmitting}
-              className="rounded-xl h-10 px-8 text-xs font-semibold cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs flex items-center gap-1.5"
+              className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
             >
-              <Check className="w-4 h-4" />
-              <span>
-                {isSubmitting
-                  ? "Saving Vehicle..."
-                  : editingRecord
-                    ? "Save Vehicle Changes"
-                    : "Register Market Vehicle"}
-              </span>
+              {editingRecord ? "Save Vehicle Changes" : "Register Market Vehicle"}
             </Button>
           </div>
         </form>

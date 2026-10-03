@@ -13,46 +13,124 @@ function QuickModalWrapper({
   isOpen,
   onClose,
   maxWidth = "max-w-lg",
+  titleId,
   children,
 }: {
   isOpen: boolean;
   onClose: () => void;
   maxWidth?: string;
+  titleId?: string;
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
+  const modalRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Remember element that triggered the modal to restore focus on close
+    triggerRef.current = document.activeElement as HTMLElement | null;
+
+    // Focus the first focusable element inside the modal
+    const focusTimer = setTimeout(() => {
+      if (modalRef.current) {
+        const autoFocusEl = modalRef.current.querySelector<HTMLElement>("[autofocus]");
+        if (autoFocusEl) {
+          autoFocusEl.focus();
+        } else {
+          const focusables = modalRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          );
+          if (focusables.length > 0) {
+            focusables[0].focus();
+          }
+        }
+      }
+    }, 40);
+
+    // Trap focus and handle Escape in capture phase so parent drawers do not catch Escape
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+
+      if (e.key === "Tab" && modalRef.current) {
+        const focusableElements = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null);
+
+        if (focusableElements.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement || !modalRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement || !modalRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handleKeyDown, true);
+      // Restore focus to trigger element
+      if (triggerRef.current && typeof triggerRef.current.focus === "function") {
+        triggerRef.current.focus();
+      }
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen || !mounted) return null;
-
-  const targetEl =
-    document.getElementById("workspace-form-canvas") ||
-    document.getElementById("workspace-main-canvas") ||
-    document.body;
-
-  const isCanvas = targetEl.id?.startsWith("workspace-");
 
   const modalNode = (
     <div
-      className={`${
-        isCanvas ? "absolute inset-0" : "fixed inset-0"
-      } z-[85] flex items-center justify-center p-4 sm:p-6 overflow-y-auto`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      onClick={(e) => e.stopPropagation()}
     >
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity animate-in fade-in"
-        onClick={onClose}
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
       />
       <div
-        className={`relative w-full ${maxWidth} bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150`}
+        ref={modalRef}
+        className={`relative w-full ${maxWidth} bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 my-auto`}
+        onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
     </div>
   );
 
-  return createPortal(modalNode, targetEl);
+  return createPortal(modalNode, document.body);
 }
 
 interface QuickModalBaseProps {
@@ -126,7 +204,7 @@ export function QuickCreateBillingClientModal({
   };
 
   return (
-    <QuickModalWrapper isOpen={isOpen} onClose={onClose}>
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} titleId="quick-billing-client-title">
       <form onSubmit={handleSubmit}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
@@ -134,13 +212,14 @@ export function QuickCreateBillingClientModal({
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Quick Add Billing Client</h3>
+              <h3 id="quick-billing-client-title" className="text-sm font-semibold text-slate-900">Quick Add Billing Client</h3>
               <p className="text-xs text-slate-500">Fast register client for transport booking</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -325,15 +404,15 @@ export function QuickCreateConsignerModal({
   };
 
   return (
-    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg" titleId="quick-consignor-title">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                Quick Add Customer / Consigner
+              <h3 id="quick-consignor-title" className="text-sm sm:text-base font-bold text-slate-900">
+                Quick Add Consignor (Shipper)
               </h3>
               <p className="text-xs text-slate-500">
                 Register a new dispatching customer without leaving this form
@@ -343,6 +422,7 @@ export function QuickCreateConsignerModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -359,7 +439,7 @@ export function QuickCreateConsignerModal({
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Customer / Consigner Name <span className="text-rose-500">*</span>
+              Consignor Name <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -530,14 +610,14 @@ export function QuickCreateConsigneeModal({
   };
 
   return (
-    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg" titleId="quick-consignee-title">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+              <h3 id="quick-consignee-title" className="text-sm sm:text-base font-bold text-slate-900">
                 Quick Add Receiving Consignee
               </h3>
               <p className="text-xs text-slate-500">
@@ -548,6 +628,7 @@ export function QuickCreateConsigneeModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -727,20 +808,21 @@ export function QuickCreateLocationModal({
   };
 
   return (
-    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg" titleId="quick-location-title">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">{defaultTitle}</h3>
+              <h3 id="quick-location-title" className="text-sm sm:text-base font-bold text-slate-900">{defaultTitle}</h3>
               <p className="text-xs text-slate-500">Add origin or destination transit hub</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -879,14 +961,14 @@ export function QuickCreateVehicleOwnerModal({
   };
 
   return (
-    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md" titleId="quick-owner-title">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+              <h3 id="quick-owner-title" className="text-sm sm:text-base font-bold text-slate-900">
                 Quick Add Vehicle Owner
               </h3>
               <p className="text-xs text-slate-500">Register market truck owner / fleet vendor</p>
@@ -895,6 +977,7 @@ export function QuickCreateVehicleOwnerModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -1045,20 +1128,21 @@ export function QuickCreateDriverModal({
   };
 
   return (
-    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
+    <QuickModalWrapper isOpen={isOpen} onClose={onClose} maxWidth="max-w-md" titleId="quick-driver-title">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-100">
               <User className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">Quick Add Driver</h3>
+              <h3 id="quick-driver-title" className="text-sm sm:text-base font-bold text-slate-900">Quick Add Driver</h3>
               <p className="text-xs text-slate-500">Register driver with driving license</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />

@@ -188,6 +188,13 @@ export default function EWayBillsPage() {
           type: "date",
           required: true,
         },
+        {
+          name: "notes",
+          label: "Transit Notes & Remarks",
+          type: "textarea",
+          colSpan: 2,
+          placeholder: "e.g. Route deviations, transshipment details, or validity extension notes...",
+        },
       ],
     },
   ];
@@ -200,6 +207,7 @@ export default function EWayBillsPage() {
         lr_id: parseInt(values.lr_id, 10),
         approx_distance_km: parseInt(values.approx_distance_km, 10) || 0,
         is_manual_entry: true,
+        notes: values.notes || null,
       };
       await apiClient("/api/v1/transport/eway-bills", {
         method: "POST",
@@ -265,6 +273,7 @@ export default function EWayBillsPage() {
         onClose={() => setIsDrawerOpen(false)}
         title="Register GST E-Way Bill"
         description="Update Part-B vehicle details and validity dates."
+        width="xl"
       >
         <Form
           sections={formSections}

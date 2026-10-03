@@ -242,7 +242,7 @@ export default function DriversPage() {
       fields: [
         {
           name: "name",
-          label: "Driver Name",
+          label: "Driver Full Name",
           placeholder: "e.g. Rajesh Kumar Yadav",
           required: true,
         },
@@ -253,8 +253,14 @@ export default function DriversPage() {
           required: true,
         },
         {
+          name: "license_number",
+          label: "Driving License Number",
+          placeholder: "e.g. MH12 20180012345",
+          required: true,
+        },
+        {
           name: "dl_status",
-          label: "DL Status",
+          label: "Driving License Status",
           placeholder: "e.g. Active / Valid",
         },
         {
@@ -269,7 +275,7 @@ export default function DriversPage() {
         },
         {
           name: "valid_upto",
-          label: "Valid Upto",
+          label: "Valid Until",
           type: "date",
         },
       ],
@@ -282,34 +288,37 @@ export default function DriversPage() {
       fields: [
         {
           name: "aadhar_no",
-          label: "Aadhar No.",
+          label: "Aadhaar Number",
           placeholder: "e.g. 1234 5678 9012",
         },
         {
           name: "pan_no",
-          label: "PAN No.",
+          label: "PAN Number",
           placeholder: "e.g. ABCDE1234F",
         },
         {
           name: "license_doc",
-          label: "Upload License",
+          label: "Upload Driving License",
           type: "file",
           accept: ".pdf,.jpg,.jpeg,.png",
           placeholder: "Select license copy...",
+          helperText: "Accepted: PDF, JPG, PNG (Max 5MB)",
         },
         {
           name: "aadhar_doc",
-          label: "Upload AADHAR",
+          label: "Upload Aadhaar Card",
           type: "file",
           accept: ".pdf,.jpg,.jpeg,.png",
-          placeholder: "Select Aadhar copy...",
+          placeholder: "Select Aadhaar copy...",
+          helperText: "Accepted: PDF, JPG, PNG (Max 5MB)",
         },
         {
           name: "pan_doc",
-          label: "Upload PAN",
+          label: "Upload PAN Card",
           type: "file",
           accept: ".pdf,.jpg,.jpeg,.png",
           placeholder: "Select PAN card copy...",
+          helperText: "Accepted: PDF, JPG, PNG (Max 5MB)",
           colSpan: 2,
         },
       ],
@@ -321,6 +330,7 @@ export default function DriversPage() {
       return {
         name: "",
         phone: "",
+        license_number: "",
         dl_status: "",
         vehicle_classes: "",
         valid_from: "",
@@ -335,6 +345,7 @@ export default function DriversPage() {
     return {
       name: editingRecord.name || "",
       phone: editingRecord.phone || "",
+      license_number: editingRecord.license_number || "",
       dl_status: editingRecord.dl_status || "",
       vehicle_classes: editingRecord.vehicle_classes || "",
       valid_from: editingRecord.valid_from ? editingRecord.valid_from.split("T")[0] : "",
@@ -459,7 +470,7 @@ export default function DriversPage() {
             ? "Update driver information, mobile contact, licensing coverage, and KYC documents."
             : "Enter driver credentials, mobile number, and commercial license validity."
         }
-        width="lg"
+        width="xl"
       >
         <Form
           key={editingRecord ? `edit-${editingRecord.id}` : "create"}

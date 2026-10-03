@@ -210,6 +210,22 @@ export default function PODRecordsPage() {
             { label: "Shortage Upon Unloading", value: "SHORTAGE" },
           ],
         },
+        {
+          name: "document_path",
+          label: "Upload Signed POD / Challan Copy",
+          type: "file",
+          accept: ".pdf,.jpg,.jpeg,.png",
+          placeholder: "Select signed POD acknowledgment copy...",
+          helperText: "Accepted: PDF, JPG, PNG (Max 10MB)",
+          colSpan: 2,
+        },
+        {
+          name: "remarks",
+          label: "Delivery Remarks & Exceptions",
+          type: "textarea",
+          placeholder: "Enter receiver remarks, condition notes, or unloading exceptions...",
+          colSpan: 2,
+        },
       ],
     },
   ];
@@ -221,6 +237,8 @@ export default function PODRecordsPage() {
         ...values,
         lr_id: parseInt(values.lr_id, 10),
         packages_delivered: parseInt(values.packages_delivered, 10) || 0,
+        document_path: values.document_path || undefined,
+        remarks: values.remarks || undefined,
       };
       await apiClient("/api/v1/transport/pod-records", {
         method: "POST",
@@ -272,13 +290,14 @@ export default function PODRecordsPage() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         title="Upload Consignee POD Acknowledgment"
-        description="Record physical signature verification from the receiving party."
+        description="Record physical signature verification from the receiving party and attach scanned delivery proof."
+        width="xl"
       >
         <Form
           sections={formSections}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Save POD"
+          submitLabel="Save & Confirm POD"
           isLoading={isSubmitting}
         />
       </EntityDrawer>

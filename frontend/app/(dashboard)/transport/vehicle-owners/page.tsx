@@ -268,6 +268,7 @@ export default function VehicleOwnersPage() {
         onClose={() => setIsDrawerOpen(false)}
         title="Add Vehicle Owner"
         description="Register a truck supplier for hire challan settlements."
+        width="xl"
       >
         <Form
           sections={formSections}

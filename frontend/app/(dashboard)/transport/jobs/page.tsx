@@ -187,11 +187,11 @@ export default function JobsPage() {
     },
     {
       key: "parties",
-      header: "Consigner → Consignee",
+      header: "Consignor → Consignee",
       cell: (row) => (
         <div>
           <span className="font-semibold text-slate-900 block text-xs">
-            {row.consigner_name || `Consigner #${row.consigner_id}`}
+            {row.consigner_name || `Consignor #${row.consigner_id}`}
           </span>
           <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
             <span className="text-slate-400">To:</span> {row.consignee_name || `Consignee #${row.consignee_id}`}
@@ -294,7 +294,7 @@ export default function JobsPage() {
   }));
 
   const consignerOptions = consigners.map((c) => ({
-    label: c.name || `Consigner #${c.id}`,
+    label: c.name || `Consignor #${c.id}`,
     value: String(c.id),
   }));
 
@@ -317,16 +317,14 @@ export default function JobsPage() {
       fields: [
         {
           name: "job_number",
-          label: "Job Number / Sequence",
+          label: "Job Sequence Number (Optional)",
           type: "text",
           disabled: Boolean(editingJob),
           disabledReason: editingJob ? "Job Number cannot be modified once created" : undefined,
-          placeholder: seriesInfo?.prefix || seriesInfo?.suffix
-            ? `${seriesInfo.prefix || ""}50${seriesInfo.suffix || ""}`
-            : (seriesInfo?.next_number_formatted || "e.g. 50 or JOB-50-2026"),
-          helperText: seriesInfo?.prefix || seriesInfo?.suffix
-            ? `Series Master: Prefix '${seriesInfo.prefix || ""}', Postfix '${seriesInfo.suffix || ""}'. Enter sequence (e.g. 50) and it will save as ${seriesInfo.prefix || ""}50${seriesInfo.suffix || ""}. Leave blank for auto.`
-            : "Enter sequence or full Job Number, or leave blank for automatic allocation.",
+          placeholder: seriesInfo?.next_number_formatted ? `Next: ${seriesInfo.next_number_formatted}` : "Leave blank for auto-numbering",
+          helperText: seriesInfo?.next_number_formatted
+            ? `Generated format: ${seriesInfo.next_number_formatted}. Enter custom sequence or leave blank for automatic numbering.`
+            : "Enter sequence number or leave blank for automatic generation.",
           colSpan: 1,
         },
         {
@@ -379,14 +377,14 @@ export default function JobsPage() {
         },
         {
           name: "consigner_id",
-          label: "Consigner",
+          label: "Consignor",
           type: "select",
           required: true,
           options: consignerOptions,
-          placeholder: "Select Consigner",
+          placeholder: "Select Consignor",
           onAddNew: () => setQuickConsignerOpen(true),
-          addNewLabel: "+ Add New Consigner",
-          addNewTitle: "Quickly create and register consigner",
+          addNewLabel: "+ Add New Consignor",
+          addNewTitle: "Quickly create and register consignor",
         },
         {
           name: "consignee_id",
@@ -564,7 +562,7 @@ export default function JobsPage() {
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search job number, billing client, consigner, consignee, route..."
+        searchPlaceholder="Search job number, billing client, consignor, consignee, route..."
         filters={[
           {
             id: "status",

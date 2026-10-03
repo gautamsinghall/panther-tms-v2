@@ -89,18 +89,12 @@ export function EntityDrawer({
 
   if (!isOpen) return null;
 
-  const effectiveWidth = size || width || "xl";
-  const maxWidthClass = {
-    md: "max-w-3xl",
-    lg: "max-w-4xl",
-    xl: "max-w-5xl",
-    full: "max-w-6xl",
-  }[effectiveWidth];
+  const maxWidthClass = "max-w-5xl";
 
   const formViewContent = (
     <div
       className={cn(
-        "w-full mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-2 duration-200",
+        "w-full mx-auto space-y-6 pb-20 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-100",
         maxWidthClass
       )}
     >
@@ -111,10 +105,8 @@ export function EntityDrawer({
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200/60 text-indigo-700 text-[11px] font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                Full Screen Form
+                Transport Form
               </span>
-              <span className="text-xs text-slate-300">•</span>
-              <span className="text-xs font-medium text-slate-500">Unsaved draft</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
               {title}

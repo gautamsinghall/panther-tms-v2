@@ -946,15 +946,15 @@ export default function LRBookingPage() {
         },
         {
           name: "lr_number",
-          label: "LR No.",
+          label: "LR Number (Auto-Generated)",
           type: "text",
           disabled: true,
-          disabledReason: "Locked — automatically allocated from Series Master for this issuing office.",
+          disabledReason: "Automatically assigned from Series Master upon saving.",
           required: false,
-          placeholder: (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "",
+          placeholder: (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "Auto-allocated",
           helperText: seriesInfo?.configured
-            ? `🔒 Auto-allocated from Series Master (${seriesInfo.next_number_formatted}). Non-editable.`
-            : "⚠️ No series configured for this office. Please setup the series in Settings > Series Master.",
+            ? `Preview: ${seriesInfo.next_number_formatted}. Unique sequence number is generated automatically from the active series.`
+            : "No active series configured for this branch. Configure in Settings → Series Master.",
         },
         {
           name: "dispatch_date",
@@ -1507,9 +1507,9 @@ export default function LRBookingPage() {
         description={
           editingLrRecord
             ? "Update commercial consignment fields, transit routes, and compliance data without creating duplicate records."
-            : "Record commercial consignment, assigned truck, freight terms, and dispatch parties according to 36-field standard."
+            : "Record commercial consignment, assigned truck, freight terms, and dispatch parties for transport authorization."
         }
-        width="full"
+        width="xl"
       >
         {/* Office & Series Context Banner */}
         <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
@@ -1594,7 +1594,6 @@ export default function LRBookingPage() {
         )}
 
         <Form
-          className="max-w-full"
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}

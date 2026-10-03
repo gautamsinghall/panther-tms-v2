@@ -12,6 +12,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { ColumnDef } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { formatDateTime } from "@/lib/utils";
 
 interface TrackingPingRecord {
   id: number;
@@ -115,7 +116,7 @@ export default function TrackingPage() {
       header: "Last Telemetry Ping",
       cell: (row) => (
         <span className="text-xs font-mono text-slate-500 tabular-nums">
-          {new Date(row.last_ping_at).toLocaleTimeString()} ({new Date(row.last_ping_at).toLocaleDateString()})
+          {formatDateTime(row.last_ping_at)}
         </span>
       ),
     },

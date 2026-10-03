@@ -1403,10 +1403,10 @@ export default function HireChallansPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Issuing Office */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 flex items-center justify-between">
                   <span>
                     Issuing Office <span className="text-rose-500">*</span>
                   </span>
@@ -1415,8 +1415,8 @@ export default function HireChallansPage() {
                   </span>
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Building2 className="w-4 h-4 text-slate-400" />
                   </div>
                   <input
                     type="text"
@@ -1424,26 +1424,26 @@ export default function HireChallansPage() {
                     tabIndex={-1}
                     value={currentOfficeDisplay}
                     aria-label="Issuing Office"
-                    className="w-full h-9 pl-8 pr-8 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none focus:ring-0 shadow-2xs"
+                    className="w-full h-10 pl-9 pr-9 text-xs sm:text-sm font-semibold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
                   />
-                  <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
-                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <Lock className="w-4 h-4 text-slate-400" />
                   </div>
                 </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-400 block">
                   Autofetched from current active issuing office and locked.
                 </span>
               </div>
 
               {/* HC Series */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   HC Series <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={selectedSeriesId}
                   onChange={(e) => handleSeriesChange(e.target.value)}
-                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer"
                 >
                   {seriesOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -1451,14 +1451,14 @@ export default function HireChallansPage() {
                     </option>
                   ))}
                 </select>
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-400 block">
                   Booklet series configured in Series Master.
                 </span>
               </div>
 
               {/* HC No */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 flex items-center justify-between">
                   <span>
                     HC No <span className="text-rose-500">*</span>
                   </span>
@@ -1471,7 +1471,7 @@ export default function HireChallansPage() {
                     value={challanNumber}
                     onChange={(e) => setChallanNumber(e.target.value)}
                     required
-                    className="w-full h-9 px-3 text-xs font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer"
                   >
                     {hcNoOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -1487,25 +1487,23 @@ export default function HireChallansPage() {
                       disabled
                       value={challanNumber || ""}
                       placeholder={isSeriesConfigured ? "" : "Not configured (Setup in Series Master)"}
-                      className="w-full h-9 pl-3 pr-8 text-xs font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
+                      className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
                     />
-                    <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
-                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <Lock className="w-4 h-4 text-slate-400" />
                     </div>
                   </div>
                 )}
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-400 block">
                   {challanNumber
                     ? "Unused voucher leaf automatically assigned from Series Master."
                     : "No series configured for this office. Must be set up in Settings."}
                 </span>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
               {/* Challan Date */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   Challan Date <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -1513,13 +1511,13 @@ export default function HireChallansPage() {
                   required
                   value={challanDate}
                   onChange={(e) => setChallanDate(e.target.value)}
-                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
 
               {/* Vendor Ref. No. */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700">
                   Vendor Ref. No.
                 </label>
                 <input
@@ -1527,7 +1525,7 @@ export default function HireChallansPage() {
                   value={vendorRefNo}
                   onChange={(e) => setVendorRefNo(e.target.value)}
                   placeholder="e.g. VREF-12345"
-                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
             </div>
@@ -1544,10 +1542,10 @@ export default function HireChallansPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* From */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   From (Origin) <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -1557,7 +1555,7 @@ export default function HireChallansPage() {
                   value={fromLocation}
                   onChange={(e) => setFromLocation(e.target.value)}
                   placeholder="Select origin city"
-                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="from-locations-list">
                   {locations.map((loc) => (
@@ -1569,8 +1567,8 @@ export default function HireChallansPage() {
               </div>
 
               {/* To */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   To (Destination) <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -1580,7 +1578,7 @@ export default function HireChallansPage() {
                   value={toLocation}
                   onChange={(e) => setToLocation(e.target.value)}
                   placeholder="Select destination city"
-                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="to-locations-list">
                   {locations.map((loc) => (
@@ -1592,8 +1590,8 @@ export default function HireChallansPage() {
               </div>
 
               {/* Vehicle No */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   Vehicle No <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -1603,7 +1601,7 @@ export default function HireChallansPage() {
                   value={vehicleNumber}
                   onChange={(e) => handleVehicleSelect(e.target.value)}
                   placeholder="e.g. DL-01-AB-1234"
-                  className="w-full h-9 px-3 text-xs font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="vehicles-list">
                   {vehicles.map((v) => (
@@ -1614,16 +1612,16 @@ export default function HireChallansPage() {
                 </datalist>
               </div>
 
-              {/* Driver Name with Blue '+' and Yellow Reload */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              {/* Driver Name with standardized pale purple '+' and slate Reload */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   Driver Name <span className="text-rose-500">*</span>
                 </label>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <select
                     value={driverId}
                     onChange={(e) => handleDriverSelect(e.target.value)}
-                    className="w-full h-9 px-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all truncate"
+                    className="flex-1 min-w-0 h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs truncate cursor-pointer"
                   >
                     <option value="">- Select Driver -</option>
                     {drivers.map((d) => (
@@ -1637,7 +1635,8 @@ export default function HireChallansPage() {
                     type="button"
                     onClick={() => setQuickDriverOpen(true)}
                     title="Quick Add Driver"
-                    className="w-9 h-9 bg-sky-600 hover:bg-sky-700 text-white rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors"
+                    aria-label="Quick Add Driver"
+                    className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -1646,8 +1645,9 @@ export default function HireChallansPage() {
                     type="button"
                     onClick={refreshDrivers}
                     title="Refresh Drivers List"
+                    aria-label="Refresh Drivers List"
                     className={cn(
-                      "w-9 h-9 bg-amber-500 hover:bg-amber-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-all",
+                      "w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-all cursor-pointer",
                       isRefreshingDrivers && "animate-spin"
                     )}
                   >
@@ -1657,16 +1657,16 @@ export default function HireChallansPage() {
               </div>
 
               {/* Vendor / Owner */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700">
                   Vendor / Vehicle Owner <span className="text-rose-500">*</span>
                 </label>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <select
                     value={ownerId}
                     onChange={(e) => setOwnerId(e.target.value)}
                     required
-                    className="w-full h-9 px-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all truncate"
+                    className="flex-1 min-w-0 h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs truncate cursor-pointer"
                   >
                     <option value="">- Select Vendor / Owner -</option>
                     {owners.map((o) => (
@@ -1679,7 +1679,8 @@ export default function HireChallansPage() {
                     type="button"
                     onClick={() => setQuickOwnerOpen(true)}
                     title="Add New Vendor / Owner"
-                    className="w-9 h-9 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 transition-colors"
+                    aria-label="Add New Vendor / Owner"
+                    className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -1709,8 +1710,8 @@ export default function HireChallansPage() {
                 <thead>
                   <tr className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
                     <th className="py-2.5 px-3 min-w-[160px]">GR/LR No</th>
-                    <th className="py-2.5 px-3 w-24">Pkg Ct.</th>
-                    <th className="py-2.5 px-3 w-28">Gross Wt</th>
+                    <th className="py-2.5 px-3 min-w-[120px]">Package Count</th>
+                    <th className="py-2.5 px-3 min-w-[130px]">Gross Weight (MT)</th>
                     <th className="py-2.5 px-3 min-w-[160px]">Charge Head</th>
                     <th className="py-2.5 px-3 min-w-[180px]">Narration</th>
                     <th className="py-2.5 px-3 w-16 text-center">TDS</th>
@@ -1857,8 +1858,8 @@ export default function HireChallansPage() {
                 <thead>
                   <tr className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
                     <th className="py-2.5 px-3 min-w-[160px]">GR/LR No</th>
-                    <th className="py-2.5 px-3 w-24">Pkg Ct.</th>
-                    <th className="py-2.5 px-3 w-28">Gross Wt</th>
+                    <th className="py-2.5 px-3 min-w-[120px]">Package Count</th>
+                    <th className="py-2.5 px-3 min-w-[130px]">Gross Weight (MT)</th>
                     <th className="py-2.5 px-3 min-w-[160px]">Charge Head</th>
                     <th className="py-2.5 px-3 min-w-[180px]">Narration</th>
                     <th className="py-2.5 px-3 w-16 text-center">TDS</th>
@@ -1995,10 +1996,10 @@ export default function HireChallansPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Base Freight */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   Base Freight (₹)
                 </label>
                 <input
@@ -2007,22 +2008,22 @@ export default function HireChallansPage() {
                   value={baseHireRate}
                   onChange={(e) => setBaseHireRate(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-9 px-3 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-400 block">
                   Fixed lorry freight (optional).
                 </span>
               </div>
 
               {/* TDS Category */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   TDS Category
                 </label>
                 <select
                   value={tdsCategory}
                   onChange={(e) => handleTdsCategoryChange(e.target.value)}
-                  className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer"
                 >
                   {TDS_CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>
@@ -2030,14 +2031,14 @@ export default function HireChallansPage() {
                     </option>
                   ))}
                 </select>
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-400 block">
                   Applicable TDS tax section and standard rate.
                 </span>
               </div>
 
               {/* TDS Amount */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   TDS Amount (₹)
                 </label>
                 <input
@@ -2046,16 +2047,16 @@ export default function HireChallansPage() {
                   value={calculatedTdsAmount > 0 ? calculatedTdsAmount : ""}
                   onChange={(e) => setTdsAmountInput(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-9 px-3 text-xs font-mono font-semibold rounded-xl border border-slate-200 bg-slate-100 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-semibold rounded-xl border border-slate-200 bg-slate-100 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-400 block">
                   Auto-calculated from rate ({tdsRate}%).
                 </span>
               </div>
 
               {/* Advance Paid */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700">
                   Advance Paid (₹)
                 </label>
                 <input
@@ -2064,24 +2065,24 @@ export default function HireChallansPage() {
                   value={advancePaid}
                   onChange={(e) => setAdvancePaid(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-9 px-3 text-xs font-mono rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-slate-400 block">
                   Amount paid immediately to driver/owner.
                 </span>
               </div>
 
               {/* Remarks */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Remarks / Notes
+              <div className="space-y-1.5 col-span-full">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Remarks / Operational Notes
                 </label>
-                <input
-                  type="text"
+                <textarea
+                  rows={3}
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="Operational instructions"
-                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+                  placeholder="Enter dispatch notes, transit handling instructions, or operational remarks..."
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs resize-y"
                 />
               </div>
             </div>
@@ -2136,24 +2137,28 @@ export default function HireChallansPage() {
             </div>
           </div>
 
-          {/* Form Actions Footer */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+          {/* Form Actions Footer Card */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex items-center justify-end gap-3 shadow-2xs mt-8">
             <Button
               type="button"
               variant="outline"
+              size="md"
               onClick={() => {
                 setIsDrawerOpen(false);
                 setEditingId(null);
               }}
               disabled={isSubmitting}
+              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               variant="primary"
+              size="md"
               isLoading={isSubmitting}
               disabled={isSubmitting || (!editingId && (!isSeriesConfigured || !challanNumber.trim()))}
+              className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
             >
               {editingId ? "Save Changes" : "Issue Hire Challan"}
             </Button>
@@ -2248,8 +2253,8 @@ export default function HireChallansPage() {
                     <thead className="bg-slate-50 text-slate-600">
                       <tr>
                         <th className="py-1.5 px-3">GR/LR</th>
-                        <th className="py-1.5 px-3">Pkg Ct</th>
-                        <th className="py-1.5 px-3">Gross Wt</th>
+                        <th className="py-1.5 px-3">Package Count</th>
+                        <th className="py-1.5 px-3">Gross Weight (MT)</th>
                         <th className="py-1.5 px-3">Head</th>
                         <th className="py-1.5 px-3">Narration</th>
                         <th className="py-1.5 px-3 text-right">Amount</th>
@@ -2281,8 +2286,8 @@ export default function HireChallansPage() {
                     <thead className="bg-slate-50 text-slate-600">
                       <tr>
                         <th className="py-1.5 px-3">GR/LR</th>
-                        <th className="py-1.5 px-3">Pkg Ct</th>
-                        <th className="py-1.5 px-3">Gross Wt</th>
+                        <th className="py-1.5 px-3">Package Count</th>
+                        <th className="py-1.5 px-3">Gross Weight (MT)</th>
                         <th className="py-1.5 px-3">Head</th>
                         <th className="py-1.5 px-3">Narration</th>
                         <th className="py-1.5 px-3 text-right">Amount</th>

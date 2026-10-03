@@ -262,6 +262,7 @@ export default function ArrivalReportsPage() {
         onClose={() => setIsDrawerOpen(false)}
         title="File Destination Arrival Report"
         description="Record physical unloading tally and damage/shortage conditions."
+        width="xl"
       >
         <Form
           sections={formSections}
