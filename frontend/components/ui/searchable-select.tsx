@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useId } from "react";
 import { ChevronDown, Search, Check, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +59,9 @@ export function SearchableSelect({
   addNewLabel,
   addNewTitle,
 }: SearchableSelectProps) {
+  const generatedId = useId();
+  const controlId = id || `searchable-select-${generatedId}`;
+  const listboxId = `${controlId}-listbox`;
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,8 +149,14 @@ export function SearchableSelect({
       <div className="flex items-center gap-1.5 w-full min-w-0">
         {/* Trigger Button */}
         <button
-          id={id}
+          id={controlId}
           type="button"
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-controls={listboxId}
+          aria-required={required}
+          aria-invalid={error}
           disabled={disabled}
           onClick={handleToggle}
           className={cn(
@@ -237,11 +246,13 @@ export function SearchableSelect({
           </div>
 
           {/* Options List */}
-          <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5 divide-y-0">
+          <div id={listboxId} role="listbox" className="max-h-60 overflow-y-auto p-1.5 space-y-0.5 divide-y-0">
             {/* Empty/Placeholder option to clear */}
             {!required && (
               <button
                 type="button"
+                role="option"
+                aria-selected={!value || value === ""}
                 onClick={() => handleSelect("")}
                 className={cn(
                   "w-full text-left px-2.5 py-2 rounded-lg text-xs font-normal text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors flex items-center justify-between cursor-pointer",
@@ -261,6 +272,8 @@ export function SearchableSelect({
                     <button
                       key={String(opt.value)}
                       type="button"
+                      role="option"
+                      aria-selected={isSelected}
                       onClick={() => handleSelect(opt.value)}
                       className={cn(
                         "w-full text-left px-2.5 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-between cursor-pointer group/opt",

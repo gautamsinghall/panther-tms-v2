@@ -203,6 +203,9 @@ export default function PrimaryGroupPage() {
           isLoading={isLoading}
           searchPlaceholder="Search primary groups..."
           searchColumn="name"
+          emptyMessage="No primary groups configured"
+          emptySubtext="Create a primary accounting group to begin organizing ledger accounts."
+          emptyAction={{ label: "Add Primary Group", onClick: () => setIsDrawerOpen(true) }}
         />
       </div>
 

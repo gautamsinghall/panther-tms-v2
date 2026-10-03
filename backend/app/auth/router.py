@@ -300,13 +300,14 @@ async def get_user_navigation(
         if not entitled:
             if is_admin:
                 # Company admin sees the module as locked with an upgrade CTA
+                required_plan = "BUSINESS" if mod["id"] in ("fleet", "einvoicing", "statements") else "PRO"
                 result.append({
                     "id": mod["id"],
                     "title": mod["title"],
                     "is_locked": True,
-                    "required_plan": "Business" if mod["id"] in ("fleet", "einvoicing", "statements") else "Pro",
+                    "required_plan": required_plan,
                     "items": [
-                        {**it, "is_locked": True} for it in mod["items"]
+                        {**it, "is_locked": True, "required_plan": required_plan} for it in mod["items"]
                     ],
                 })
             # Employees don't see unentitled modules at all

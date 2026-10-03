@@ -127,7 +127,7 @@ export default function ArrivalRegisterPage() {
           { label: "Arrival Register" },
         ]}
         title="Arrival Report Register"
-        description="Destination hub arrival audit register tracking cargo unloading and shortage discrepancies (PRD §7.4)."
+        description="Destination arrival register for cargo unloading, condition, and shortage discrepancies."
         primaryAction={{
           label: "Refresh Register",
           icon: RefreshCw,

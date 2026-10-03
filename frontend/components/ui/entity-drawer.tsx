@@ -16,6 +16,7 @@ export interface EntityDrawerProps {
   width?: "md" | "lg" | "xl" | "full";
   size?: "md" | "lg" | "xl" | "full";
   footer?: React.ReactNode;
+  contextLabel?: string;
 }
 
 /**
@@ -36,6 +37,7 @@ export function EntityDrawer({
   width,
   size,
   footer,
+  contextLabel = "Record Form",
 }: EntityDrawerProps) {
   const { openFormTab, dismissFormTab, setActiveTab, activeTab } = useWorkspaceTabs();
   const [mounted, setMounted] = useState(false);
@@ -105,7 +107,7 @@ export function EntityDrawer({
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200/60 text-indigo-700 text-[11px] font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                Transport Form
+                {contextLabel}
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">

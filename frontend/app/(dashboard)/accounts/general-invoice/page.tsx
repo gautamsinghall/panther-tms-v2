@@ -12,6 +12,8 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
+import { FormActionBar } from "@/components/ui/form-action-bar";
+import { formatCurrency } from "@/lib/utils";
 
 interface LedgerEntry {
   id: number;
@@ -148,6 +150,10 @@ export default function GeneralInvoicePage() {
     value: opt.value,
     label: opt.label,
   }));
+
+  const taxablePreview = Math.max(0, parseFloat(totalAmount) || 0);
+  const taxPreview = Math.max(0, parseFloat(taxAmount) || 0);
+  const payablePreview = taxablePreview + taxPreview;
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -429,6 +435,9 @@ export default function GeneralInvoicePage() {
           searchPlaceholder="Search invoices or party..."
           searchColumn="party_name"
           actions={actions}
+          emptyMessage="No general invoices created"
+          emptySubtext="Create a non-freight invoice to post revenue, tax, and receivable entries."
+          emptyAction={{ label: "Create General Invoice", onClick: openCreateDrawer }}
         />
       </div>
 
@@ -440,18 +449,29 @@ export default function GeneralInvoicePage() {
         description="Non-freight billing with double-entry revenue and tax ledgers"
         size="md"
         footer={
-          <div className="flex justify-end gap-3 w-full">
-            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="general-invoice-form"
-              disabled={isSubmitting || (isManualSeries ? !voucherNumber : !seriesInfo?.configured)}
-            >
-              {isSubmitting ? "Posting..." : (isManualSeries ? !activeRange : !seriesInfo?.configured) ? "Series Config Required" : "Create & Post"}
-            </Button>
-          </div>
+          <FormActionBar
+            onCancel={() => setIsCreateOpen(false)}
+            submitForm="general-invoice-form"
+            submitLabel={(isManualSeries ? !activeRange : !seriesInfo?.configured) ? "Series Config Required" : "Create & Post"}
+            isSubmitting={isSubmitting}
+            submitDisabled={isManualSeries ? !voucherNumber : !seriesInfo?.configured}
+            summary={
+              <div className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3" aria-label="Invoice payable summary">
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Taxable</span>
+                  <span className="font-mono text-xs font-semibold text-slate-800">{formatCurrency(taxablePreview)}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tax</span>
+                  <span className="font-mono text-xs font-semibold text-slate-800">{formatCurrency(taxPreview)}</span>
+                </div>
+                <div className="border-l border-slate-200 pl-3">
+                  <span className="block text-[10px] font-bold uppercase tracking-wide text-indigo-600">Payable Total</span>
+                  <output className="font-mono text-sm font-bold text-indigo-700" aria-live="polite">{formatCurrency(payablePreview)}</output>
+                </div>
+              </div>
+            }
+          />
         }
       >
         {isManualSeries && activeRange && (

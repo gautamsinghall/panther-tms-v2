@@ -207,6 +207,9 @@ export default function SubgroupPage() {
           isLoading={isLoading}
           searchPlaceholder="Search subgroups..."
           searchColumn="name"
+          emptyMessage="No subgroups configured"
+          emptySubtext="Add a subgroup under an account group to complete the ledger hierarchy."
+          emptyAction={{ label: "Add Subgroup", onClick: () => setIsDrawerOpen(true) }}
         />
       </div>
 

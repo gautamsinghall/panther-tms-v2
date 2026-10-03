@@ -278,6 +278,9 @@ export default function ProformaInvoicePage() {
           searchPlaceholder="Search proforma by number or party..."
           searchColumn="party_name"
           actions={actions}
+          emptyMessage="No proforma invoices created"
+          emptySubtext="Create a proforma invoice to prepare a non-posting customer estimate."
+          emptyAction={{ label: "Create Proforma Invoice", onClick: () => setIsCreateOpen(true) }}
         />
       </div>
 

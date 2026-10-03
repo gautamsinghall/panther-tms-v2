@@ -125,7 +125,7 @@ export default function InvoiceRegisterPage() {
           { label: "Invoice Register" },
         ]}
         title="Invoice Register"
-        description="Transport invoice billing register generated from delivered and verified consignments (PRD §7.4)."
+        description="Transport invoice register for delivered and verified consignments."
         primaryAction={{
           label: "Refresh Register",
           icon: RefreshCw,

@@ -206,7 +206,7 @@ export default function EmailSettingsPage() {
 
               <div className="p-3 bg-slate-50 rounded-control text-xs text-[#667085] flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                SMTP credentials are encrypted in the tenant-isolated database and never shared across tenants.
+                SMTP credentials are stored securely and are only used for this company’s outgoing email.
               </div>
 
               <div className="pt-3 border-t border-[#E4E7EC] flex justify-end">

@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Download, Printer, RefreshCw, Landmark, CheckCircle2 } from "lucide-react";
+import { Download, Printer, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { ColumnDef } from "@/types/table";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { StatusBadge } from "@/components/ui/badge";
 
 interface BankReconTransaction {
   id: number;
@@ -39,15 +40,23 @@ export default function BankReconciliationPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [setupRequired, setSetupRequired] = useState(false);
 
   async function loadBankRecon() {
     setIsLoading(true);
     setError(null);
+    setSetupRequired(false);
     try {
       const res = await apiClient<BankReconciliationResponse>("/api/v1/reports/bank-reconciliation");
       setData(res);
     } catch (err: any) {
-      setError(err.message || "Failed to load Bank Reconciliation");
+      const message = err.message || "Failed to load Bank Reconciliation";
+      if (err?.status === 404 || message.toLowerCase().includes("bank account")) {
+        setSetupRequired(true);
+        setData(null);
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -138,9 +147,11 @@ export default function BankReconciliationPage() {
       key: "is_cleared",
       header: "Clearance Status",
       cell: (row) => (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#027A48] bg-[#ECFDF3] border border-[#A6F4C5] px-2 py-0.5 rounded-full">
-          <CheckCircle2 className="w-3 h-3" /> Cleared
-        </span>
+        <StatusBadge
+          status={row.is_cleared ? "Cleared" : "Uncleared"}
+          variant={row.is_cleared ? "reconciled" : "pending"}
+          className="whitespace-nowrap"
+        />
       ),
     },
   ];
@@ -214,9 +225,19 @@ export default function BankReconciliationPage() {
         columns={columns}
         data={data?.transactions || []}
         isLoading={isLoading}
+        isError={Boolean(error)}
+        errorMessage={error}
+        onRetry={loadBankRecon}
         searchPlaceholder="Filter bank transactions by voucher number..."
         searchColumn="voucher_number"
-        emptyMessage="No bank transactions found."
+        emptyKind={setupRequired ? "not-configured" : "no-records"}
+        emptyMessage={setupRequired ? "No operating bank account configured" : "No bank transactions to reconcile"}
+        emptySubtext={
+          setupRequired
+            ? "Create an operating bank ledger account before running bank reconciliation."
+            : "The selected bank ledger has no posted transactions for reconciliation."
+        }
+        emptyAction={setupRequired ? { label: "Open Account Masters", onClick: () => window.location.href = "/misc/subgroup" } : undefined}
       />
     </div>
   );

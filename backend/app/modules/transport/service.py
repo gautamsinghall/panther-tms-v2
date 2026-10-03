@@ -364,6 +364,42 @@ async def get_all_lrs(db: AsyncSession, office_id: Optional[int] = None, include
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
+
+async def search_lrs(
+    db: AsyncSession,
+    query: str,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+    limit: int = 8,
+) -> List[LR]:
+    pattern = f"%{query.strip()}%"
+    stmt = (
+        select(LR)
+        .options(
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+        )
+        .where(
+            or_(
+                LR.lr_number.ilike(pattern),
+                LR.vehicle_number.ilike(pattern),
+                LR.invoice_no.ilike(pattern),
+                LR.container_no.ilike(pattern),
+            )
+        )
+        .order_by(desc(LR.lr_date), desc(LR.id))
+        .limit(limit)
+    )
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
+    result = await db.execute(stmt)
+    return list(result.scalars().unique().all())
+
 async def get_lr_by_id(db: AsyncSession, lr_id: int) -> LR:
     lr = await db.get(LR, lr_id)
     if not lr:

@@ -197,7 +197,7 @@ export default function TrialBalancePage() {
       />
 
       {/* Equilibrium Status Banner */}
-      {tbData && (
+      {tbData && flatAccounts.length > 0 && (
         <div className={`p-4 rounded-xl border flex items-center justify-between ${
           tbData.is_balanced
             ? "bg-[#ECFDF3] border-[#A6F4C5] text-[#027A48]"
@@ -239,13 +239,19 @@ export default function TrialBalancePage() {
         columns={columns}
         data={flatAccounts}
         isLoading={isLoading}
+        isError={Boolean(error)}
+        errorMessage={error}
+        onRetry={loadTrialBalance}
         searchPlaceholder="Filter accounts by name or code..."
         searchColumn="account_name"
-        emptyMessage="No ledger transactions recorded yet. Vouchers created will appear here."
+        emptyKind="not-configured"
+        emptyMessage="No ledger accounts to verify"
+        emptySubtext="A zero total without ledger accounts is not a verified trial balance. Configure accounts and post vouchers before checking equilibrium."
+        emptyAction={{ label: "Open Account Masters", onClick: () => window.location.href = "/misc/subgroup" }}
       />
 
       {/* Bottom Summary Bar */}
-      {tbData && (
+      {tbData && flatAccounts.length > 0 && (
         <div className="flex items-center justify-between p-4 bg-[#F8FAFC] border border-[#E4E7EC] rounded-xl text-sm font-semibold text-[#172033]">
           <span>Equilibrium Summary</span>
           <div className="flex items-center gap-8 font-mono">

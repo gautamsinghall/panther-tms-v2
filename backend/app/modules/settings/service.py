@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -629,12 +629,22 @@ async def get_activity_logs(
     limit: int = 100,
     module: Optional[str] = None,
     user_email: Optional[str] = None,
+    action: Optional[str] = None,
+    date_from: Optional[date] = None,
+    date_to: Optional[date] = None,
 ) -> List[UserActivity]:
     stmt = select(UserActivity)
     if module:
         stmt = stmt.where(UserActivity.module == module.lower().strip())
     if user_email:
         stmt = stmt.where(UserActivity.user_email == user_email.lower().strip())
+    if action:
+        stmt = stmt.where(UserActivity.action == action.upper().strip())
+    if date_from:
+        stmt = stmt.where(UserActivity.created_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
+    if date_to:
+        next_day = date_to + timedelta(days=1)
+        stmt = stmt.where(UserActivity.created_at < datetime.combine(next_day, time.min, tzinfo=timezone.utc))
     stmt = stmt.order_by(UserActivity.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())

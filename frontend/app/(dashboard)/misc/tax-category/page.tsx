@@ -231,6 +231,9 @@ export default function TaxCategoryPage() {
           isLoading={isLoading}
           searchPlaceholder="Search tax categories..."
           searchColumn="name"
+          emptyMessage="No tax categories configured"
+          emptySubtext="Add a GST tax category before assigning taxes to charge heads and invoices."
+          emptyAction={{ label: "Add Tax Category", onClick: () => setIsDrawerOpen(true) }}
         />
       </div>
 

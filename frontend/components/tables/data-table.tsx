@@ -10,9 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
-  FileSpreadsheet,
-  AlertCircle,
-  RotateCcw,
   CheckSquare,
   Square,
   Download,
@@ -22,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
-import { StatusBadge } from "@/components/ui/badge";
+import { DataState, DataStateKind } from "@/components/ui/data-state";
 import { ColumnDef, RowAction, SortDirection, TableDensity } from "@/types/table";
 
 export interface BulkActionDef<T> {
@@ -54,6 +51,8 @@ export interface DataTableProps<T> {
     label: string;
     onClick: () => void;
   };
+  emptyKind?: Extract<DataStateKind, "not-configured" | "not-selected" | "no-records">;
+  tableClassName?: string;
   defaultDensity?: TableDensity;
   toolbarExtra?: React.ReactNode;
   selectable?: boolean;
@@ -86,9 +85,11 @@ export function DataTable<T extends Record<string, any>>({
   actionLayout = "dropdown",
   pageSizeOptions = [10, 25, 50, 100],
   initialPageSize = 10,
-  emptyMessage = "No records found",
-  emptySubtext = "Try adjusting your search query or filters.",
+  emptyMessage = "No records yet",
+  emptySubtext,
   emptyAction,
+  emptyKind = "no-records",
+  tableClassName,
   defaultDensity = "comfortable",
   toolbarExtra,
   selectable = true,
@@ -333,7 +334,7 @@ export function DataTable<T extends Record<string, any>>({
       {/* Main Table Container */}
       <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className={cn("w-full text-left border-collapse", tableClassName)}>
             {/* Sticky Header */}
             <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200/80 backdrop-blur-xs">
               <tr>
@@ -434,23 +435,11 @@ export function DataTable<T extends Record<string, any>>({
                     colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
                     className="py-14 text-center"
                   >
-                    <div className="max-w-xs mx-auto space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto text-rose-600 shadow-2xs">
-                        <AlertCircle className="w-6 h-6" />
-                      </div>
-                      <p className="text-sm font-bold text-slate-900">
-                        Unable to load records
-                      </p>
-                      <p className="text-xs text-slate-500 leading-normal">
-                        {errorMessage || "An unexpected network or database error occurred."}
-                      </p>
-                      {onRetry && (
-                        <Button variant="secondary" size="sm" onClick={onRetry} className="gap-1.5 rounded-xl">
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Retry</span>
-                        </Button>
-                      )}
-                    </div>
+                    <DataState
+                      kind="error"
+                      description={errorMessage || "The records could not be loaded. Check your connection and try again."}
+                      action={onRetry ? { label: "Retry", onClick: onRetry } : undefined}
+                    />
                   </td>
                 </tr>
               )}
@@ -462,22 +451,20 @@ export function DataTable<T extends Record<string, any>>({
                     colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
                     className="py-16 text-center"
                   >
-                    <div className="max-w-sm mx-auto space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
-                        <FileSpreadsheet className="w-6 h-6" />
-                      </div>
-                      <h4 className="text-sm font-bold text-slate-900">
-                        {emptyMessage}
-                      </h4>
-                      <p className="text-xs text-slate-500 leading-normal">
-                        {emptySubtext}
-                      </p>
-                      {emptyAction && (
-                        <Button variant="primary" size="sm" onClick={emptyAction.onClick} className="rounded-xl shadow-xs">
-                          {emptyAction.label}
-                        </Button>
-                      )}
-                    </div>
+                    <DataState
+                      kind={searchTerm.trim() ? "no-results" : emptyKind}
+                      title={searchTerm.trim() ? "No search results" : emptyMessage}
+                      description={
+                        searchTerm.trim()
+                          ? `No records match “${searchTerm.trim()}”. Clear the search or try another term.`
+                          : emptySubtext || "Records will appear here after they are created."
+                      }
+                      action={
+                        searchTerm.trim()
+                          ? { label: "Clear search", onClick: () => setSearchTerm("") }
+                          : emptyAction
+                      }
+                    />
                   </td>
                 </tr>
               )}

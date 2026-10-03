@@ -32,7 +32,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getActiveOffice, OfficeSummary, getStoredAuth } from "@/lib/auth";
 import {
@@ -155,6 +155,7 @@ const STANDARD_VEHICLE_TYPES = [
 
 export default function LRBookingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<LRRecord[]>([]);
   const [consigners, setConsigners] = useState<SelectOption[]>([]);
   const [consignees, setConsignees] = useState<SelectOption[]>([]);
@@ -171,6 +172,11 @@ export default function LRBookingPage() {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const requestedRecord = searchParams.get("search");
+    if (requestedRecord) setSearchTerm(requestedRecord);
+  }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Drawer / Form state

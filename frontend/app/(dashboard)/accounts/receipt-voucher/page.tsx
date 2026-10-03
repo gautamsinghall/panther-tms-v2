@@ -12,6 +12,8 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
+import { FormFieldLabel } from "@/components/ui/form-field";
+import { FormActionBar } from "@/components/ui/form-action-bar";
 
 interface LedgerEntry {
   id: number;
@@ -268,9 +270,15 @@ export default function ReceiptVoucherPage() {
         columns={columns}
         data={data}
         isLoading={isLoading}
+        isError={Boolean(errorMessage) && data.length === 0}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         searchPlaceholder="Search customer or receipt no..."
         searchColumn="party_name"
         actions={actions}
+        emptyMessage="No receipt vouchers recorded"
+        emptySubtext="Record a customer receipt to post the incoming payment to the ledger."
+        emptyAction={{ label: "Record Receipt Voucher", onClick: () => setIsCreateOpen(true) }}
       />
 
       {/* Create Drawer */}
@@ -316,10 +324,10 @@ export default function ReceiptVoucherPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#344054] mb-1">
-              Received From (Customer Name) *
-            </label>
+            <FormFieldLabel htmlFor="receipt-party-name" required>Received From (Customer Name)</FormFieldLabel>
             <input
+              id="receipt-party-name"
+              name="party_name"
               type="text"
               required
               placeholder="e.g. Paramount Textiles Ltd"
@@ -329,12 +337,12 @@ export default function ReceiptVoucherPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">
-                Receipt Channel *
-              </label>
+              <FormFieldLabel htmlFor="receipt-payment-mode" required>Receipt Channel</FormFieldLabel>
               <SearchableSelect
+                id="receipt-payment-mode"
+                name="payment_mode"
                 value={paymentMode}
                 onChange={(val) => setPaymentMode(val as any)}
                 options={[
@@ -347,10 +355,10 @@ export default function ReceiptVoucherPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">
-                Amount Received (₹) *
-              </label>
+              <FormFieldLabel htmlFor="receipt-amount" required>Amount Received (₹)</FormFieldLabel>
               <input
+                id="receipt-amount"
+                name="amount"
                 type="number"
                 step="0.01"
                 required
@@ -363,10 +371,10 @@ export default function ReceiptVoucherPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#344054] mb-1">
-              Transaction / Cheque / UTR Reference
-            </label>
+            <FormFieldLabel htmlFor="receipt-reference">Transaction / Cheque / UTR Reference</FormFieldLabel>
             <input
+              id="receipt-reference"
+              name="reference_number"
               type="text"
               placeholder="e.g. UTR-HDFC90823412"
               value={referenceNumber}
@@ -376,10 +384,10 @@ export default function ReceiptVoucherPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#344054] mb-1">
-              Narration / Notes
-            </label>
+            <FormFieldLabel htmlFor="receipt-narration">Narration / Notes</FormFieldLabel>
             <textarea
+              id="receipt-narration"
+              name="narration"
               rows={2}
               placeholder="Payment remarks or invoice adjustments..."
               value={narration}
@@ -388,18 +396,13 @@ export default function ReceiptVoucherPage() {
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-[#E4E7EC]">
-            <Button type="button" variant="secondary" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              isLoading={isSubmitting}
-              disabled={!seriesInfo?.configured || isSubmitting}
-            >
-              Record Receipt
-            </Button>
+          <div className="pt-4 border-t border-[#E4E7EC]">
+            <FormActionBar
+              onCancel={() => setIsCreateOpen(false)}
+              submitLabel="Record Receipt"
+              isSubmitting={isSubmitting}
+              submitDisabled={!seriesInfo?.configured}
+            />
           </div>
         </form>
       </EntityDrawer>

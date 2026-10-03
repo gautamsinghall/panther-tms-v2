@@ -276,6 +276,9 @@ export default function EmployeeMasterPage() {
           isLoading={isLoading}
           searchPlaceholder="Search employees..."
           searchColumn="name"
+          emptyMessage="No employees registered"
+          emptySubtext="Add an employee master record for operational and accounting assignments."
+          emptyAction={{ label: "Add Employee", onClick: () => setIsDrawerOpen(true) }}
         />
       </div>
 

@@ -21,14 +21,16 @@ import {
   CheckCircle2,
   Percent,
   Layers,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api-client";
 
 interface CommandItem {
   id: string;
   title: string;
   description: string;
-  category: "Transport" | "Accounts" | "Masters" | "Reports" | "Settings";
+  category: "Transport" | "Accounts" | "Masters" | "Reports" | "Settings" | "LR Record";
   href: string;
   icon: React.ReactNode;
   keywords?: string[];
@@ -263,6 +265,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [recordItems, setRecordItems] = useState<CommandItem[]>([]);
+  const [isSearchingRecords, setIsSearchingRecords] = useState(false);
+  const [recordSearchError, setRecordSearchError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -277,6 +282,59 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!isOpen || trimmed.length < 2) {
+      setRecordItems([]);
+      setIsSearchingRecords(false);
+      setRecordSearchError(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setIsSearchingRecords(true);
+      setRecordSearchError(false);
+      try {
+        const results = await apiClient<any[]>(
+          `/api/v1/transport/lrs-search?q=${encodeURIComponent(trimmed)}&limit=8`,
+          { signal: controller.signal }
+        );
+        setRecordItems(
+          results.map((lr) => ({
+            id: `lr-record-${lr.id}`,
+            title: lr.lr_number,
+            description: [
+              lr.consigner_name && lr.consignee_name
+                ? `${lr.consigner_name} to ${lr.consignee_name}`
+                : lr.consigner_name || lr.consignee_name,
+              lr.vehicle_number,
+              String(lr.status || "").replace(/_/g, " "),
+            ]
+              .filter(Boolean)
+              .join(" • "),
+            category: "LR Record" as const,
+            href: `/transport/lr-booking?search=${encodeURIComponent(lr.lr_number)}`,
+            icon: <FileText className="w-4 h-4 text-blue-600" />,
+            keywords: [lr.lr_number, lr.vehicle_number, lr.consigner_name, lr.consignee_name].filter(Boolean),
+          }))
+        );
+      } catch (error: any) {
+        if (error?.name !== "AbortError") {
+          setRecordItems([]);
+          setRecordSearchError(true);
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsSearchingRecords(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [isOpen, query]);
+
   // Filter items matching query across title, description, category, and keywords
   const filteredItems = COMMAND_ITEMS.filter((item) => {
     if (!query.trim()) return true;
@@ -289,6 +347,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     );
   });
 
+  const allResults = query.trim().length >= 2 ? [...recordItems, ...filteredItems] : filteredItems;
+
   const handleSelect = (item: CommandItem) => {
     onClose();
     router.push(item.href);
@@ -297,13 +357,13 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % (filteredItems.length || 1));
+      setSelectedIndex((prev) => (prev + 1) % (allResults.length || 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % (filteredItems.length || 1));
-    } else if (e.key === "Enter" && filteredItems[selectedIndex]) {
+      setSelectedIndex((prev) => (prev - 1 + allResults.length) % (allResults.length || 1));
+    } else if (e.key === "Enter" && allResults[selectedIndex]) {
       e.preventDefault();
-      handleSelect(filteredItems[selectedIndex]);
+      handleSelect(allResults[selectedIndex]);
     } else if (e.key === "Escape") {
       e.preventDefault();
       onClose();
@@ -324,6 +384,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       {/* Spotlight Dialog */}
       <div className="flex min-h-full items-start justify-center p-4 pt-16 sm:pt-24 text-center">
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="command-palette-title"
           className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl border border-slate-200 transition-all animate-in zoom-in-95 duration-150 flex flex-col max-h-[75vh] z-10"
           onKeyDown={handleKeyDown}
         >
@@ -350,6 +413,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <Search className="w-5 h-5 text-[#667085] shrink-0" />
             <input
               id="command-palette-search-input"
+              aria-label="Search modules and records"
               ref={inputRef}
               type="text"
               value={query}
@@ -357,7 +421,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 setQuery(e.target.value);
                 setSelectedIndex(0);
               }}
-              placeholder="Search records, modules, bills, vehicles, or ledger... (e.g. 'LR', 'Invoice', 'Fleet')"
+              placeholder="Search LR records or modules…"
               className="flex-1 bg-transparent text-sm text-[#101828] placeholder-[#98A2B3] border-none outline-none ring-0 shadow-none focus:border-none focus:outline-none focus:ring-0 focus:shadow-none"
               style={{
                 outline: "none",
@@ -371,6 +435,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 type="button"
                 onClick={() => setQuery("")}
                 className="p-1 text-[#98A2B3] hover:text-[#101828] rounded"
+                aria-label="Clear search"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -383,13 +448,22 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
           {/* Results List */}
           <div className="flex-1 overflow-y-auto p-2 divide-y divide-[#F2F4F7]">
-            {filteredItems.length === 0 ? (
+            <span id="command-palette-title" className="sr-only">Global search</span>
+            {isSearchingRecords && (
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500" role="status">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Searching LR records…
+              </div>
+            )}
+            {!isSearchingRecords && allResults.length === 0 ? (
               <div className="py-12 text-center text-xs text-[#667085]">
                 <Search className="w-8 h-8 text-[#D0D5DD] mx-auto mb-2" />
-                No matching modules or records found for &ldquo;{query}&rdquo;.
+                {recordSearchError
+                  ? "Record search could not be loaded. Module results are still available."
+                  : `No modules or LR records match “${query}”.`}
               </div>
             ) : (
-              filteredItems.map((item, index) => {
+              allResults.map((item, index) => {
                 const isSelected = index === selectedIndex;
                 return (
                   <button

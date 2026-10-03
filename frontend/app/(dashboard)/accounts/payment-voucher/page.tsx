@@ -471,6 +471,9 @@ export default function PaymentVoucherPage() {
         searchPlaceholder="Search beneficiary or voucher..."
         searchColumn="party_name"
         actions={actions}
+        emptyMessage="No payment vouchers recorded"
+        emptySubtext="Record a standard vendor or operating payment."
+        emptyAction={{ label: "Record Payment Voucher", onClick: () => setIsStandardOpen(true) }}
       />
 
       {/* Standard Payment Drawer */}

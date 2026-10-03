@@ -141,7 +141,7 @@ export default function HCRegisterPage() {
           { label: "Hire Challan Register" },
         ]}
         title="Hire Challan Register"
-        description="Operational register of all hired market vehicle challans and settlements (PRD §7.4)."
+        description="Register of hired market-vehicle challans, balances, and settlements."
         primaryAction={{
           label: "Refresh Register",
           icon: RefreshCw,

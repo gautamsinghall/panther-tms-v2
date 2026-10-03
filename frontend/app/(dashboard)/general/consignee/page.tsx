@@ -348,7 +348,7 @@ export default function ConsigneePage() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         title="Create New Consignee"
-        description="Register a new delivery receiver in the master database."
+        description="Register a new delivery receiver in the consignee directory."
       >
         <Form
           sections={formSections}

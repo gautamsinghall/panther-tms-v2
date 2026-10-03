@@ -15,7 +15,7 @@ from app.modules.transport.schemas import (
     MarketVehicleCreate, MarketVehicleUpdate, MarketVehicleResponse,
     CompanyVehicleCreate, CompanyVehicleUpdate, CompanyVehicleResponse,
     JobCreate, JobUpdate, JobResponse, JobStatusTransitionRequest,
-    LRCreate, LRUpdate, LRResponse, LRStatusTransitionRequest,
+    LRCreate, LRUpdate, LRResponse, LRStatusTransitionRequest, LRSearchResult,
     HireChallanCreate, HireChallanUpdate, HireChallanResponse, HireChallanSettleRequest,
     ArrivalReportCreate, ArrivalReportResponse,
     PODRecordCreate, PODRecordVerifyRequest, PODRecordResponse,
@@ -25,6 +25,35 @@ from app.modules.transport.schemas import (
 )
 
 router = APIRouter(prefix="/transport", tags=["Transport"])
+
+
+def _ensure_lr_view_access(current_user: User) -> None:
+    """Keep LR list and global LR search on the same existing permission boundary."""
+    if current_user.role == "COMPANY_ADMIN":
+        return
+    if not current_user.custom_role or not current_user.custom_role.permissions:
+        raise ForbiddenException(
+            message="Access denied. Missing permission: transport.lr_booking.view",
+            details={"required": "transport.lr_booking.view"},
+        )
+    has_perm = any(
+        (
+            (p.module == "transport" and p.feature == "lr_booking" and p.permission in ("view", "all"))
+            or (p.module == "accounts" and p.feature == "transport_invoice" and p.permission in ("view", "create", "all"))
+            or (
+                p.module.replace("-", "_") == "transport_reports"
+                and p.feature in ("lr_register", "unbilled")
+                and p.permission in ("view", "all")
+            )
+        )
+        and p.is_allowed
+        for p in current_user.custom_role.permissions
+    )
+    if not has_perm:
+        raise ForbiddenException(
+            message="Access denied. Missing permission: transport.lr_booking.view",
+            details={"required": "transport.lr_booking.view"},
+        )
 
 # ==============================================================================
 # 1. Vehicle Owners
@@ -492,31 +521,46 @@ async def list_lrs(
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    if current_user.role != "COMPANY_ADMIN":
-        if not current_user.custom_role or not current_user.custom_role.permissions:
-            raise ForbiddenException(
-                message="Access denied. Missing permission: transport.lr_booking.view",
-                details={"required": "transport.lr_booking.view"}
-            )
-        has_perm = any(
-            (
-                (p.module == "transport" and p.feature == "lr_booking" and (p.permission in ("view", "all")))
-                or (p.module == "accounts" and p.feature == "transport_invoice" and (p.permission in ("view", "create", "all")))
-                or (p.module.replace("-", "_") in ("transport_reports", "transport-reports") and p.feature in ("lr_register", "unbilled") and (p.permission in ("view", "all")))
-            )
-            and p.is_allowed
-            for p in current_user.custom_role.permissions
-        )
-        if not has_perm:
-            raise ForbiddenException(
-                message="Access denied. Missing permission: transport.lr_booking.view",
-                details={"required": "transport.lr_booking.view"}
-            )
+    _ensure_lr_view_access(current_user)
 
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
     lrs = await service.get_all_lrs(db, office_id=target_office_id, include_unassigned=include_unassigned)
     return [_build_lr_response(l) for l in lrs]
+
+
+@router.get("/lrs-search", response_model=List[LRSearchResult])
+async def search_lrs(
+    q: str = Query(..., min_length=2, max_length=100),
+    limit: int = Query(8, ge=1, le=20),
+    current_user: User = Depends(get_current_user),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    _ensure_lr_view_access(current_user)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    matches = await service.search_lrs(
+        db,
+        query=q,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
+        limit=limit,
+    )
+    return [
+        LRSearchResult(
+            id=lr.id,
+            lr_number=lr.lr_number,
+            lr_date=lr.lr_date,
+            vehicle_number=lr.vehicle_number,
+            status=lr.status,
+            consigner_name=lr.consigner.name if lr.consigner else None,
+            consignee_name=lr.consignee.name if lr.consignee else None,
+            origin_city=lr.origin_location.city_name if lr.origin_location else None,
+            destination_city=lr.destination_location.city_name if lr.destination_location else None,
+        )
+        for lr in matches
+    ]
 
 @router.get("/lrs/{id}", response_model=LRResponse)
 async def get_lr(

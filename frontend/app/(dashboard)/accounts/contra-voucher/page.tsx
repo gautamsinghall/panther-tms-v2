@@ -285,6 +285,9 @@ export default function ContraVoucherPage() {
           searchPlaceholder="Search contra vouchers..."
           searchColumn="party_name"
           actions={actions}
+          emptyMessage="No contra vouchers recorded"
+          emptySubtext="Record a transfer between cash and bank accounts."
+          emptyAction={{ label: "Record Contra Voucher", onClick: () => setIsCreateOpen(true) }}
         />
       </div>
 

@@ -1,4 +1,5 @@
 from typing import List, Optional, Union
+from datetime import date
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
@@ -433,8 +434,19 @@ async def list_activity_logs(
     limit: int = 100,
     module: str = None,
     user_email: str = None,
+    action: str = None,
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
     current_user: User = Depends(require_permission("settings", "activity", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_activity_logs(db, limit=limit, module=module, user_email=user_email)
+    return await service.get_activity_logs(
+        db,
+        limit=limit,
+        module=module,
+        user_email=user_email,
+        action=action,
+        date_from=date_from,
+        date_to=date_to,
+    )
 

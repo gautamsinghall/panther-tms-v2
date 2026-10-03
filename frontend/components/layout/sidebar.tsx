@@ -93,6 +93,7 @@ import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { getStoredAuth } from "@/lib/auth";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
+import { PlanGateDialog, formatPlanName } from "@/components/ui/plan-gate";
 
 interface NavSubItem {
   feature?: string;
@@ -542,6 +543,16 @@ export function Sidebar() {
     home: true,
   });
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [planGate, setPlanGate] = useState<{ featureName: string; requiredPlan: string } | null>(null);
+
+  useEffect(() => {
+    const collapseForNarrowViewport = () => {
+      if (window.innerWidth < 768) setIsCollapsed(true);
+    };
+    collapseForNarrowViewport();
+    window.addEventListener("resize", collapseForNarrowViewport);
+    return () => window.removeEventListener("resize", collapseForNarrowViewport);
+  }, []);
 
   useEffect(() => {
     async function loadNavigation() {
@@ -589,6 +600,7 @@ export function Sidebar() {
   };
 
   return (
+    <>
     <aside
       className={cn(
         "relative flex flex-col border-r border-slate-200/80 bg-white transition-all duration-200 select-none z-30 shrink-0",
@@ -696,7 +708,7 @@ export function Sidebar() {
                     {group.is_locked && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase tracking-tight shrink-0 whitespace-nowrap shadow-2xs">
                         <Lock className="w-2.5 h-2.5 shrink-0" />
-                        {group.required_plan || "LOCKED"}
+                        {formatPlanName(group.required_plan)}
                       </span>
                     )}
                     <span className="text-slate-400 shrink-0">
@@ -724,7 +736,10 @@ export function Sidebar() {
                         onClick={(e) => {
                           if (sub.is_locked) {
                             e.preventDefault();
-                            alert(`This feature requires the ${sub.required_plan || "Pro"} plan. Please upgrade your subscription to access it.`);
+                            setPlanGate({
+                              featureName: sub.title,
+                              requiredPlan: sub.required_plan || group.required_plan || "BUSINESS",
+                            });
                             return;
                           }
                           if (isFormOpen) {
@@ -760,7 +775,7 @@ export function Sidebar() {
                           {sub.is_locked && (
                             <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
                               <Lock className="w-2 h-2" />
-                              {sub.required_plan || "PRO"}
+                              {formatPlanName(sub.required_plan || group.required_plan)}
                             </span>
                           )}
                         </span>
@@ -800,5 +815,12 @@ export function Sidebar() {
         </div>
       )}
     </aside>
+    <PlanGateDialog
+      isOpen={Boolean(planGate)}
+      onClose={() => setPlanGate(null)}
+      featureName={planGate?.featureName}
+      requiredPlan={planGate?.requiredPlan}
+    />
+    </>
   );
 }

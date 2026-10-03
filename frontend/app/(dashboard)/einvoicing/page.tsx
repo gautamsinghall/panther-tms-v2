@@ -100,9 +100,9 @@ export default function EInvoicingOverviewPage() {
         <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>
           <strong className="font-semibold block mb-0.5">
-            INTEGRATION NOTICE: GSP Sandbox Active (rules.md §2)
+            Test environment active
           </strong>
-          The backend is operating with an isolated adapter producing deterministic SHA-256 IRNs and digital signatures matching the NIC algorithm. Production provider credentials plug in seamlessly without architectural modification.
+          IRNs generated here are test records and are not submitted to the government portal. Configure production GSP credentials before using this workflow for statutory filing.
         </div>
       </div>
 
@@ -122,8 +122,8 @@ export default function EInvoicingOverviewPage() {
         />
         <KpiCard
           title="GSP Status"
-          value="Ready"
-          subtext="NIC SHA-256 compliant adapter"
+          value="Test Mode"
+          subtext="No government submission"
           icon={<CheckCircle2 className="w-4 h-4 text-primary" />}
         />
       </div>

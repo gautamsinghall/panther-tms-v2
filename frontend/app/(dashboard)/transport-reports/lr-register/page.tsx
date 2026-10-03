@@ -53,9 +53,10 @@ export default function LRRegisterPage() {
       key: "lr_number",
       header: "LR / GR Number",
       sortable: true,
+      width: "150px",
       cell: (row) => (
-        <div>
-          <span className="font-mono font-semibold text-[#101828]">
+        <div className="whitespace-nowrap">
+          <span className="font-mono font-semibold text-[#101828] whitespace-nowrap">
             {row.lr_number}
           </span>
           <span className="block text-[11px] text-[#667085]">
@@ -88,7 +89,7 @@ export default function LRRegisterPage() {
       key: "route",
       header: "Route",
       cell: (row) => (
-        <span className="text-xs text-[#475467] flex items-center gap-1.5">
+        <span className="text-xs text-[#475467] inline-flex items-center gap-1.5 whitespace-nowrap">
           {row.origin_city || "Origin"} <ArrowRight className="w-3 h-3 text-[#98A2B3]" /> {row.destination_city || "Dest"}
         </span>
       ),
@@ -98,7 +99,7 @@ export default function LRRegisterPage() {
       header: "Vehicle No",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono font-semibold uppercase text-[#101828]">
+        <span className="font-mono font-semibold uppercase text-[#101828] whitespace-nowrap">
           {row.vehicle_number}
         </span>
       ),
@@ -108,8 +109,8 @@ export default function LRRegisterPage() {
       header: "Weight (MT) / Pkgs",
       isNumeric: true,
       cell: (row) => (
-        <span className="tabular-nums font-mono text-[#344054]">
-          {parseFloat(String(row.actual_weight_mt)).toFixed(2)} MT ({row.package_count} pkgs)
+        <span className="tabular-nums font-mono text-[#344054] whitespace-nowrap">
+          {Number(row.actual_weight_mt || 0).toFixed(2)} MT · {Number(row.package_count || 0).toLocaleString("en-IN")} pkgs
         </span>
       ),
     },
@@ -118,7 +119,7 @@ export default function LRRegisterPage() {
       header: "Freight / Balance",
       isNumeric: true,
       cell: (row) => (
-        <div>
+        <div className="whitespace-nowrap">
           <span className="font-mono font-semibold tabular-nums text-[#101828]">
             ₹{parseFloat(String(row.total_freight_amount)).toLocaleString()}
           </span>
@@ -131,7 +132,7 @@ export default function LRRegisterPage() {
     {
       key: "status",
       header: "Status",
-      cell: (row) => <StatusBadge status={row.status} />,
+      cell: (row) => <StatusBadge status={row.status} className="whitespace-nowrap" />,
     },
   ];
 
@@ -144,7 +145,7 @@ export default function LRRegisterPage() {
           { label: "LR Booking Register" },
         ]}
         title="LR Booking Register"
-        description="Comprehensive operational register of all booked and in-transit lorry receipts (PRD §7.4)."
+        description="Operational register of booked and in-transit lorry receipts, routes, vehicles, packages, and freight balances."
         primaryAction={{
           label: "Refresh Register",
           icon: RefreshCw,
@@ -162,7 +163,13 @@ export default function LRRegisterPage() {
         columns={columns}
         data={data}
         isLoading={isLoading}
+        isError={Boolean(errorMessage)}
+        errorMessage={errorMessage}
+        onRetry={loadData}
         searchPlaceholder="Filter register by LR number, client, or vehicle..."
+        selectable={false}
+        defaultDensity="compact"
+        tableClassName="min-w-[1040px]"
       />
     </div>
   );

@@ -336,6 +336,9 @@ export default function CreditDebitNotesPage() {
           searchPlaceholder="Search party or note number..."
           searchColumn="party_name"
           actions={actions}
+          emptyMessage="No credit or debit notes recorded"
+          emptySubtext="Create an adjustment note for a customer or vendor balance."
+          emptyAction={{ label: "Create Adjustment Note", onClick: () => setIsCreateOpen(true) }}
         />
       </div>
 

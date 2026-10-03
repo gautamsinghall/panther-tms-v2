@@ -327,6 +327,9 @@ export default function PurchasesPage() {
         searchPlaceholder="Search vendor, bill ref..."
         searchColumn="party_name"
         actions={actions}
+        emptyMessage="No purchase bills recorded"
+        emptySubtext="Record a vendor bill to post the purchase and payable entries."
+        emptyAction={{ label: "Record Purchase Bill", onClick: () => setIsCreateOpen(true) }}
       />
 
       {/* Create Drawer */}

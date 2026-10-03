@@ -118,9 +118,9 @@ export default function GenerateIRNPage() {
         <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>
           <strong className="font-semibold block mb-0.5">
-            INTEGRATION NOTICE: Mock Sandbox GSP Active (rules.md §2)
+            Test environment active
           </strong>
-          Production GST Suvidha Provider (GSP: ClearTax, Masters India, or NIC Direct) is currently operating via an isolated provider interface generating deterministic SHA-256 IRNs and digital signatures.
+          Generated IRNs are test records and are not submitted to the government portal. Production filing requires configured GSP credentials.
         </div>
       </div>
 

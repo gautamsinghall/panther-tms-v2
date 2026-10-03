@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Truck,
@@ -56,6 +56,7 @@ import { SegmentTabs } from "@/components/ui/tabs";
 import { AreaTrendChart, BarMetricChart, DonutDistributionChart } from "@/components/charts";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { DataState } from "@/components/ui/data-state";
 
 type ActiveTab = "overview" | "finance" | "operations" | "own_fleet";
 
@@ -172,6 +173,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [chartPeriod, setChartPeriod] = useState<"Daily" | "Weekly" | "Monthly">("Monthly");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadErrors, setLoadErrors] = useState<ActiveTab[]>([]);
 
   // Real data state
   const [businessData, setBusinessData] = useState<any>(null);
@@ -193,40 +195,36 @@ export default function DashboardPage() {
       ? businessData.monthly_trends
       : defaultMonthlyTrends;
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      setIsLoading(true);
-      try {
-        const [biz, fin, ops, own] = await Promise.all([
-          apiClient<any>("/api/v1/home/business-overview").catch((err) => {
-            if (err?.status === 401) throw err;
-            return null;
-          }),
-          apiClient<any>("/api/v1/home/financial-analysis").catch((err) => {
-            if (err?.status === 401) throw err;
-            return null;
-          }),
-          apiClient<any>("/api/v1/home/fleet-operations").catch((err) => {
-            if (err?.status === 401) throw err;
-            return null;
-          }),
-          apiClient<any>("/api/v1/home/own-fleet").catch((err) => {
-            if (err?.status === 401) throw err;
-            return null;
-          }),
-        ]);
-
-        if (biz) setBusinessData(biz);
-        if (fin) setFinanceData(fin);
-        if (ops) setOperationsData(ops);
-        if (own) setOwnFleetData(own);
-      } catch (err: any) {
-        if (err?.status === 401) return;
-        console.warn("Could not fetch home dashboard data:", err);
-      } finally {
-        setIsLoading(false);
-      }
+  const loadDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadErrors([]);
+    const requests = [
+      apiClient<any>("/api/v1/home/business-overview"),
+      apiClient<any>("/api/v1/home/financial-analysis"),
+      apiClient<any>("/api/v1/home/fleet-operations"),
+      apiClient<any>("/api/v1/home/own-fleet"),
+    ];
+    const keys: ActiveTab[] = ["overview", "finance", "operations", "own_fleet"];
+    try {
+      const results = await Promise.allSettled(requests);
+      const errors: ActiveTab[] = [];
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          errors.push(keys[index]);
+          return;
+        }
+        if (index === 0) setBusinessData(result.value);
+        if (index === 1) setFinanceData(result.value);
+        if (index === 2) setOperationsData(result.value);
+        if (index === 3) setOwnFleetData(result.value);
+      });
+      setLoadErrors(errors);
+    } finally {
+      setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
 
     loadDashboardData();
 
@@ -235,7 +233,9 @@ export default function DashboardPage() {
     };
     window.addEventListener("panther_office_changed", handleOfficeChange);
     return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
-  }, []);
+  }, [loadDashboardData]);
+
+  const activeTabFailed = loadErrors.includes(activeTab);
 
   // Compute dynamic trends and sparklines based strictly on actual data
   const totalMovements = Number(businessData?.total_movements || 0);
@@ -336,12 +336,19 @@ export default function DashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 font-heading">
               Command Cockpit
             </h1>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-xs font-semibold shadow-2xs select-none">
+            <div className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold shadow-2xs select-none",
+              isLoading
+                ? "bg-slate-50 border-slate-200 text-slate-600"
+                : loadErrors.length > 0
+                ? "bg-rose-50 border-rose-200 text-rose-700"
+                : "bg-emerald-50 border-emerald-200/80 text-emerald-700"
+            )}>
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                <span className={cn("relative inline-flex rounded-full h-2 w-2", isLoading ? "bg-slate-400" : loadErrors.length > 0 ? "bg-rose-500" : "bg-emerald-500")} />
               </span>
-              <span>Live Dispatch Telemetry</span>
+              <span>{isLoading ? "Loading dashboard" : loadErrors.length > 0 ? "Some data unavailable" : "Live Dispatch Telemetry"}</span>
               <ChevronDown className="w-3 h-3 text-emerald-600/70" />
             </div>
           </div>
@@ -387,6 +394,23 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {isLoading && (
+        <div className="rounded-2xl border border-slate-200 bg-white">
+          <DataState kind="loading" title="Loading dashboard" description="Retrieving the latest records for this issuing office." />
+        </div>
+      )}
+
+      {!isLoading && activeTabFailed && (
+        <div className="rounded-2xl border border-slate-200 bg-white">
+          <DataState
+            kind="error"
+            title="Dashboard data unavailable"
+            description="This dashboard section could not be loaded. No values are shown as verified until the request succeeds."
+            action={{ label: "Retry", onClick: loadDashboardData }}
+          />
+        </div>
+      )}
 
       {/* 3. Horizontal Navigation Tabs */}
       <div className="border-b border-slate-200 flex items-center gap-8 text-xs font-semibold select-none pt-1">
@@ -450,7 +474,7 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {/* TAB 1: BUSINESS OVERVIEW */}
       {/* ========================================================================= */}
-      {activeTab === "overview" && (
+      {!isLoading && !activeTabFailed && activeTab === "overview" && (
         <div className="space-y-6">
           {/* Row 1: 4 High-Impact KPI Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -893,7 +917,7 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {/* TAB 2: FINANCIAL ANALYSIS */}
       {/* ========================================================================= */}
-      {activeTab === "finance" && (() => {
+      {!isLoading && !activeTabFailed && activeTab === "finance" && (() => {
         const billedRevFin = Number(financeData?.total_billed_revenue || 0);
         const operatingExpFin = Number(financeData?.total_operating_expenses || 0);
         const netProfitFin = Number(financeData?.net_operating_profit || 0);
@@ -1048,7 +1072,7 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {/* TAB 3: FLEET & OPERATIONS */}
       {/* ========================================================================= */}
-      {activeTab === "operations" && (
+      {!isLoading && !activeTabFailed && activeTab === "operations" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -1186,7 +1210,7 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {/* TAB 4: OWN FLEET */}
       {/* ========================================================================= */}
-      {activeTab === "own_fleet" && (
+      {!isLoading && !activeTabFailed && activeTab === "own_fleet" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -1308,19 +1332,19 @@ export default function DashboardPage() {
               </div>
               <div>
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  HR Attendance & Biometric Access
+                  HR Attendance Integration
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">
-                    EXTERNAL CONNECTOR PENDING
+                    NOT CONFIGURED
                   </span>
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5 text-slate-500">
-                  PRD §7.1 & §11 — External HRMS / biometric provider connector
+                  Attendance data is unavailable until a provider is selected.
                 </CardDescription>
               </div>
             </div>
             <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-mono">
               <span className="w-2 h-2 rounded-full bg-amber-500" />
-              Status: Provider Selection Pending
+              Status: Not configured
             </span>
           </div>
         </CardHeader>
@@ -1328,20 +1352,17 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3.5 rounded-lg bg-white border border-slate-200 shadow-2xs">
             <div className="space-y-1">
               <p className="text-xs text-slate-600 leading-relaxed">
-                Staff biometric check-in, driver duty logs, and warehouse overtime records are designated for external payroll integration (ZingHR, Darwinbox, Keka, or biometric webhook). Per architecture rules, PantherTMS avoids guessing fake ambient clock-in data until the partner API is confirmed.
+                No attendance or biometric provider has been connected. No attendance status is shown until verified records are available.
               </p>
-              <div className="text-[11px] text-slate-500 font-mono">
-                API Endpoint Hook: <code className="text-indigo-600">/api/v1/integrations/hr-attendance</code> (Awaiting GSP / HRMS provider selection)
-              </div>
             </div>
             <Button
               variant="outline"
               size="sm"
               className="shrink-0 text-xs font-semibold"
-              onClick={() => alert("External HR Attendance integration connector is pending provider selection per PRD §11.")}
+              disabled
             >
               <ExternalLink className="w-3.5 h-3.5 mr-1" />
-              Configure Provider
+              Setup unavailable
             </Button>
           </div>
         </CardContent>

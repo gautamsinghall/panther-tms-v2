@@ -207,6 +207,9 @@ export default function GroupInPrimaryPage() {
           isLoading={isLoading}
           searchPlaceholder="Search groups in primary..."
           searchColumn="name"
+          emptyMessage="No account groups configured"
+          emptySubtext="Add a group under a primary group to organize subgroups and ledgers."
+          emptyAction={{ label: "Add Group", onClick: () => setIsDrawerOpen(true) }}
         />
       </div>
 

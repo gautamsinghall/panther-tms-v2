@@ -244,6 +244,9 @@ export default function ChargeHeadPage() {
           isLoading={isLoading}
           searchPlaceholder="Search charge heads..."
           searchColumn="name"
+          emptyMessage="No charge heads configured"
+          emptySubtext="Add a charge head for freight, handling, deductions, or supplementary billing."
+          emptyAction={{ label: "Add Charge Head", onClick: () => setIsDrawerOpen(true) }}
         />
       </div>
 
@@ -257,6 +260,7 @@ export default function ChargeHeadPage() {
         <Form
           sections={formSections}
           onSubmit={handleSubmit}
+          onCancel={() => setIsDrawerOpen(false)}
           isSubmitting={isSubmitting}
           submitLabel="Create Charge Head"
         />

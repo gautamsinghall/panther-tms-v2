@@ -128,7 +128,7 @@ export default function UnbilledReportsPage() {
           { label: "Unbilled Consignments" },
         ]}
         title="Unbilled Consignments Report"
-        description="Operational backlog of completed deliveries and verified PODs awaiting customer invoicing (PRD §7.4)."
+        description="Completed deliveries and verified PODs that are still awaiting customer invoicing."
         primaryAction={{
           label: "Refresh Report",
           icon: RefreshCw,

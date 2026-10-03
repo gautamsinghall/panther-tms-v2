@@ -503,6 +503,18 @@ class LRStatusTransitionRequest(BaseModel):
     target_status: LRStatus
     remarks: Optional[str] = None
 
+
+class LRSearchResult(BaseModel):
+    id: int
+    lr_number: str
+    lr_date: date
+    vehicle_number: str
+    status: str
+    consigner_name: Optional[str] = None
+    consignee_name: Optional[str] = None
+    origin_city: Optional[str] = None
+    destination_city: Optional[str] = None
+
 class LRResponse(LRBase):
     id: int
     lr_number: str

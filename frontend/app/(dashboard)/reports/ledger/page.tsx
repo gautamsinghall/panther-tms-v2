@@ -49,6 +49,7 @@ export default function LedgerReportPage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [ledgerData, setLedgerData] = useState<LedgerResponse | null>(null);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export default function LedgerReportPage() {
   // Load account masters
   useEffect(() => {
     async function loadAccounts() {
+      setIsLoadingAccounts(true);
       try {
         const accs = await apiClient<AccountOption[]>("/api/v1/misc/accounts");
         setAccounts(accs);
@@ -64,6 +66,8 @@ export default function LedgerReportPage() {
         }
       } catch (err: any) {
         setError(err.message || "Failed to load accounts list");
+      } finally {
+        setIsLoadingAccounts(false);
       }
     }
     loadAccounts();
@@ -225,11 +229,12 @@ export default function LedgerReportPage() {
       {/* Account Selector Bar */}
       <Card className="p-4 flex flex-wrap items-center justify-between gap-4 bg-white border border-[#E4E7EC]">
         <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-[#344054] uppercase tracking-wider">
+          <label htmlFor="ledger-account" className="text-xs font-bold text-[#344054] uppercase tracking-wider">
             Select Account Head:
           </label>
           <div className="min-w-[280px]">
             <SearchableSelect
+              id="ledger-account"
               size="sm"
               value={selectedAccountId || ""}
               onChange={(val) => setSelectedAccountId(val ? Number(val) : 0)}
@@ -275,10 +280,28 @@ export default function LedgerReportPage() {
       <DataTable
         columns={columns}
         data={ledgerData?.transactions || []}
-        isLoading={isLoading}
+        isLoading={isLoading || isLoadingAccounts}
+        isError={Boolean(error)}
+        errorMessage={error}
+        onRetry={() => selectedAccountId ? loadLedger(selectedAccountId) : window.location.reload()}
         searchPlaceholder="Filter transactions by voucher number..."
         searchColumn="voucher_number"
-        emptyMessage="No transactions found for this account in the specified period."
+        emptyKind={accounts.length === 0 ? "not-configured" : !selectedAccountId ? "not-selected" : "no-records"}
+        emptyMessage={
+          accounts.length === 0
+            ? "No ledger accounts configured"
+            : !selectedAccountId
+            ? "Select an account head"
+            : "No transactions for this account"
+        }
+        emptySubtext={
+          accounts.length === 0
+            ? "Create the required account masters before opening an account ledger."
+            : !selectedAccountId
+            ? "Choose an account above to load its statement."
+            : "This account has no posted voucher entries for the available period."
+        }
+        emptyAction={accounts.length === 0 ? { label: "Open Account Masters", onClick: () => window.location.href = "/misc/subgroup" } : undefined}
       />
 
       {/* Period Totals Summary */}

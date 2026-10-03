@@ -23,6 +23,23 @@ from app.modules.home.schemas import (
     OwnVehicleMatrixItem,
 )
 
+# One canonical movement definition is shared by dashboard KPIs, funnel stages,
+# fleet fallbacks, and active-movement lists. BOOKED is scheduled freight, not
+# freight that has physically entered transit.
+IN_TRANSIT_LR_STATUSES = ("DISPATCHED", "IN_TRANSIT")
+DELIVERED_LR_STATUSES = ("DELIVERED", "POD_RECEIVED", "POD_VERIFIED")
+
+
+def summarize_lr_statuses(lrs: List[models.LR]) -> Dict[str, int]:
+    """Return the canonical, mutually exclusive dashboard funnel counts."""
+    return {
+        "DRAFT": sum(1 for lr in lrs if lr.status == "DRAFT"),
+        "BOOKED": sum(1 for lr in lrs if lr.status == "BOOKED"),
+        "IN_TRANSIT": sum(1 for lr in lrs if lr.status in IN_TRANSIT_LR_STATUSES),
+        "DELIVERED": sum(1 for lr in lrs if lr.status == "DELIVERED"),
+        "POD_VERIFIED": sum(1 for lr in lrs if lr.status in ("POD_RECEIVED", "POD_VERIFIED")),
+    }
+
 # ==============================================================================
 # 1. Business Overview Service
 # ==============================================================================
@@ -52,8 +69,9 @@ async def get_business_overview(
     lrs = lr_res.scalars().all()
 
     total_movements = len(lrs)
-    in_transit_count = sum(1 for l in lrs if l.status in ("BOOKED", "DISPATCHED", "IN_TRANSIT"))
-    delivered_count = sum(1 for l in lrs if l.status in ("DELIVERED", "POD_RECEIVED", "POD_VERIFIED"))
+    status_counts = summarize_lr_statuses(lrs)
+    in_transit_count = status_counts["IN_TRANSIT"]
+    delivered_count = sum(1 for l in lrs if l.status in DELIVERED_LR_STATUSES)
 
     # 2. Fetch Vouchers for revenue & reconciled count
     v_stmt = select(models.Voucher).where(models.Voucher.is_void == False)
@@ -101,7 +119,7 @@ async def get_business_overview(
         for k, v in list(month_data.items())[-6:]
     ]
 
-    # If empty, create standard demo point
+    # Preserve an empty-period axis point without inventing business values.
     if not monthly_trends:
         monthly_trends.append(
             MonthlyTrendPoint(
@@ -113,13 +131,7 @@ async def get_business_overview(
         )
 
     # 4. Pipeline Stages
-    pipeline_counts = {
-        "DRAFT": sum(1 for l in lrs if l.status == "DRAFT"),
-        "BOOKED": sum(1 for l in lrs if l.status == "BOOKED"),
-        "IN_TRANSIT": sum(1 for l in lrs if l.status in ("DISPATCHED", "IN_TRANSIT")),
-        "DELIVERED": sum(1 for l in lrs if l.status == "DELIVERED"),
-        "POD_VERIFIED": sum(1 for l in lrs if l.status in ("POD_RECEIVED", "POD_VERIFIED")),
-    }
+    pipeline_counts = status_counts
     tot_stg = max(1, total_movements)
     pipeline_stages = [
         PipelineStageCount(
@@ -133,8 +145,8 @@ async def get_business_overview(
     # 5. Top Corridors
     corridors_map: Dict[str, Dict] = {}
     for l in lrs:
-        orig = l.origin_location.city_name if l.origin_location else "Mumbai"
-        dest = l.destination_location.city_name if l.destination_location else "Delhi"
+        orig = l.origin_location.city_name if l.origin_location else "Not specified"
+        dest = l.destination_location.city_name if l.destination_location else "Not specified"
         corr_key = f"{orig} → {dest}"
         if corr_key not in corridors_map:
             corridors_map[corr_key] = {
@@ -376,7 +388,7 @@ async def get_fleet_operations(
 
     # If no records, fallback to count from active LRs
     if not health_records:
-        lr_in_transit_stmt = select(func.count(models.LR.id)).where(models.LR.status.in_(["BOOKED", "DISPATCHED", "IN_TRANSIT"]))
+        lr_in_transit_stmt = select(func.count(models.LR.id)).where(models.LR.status.in_(IN_TRANSIT_LR_STATUSES))
         if office_id is not None:
             if include_unassigned:
                 lr_in_transit_stmt = lr_in_transit_stmt.where(or_(models.LR.issuing_office_id == office_id, models.LR.issuing_office_id == None))
@@ -438,7 +450,7 @@ async def get_fleet_operations(
             selectinload(models.LR.origin_location),
             selectinload(models.LR.destination_location),
         )
-        .where(models.LR.status.in_(["DISPATCHED", "IN_TRANSIT", "BOOKED"]))
+        .where(models.LR.status.in_(IN_TRANSIT_LR_STATUSES))
     )
     if office_id is not None:
         if include_unassigned:

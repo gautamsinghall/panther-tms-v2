@@ -134,7 +134,7 @@ export default function PendingHCPage() {
           { label: "Pending Hire Challans" },
         ]}
         title="Pending Hire Challan Report"
-        description="Audit report of hired market vehicles with unsettled outstanding balances (PRD §7.4)."
+        description="Hired market vehicles with unsettled challans and outstanding balances."
         primaryAction={{
           label: "Refresh Report",
           icon: RefreshCw,

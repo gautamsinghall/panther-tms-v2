@@ -106,7 +106,7 @@ export default function MonthlyPnLPage() {
           <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
           <div>
             <span className="font-semibold block">Restricted Employee View Active:</span>
-            <span>Full cross-branch clubbed financials and executive margin indicators are restricted to Company Administrators per PRD §7.12.</span>
+            <span>Full cross-branch financials and executive margin indicators are restricted to Company Administrators.</span>
           </div>
         </div>
       )}

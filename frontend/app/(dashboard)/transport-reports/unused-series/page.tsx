@@ -100,7 +100,7 @@ export default function UnusedSeriesPage() {
           { label: "Unused Series Audit" },
         ]}
         title="Unused GR/LR Series Report"
-        description="Audit sequence gap analysis tracking consumed and available document series allocations (PRD §7.4)."
+        description="Sequence gap analysis for used and available GR/LR document numbers."
         primaryAction={{
           label: "Refresh Report",
           icon: RefreshCw,

@@ -64,8 +64,8 @@ export default function TaxpayerDetailsPage() {
       <div className="p-4 rounded-xl bg-warning-light border border-warning/20 text-warning text-xs leading-relaxed flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>
-          <strong className="font-semibold block mb-0.5">Mock Sandbox Registry Active (rules.md §2)</strong>
-          Taxpayer lookups are processed through the GSP Provider Sandbox adapter. Real-time production GSTIN lookups will activate seamlessly upon GSP API credential configuration.
+          <strong className="font-semibold block mb-0.5">Test registry active</strong>
+          Results on this page are test data and must not be treated as verified GST registration details. Configure production GSP access for live validation.
         </div>
       </div>
 
