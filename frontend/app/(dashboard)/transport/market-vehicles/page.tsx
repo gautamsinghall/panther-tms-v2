@@ -20,8 +20,6 @@ import {
   ExternalLink,
   Download,
   CheckCircle2,
-  ChevronRight,
-  ChevronLeft,
   Info,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -162,7 +160,6 @@ export default function MarketVehiclesPage() {
   // Add / Edit Drawer State
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<MarketVehicleRecord | null>(null);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Details View Drawer State
@@ -322,11 +319,10 @@ export default function MarketVehiclesPage() {
     if (win) {
       win.document.write(
         `<html><head><title>${title || "Attached Document"}</title></head><body style="margin:0; background:#0f172a; display:flex; align-items:center; justify-content:center; height:100vh;">
-          ${
-            dataUrl.startsWith("data:application/pdf")
-              ? `<iframe src="${dataUrl}" frameborder="0" style="border:0; width:100%; height:100vh;" allowfullscreen></iframe>`
-              : `<img src="${dataUrl}" style="max-width:90%; max-height:90vh; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);" />`
-          }
+          ${dataUrl.startsWith("data:application/pdf")
+          ? `<iframe src="${dataUrl}" frameborder="0" style="border:0; width:100%; height:100vh;" allowfullscreen></iframe>`
+          : `<img src="${dataUrl}" style="max-width:90%; max-height:90vh; border-radius:8px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);" />`
+        }
         </body></html>`
       );
     }
@@ -335,7 +331,6 @@ export default function MarketVehiclesPage() {
   // Open Add Vehicle Drawer
   const handleOpenAddDrawer = () => {
     setEditingRecord(null);
-    setCurrentStep(1);
     setFormErrors({});
     setFormValues({
       ownership_type: "Market Vehicle",
@@ -382,7 +377,6 @@ export default function MarketVehiclesPage() {
   // Open Edit Vehicle Drawer
   const handleOpenEditDrawer = (record: MarketVehicleRecord) => {
     setEditingRecord(record);
-    setCurrentStep(1);
     setFormErrors({});
     setFormValues({
       ownership_type: record.ownership_type || "Market Vehicle",
@@ -426,29 +420,25 @@ export default function MarketVehiclesPage() {
     setIsDrawerOpen(true);
   };
 
-  // Step Validation Logic
-  const validateStep = (stepNumber: number): boolean => {
+  // Form Validation Logic
+  const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
-    if (stepNumber === 1) {
-      if (!formValues.vehicle_number || formValues.vehicle_number.trim().length < 4) {
-        errors.vehicle_number = "Vehicle registration number is required (min 4 characters).";
-      }
+    if (!formValues.vehicle_number || formValues.vehicle_number.trim().length < 4) {
+      errors.vehicle_number = "Vehicle registration number is required (min 4 characters).";
     }
 
-    if (stepNumber === 2) {
-      if (!formValues.vehicle_type) {
-        errors.vehicle_type = "Vehicle / Body specification is required.";
-      }
-      if (!formValues.capacity_mt || parseFloat(String(formValues.capacity_mt)) <= 0) {
-        errors.capacity_mt = "Valid payload capacity (MT) is required (> 0).";
-      }
-      if (formValues.gvw_kg && formValues.unladen_weight_kg) {
-        const gvw = parseFloat(String(formValues.gvw_kg));
-        const unladen = parseFloat(String(formValues.unladen_weight_kg));
-        if (gvw < unladen) {
-          errors.gvw_kg = "GVW must be greater than or equal to unladen weight.";
-        }
+    if (!formValues.vehicle_type) {
+      errors.vehicle_type = "Vehicle / Body specification is required.";
+    }
+    if (!formValues.capacity_mt || parseFloat(String(formValues.capacity_mt)) <= 0) {
+      errors.capacity_mt = "Valid payload capacity (MT) is required (> 0).";
+    }
+    if (formValues.gvw_kg && formValues.unladen_weight_kg) {
+      const gvw = parseFloat(String(formValues.gvw_kg));
+      const unladen = parseFloat(String(formValues.unladen_weight_kg));
+      if (gvw < unladen) {
+        errors.gvw_kg = "GVW must be greater than or equal to unladen weight.";
       }
     }
 
@@ -456,24 +446,11 @@ export default function MarketVehiclesPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleNextStep = () => {
-    if (!validateStep(currentStep)) return;
-    if (currentStep < 4) {
-      setCurrentStep((prev) => (prev + 1) as any);
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep((prev) => (prev - 1) as any);
-    }
-  };
-
   // Submit Handler for Add / Edit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep(1) || !validateStep(2)) {
-      alert("Please check and complete required fields in earlier steps.");
+    if (!validateForm()) {
+      alert("Please complete required vehicle fields (Registration Number, Body Spec, and Capacity).");
       return;
     }
 
@@ -722,14 +699,6 @@ export default function MarketVehiclesPage() {
     },
   ];
 
-  // Stepper Header definitions
-  const stepsList = [
-    { num: 1, title: "Vehicle & Owner", desc: "Category, registration & owner linkage" },
-    { num: 2, title: "Specifications & Specs", desc: "Maker, weights, engine & RC details" },
-    { num: 3, title: "Validity Details", desc: "Fitness, insurance, tax & permits" },
-    { num: 4, title: "STEP 4: Equipment & Maintenance", desc: "Equipment checklist, service & documents" },
-  ];
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -764,7 +733,7 @@ export default function MarketVehiclesPage() {
       />
 
       {/* ========================================================================= */}
-      {/* 4-STEP ADD / EDIT VEHICLE DRAWER                                         */}
+      {/* UNIFIED ADD / EDIT VEHICLE DRAWER                                         */}
       {/* ========================================================================= */}
       <EntityDrawer
         isOpen={isDrawerOpen}
@@ -774,77 +743,19 @@ export default function MarketVehiclesPage() {
         size="xl"
       >
         <form onSubmit={handleSubmit} className="w-full max-w-5xl space-y-6 mx-auto pb-12">
-          {/* Stepper Navigation Bar */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
-              {stepsList.map((step) => {
-                const isActive = currentStep === step.num;
-                const isCompleted = currentStep > step.num;
-
-                return (
-                  <button
-                    key={step.num}
-                    type="button"
-                    onClick={() => {
-                      if (step.num < currentStep || validateStep(currentStep)) {
-                        setCurrentStep(step.num as any);
-                      }
-                    }}
-                    className={cn(
-                      "text-left p-3 rounded-xl transition-all border flex flex-col justify-between cursor-pointer",
-                      isActive
-                        ? "bg-indigo-50/70 border-indigo-300 ring-2 ring-indigo-500/20"
-                        : isCompleted
-                        ? "bg-emerald-50/40 border-emerald-200 hover:bg-emerald-50/80"
-                        : "bg-slate-50/60 border-slate-200 hover:bg-slate-100"
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span
-                        className={cn(
-                          "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                          isActive
-                            ? "bg-indigo-600 text-white shadow-2xs"
-                            : isCompleted
-                            ? "bg-emerald-600 text-white"
-                            : "bg-slate-200 text-slate-600"
-                        )}
-                      >
-                        {isCompleted ? <Check className="w-3.5 h-3.5" /> : step.num}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-[10px] font-bold uppercase tracking-wider",
-                          isActive ? "text-indigo-600" : isCompleted ? "text-emerald-700" : "text-slate-400"
-                        )}
-                      >
-                        Step {step.num}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 truncate">{step.title}</div>
-                      <div className="text-[10px] text-slate-500 truncate hidden sm:block">{step.desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
+          {/* ===================================================================== */}
+          {/* 1. VEHICLE AND OWNER DETAILS                                          */}
+          {/* ===================================================================== */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-2xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-indigo-600" />
+                1. Vehicle and Owner Details
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Classify fleet ownership, vehicle plate number, and assign registered vehicle owner/supplier.
+              </p>
             </div>
-          </div>
-
-          {/* ===================================================================== */}
-          {/* STEP 1: VEHICLE AND OWNER DETAILS                                     */}
-          {/* ===================================================================== */}
-          {currentStep === 1 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-2xs animate-in fade-in duration-150">
-              <div className="border-b border-slate-100 pb-3">
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-indigo-600" />
-                  Vehicle and Owner Details
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Classify fleet ownership, vehicle plate number, and assign registered vehicle owner/supplier.
-                </p>
-              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Company / Market Vehicle Dropdown */}
@@ -965,22 +876,20 @@ export default function MarketVehiclesPage() {
                 </div>
               </div>
             </div>
-          )}
 
           {/* ===================================================================== */}
-          {/* STEP 2: VEHICLE SPECIFICATIONS AND REGISTRATION DETAILS               */}
+          {/* 2. VEHICLE SPECIFICATIONS AND REGISTRATION DETAILS                    */}
           {/* ===================================================================== */}
-          {currentStep === 2 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-2xs animate-in fade-in duration-150">
-              <div className="border-b border-slate-100 pb-3">
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-indigo-600" />
-                  Vehicle Specifications and Registration Details
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Technical chassis specifications, body type, certified weights, and RTO registration parameters.
-                </p>
-              </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-2xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-600" />
+                2. Vehicle Specifications and Registration Details
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Technical chassis specifications, body type, certified weights, and RTO registration parameters.
+              </p>
+            </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {/* Vehicle Description / Maker */}
@@ -1058,7 +967,7 @@ export default function MarketVehiclesPage() {
                   {isOpenBody && (
                     <span className="text-[11px] text-amber-700 font-medium flex items-center gap-1 mt-0.5">
                       <Info className="w-3 h-3" />
-                      Open Body configuration detected (Tarpaulin/Rassi required in Step 4)
+                      Open Body configuration detected (Tarpaulin/Rassi required below under Equipment)
                     </span>
                   )}
                 </div>
@@ -1281,22 +1190,20 @@ export default function MarketVehiclesPage() {
                 </div>
               </div>
             </div>
-          )}
 
           {/* ===================================================================== */}
-          {/* STEP 3: VALIDITY DETAILS                                              */}
+          {/* 3. VALIDITY DETAILS                                                   */}
           {/* ===================================================================== */}
-          {currentStep === 3 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-2xs animate-in fade-in duration-150">
-              <div className="border-b border-slate-100 pb-3">
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-indigo-600" />
-                  Validity Details
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Regulatory compliance and certification expiry dates for operations and road transit.
-                </p>
-              </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-2xs">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                3. Validity Details
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Regulatory compliance and certification expiry dates for operations and road transit.
+              </p>
+            </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {/* Fitness Valid Till */}
@@ -1380,28 +1287,25 @@ export default function MarketVehiclesPage() {
                 </div>
               </div>
             </div>
-          )}
 
           {/* ===================================================================== */}
-          {/* STEP 4: EQUIPMENT & MAINTENANCE                                       */}
+          {/* 4. EQUIPMENT & MAINTENANCE                                            */}
           {/* ===================================================================== */}
-          {currentStep === 4 && (
-            <div className="space-y-6 animate-in fade-in duration-150">
-              {/* Header Box */}
-              <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 uppercase tracking-widest mb-1.5">
-                      STEP 4
-                    </span>
-                    <h3 className="text-base sm:text-lg font-bold">Equipment & Maintenance</h3>
-                    <p className="text-xs text-slate-300 mt-0.5">
-                      Driver cabin toolkit checklist, service odometer benchmarks, and compliance document copies.
-                    </p>
-                  </div>
-                  <Wrench className="w-8 h-8 text-indigo-400/50 hidden sm:block" />
+          <div className="space-y-6">
+            {/* Header Box */}
+            <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                    <Wrench className="w-5 h-5 text-indigo-400" />
+                    4. Equipment & Maintenance
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Driver cabin toolkit checklist, service odometer benchmarks, and compliance document copies.
+                  </p>
                 </div>
               </div>
+            </div>
 
               {/* Equipment Availability (Yes / No Controls) */}
               <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-2xs">
@@ -1866,70 +1770,37 @@ export default function MarketVehiclesPage() {
                     )}
                   </div>
                 </div>
-              </div>
             </div>
-          )}
+          </div>
 
-          {/* Stepper Footer Action Bar */}
+          {/* Form Footer Action Bar */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-2xs mt-8">
-            <div>
-              {currentStep > 1 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="md"
-                  onClick={handlePrevStep}
-                  disabled={isSubmitting}
-                  className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer flex items-center gap-1.5"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>Previous</span>
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="md"
-                  onClick={() => setIsDrawerOpen(false)}
-                  disabled={isSubmitting}
-                  className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
-                >
-                  Cancel
-                </Button>
-              )}
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={() => setIsDrawerOpen(false)}
+              disabled={isSubmitting}
+              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
+            >
+              Cancel
+            </Button>
 
-            <div className="flex items-center gap-3">
-              {currentStep < 4 ? (
-                <Button
-                  type="button"
-                  size="md"
-                  onClick={handleNextStep}
-                  className="rounded-xl h-10 px-6 text-xs font-semibold cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 shadow-2xs"
-                >
-                  <span>
-                    Next: {currentStep === 1 ? "Specifications" : currentStep === 2 ? "Validity" : "Step 4"}
-                  </span>
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  size="md"
-                  disabled={isSubmitting}
-                  className="rounded-xl h-10 px-8 text-xs font-semibold cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs flex items-center gap-1.5"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>
-                    {isSubmitting
-                      ? "Saving Vehicle..."
-                      : editingRecord
-                      ? "Save Vehicle Changes"
-                      : "Register Market Vehicle"}
-                  </span>
-                </Button>
-              )}
-            </div>
+            <Button
+              type="submit"
+              size="md"
+              disabled={isSubmitting}
+              className="rounded-xl h-10 px-8 text-xs font-semibold cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs flex items-center gap-1.5"
+            >
+              <Check className="w-4 h-4" />
+              <span>
+                {isSubmitting
+                  ? "Saving Vehicle..."
+                  : editingRecord
+                    ? "Save Vehicle Changes"
+                    : "Register Market Vehicle"}
+              </span>
+            </Button>
           </div>
         </form>
       </EntityDrawer>
