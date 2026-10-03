@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Plus,
   RotateCw,
@@ -192,7 +192,10 @@ export default function HireChallansPage() {
   const [chargeHeads, setChargeHeads] = useState<ChargeHeadOption[]>([]);
 
   // Page State
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -200,6 +203,15 @@ export default function HireChallansPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedChallanDetail, setSelectedChallanDetail] = useState<HireChallanRecord | null>(null);
   const [isRefreshingDrivers, setIsRefreshingDrivers] = useState(false);
+
+  // Stable refs to prevent circular effect dependencies & infinite render loops
+  const branchesRef = useRef<BranchOption[]>([]);
+  const editingIdRef = useRef<number | null>(null);
+  editingIdRef.current = editingId;
+
+  useEffect(() => {
+    branchesRef.current = branches;
+  }, [branches]);
 
   // Quick Create Modals State
   const [quickDriverOpen, setQuickDriverOpen] = useState(false);
@@ -301,7 +313,7 @@ export default function HireChallansPage() {
         setSeriesInfo(seriesCheckRes);
 
         // Default From to branch city if From is empty
-        const currentBranches = branchList || branches;
+        const currentBranches = branchList || branchesRef.current;
         const branch = currentBranches.find((b) => String(b.id) === String(officeId));
         if (branch && branch.city) {
           setFromLocation((prev) => (prev ? prev : branch.city || ""));
@@ -332,7 +344,7 @@ export default function HireChallansPage() {
         console.error("Error auto-filling series and HC No:", err);
       }
     },
-    [branches]
+    []
   );
 
   // Computed display string for the fixed issuing office
@@ -356,10 +368,38 @@ export default function HireChallansPage() {
   }, [branches, issuingOfficeId, activeOffice]);
 
   // -------------------------------------------------------------
-  // Load Master Data
+  // Data Fetching: Challans List (Independent from Drawer Master Data)
   // -------------------------------------------------------------
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchChallans = useCallback(async (isBackground = false) => {
+    if (isBackground) {
+      setIsRefreshing(true);
+    } else {
+      setIsInitialLoading(true);
+    }
+    setIsError(false);
+    setErrorMessage(null);
+
+    try {
+      const res = await apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans");
+      setData(Array.isArray(res) ? res : []);
+      setIsError(false);
+      setErrorMessage(null);
+    } catch (err: any) {
+      console.error("Failed to fetch hire challans:", err);
+      setIsError(true);
+      setErrorMessage(
+        err?.message || "Failed to load hire challans. Please check your connection and try again."
+      );
+    } finally {
+      setIsInitialLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // -------------------------------------------------------------
+  // Data Fetching: Drawer Master Data (Branches, Drivers, Vehicles, etc.)
+  // -------------------------------------------------------------
+  const fetchMasterData = useCallback(async () => {
     try {
       const activeOfficeData = getActiveOffice();
       if (activeOfficeData) {
@@ -367,7 +407,6 @@ export default function HireChallansPage() {
       }
 
       const [
-        challansRes,
         branchesRes,
         locationsRes,
         marketVehiclesRes,
@@ -377,7 +416,6 @@ export default function HireChallansPage() {
         lrsRes,
         chargeHeadsRes,
       ] = await Promise.all([
-        apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans").catch(() => []),
         apiClient<BranchOption[]>("/api/v1/profile/branches").catch(() => []),
         apiClient<LocationOption[]>("/api/v1/general/locations").catch(() => []),
         apiClient<any[]>("/api/v1/transport/market-vehicles").catch(() => []),
@@ -388,8 +426,8 @@ export default function HireChallansPage() {
         apiClient<ChargeHeadOption[]>("/api/v1/misc/charge-heads").catch(() => []),
       ]);
 
-      setData(Array.isArray(challansRes) ? challansRes : []);
       const branchList = Array.isArray(branchesRes) ? branchesRes : [];
+      branchesRef.current = branchList;
       setBranches(branchList);
       setLocations(Array.isArray(locationsRes) ? locationsRes : []);
 
@@ -440,30 +478,31 @@ export default function HireChallansPage() {
         autoFillSeriesAndHCNo(defaultOfficeId, branchList);
       }
     } catch (err: any) {
-      console.error("Failed to load initial data:", err);
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to load master data:", err);
     }
   }, [autoFillSeriesAndHCNo]);
 
   useEffect(() => {
-    loadData();
+    fetchChallans(false);
+    fetchMasterData();
 
     const handleOfficeChanged = (e: Event) => {
       const customEvent = e as CustomEvent<OfficeSummary>;
       if (customEvent.detail) {
         setActiveOfficeState(customEvent.detail);
-        if (customEvent.detail.id && customEvent.detail.id > 0 && !editingId) {
+        if (customEvent.detail.id && customEvent.detail.id > 0 && !editingIdRef.current) {
           const newOfficeId = String(customEvent.detail.id);
           setIssuingOfficeId(newOfficeId);
-          autoFillSeriesAndHCNo(newOfficeId, branches);
+          autoFillSeriesAndHCNo(newOfficeId, branchesRef.current);
         }
+        // Background refresh challans when office changes
+        fetchChallans(true);
       }
     };
 
     window.addEventListener("panther_office_changed", handleOfficeChanged);
     return () => window.removeEventListener("panther_office_changed", handleOfficeChanged);
-  }, [loadData, editingId, branches, autoFillSeriesAndHCNo]);
+  }, [fetchChallans, fetchMasterData, autoFillSeriesAndHCNo]);
 
   const handleSeriesChange = (newSeriesId: string) => {
     setSelectedSeriesId(newSeriesId);
@@ -984,9 +1023,8 @@ export default function HireChallansPage() {
       setIsDrawerOpen(false);
       setEditingId(null);
 
-      // Reload records list
-      const freshChallans = await apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans");
-      setData(Array.isArray(freshChallans) ? freshChallans : []);
+      // Reload records list smoothly in background
+      await fetchChallans(true);
     } catch (err: any) {
       alert(err.message || "Failed to save hire challan.");
     } finally {
@@ -1004,8 +1042,7 @@ export default function HireChallansPage() {
         method: "POST",
         body: JSON.stringify({ settlement_notes: "Settled via banking channel" }),
       });
-      const freshChallans = await apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans");
-      setData(Array.isArray(freshChallans) ? freshChallans : []);
+      await fetchChallans(true);
     } catch (err: any) {
       alert(err.message || "Failed to settle challan.");
     }
@@ -1189,25 +1226,25 @@ export default function HireChallansPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="Total Hire Challans"
-          value={stats.total.toLocaleString()}
+          value={isInitialLoading && data.length === 0 ? "..." : stats.total.toLocaleString()}
           subtext="Issued lorry contracts"
           icon={<FileText className="w-4 h-4 text-indigo-600" />}
         />
         <KpiCard
           title="Active In Transit"
-          value={stats.inTransit.toLocaleString()}
+          value={isInitialLoading && data.length === 0 ? "..." : stats.inTransit.toLocaleString()}
           subtext="Line-haul market trucks"
           icon={<Truck className="w-4 h-4 text-blue-600" />}
         />
         <KpiCard
           title="Pending Settlements"
-          value={stats.pendingSettlement.toLocaleString()}
+          value={isInitialLoading && data.length === 0 ? "..." : stats.pendingSettlement.toLocaleString()}
           subtext="Lorry balances awaiting payout"
           icon={<Clock className="w-4 h-4 text-amber-600" />}
         />
         <KpiCard
           title="Total Lorry Hire"
-          value={formatCurrency(stats.totalHireValue)}
+          value={isInitialLoading && data.length === 0 ? "..." : formatCurrency(stats.totalHireValue)}
           subtext="Cumulative agreed hire & expenses"
           icon={<IndianRupee className="w-4 h-4 text-emerald-600" />}
         />
@@ -1244,13 +1281,47 @@ export default function HireChallansPage() {
         columns={columns}
         data={filteredData}
         actions={actions}
-        isLoading={isLoading}
-        emptyMessage="No Hire Challans Found"
-        emptySubtext="Issue a hire challan for market fleet vehicles to record contracts and advance settlements."
-        emptyAction={{
-          label: "+ Issue Hire Challan",
-          onClick: openCreateDrawer,
-        }}
+        isLoading={isInitialLoading && data.length === 0}
+        isError={isError && data.length === 0}
+        errorMessage={errorMessage}
+        onRetry={() => fetchChallans(false)}
+        toolbarExtra={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fetchChallans(true)}
+            disabled={isRefreshing || isInitialLoading}
+            className="gap-1.5 text-xs text-slate-600 rounded-xl"
+            title="Refresh list"
+          >
+            <RotateCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin text-indigo-600")} />
+            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+          </Button>
+        }
+        emptyMessage={
+          searchTerm || statusFilter !== "ALL"
+            ? "No Matching Hire Challans"
+            : "No Hire Challans Found"
+        }
+        emptySubtext={
+          searchTerm || statusFilter !== "ALL"
+            ? "Try adjusting your search terms or filters to find what you're looking for."
+            : "Issue a hire challan for market fleet vehicles to record contracts and advance settlements."
+        }
+        emptyAction={
+          searchTerm || statusFilter !== "ALL"
+            ? {
+                label: "Clear Filters",
+                onClick: () => {
+                  setSearchTerm("");
+                  setStatusFilter("ALL");
+                },
+              }
+            : {
+                label: "+ Issue Hire Challan",
+                onClick: openCreateDrawer,
+              }
+        }
       />
 
       {/* 4. Standard TMS EntityDrawer (Opens as clean in-app workspace tab, exactly like LR Booking & Invoicing) */}
