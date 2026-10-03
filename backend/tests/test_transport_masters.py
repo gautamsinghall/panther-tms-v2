@@ -51,19 +51,55 @@ async def test_transport_fleet_and_driver_masters_crud():
         assert driver_res.status_code == 201, driver_res.text
         driver_id = driver_res.json()["id"]
 
-        # 4. Market Vehicle linked to Owner
+        # 4. Market Vehicle linked to Owner with all 4-step fields
         mv_res = await client.post(
             "/api/v1/transport/market-vehicles",
             json={
                 "vehicle_number": f"MH14{uid[:4].upper()}",
-                "vehicle_type": "32ft Multi-Axle Open",
-                "capacity_mt": 25.0,
+                "vehicle_type": "20 FT OPEN",
+                "capacity_mt": 16.5,
                 "owner_id": owner_id,
+                "ownership_type": "Market Vehicle",
+                "vehicle_description": "Tata Signa 4825.TK",
+                "registration_date": "2023-04-15",
+                "vehicle_class": "HGMV",
+                "engine_number": f"ENG{uid}",
+                "chassis_number": f"CHS{uid}",
+                "financier": "HDFC Bank Ltd",
+                "gvw_kg": 28000.0,
+                "unladen_weight_kg": 11500.0,
+                "emission_norms": "BS-VI",
+                "color": "Signal White",
+                "cylinders": 6,
+                "seating_capacity": 2,
+                "rc_status": "ACTIVE",
+                "fitness_expiry": "2027-04-15",
+                "insurance_expiry": "2025-04-15",
+                "tax_validity": "2026-03-31",
+                "puc_expiry": "2025-10-15",
+                "permit_validity": "2028-04-15",
+                "has_jack": True,
+                "has_raad": True,
+                "has_pana": True,
+                "has_stepney": True,
+                "has_tarpaulin_rassi": True,
+                "last_service_km": 85000,
+                "last_service_done_at": "Tata Workshop Vashi",
+                "last_service_status": "Completed",
+                "driver_at_last_service": "Ramesh Kumar",
+                "driver_phone_at_last_service": "9876543210",
+                "tyre_numbers": "10 Tyres Apollo Radial",
+                "rc_original_status": "With Driver",
+                "rc_copy_doc": "data:application/pdf;base64,mockpdf",
+                "last_repair_bill_doc": "data:image/jpeg;base64,mockimg",
             },
             headers=auth_headers,
         )
         assert mv_res.status_code == 201, mv_res.text
         mv_id = mv_res.json()["id"]
+        assert mv_res.json()["ownership_type"] == "Market Vehicle"
+        assert mv_res.json()["has_tarpaulin_rassi"] is True
+        assert mv_res.json()["last_service_km"] == 85000
 
         # 5. Company Vehicle linked to Driver
         cv_res = await client.post(
@@ -93,3 +129,17 @@ async def test_transport_fleet_and_driver_masters_crud():
 
         cvs = (await client.get("/api/v1/transport/company-vehicles", headers=auth_headers)).json()
         assert any(c["id"] == cv_id for c in cvs)
+
+        # 7. Verify Market Vehicle Get & Update
+        mv_single = await client.get(f"/api/v1/transport/market-vehicles/{mv_id}", headers=auth_headers)
+        assert mv_single.status_code == 200
+        assert mv_single.json()["vehicle_description"] == "Tata Signa 4825.TK"
+
+        mv_update = await client.put(
+            f"/api/v1/transport/market-vehicles/{mv_id}",
+            json={"has_jack": False, "last_service_km": 90000},
+            headers=auth_headers,
+        )
+        assert mv_update.status_code == 200
+        assert mv_update.json()["has_jack"] is False
+        assert mv_update.json()["last_service_km"] == 90000

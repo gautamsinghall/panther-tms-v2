@@ -112,6 +112,14 @@ async def list_market_vehicles(
 ):
     return await service.get_all_market_vehicles(db)
 
+@router.get("/market-vehicles/{id}", response_model=MarketVehicleResponse)
+async def get_market_vehicle(
+    id: int,
+    current_user: User = Depends(require_permission("transport", "market_vehicles", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_market_vehicle(db, id)
+
 @router.post("/market-vehicles", response_model=MarketVehicleResponse, status_code=status.HTTP_201_CREATED)
 async def create_market_vehicle(
     data: MarketVehicleCreate,

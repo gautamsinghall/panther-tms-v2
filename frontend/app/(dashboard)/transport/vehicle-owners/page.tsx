@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Trash2, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
@@ -27,12 +28,19 @@ interface VehicleOwnerRecord {
 }
 
 export default function VehicleOwnersPage() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<VehicleOwnerRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      setIsDrawerOpen(true);
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     setIsLoading(true);

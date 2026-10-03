@@ -470,6 +470,47 @@ class MarketVehicle(TenantBase):
     insurance_expiry = Column(Date, nullable=True)
     fitness_expiry = Column(Date, nullable=True)
     puc_expiry = Column(Date, nullable=True)
+
+    # Step 1: Vehicle and Owner Details
+    ownership_type = Column(String(50), default="Market Vehicle", nullable=True)
+
+    # Step 2: Vehicle Specifications and Registration Details
+    vehicle_description = Column(String(255), nullable=True)
+    registration_date = Column(Date, nullable=True)
+    vehicle_class = Column(String(100), nullable=True)
+    engine_number = Column(String(100), nullable=True)
+    chassis_number = Column(String(100), nullable=True)
+    financier = Column(String(150), nullable=True)
+    gvw_kg = Column(Numeric(10, 2), nullable=True)
+    unladen_weight_kg = Column(Numeric(10, 2), nullable=True)
+    emission_norms = Column(String(50), nullable=True)
+    color = Column(String(50), nullable=True)
+    cylinders = Column(Integer, nullable=True)
+    seating_capacity = Column(Integer, nullable=True)
+    rc_status = Column(String(50), default="ACTIVE", nullable=True)
+
+    # Step 3: Validity Details
+    tax_validity = Column(Date, nullable=True)
+    permit_validity = Column(Date, nullable=True)
+
+    # STEP 4: Equipment & Maintenance
+    has_jack = Column(Boolean, default=False, nullable=True)
+    has_raad = Column(Boolean, default=False, nullable=True)
+    has_pana = Column(Boolean, default=False, nullable=True)
+    has_stepney = Column(Boolean, default=False, nullable=True)
+    has_tarpaulin_rassi = Column(Boolean, default=False, nullable=True)
+
+    last_service_km = Column(Integer, nullable=True)
+    last_service_done_at = Column(String(150), nullable=True)
+    last_service_status = Column(String(50), nullable=True)
+    driver_at_last_service = Column(String(150), nullable=True)
+    driver_phone_at_last_service = Column(String(20), nullable=True)
+    tyre_numbers = Column(String(100), nullable=True)
+
+    rc_original_status = Column(String(100), nullable=True)
+    rc_copy_doc = Column(Text, nullable=True)
+    last_repair_bill_doc = Column(Text, nullable=True)
+
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(

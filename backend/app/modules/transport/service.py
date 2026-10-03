@@ -208,11 +208,25 @@ async def create_market_vehicle(db: AsyncSession, data: MarketVehicleCreate) -> 
     await db.refresh(vehicle)
     return vehicle
 
+async def get_market_vehicle(db: AsyncSession, vehicle_id: int) -> MarketVehicle:
+    vehicle = await db.get(MarketVehicle, vehicle_id)
+    if not vehicle:
+        raise AppException(status_code=404, error_code="NOT_FOUND", message="Market vehicle not found.")
+    return vehicle
+
 async def update_market_vehicle(db: AsyncSession, vehicle_id: int, data: MarketVehicleUpdate) -> MarketVehicle:
     vehicle = await db.get(MarketVehicle, vehicle_id)
     if not vehicle:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="Market vehicle not found.")
-    for field, val in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    if "owner_id" in update_data and update_data["owner_id"]:
+        owner = await db.get(VehicleOwner, update_data["owner_id"])
+        if owner:
+            if "owner_name" not in update_data or not update_data["owner_name"]:
+                update_data["owner_name"] = owner.name
+            if "owner_phone" not in update_data or not update_data["owner_phone"]:
+                update_data["owner_phone"] = owner.phone
+    for field, val in update_data.items():
         setattr(vehicle, field, val)
     await db.commit()
     await db.refresh(vehicle)

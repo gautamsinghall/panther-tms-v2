@@ -169,6 +169,41 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_hire_challans ADD COLUMN IF NOT EXISTS {hc_col};"))
 
+                        # Market Vehicle Extended 4-Step Fields Evolution
+                        for mv_col in [
+                            "ownership_type VARCHAR(50) DEFAULT 'Market Vehicle'",
+                            "vehicle_description VARCHAR(255)",
+                            "registration_date DATE",
+                            "vehicle_class VARCHAR(100)",
+                            "engine_number VARCHAR(100)",
+                            "chassis_number VARCHAR(100)",
+                            "financier VARCHAR(150)",
+                            "gvw_kg NUMERIC(10, 2)",
+                            "unladen_weight_kg NUMERIC(10, 2)",
+                            "emission_norms VARCHAR(50)",
+                            "color VARCHAR(50)",
+                            "cylinders INTEGER",
+                            "seating_capacity INTEGER",
+                            "rc_status VARCHAR(50) DEFAULT 'ACTIVE'",
+                            "tax_validity DATE",
+                            "permit_validity DATE",
+                            "has_jack BOOLEAN DEFAULT FALSE",
+                            "has_raad BOOLEAN DEFAULT FALSE",
+                            "has_pana BOOLEAN DEFAULT FALSE",
+                            "has_stepney BOOLEAN DEFAULT FALSE",
+                            "has_tarpaulin_rassi BOOLEAN DEFAULT FALSE",
+                            "last_service_km INTEGER",
+                            "last_service_done_at VARCHAR(150)",
+                            "last_service_status VARCHAR(50)",
+                            "driver_at_last_service VARCHAR(150)",
+                            "driver_phone_at_last_service VARCHAR(20)",
+                            "tyre_numbers VARCHAR(100)",
+                            "rc_original_status VARCHAR(100)",
+                            "rc_copy_doc TEXT",
+                            "last_repair_bill_doc TEXT",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE transport_market_vehicles ADD COLUMN IF NOT EXISTS {mv_col};"))
+
                         # Seed default Load Types if empty
                         lt_check = await t_conn.execute(text("SELECT COUNT(*) FROM general_load_types;"))
                         if (lt_check.scalar() or 0) == 0:
