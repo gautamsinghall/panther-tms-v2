@@ -130,6 +130,20 @@ export function setActiveOffice(office: OfficeSummary): void {
   }
 }
 
+export function getWorkspaceUrl(path: string): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (typeof window === "undefined") return cleanPath;
+  const auth = getStoredAuth();
+  if (auth?.tenantId) {
+    return `/${auth.tenantId}${cleanPath}`;
+  }
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  if (parts.length > 0 && (/^[a-z0-9]{10}$/.test(parts[0]) || parts[0] === "demo123456" || parts[0] === "demo")) {
+    return `/${parts[0]}${cleanPath}`;
+  }
+  return cleanPath;
+}
+
 export function getApiBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
 

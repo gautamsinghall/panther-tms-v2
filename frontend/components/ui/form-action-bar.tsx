@@ -31,7 +31,7 @@ export function FormActionBar({
       )}
     >
       <div className="min-w-0 flex-1">{summary}</div>
-      <div className="flex shrink-0 items-center justify-end gap-3">
+      <div className="flex flex-wrap shrink-0 items-center justify-end gap-2.5 sm:gap-3">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           {cancelLabel}
         </Button>

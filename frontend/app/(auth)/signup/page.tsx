@@ -66,7 +66,7 @@ const PLANS: PlanOption[] = [
     limits: {
       users: "1 User",
       vehicles: "2 Vehicles",
-      invoices: "10 Vouchers/mo",
+      invoices: "10 Vouchers & Invoices/mo",
     },
   },
   {
@@ -87,7 +87,7 @@ const PLANS: PlanOption[] = [
     limits: {
       users: "5 Users",
       vehicles: "20 Vehicles",
-      invoices: "200 Invoices/mo",
+      invoices: "200 Vouchers & Invoices/mo",
     },
   },
   {
@@ -107,7 +107,7 @@ const PLANS: PlanOption[] = [
     limits: {
       users: "15 Users",
       vehicles: "75 Vehicles",
-      invoices: "1,000 Invoices/mo",
+      invoices: "1,000 Vouchers & Invoices/mo",
     },
   },
   {
@@ -115,19 +115,19 @@ const PLANS: PlanOption[] = [
     name: "Enterprise Scale",
     priceMonthly: 19999,
     priceYearly: 199990,
-    description: "Unlimited scale with dedicated DB tenancy and custom SLA.",
+    description: "Unlimited scale with isolated workspace schema and custom SLA.",
     features: [
       "Everything in Business Logistics",
       "Full Statements & GST Returns",
       "Unlimited Operational Scale",
       "Priority Webhook & SLA Guarantee",
-      "Dedicated PostgreSQL Instance",
-      "Tenant Database Isolation",
+      "Isolated Company Workspace Schema",
+      "Tenant Data Isolation & Encryption",
     ],
     limits: {
       users: "Unlimited",
       vehicles: "Unlimited",
-      invoices: "Unlimited",
+      invoices: "Unlimited Vouchers & Invoices",
     },
   },
 ];
@@ -209,7 +209,7 @@ export default function SignupPage() {
 
       if (!initData.requires_payment) {
         // FREE plan: Workspace schema and admin account are provisioned by initiate_signup
-        setProvisioningStatus("Tenant environment ready!");
+        setProvisioningStatus("Company workspace ready!");
         setProvisionComplete(true);
         setIsLoading(false);
       } else {
@@ -231,7 +231,7 @@ export default function SignupPage() {
       description: `${initData.plan_code} Plan Subscription (${billingCycle})`,
       image: "https://cdn-icons-png.flaticon.com/512/2830/2830284.png",
       handler: async function (response: any) {
-        setProvisioningStatus("Payment verified! Provisioning isolated tenant database...");
+        setProvisioningStatus("Payment verified! Initializing isolated workspace schema...");
         await completeTenantSignup(
           tenantId || initData.tenant_id,
           companyCode,
@@ -301,7 +301,7 @@ export default function SignupPage() {
     try {
       const backendBaseUrl = getApiBaseUrl();
 
-      setProvisioningStatus("Running database migrations & setting up RBAC security policies...");
+      setProvisioningStatus("Initializing workspace schema & setting up RBAC security policies...");
 
       const compRes = await fetch(`${backendBaseUrl}/control/signup/complete`, {
         method: "POST",
@@ -321,7 +321,7 @@ export default function SignupPage() {
         throw new Error(errData.detail || "Failed to complete tenant provisioning.");
       }
 
-      setProvisioningStatus("Tenant environment ready!");
+      setProvisioningStatus("Company workspace ready!");
       setProvisionComplete(true);
       setIsLoading(false);
     } catch (err: any) {
@@ -506,9 +506,9 @@ export default function SignupPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-slate-500">
                       <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Monthly Invoices</span>
+                      <span>Monthly Vouchers & Invoices</span>
                     </div>
-                    <span className="font-bold text-slate-900">10 Vouchers/mo</span>
+                    <span className="font-bold text-slate-900">10 Vouchers & Invoices/mo</span>
                   </div>
                 </div>
 
@@ -628,9 +628,9 @@ export default function SignupPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-slate-500">
                       <FileText className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Monthly Invoices</span>
+                      <span>Monthly Vouchers & Invoices</span>
                     </div>
-                    <span className="font-bold text-slate-900">200 Invoices/mo</span>
+                    <span className="font-bold text-slate-900">200 Vouchers & Invoices/mo</span>
                   </div>
                 </div>
 
@@ -749,9 +749,9 @@ export default function SignupPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-slate-500">
                       <FileText className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Monthly Invoices</span>
+                      <span>Monthly Vouchers & Invoices</span>
                     </div>
-                    <span className="font-bold text-slate-900">1,000 Invoices/mo</span>
+                    <span className="font-bold text-slate-900">1,000 Vouchers & Invoices/mo</span>
                   </div>
                 </div>
 
@@ -832,7 +832,7 @@ export default function SignupPage() {
                 <div>
                   <h2 className="font-bold text-xl text-white tracking-tight">Enterprise Scale</h2>
                   <p className="text-xs text-slate-400 mt-1 leading-snug min-h-[34px]">
-                    Unlimited scale with dedicated DB tenancy and custom SLA.
+                    Unlimited scale with isolated workspace schema and custom SLA.
                   </p>
                 </div>
 
@@ -873,7 +873,7 @@ export default function SignupPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-slate-400">
                       <FileText className="w-3.5 h-3.5 text-blue-400" />
-                      <span>Monthly Invoices</span>
+                      <span>Monthly Vouchers & Invoices</span>
                     </div>
                     <span className="font-bold text-white">Unlimited</span>
                   </div>
@@ -903,11 +903,11 @@ export default function SignupPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                      <span>Dedicated PostgreSQL Instance</span>
+                      <span>Isolated Company Workspace Schema</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                      <span>Tenant Database Isolation</span>
+                      <span>Tenant Data Isolation & Encryption</span>
                     </li>
                   </ul>
                 </div>
@@ -1066,7 +1066,7 @@ export default function SignupPage() {
               <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl text-xs text-slate-600 flex items-center gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
-                  Tenant isolation enforced with dedicated PostgreSQL database and automated daily backups.
+                  Data isolation enforced with dedicated company schema and automated daily backups.
                 </span>
               </div>
 
@@ -1092,7 +1092,7 @@ export default function SignupPage() {
                     </>
                   ) : selectedPlan === "FREE" ? (
                     <>
-                      <span>Complete Free Provisioning</span>
+                      <span>Complete Free Setup</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : (
@@ -1132,7 +1132,7 @@ export default function SignupPage() {
                 <div>
                   <h3 className="text-xl font-bold tracking-tight text-slate-900">Workspace Ready!</h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Your tenant <span className="font-semibold text-slate-900">{companyName}</span> has been provisioned.
+                    Your company workspace <span className="font-semibold text-slate-900">{companyName}</span> has been initialized.
                   </p>
                 </div>
 
@@ -1154,7 +1154,7 @@ export default function SignupPage() {
                     <span className="font-semibold text-slate-900">{adminEmail}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-sans">Tenant DB:</span>
+                    <span className="text-slate-500 font-sans">Workspace Schema:</span>
                     <span className="text-emerald-600 font-semibold">panther_tenant_{companyCode ? companyCode.toLowerCase() : "companycode"}</span>
                   </div>
                 </div>

@@ -184,12 +184,11 @@ export default function SubgroupPage() {
           { label: "Masters", href: "/misc/primary-group" },
           { label: "Subgroups" },
         ]}
-        actions={
-          <Button onClick={() => setIsDrawerOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Subgroup
-          </Button>
-        }
+        primaryAction={{
+          label: "Add Subgroup",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -199,19 +198,17 @@ export default function SubgroupPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          data={data}
-          columns={columns}
-          actions={actions}
-          isLoading={isLoading}
-          searchPlaceholder="Search subgroups..."
-          searchColumn="name"
-          emptyMessage="No subgroups configured"
-          emptySubtext="Add a subgroup under an account group to complete the ledger hierarchy."
-          emptyAction={{ label: "Add Subgroup", onClick: () => setIsDrawerOpen(true) }}
-        />
-      </div>
+      <DataTable
+        data={data}
+        columns={columns}
+        actions={actions}
+        isLoading={isLoading}
+        searchPlaceholder="Search subgroups..."
+        searchColumn="name"
+        emptyMessage="No subgroups configured"
+        emptySubtext="Add a subgroup under an account group to complete the ledger hierarchy."
+        emptyAction={{ label: "Add Subgroup", onClick: () => setIsDrawerOpen(true) }}
+      />
 
       <EntityDrawer
         isOpen={isDrawerOpen}

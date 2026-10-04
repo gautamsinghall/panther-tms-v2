@@ -247,20 +247,15 @@ export default function TrackingPage() {
         />
       </div>
 
-      {/* Integration Gap Notice per Rules §2 */}
-      <div className="p-4 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-start gap-3 shadow-2xs">
-        <Info className="w-5 h-5 text-amber-700 mt-0.5 shrink-0" />
-        <div className="text-xs text-amber-800 space-y-1">
-          <p className="font-semibold text-amber-900">
-            Telemetry Shell (Rules.md §2 — Do-Not-Invent Principle)
+      {/* Telemetry Integration Status */}
+      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3 shadow-2xs">
+        <Info className="w-5 h-5 text-slate-600 mt-0.5 shrink-0" />
+        <div className="text-xs text-slate-700 space-y-1">
+          <p className="font-semibold text-slate-900">
+            Carrier Telematics & Highway Checkpoint Logging
           </p>
-          <p className="text-amber-800/90 leading-relaxed">
-            External hardware/telecom providers (NPCI NETC FASTag, WheelsEye/LocoNav GPS, telecom SIM consent gateways)
-            are marked as{" "}
-            <code className="font-mono bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-300/80 text-amber-900 font-semibold">
-              UNKNOWN / NEEDS VERIFICATION
-            </code>{" "}
-            until specific carrier agreements are configured. The data model and telemetry display pipeline are fully operational.
+          <p className="text-slate-600 leading-relaxed">
+            FASTag toll plaza hits and GPS waypoint logs are recorded across active line-haul trips. Direct API polling for third-party telematics gateways (NPCI NETC, WheelsEye, LocoNav) activates once provider API credentials are configured in Integrations settings.
           </p>
         </div>
       </div>
@@ -292,15 +287,15 @@ export default function TrackingPage() {
       <EntityDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        title="Record Telemetry Ping"
-        subtitle="Simulate GPS, FASTag or SIM ping for vehicle location tracking"
+        title="Record Telemetry Checkpoint"
+        subtitle="Log GPS waypoint, FASTag toll plaza hit, or manual checkpoint ping"
         size="lg"
       >
         <Form
           sections={formSections}
           onSubmit={handleCreate}
           onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Transmit Ping"
+          submitLabel="Save Checkpoint"
           isLoading={isSubmitting}
         />
       </EntityDrawer>

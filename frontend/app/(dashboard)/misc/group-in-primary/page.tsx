@@ -184,12 +184,11 @@ export default function GroupInPrimaryPage() {
           { label: "Masters", href: "/misc/primary-group" },
           { label: "Groups in Primary" },
         ]}
-        actions={
-          <Button onClick={() => setIsDrawerOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Group
-          </Button>
-        }
+        primaryAction={{
+          label: "Add Group",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -199,19 +198,17 @@ export default function GroupInPrimaryPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          data={data}
-          columns={columns}
-          actions={actions}
-          isLoading={isLoading}
-          searchPlaceholder="Search groups in primary..."
-          searchColumn="name"
-          emptyMessage="No account groups configured"
-          emptySubtext="Add a group under a primary group to organize subgroups and ledgers."
-          emptyAction={{ label: "Add Group", onClick: () => setIsDrawerOpen(true) }}
-        />
-      </div>
+      <DataTable
+        data={data}
+        columns={columns}
+        actions={actions}
+        isLoading={isLoading}
+        searchPlaceholder="Search groups in primary..."
+        searchColumn="name"
+        emptyMessage="No account groups configured"
+        emptySubtext="Add a group under a primary group to organize subgroups and ledgers."
+        emptyAction={{ label: "Add Group", onClick: () => setIsDrawerOpen(true) }}
+      />
 
       <EntityDrawer
         isOpen={isDrawerOpen}

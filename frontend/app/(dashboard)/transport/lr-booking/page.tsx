@@ -214,6 +214,7 @@ export default function LRBookingPage() {
   const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
 
   // Series Master State
+  const [isSeriesLoading, setIsSeriesLoading] = useState(true);
   const [seriesInfo, setSeriesInfo] = useState<{
     configured: boolean;
     prefix?: string;
@@ -231,6 +232,7 @@ export default function LRBookingPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    setIsSeriesLoading(true);
     setIsError(false);
     setErrorMessage(null);
     try {
@@ -276,6 +278,7 @@ export default function LRBookingPage() {
       setErrorMessage(err.message || "Failed to load LRs.");
     } finally {
       setIsLoading(false);
+      setIsSeriesLoading(false);
     }
   }, []);
 
@@ -403,7 +406,9 @@ export default function LRBookingPage() {
   const seriesRangeOptions = useMemo(() => {
     if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) {
       return [{
-        label: seriesInfo?.configured
+        label: isSeriesLoading
+          ? "Checking LR series..."
+          : seriesInfo?.configured
           ? `Automatic Series (${seriesInfo.next_number_formatted})`
           : "Default LR Sequence",
         value: "default",
@@ -413,7 +418,7 @@ export default function LRBookingPage() {
       value: String(r.id),
       label: `${r.series_name || "LR Series"} · ${r.prefix || ""}${r.starting_number} to ${r.prefix || ""}${r.end_number || "..."}${r.suffix || ""} (${r.available_count} available)`,
     }));
-  }, [manualSeriesData, seriesInfo]);
+  }, [manualSeriesData, seriesInfo, isSeriesLoading]);
 
   // Selected series object
   const activeSeriesObj = useMemo(() => {
@@ -431,8 +436,8 @@ export default function LRBookingPage() {
   // Dynamic LR numbers belonging to selected series (e.g. LR-001, LR-002 ... LR-100)
   const lrNumberOptions = useMemo(() => {
     if (!activeSeriesObj) {
-      const fallback = editingLrRecord?.lr_number || (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "";
-      return [{ label: fallback || "No Active Series", value: fallback }];
+      const fallback = editingLrRecord?.lr_number || (isSeriesLoading ? "Loading..." : seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "";
+      return [{ label: fallback || (isSeriesLoading ? "Checking series..." : "No Active Series"), value: fallback }];
     }
 
     const start = activeSeriesObj.starting_number || 1;
@@ -957,8 +962,12 @@ export default function LRBookingPage() {
           disabled: true,
           disabledReason: "Automatically assigned from Series Master upon saving.",
           required: false,
-          placeholder: (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "Auto-allocated",
-          helperText: seriesInfo?.configured
+          placeholder: isSeriesLoading
+            ? "Checking series..."
+            : (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || "Auto-allocated",
+          helperText: isSeriesLoading
+            ? "Checking active series configuration..."
+            : seriesInfo?.configured
             ? `Preview: ${seriesInfo.next_number_formatted}. Unique sequence number is generated automatically from the active series.`
             : "No active series configured for this branch. Configure in Settings → Series Master.",
         },
@@ -1416,7 +1425,7 @@ export default function LRBookingPage() {
         }}
       />
 
-      {seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
+      {!isSeriesLoading && seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
         <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>

@@ -686,29 +686,33 @@ export function Sidebar() {
                   toggleGroup(group.id);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer select-none",
+                  "flex w-full items-center rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer select-none",
+                  isCollapsed ? "justify-center p-2.5" : "justify-between px-2.5 py-2",
                   hasActiveChild
-                    ? "text-slate-900 font-semibold bg-slate-50 border border-slate-200/60"
-                    : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
+                    ? "text-slate-900 font-semibold bg-slate-100/80 border border-slate-200/80 shadow-2xs"
+                    : "text-slate-700 hover:bg-slate-100/70 hover:text-slate-900"
                 )}
-                title={isCollapsed ? group.title : undefined}
+                title={group.title}
+                aria-label={group.title}
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1.5">
-                  <span className={cn("shrink-0", hasActiveChild ? "text-indigo-600" : "text-slate-400")}>
+                <div className={cn("flex items-center gap-2.5 min-w-0", isCollapsed ? "justify-center" : "flex-1 mr-1")}>
+                  <span className={cn("shrink-0", hasActiveChild ? "text-indigo-600" : "text-slate-500")}>
                     {icon}
                   </span>
                   {!isCollapsed && (
-                    <span className="text-xs font-medium truncate">
+                    <span className="text-xs font-semibold text-slate-800 truncate" title={group.title}>
                       {group.title}
                     </span>
                   )}
                 </div>
                 {!isCollapsed && (
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-1">
                     {group.is_locked && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase tracking-tight shrink-0 whitespace-nowrap shadow-2xs">
+                      <span
+                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-50 border border-amber-200/80 text-amber-700 shadow-2xs shrink-0"
+                        title={`Requires ${formatPlanName(group.required_plan)} plan`}
+                      >
                         <Lock className="w-2.5 h-2.5 shrink-0" />
-                        {formatPlanName(group.required_plan)}
                       </span>
                     )}
                     <span className="text-slate-400 shrink-0">

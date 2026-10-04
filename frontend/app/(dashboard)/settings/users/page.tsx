@@ -350,15 +350,11 @@ export default function UsersPage() {
           { label: "Settings" },
           { label: "User Management" },
         ]}
-        actions={
-          <Button
-            onClick={openCreateDrawer}
-            className="gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Employee
-          </Button>
-        }
+        primaryAction={{
+          label: "Add Employee",
+          icon: <UserPlus className="w-4 h-4" />,
+          onClick: openCreateDrawer,
+        }}
       />
 
       {errorMessage && (
@@ -368,16 +364,17 @@ export default function UsersPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          columns={columns}
-          data={users}
-          isLoading={isLoading}
-          actions={actions}
-          searchPlaceholder="Search by name, email, or role..."
-          searchColumn="full_name"
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={users}
+        isLoading={isLoading}
+        actions={actions}
+        searchPlaceholder="Search by name, email, or role..."
+        searchColumn="full_name"
+        emptyMessage="No employees registered"
+        emptySubtext="Add an employee to configure staff access and office assignments."
+        emptyAction={{ label: "Add Employee", onClick: openCreateDrawer }}
+      />
 
       <EntityDrawer
         isOpen={isDrawerOpen}

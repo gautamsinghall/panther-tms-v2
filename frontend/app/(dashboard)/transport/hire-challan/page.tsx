@@ -1216,7 +1216,7 @@ export default function HireChallansPage() {
           { label: "Hire Challans" },
         ]}
         primaryAction={{
-          label: "+ Issue Hire Challan",
+          label: "Issue Hire Challan",
           icon: <Plus className="w-3.5 h-3.5" />,
           onClick: openCreateDrawer,
         }}
@@ -1281,6 +1281,7 @@ export default function HireChallansPage() {
         columns={columns}
         data={filteredData}
         actions={actions}
+        searchable={false}
         isLoading={isInitialLoading && data.length === 0}
         isError={isError && data.length === 0}
         errorMessage={errorMessage}
@@ -1318,7 +1319,7 @@ export default function HireChallansPage() {
                 },
               }
             : {
-                label: "+ Issue Hire Challan",
+                label: "Issue Hire Challan",
                 onClick: openCreateDrawer,
               }
         }

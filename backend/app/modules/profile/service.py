@@ -375,28 +375,12 @@ async def calculate_monthly_pnl(db: AsyncSession, month: Optional[str] = None) -
         stream = "Trip Direct Expenses (Diesel, Driver, Tolls)"
         month_exp_breakdown[m_key][stream] = round(month_exp_breakdown[m_key].get(stream, 0.0) + float(te.amount), 2)
 
-    # If no historical records, provide seeded timeline
+    # If no historical records, do not fabricate numbers
     if not months_map:
-        current_year = date.today().year
-        seeded = {
-            f"{current_year}-04": (850000.0, 640000.0),
-            f"{current_year}-05": (920000.0, 685000.0),
-            f"{current_year}-06": (1100000.0, 790000.0),
-            f"{current_year}-07": (1050000.0, 750000.0),
-            f"{current_year}-08": (1280000.0, 890000.0),
-            f"{current_year}-09": (1340000.0, 910000.0),
-        }
-        for m_k, (rev_val, exp_val) in seeded.items():
-            months_map[m_k] = {"revenue": Decimal(str(rev_val)), "expenses": Decimal(str(exp_val))}
-            month_rev_breakdown[m_k] = {
-                "Freight & Transport Invoicing": round(rev_val * 0.85, 2),
-                "General Commercial Invoicing": round(rev_val * 0.15, 2),
-            }
-            month_exp_breakdown[m_k] = {
-                "Trip Direct Expenses (Diesel, Driver, Tolls)": round(exp_val * 0.55, 2),
-                "Hired Vehicle Advances & Balances": round(exp_val * 0.30, 2),
-                "Direct Fleet Maintenance & Spares": round(exp_val * 0.15, 2),
-            }
+        current_m = date.today().strftime("%Y-%m")
+        months_map[current_m] = {"revenue": Decimal("0.0"), "expenses": Decimal("0.0")}
+        month_rev_breakdown[current_m] = {}
+        month_exp_breakdown[current_m] = {}
 
     items = []
     total_rev = Decimal("0.0")

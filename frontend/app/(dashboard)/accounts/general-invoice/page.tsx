@@ -376,18 +376,15 @@ export default function GeneralInvoicePage() {
         title="General Invoices"
         description="Bill non-freight revenue, ancillary services, and warehousing fees with automatic double-entry accounting."
         breadcrumbs={[
+          { label: "Dashboard", href: "/" },
           { label: "Accounts", href: "/accounts" },
           { label: "General Invoices" },
         ]}
-        actions={
-          <Button
-            onClick={openCreateDrawer}
-            className="gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New General Invoice
-          </Button>
-        }
+        primaryAction={{
+          label: "New General Invoice",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: openCreateDrawer,
+        }}
       />
 
       {seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
@@ -427,19 +424,17 @@ export default function GeneralInvoicePage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          columns={columns}
-          data={data}
-          isLoading={isLoading}
-          searchPlaceholder="Search invoices or party..."
-          searchColumn="party_name"
-          actions={actions}
-          emptyMessage="No general invoices created"
-          emptySubtext="Create a non-freight invoice to post revenue, tax, and receivable entries."
-          emptyAction={{ label: "Create General Invoice", onClick: openCreateDrawer }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        searchPlaceholder="Search invoices or party..."
+        searchColumn="party_name"
+        actions={actions}
+        emptyMessage="No general invoices created"
+        emptySubtext="Create a non-freight invoice to post revenue, tax, and receivable entries."
+        emptyAction={{ label: "New General Invoice", onClick: openCreateDrawer }}
+      />
 
       {/* Create Invoice Drawer */}
       <EntityDrawer

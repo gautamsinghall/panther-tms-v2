@@ -208,12 +208,11 @@ export default function TaxCategoryPage() {
           { label: "Masters", href: "/misc/primary-group" },
           { label: "Tax Categories" },
         ]}
-        actions={
-          <Button onClick={() => setIsDrawerOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Tax Category
-          </Button>
-        }
+        primaryAction={{
+          label: "Add Tax Category",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -223,19 +222,17 @@ export default function TaxCategoryPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          data={data}
-          columns={columns}
-          actions={actions}
-          isLoading={isLoading}
-          searchPlaceholder="Search tax categories..."
-          searchColumn="name"
-          emptyMessage="No tax categories configured"
-          emptySubtext="Add a GST tax category before assigning taxes to charge heads and invoices."
-          emptyAction={{ label: "Add Tax Category", onClick: () => setIsDrawerOpen(true) }}
-        />
-      </div>
+      <DataTable
+        data={data}
+        columns={columns}
+        actions={actions}
+        isLoading={isLoading}
+        searchPlaceholder="Search tax categories..."
+        searchColumn="name"
+        emptyMessage="No tax categories configured"
+        emptySubtext="Add a GST tax category before assigning taxes to charge heads and invoices."
+        emptyAction={{ label: "Add Tax Category", onClick: () => setIsDrawerOpen(true) }}
+      />
 
       <EntityDrawer
         isOpen={isDrawerOpen}

@@ -253,12 +253,11 @@ export default function EmployeeMasterPage() {
           { label: "Masters", href: "/misc/primary-group" },
           { label: "Employee Master" },
         ]}
-        actions={
-          <Button onClick={() => setIsDrawerOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Employee
-          </Button>
-        }
+        primaryAction={{
+          label: "Add Employee",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -268,19 +267,17 @@ export default function EmployeeMasterPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          data={data}
-          columns={columns}
-          actions={actions}
-          isLoading={isLoading}
-          searchPlaceholder="Search employees..."
-          searchColumn="name"
-          emptyMessage="No employees registered"
-          emptySubtext="Add an employee master record for operational and accounting assignments."
-          emptyAction={{ label: "Add Employee", onClick: () => setIsDrawerOpen(true) }}
-        />
-      </div>
+      <DataTable
+        data={data}
+        columns={columns}
+        actions={actions}
+        isLoading={isLoading}
+        searchPlaceholder="Search employees..."
+        searchColumn="name"
+        emptyMessage="No employees registered"
+        emptySubtext="Add an employee master record for operational and accounting assignments."
+        emptyAction={{ label: "Add Employee", onClick: () => setIsDrawerOpen(true) }}
+      />
 
       <EntityDrawer
         isOpen={isDrawerOpen}

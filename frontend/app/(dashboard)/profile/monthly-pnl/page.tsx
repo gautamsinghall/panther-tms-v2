@@ -100,6 +100,19 @@ export default function MonthlyPnLPage() {
         ]}
       />
 
+      {/* Report Scope & Basis Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-indigo-50/70 border border-indigo-200/80 rounded-xl text-xs text-indigo-950 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+            Scope: Operational Vouchers (All Branches)
+          </span>
+          <span className="text-slate-700">
+            Aggregates Transport & General Invoices and En-Route Trip Expense Vouchers (Cash & Operational Billing Basis).
+          </span>
+        </div>
+        <span className="font-mono text-[11px] font-medium text-slate-500 shrink-0">Basis: Operational Vouchers</span>
+      </div>
+
       {/* Role Notice */}
       {!isAdmin && (
         <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-3">

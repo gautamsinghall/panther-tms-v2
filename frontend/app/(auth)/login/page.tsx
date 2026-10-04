@@ -147,200 +147,56 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* 2. Top Floating Telemetry Card (Directly over truck cab) */}
-          <div className="hidden lg:block absolute right-[35px] xl:right-[60px] top-[135px] xl:top-[145px] z-20">
-            <div className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md px-5 py-3.5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] space-y-2.5">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="text-xs font-bold text-slate-800 font-sans">
-                  Live Dispatch Telemetry
-                </span>
-              </div>
-
-              <div className="flex items-center gap-6 text-left">
-                {/* Active Fleet */}
-                <div>
-                  <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
-                    <Truck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                    <span>1,420+</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5 whitespace-nowrap">Active Fleet</div>
-                </div>
-
-                {/* GST Compliant */}
-                <div>
-                  <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
-                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <span>100%</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5 whitespace-nowrap">GST Compliant</div>
-                </div>
-
-                {/* Sync Latency */}
-                <div>
-                  <div className="flex items-center gap-1.5 text-slate-900 font-bold text-sm">
-                    <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>&lt; 15ms</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5 whitespace-nowrap">Sync Latency</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Left Headline, Subtitle, and Feature Chips */}
-          <div className="space-y-4 max-w-[490px] z-10">
+          {/* 2. Left Headline, Subtitle, and Feature Highlights */}
+          <div className="space-y-5 max-w-[520px] z-10 my-auto">
             {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 border border-indigo-200/80 text-indigo-700 text-xs font-semibold shadow-2xs backdrop-blur-md">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600" />
-              </span>
-              <span>Next-Gen Autonomous Freight Core</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Multi-Tenant Transport Operations Platform</span>
             </div>
 
-            {/* Headline with comfortable line spacing */}
-            <h1 className="text-3xl sm:text-4xl xl:text-[43px] font-extrabold tracking-tight text-slate-900 leading-[1.3] sm:leading-[1.32] xl:leading-[1.35]">
-              <span className="block">The operating system</span>
-              <span className="block mt-1 sm:mt-1.5 xl:mt-2 text-slate-900">
-                for <span className="text-indigo-600">modern logistics.</span>
-              </span>
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl xl:text-[42px] font-extrabold tracking-tight text-slate-900 leading-[1.25]">
+              Enterprise transport operations,{" "}
+              <span className="text-indigo-600">dependably handled.</span>
             </h1>
 
             {/* Supporting Copy */}
-            <p className="text-sm xl:text-[15px] text-slate-600 leading-relaxed font-normal pt-0.5">
-              Manage dispatch, tracking, billing and compliance from one intelligent workspace built for real-world enterprise freight operations.
+            <p className="text-sm text-slate-600 leading-relaxed font-normal">
+              Unified consignment management, Lorry Receipts (GR/LR), double-entry transport accounting, and statutory GST compliance tailored for Indian logistics businesses.
             </p>
 
             {/* 4 Feature Highlights Row */}
-            <div className="grid grid-cols-4 gap-3.5 pt-2.5 max-w-sm text-center">
-              {/* Feature 1 */}
-              <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-indigo-600 group-hover:scale-105 group-hover:border-indigo-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
-                  Dispatch
-                  <br />
-                  Management
-                </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+                <Truck className="w-4 h-4 text-indigo-600" />
+                <div className="text-xs font-bold text-slate-900">Consignments</div>
+                <div className="text-[11px] text-slate-500 leading-tight">LR booking & lorry contracts</div>
               </div>
 
-              {/* Feature 2 */}
-              <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:border-emerald-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
-                  <MapPin className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
-                  Real-time
-                  <br />
-                  Tracking
-                </span>
+              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <div className="text-xs font-bold text-slate-900">Accounting</div>
+                <div className="text-[11px] text-slate-500 leading-tight">Double-entry ledger & vouchers</div>
               </div>
 
-              {/* Feature 3 */}
-              <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-amber-600 group-hover:scale-105 group-hover:border-amber-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
-                  Billing &amp;
-                  <br />
-                  Invoicing
-                </span>
+              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                <div className="text-xs font-bold text-slate-900">Multi-Branch</div>
+                <div className="text-[11px] text-slate-500 leading-tight">Issuing offices & access control</div>
               </div>
 
-              {/* Feature 4 */}
-              <div className="flex flex-col items-center group cursor-default">
-                <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-sky-600 group-hover:scale-105 group-hover:border-sky-300 group-hover:shadow-xs group-hover:-translate-y-0.5 transition-all">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-medium text-slate-700 mt-2 leading-tight">
-                  Compliance
-                  <br />
-                  &amp; Reports
-                </span>
+              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+                <ShieldCheck className="w-4 h-4 text-purple-600" />
+                <div className="text-xs font-bold text-slate-900">Compliance</div>
+                <div className="text-[11px] text-slate-500 leading-tight">GST E-Way Bill & IRN ready</div>
               </div>
             </div>
-          </div>
 
-          {/* 4. Bottom Route Milestones Journey Card */}
-          <div className="max-w-[490px] xl:max-w-[510px] w-full mt-6 xl:mt-8 z-10">
-            <div className="rounded-2xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-5 sm:p-6 shadow-[0_8px_30px_rgba(15,23,42,0.06)] space-y-4">
-              {/* Telemetry Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
-                  <span className="text-xs font-bold text-slate-800 font-sans tracking-tight">
-                    Live Dispatch Telemetry
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                  Corridor Velocity: 99.4%
-                </span>
-              </div>
-
-              {/* Milestones Flow with continuous gradient connector */}
-              <div className="space-y-4 pt-1">
-                <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-gradient-to-b before:from-indigo-600 before:via-blue-500 before:to-emerald-500">
-                  {/* Step 1: BOM-01 */}
-                  <div className="relative flex items-center justify-between group">
-                    <span className="absolute -left-6 top-1.5 w-4 h-4 rounded-full bg-white border-2 border-indigo-600 flex items-center justify-center shadow-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-                    </span>
-                    <div className="pr-2">
-                      <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                        <span>BOM-01 Gateway Hub</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                        Navi Mumbai • Consignments Loaded • Fastag Auto-Checked
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-semibold font-mono px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 shrink-0">
-                      Dispatched
-                    </span>
-                  </div>
-
-                  {/* Step 2: NAG-04 */}
-                  <div className="relative flex items-center justify-between group">
-                    <span className="absolute -left-6 top-1.5 w-4 h-4 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center shadow-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    </span>
-                    <div className="pr-2">
-                      <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                        <span>NAG-04 Consolidation Terminal</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                        Nagpur • Cross-dock Transhipment in progress
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-semibold font-mono px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-600 shrink-0">
-                      In-Transit
-                    </span>
-                  </div>
-
-                  {/* Step 3: DEL-02 */}
-                  <div className="relative flex items-center justify-between group">
-                    <span className="absolute -left-6 top-1.5 w-4 h-4 rounded-full bg-white border-2 border-emerald-500 flex items-center justify-center shadow-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    </span>
-                    <div className="pr-2">
-                      <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                        <span>DEL-02 Regional Fulfillment</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                        Delhi NCR • Automated E-way Reconciliation Ready
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-semibold font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 shrink-0">
-                      ETA 4h 15m
-                    </span>
-                  </div>
-                </div>
-              </div>
+            {/* Security Guarantee Note */}
+            <div className="flex items-center gap-2 text-xs text-slate-500 pt-2 font-medium">
+              <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>Isolated tenant data with encrypted session authentication</span>
             </div>
           </div>
         </div>

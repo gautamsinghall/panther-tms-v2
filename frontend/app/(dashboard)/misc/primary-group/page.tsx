@@ -180,12 +180,11 @@ export default function PrimaryGroupPage() {
           { label: "Masters", href: "/misc/primary-group" },
           { label: "Primary Groups" },
         ]}
-        actions={
-          <Button onClick={() => setIsDrawerOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Primary Group
-          </Button>
-        }
+        primaryAction={{
+          label: "Add Primary Group",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -195,19 +194,17 @@ export default function PrimaryGroupPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          data={data}
-          columns={columns}
-          actions={actions}
-          isLoading={isLoading}
-          searchPlaceholder="Search primary groups..."
-          searchColumn="name"
-          emptyMessage="No primary groups configured"
-          emptySubtext="Create a primary accounting group to begin organizing ledger accounts."
-          emptyAction={{ label: "Add Primary Group", onClick: () => setIsDrawerOpen(true) }}
-        />
-      </div>
+      <DataTable
+        data={data}
+        columns={columns}
+        actions={actions}
+        isLoading={isLoading}
+        searchPlaceholder="Search primary groups..."
+        searchColumn="name"
+        emptyMessage="No primary groups configured"
+        emptySubtext="Create a primary accounting group to begin organizing ledger accounts."
+        emptyAction={{ label: "Add Primary Group", onClick: () => setIsDrawerOpen(true) }}
+      />
 
       <EntityDrawer
         isOpen={isDrawerOpen}

@@ -56,6 +56,7 @@ import { SegmentTabs } from "@/components/ui/tabs";
 import { AreaTrendChart, BarMetricChart, DonutDistributionChart } from "@/components/charts";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { getWorkspaceUrl } from "@/lib/auth";
 import { DataState } from "@/components/ui/data-state";
 
 type ActiveTab = "overview" | "finance" | "operations" | "own_fleet";
@@ -368,7 +369,7 @@ export default function DashboardPage() {
 
           {/* Book GR/LR */}
           <Link
-            href="/transport/lr-booking"
+            href={getWorkspaceUrl("/transport/lr-booking")}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
           >
             <FileText className="w-3.5 h-3.5 text-slate-500" />
@@ -377,7 +378,7 @@ export default function DashboardPage() {
 
           {/* Create Invoice */}
           <Link
-            href="/accounts/transport-invoice"
+            href={getWorkspaceUrl("/accounts/transport-invoice")}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
           >
             <Receipt className="w-3.5 h-3.5 text-slate-500" />
@@ -386,7 +387,7 @@ export default function DashboardPage() {
 
           {/* + New Trip Order */}
           <Link
-            href="/transport/jobs"
+            href={getWorkspaceUrl("/transport/jobs")}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] active:bg-[#3730A3] text-white text-xs font-semibold shadow-sm transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -661,40 +662,40 @@ export default function DashboardPage() {
                   label="Draft"
                   barBg="bg-slate-100"
                   fillBg="bg-slate-300"
-                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "Draft")?.count || 0}
-                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "Draft")?.percentage || 0}
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DRAFT")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DRAFT")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<BookOpen className="w-3.5 h-3.5 text-blue-500" />}
                   label="Booked"
                   barBg="bg-blue-50"
                   fillBg="bg-blue-400"
-                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "Booked")?.count || 0}
-                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "Booked")?.percentage || 0}
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "BOOKED")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "BOOKED")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<Truck className="w-3.5 h-3.5 text-amber-500" />}
                   label="In Transit"
                   barBg="bg-amber-50"
                   fillBg="bg-amber-400"
-                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "In Transit")?.count || 0}
-                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "In Transit")?.percentage || 0}
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "IN TRANSIT")?.count ?? inTransitCount}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "IN TRANSIT")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
                   label="Delivered"
                   barBg="bg-emerald-50"
                   fillBg="bg-emerald-400"
-                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "Delivered")?.count || 0}
-                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "Delivered")?.percentage || 0}
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DELIVERED")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DELIVERED")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<ShieldCheck className="w-3.5 h-3.5 text-purple-500" />}
                   label="POD Verified"
                   barBg="bg-purple-50"
                   fillBg="bg-purple-400"
-                  count={businessData?.pipeline_stages?.find((s: any) => s.stage === "POD Verified")?.count || 0}
-                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage === "POD Verified")?.percentage || 0}
+                  count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "POD VERIFIED")?.count || 0}
+                  pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "POD VERIFIED")?.percentage || 0}
                 />
               </div>
             </div>
@@ -780,7 +781,7 @@ export default function DashboardPage() {
                 </div>
 
                 <Link
-                  href="/transport/lr-booking"
+                  href={getWorkspaceUrl("/transport/lr-booking")}
                   className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
                 >
                   <span>View All</span>
@@ -866,7 +867,7 @@ export default function DashboardPage() {
               {/* 2x2 Action Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 pt-2">
                 <Link
-                  href="/transport/lr-booking"
+                  href={getWorkspaceUrl("/transport/lr-booking")}
                   className="rounded-xl border border-indigo-100/90 bg-indigo-50/60 hover:bg-indigo-100/70 p-3 flex items-center justify-between text-indigo-700 group transition-all shadow-2xs"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -877,7 +878,7 @@ export default function DashboardPage() {
                 </Link>
 
                 <Link
-                  href="/accounts/transport-invoice"
+                  href={getWorkspaceUrl("/accounts/transport-invoice")}
                   className="rounded-xl border border-emerald-100/90 bg-emerald-50/60 hover:bg-emerald-100/70 p-3 flex items-center justify-between text-emerald-700 group transition-all shadow-2xs"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -888,7 +889,7 @@ export default function DashboardPage() {
                 </Link>
 
                 <Link
-                  href="/transport/jobs"
+                  href={getWorkspaceUrl("/transport/jobs")}
                   className="rounded-xl border border-amber-100/90 bg-amber-50/60 hover:bg-amber-100/70 p-3 flex items-center justify-between text-amber-700 group transition-all shadow-2xs"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -899,7 +900,7 @@ export default function DashboardPage() {
                 </Link>
 
                 <Link
-                  href="/transport-reports/lr-register"
+                  href={getWorkspaceUrl("/transport-reports/lr-register")}
                   className="rounded-xl border border-blue-100/90 bg-blue-50/60 hover:bg-blue-100/70 p-3 flex items-center justify-between text-blue-700 group transition-all shadow-2xs"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -1056,7 +1057,7 @@ export default function DashboardPage() {
                   </div>
 
                   <Link
-                    href="/reports/profit-loss"
+                    href={getWorkspaceUrl("/reports/profit-loss")}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 group"
                   >
                     <span>View Full Profit & Loss Report</span>
@@ -1144,7 +1145,7 @@ export default function DashboardPage() {
                   </CardDescription>
                 </div>
                 <Link
-                  href="/fleet/documents"
+                  href={getWorkspaceUrl("/fleet/documents")}
                   className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
                 >
                   <span>Manage Documents</span>
@@ -1248,7 +1249,7 @@ export default function DashboardPage() {
                 </CardDescription>
               </div>
               <Link
-                href="/fleet/vehicle-health"
+                href={getWorkspaceUrl("/fleet/vehicle-health")}
                 className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
               >
                 <span>Telemetry Hub</span>

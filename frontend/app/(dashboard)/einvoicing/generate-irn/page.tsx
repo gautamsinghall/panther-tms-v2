@@ -113,7 +113,7 @@ export default function GenerateIRNPage() {
         ]}
       />
 
-      {/* Integration Notice Alert (rules.md §2) */}
+      {/* Test Environment Notice Alert */}
       <div className="p-4 rounded-xl bg-warning-light border border-warning/20 text-warning text-xs leading-relaxed flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>

@@ -250,12 +250,11 @@ export default function ContraVoucherPage() {
           { label: "Accounts", href: "/accounts" },
           { label: "Contra Vouchers" },
         ]}
-        actions={
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            New Contra Transfer
-          </Button>
-        }
+        primaryAction={{
+          label: "New Contra Transfer",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsCreateOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -277,19 +276,17 @@ export default function ContraVoucherPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          columns={columns}
-          data={data}
-          isLoading={isLoading}
-          searchPlaceholder="Search contra vouchers..."
-          searchColumn="party_name"
-          actions={actions}
-          emptyMessage="No contra vouchers recorded"
-          emptySubtext="Record a transfer between cash and bank accounts."
-          emptyAction={{ label: "Record Contra Voucher", onClick: () => setIsCreateOpen(true) }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        searchPlaceholder="Search contra vouchers..."
+        searchColumn="party_name"
+        actions={actions}
+        emptyMessage="No contra vouchers recorded"
+        emptySubtext="Record a transfer between cash and bank accounts."
+        emptyAction={{ label: "New Contra Transfer", onClick: () => setIsCreateOpen(true) }}
+      />
 
       {/* Record Contra Drawer */}
       <EntityDrawer

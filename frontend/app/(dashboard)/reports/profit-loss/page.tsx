@@ -108,6 +108,19 @@ export default function ProfitLossPage() {
         ]}
       />
 
+      {/* Report Scope & Accounting Basis Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-800 border border-slate-300">
+            Scope: General Ledger (Posted Accounts)
+          </span>
+          <span className="text-slate-600">
+            Summarizes posted double-entry ledger journals under Income and Expense primary groups. Zero figures indicate no journals posted for the period.
+          </span>
+        </div>
+        <span className="font-mono text-[11px] font-medium text-slate-500 shrink-0">Basis: Statutory Accrual (GL)</span>
+      </div>
+
       {error && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
           {error}

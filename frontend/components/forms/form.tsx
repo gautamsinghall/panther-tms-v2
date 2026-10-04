@@ -187,7 +187,7 @@ export function Form({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("w-full max-w-5xl space-y-6 mx-auto", className)}>
+    <form onSubmit={handleSubmit} className={cn("w-full max-w-5xl space-y-6 mx-auto pb-28 sm:pb-32", className)}>
       {sections.map((section, sIndex) => {
         const gridCols = {
           1: "grid-cols-1",
@@ -228,7 +228,7 @@ export function Form({
                   <div
                     key={field.name}
                     className={cn(
-                      "space-y-1.5 min-w-0",
+                      "space-y-1.5 min-w-0 scroll-mb-28 sm:scroll-mb-32",
                       field.colSpan === 2 ? "col-span-1 md:col-span-2" : "",
                       field.colSpan === 3 ? "col-span-1 md:col-span-3" : "",
                       field.colSpan === 4 ? "col-span-full" : ""
@@ -526,12 +526,12 @@ export function Form({
       )}
 
       {/* Form Action Footer - Shared sticky bottom bar accessible while scrolling */}
-      <div className="sticky bottom-4 z-20 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.06),0_10px_25px_-5px_rgba(0,0,0,0.08)] mt-8">
+      <div className="sticky bottom-4 z-20 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06),0_10px_25px_-5px_rgba(0,0,0,0.08)] mt-8">
         <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="hidden sm:inline">Active Form Draft</span>
+          <span>Active Form Draft</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3">
           {onCancel && (
             <Button
               type="button"

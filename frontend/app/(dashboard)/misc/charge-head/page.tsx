@@ -221,12 +221,11 @@ export default function ChargeHeadPage() {
           { label: "Masters", href: "/misc/primary-group" },
           { label: "Charge Heads" },
         ]}
-        actions={
-          <Button onClick={() => setIsDrawerOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Charge Head
-          </Button>
-        }
+        primaryAction={{
+          label: "Add Charge Head",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsDrawerOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -236,19 +235,17 @@ export default function ChargeHeadPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          data={data}
-          columns={columns}
-          actions={actions}
-          isLoading={isLoading}
-          searchPlaceholder="Search charge heads..."
-          searchColumn="name"
-          emptyMessage="No charge heads configured"
-          emptySubtext="Add a charge head for freight, handling, deductions, or supplementary billing."
-          emptyAction={{ label: "Add Charge Head", onClick: () => setIsDrawerOpen(true) }}
-        />
-      </div>
+      <DataTable
+        data={data}
+        columns={columns}
+        actions={actions}
+        isLoading={isLoading}
+        searchPlaceholder="Search charge heads..."
+        searchColumn="name"
+        emptyMessage="No charge heads configured"
+        emptySubtext="Add a charge head for freight, handling, deductions, or supplementary billing."
+        emptyAction={{ label: "Add Charge Head", onClick: () => setIsDrawerOpen(true) }}
+      />
 
       <EntityDrawer
         isOpen={isDrawerOpen}

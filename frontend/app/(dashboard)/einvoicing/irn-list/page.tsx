@@ -9,7 +9,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getWorkspaceUrl } from "@/lib/auth";
 
 interface EInvoiceRecord {
   id: number;
@@ -29,6 +30,7 @@ interface EInvoiceRecord {
 }
 
 export default function IRNListPage() {
+  const router = useRouter();
   const [data, setData] = useState<EInvoiceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -164,14 +166,11 @@ export default function IRNListPage() {
           { label: "E-Invoicing", href: "/einvoicing" },
           { label: "IRN Register" },
         ]}
-        actions={
-          <Link href="/einvoicing/generate-irn">
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Generate New IRN
-            </Button>
-          </Link>
-        }
+        primaryAction={{
+          label: "Generate New IRN",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => router.push(getWorkspaceUrl("/einvoicing/generate-irn")),
+        }}
       />
 
       {errorMessage && (
@@ -181,16 +180,20 @@ export default function IRNListPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          columns={columns}
-          data={data}
-          isLoading={isLoading}
-          searchPlaceholder="Search by invoice number or IRN..."
-          searchColumn="irn"
-          actions={actions}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        searchPlaceholder="Search by invoice number or IRN..."
+        searchColumn="irn"
+        actions={actions}
+        emptyMessage="No IRN records found"
+        emptySubtext="Generate an electronic invoice IRN to establish a verified GST compliance audit trail."
+        emptyAction={{
+          label: "Generate New IRN",
+          onClick: () => router.push(getWorkspaceUrl("/einvoicing/generate-irn")),
+        }}
+      />
 
       {/* Payload Drawer */}
       <EntityDrawer

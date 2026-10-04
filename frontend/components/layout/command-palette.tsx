@@ -260,15 +260,17 @@ export interface CommandPaletteProps {
   onClose: () => void;
 }
 
+export type SearchStatus = "idle" | "debouncing" | "loading" | "success" | "error";
+
 export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [recordItems, setRecordItems] = useState<CommandItem[]>([]);
-  const [isSearchingRecords, setIsSearchingRecords] = useState(false);
-  const [recordSearchError, setRecordSearchError] = useState(false);
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestSeqRef = useRef<number>(0);
 
   useEffect(() => {
     setMounted(true);
@@ -278,6 +280,8 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
+      setRecordItems([]);
+      setSearchStatus("idle");
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
@@ -286,20 +290,30 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     const trimmed = query.trim();
     if (!isOpen || trimmed.length < 2) {
       setRecordItems([]);
-      setIsSearchingRecords(false);
-      setRecordSearchError(false);
+      setSearchStatus("idle");
       return;
     }
 
+    // Set status to debouncing immediately so empty state doesn't flash
+    setSearchStatus("debouncing");
+
     const controller = new AbortController();
+    const currentSeq = ++requestSeqRef.current;
+
     const timer = window.setTimeout(async () => {
-      setIsSearchingRecords(true);
-      setRecordSearchError(false);
+      // Check if sequence is still active before network call
+      if (currentSeq !== requestSeqRef.current) return;
+      setSearchStatus("loading");
+
       try {
         const results = await apiClient<any[]>(
           `/api/v1/transport/lrs-search?q=${encodeURIComponent(trimmed)}&limit=8`,
           { signal: controller.signal }
         );
+
+        // Stale response guard
+        if (currentSeq !== requestSeqRef.current) return;
+
         setRecordItems(
           results.map((lr) => ({
             id: `lr-record-${lr.id}`,
@@ -319,13 +333,14 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             keywords: [lr.lr_number, lr.vehicle_number, lr.consigner_name, lr.consignee_name].filter(Boolean),
           }))
         );
+        setSearchStatus("success");
       } catch (error: any) {
         if (error?.name !== "AbortError") {
-          setRecordItems([]);
-          setRecordSearchError(true);
+          if (currentSeq === requestSeqRef.current) {
+            setRecordItems([]);
+            setSearchStatus("error");
+          }
         }
-      } finally {
-        if (!controller.signal.aborted) setIsSearchingRecords(false);
       }
     }, 250);
 
@@ -449,16 +464,21 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           {/* Results List */}
           <div className="flex-1 overflow-y-auto p-2 divide-y divide-[#F2F4F7]">
             <span id="command-palette-title" className="sr-only">Global search</span>
-            {isSearchingRecords && (
-              <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500" role="status">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Searching LR records…
+            {(searchStatus === "debouncing" || searchStatus === "loading") && allResults.length > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 bg-slate-50 rounded-lg mb-1" role="status">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                <span>Searching LR records for “{query}”…</span>
               </div>
             )}
-            {!isSearchingRecords && allResults.length === 0 ? (
+            {(searchStatus === "debouncing" || searchStatus === "loading") && allResults.length === 0 ? (
+              <div className="py-12 text-center text-xs text-[#667085] flex flex-col items-center justify-center gap-2" role="status">
+                <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                <span>Searching records and modules for “{query}”…</span>
+              </div>
+            ) : allResults.length === 0 ? (
               <div className="py-12 text-center text-xs text-[#667085]">
                 <Search className="w-8 h-8 text-[#D0D5DD] mx-auto mb-2" />
-                {recordSearchError
+                {searchStatus === "error"
                   ? "Record search could not be loaded. Module results are still available."
                   : `No modules or LR records match “${query}”.`}
               </div>

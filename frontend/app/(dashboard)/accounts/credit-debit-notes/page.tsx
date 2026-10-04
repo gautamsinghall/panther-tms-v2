@@ -267,12 +267,11 @@ export default function CreditDebitNotesPage() {
           { label: "Accounts", href: "/accounts" },
           { label: "Credit & Debit Notes" },
         ]}
-        actions={
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Issue Note
-          </Button>
-        }
+        primaryAction={{
+          label: "Issue Note",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsCreateOpen(true),
+        }}
       />
 
       {/* Tabs */}
@@ -328,19 +327,17 @@ export default function CreditDebitNotesPage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          isLoading={isLoading}
-          searchPlaceholder="Search party or note number..."
-          searchColumn="party_name"
-          actions={actions}
-          emptyMessage="No credit or debit notes recorded"
-          emptySubtext="Create an adjustment note for a customer or vendor balance."
-          emptyAction={{ label: "Create Adjustment Note", onClick: () => setIsCreateOpen(true) }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={isLoading}
+        searchPlaceholder="Search party or note number..."
+        searchColumn="party_name"
+        actions={actions}
+        emptyMessage="No credit or debit notes recorded"
+        emptySubtext="Create an adjustment note for a customer or vendor balance."
+        emptyAction={{ label: "Issue Note", onClick: () => setIsCreateOpen(true) }}
+      />
 
       {/* Create Note Drawer */}
       <EntityDrawer

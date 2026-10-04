@@ -241,17 +241,17 @@ async def get_financial_analysis(
     exp_res = await session.execute(exp_stmt)
     expenses = exp_res.scalars().all()
 
-    fuel_tot = sum(e.amount for e in expenses if e.expense_category == "DIESEL")
-    toll_tot = sum(e.amount for e in expenses if e.expense_category in ("TOLL", "FASTAG"))
-    maint_exp_tot = sum(e.amount for e in expenses if e.expense_category == "MAINTENANCE")
-    driver_tot = sum(e.amount for e in expenses if e.expense_category == "DRIVER_ALLOWANCE")
-    other_tot = sum(e.amount for e in expenses if e.expense_category not in ("DIESEL", "TOLL", "FASTAG", "MAINTENANCE", "DRIVER_ALLOWANCE"))
+    fuel_tot = sum((e.amount or Decimal("0.00")) for e in expenses if e.expense_category == "DIESEL")
+    toll_tot = sum((e.amount or Decimal("0.00")) for e in expenses if e.expense_category in ("TOLL", "FASTAG"))
+    maint_exp_tot = sum((e.amount or Decimal("0.00")) for e in expenses if e.expense_category == "MAINTENANCE")
+    driver_tot = sum((e.amount or Decimal("0.00")) for e in expenses if e.expense_category == "DRIVER_ALLOWANCE")
+    other_tot = sum((e.amount or Decimal("0.00")) for e in expenses if e.expense_category not in ("DIESEL", "TOLL", "FASTAG", "MAINTENANCE", "DRIVER_ALLOWANCE"))
 
     # 3. Workshop Repairs
     srv_stmt = select(models.RepairServiceRecord)
     srv_res = await session.execute(srv_stmt)
     repairs = srv_res.scalars().all()
-    workshop_tot = sum(r.total_cost for r in repairs)
+    workshop_tot = sum((r.total_cost or Decimal("0.00")) for r in repairs)
 
     total_maint = maint_exp_tot + workshop_tot
 
@@ -401,7 +401,7 @@ async def get_fleet_operations(
     # 3. Pending PODs
     pod_conditions = [
         models.LR.status.in_(["DELIVERED", "IN_TRANSIT"]),
-        ~models.LR.id.in_(select(models.PODRecord.lr_id).where(models.PODRecord.verification_status == "APPROVED"))
+        ~models.LR.id.in_(select(models.PODRecord.lr_id).where(models.PODRecord.verification_status.in_(["VERIFIED", "APPROVED"])))
     ]
     if office_id is not None:
         if include_unassigned:
@@ -434,11 +434,11 @@ async def get_fleet_operations(
         ExpiringDocumentAlert(
             id=d.id,
             vehicle_number=d.vehicle_number,
-            doc_type=d.doc_type.replace("_", " "),
-            document_number=d.document_number,
+            doc_type=d.doc_type.replace("_", " ") if d.doc_type else "DOCUMENT",
+            document_number=d.document_number or "",
             valid_till=d.valid_till,
-            days_left=(d.valid_till - today).days,
-            status=d.status,
+            days_left=(d.valid_till - today).days if d.valid_till else 0,
+            status=d.status or "EXPIRING",
         )
         for d in docs
     ]
@@ -507,15 +507,17 @@ async def get_own_fleet(
 
     v_numbers = [v.vehicle_number for v in company_vehicles]
 
-    # Health map
-    h_stmt = select(models.VehicleHealthRecord).where(models.VehicleHealthRecord.vehicle_number.in_(v_numbers))
-    h_res = await session.execute(h_stmt)
-    health_map = {h.vehicle_number: h for h in h_res.scalars().all()}
+    # Health map & Tyre counts
+    health_map = {}
+    tyres = []
+    if v_numbers:
+        h_stmt = select(models.VehicleHealthRecord).where(models.VehicleHealthRecord.vehicle_number.in_(v_numbers))
+        h_res = await session.execute(h_stmt)
+        health_map = {h.vehicle_number: h for h in h_res.scalars().all()}
 
-    # Tyre counts
-    tyre_stmt = select(models.TyreRecord).where(models.TyreRecord.vehicle_number.in_(v_numbers))
-    tyre_res = await session.execute(tyre_stmt)
-    tyres = tyre_res.scalars().all()
+        tyre_stmt = select(models.TyreRecord).where(models.TyreRecord.vehicle_number.in_(v_numbers))
+        tyre_res = await session.execute(tyre_stmt)
+        tyres = tyre_res.scalars().all()
 
     mounted_cnt = sum(1 for t in tyres if t.status == "MOUNTED_GOOD")
     retread_due_cnt = sum(1 for t in tyres if t.status == "RETREAD_DUE")
@@ -528,7 +530,7 @@ async def get_own_fleet(
     vehicles_matrix: List[OwnVehicleMatrixItem] = []
     for cv in company_vehicles:
         h = health_map.get(cv.vehicle_number)
-        odo = h.odometer_km if h else cv.current_odometer_km
+        odo = (h.odometer_km if (h and h.odometer_km is not None) else (cv.current_odometer_km or 0)) or 0
         total_odo += odo
 
         eng = h.engine_health if h else "GOOD"

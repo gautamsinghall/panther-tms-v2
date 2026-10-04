@@ -243,12 +243,11 @@ export default function ProformaInvoicePage() {
           { label: "Accounts", href: "/accounts" },
           { label: "Proforma Invoices" },
         ]}
-        actions={
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            New Proforma Invoice
-          </Button>
-        }
+        primaryAction={{
+          label: "New Proforma Invoice",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => setIsCreateOpen(true),
+        }}
       />
 
       {errorMessage && (
@@ -270,19 +269,17 @@ export default function ProformaInvoicePage() {
         </div>
       )}
 
-      <div className="bg-surface rounded-xl border border-border shadow-xs p-4">
-        <DataTable
-          columns={columns}
-          data={data}
-          isLoading={isLoading}
-          searchPlaceholder="Search proforma by number or party..."
-          searchColumn="party_name"
-          actions={actions}
-          emptyMessage="No proforma invoices created"
-          emptySubtext="Create a proforma invoice to prepare a non-posting customer estimate."
-          emptyAction={{ label: "Create Proforma Invoice", onClick: () => setIsCreateOpen(true) }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        searchPlaceholder="Search proforma by number or party..."
+        searchColumn="party_name"
+        actions={actions}
+        emptyMessage="No proforma invoices created"
+        emptySubtext="Create a proforma invoice to prepare a non-posting customer estimate."
+        emptyAction={{ label: "New Proforma Invoice", onClick: () => setIsCreateOpen(true) }}
+      />
 
       {/* Create Proforma Drawer */}
       <EntityDrawer
