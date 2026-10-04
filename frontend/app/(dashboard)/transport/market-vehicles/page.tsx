@@ -1775,8 +1775,8 @@ export default function MarketVehiclesPage() {
             </div>
           </div>
 
-          {/* Form Footer Action Bar - Shared sticky bottom bar accessible while scrolling */}
-          <div className="sticky bottom-4 z-20 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.06),0_10px_25px_-5px_rgba(0,0,0,0.08)] mt-8">
+          {/* Form Footer Action Bar - Positioned cleanly at the end of the form */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between shadow-2xs mt-8">
             <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="hidden sm:inline">{editingRecord ? "Editing Market Vehicle" : "Active Market Vehicle Draft"}</span>

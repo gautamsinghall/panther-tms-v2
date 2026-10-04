@@ -1510,7 +1510,7 @@ export default function LRBookingPage() {
         emptyMessage="No Lorry Receipts found"
         emptySubtext="Create an LR booking from a confirmed transport trip or book directly to generate consignment notes."
         emptyAction={{
-          label: "+ New LR Booking",
+          label: "New LR Booking",
           onClick: openCreateDrawer,
         }}
       />

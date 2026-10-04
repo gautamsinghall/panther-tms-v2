@@ -96,7 +96,7 @@ export function EntityDrawer({
   const formViewContent = (
     <div
       className={cn(
-        "w-full mx-auto space-y-6 pb-32 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-75",
+        "w-full mx-auto space-y-6 pb-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-75",
         maxWidthClass
       )}
     >

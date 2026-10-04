@@ -32,6 +32,11 @@ function renderActionIcon(icon?: React.ReactNode | React.ComponentType<{ classNa
   return null;
 }
 
+function cleanActionLabel(label?: string): string {
+  if (!label) return "";
+  return label.replace(/^\+\s*/, "").trim();
+}
+
 const MODULE_TITLES: Record<string, { label: string; defaultHref: string }> = {
   transport: { label: "Transport", defaultHref: "/transport" },
   "transport-reports": { label: "Transport Reports", defaultHref: "/transport-reports/lr-register" },
@@ -296,12 +301,12 @@ export function PageHeader({
                 {action.href ? (
                   <Link href={action.href} className="inline-flex items-center gap-2">
                     {renderActionIcon(action.icon)}
-                    <span>{action.label}</span>
+                    <span>{cleanActionLabel(action.label)}</span>
                   </Link>
                 ) : (
                   <>
                     {renderActionIcon(action.icon)}
-                    <span>{action.label}</span>
+                    <span>{cleanActionLabel(action.label)}</span>
                   </>
                 )}
               </Button>
@@ -318,12 +323,12 @@ export function PageHeader({
                 {primaryAction.href ? (
                   <Link href={primaryAction.href} className="inline-flex items-center gap-2">
                     {renderActionIcon(primaryAction.icon)}
-                    <span>{primaryAction.label}</span>
+                    <span>{cleanActionLabel(primaryAction.label)}</span>
                   </Link>
                 ) : (
                   <>
                     {renderActionIcon(primaryAction.icon)}
-                    <span>{primaryAction.label}</span>
+                    <span>{cleanActionLabel(primaryAction.label)}</span>
                   </>
                 )}
               </Button>

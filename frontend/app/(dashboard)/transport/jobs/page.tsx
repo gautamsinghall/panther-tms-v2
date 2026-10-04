@@ -599,7 +599,7 @@ export default function JobsPage() {
         emptyMessage="No jobs found"
         emptySubtext="Create a new transport job order to initiate dispatch and vehicle scheduling."
         emptyAction={{
-          label: "+ Create Trip Order",
+          label: "Create Trip Order",
           onClick: openCreateJobDrawer,
         }}
       />

@@ -319,7 +319,7 @@ export default function CompanyVehiclesPage() {
         emptyMessage="No vehicles found"
         emptySubtext="Add your first company truck or trailer to begin assigning fleet to trips."
         emptyAction={{
-          label: "+ Add Vehicle",
+          label: "Add Vehicle",
           onClick: () => setIsDrawerOpen(true),
         }}
       />

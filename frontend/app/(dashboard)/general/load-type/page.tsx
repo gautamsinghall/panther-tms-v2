@@ -298,7 +298,7 @@ export default function LoadTypePage() {
         emptyMessage="No Load Types found"
         emptySubtext="Add your first load type category (e.g. FTL, Part Load, Containerized) to populate LR booking options."
         emptyAction={{
-          label: "+ New Load Type",
+          label: "New Load Type",
           onClick: openCreateDrawer,
         }}
       />

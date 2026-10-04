@@ -508,7 +508,7 @@ export default function TransportInvoicePage() {
         emptyMessage="No transport invoices found"
         emptySubtext="Select a delivered or completed Lorry Receipt to generate a formal freight invoice."
         emptyAction={{
-          label: "+ Create Invoice from LR",
+          label: "Create Invoice from LR",
           onClick: openCreateDrawer,
         }}
       />

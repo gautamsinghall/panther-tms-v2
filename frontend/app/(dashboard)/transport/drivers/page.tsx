@@ -457,7 +457,7 @@ export default function DriversPage() {
         emptyMessage="No drivers registered"
         emptySubtext="Add professional drivers to assign them to active transport movements."
         emptyAction={{
-          label: "+ Add Driver",
+          label: "Add Driver",
           onClick: () => {
             setEditingRecord(null);
             setIsDrawerOpen(true);

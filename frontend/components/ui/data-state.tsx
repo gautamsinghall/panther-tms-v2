@@ -70,7 +70,7 @@ export function DataState({ kind, title, description, action, compact = false, c
       <p className="text-xs leading-normal text-slate-500">{description || defaults[kind].description}</p>
       {action && (
         <Button type="button" variant="secondary" size="sm" onClick={action.onClick} className="rounded-xl">
-          {action.label}
+          {action.label.replace(/^\+\s*/, "").trim()}
         </Button>
       )}
     </div>
