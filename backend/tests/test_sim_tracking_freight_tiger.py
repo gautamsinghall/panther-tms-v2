@@ -49,6 +49,27 @@ class TestSIMTrackingFreightTiger(unittest.IsolatedAsyncioTestCase):
                 driver_phone="123",  # Invalid phone length
             )
 
+    def test_freight_tiger_headers_without_company_id(self):
+        client = FreightTigerClient(auth_token="jwt_sample_token_xyz")
+        headers = client._get_headers()
+        self.assertEqual(headers["Authorization"], "Bearer jwt_sample_token_xyz")
+        self.assertEqual(headers["Content-Type"], "application/json")
+        self.assertNotIn("company_id", headers)
+        self.assertFalse(hasattr(client, "company_id"))
+
+    async def test_freight_tiger_coordinate_resolution(self):
+        client = FreightTigerClient()
+        res = await client.create_sim_trip(
+            vehicle_number="DL01AA1111",
+            driver_phone="9123456789",
+            origin={"address": "Warehouse, Delhi"},
+            destination={"address": "Hub, Mumbai"},
+        )
+        self.assertTrue(res["success"])
+        sim_data = client._simulated_trips[res["feed_unique_id"]]
+        self.assertEqual(sim_data["origin"]["lat"], 28.6139)
+        self.assertEqual(sim_data["destination"]["lat"], 19.0760)
+
     def test_sim_trip_schemas(self):
         create_req = SIMTripCreate(
             vehicle_number="KA01AB9999",

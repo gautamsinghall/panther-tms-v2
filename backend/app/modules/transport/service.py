@@ -1178,9 +1178,8 @@ async def create_sim_trip(db: AsyncSession, data: SIMTripCreate) -> SIMTripRecor
     ft_client = freight_tiger_client
     if comp_setting and comp_setting.ft_auth_token:
         ft_client = FreightTigerClient(
-            base_url=comp_setting.ft_base_url or "https://integration.freighttiger.com",
+            base_url=comp_setting.ft_base_url or "https://api.freighttiger.com/api/tether",
             auth_token=comp_setting.ft_auth_token,
-            company_id=comp_setting.ft_company_id,
         )
 
     # Call Freight Tiger API
@@ -1265,9 +1264,8 @@ async def sync_sim_trip(db: AsyncSession, trip: SIMTripRecord) -> SIMTripRecord:
     ft_client = freight_tiger_client
     if comp_setting and comp_setting.ft_auth_token:
         ft_client = FreightTigerClient(
-            base_url=comp_setting.ft_base_url or "https://integration.freighttiger.com",
+            base_url=comp_setting.ft_base_url or "https://api.freighttiger.com/api/tether",
             auth_token=comp_setting.ft_auth_token,
-            company_id=comp_setting.ft_company_id,
         )
 
     ft_data = await ft_client.get_trip_details(
@@ -1334,9 +1332,8 @@ async def close_sim_trip(db: AsyncSession, trip: SIMTripRecord, comment: Optiona
     ft_client = freight_tiger_client
     if comp_setting and comp_setting.ft_auth_token:
         ft_client = FreightTigerClient(
-            base_url=comp_setting.ft_base_url or "https://integration.freighttiger.com",
+            base_url=comp_setting.ft_base_url or "https://api.freighttiger.com/api/tether",
             auth_token=comp_setting.ft_auth_token,
-            company_id=comp_setting.ft_company_id,
         )
 
     await ft_client.close_trip(

@@ -3,33 +3,99 @@ import random
 import re
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
 import httpx
 from app.core.config import settings
+from app.core.errors import AppException
 
 logger = logging.getLogger("panther.integrations.freight_tiger")
+
+# Curated coordinates for prominent Indian logistics corridors & transit hubs
+# Used to ensure Freight Tiger's mandatory (lat, lng) schema requirement is strictly fulfilled
+INDIAN_CITY_COORDINATES: Dict[str, Tuple[float, float]] = {
+    "mumbai": (19.0760, 72.8777),
+    "delhi": (28.6139, 77.2090),
+    "new delhi": (28.6139, 77.2090),
+    "bangalore": (12.9716, 77.5946),
+    "bengaluru": (12.9716, 77.5946),
+    "chennai": (13.0827, 80.2707),
+    "kolkata": (22.5726, 88.3639),
+    "hyderabad": (17.3850, 78.4867),
+    "pune": (18.5204, 73.8567),
+    "ahmedabad": (23.0225, 72.5714),
+    "jaipur": (26.9124, 75.7873),
+    "surat": (21.1702, 72.8311),
+    "lucknow": (26.8467, 80.9462),
+    "kanpur": (26.4499, 80.3319),
+    "nagpur": (21.1458, 79.0882),
+    "indore": (22.7196, 75.8577),
+    "bhopal": (23.2599, 77.4126),
+    "patna": (25.5941, 85.1376),
+    "vadodara": (22.3072, 73.1812),
+    "ghaziabad": (28.6692, 77.4538),
+    "ludhiana": (30.9010, 75.8573),
+    "agra": (27.1767, 78.0081),
+    "nashik": (19.9975, 73.7898),
+    "faridabad": (28.4089, 77.3178),
+    "meerut": (28.9845, 77.7064),
+    "rajkot": (22.3039, 70.8022),
+    "varanasi": (25.3176, 82.9739),
+    "aurangabad": (19.8762, 75.3433),
+    "amritsar": (31.6340, 74.8723),
+    "navi mumbai": (19.0330, 73.0297),
+    "ranchi": (23.3441, 85.3096),
+    "coimbatore": (11.0168, 76.9558),
+    "vijayawada": (16.5062, 80.6480),
+    "jodhpur": (26.2389, 73.0243),
+    "raipur": (21.2514, 81.6296),
+    "chandigarh": (30.7333, 76.7794),
+    "guwahati": (26.1445, 91.7362),
+    "gurgaon": (28.4595, 77.0266),
+    "gurugram": (28.4595, 77.0266),
+    "noida": (28.5355, 77.3910),
+    "kochi": (9.9312, 76.2673),
+    "nellore": (14.4426, 79.9865),
+    "visakhapatnam": (17.6868, 83.2185),
+    "vizag": (17.6868, 83.2185),
+    "bhiwandi": (19.3002, 73.0635),
+    "vapi": (20.3714, 72.9048),
+    "ankleshwar": (21.6264, 73.0033),
+    "panipat": (29.3909, 76.9635),
+    "haridwar": (29.9457, 78.1642),
+    "dehradun": (30.3165, 78.0322),
+}
+
+PRIMARY_ADD_TRIP_URL = "https://api.freighttiger.com/api/tether/connect/trip/add"
+PRIMARY_CLOSE_TRIP_URL = "https://api.freighttiger.com/api/tether/connect/trip/close"
+PRIMARY_GET_TRIP_BY_UID_URL = "https://api.freighttiger.com/api/gateway/integration/trip/uid"
+PRIMARY_GET_TRIP_BY_ID_URL = "https://api.freighttiger.com/api/tether/connect/trip/id"
+
 
 class FreightTigerClient:
     """
     Client for Freight Tiger Trip & SIM-Based Tracking APIs.
-    Reference: https://freight-tiger.readme.io/reference and FT Trip APIs Documentation.
+    Reference: https://freight-tiger.readme.io/reference/addtrip
     
+    All live requests are authenticated strictly via Bearer JWT token:
+    Authorization: Bearer <token>
+    (No company_id header is required or sent).
+
     Supports:
-    - AddTrip API with location_source="sim" (triggers Telecom Operator Driver Consent SMS)
+    - AddTrip API with locationSource="sim" (triggers Telecom Operator Driver Consent SMS)
     - GetTrip API by feed_unique_id or trip_id (reads consent status and cell-tower location fixes)
     - CloseTrip API (terminates live tracking session)
-    - Automatic resilient fallback to sandbox simulation when credentials are unconfigured or in testing.
+    - Resilient fallback to sandbox simulation ONLY when no auth_token is configured.
     """
 
     def __init__(
         self,
         base_url: Optional[str] = None,
         auth_token: Optional[str] = None,
-        company_id: Optional[str] = None,
     ):
-        self.base_url = (base_url or settings.FREIGHT_TIGER_BASE_URL or "https://integration.freighttiger.com").rstrip("/")
-        self.auth_token = auth_token or settings.FREIGHT_TIGER_AUTH_TOKEN
-        self.company_id = company_id or settings.FREIGHT_TIGER_COMPANY_ID
+        self.base_url = (base_url or settings.FREIGHT_TIGER_BASE_URL or "https://api.freighttiger.com/api/tether").rstrip("/")
+        raw_token = auth_token or settings.FREIGHT_TIGER_AUTH_TOKEN
+        self.auth_token = raw_token.strip() if raw_token else None
         # In-memory store for simulated sandbox trips when no live FT credentials are provided
         self._simulated_trips: Dict[str, Dict[str, Any]] = {}
 
@@ -40,17 +106,26 @@ class FreightTigerClient:
         }
         if self.auth_token:
             headers["Authorization"] = f"Bearer {self.auth_token}"
-        if self.company_id:
-            headers["company_id"] = str(self.company_id)
         return headers
 
     @staticmethod
     def clean_phone_number(phone: str) -> str:
-        """Strip non-digits and ensure 10-digit format for Indian mobile numbers."""
+        """Strip non-digits and ensure strictly 10 digits for Indian mobile telecom consent."""
         digits = re.sub(r"\D", "", phone or "")
-        if len(digits) > 10 and digits.startswith("91"):
+        if len(digits) > 10:
             digits = digits[-10:]
         return digits
+
+    @staticmethod
+    def _resolve_coordinates(address_text: Optional[str], default_lat: float, default_lng: float) -> Tuple[float, float]:
+        """Resolves approximate latitude/longitude from known city names to satisfy FT schema requirements."""
+        if not address_text:
+            return default_lat, default_lng
+        addr_lower = address_text.lower()
+        for city, coords in INDIAN_CITY_COORDINATES.items():
+            if city in addr_lower:
+                return coords[0], coords[1]
+        return default_lat, default_lng
 
     async def create_sim_trip(
         self,
@@ -68,29 +143,49 @@ class FreightTigerClient:
         """
         Creates a trip configured for SIM-based tracking via Freight Tiger.
         Initiates telecom carrier driver consent workflow (Airtel, Jio, Vi, BSNL).
+        
+        Primary endpoint: https://api.freighttiger.com/api/tether/connect/trip/add
         """
         cleaned_phone = self.clean_phone_number(driver_phone)
         if len(cleaned_phone) != 10:
-            raise ValueError(f"Invalid driver phone number '{driver_phone}'. Exactly 10 digits required for SIM consent.")
+            raise ValueError(
+                f"Invalid driver phone number '{driver_phone}'. Exactly 10 digits required for telecom SIM consent SMS."
+            )
 
         clean_vehicle = vehicle_number.strip().upper().replace(" ", "").replace("-", "")
         uid = feed_unique_id or f"FT-{clean_vehicle}-{int(datetime.now(timezone.utc).timestamp())}"
 
-        # Standard loading/unloading objects per FT OpenAPI spec
-        loading_payload = {
-            "address": (origin or {}).get("address") or (origin or {}).get("name") or "Origin Hub",
-        }
-        if (origin or {}).get("lat") is not None and (origin or {}).get("lng") is not None:
-            loading_payload["lat"] = float(origin["lat"])
-            loading_payload["lng"] = float(origin["lng"])
+        # 1. Resolve loading location
+        origin_addr = (origin or {}).get("address") or (origin or {}).get("name") or "Origin Hub"
+        origin_lat = (origin or {}).get("lat")
+        origin_lng = (origin or {}).get("lng")
+        if origin_lat is None or origin_lng is None:
+            origin_lat, origin_lng = self._resolve_coordinates(origin_addr, 19.0760, 72.8777)
 
-        unloading_payload = {
-            "address": (destination or {}).get("address") or (destination or {}).get("name") or "Destination Hub",
+        origin_clean_name = re.sub(r"[^A-Z0-9]", "", origin_addr.upper())[:8] or "ORIGIN"
+        loading_payload: Dict[str, Any] = {
+            "uniqueId": (origin or {}).get("uniqueId") or f"LOC-{origin_clean_name}-{uuid.uuid4().hex[:4].upper()}",
+            "address": origin_addr,
+            "lat": round(float(origin_lat), 6),
+            "lng": round(float(origin_lng), 6),
         }
-        if (destination or {}).get("lat") is not None and (destination or {}).get("lng") is not None:
-            unloading_payload["lat"] = float(destination["lat"])
-            unloading_payload["lng"] = float(destination["lng"])
 
+        # 2. Resolve unloading location
+        dest_addr = (destination or {}).get("address") or (destination or {}).get("name") or "Destination Hub"
+        dest_lat = (destination or {}).get("lat")
+        dest_lng = (destination or {}).get("lng")
+        if dest_lat is None or dest_lng is None:
+            dest_lat, dest_lng = self._resolve_coordinates(dest_addr, 28.6139, 77.2090)
+
+        dest_clean_name = re.sub(r"[^A-Z0-9]", "", dest_addr.upper())[:8] or "DEST"
+        unloading_payload: Dict[str, Any] = {
+            "uniqueId": (destination or {}).get("uniqueId") or f"LOC-{dest_clean_name}-{uuid.uuid4().hex[:4].upper()}",
+            "address": dest_addr,
+            "lat": round(float(dest_lat), 6),
+            "lng": round(float(dest_lng), 6),
+        }
+
+        # 3. Build payload conforming strictly to Freight Tiger TripRequest OpenAPI spec
         payload: Dict[str, Any] = {
             "is_round_trip": False,
             "vehicleNumber": vehicle_number.strip().upper(),
@@ -109,47 +204,111 @@ class FreightTigerClient:
         if custom_values:
             payload["customValues"] = custom_values
 
-        # If live FT auth token is present, attempt real HTTP request
+        # 4. If live FT auth token is configured, make real HTTP request to Freight Tiger
         if self.auth_token:
             endpoints = [
+                PRIMARY_ADD_TRIP_URL,
                 f"{self.base_url}/connect/trip/add",
                 f"{self.base_url}/saas/trip/add",
             ]
-            last_err = None
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                for endpoint in endpoints:
+            # Deduplicate endpoints preserving priority
+            seen_urls = set()
+            candidate_endpoints = []
+            for ep in endpoints:
+                if ep not in seen_urls:
+                    seen_urls.add(ep)
+                    candidate_endpoints.append(ep)
+
+            last_error_detail = None
+            last_status_code = 500
+
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                for endpoint in candidate_endpoints:
                     try:
-                        logger.info(f"Calling Freight Tiger AddTrip API: {endpoint}")
+                        logger.info(f"Calling Freight Tiger AddTrip API: {endpoint} for vehicle {payload['vehicleNumber']}")
                         resp = await client.post(endpoint, json=payload, headers=self._get_headers())
-                        if resp.status_code in (200, 201):
+                    except Exception as conn_err:
+                        logger.warning(f"Connection error to {endpoint}: {conn_err}")
+                        last_error_detail = f"Network connection error: {conn_err}"
+                        last_status_code = 502
+                        continue
+
+                    # If endpoint returned 404, try next candidate
+                    if resp.status_code == 404:
+                        last_error_detail = f"Endpoint {endpoint} not found (404)"
+                        continue
+
+                    # If successful 200 or 201
+                    if resp.status_code in (200, 201):
+                        try:
                             data = resp.json()
-                            result = data.get("result") or data.get("data") or {}
-                            trip_id = result.get("id") or result.get("trip_id")
-                            share_url = result.get("shareUrl") or result.get("share_url")
-                            return {
-                                "success": True,
-                                "trip_id": trip_id,
-                                "feed_unique_id": uid,
-                                "share_url": share_url,
-                                "is_consent_done": False,
-                                "status": "Open",
-                                "status_code": 1,
-                                "message": data.get("message") or "Trip created successfully via Freight Tiger.",
-                                "is_simulated": False,
-                            }
-                        else:
-                            logger.warning(f"Freight Tiger AddTrip endpoint {endpoint} returned status {resp.status_code}: {resp.text}")
-                            last_err = resp.text
-                    except Exception as exc:
-                        logger.warning(f"Error calling {endpoint}: {exc}")
-                        last_err = str(exc)
+                        except Exception:
+                            data = {"status": True, "message": resp.text}
 
-            logger.warning(f"Live Freight Tiger API call failed ({last_err}). Falling back to sandbox simulation.")
+                        # Check if response body indicates business failure
+                        if data.get("status") is False:
+                            err_msg = data.get("message") or "Freight Tiger rejected trip creation"
+                            if isinstance(err_msg, list):
+                                err_msg = ", ".join(str(m) for m in err_msg)
+                            logger.error(f"Freight Tiger AddTrip business error: {err_msg}")
+                            raise AppException(
+                                status_code=400,
+                                error_code="FREIGHT_TIGER_REJECTED",
+                                message=f"Freight Tiger Error: {err_msg}",
+                                details=data,
+                            )
 
-        # Simulation / Sandbox mode fallback
+                        result = data.get("result") or data.get("data") or {}
+                        trip_id = result.get("id") or result.get("trip_id")
+                        share_url = result.get("shareUrl") or result.get("share_url")
+                        logger.info(f"Freight Tiger AddTrip succeeded! Trip ID: {trip_id}, FeedUID: {uid}")
+
+                        return {
+                            "success": True,
+                            "trip_id": trip_id,
+                            "feed_unique_id": uid,
+                            "share_url": share_url,
+                            "is_consent_done": False,
+                            "status": "Open",
+                            "status_code": 1,
+                            "message": data.get("message") or "Trip created successfully in Freight Tiger. Telecom consent SMS dispatched.",
+                            "is_simulated": False,
+                        }
+
+                    # Non-2xx status code from Freight Tiger
+                    last_status_code = resp.status_code
+                    try:
+                        err_json = resp.json()
+                        err_msg = err_json.get("message") or err_json.get("error") or resp.text
+                        if isinstance(err_msg, list):
+                            err_msg = ", ".join(str(m) for m in err_msg)
+                    except Exception:
+                        err_msg = resp.text
+
+                    logger.error(f"Freight Tiger AddTrip returned {resp.status_code} at {endpoint}: {err_msg}")
+                    last_error_detail = err_msg
+
+                    # If authentication or validation error, raise immediately with clear reason
+                    if resp.status_code in (400, 401, 403, 422):
+                        raise AppException(
+                            status_code=resp.status_code,
+                            error_code="FREIGHT_TIGER_API_ERROR",
+                            message=f"Freight Tiger Error ({resp.status_code}): {err_msg}",
+                            details={"endpoint": endpoint, "response": err_msg},
+                        )
+
+            # If all candidate endpoints failed or timed out
+            raise AppException(
+                status_code=last_status_code if last_status_code in (400, 401, 403, 422, 502) else 502,
+                error_code="FREIGHT_TIGER_COMMUNICATION_FAILED",
+                message=f"Freight Tiger AddTrip API failed: {last_error_detail}",
+            )
+
+        # 5. Local development / Sandbox simulation mode (ONLY when auth_token is unconfigured)
+        logger.info(f"No Freight Tiger auth_token configured. Running in sandbox simulation mode for vehicle {vehicle_number}.")
         mock_trip_id = random.randint(9100000, 9999999)
         mock_share_key = f"TRP-{uuid.uuid4().hex[:8]}-{uuid.uuid4().hex[:4]}"
-        mock_share_url = f"{self.base_url}/v5/shareTrip?shareKey={mock_share_key}"
+        mock_share_url = f"https://integration.freighttiger.com/v5/shareTrip?shareKey={mock_share_key}"
 
         sim_trip_data = {
             "trip_id": mock_trip_id,
@@ -166,10 +325,9 @@ class FreightTigerClient:
             "origin": loading_payload,
             "destination": unloading_payload,
             "route_code": route_code or "Corridor-Express",
-            # Base simulated coordinates (e.g. Nellore / Andhra corridor matching FT sample)
-            "current_lat": loading_payload.get("lat") or 14.462778,
-            "current_lng": loading_payload.get("lng") or 79.994167,
-            "current_address": f"Near {loading_payload.get('address', 'Transit Checkpoint')}, National Highway",
+            "current_lat": loading_payload["lat"],
+            "current_lng": loading_payload["lng"],
+            "current_address": f"Near {loading_payload['address']}, National Highway",
             "total_distance": 625.26,
             "remaining_distance": 616.74,
             "eta": (datetime.now(timezone.utc) + timedelta(hours=14, minutes=30)).strftime("%Y-%m-%d %H:%M:%S"),
@@ -184,7 +342,7 @@ class FreightTigerClient:
             "is_consent_done": False,
             "status": "Open",
             "status_code": 1,
-            "message": "Trip created in Freight Tiger sandbox. Telecom operator consent SMS queued.",
+            "message": "Trip created in Panther TMS Sandbox mode (No Freight Tiger auth token set).",
             "is_simulated": True,
         }
 
@@ -194,10 +352,11 @@ class FreightTigerClient:
         and cell-tower location fixes from Freight Tiger.
         """
         if self.auth_token:
-            endpoints = [
-                f"{self.base_url}/saas/trip/uid/{feed_unique_id}",
-                f"{self.base_url}/api/gateway/integration/trip/uid/{feed_unique_id}",
-            ]
+            endpoints = []
+            if trip_id:
+                endpoints.append(f"{PRIMARY_GET_TRIP_BY_ID_URL}/{trip_id}")
+            endpoints.append(f"{PRIMARY_GET_TRIP_BY_UID_URL}/{feed_unique_id}")
+            endpoints.append(f"{self.base_url}/saas/trip/uid/{feed_unique_id}")
             if trip_id:
                 endpoints.append(f"{self.base_url}/saas/trip/{trip_id}")
 
@@ -209,7 +368,8 @@ class FreightTigerClient:
                         if resp.status_code == 200:
                             body = resp.json()
                             data = body.get("data") or body.get("result") or {}
-                            return self._normalize_trip_response(data, is_simulated=False)
+                            if data:
+                                return self._normalize_trip_response(data, is_simulated=False)
                     except Exception as exc:
                         logger.warning(f"Error fetching trip from {endpoint}: {exc}")
 
@@ -228,7 +388,7 @@ class FreightTigerClient:
             "is_consent_done": True,
             "status": "Open",
             "status_code": 1,
-            "share_url": f"{self.base_url}/v5/shareTrip?shareKey=TRP-{uuid.uuid4().hex[:8]}",
+            "share_url": f"https://integration.freighttiger.com/v5/shareTrip?shareKey=TRP-{uuid.uuid4().hex[:8]}",
             "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             "current_lat": 14.462778,
             "current_lng": 79.994167,
@@ -252,31 +412,30 @@ class FreightTigerClient:
 
         return {
             "success": True,
-            "trip_id": data.get("trip_id"),
+            "trip_id": data.get("trip_id") or data.get("id"),
             "feed_unique_id": data.get("feed_unique_id"),
             "lr_number": data.get("lr_number"),
-            "vehicle_number": (data.get("vehicle") or {}).get("license_plate"),
+            "vehicle_number": (data.get("vehicle") or {}).get("license_plate") or data.get("vehicle_number"),
             "is_consent_done": bool(data.get("is_consent_done", False)),
             "status": data.get("status", "Open"),
             "status_code": data.get("status_code", 1),
-            "share_url": data.get("share_url"),
-            "last_latitude": point.get("latitude"),
-            "last_longitude": point.get("longitude"),
+            "share_url": data.get("share_url") or data.get("shareUrl"),
+            "last_latitude": point.get("latitude") or loc.get("lat"),
+            "last_longitude": point.get("longitude") or loc.get("lng"),
             "last_location_address": loc.get("address"),
             "recorded_at": loc.get("recorded_at"),
             "device_type": (loc.get("device") or {}).get("type", "SIM"),
-            "eta": dest.get("eta"),
-            "eta_updated_at": dest.get("eta_updated_at"),
-            "distance_remaining_km": dest.get("distance_from_last_location"),
+            "eta": dest.get("eta") or data.get("eta"),
+            "eta_updated_at": dest.get("eta_updated_at") or data.get("eta_updated_at"),
+            "distance_remaining_km": dest.get("distance_from_last_location") or data.get("distance_remaining"),
             "total_distance_km": data.get("total_distance"),
             "is_simulated": is_simulated,
         }
 
     def _build_simulated_trip_response(self, sim: Dict[str, Any]) -> Dict[str, Any]:
-        """Builds a realistic FT response conforming strictly to the PDF and OpenAPI docs."""
+        """Builds a realistic FT response conforming strictly to documentation."""
         is_consent = sim.get("is_consent_done", False)
-        
-        # If consent is granted, simulate subtle GPS progression along route
+
         if is_consent:
             sim["current_lat"] = float(sim.get("current_lat", 14.462778)) + (random.uniform(-0.01, 0.02))
             sim["current_lng"] = float(sim.get("current_lng", 79.994167)) + (random.uniform(-0.01, 0.02))
@@ -325,15 +484,18 @@ class FreightTigerClient:
         Ref: https://freight-tiger.readme.io/reference/closetrip.md
         """
         close_time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        payload = {
-            "feed_unique_id": feed_unique_id,
-            "trip_id": trip_id,
+        payload: Dict[str, Any] = {
             "close_date_time": close_time_str,
             "comment": comment or "Consignment delivered; trip closed in Panther TMS.",
         }
+        if feed_unique_id:
+            payload["feed_unique_id"] = feed_unique_id
+        if trip_id:
+            payload["trip_id"] = int(trip_id)
 
         if self.auth_token:
             endpoints = [
+                PRIMARY_CLOSE_TRIP_URL,
                 f"{self.base_url}/connect/trip/close",
                 f"{self.base_url}/saas/trip/close",
             ]
@@ -342,11 +504,11 @@ class FreightTigerClient:
                     try:
                         logger.info(f"Calling Freight Tiger CloseTrip API: {endpoint}")
                         resp = await client.post(endpoint, json=payload, headers=self._get_headers())
-                        if resp.status_code == 200:
+                        if resp.status_code in (200, 201):
                             data = resp.json()
                             return {
                                 "success": True,
-                                "message": data.get("response") or "Trip closed successfully.",
+                                "message": data.get("message") or data.get("response") or "Trip closed successfully in Freight Tiger.",
                                 "is_simulated": False,
                             }
                     except Exception as exc:
@@ -369,6 +531,7 @@ class FreightTigerClient:
             self._simulated_trips[feed_unique_id]["is_consent_done"] = is_consent_done
             return True
         return False
+
 
 # Global client singleton
 freight_tiger_client = FreightTigerClient()

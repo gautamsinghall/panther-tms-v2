@@ -112,9 +112,8 @@ class CompanySetting(TenantBase):
     gsp_base_url_override = Column(String(255), nullable=True)
 
     # Freight Tiger SIM Tracking Integration (PRD §11 / FT Trip APIs)
-    ft_base_url = Column(String(255), default="https://integration.freighttiger.com", nullable=True)
+    ft_base_url = Column(String(255), default="https://api.freighttiger.com/api/tether", nullable=True)
     ft_auth_token = Column(Text, nullable=True)
-    ft_company_id = Column(String(100), nullable=True)
     is_ft_active = Column(Boolean, default=True, nullable=False)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

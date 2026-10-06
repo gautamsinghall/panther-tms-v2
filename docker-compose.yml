@@ -82,9 +82,8 @@ services:
       - GSP_BASE_URL=${GSP_BASE_URL:-https://gsp.adaequare.com}
       - GSP_CLIENT_ID=${GSP_CLIENT_ID:-}
       - GSP_CLIENT_SECRET=${GSP_CLIENT_SECRET:-}
-      - FREIGHT_TIGER_BASE_URL=${FREIGHT_TIGER_BASE_URL:-https://integration.freighttiger.com}
+      - FREIGHT_TIGER_BASE_URL=${FREIGHT_TIGER_BASE_URL:-https://api.freighttiger.com/api/tether}
       - FREIGHT_TIGER_AUTH_TOKEN=${FREIGHT_TIGER_AUTH_TOKEN:-}
-      - FREIGHT_TIGER_COMPANY_ID=${FREIGHT_TIGER_COMPANY_ID:-}
       - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_panther_tms}
       - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-rzp_secret_panther_tms_secure}
       - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-rzp_webhook_secret_panther_2026}
