@@ -1018,7 +1018,7 @@ async def initialize_all_standard_series(
                     category_id=cat_id,
                     issuing_office_id=branch.id,
                     document_type=doc_type,
-                    series_name=f"{branch.name} {meta['name']}",
+                    series_name=None,
                     prefix=office_prefix,
                     suffix=meta.get("suffix", ""),
                     starting_number=meta.get("starting_number", 1),
