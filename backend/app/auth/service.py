@@ -79,11 +79,22 @@ async def get_user_office_context(db: AsyncSession, user: User) -> tuple[list[Of
     offices_list = []
     active_summary = None
 
-    if user.role == "COMPANY_ADMIN":
+    is_admin = (user.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER")
+    if is_admin:
         all_brs = (await db.execute(
             select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.name)
         )).scalars().all()
+        # Find if admin has a preferred default office assignment
+        def_assign = (await db.execute(
+            select(UserOfficeAssignment).where(
+                UserOfficeAssignment.user_id == user.id,
+                UserOfficeAssignment.is_default == True
+            )
+        )).scalar_one_or_none()
+        def_id = def_assign.office_id if def_assign else None
+
         for b in all_brs:
+            is_def = (b.id == def_id) if def_id else bool(b.is_head_office)
             offices_list.append(OfficeSummary(
                 id=b.id,
                 code=b.code,
@@ -92,10 +103,10 @@ async def get_user_office_context(db: AsyncSession, user: User) -> tuple[list[Of
                 state=b.state,
                 gstin=b.gstin,
                 is_head_office=b.is_head_office,
-                is_default=b.is_head_office,
+                is_default=is_def,
             ))
         if offices_list:
-            active_summary = next((o for o in offices_list if o.is_head_office), offices_list[0])
+            active_summary = next((o for o in offices_list if o.is_default), offices_list[0])
     else:
         stmt_oa = (
             select(UserOfficeAssignment)

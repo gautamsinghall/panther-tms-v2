@@ -994,17 +994,8 @@ async def initialize_all_standard_series(
         if any_branch:
             target_branches = [any_branch]
         else:
-            default_ho = Branch(
-                code="HO",
-                name="Head Office",
-                city="Delhi",
-                state="Delhi",
-                is_head_office=True,
-                is_active=True,
-            )
-            db.add(default_ho)
-            await db.flush()
-            target_branches = [default_ho]
+            logger.info("No issuing offices found; skipping series initialization until an issuing office is created.")
+            return []
 
     # 3. Seed office-isolated standard series
     created_list = []

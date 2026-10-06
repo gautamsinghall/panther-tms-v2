@@ -10,7 +10,7 @@ from app.core.errors import AppException
 from app.core.security import verify_password, get_password_hash
 from app.tenant_db.models import (
     User, Branch, CompanySetting, EmailSetting,
-    Voucher, TripExpense, VoucherType
+    Voucher, TripExpense, VoucherType, UserOfficeAssignment
 )
 from app.modules.profile.schemas import (
     ChangePasswordRequest, UserProfileUpdate,
@@ -69,9 +69,12 @@ async def create_branch(db: AsyncSession, data: BranchCreate) -> Branch:
             message=f"Issuing office / branch with code '{code}' already exists.",
         )
 
-    # If this branch is set as head office, unset all existing head offices
-    if data.is_head_office:
-        all_branches = await get_branches(db)
+    all_branches = await get_branches(db)
+    # If this is the very first branch being set up, automatically make it the head office
+    if len(all_branches) == 0:
+        data.is_head_office = True
+    elif data.is_head_office:
+        # If this branch is explicitly set as head office, unset all existing head offices
         for b in all_branches:
             if b.is_head_office:
                 b.is_head_office = False
@@ -104,6 +107,36 @@ async def create_branch(db: AsyncSession, data: BranchCreate) -> Branch:
         company_setting.default_issuing_office_id = branch.id
         company_setting.issuing_office = branch.name
 
+    # Auto-assign this branch to all Company Admin users so admins always have universal access
+    admins_stmt = select(User).where(User.role == "COMPANY_ADMIN")
+    admins = (await db.execute(admins_stmt)).scalars().all()
+    for admin in admins:
+        has_assignment = (await db.execute(
+            select(UserOfficeAssignment).where(
+                UserOfficeAssignment.user_id == admin.id,
+                UserOfficeAssignment.office_id == branch.id
+            )
+        )).scalar_one_or_none()
+        if not has_assignment:
+            has_def = (await db.execute(
+                select(UserOfficeAssignment).where(
+                    UserOfficeAssignment.user_id == admin.id,
+                    UserOfficeAssignment.is_default == True
+                )
+            )).scalar_one_or_none()
+            db.add(UserOfficeAssignment(
+                user_id=admin.id,
+                office_id=branch.id,
+                is_default=(not bool(has_def))
+            ))
+
+    # Initialize standard series for this new branch automatically
+    try:
+        from app.modules.settings.series_service import initialize_all_standard_series
+        await initialize_all_standard_series(db, office_id=branch.id, exclude_manual=True)
+    except Exception as e:
+        logger.warning(f"Could not auto-initialize series for branch {branch.code}: {e}")
+
     await db.commit()
     await db.refresh(branch)
     return branch
@@ -114,6 +147,18 @@ async def update_branch(db: AsyncSession, branch_id: int, data: BranchUpdate) ->
     branch = (await db.execute(stmt)).scalar_one_or_none()
     if not branch:
         raise AppException(status_code=404, error_code="BRANCH_NOT_FOUND", message="Issuing office / branch not found.")
+
+    if data.code is not None:
+        new_code = data.code.strip().upper()
+        if new_code != branch.code:
+            check_dup = select(Branch).where(Branch.code == new_code, Branch.id != branch_id)
+            if (await db.execute(check_dup)).scalar_one_or_none():
+                raise AppException(
+                    status_code=400,
+                    error_code="BRANCH_CODE_EXISTS",
+                    message=f"Issuing office / branch code '{new_code}' is already used by another office."
+                )
+            branch.code = new_code
 
     if data.name is not None:
         branch.name = data.name.strip()

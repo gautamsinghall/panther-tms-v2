@@ -18,25 +18,39 @@ from app.modules.settings import service
 
 router = APIRouter(prefix="/settings", tags=["Settings & RBAC"])
 
-def map_user_to_list_item(u: User) -> UserListItem:
-    assigned_offices = [
-        AssignedOfficeInfo(
-            office_id=a.office.id,
-            office_code=a.office.code,
-            office_name=a.office.name,
-            is_default=a.is_default,
-        )
-        for a in (u.office_assignments or [])
-        if a.office
-    ]
-    def_id = next((a.office_id for a in (u.office_assignments or []) if a.is_default), (assigned_offices[0].office_id if assigned_offices else None))
+def map_user_to_list_item(u: User, all_branches: Optional[List[Branch]] = None) -> UserListItem:
+    is_admin = (u.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER")
+    if is_admin and all_branches:
+        def_id = next((a.office_id for a in (u.office_assignments or []) if a.is_default), (all_branches[0].id if all_branches else None))
+        assigned_offices = [
+            AssignedOfficeInfo(
+                office_id=b.id,
+                office_code=b.code,
+                office_name=b.name,
+                is_default=(b.id == def_id),
+            )
+            for b in all_branches
+        ]
+    else:
+        assigned_offices = [
+            AssignedOfficeInfo(
+                office_id=a.office.id,
+                office_code=a.office.code,
+                office_name=a.office.name,
+                is_default=a.is_default,
+            )
+            for a in (u.office_assignments or [])
+            if a.office
+        ]
+        def_id = next((a.office_id for a in (u.office_assignments or []) if a.is_default), (assigned_offices[0].office_id if assigned_offices else None))
+
     return UserListItem(
         id=u.id,
         email=u.email,
         full_name=u.full_name,
         role=u.role,
         role_id=u.role_id,
-        role_name=u.custom_role.name if u.custom_role else ("Company Admin" if u.role == "COMPANY_ADMIN" else None),
+        role_name=u.custom_role.name if u.custom_role else ("Company Admin" if is_admin else None),
         is_active=u.is_active,
         created_at=u.created_at,
         updated_at=u.updated_at,
@@ -163,8 +177,9 @@ async def list_users(
     current_user: User = Depends(require_permission("settings", "users", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    branches = (await db.execute(select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.name))).scalars().all()
     users = await service.get_all_users(db)
-    return [map_user_to_list_item(u) for u in users]
+    return [map_user_to_list_item(u, all_branches=branches) for u in users]
 
 @router.post(
     "/users",
@@ -190,7 +205,8 @@ async def create_user(
         entity_id=str(user.id),
         details=f"Created user {user.email} ({user.role})"
     )
-    return map_user_to_list_item(user)
+    branches = (await db.execute(select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.name))).scalars().all()
+    return map_user_to_list_item(user, all_branches=branches)
 
 @router.put(
     "/users/{user_id}",
@@ -204,7 +220,8 @@ async def update_user(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     user = await service.update_existing_user(db, user_id, data, current_user=current_user)
-    return map_user_to_list_item(user)
+    branches = (await db.execute(select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.name))).scalars().all()
+    return map_user_to_list_item(user, all_branches=branches)
 
 
 # --- Series Categories Endpoints ---

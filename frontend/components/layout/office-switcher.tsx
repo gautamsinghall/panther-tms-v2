@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, MapPin, ChevronDown, Check, Globe } from "lucide-react";
-import { getStoredAuth, getActiveOffice, setActiveOffice, OfficeSummary } from "@/lib/auth";
+import { getStoredAuth, setStoredAuth, getActiveOffice, setActiveOffice, OfficeSummary } from "@/lib/auth";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -20,47 +20,62 @@ export function OfficeSwitcher() {
     const auth = getStoredAuth();
     if (!auth) return;
 
-    const userIsAdmin = auth.user?.role === "COMPANY_ADMIN";
+    const userRole = (auth.user?.role || "").toUpperCase().trim();
+    const userIsAdmin = userRole.includes("ADMIN") || userRole === "OWNER";
     setIsAdmin(userIsAdmin);
 
-    let assigned = auth.assignedOffices || [];
+    let assigned: OfficeSummary[] = auth.assignedOffices || [];
 
-    // If company admin and no assigned offices cached, load all active branches from API
-    if (userIsAdmin && assigned.length === 0) {
-      try {
-        setIsLoading(true);
+    try {
+      setIsLoading(true);
+      if (userIsAdmin) {
+        // Admin always has universal access across all active issuing offices
         const branches = await apiClient<any[]>("/api/v1/profile/branches");
-        if (Array.isArray(branches) && branches.length > 0) {
-          assigned = branches.map((b) => ({
-            id: b.id,
-            code: b.code,
-            name: b.name,
-            city: b.city,
-            state: b.state,
-            is_head_office: Boolean(b.is_head_office),
-            is_default: Boolean(b.is_head_office),
-          }));
-          auth.assignedOffices = assigned;
-          if (!auth.activeOffice && assigned.length > 0) {
-            auth.activeOffice = assigned[0];
-          }
+        if (Array.isArray(branches)) {
+          assigned = branches
+            .filter((b) => b.is_active !== false)
+            .map((b) => ({
+              id: b.id,
+              code: b.code,
+              name: b.name,
+              city: b.city,
+              state: b.state,
+              gstin: b.gstin,
+              is_head_office: Boolean(b.is_head_office),
+              is_default: Boolean(b.is_head_office),
+            }));
         }
-      } catch (err) {
-        console.warn("Could not fetch branches for office switcher", err);
-      } finally {
-        setIsLoading(false);
+      } else {
+        // Employee gets authorized office assignments from me context
+        const me = await apiClient<any>("/api/v1/auth/me").catch(() => null);
+        if (me && Array.isArray(me.assigned_offices)) {
+          assigned = me.assigned_offices;
+        }
       }
+      auth.assignedOffices = assigned;
+    } catch (err) {
+      console.warn("Could not fetch branches for office switcher", err);
+    } finally {
+      setIsLoading(false);
     }
 
     setOffices(assigned);
 
     const currentActive = getActiveOffice();
-    if (currentActive) {
+    if (currentActive?.id === 0 && userIsAdmin) {
       setActiveOfficeState(currentActive);
+    } else if (currentActive && assigned.some((o) => o.id === currentActive.id)) {
+      const refreshedActive = assigned.find((o) => o.id === currentActive.id)!;
+      setActiveOffice(refreshedActive);
+      setActiveOfficeState(refreshedActive);
     } else if (assigned.length > 0) {
       const defaultOff = assigned.find((o) => o.is_default) || assigned[0];
       setActiveOffice(defaultOff);
       setActiveOfficeState(defaultOff);
+    } else {
+      auth.activeOffice = null;
+      setStoredAuth(auth);
+      setActiveOfficeState(null);
     }
   };
 
@@ -74,8 +89,19 @@ export function OfficeSwitcher() {
       }
     };
 
+    const handleBranchesUpdated = () => {
+      syncOffices();
+    };
+
     window.addEventListener("panther_office_changed", handleOfficeChange);
-    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
+    window.addEventListener("panther_branches_updated", handleBranchesUpdated);
+    window.addEventListener("focus", handleBranchesUpdated);
+
+    return () => {
+      window.removeEventListener("panther_office_changed", handleOfficeChange);
+      window.removeEventListener("panther_branches_updated", handleBranchesUpdated);
+      window.removeEventListener("focus", handleBranchesUpdated);
+    };
   }, []);
 
   // Close on outside click
@@ -111,12 +137,28 @@ export function OfficeSwitcher() {
   };
 
   if (!activeOffice && offices.length === 0) {
+    if (isAdmin) {
+      return (
+        <button
+          type="button"
+          onClick={() => router.push("/company/branches?add=true")}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold cursor-pointer shadow-2xs hover:bg-amber-100 transition-colors"
+          title="No issuing office has been registered yet. Click to setup your first issuing office."
+        >
+          <Building2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+          <span>No Issuing Office</span>
+          <span className="text-[10px] bg-amber-200/80 text-amber-900 px-1 py-0.2 rounded font-bold">
+            + Setup
+          </span>
+        </button>
+      );
+    }
     return null;
   }
 
   const isMultiOffice = offices.length > 1 || isAdmin;
 
-  // Single office user: Show fixed clear badge
+  // Single office user (non-admin): Show fixed clear badge
   if (!isMultiOffice && activeOffice) {
     return (
       <div

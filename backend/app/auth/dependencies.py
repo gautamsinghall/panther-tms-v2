@@ -142,15 +142,14 @@ async def get_current_office(
     all_branches = list(branches_res.scalars().all())
 
     if not all_branches:
-        branch = Branch(code="HQ", name="Corporate Head Office", city="Headquarters", state="Delhi", is_head_office=True, is_active=True)
-        db.add(branch)
-        await db.commit()
-        await db.refresh(branch)
-        all_branches = [branch]
+        request.state.office = None
+        request.state.office_id = None
+        return None
 
     default_company_office = next((b for b in all_branches if b.is_head_office), all_branches[0])
 
-    if user.role == "COMPANY_ADMIN":
+    is_admin = (user.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER")
+    if is_admin:
         if is_all_requested:
             request.state.office = None
             request.state.office_id = None
@@ -262,8 +261,8 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
                                 details={"module": module, "feature": feature, "plan": tenant.plan.code}
                             )
 
-        # 3. Check Employee RBAC (employee-based)
-        if user.role == "COMPANY_ADMIN":
+        # 3. Check Employee RBAC (employee-based) - Admin has all rights by default
+        if (user.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
             return user
 
         if not user.custom_role or not user.custom_role.permissions:

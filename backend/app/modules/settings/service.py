@@ -120,14 +120,22 @@ async def create_new_user(db: AsyncSession, data: UserCreate) -> User:
     await db.flush()
 
     # Handle issuing office assignments
-    office_ids = data.assigned_office_ids or []
-    default_id = data.default_office_id
-    if not office_ids:
-        hq_stmt = select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1)
-        hq = (await db.execute(hq_stmt)).scalar_one_or_none()
-        if hq:
-            office_ids = [hq.id]
-            default_id = hq.id
+    is_admin = (data.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER")
+    all_active_branches = (await db.execute(
+        select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc())
+    )).scalars().all()
+    all_branch_ids = [b.id for b in all_active_branches]
+
+    if is_admin:
+        # Admin must have all issuing offices assigned by default
+        office_ids = all_branch_ids
+        default_id = data.default_office_id or (all_branch_ids[0] if all_branch_ids else None)
+    else:
+        office_ids = data.assigned_office_ids or []
+        default_id = data.default_office_id
+        if not office_ids and all_branch_ids:
+            office_ids = [all_branch_ids[0]]
+            default_id = all_branch_ids[0]
 
     for oid in office_ids:
         is_def = (oid == default_id) if default_id else (oid == office_ids[0])
@@ -195,14 +203,30 @@ async def update_existing_user(
 
     if data.full_name:
         user.full_name = data.full_name.strip()
+    if data.role is not None:
+        user.role = data.role
     if data.role_id is not None:
-        user.role_id = data.role_id
+        user.role_id = data.role_id if (user.role or "").upper().strip() != "COMPANY_ADMIN" else None
     if data.is_active is not None:
         user.is_active = data.is_active
     if data.password:
         user.password_hash = get_password_hash(data.password)
 
-    if data.assigned_office_ids is not None:
+    is_admin = (user.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER")
+    all_active_branches = (await db.execute(
+        select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc())
+    )).scalars().all()
+    all_branch_ids = [b.id for b in all_active_branches]
+
+    if is_admin:
+        # Company Admin must have all issuing offices assigned by default
+        await db.execute(delete(UserOfficeAssignment).where(UserOfficeAssignment.user_id == user.id))
+        default_id = data.default_office_id or (all_branch_ids[0] if all_branch_ids else None)
+        for oid in all_branch_ids:
+            is_def = (oid == default_id)
+            assignment = UserOfficeAssignment(user_id=user.id, office_id=oid, is_default=is_def)
+            db.add(assignment)
+    elif data.assigned_office_ids is not None:
         await db.execute(delete(UserOfficeAssignment).where(UserOfficeAssignment.user_id == user.id))
         office_ids = data.assigned_office_ids
         default_id = data.default_office_id or (office_ids[0] if office_ids else None)

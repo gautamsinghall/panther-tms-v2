@@ -272,35 +272,8 @@ async def initialize_tenant_schema_and_admin(
         else:
             admin_user = existing_user
 
-        # Ensure default Head Office branch exists
-        branch_stmt = select(Branch).where(Branch.is_head_office == True)
-        branch_res = await session.execute(branch_stmt)
-        head_office = branch_res.scalar_one_or_none()
-        if not head_office:
-            head_office = Branch(
-                code="HQ",
-                name=f"{company_name} (HQ)",
-                city="Headquarters",
-                state="Delhi",
-                is_head_office=True,
-                is_active=True,
-            )
-            session.add(head_office)
-            await session.flush()
-
-        # Ensure admin user has default assignment to head office
-        assign_stmt = select(UserOfficeAssignment).where(
-            UserOfficeAssignment.user_id == admin_user.id,
-            UserOfficeAssignment.office_id == head_office.id
-        )
-        assign_res = await session.execute(assign_stmt)
-        if not assign_res.scalar_one_or_none():
-            assignment = UserOfficeAssignment(
-                user_id=admin_user.id,
-                office_id=head_office.id,
-                is_default=True,
-            )
-            session.add(assignment)
+        # Per tenant configuration: No issuing office is created by default.
+        # The admin will set up their own issuing offices under Company Settings > Branches.
 
         # Company setting
         comp_stmt = select(CompanySetting).limit(1)
@@ -309,12 +282,12 @@ async def initialize_tenant_schema_and_admin(
             comp_setting = CompanySetting(
                 company_name=company_name,
                 email=admin_email,
-                default_issuing_office_id=head_office.id if head_office else None,
-                issuing_office=head_office.name if head_office else None,
+                default_issuing_office_id=None,
+                issuing_office=None,
             )
             session.add(comp_setting)
 
-        # Seed all standard series EXCEPT manual series upon tenant creation
+        # Standard series will be initialized once the admin registers their issuing office.
         try:
             from app.modules.settings.series_service import initialize_all_standard_series
             await initialize_all_standard_series(session, exclude_manual=True)

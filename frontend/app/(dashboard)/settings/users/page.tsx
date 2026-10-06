@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
-import { getStoredAuth } from "@/lib/auth";
+import { getStoredAuth, setStoredAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 interface AssignedOfficeInfo {
@@ -29,6 +29,7 @@ interface UserRecord {
   role_name?: string | null;
   is_active: boolean;
   assigned_offices?: AssignedOfficeInfo[];
+  default_office_id?: number | null;
   created_at: string;
 }
 
@@ -44,6 +45,7 @@ interface BranchOption {
   name: string;
   city?: string;
   state?: string;
+  gstin?: string;
   is_head_office?: boolean;
 }
 
@@ -95,15 +97,10 @@ export default function UsersPage() {
     setFormFullName("");
     setFormEmail("");
     setFormPassword("");
-    setFormRoleSelection(roles.length > 0 ? String(roles[0].id) : "admin");
-    const hq = branches.find((b) => b.is_head_office) || branches[0];
-    if (hq) {
-      setSelectedOfficeIds([hq.id]);
-      setDefaultOfficeId(hq.id);
-    } else {
-      setSelectedOfficeIds([]);
-      setDefaultOfficeId(null);
-    }
+    setFormRoleSelection("admin");
+    setSelectedOfficeIds(branches.map((b) => b.id));
+    const def = branches.find((b) => b.is_head_office) || branches[0];
+    setDefaultOfficeId(def ? def.id : null);
     setIsDrawerOpen(true);
   };
 
@@ -112,14 +109,34 @@ export default function UsersPage() {
     setFormFullName(user.full_name);
     setFormEmail(user.email);
     setFormPassword(""); // Leave blank if not updating
-    setFormRoleSelection(user.role === "COMPANY_ADMIN" ? "admin" : (user.role_id ? String(user.role_id) : "admin"));
+    const isCompanyAdmin = user.role === "COMPANY_ADMIN" || user.role_name === "Company Admin";
+    setFormRoleSelection(isCompanyAdmin ? "admin" : (user.role_id ? String(user.role_id) : "admin"));
     
-    const assigned = user.assigned_offices || [];
-    const assignedIds = assigned.map((a) => a.office_id);
-    setSelectedOfficeIds(assignedIds);
-    const def = assigned.find((a) => a.is_default);
-    setDefaultOfficeId(def ? def.office_id : (assignedIds[0] || null));
+    if (isCompanyAdmin) {
+      // By default admin should have all issuing offices selected
+      setSelectedOfficeIds(branches.map((b) => b.id));
+      const def = (user.assigned_offices || []).find((a) => a.is_default);
+      setDefaultOfficeId(def ? def.office_id : (user.default_office_id || branches.find((b) => b.is_head_office)?.id || branches[0]?.id || null));
+    } else {
+      const assigned = user.assigned_offices || [];
+      const assignedIds = assigned.map((a) => a.office_id);
+      setSelectedOfficeIds(assignedIds);
+      const def = assigned.find((a) => a.is_default);
+      setDefaultOfficeId(def ? def.office_id : (assignedIds[0] || null));
+    }
     setIsDrawerOpen(true);
+  };
+
+  const handleRoleSelectionChange = (val: string) => {
+    setFormRoleSelection(val);
+    if (val === "admin") {
+      // By default admin should have all issuing offices selected
+      setSelectedOfficeIds(branches.map((b) => b.id));
+      if (!defaultOfficeId && branches.length > 0) {
+        const def = branches.find((b) => b.is_head_office) || branches[0];
+        setDefaultOfficeId(def.id);
+      }
+    }
   };
 
   const toggleOfficeSelection = (officeId: number) => {
@@ -163,7 +180,7 @@ export default function UsersPage() {
         full_name: formFullName.trim(),
         role: isCompanyAdmin ? "COMPANY_ADMIN" : "EMPLOYEE",
         role_id: isCompanyAdmin ? null : parseInt(formRoleSelection, 10),
-        assigned_office_ids: selectedOfficeIds,
+        assigned_office_ids: isCompanyAdmin ? branches.map((b) => b.id) : selectedOfficeIds,
         default_office_id: defaultOfficeId,
       };
 
@@ -185,7 +202,43 @@ export default function UsersPage() {
       }
 
       setIsDrawerOpen(false);
-      loadData();
+      await loadData();
+
+      // If the edited user is current logged in user, update auth cache and broadcast update
+      const auth = getStoredAuth();
+      if (auth && (editingUser?.id === auth.user?.id || (!editingUser && isCompanyAdmin))) {
+        if (isCompanyAdmin) {
+          auth.user.role = "COMPANY_ADMIN";
+          auth.assignedOffices = branches.map((b) => ({
+            id: b.id,
+            code: b.code,
+            name: b.name,
+            city: b.city,
+            state: b.state,
+            gstin: b.gstin,
+            is_head_office: Boolean(b.is_head_office),
+            is_default: b.id === defaultOfficeId,
+          }));
+        } else {
+          auth.assignedOffices = branches
+            .filter((b) => selectedOfficeIds.includes(b.id))
+            .map((b) => ({
+              id: b.id,
+              code: b.code,
+              name: b.name,
+              city: b.city,
+              state: b.state,
+              gstin: b.gstin,
+              is_head_office: Boolean(b.is_head_office),
+              is_default: b.id === defaultOfficeId,
+            }));
+        }
+        setStoredAuth(auth);
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("panther_branches_updated"));
+      }
     } catch (err: any) {
       alert(err.message || "Failed to save user.");
     } finally {
@@ -250,11 +303,38 @@ export default function UsersPage() {
       header: "Authorized Issuing Offices",
       cell: (row) => {
         if (row.role === "COMPANY_ADMIN") {
+          const displayOffices = row.assigned_offices && row.assigned_offices.length > 0
+            ? row.assigned_offices
+            : branches.map((b) => ({
+                office_id: b.id,
+                office_code: b.code,
+                office_name: b.name,
+                is_default: Boolean(b.is_head_office),
+              }));
+
           return (
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap gap-1.5 items-center">
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                 <Building2 className="w-3 h-3 text-indigo-600 inline" /> Universal (All Offices)
               </span>
+              {displayOffices.map((off) => (
+                <span
+                  key={off.office_id}
+                  className={cn(
+                    "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border",
+                    row.default_office_id === off.office_id || off.is_default
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold"
+                      : "bg-slate-50 text-slate-700 border-slate-200 font-medium"
+                  )}
+                  title={`${off.office_name}${row.default_office_id === off.office_id || off.is_default ? " (Primary Default Office)" : ""}`}
+                >
+                  <MapPin className="w-2.5 h-2.5 shrink-0" />
+                  <span>{off.office_code}</span>
+                  {(row.default_office_id === off.office_id || off.is_default) && (
+                    <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500 inline" />
+                  )}
+                </span>
+              ))}
             </div>
           );
         }
@@ -445,7 +525,7 @@ export default function UsersPage() {
               </label>
               <select
                 value={formRoleSelection}
-                onChange={(e) => setFormRoleSelection(e.target.value)}
+                onChange={(e) => handleRoleSelectionChange(e.target.value)}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
               >
                 <option value="admin">Company Admin (Full Universal Access)</option>
@@ -477,7 +557,7 @@ export default function UsersPage() {
               <div className="p-3 rounded-lg bg-indigo-50/70 border border-indigo-200/70 text-indigo-800 text-xs flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold">Company Admin Access:</span> Company Administrators have universal access across all issuing offices. You can still select their preferred default office below for transaction numbering.
+                  <span className="font-semibold">Company Admin Access:</span> Company Administrators have all rights and all issuing offices selected by default. You can designate their preferred primary default office below.
                 </div>
               </div>
             )}

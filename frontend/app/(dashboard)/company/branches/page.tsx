@@ -195,6 +195,9 @@ export default function IssuingOfficesPage() {
       setShowDrawer(false);
       resetForm();
       await loadBranches();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("panther_branches_updated"));
+      }
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
       setError(err.message || "Failed to save issuing office / branch.");
@@ -218,6 +221,9 @@ export default function IssuingOfficesPage() {
       });
       setSuccessMessage(`Issuing office '${branch.name}' deleted.`);
       await loadBranches();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("panther_branches_updated"));
+      }
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
       alert(err.message || "Failed to delete issuing office.");
@@ -466,7 +472,6 @@ export default function IssuingOfficesPage() {
                     required
                     placeholder="e.g. B-GZB-01"
                     value={code}
-                    disabled={!!editingBranchId}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
                     className="font-mono text-xs font-semibold uppercase"
                   />

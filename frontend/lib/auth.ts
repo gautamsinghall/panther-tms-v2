@@ -130,6 +130,22 @@ export function setActiveOffice(office: OfficeSummary): void {
   }
 }
 
+export function updateAssignedOffices(offices: OfficeSummary[]): void {
+  const auth = getStoredAuth();
+  if (auth) {
+    auth.assignedOffices = offices;
+    if (auth.activeOffice && auth.activeOffice.id !== 0 && !offices.some((o) => o.id === auth.activeOffice?.id)) {
+      auth.activeOffice = offices.find((o) => o.is_default) || offices[0] || null;
+    } else if (!auth.activeOffice && offices.length > 0) {
+      auth.activeOffice = offices.find((o) => o.is_default) || offices[0];
+    }
+    setStoredAuth(auth);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("panther_branches_updated", { detail: offices }));
+    }
+  }
+}
+
 export function getWorkspaceUrl(path: string): string {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   if (typeof window === "undefined") return cleanPath;

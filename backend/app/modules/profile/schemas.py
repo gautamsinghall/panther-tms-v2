@@ -60,6 +60,7 @@ class BranchCreate(BranchBase):
     pass
 
 class BranchUpdate(BaseModel):
+    code: Optional[str] = Field(None, min_length=2, max_length=50)
     name: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
@@ -76,6 +77,18 @@ class BranchUpdate(BaseModel):
     document_notes: Optional[str] = None
     is_head_office: Optional[bool] = None
     is_active: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_branch_update_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "branch_code" in data and "code" not in data:
+                data["code"] = data["branch_code"]
+            if "branch_name" in data and "name" not in data:
+                data["name"] = data["branch_name"]
+            if "bank_account_number" in data and "bank_account_no" not in data:
+                data["bank_account_no"] = data["bank_account_number"]
+        return data
 
 class BranchResponse(BranchBase):
     id: int
