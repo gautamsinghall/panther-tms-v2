@@ -280,6 +280,8 @@ async def initialize_tenant_schema_and_admin(
             head_office = Branch(
                 code="HQ",
                 name=f"{company_name} (HQ)",
+                city="Headquarters",
+                state="Delhi",
                 is_head_office=True,
                 is_active=True,
             )
@@ -307,6 +309,8 @@ async def initialize_tenant_schema_and_admin(
             comp_setting = CompanySetting(
                 company_name=company_name,
                 email=admin_email,
+                default_issuing_office_id=head_office.id if head_office else None,
+                issuing_office=head_office.name if head_office else None,
             )
             session.add(comp_setting)
 

@@ -149,12 +149,6 @@ export function getApiBaseUrl(): string {
 
   // 1. If explicit environment URL is configured
   if (envUrl && !envUrl.includes("yourdomain.com") && !envUrl.includes("example.com")) {
-    if (envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
-      if (process.env.NEXT_PUBLIC_USE_LOCAL_BACKEND === "true") {
-        return envUrl;
-      }
-      return "https://api.panthertms.com";
-    }
     return envUrl;
   }
 

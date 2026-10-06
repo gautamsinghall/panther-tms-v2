@@ -190,6 +190,7 @@ export default function SignupPage() {
           company_code: companyCode,
           admin_email: adminEmail,
           admin_name: adminName,
+          admin_full_name: adminName,
           admin_password: adminPassword,
           plan_code: selectedPlan,
           billing_cycle: billingCycle.toLowerCase(),
@@ -198,7 +199,13 @@ export default function SignupPage() {
 
       if (!initRes.ok) {
         const errData = await initRes.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to initiate signup.");
+        const errorMsg =
+          (typeof errData.message === "string" && errData.message) ||
+          (typeof errData.detail === "string" && errData.detail) ||
+          (Array.isArray(errData.details) && errData.details.map((d: any) => d.msg || JSON.stringify(d)).join(", ")) ||
+          (Array.isArray(errData.detail) && errData.detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")) ||
+          "Failed to initiate signup.";
+        throw new Error(errorMsg);
       }
 
       const initData = await initRes.json();
@@ -310,6 +317,8 @@ export default function SignupPage() {
           tenant_id: targetTenantId,
           company_code: targetCompanyCode,
           plan_code: planCode,
+          admin_name: adminName,
+          admin_full_name: adminName,
           razorpay_payment_id: paymentId,
           razorpay_subscription_id: subscriptionId,
           razorpay_signature: signature,
@@ -318,7 +327,13 @@ export default function SignupPage() {
 
       if (!compRes.ok) {
         const errData = await compRes.json().catch(() => ({}));
-        throw new Error(errData.detail || "Failed to complete tenant provisioning.");
+        const errorMsg =
+          (typeof errData.message === "string" && errData.message) ||
+          (typeof errData.detail === "string" && errData.detail) ||
+          (Array.isArray(errData.details) && errData.details.map((d: any) => d.msg || JSON.stringify(d)).join(", ")) ||
+          (Array.isArray(errData.detail) && errData.detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")) ||
+          "Failed to complete tenant provisioning.";
+        throw new Error(errorMsg);
       }
 
       setProvisioningStatus("Company workspace ready!");

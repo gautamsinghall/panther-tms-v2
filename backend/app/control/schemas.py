@@ -62,9 +62,19 @@ class SignupInitiateRequest(BaseModel):
     company_code: Optional[str] = Field(None, max_length=100)
     admin_email: EmailStr
     admin_password: str = Field(..., min_length=8)
-    admin_full_name: str = Field(default="Company Admin")
+    admin_full_name: Optional[str] = Field(default="Company Admin")
+    admin_name: Optional[str] = Field(default=None)
     plan_code: str = Field(default="FREE")
     billing_cycle: str = Field(default="monthly", pattern="^(?i)(monthly|yearly)$")
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_admin_name(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            name = data.get("admin_full_name") or data.get("admin_name") or "Company Admin"
+            data["admin_full_name"] = name
+            data["admin_name"] = name
+        return data
 
 
 class SignupInitiateResponse(BaseModel):
@@ -92,6 +102,7 @@ class SignupCompleteRequest(BaseModel):
     admin_email: Optional[EmailStr] = None
     admin_password: Optional[str] = None
     admin_full_name: Optional[str] = None
+    admin_name: Optional[str] = None
     plan_code: Optional[str] = None
 
     @model_validator(mode="before")
@@ -104,6 +115,8 @@ class SignupCompleteRequest(BaseModel):
                 data["payment_id"] = data["razorpay_payment_id"]
             if "razorpay_signature" in data and "signature" not in data:
                 data["signature"] = data["razorpay_signature"]
+            if "admin_name" in data and not data.get("admin_full_name"):
+                data["admin_full_name"] = data["admin_name"]
         return data
 
 
