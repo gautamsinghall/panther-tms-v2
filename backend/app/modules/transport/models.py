@@ -17,6 +17,8 @@ from app.tenant_db.models import (
     TruckHiringNote,
     EWayBill,
     TrackingPing,
+    SIMConsentStatus,
+    SIMTripRecord,
 )
 
 __all__ = [
@@ -26,6 +28,7 @@ __all__ = [
     "PODCondition",
     "PODVerificationStatus",
     "TrackingMode",
+    "SIMConsentStatus",
     "VehicleOwner",
     "Driver",
     "MarketVehicle",
@@ -38,4 +41,5 @@ __all__ = [
     "TruckHiringNote",
     "EWayBill",
     "TrackingPing",
+    "SIMTripRecord",
 ]

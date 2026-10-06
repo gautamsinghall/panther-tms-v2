@@ -114,10 +114,50 @@ async def lifespan(app: FastAPI):
                             "issuing_office VARCHAR(255)", "default_issuing_office_id INTEGER",
                             "ewb_username VARCHAR(100)", "ewb_password VARCHAR(255)", "ewb_gstin VARCHAR(20)",
                             "is_ewb_active BOOLEAN DEFAULT TRUE",
-                            "gsp_client_id_override VARCHAR(255)", "gsp_client_secret_override VARCHAR(255)", "gsp_base_url_override VARCHAR(255)"
+                            "gsp_client_id_override VARCHAR(255)", "gsp_client_secret_override VARCHAR(255)", "gsp_base_url_override VARCHAR(255)",
+                            "ft_base_url VARCHAR(255) DEFAULT 'https://integration.freighttiger.com'",
+                            "ft_auth_token TEXT", "ft_company_id VARCHAR(100)", "is_ft_active BOOLEAN DEFAULT TRUE"
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
                         await t_conn.execute(text("ALTER TABLE company_settings ALTER COLUMN logo_url TYPE TEXT;"))
+
+                        # Freight Tiger SIM Tracking Schema Evolution
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS transport_sim_trips (
+                                id SERIAL PRIMARY KEY,
+                                feed_unique_id VARCHAR(100) UNIQUE NOT NULL,
+                                ft_trip_id BIGINT,
+                                lr_id INTEGER REFERENCES transport_lrs(id),
+                                vehicle_number VARCHAR(20) NOT NULL,
+                                driver_name VARCHAR(150),
+                                driver_phone VARCHAR(20) NOT NULL,
+                                consent_status VARCHAR(50) DEFAULT 'PENDING' NOT NULL,
+                                is_consent_done BOOLEAN DEFAULT FALSE NOT NULL,
+                                status VARCHAR(50) DEFAULT 'Open' NOT NULL,
+                                status_code INTEGER DEFAULT 1 NOT NULL,
+                                share_url TEXT,
+                                last_latitude NUMERIC(9, 6),
+                                last_longitude NUMERIC(9, 6),
+                                last_location_address TEXT,
+                                recorded_at TIMESTAMP WITH TIME ZONE,
+                                eta TIMESTAMP WITH TIME ZONE,
+                                eta_updated_at TIMESTAMP WITH TIME ZONE,
+                                distance_remaining_km NUMERIC(10, 2),
+                                total_distance_km NUMERIC(10, 2),
+                                origin_address TEXT,
+                                destination_address TEXT,
+                                route_code VARCHAR(100),
+                                last_synced_at TIMESTAMP WITH TIME ZONE,
+                                closed_at TIMESTAMP WITH TIME ZONE,
+                                close_comment TEXT,
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_sim_trips_feed_unique_id ON transport_sim_trips (feed_unique_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_sim_trips_vehicle_number ON transport_sim_trips (vehicle_number);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_sim_trips_driver_phone ON transport_sim_trips (driver_phone);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_sim_trips_lr_id ON transport_sim_trips (lr_id);"))
                         await t_conn.execute(text("ALTER TABLE transport_pod_records ALTER COLUMN document_path TYPE TEXT;"))
                         for br_col in [
                             "pan VARCHAR(10)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)",

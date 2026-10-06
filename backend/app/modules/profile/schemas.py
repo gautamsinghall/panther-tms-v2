@@ -210,6 +210,11 @@ class ApiCenterSettingResponse(BaseModel):
     has_gsp_secret_override: bool = False
     platform_gsp_configured: bool = True
     platform_gsp_base_url: str = "https://gsp.adaequare.com"
+    # Freight Tiger SIM Tracking Integration
+    ft_base_url: Optional[str] = "https://integration.freighttiger.com"
+    has_ft_auth_token: bool = False
+    ft_company_id: Optional[str] = None
+    is_ft_active: bool = True
 
 
 class ApiCenterSettingUpdate(BaseModel):
@@ -220,6 +225,10 @@ class ApiCenterSettingUpdate(BaseModel):
     gsp_client_id_override: Optional[str] = None
     gsp_client_secret_override: Optional[str] = None
     gsp_base_url_override: Optional[str] = None
+    ft_base_url: Optional[str] = None
+    ft_auth_token: Optional[str] = None
+    ft_company_id: Optional[str] = None
+    is_ft_active: Optional[bool] = None
 
 
 class ApiCenterTestRequest(BaseModel):

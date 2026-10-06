@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     GSP_CLIENT_ID: Optional[str] = None
     GSP_CLIENT_SECRET: Optional[str] = None
 
+    # Freight Tiger SIM Tracking Integration (PRD §11 / FT Trip APIs)
+    FREIGHT_TIGER_BASE_URL: str = "https://integration.freighttiger.com"
+    FREIGHT_TIGER_AUTH_TOKEN: Optional[str] = None
+    FREIGHT_TIGER_COMPANY_ID: Optional[str] = None
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

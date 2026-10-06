@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime, timezone, date
-from sqlalchemy import Boolean, Column, DateTime, Date, ForeignKey, Integer, Numeric, String, Text, JSON
+from sqlalchemy import Boolean, Column, DateTime, Date, ForeignKey, Integer, BigInteger, Numeric, String, Text, JSON
 from sqlalchemy.orm import relationship
 from app.tenant_db.base import TenantBase
 
@@ -110,6 +110,12 @@ class CompanySetting(TenantBase):
     gsp_client_id_override = Column(String(255), nullable=True)
     gsp_client_secret_override = Column(String(255), nullable=True)
     gsp_base_url_override = Column(String(255), nullable=True)
+
+    # Freight Tiger SIM Tracking Integration (PRD §11 / FT Trip APIs)
+    ft_base_url = Column(String(255), default="https://integration.freighttiger.com", nullable=True)
+    ft_auth_token = Column(Text, nullable=True)
+    ft_company_id = Column(String(100), nullable=True)
+    is_ft_active = Column(Boolean, default=True, nullable=False)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -396,6 +402,12 @@ class TrackingMode(str, enum.Enum):
     SIM = "SIM"
 
 
+class SIMConsentStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+
+
 class VehicleOwner(TenantBase):
     """Vehicle Owner master for market / hired vehicles"""
     __tablename__ = "transport_vehicle_owners"
@@ -674,6 +686,7 @@ class LR(TenantBase):
     billing_customer = relationship("BillingClient", foreign_keys=[billing_customer_id], lazy="selectin")
     load_type_rel = relationship("LoadType", foreign_keys=[load_type_id], lazy="selectin")
     lr_series = relationship("SeriesMaster", foreign_keys=[lr_series_id], lazy="selectin")
+    sim_trips = relationship("SIMTripRecord", back_populates="lr", lazy="selectin")
 
 
 class HireChallan(TenantBase):
@@ -873,6 +886,62 @@ class TrackingPing(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+
+class SIMTripRecord(TenantBase):
+    """
+    Freight Tiger SIM-Based Trip Tracking Record.
+    Manages end-to-end SIM telecom consent, live location pings,
+    ETA, distance remaining, and shareable live tracking URLs.
+    Ref: https://freight-tiger.readme.io/reference and FT Trip APIs Documentation.
+    """
+    __tablename__ = "transport_sim_trips"
+
+    id = Column(Integer, primary_key=True, index=True)
+    feed_unique_id = Column(String(100), unique=True, nullable=False, index=True)
+    ft_trip_id = Column(BigInteger, nullable=True, index=True)
+    lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True, index=True)
+    vehicle_number = Column(String(20), nullable=False, index=True)
+    driver_name = Column(String(150), nullable=True)
+    driver_phone = Column(String(20), nullable=False, index=True)
+
+    # Consent status: PENDING, ACCEPTED, REJECTED
+    consent_status = Column(String(50), default=SIMConsentStatus.PENDING.value, nullable=False)
+    is_consent_done = Column(Boolean, default=False, nullable=False)
+
+    # Trip status: Open / Closed (status_code 1 / 0 per FT schema)
+    status = Column(String(50), default="Open", nullable=False)
+    status_code = Column(Integer, default=1, nullable=False)
+
+    # Telemetry and navigation
+    share_url = Column(Text, nullable=True)
+    last_latitude = Column(Numeric(9, 6), nullable=True)
+    last_longitude = Column(Numeric(9, 6), nullable=True)
+    last_location_address = Column(Text, nullable=True)
+    recorded_at = Column(DateTime(timezone=True), nullable=True)
+
+    eta = Column(DateTime(timezone=True), nullable=True)
+    eta_updated_at = Column(DateTime(timezone=True), nullable=True)
+    distance_remaining_km = Column(Numeric(10, 2), nullable=True)
+    total_distance_km = Column(Numeric(10, 2), nullable=True)
+
+    origin_address = Column(Text, nullable=True)
+    destination_address = Column(Text, nullable=True)
+    route_code = Column(String(100), nullable=True)
+
+    last_synced_at = Column(DateTime(timezone=True), nullable=True)
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+    close_comment = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    lr = relationship("LR", back_populates="sim_trips", lazy="selectin")
 
 
 # ==============================================================================

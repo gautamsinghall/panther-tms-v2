@@ -9,6 +9,7 @@ from app.tenant_db.models import (
     PODCondition,
     PODVerificationStatus,
     TrackingMode,
+    SIMConsentStatus,
 )
 
 # ---------------------------------------------------------------------------
@@ -747,3 +748,64 @@ class TrackingPingResponse(TrackingPingBase):
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+# ---------------------------------------------------------------------------
+# Freight Tiger SIM Tracking Schemas (PRD §11 / FT Trip APIs)
+# ---------------------------------------------------------------------------
+class SIMTripCreate(BaseModel):
+    vehicle_number: str = Field(..., min_length=4, max_length=20)
+    driver_phone: str = Field(..., min_length=10, max_length=15)
+    driver_name: Optional[str] = None
+    lr_id: Optional[int] = None
+    lr_number: Optional[str] = None
+    origin_address: Optional[str] = None
+    origin_lat: Optional[float] = None
+    origin_lng: Optional[float] = None
+    destination_address: Optional[str] = None
+    destination_lat: Optional[float] = None
+    destination_lng: Optional[float] = None
+    route_code: Optional[str] = None
+    share_trip: bool = True
+
+class SIMTripClose(BaseModel):
+    comment: Optional[str] = None
+
+class SIMConsentSimulate(BaseModel):
+    is_consent_done: bool = True
+
+class SIMTripResponse(BaseModel):
+    id: int
+    feed_unique_id: str
+    ft_trip_id: Optional[int] = None
+    lr_id: Optional[int] = None
+    lr_number: Optional[str] = None
+    vehicle_number: str
+    driver_name: Optional[str] = None
+    driver_phone: str
+    consent_status: str
+    is_consent_done: bool
+    status: str
+    status_code: int
+    share_url: Optional[str] = None
+    last_latitude: Optional[Decimal] = None
+    last_longitude: Optional[Decimal] = None
+    last_location_address: Optional[str] = None
+    recorded_at: Optional[datetime] = None
+    eta: Optional[datetime] = None
+    eta_updated_at: Optional[datetime] = None
+    distance_remaining_km: Optional[Decimal] = None
+    total_distance_km: Optional[Decimal] = None
+    origin_address: Optional[str] = None
+    destination_address: Optional[str] = None
+    route_code: Optional[str] = None
+    last_synced_at: Optional[datetime] = None
+    closed_at: Optional[datetime] = None
+    close_comment: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class SIMTrackingSyncResponse(BaseModel):
+    trips_synced: int
+    message: str = "Trips synced successfully"
+

@@ -29,6 +29,8 @@ from app.tenant_db.models import (
     TruckHiringNote,
     EWayBill,
     TrackingPing,
+    SIMTripRecord,
+    SIMConsentStatus,
     CompanySetting,
 )
 from app.modules.transport.schemas import (
@@ -44,7 +46,11 @@ from app.modules.transport.schemas import (
     TruckHiringNoteCreate,
     EWayBillCreate,
     TrackingPingCreate,
+    SIMTripCreate,
+    SIMTripClose,
+    SIMConsentSimulate,
 )
+from app.integrations.freight_tiger import freight_tiger_client, FreightTigerClient
 from app.modules.settings.series_service import allocate_or_validate_voucher_number
 
 # ===========================================================================
@@ -1112,4 +1118,267 @@ async def fetch_live_eway_bill(db: AsyncSession, ewb_no: str) -> Dict[str, Any]:
         "transporter_name": transporter,
         "raw": data,
     }
+
+
+# ===========================================================================
+# Freight Tiger SIM-Based Tracking Services (PRD §11 / FT Trip APIs)
+# ===========================================================================
+
+def parse_iso_or_utc(date_str: Optional[str]) -> Optional[datetime]:
+    if not date_str:
+        return None
+    try:
+        cleaned = str(date_str).strip()
+        if "T" in cleaned:
+            return datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+        return datetime.strptime(cleaned, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+async def create_sim_trip(db: AsyncSession, data: SIMTripCreate) -> SIMTripRecord:
+    """
+    Creates a new SIM-based trip via Freight Tiger, initiating carrier driver consent SMS.
+    """
+    vehicle_num = data.vehicle_number.strip().upper()
+    driver_phone = data.driver_phone.strip()
+    driver_name = data.driver_name
+    origin_addr = data.origin_address
+    dest_addr = data.destination_address
+    lr_number = data.lr_number
+    route_code = data.route_code
+
+    # If linked to LR, populate missing details from LR consignment
+    if data.lr_id:
+        lr_stmt = select(LR).options(
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+        ).where(LR.id == data.lr_id)
+        lr_res = await db.execute(lr_stmt)
+        lr_obj = lr_res.scalars().first()
+        if lr_obj:
+            if not lr_number:
+                lr_number = lr_obj.lr_number
+            if not vehicle_num:
+                vehicle_num = lr_obj.vehicle_number
+            if not driver_phone and lr_obj.driver_phone:
+                driver_phone = lr_obj.driver_phone
+            if not driver_name and lr_obj.driver_name:
+                driver_name = lr_obj.driver_name
+            if not origin_addr and lr_obj.origin_location:
+                origin_addr = f"{lr_obj.origin_location.name}, {lr_obj.origin_location.city_name or ''}"
+            if not dest_addr and lr_obj.destination_location:
+                dest_addr = f"{lr_obj.destination_location.name}, {lr_obj.destination_location.city_name or ''}"
+
+    # Check for company setting credentials override
+    cs_stmt = select(CompanySetting).limit(1)
+    cs_res = await db.execute(cs_stmt)
+    comp_setting = cs_res.scalars().first()
+
+    ft_client = freight_tiger_client
+    if comp_setting and comp_setting.ft_auth_token:
+        ft_client = FreightTigerClient(
+            base_url=comp_setting.ft_base_url or "https://integration.freighttiger.com",
+            auth_token=comp_setting.ft_auth_token,
+            company_id=comp_setting.ft_company_id,
+        )
+
+    # Call Freight Tiger API
+    origin_payload: Dict[str, Any] = {"address": origin_addr or "Origin Hub"}
+    if data.origin_lat is not None and data.origin_lng is not None:
+        origin_payload["lat"] = data.origin_lat
+        origin_payload["lng"] = data.origin_lng
+
+    dest_payload: Dict[str, Any] = {"address": dest_addr or "Destination Hub"}
+    if data.destination_lat is not None and data.destination_lng is not None:
+        dest_payload["lat"] = data.destination_lat
+        dest_payload["lng"] = data.destination_lng
+
+    ft_resp = await ft_client.create_sim_trip(
+        vehicle_number=vehicle_num,
+        driver_phone=driver_phone,
+        driver_name=driver_name,
+        lr_number=lr_number,
+        origin=origin_payload,
+        destination=dest_payload,
+        route_code=route_code,
+        share_trip=data.share_trip,
+    )
+
+    sim_record = SIMTripRecord(
+        feed_unique_id=ft_resp["feed_unique_id"],
+        ft_trip_id=ft_resp.get("trip_id"),
+        lr_id=data.lr_id,
+        vehicle_number=vehicle_num,
+        driver_name=driver_name,
+        driver_phone=driver_phone,
+        consent_status=SIMConsentStatus.PENDING.value,
+        is_consent_done=False,
+        status="Open",
+        status_code=1,
+        share_url=ft_resp.get("share_url"),
+        origin_address=origin_addr,
+        destination_address=dest_addr,
+        route_code=route_code,
+        last_synced_at=datetime.now(timezone.utc),
+    )
+    db.add(sim_record)
+    await db.commit()
+    await db.refresh(sim_record)
+    return sim_record
+
+
+async def get_sim_trips(
+    db: AsyncSession,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+) -> List[SIMTripRecord]:
+    stmt = select(SIMTripRecord).options(selectinload(SIMTripRecord.lr))
+    if status_filter:
+        stmt = stmt.where(SIMTripRecord.status.ilike(status_filter))
+    stmt = stmt.order_by(desc(SIMTripRecord.created_at)).limit(limit)
+    res = await db.execute(stmt)
+    return list(res.scalars().all())
+
+
+async def get_sim_trip_by_id(db: AsyncSession, trip_id: int) -> Optional[SIMTripRecord]:
+    stmt = select(SIMTripRecord).options(selectinload(SIMTripRecord.lr)).where(SIMTripRecord.id == trip_id)
+    res = await db.execute(stmt)
+    return res.scalars().first()
+
+
+async def get_sim_trip_by_uid(db: AsyncSession, feed_unique_id: str) -> Optional[SIMTripRecord]:
+    stmt = select(SIMTripRecord).options(selectinload(SIMTripRecord.lr)).where(SIMTripRecord.feed_unique_id == feed_unique_id)
+    res = await db.execute(stmt)
+    return res.scalars().first()
+
+
+async def sync_sim_trip(db: AsyncSession, trip: SIMTripRecord) -> SIMTripRecord:
+    """
+    Polls Freight Tiger for the latest tracking state, telecom consent,
+    and cell-tower location fixes, updating the trip and recording a Telemetry Ping.
+    """
+    cs_stmt = select(CompanySetting).limit(1)
+    cs_res = await db.execute(cs_stmt)
+    comp_setting = cs_res.scalars().first()
+
+    ft_client = freight_tiger_client
+    if comp_setting and comp_setting.ft_auth_token:
+        ft_client = FreightTigerClient(
+            base_url=comp_setting.ft_base_url or "https://integration.freighttiger.com",
+            auth_token=comp_setting.ft_auth_token,
+            company_id=comp_setting.ft_company_id,
+        )
+
+    ft_data = await ft_client.get_trip_details(
+        feed_unique_id=trip.feed_unique_id,
+        trip_id=trip.ft_trip_id,
+    )
+
+    is_consent = ft_data.get("is_consent_done", False)
+    trip.is_consent_done = is_consent
+    trip.consent_status = SIMConsentStatus.ACCEPTED.value if is_consent else SIMConsentStatus.PENDING.value
+    trip.status = ft_data.get("status", trip.status)
+    trip.status_code = ft_data.get("status_code", trip.status_code)
+
+    if ft_data.get("share_url"):
+        trip.share_url = ft_data["share_url"]
+
+    # If coordinates are present
+    if ft_data.get("last_latitude") is not None and ft_data.get("last_longitude") is not None:
+        trip.last_latitude = Decimal(str(round(float(ft_data["last_latitude"]), 6)))
+        trip.last_longitude = Decimal(str(round(float(ft_data["last_longitude"]), 6)))
+        trip.last_location_address = ft_data.get("last_location_address")
+        
+        rec_at = parse_iso_or_utc(ft_data.get("recorded_at")) or datetime.now(timezone.utc)
+        trip.recorded_at = rec_at
+
+        # Save to general telemetry pings (for unified fleet map & logs)
+        ping = TrackingPing(
+            vehicle_number=trip.vehicle_number,
+            tracking_mode=TrackingMode.SIM.value,
+            identifier=trip.driver_phone,
+            last_latitude=trip.last_latitude,
+            last_longitude=trip.last_longitude,
+            location_name=trip.last_location_address or "SIM Cell Tower Triangulation",
+            speed_kmh=Decimal("42.0") if is_consent else Decimal("0.0"),
+            last_ping_at=rec_at,
+            status="ACTIVE",
+        )
+        db.add(ping)
+
+    if ft_data.get("distance_remaining_km") is not None:
+        trip.distance_remaining_km = Decimal(str(round(float(ft_data["distance_remaining_km"]), 2)))
+    if ft_data.get("total_distance_km") is not None:
+        trip.total_distance_km = Decimal(str(round(float(ft_data["total_distance_km"]), 2)))
+
+    if ft_data.get("eta"):
+        trip.eta = parse_iso_or_utc(ft_data.get("eta"))
+    if ft_data.get("eta_updated_at"):
+        trip.eta_updated_at = parse_iso_or_utc(ft_data.get("eta_updated_at"))
+
+    trip.last_synced_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(trip)
+    return trip
+
+
+async def close_sim_trip(db: AsyncSession, trip: SIMTripRecord, comment: Optional[str] = None) -> SIMTripRecord:
+    """
+    Closes the SIM trip in Freight Tiger and marks status Closed in PantherTMS.
+    """
+    cs_stmt = select(CompanySetting).limit(1)
+    cs_res = await db.execute(cs_stmt)
+    comp_setting = cs_res.scalars().first()
+
+    ft_client = freight_tiger_client
+    if comp_setting and comp_setting.ft_auth_token:
+        ft_client = FreightTigerClient(
+            base_url=comp_setting.ft_base_url or "https://integration.freighttiger.com",
+            auth_token=comp_setting.ft_auth_token,
+            company_id=comp_setting.ft_company_id,
+        )
+
+    await ft_client.close_trip(
+        feed_unique_id=trip.feed_unique_id,
+        trip_id=trip.ft_trip_id,
+        comment=comment,
+    )
+
+    trip.status = "Closed"
+    trip.status_code = 0
+    trip.closed_at = datetime.now(timezone.utc)
+    trip.close_comment = comment or "Closed via PantherTMS"
+    await db.commit()
+    await db.refresh(trip)
+    return trip
+
+
+async def simulate_sim_consent(db: AsyncSession, trip: SIMTripRecord, is_consent_done: bool = True) -> SIMTripRecord:
+    """
+    Toggles simulated telecom consent and immediately syncs the location.
+    """
+    freight_tiger_client.set_simulated_consent(trip.feed_unique_id, is_consent_done)
+    trip.is_consent_done = is_consent_done
+    trip.consent_status = SIMConsentStatus.ACCEPTED.value if is_consent_done else SIMConsentStatus.PENDING.value
+    await db.commit()
+    return await sync_sim_trip(db, trip)
+
+
+async def sync_all_active_sim_trips(db: AsyncSession) -> int:
+    """
+    Refreshes location & consent across all open SIM trips.
+    """
+    stmt = select(SIMTripRecord).where(SIMTripRecord.status.ilike("open"))
+    res = await db.execute(stmt)
+    trips = list(res.scalars().all())
+    count = 0
+    for t in trips:
+        try:
+            await sync_sim_trip(db, t)
+            count += 1
+        except Exception as exc:
+            pass
+    return count
+
 

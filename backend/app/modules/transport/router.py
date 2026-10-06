@@ -22,6 +22,7 @@ from app.modules.transport.schemas import (
     TruckHiringNoteCreate, TruckHiringNoteResponse,
     EWayBillCreate, EWayBillResponse,
     TrackingPingCreate, TrackingPingResponse,
+    SIMTripCreate, SIMTripClose, SIMConsentSimulate, SIMTripResponse, SIMTrackingSyncResponse,
 )
 
 router = APIRouter(prefix="/transport", tags=["Transport"])
@@ -968,3 +969,133 @@ async def record_tracking_ping(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.record_tracking_ping(db, data)
+
+
+# ==============================================================================
+# 13. Freight Tiger SIM-Based Tracking (PRD §11 / FT Trip APIs)
+# ==============================================================================
+
+def _format_sim_trip(t: Any) -> SIMTripResponse:
+    return SIMTripResponse(
+        id=t.id,
+        feed_unique_id=t.feed_unique_id,
+        ft_trip_id=t.ft_trip_id,
+        lr_id=t.lr_id,
+        lr_number=t.lr.lr_number if getattr(t, "lr", None) else None,
+        vehicle_number=t.vehicle_number,
+        driver_name=t.driver_name,
+        driver_phone=t.driver_phone,
+        consent_status=t.consent_status,
+        is_consent_done=t.is_consent_done,
+        status=t.status,
+        status_code=t.status_code,
+        share_url=t.share_url,
+        last_latitude=t.last_latitude,
+        last_longitude=t.last_longitude,
+        last_location_address=t.last_location_address,
+        recorded_at=t.recorded_at,
+        eta=t.eta,
+        eta_updated_at=t.eta_updated_at,
+        distance_remaining_km=t.distance_remaining_km,
+        total_distance_km=t.total_distance_km,
+        origin_address=t.origin_address,
+        destination_address=t.destination_address,
+        route_code=t.route_code,
+        last_synced_at=t.last_synced_at,
+        closed_at=t.closed_at,
+        close_comment=t.close_comment,
+        created_at=t.created_at,
+        updated_at=t.updated_at,
+    )
+
+
+@router.get("/tracking/sim", response_model=List[SIMTripResponse])
+async def list_sim_trips(
+    status_filter: Optional[str] = None,
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Lists all SIM-based trip tracking records."""
+    trips = await service.get_sim_trips(db, status_filter=status_filter)
+    return [_format_sim_trip(t) for t in trips]
+
+
+@router.post("/tracking/sim/start", response_model=SIMTripResponse, status_code=status.HTTP_201_CREATED)
+async def start_sim_tracking(
+    data: SIMTripCreate,
+    current_user: User = Depends(require_permission("transport", "tracking", "create")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Initiates Freight Tiger SIM-based tracking for a vehicle & driver.
+    Queues telecom carrier driver consent SMS.
+    """
+    trip = await service.create_sim_trip(db, data)
+    return _format_sim_trip(trip)
+
+
+@router.get("/tracking/sim/{trip_id}", response_model=SIMTripResponse)
+async def get_sim_trip(
+    trip_id: int,
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    trip = await service.get_sim_trip_by_id(db, trip_id)
+    if not trip:
+        raise NotFoundException("SIM Trip not found")
+    return _format_sim_trip(trip)
+
+
+@router.post("/tracking/sim/{trip_id}/sync", response_model=SIMTripResponse)
+async def sync_sim_trip(
+    trip_id: int,
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Polls Freight Tiger for live GPS/cell-tower coordinates and consent status."""
+    trip = await service.get_sim_trip_by_id(db, trip_id)
+    if not trip:
+        raise NotFoundException("SIM Trip not found")
+    updated_trip = await service.sync_sim_trip(db, trip)
+    return _format_sim_trip(updated_trip)
+
+
+@router.post("/tracking/sim/{trip_id}/close", response_model=SIMTripResponse)
+async def close_sim_trip(
+    trip_id: int,
+    data: SIMTripClose,
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Terminates SIM-based tracking session via Freight Tiger CloseTrip API."""
+    trip = await service.get_sim_trip_by_id(db, trip_id)
+    if not trip:
+        raise NotFoundException("SIM Trip not found")
+    updated_trip = await service.close_sim_trip(db, trip, comment=data.comment)
+    return _format_sim_trip(updated_trip)
+
+
+@router.post("/tracking/sim/{trip_id}/simulate-consent", response_model=SIMTripResponse)
+async def simulate_sim_consent(
+    trip_id: int,
+    data: SIMConsentSimulate,
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Sandbox demonstration endpoint: simulates driver SMS reply accepting telecom consent."""
+    trip = await service.get_sim_trip_by_id(db, trip_id)
+    if not trip:
+        raise NotFoundException("SIM Trip not found")
+    updated_trip = await service.simulate_sim_consent(db, trip, is_consent_done=data.is_consent_done)
+    return _format_sim_trip(updated_trip)
+
+
+@router.post("/tracking/sim/sync-all", response_model=SIMTrackingSyncResponse)
+async def sync_all_sim_trips(
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Polls Freight Tiger for all open line-haul trips."""
+    count = await service.sync_all_active_sim_trips(db)
+    return SIMTrackingSyncResponse(trips_synced=count, message=f"Successfully synced {count} active SIM tracking trips.")
+

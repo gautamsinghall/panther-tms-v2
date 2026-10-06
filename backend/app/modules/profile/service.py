@@ -461,6 +461,10 @@ async def get_api_center_setting(db: AsyncSession) -> ApiCenterSettingResponse:
         has_gsp_secret_override=bool(company.gsp_client_secret_override),
         platform_gsp_configured=bool(settings.GSP_CLIENT_ID and settings.GSP_CLIENT_SECRET),
         platform_gsp_base_url=settings.GSP_BASE_URL,
+        ft_base_url=company.ft_base_url or "https://integration.freighttiger.com",
+        has_ft_auth_token=bool(company.ft_auth_token),
+        ft_company_id=company.ft_company_id,
+        is_ft_active=company.is_ft_active if company.is_ft_active is not None else True,
     )
 
 
@@ -486,6 +490,18 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
             company.gsp_client_secret_override = secret
     if data.gsp_base_url_override is not None:
         company.gsp_base_url_override = data.gsp_base_url_override.strip() if data.gsp_base_url_override else None
+    if data.ft_base_url is not None:
+        company.ft_base_url = data.ft_base_url.strip() if data.ft_base_url else "https://integration.freighttiger.com"
+    if data.ft_auth_token is not None:
+        token = data.ft_auth_token.strip()
+        if token and not token.startswith("••"):
+            company.ft_auth_token = token
+        elif not token:
+            company.ft_auth_token = None
+    if data.ft_company_id is not None:
+        company.ft_company_id = data.ft_company_id.strip() if data.ft_company_id else None
+    if data.is_ft_active is not None:
+        company.is_ft_active = data.is_ft_active
 
     company.updated_at = datetime.now(timezone.utc)
     await db.commit()

@@ -19,6 +19,7 @@ import {
   Layers,
   Sparkles,
   AlertCircle,
+  Smartphone,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -1365,6 +1366,31 @@ export default function LRBookingPage() {
           loadData();
         } catch (err: any) {
           alert(err.message || "Failed to dispatch LR.");
+        }
+      },
+    },
+    {
+      label: "Start SIM Tracking",
+      icon: <Smartphone className="w-3.5 h-3.5 text-indigo-600" />,
+      onClick: async (row) => {
+        if (!row.vehicle_number || !row.driver_phone) {
+          alert(`LR #${row.lr_number} requires vehicle number and driver mobile phone to start SIM tracking.`);
+          return;
+        }
+        try {
+          await apiClient("/api/v1/transport/tracking/sim/start", {
+            method: "POST",
+            body: JSON.stringify({
+              lr_id: row.id,
+              lr_number: row.lr_number,
+              vehicle_number: row.vehicle_number,
+              driver_phone: row.driver_phone,
+              driver_name: row.driver_name,
+            }),
+          });
+          router.push("/transport/tracking");
+        } catch (err: any) {
+          alert(err.message || "Failed to start SIM tracking.");
         }
       },
     },
