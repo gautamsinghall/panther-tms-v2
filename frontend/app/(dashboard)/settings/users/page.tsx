@@ -73,14 +73,22 @@ export default function UsersPage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [usersData, rolesData, branchesData] = await Promise.all([
+      const [usersRes, rolesRes, branchesRes] = await Promise.allSettled([
         apiClient<UserRecord[]>("/api/v1/settings/users"),
         apiClient<RoleOption[]>("/api/v1/settings/roles"),
         apiClient<BranchOption[]>("/api/v1/profile/branches"),
       ]);
-      setUsers(usersData);
-      setRoles(rolesData);
-      setBranches(branchesData);
+      if (usersRes.status === "fulfilled") {
+        setUsers(usersRes.value);
+      } else {
+        setErrorMessage(usersRes.reason?.message || "Failed to load users.");
+      }
+      if (rolesRes.status === "fulfilled") {
+        setRoles(rolesRes.value);
+      }
+      if (branchesRes.status === "fulfilled") {
+        setBranches(branchesRes.value);
+      }
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load users, roles, or issuing offices.");
     } finally {
@@ -291,9 +299,11 @@ export default function UsersPage() {
             </Badge>
           );
         }
+        const matchedRole = roles.find((r) => r.id === row.role_id);
+        const displayName = row.role_name || matchedRole?.name || "Employee";
         return (
           <Badge variant="neutral" className="font-medium text-xs">
-            {row.role_name || "Employee"}
+            {displayName}
           </Badge>
         );
       },
@@ -427,7 +437,7 @@ export default function UsersPage() {
         title="User & Staff Management"
         description="Manage company employees, their role permissions, and assigned issuing offices."
         breadcrumbs={[
-          { label: "Settings" },
+          { label: "Company Settings" },
           { label: "User Management" },
         ]}
         primaryAction={{
@@ -450,7 +460,6 @@ export default function UsersPage() {
         isLoading={isLoading}
         actions={actions}
         searchPlaceholder="Search by name, email, or role..."
-        searchColumn="full_name"
         emptyMessage="No employees registered"
         emptySubtext="Add an employee to configure staff access and office assignments."
         emptyAction={{ label: "Add Employee", onClick: openCreateDrawer }}
@@ -529,11 +538,13 @@ export default function UsersPage() {
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
               >
                 <option value="admin">Company Admin (Full Universal Access)</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={String(r.id)}>
-                    {r.name} {r.description ? `— ${r.description}` : ""}
-                  </option>
-                ))}
+                {roles
+                  .filter((r) => r.name.toLowerCase() !== "company admin" && r.name.toLowerCase() !== "admin")
+                  .map((r) => (
+                    <option key={r.id} value={String(r.id)}>
+                      {r.name} {r.description ? `— ${r.description}` : ""}
+                    </option>
+                  ))}
               </select>
               <span className="text-[11px] text-slate-400 mt-1 block">
                 Determines which modules, buttons, and permissions the user has.

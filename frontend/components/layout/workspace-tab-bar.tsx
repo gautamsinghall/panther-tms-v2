@@ -130,6 +130,13 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/statements/tds-return": { title: "TDS Return", icon: Calculator },
   "/statements/opening-balance": { title: "Opening Balance Details", icon: Calculator },
 
+  // Company Settings
+  "/company/details": { title: "Company Details", icon: Building2 },
+  "/company/branches": { title: "Issuing Offices", icon: Building2 },
+  "/company/users": { title: "User Management", icon: UserCog },
+  "/company/roles": { title: "Roles & Permissions", icon: ShieldCheck },
+  "/company/api-center": { title: "API Center", icon: Sliders },
+
   // Settings
   "/settings/users": { title: "User Management", icon: UserCog },
   "/settings/roles": { title: "Roles & Permissions", icon: ShieldCheck },

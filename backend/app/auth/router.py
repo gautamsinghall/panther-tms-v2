@@ -157,6 +157,8 @@ ALL_NAVIGATION_MODULES = [
         "items": [
             {"feature": "company_details", "title": "Company Details", "href": "/company/details"},
             {"feature": "branch", "title": "Issuing Offices / Branches", "href": "/company/branches"},
+            {"feature": "users", "title": "User Management", "href": "/company/users"},
+            {"feature": "roles", "title": "Roles & Permissions", "href": "/company/roles"},
             {"feature": "api_center", "title": "API Center", "href": "/company/api-center"},
         ],
     },
@@ -164,8 +166,6 @@ ALL_NAVIGATION_MODULES = [
         "id": "settings",
         "title": "Settings",
         "items": [
-            {"feature": "users", "title": "User Management", "href": "/settings/users"},
-            {"feature": "roles", "title": "Roles & Permissions", "href": "/settings/roles"},
             {"feature": "series_master", "title": "Series Master", "href": "/settings/series-master"},
             {"feature": "admin_setting", "title": "Admin Setting", "href": "/settings/admin"},
             {"feature": "activity", "title": "User Activity Log", "href": "/settings/activity"},
@@ -336,13 +336,14 @@ async def get_user_navigation(
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
             elif mod["id"] == "company":
-                # Employees can access company settings if they have company or branch permissions
+                # Employees can access company settings if they have company, branch, users, or roles permissions
                 allowed_items = [
                     map_item(it) for it in mod["items"]
                     if (mod["id"], it["feature"]) in allowed_features
                     or (it["feature"] == "company_details" and ("profile", "company") in allowed_features)
                     or (it["feature"] == "branch" and ("profile", "branch") in allowed_features)
                     or (it["feature"] == "api_center" and (("profile", "company") in allowed_features or ("company", "api_center") in allowed_features))
+                    or (it["feature"] in ("users", "roles") and (("settings", it["feature"]) in allowed_features or ("company", it["feature"]) in allowed_features))
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})

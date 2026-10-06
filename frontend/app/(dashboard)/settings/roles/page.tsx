@@ -169,14 +169,14 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
     features: [
       { id: "company_details", label: "Company Details" },
       { id: "branch", label: "Issuing Offices / Branches" },
+      { id: "users", label: "Employee & User Management" },
+      { id: "roles", label: "Roles & Permissions Management" },
     ],
   },
   {
     id: "settings",
     title: "Settings & System Admin",
     features: [
-      { id: "users", label: "Employee & User Management" },
-      { id: "roles", label: "Roles & Permissions Management" },
       { id: "series_master", label: "Series Master" },
       { id: "admin_setting", label: "Admin Setting" },
       { id: "activity", label: "User Activity Log" },
@@ -238,6 +238,13 @@ export default function RolesPage() {
       role.permissions.forEach((p) => {
         if (p.is_allowed) {
           mapping[`${p.module}:${p.feature}:${p.permission}`] = true;
+          // Synchronize between company and settings for users & roles so either one displays checked
+          if (p.module === "settings" && (p.feature === "users" || p.feature === "roles")) {
+            mapping[`company:${p.feature}:${p.permission}`] = true;
+          }
+          if (p.module === "company" && (p.feature === "users" || p.feature === "roles")) {
+            mapping[`settings:${p.feature}:${p.permission}`] = true;
+          }
         }
       });
     }
@@ -298,6 +305,15 @@ export default function RolesPage() {
             permission,
             is_allowed: true,
           });
+          // If permission is under company for users/roles, also add settings entry for backward compatibility
+          if (module === "company" && (feature === "users" || feature === "roles")) {
+            permissions.push({
+              module: "settings",
+              feature,
+              permission,
+              is_allowed: true,
+            });
+          }
         }
       });
 
@@ -355,7 +371,7 @@ export default function RolesPage() {
         title="Roles & Permissions Matrix"
         description="Configure custom roles with view, create, edit, delete, and approve permissions."
         breadcrumbs={[
-          { label: "Settings" },
+          { label: "Company Settings" },
           { label: "Roles & Permissions" },
         ]}
         actions={

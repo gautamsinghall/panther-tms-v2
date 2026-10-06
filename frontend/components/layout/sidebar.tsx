@@ -258,6 +258,8 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     items: [
       { feature: "company_details", title: "Company Details", href: "/company/details" },
       { feature: "branch", title: "Issuing Offices / Branches", href: "/company/branches" },
+      { feature: "users", title: "User Management", href: "/company/users" },
+      { feature: "roles", title: "Roles & Permissions", href: "/company/roles" },
       { feature: "api_center", title: "API Center", href: "/company/api-center" },
     ],
   },
@@ -265,8 +267,6 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     id: "settings",
     title: "Settings",
     items: [
-      { feature: "users", title: "User Management", href: "/settings/users" },
-      { feature: "roles", title: "Roles & Permissions", href: "/settings/roles" },
       { feature: "series_master", title: "Series Master", href: "/settings/series-master" },
       { feature: "admin_setting", title: "Admin Setting", href: "/settings/admin" },
       { feature: "activity", title: "User Activity Log", href: "/settings/activity" },
@@ -399,6 +399,8 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   // Company Settings
   "/company/details": Building2,
   "/company/branches": Network,
+  "/company/users": UserCog,
+  "/company/roles": ShieldCheck,
   "/company/api-center": KeyRound,
 
   // Settings

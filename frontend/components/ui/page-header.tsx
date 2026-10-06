@@ -46,9 +46,9 @@ const MODULE_TITLES: Record<string, { label: string; defaultHref: string }> = {
   reports: { label: "Financial Reports", defaultHref: "/reports/daybook" },
   statements: { label: "Statements", defaultHref: "/statements/gst-output" },
   fleet: { label: "Fleet Management", defaultHref: "/fleet/trip-expense" },
-  settings: { label: "Settings", defaultHref: "/settings/users" },
+  settings: { label: "Settings", defaultHref: "/settings/series-master" },
   general: { label: "General", defaultHref: "/general/billing-client" },
-  company: { label: "Company", defaultHref: "/company/details" },
+  company: { label: "Company Settings", defaultHref: "/company/details" },
   profile: { label: "Profile", defaultHref: "/profile/account" },
 };
 

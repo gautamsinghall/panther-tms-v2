@@ -225,13 +225,13 @@ const COMMAND_ITEMS: CommandItem[] = [
     keywords: ["ledger", "statement", "account", "balance"],
   },
 
-  // Settings & Security
+  // Company Settings & Team
   {
     id: "users",
     title: "User Management",
     description: "Employee logins, operator access, and account credentials",
-    category: "Settings",
-    href: "/settings/users",
+    category: "Company Settings",
+    href: "/company/users",
     icon: <Users className="w-4 h-4 text-[#667085]" />,
     keywords: ["user", "employee", "login", "password", "staff"],
   },
@@ -239,8 +239,8 @@ const COMMAND_ITEMS: CommandItem[] = [
     id: "roles",
     title: "Roles & Permissions Matrix",
     description: "Granular access rights across operations and accounts",
-    category: "Settings",
-    href: "/settings/roles",
+    category: "Company Settings",
+    href: "/company/roles",
     icon: <Shield className="w-4 h-4 text-[#667085]" />,
     keywords: ["role", "permission", "security", "rbac", "access"],
   },
