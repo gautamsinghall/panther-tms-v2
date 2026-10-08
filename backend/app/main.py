@@ -30,30 +30,37 @@ async def lifespan(app: FastAPI):
     # Startup: Ensure control-plane tables exist and plans are seeded
     try:
         async with control_engine.begin() as conn:
-            await conn.run_sync(ControlBase.metadata.create_all)
             from sqlalchemy import text
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS company_code VARCHAR(100);"))
-            await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_tenant_id ON tenants(tenant_id);"))
-            await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_company_code ON tenants(company_code);"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(100);"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
-            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS fastag_credits_left INTEGER DEFAULT 0;"))
-            # Only initialize to 0 if NULL (new or uninitialized column); never overwrite existing/recharged credits on re-runs
-            await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
-            # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
-            await conn.execute(text("DROP TABLE IF EXISTS fastag_wallet_transactions;"))
-            # Backfill existing records if any
-            await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (company_name ILIKE '%demo%');"))
-            await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (company_name ILIKE '%demo%');"))
-            await conn.execute(text("UPDATE tenants SET tenant_id = SUBSTRING(MD5(id::text || clock_timestamp()::text) FROM 1 FOR 10) WHERE tenant_id IS NULL OR tenant_id = '';"))
-            await conn.execute(text("UPDATE tenants SET company_code = UPPER(REGEXP_REPLACE(company_name, '[^a-zA-Z]', '', 'g')) WHERE company_code IS NULL OR company_code = '';"))
-            # Ensure db_name is panther_tenant_companycode
-            await conn.execute(text("UPDATE tenants SET db_name = 'panther_tenant_' || LOWER(company_code) WHERE company_code IS NOT NULL AND company_code != '';"))
+            ctrl_lock = await conn.execute(text("SELECT pg_try_advisory_xact_lock(91827364);"))
+            has_ctrl_lock = ctrl_lock.scalar()
+            if has_ctrl_lock:
+                try:
+                    await conn.run_sync(ControlBase.metadata.create_all)
+                except Exception as ca_err:
+                    if "pg_type_typname_nsp_index" not in str(ca_err) and "already exists" not in str(ca_err):
+                        raise
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(10);"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS company_code VARCHAR(100);"))
+                await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_tenant_id ON tenants(tenant_id);"))
+                await conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_company_code ON tenants(company_code);"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(100);"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS fastag_credits_left INTEGER DEFAULT 0;"))
+                # Only initialize to 0 if NULL (new or uninitialized column); never overwrite existing/recharged credits on re-runs
+                await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
+                # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
+                await conn.execute(text("DROP TABLE IF EXISTS fastag_wallet_transactions;"))
+                # Backfill existing records if any
+                await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (company_name ILIKE '%demo%');"))
+                await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (company_name ILIKE '%demo%');"))
+                await conn.execute(text("UPDATE tenants SET tenant_id = SUBSTRING(MD5(id::text || clock_timestamp()::text) FROM 1 FOR 10) WHERE tenant_id IS NULL OR tenant_id = '';"))
+                await conn.execute(text("UPDATE tenants SET company_code = UPPER(REGEXP_REPLACE(company_name, '[^a-zA-Z]', '', 'g')) WHERE company_code IS NULL OR company_code = '';"))
+                # Ensure db_name is panther_tenant_companycode
+                await conn.execute(text("UPDATE tenants SET db_name = 'panther_tenant_' || LOWER(company_code) WHERE company_code IS NOT NULL AND company_code != '';"))
 
         async with ControlSessionLocal() as session:
             await seed_plans_and_entitlements(session)
@@ -91,7 +98,18 @@ async def lifespan(app: FastAPI):
                 try:
                     t_engine = get_tenant_engine(t_db)
                     async with t_engine.begin() as t_conn:
-                        await t_conn.run_sync(TenantBase.metadata.create_all)
+                        # Transaction advisory lock prevents concurrent worker DDL collisions (UniqueViolationError in pg_type)
+                        t_lock = await t_conn.execute(text("SELECT pg_try_advisory_xact_lock(84729104);"))
+                        if not t_lock.scalar():
+                            # Another worker process is actively running migrations on this tenant database
+                            continue
+
+                        try:
+                            await t_conn.run_sync(TenantBase.metadata.create_all)
+                        except Exception as ca_err:
+                            if "pg_type_typname_nsp_index" not in str(ca_err) and "already exists" not in str(ca_err):
+                                raise
+
                         await t_conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consignees ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
