@@ -354,18 +354,14 @@ export function FastagMap({
         }
       };
 
-      // 2. Resolve Google Maps key: check localStorage, NEXT_PUBLIC env, or backend /config
-      let key =
-        localStorage.getItem("fastag_gmap_key") ||
-        process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-        "";
+      // 2. Resolve Google Maps key: check NEXT_PUBLIC env or backend /config
+      let key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
       if (!key) {
         try {
           const cfg = await apiClient<{ google_maps_api_key?: string }>("/api/v1/transport/tracking/fastag/config");
           if (cfg?.google_maps_api_key) {
             key = cfg.google_maps_api_key;
-            localStorage.setItem("fastag_gmap_key", key);
           }
         } catch (e) {
           // If backend fetch fails, fall back to Leaflet
@@ -393,7 +389,7 @@ export function FastagMap({
           script.id = "google-maps-js";
           script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
             key.trim()
-          )}&libraries=places,geometry&callback=initGoogleMapsCallback`;
+          )}&libraries=places,geometry&loading=async&callback=initGoogleMapsCallback`;
           script.async = true;
           script.onerror = () => {
             console.warn("Failed loading Google Maps script. Falling back to Leaflet.");
