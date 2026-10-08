@@ -190,6 +190,25 @@ class TestFASTagTracking(unittest.TestCase):
         self.assertEqual(len(resp.transactions), 1)
         self.assertEqual(resp.transactions[0].transaction_type, "DEBIT")
 
+    def test_wallet_transaction_model_isolated_in_tenant_db(self):
+        import app.control.models as control_models
+        from app.tenant_db.models import FastagWalletTransaction, TenantBase
+
+        # FastagWalletTransaction must NOT exist in control models
+        self.assertFalse(hasattr(control_models, "FastagWalletTransaction"))
+
+        # FastagWalletTransaction must be in tenant DB models
+        self.assertTrue(issubclass(FastagWalletTransaction, TenantBase))
+        self.assertEqual(FastagWalletTransaction.__tablename__, "fastag_wallet_transactions")
+
+    def test_tenant_model_fastag_credits_default_zero(self):
+        from app.control.models import Tenant
+
+        # fastag_credits_left must be defined on Tenant with default 0
+        self.assertTrue(hasattr(Tenant, "fastag_credits_left"))
+        col = Tenant.__table__.columns["fastag_credits_left"]
+        self.assertEqual(col.default.arg, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

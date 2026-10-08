@@ -43,24 +43,10 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS fastag_credits_left INTEGER DEFAULT 0;"))
+            # Only initialize to 0 if NULL (new or uninitialized column); never overwrite existing/recharged credits on re-runs
             await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
-            await conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS fastag_wallet_transactions (
-                    id SERIAL PRIMARY KEY,
-                    tenant_id VARCHAR(10) NOT NULL,
-                    company_code VARCHAR(100) NOT NULL,
-                    transaction_type VARCHAR(20) NOT NULL,
-                    api_calls_count INTEGER NOT NULL DEFAULT 1,
-                    rate_per_call NUMERIC(10, 2) NOT NULL DEFAULT 1.50,
-                    amount NUMERIC(10, 2) NOT NULL DEFAULT 1.50,
-                    vehicle_number VARCHAR(30),
-                    description VARCHAR(255) NOT NULL,
-                    balance_after INTEGER NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                );
-            """))
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_tenant_id ON fastag_wallet_transactions(tenant_id);"))
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_created_at ON fastag_wallet_transactions(created_at);"))
+            # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
+            await conn.execute(text("DROP TABLE IF EXISTS fastag_wallet_transactions;"))
             # Backfill existing records if any
             await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (company_name ILIKE '%demo%');"))
             await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (company_name ILIKE '%demo%');"))
@@ -184,6 +170,23 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE profile_branches ADD COLUMN IF NOT EXISTS {br_col};"))
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+
+                        # FASTag Wallet Transactions Table (Isolated in Tenant DB)
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS fastag_wallet_transactions (
+                                id SERIAL PRIMARY KEY,
+                                transaction_type VARCHAR(20) NOT NULL,
+                                api_calls_count INTEGER NOT NULL DEFAULT 1,
+                                rate_per_call NUMERIC(10, 2) NOT NULL DEFAULT 1.50,
+                                amount NUMERIC(10, 2) NOT NULL DEFAULT 1.50,
+                                vehicle_number VARCHAR(30),
+                                description VARCHAR(255) NOT NULL,
+                                balance_after INTEGER NOT NULL,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_created_at ON fastag_wallet_transactions(created_at);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_vehicle ON fastag_wallet_transactions(vehicle_number);"))
                         
                         # Issuing Office Schema Evolution & Backfill
                         for office_col_tbl in [

@@ -232,11 +232,16 @@ async def test_ewb(
 @router.get(
     "/api-center/fastag-wallet",
     response_model=FastagWalletResponse,
-    summary="Get FASTag & Toll Telemetry wallet balance and transaction ledger (panther_control)"
+    summary="Get FASTag & Toll Telemetry wallet balance and transaction ledger"
 )
 async def get_fastag_wallet(
     current_admin: User = Depends(get_current_company_admin),
     tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_fastag_wallet_info(tenant.tenant_id, tenant.company_code)
+    return await service.get_fastag_wallet_info(
+        tenant_db=db,
+        tenant_id=tenant.tenant_id,
+        company_code=tenant.company_code,
+    )
 

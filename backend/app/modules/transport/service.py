@@ -1402,13 +1402,15 @@ fastag_client = FASTagProviderClient()
 
 
 async def check_and_deduct_fastag_credit(
-    tenant_id: Optional[str],
-    company_code: Optional[str],
-    vehicle_number: str,
+    tenant_db: Optional[AsyncSession] = None,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+    vehicle_number: Optional[str] = None,
 ) -> Tuple[bool, int, str]:
     """
     Checks if tenant has at least 1 credit remaining in panther_control database.
-    If credits > 0, debits 1 call, creates FastagWalletTransaction, and returns (True, remaining, "").
+    If credits > 0, debits 1 call in panther_control, creates FastagWalletTransaction
+    strictly in the tenant-specific database, and returns (True, remaining, "").
     If credits <= 0, returns (False, 0, "FASTag API credits exhausted (0 calls remaining)...").
     Tariff is strictly Rs. 1.50 per vehicle fetch.
     """
@@ -1416,8 +1418,9 @@ async def check_and_deduct_fastag_credit(
         # If no tenant context provided (e.g. testing / fallback), allow pass
         return True, 999, ""
 
-    from app.core.database import ControlSessionLocal
-    from app.control.models import Tenant as ControlTenant, FastagWalletTransaction
+    from app.core.database import ControlSessionLocal, get_tenant_session_maker
+    from app.control.models import Tenant as ControlTenant
+    from app.tenant_db.models import FastagWalletTransaction
     from sqlalchemy import select, or_
 
     try:
@@ -1440,22 +1443,40 @@ async def check_and_deduct_fastag_credit(
 
             tenant_obj.fastag_credits_left = current_credits - 1
             new_balance = tenant_obj.fastag_credits_left
-
-            tx = FastagWalletTransaction(
-                tenant_id=tenant_obj.tenant_id,
-                company_code=tenant_obj.company_code,
-                transaction_type="DEBIT",
-                api_calls_count=1,
-                rate_per_call=Decimal("1.50"),
-                amount=Decimal("1.50"),
-                vehicle_number=vehicle_number,
-                description=f"FASTag Live Telemetry Fetch for {vehicle_number}",
-                balance_after=new_balance,
-                created_at=datetime.now(timezone.utc),
-            )
-            session.add(tx)
+            target_company_code = tenant_obj.company_code or company_code
             await session.commit()
-            return True, new_balance, ""
+
+        # Record audit transaction strictly in tenant-specific database (NEVER in panther_control)
+        tx_data = {
+            "transaction_type": "DEBIT",
+            "api_calls_count": 1,
+            "rate_per_call": Decimal("1.50"),
+            "amount": Decimal("1.50"),
+            "vehicle_number": vehicle_number,
+            "description": f"FASTag Live Telemetry Fetch for {vehicle_number}",
+            "balance_after": new_balance,
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        if tenant_db:
+            try:
+                tx = FastagWalletTransaction(**tx_data)
+                tenant_db.add(tx)
+                await tenant_db.commit()
+            except Exception as tx_err:
+                logger.warning(f"Could not record fastag transaction in tenant DB session: {tx_err}")
+        elif target_company_code:
+            try:
+                resolved_db_name = f"panther_tenant_{target_company_code.lower()}"
+                t_session_maker = get_tenant_session_maker(resolved_db_name)
+                async with t_session_maker() as t_session:
+                    tx = FastagWalletTransaction(**tx_data)
+                    t_session.add(tx)
+                    await t_session.commit()
+            except Exception as tx_err:
+                logger.warning(f"Could not record fastag transaction in isolated tenant DB: {tx_err}")
+
+        return True, new_balance, ""
     except Exception as e:
         return False, 0, f"FASTag credit check error: {str(e)}"
 
@@ -1502,8 +1523,9 @@ async def track_fastag_vehicle(
 
     # 2. Call Live FASTag API if cooldown passed or forced
     if should_call_api:
-        # Check credit balance in panther_control
+        # Check credit balance in panther_control and record transaction in tenant DB
         has_credit, remaining, credit_err = await check_and_deduct_fastag_credit(
+            tenant_db=db,
             tenant_id=tenant_id,
             company_code=company_code,
             vehicle_number=clean_vehicle,

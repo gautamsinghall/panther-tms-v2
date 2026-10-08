@@ -638,56 +638,73 @@ async def test_ewb_connection(db: AsyncSession, req: ApiCenterTestRequest) -> Ap
         )
 
 
-async def get_fastag_wallet_info(tenant_id: str, company_code: str) -> FastagWalletResponse:
-    from app.core.database import ControlSessionLocal
-    from app.control.models import Tenant as ControlTenant, FastagWalletTransaction
+async def get_fastag_wallet_info(
+    tenant_db: Optional[AsyncSession] = None,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> FastagWalletResponse:
+    from app.core.database import ControlSessionLocal, get_tenant_session_maker
+    from app.control.models import Tenant as ControlTenant
+    from app.tenant_db.models import FastagWalletTransaction
     from sqlalchemy import select, or_, desc
 
-    async with ControlSessionLocal() as session:
-        stmt = select(ControlTenant).where(
-            or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
-        )
-        res = await session.execute(stmt)
-        tenant_obj = res.scalar_one_or_none()
-
-        credits_left = int(tenant_obj.fastag_credits_left or 0) if tenant_obj else 0
-        tid = tenant_obj.tenant_id if tenant_obj else tenant_id
-
-        tx_stmt = (
-            select(FastagWalletTransaction)
-            .where(
-                or_(
-                    FastagWalletTransaction.tenant_id == tid,
-                    FastagWalletTransaction.company_code == company_code,
-                )
+    # 1. Fetch credits_left from panther_control database
+    credits_left = 0
+    resolved_company_code = company_code
+    try:
+        async with ControlSessionLocal() as session:
+            stmt = select(ControlTenant).where(
+                or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
             )
-            .order_by(desc(FastagWalletTransaction.id))
-            .limit(100)
-        )
-        tx_res = await session.execute(tx_stmt)
-        tx_objs = tx_res.scalars().all()
+            res = await session.execute(stmt)
+            tenant_obj = res.scalar_one_or_none()
+            if tenant_obj:
+                credits_left = int(tenant_obj.fastag_credits_left or 0)
+                if not resolved_company_code:
+                    resolved_company_code = tenant_obj.company_code
+    except Exception as e:
+        logger.warning(f"Error fetching fastag_credits_left from panther_control: {e}")
+        credits_left = 0
 
-        transactions = [
-            FastagWalletTransactionItem(
-                id=tx.id,
-                created_at=tx.created_at,
-                transaction_type=tx.transaction_type,
-                api_calls_count=tx.api_calls_count,
-                rate_per_call=float(tx.rate_per_call),
-                amount=float(tx.amount),
-                vehicle_number=tx.vehicle_number,
-                description=tx.description,
-                balance_after=tx.balance_after,
-            )
-            for tx in tx_objs
-        ]
+    # 2. Fetch transaction ledger strictly from tenant-specific database (NEVER from panther_control)
+    tx_objs = []
+    try:
+        if tenant_db:
+            tx_stmt = select(FastagWalletTransaction).order_by(desc(FastagWalletTransaction.id)).limit(100)
+            tx_res = await tenant_db.execute(tx_stmt)
+            tx_objs = tx_res.scalars().all()
+        elif resolved_company_code:
+            resolved_db_name = f"panther_tenant_{resolved_company_code.lower()}"
+            t_session_maker = get_tenant_session_maker(resolved_db_name)
+            async with t_session_maker() as t_session:
+                tx_stmt = select(FastagWalletTransaction).order_by(desc(FastagWalletTransaction.id)).limit(100)
+                tx_res = await t_session.execute(tx_stmt)
+                tx_objs = tx_res.scalars().all()
+    except Exception as tx_err:
+        logger.warning(f"Error fetching fastag transactions from tenant DB: {tx_err}")
+        tx_objs = []
 
-        return FastagWalletResponse(
-            api_calls_left=credits_left,
-            rate_per_fetch=1.50,
-            equivalent_balance_inr=round(float(credits_left * 1.50), 2),
-            is_exhausted=(credits_left <= 0),
-            pricing_notice="Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator.",
-            transactions=transactions,
+    transactions = [
+        FastagWalletTransactionItem(
+            id=tx.id,
+            created_at=tx.created_at,
+            transaction_type=tx.transaction_type,
+            api_calls_count=tx.api_calls_count,
+            rate_per_call=float(tx.rate_per_call),
+            amount=float(tx.amount),
+            vehicle_number=tx.vehicle_number,
+            description=tx.description,
+            balance_after=tx.balance_after,
         )
+        for tx in tx_objs
+    ]
+
+    return FastagWalletResponse(
+        api_calls_left=credits_left,
+        rate_per_fetch=1.50,
+        equivalent_balance_inr=round(float(credits_left * 1.50), 2),
+        is_exhausted=(credits_left <= 0),
+        pricing_notice="Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator.",
+        transactions=transactions,
+    )
 

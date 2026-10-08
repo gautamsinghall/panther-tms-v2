@@ -375,6 +375,7 @@ async def provision_tenant(
         status="ACTIVE",
         plan_id=plan.id,
         admin_email=str(data.admin_email).lower().strip(),
+        fastag_credits_left=0,
     )
     control_session.add(tenant)
     await control_session.commit()
@@ -477,6 +478,7 @@ async def initiate_signup(
         admin_email=str(data.admin_email).lower().strip(),
         subscription_id=sub["id"],
         subscription_status="CREATED",
+        fastag_credits_left=0,
     )
     control_session.add(tenant)
     await control_session.commit()
