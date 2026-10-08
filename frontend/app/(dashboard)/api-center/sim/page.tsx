@@ -6,16 +6,12 @@ import {
   Radio,
   Signal,
   Zap,
-  Copy,
-  Check,
   ArrowRight,
   RefreshCw,
   Wallet,
   Receipt,
   Lock,
   Search,
-  Database,
-  Info,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -59,13 +55,6 @@ export default function SimApiPage() {
   });
   const [isWalletLoading, setIsWalletLoading] = useState(true);
   const [walletTxFilter, setWalletTxFilter] = useState<string>("");
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
-  const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
 
   const fetchWallet = async () => {
     try {
@@ -175,7 +164,7 @@ export default function SimApiPage() {
                 : "Exhausted (Contact Admin)"}
             </span>
             <span className="text-[10px] font-mono text-slate-400">
-              panther_control Default: ₹0.00
+              System Administered
             </span>
           </div>
         </div>
@@ -241,37 +230,6 @@ export default function SimApiPage() {
         </div>
       </div>
 
-      {/* Database Administrator Balance Management Notice */}
-      <Card className="p-5 rounded-2xl border border-slate-200/90 shadow-2xs bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs shrink-0">
-              <Database className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900">
-                  Database-Managed Wallet Allocation
-                </h3>
-                <Badge variant="neutral" className="text-[10px] bg-slate-100 text-slate-700">
-                  Database Direct
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                SIM Tracking Wallet balance is maintained directly in the <code className="font-mono text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">panther_control</code> database by the system administrator. Deductions occur automatically upon trip dispatch and when trips exceed 24 hours.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2 max-w-md">
-            <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <p className="leading-relaxed text-[11px]">
-              {walletData.pricing_notice}
-            </p>
-          </div>
-        </div>
-      </Card>
-
       {/* Main Ledger Card */}
       <Card className="p-6 rounded-2xl border border-slate-200 shadow-xs bg-white space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
@@ -287,6 +245,13 @@ export default function SimApiPage() {
                 Full immutable audit trail of ₹8.50/trip/24h debits recorded in the tenant database.
               </p>
             </div>
+          </div>
+
+          <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-xl text-xs text-amber-900 flex items-start gap-2 max-w-md">
+            <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="leading-relaxed text-[11px]">
+              Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Wallet balance is maintained directly in database by system administrator.
+            </p>
           </div>
         </div>
 
@@ -424,7 +389,7 @@ export default function SimApiPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
             <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">
               ₹8.50
@@ -453,51 +418,6 @@ export default function SimApiPage() {
             <p className="text-xs text-slate-500 leading-relaxed">
               If an active trip exceeds 24 hours, the system charges an additional ₹8.50 for the next 24-hour tracking cycle.
             </p>
-          </div>
-
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
-            <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center font-mono">
-              DB
-            </div>
-            <h4 className="text-xs font-bold text-slate-800">DB Administration</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Default SIM wallet balance in panther_control is ₹0.00. Balances are added directly from the database by system administrators.
-            </p>
-          </div>
-        </div>
-
-        {/* Webhook Endpoints */}
-        <div className="space-y-3 pt-2">
-          <h3 className="text-sm font-bold text-slate-900">
-            Telecom Inbound Webhook Callback
-          </h3>
-          <p className="text-xs text-slate-500">
-            Registered with telecom partners for real-time consent grant notifications and telemetry fix packets.
-          </p>
-
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
-            <span className="font-mono text-xs text-slate-700 truncate">
-              https://api.panther-tms.com/api/v1/transport/tracking/sim/webhook
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                copyToClipboard(
-                  "https://api.panther-tms.com/api/v1/transport/tracking/sim/webhook",
-                  "webhook"
-                )
-              }
-              className="text-xs h-8 gap-1.5 shrink-0 bg-white"
-            >
-              {copiedKey === "webhook" ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-              <span>{copiedKey === "webhook" ? "Copied" : "Copy URL"}</span>
-            </Button>
           </div>
         </div>
       </Card>
