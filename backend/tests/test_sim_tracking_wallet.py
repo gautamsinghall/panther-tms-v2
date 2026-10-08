@@ -122,6 +122,28 @@ class TestSIMTrackingWallet(unittest.TestCase):
         finally:
             os.environ.pop("FT_AUTH_TOKEN", None)
 
+    def test_check_sim_wallet_balance_fallback(self):
+        import asyncio
+        from app.modules.transport.service import check_sim_wallet_balance
+
+        allowed, bal = asyncio.run(check_sim_wallet_balance(tenant_id=None, company_code=None))
+        self.assertTrue(allowed)
+        self.assertEqual(bal, Decimal("999.00"))
+
+    def test_sim_wallet_transaction_string_trip_id_assignment(self):
+        tx = SimWalletTransaction(
+            transaction_type="DEBIT",
+            amount=Decimal("8.50"),
+            rate_per_day=Decimal("8.50"),
+            days_billed=1,
+            vehicle_number="MH12AB1234",
+            trip_id=str(5),
+            description="Trip initiation (Day 1 / 24h) for vehicle MH12AB1234",
+            balance_after=Decimal("91.50"),
+        )
+        self.assertEqual(tx.trip_id, "5")
+        self.assertIsInstance(tx.trip_id, str)
+
 
 if __name__ == "__main__":
     unittest.main()

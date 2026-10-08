@@ -4,7 +4,7 @@ import time
 import httpx
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1159,12 +1159,41 @@ def parse_iso_or_utc(date_str: Optional[str]) -> Optional[datetime]:
 SIM_RATE_PER_DAY = Decimal("8.50")
 
 
+async def check_sim_wallet_balance(
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+    required_amount: Decimal = Decimal("8.50"),
+) -> Tuple[bool, Decimal]:
+    """
+    Checks whether tenant has at least `required_amount` in panther_control without debiting yet.
+    """
+    if not tenant_id and not company_code:
+        return True, Decimal("999.00")
+
+    from app.core.database import ControlSessionLocal
+    from app.control.models import Tenant as ControlTenant
+    from sqlalchemy import select, or_
+
+    try:
+        async with ControlSessionLocal() as session:
+            stmt = select(ControlTenant.sim_wallet_balance).where(
+                or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+            )
+            res = await session.execute(stmt)
+            bal = res.scalar_one_or_none()
+            current_balance = Decimal(str(bal or 0.00))
+            return current_balance >= required_amount, current_balance
+    except Exception as e:
+        logger.error(f"Error checking SIM wallet balance: {e}")
+        return False, Decimal("0.00")
+
+
 async def check_and_deduct_sim_credit(
     tenant_db: Optional[AsyncSession] = None,
     tenant_id: Optional[str] = None,
     company_code: Optional[str] = None,
     vehicle_number: Optional[str] = None,
-    trip_id: Optional[int] = None,
+    trip_id: Optional[Union[str, int]] = None,
     days_billed: int = 1,
     description: Optional[str] = None,
 ) -> Tuple[bool, Decimal, str]:
@@ -1218,7 +1247,7 @@ async def check_and_deduct_sim_credit(
             "rate_per_day": SIM_RATE_PER_DAY,
             "days_billed": days_billed,
             "vehicle_number": vehicle_number,
-            "trip_id": trip_id,
+            "trip_id": str(trip_id) if trip_id is not None else None,
             "description": description or f"SIM Tracking charge for {vehicle_number} ({days_billed} x 24hr cycle)",
             "balance_after": new_balance,
             "created_at": datetime.now(timezone.utc),
@@ -1230,6 +1259,7 @@ async def check_and_deduct_sim_credit(
                 tenant_db.add(tx)
                 await tenant_db.commit()
             except Exception as e:
+                await tenant_db.rollback()
                 logger.warning(f"Could not record SimWalletTransaction in provided tenant_db: {e}")
         elif target_company_code:
             try:
@@ -1256,7 +1286,7 @@ async def create_sim_trip(
 ) -> SIMTripRecord:
     """
     Creates a new SIM-based trip via Freight Tiger, initiating carrier driver consent SMS.
-    Deducts ₹8.50 for Day 1 (first 24-hr window) from the SIM Tracking Wallet.
+    Deducts ₹8.50 for Day 1 (first 24-hr window) from the SIM Tracking Wallet upon creation.
     """
     vehicle_num = data.vehicle_number.strip().upper()
     driver_phone = data.driver_phone.strip()
@@ -1266,24 +1296,24 @@ async def create_sim_trip(
     lr_number = data.lr_number
     route_code = data.route_code
 
-    # Verify wallet and deduct ₹8.50 for the initial 24 hours
-    allowed, bal, err_msg = await check_and_deduct_sim_credit(
-        tenant_db=db,
+    # 1. Pre-flight check: ensure tenant has at least ₹8.50 before calling Freight Tiger
+    has_funds, current_bal = await check_sim_wallet_balance(
         tenant_id=tenant_id,
         company_code=company_code,
-        vehicle_number=vehicle_num,
-        days_billed=1,
-        description=f"Trip initiation (Day 1 / 24h cycle) for vehicle {vehicle_num}",
+        required_amount=Decimal("8.50"),
     )
-    if not allowed:
+    if not has_funds:
         raise AppException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=err_msg,
+            message=(
+                f"SIM Tracking Wallet balance insufficient (₹{current_bal:.2f} available, ₹8.50 required). "
+                f"Tariff is strictly ₹8.50 per trip per 24 hours. Recharges are managed by system administrator."
+            ),
             error_code="INSUFFICIENT_SIM_WALLET_BALANCE",
-            details={"current_balance": float(bal), "required": 8.50},
+            details={"current_balance": float(current_bal), "required": 8.50},
         )
 
-    # If linked to LR, populate missing details from LR consignment
+    # 2. If linked to LR, populate missing details from LR consignment
     if data.lr_id:
         lr_stmt = select(LR).options(
             selectinload(LR.origin_location),
@@ -1305,7 +1335,7 @@ async def create_sim_trip(
             if not dest_addr and lr_obj.destination_location:
                 dest_addr = f"{lr_obj.destination_location.name}, {lr_obj.destination_location.city_name or ''}"
 
-    # Check for company setting credentials override
+    # 3. Check for company setting credentials override
     cs_stmt = select(CompanySetting).limit(1)
     cs_res = await db.execute(cs_stmt)
     comp_setting = cs_res.scalars().first()
@@ -1315,7 +1345,7 @@ async def create_sim_trip(
         auth_token=comp_setting.ft_auth_token if comp_setting else None,
     )
 
-    # Call Freight Tiger API
+    # 4. Call Freight Tiger API
     origin_payload: Dict[str, Any] = {"address": origin_addr or "Origin Hub"}
     if data.origin_lat is not None and data.origin_lng is not None:
         origin_payload["lat"] = data.origin_lat
@@ -1337,6 +1367,7 @@ async def create_sim_trip(
         share_trip=data.share_trip,
     )
 
+    # 5. Create local trip record in tenant DB
     now_utc = datetime.now(timezone.utc)
     sim_record = SIMTripRecord(
         feed_unique_id=ft_resp["feed_unique_id"],
@@ -1361,7 +1392,20 @@ async def create_sim_trip(
     await db.commit()
     await db.refresh(sim_record)
 
-    # Associate trip_id with the debit transaction if pending
+    # 6. Deduct ₹8.50 for Day 1 (first 24-hr window) with generated trip_id
+    allowed, bal, err_msg = await check_and_deduct_sim_credit(
+        tenant_db=db,
+        tenant_id=tenant_id,
+        company_code=company_code,
+        vehicle_number=vehicle_num,
+        trip_id=str(sim_record.id),
+        days_billed=1,
+        description=f"Trip initiation (Day 1 / 24h cycle) for vehicle {vehicle_num} (Trip #{sim_record.id})",
+    )
+    if not allowed:
+        logger.warning(f"SIM tracking initiated for trip #{sim_record.id} but credit deduction reported: {err_msg}")
+
+    # Fallback: link any previous unlinked pending debit transaction for this vehicle
     try:
         from app.tenant_db.models import SimWalletTransaction
         tx_stmt = select(SimWalletTransaction).where(
@@ -1371,10 +1415,11 @@ async def create_sim_trip(
         tx_res = await db.execute(tx_stmt)
         tx_obj = tx_res.scalar_one_or_none()
         if tx_obj:
-            tx_obj.trip_id = sim_record.id
+            tx_obj.trip_id = str(sim_record.id)
             await db.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        await db.rollback()
+        logger.warning(f"Could not link legacy trip_id to SimWalletTransaction: {e}")
 
     return sim_record
 
@@ -1434,7 +1479,7 @@ async def sync_sim_trip(
                     tenant_id=tenant_id,
                     company_code=company_code,
                     vehicle_number=trip.vehicle_number,
-                    trip_id=trip.id,
+                    trip_id=str(trip.id),
                     days_billed=cycles_exceeded,
                     description=f"Trip exceeded 24 hours: renewed for {cycles_exceeded} day(s) (Day {(trip.billing_cycles_charged or 1) + 1}-{(trip.billing_cycles_charged or 1) + cycles_exceeded}) for vehicle {trip.vehicle_number}",
                 )
