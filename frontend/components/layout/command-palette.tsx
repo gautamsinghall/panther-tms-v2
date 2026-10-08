@@ -30,7 +30,7 @@ interface CommandItem {
   id: string;
   title: string;
   description: string;
-  category: "Transport" | "Accounts" | "Masters" | "Reports" | "Settings" | "LR Record";
+  category: "Transport" | "Accounts" | "Masters" | "Reports" | "Settings" | "Company Settings" | "LR Record";
   href: string;
   icon: React.ReactNode;
   keywords?: string[];
@@ -73,6 +73,15 @@ const COMMAND_ITEMS: CommandItem[] = [
     href: "/transport/eway-bill",
     icon: <FileText className="w-4 h-4 text-[#4F46E5]" />,
     keywords: ["eway", "bill", "part-b", "compliance"],
+  },
+  {
+    id: "fastag-tracking",
+    title: "FASTag Toll Checkpoint Tracking",
+    description: "Real-time NETC toll plaza pings, road-following routes, and highway journey progress",
+    category: "Transport",
+    href: "/transport/tracking/fastag",
+    icon: <Truck className="w-4 h-4 text-[#4F46E5]" />,
+    keywords: ["fastag", "toll", "tracking", "netc", "route", "plaza", "highway"],
   },
   {
     id: "tracking",

@@ -809,3 +809,88 @@ class SIMTrackingSyncResponse(BaseModel):
     trips_synced: int
     message: str = "Trips synced successfully"
 
+
+# ==============================================================================
+# 14. FASTag Tracking Schemas
+# ==============================================================================
+
+class TollLogResponse(BaseModel):
+    id: int
+    vehicle_number: str
+    lr_no: Optional[str] = None
+    toll_plaza_name: str
+    geocode: Optional[str] = None
+    latitude: Optional[Decimal] = None
+    longitude: Optional[Decimal] = None
+    reader_read_time: datetime
+    formatted_time: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FastagTripCreate(BaseModel):
+    vehicle_number: str
+    origin_name: str
+    destination_name: str
+    intermediate_stops: Optional[List[str]] = []
+    lr_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class FastagTripUpdate(BaseModel):
+    origin_name: Optional[str] = None
+    destination_name: Optional[str] = None
+    intermediate_stops: Optional[List[str]] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class FastagTripResponse(BaseModel):
+    id: int
+    trip_number: str
+    vehicle_number: str
+    is_manual: bool
+    lr_id: Optional[int] = None
+    lr_number: Optional[str] = None
+    origin_name: str
+    destination_name: str
+    intermediate_stops: List[str] = []
+    status: str
+    start_date: datetime
+    end_date: Optional[datetime] = None
+    total_distance_km: Optional[Decimal] = None
+    covered_distance_km: Optional[Decimal] = None
+    remaining_distance_km: Optional[Decimal] = None
+    toll_count: int = 0
+    last_toll_name: Optional[str] = None
+    last_toll_time: Optional[datetime] = None
+    last_sync_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class FastagTrackingMetrics(BaseModel):
+    covered_km: float = 0.0
+    remaining_km: float = 0.0
+    total_km: float = 0.0
+    progress_pct: int = 0
+    status: str = "Active Tracking"
+
+
+class FastagTrackResponse(BaseModel):
+    vehicle: str
+    api_called: bool
+    cooldown_active: bool
+    seconds_since_last_sync: Optional[int] = None
+    trip: Optional[Dict[str, Any]] = None
+    route: List[TollLogResponse] = []
+    metrics: FastagTrackingMetrics
+    error: Optional[str] = None
+
+
+class FastagConfigResponse(BaseModel):
+    google_maps_configured: bool
+    fastag_api_configured: bool
+    default_map_engine: str
+

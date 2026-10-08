@@ -23,6 +23,8 @@ from app.modules.transport.schemas import (
     EWayBillCreate, EWayBillResponse,
     TrackingPingCreate, TrackingPingResponse,
     SIMTripCreate, SIMTripClose, SIMConsentSimulate, SIMTripResponse, SIMTrackingSyncResponse,
+    FastagTripCreate, FastagTripUpdate, FastagTripResponse,
+    FastagTrackResponse, FastagConfigResponse, TollLogResponse,
 )
 
 router = APIRouter(prefix="/transport", tags=["Transport"])
@@ -1098,4 +1100,116 @@ async def sync_all_sim_trips(
     """Polls Freight Tiger for all open line-haul trips."""
     count = await service.sync_all_active_sim_trips(db)
     return SIMTrackingSyncResponse(trips_synced=count, message=f"Successfully synced {count} active SIM tracking trips.")
+
+
+# ==============================================================================
+# 14. FASTag Tracking Endpoints
+# ==============================================================================
+
+@router.get("/tracking/fastag/config", response_model=FastagConfigResponse)
+async def get_fastag_config(
+    current_user: User = Depends(get_current_user),
+):
+    """Returns whether FASTag API and Google Maps API are configured in the environment."""
+    return FastagConfigResponse(
+        google_maps_configured=bool(settings.GOOGLE_MAPS_API_KEY),
+        fastag_api_configured=bool(settings.FASTAG_API_KEY),
+        default_map_engine="google" if settings.GOOGLE_MAPS_API_KEY else "leaflet",
+    )
+
+
+@router.get("/tracking/fastag/track", response_model=FastagTrackResponse)
+async def track_fastag_vehicle_endpoint(
+    vehicle: str = Query(..., description="Vehicle registration number to track"),
+    force: bool = Query(False, description="Bypass 1-hour cooldown and query live FASTag API"),
+    manual_from: Optional[str] = Query(None, description="Manual origin location name"),
+    manual_to: Optional[str] = Query(None, description="Manual destination location name"),
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Live FASTag vehicle tracking.
+    Queries toll plaza logs, calculates highway progress & distances,
+    and returns full route waypoints and timeline.
+    """
+    return await service.track_fastag_vehicle(
+        db=db,
+        vehicle_number=vehicle,
+        force_sync=force,
+        manual_from=manual_from,
+        manual_to=manual_to,
+    )
+
+
+@router.post("/tracking/fastag/trips", response_model=FastagTripResponse, status_code=status.HTTP_201_CREATED)
+async def create_fastag_trip_endpoint(
+    data: FastagTripCreate,
+    current_user: User = Depends(require_permission("transport", "tracking", "create")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Saves a FASTag trip record with manual From/To waypoints or links to LR.
+    Allows tracking vehicles independently from LR consignments.
+    """
+    return await service.create_manual_fastag_trip(db, data)
+
+
+@router.get("/tracking/fastag/trips", response_model=List[FastagTripResponse])
+async def list_fastag_trips_endpoint(
+    status: Optional[str] = Query(None, description="Filter by status: ACTIVE, COMPLETED, CANCELLED"),
+    vehicle: Optional[str] = Query(None, description="Filter by vehicle registration number"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Lists saved FASTag trips."""
+    return await service.list_fastag_trips(db, status_filter=status, vehicle=vehicle, skip=skip, limit=limit)
+
+
+@router.get("/tracking/fastag/trips/{trip_id}", response_model=FastagTripResponse)
+async def get_fastag_trip_endpoint(
+    trip_id: int,
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Gets details of a specific saved FASTag trip."""
+    trip = await service.get_fastag_trip_details(db, trip_id)
+    if not trip:
+        raise AppException("FASTag trip record not found.", status_code=status.HTTP_404_NOT_FOUND)
+    return trip
+
+
+@router.patch("/tracking/fastag/trips/{trip_id}", response_model=FastagTripResponse)
+async def update_fastag_trip_endpoint(
+    trip_id: int,
+    data: FastagTripUpdate,
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Updates a FASTag trip (e.g. mark status as COMPLETED, change notes, etc.)."""
+    return await service.update_fastag_trip(db, trip_id, data)
+
+
+@router.delete("/tracking/fastag/trips/{trip_id}")
+async def delete_fastag_trip_endpoint(
+    trip_id: int,
+    current_user: User = Depends(require_permission("transport", "tracking", "delete")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Deletes a saved FASTag trip record."""
+    await service.delete_fastag_trip(db, trip_id)
+    return {"message": "FASTag trip deleted successfully."}
+
+
+@router.post("/tracking/fastag/auto-sync")
+async def auto_sync_fastag_endpoint(
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    Auto-syncs all vehicles that currently have an active FASTag trip or an in-transit LR.
+    Equivalent to legacy action=auto_sync.
+    """
+    return await service.auto_sync_all_in_transit_fastag(db)
 

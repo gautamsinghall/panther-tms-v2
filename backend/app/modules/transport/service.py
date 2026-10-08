@@ -32,6 +32,9 @@ from app.tenant_db.models import (
     SIMTripRecord,
     SIMConsentStatus,
     CompanySetting,
+    FastagCooldown,
+    FastagTripRecord,
+    TollLog,
 )
 from app.modules.transport.schemas import (
     VehicleOwnerCreate, VehicleOwnerUpdate,
@@ -49,8 +52,20 @@ from app.modules.transport.schemas import (
     SIMTripCreate,
     SIMTripClose,
     SIMConsentSimulate,
+    FastagTripCreate,
+    FastagTripUpdate,
+    FastagTripResponse,
+    FastagTrackResponse,
+    TollLogResponse,
+    FastagTrackingMetrics,
 )
 from app.integrations.freight_tiger import freight_tiger_client, FreightTigerClient
+from app.integrations.fastag_provider import (
+    FASTagProviderClient,
+    clean_vehicle_number,
+    haversine_distance_km,
+    resolve_location_coordinates,
+)
 from app.modules.settings.series_service import allocate_or_validate_voucher_number
 
 # ===========================================================================
@@ -1377,5 +1392,541 @@ async def sync_all_active_sim_trips(db: AsyncSession) -> int:
         except Exception as exc:
             pass
     return count
+
+
+# ==============================================================================
+# 14. FASTag Tracking Service
+# ==============================================================================
+
+fastag_client = FASTagProviderClient()
+
+
+async def track_fastag_vehicle(
+    db: AsyncSession,
+    vehicle_number: str,
+    force_sync: bool = False,
+    manual_from: Optional[str] = None,
+    manual_to: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Tracks a vehicle using Logitrack/NETC FASTag telemetry.
+    Respects 1-hour rate limit cooldown unless force_sync is requested.
+    Extracts chronological toll checkpoints, computes road distances and progress,
+    and returns trip overview & timeline.
+    """
+    clean_vehicle = clean_vehicle_number(vehicle_number)
+    if not clean_vehicle:
+        raise AppException("Invalid vehicle number provided.", status_code=status.HTTP_400_BAD_REQUEST)
+
+    # 1. Cooldown Check (3600 seconds)
+    cooldown_stmt = select(FastagCooldown).where(FastagCooldown.vehicle_number == clean_vehicle)
+    cooldown_res = await db.execute(cooldown_stmt)
+    cooldown_rec = cooldown_res.scalars().first()
+
+    now_utc = datetime.now(timezone.utc)
+    seconds_passed: Optional[int] = None
+    cooldown_active = False
+    should_call_api = True
+
+    if cooldown_rec:
+        passed = (now_utc - cooldown_rec.last_sync).total_seconds()
+        seconds_passed = int(passed)
+        if passed < 3600 and passed >= 0 and not force_sync:
+            cooldown_active = True
+            should_call_api = False
+
+    api_called = False
+    api_error = None
+
+    # 2. Call Live FASTag API if cooldown passed or forced
+    if should_call_api:
+        success, raw_txns, err_msg = await fastag_client.fetch_toll_transactions(clean_vehicle)
+        api_called = True
+        api_error = err_msg
+
+        if success and raw_txns:
+            # Query existing tolls to prevent duplicate entries
+            existing_tolls_stmt = select(TollLog).where(TollLog.vehicle_number == clean_vehicle)
+            existing_tolls_res = await db.execute(existing_tolls_stmt)
+            existing_tolls = existing_tolls_res.scalars().all()
+
+            existing_signatures = set()
+            for et in existing_tolls:
+                r_epoch = int(et.reader_read_time.timestamp()) if et.reader_read_time else 0
+                existing_signatures.add((et.toll_plaza_name.strip().lower(), r_epoch // 60))
+
+            # Find active manual trip or active LR for tag association
+            active_trip_stmt = (
+                select(FastagTripRecord)
+                .where(FastagTripRecord.vehicle_number == clean_vehicle, FastagTripRecord.status == "ACTIVE")
+                .order_by(desc(FastagTripRecord.id))
+            )
+            act_trip_res = await db.execute(active_trip_stmt)
+            active_fastag_trip = act_trip_res.scalars().first()
+
+            latest_lr_no = None
+            latest_lr_id = None
+            if active_fastag_trip:
+                latest_lr_no = active_fastag_trip.lr_number
+                latest_lr_id = active_fastag_trip.lr_id
+            else:
+                lr_stmt = select(LR).where(
+                    func.replace(func.replace(LR.vehicle_number, " ", ""), "-", "") == clean_vehicle
+                ).order_by(desc(LR.id)).limit(1)
+                lr_res = await db.execute(lr_stmt)
+                lr_obj = lr_res.scalars().first()
+                if lr_obj:
+                    latest_lr_no = lr_obj.lr_number
+                    latest_lr_id = lr_obj.id
+
+            new_tolls_added = 0
+            latest_txn_coord = None
+            latest_txn_name = None
+            latest_txn_time = None
+
+            for t in raw_txns:
+                t_name = t["toll_plaza_name"].strip()
+                t_time = t["reader_read_time"]
+                t_epoch_min = int(t_time.timestamp()) // 60
+                sig = (t_name.lower(), t_epoch_min)
+
+                if sig not in existing_signatures:
+                    existing_signatures.add(sig)
+                    t_log = TollLog(
+                        vehicle_number=clean_vehicle,
+                        lr_id=latest_lr_id,
+                        lr_no=latest_lr_no,
+                        fastag_trip_id=active_fastag_trip.id if active_fastag_trip else None,
+                        toll_plaza_name=t_name,
+                        geocode=t.get("geocode"),
+                        latitude=Decimal(str(t["latitude"])) if t.get("latitude") is not None else None,
+                        longitude=Decimal(str(t["longitude"])) if t.get("longitude") is not None else None,
+                        reader_read_time=t_time,
+                    )
+                    db.add(t_log)
+                    new_tolls_added += 1
+
+                latest_txn_name = t_name
+                latest_txn_time = t_time
+                if t.get("latitude") and t.get("longitude"):
+                    latest_txn_coord = (t["latitude"], t["longitude"])
+
+            # Also create/update TrackingPing telemetry record so all TMS modules see latest fix
+            if latest_txn_name and latest_txn_time:
+                ping_stmt = (
+                    select(TrackingPing)
+                    .where(TrackingPing.vehicle_number == clean_vehicle, TrackingPing.tracking_mode == "FASTAG")
+                    .order_by(desc(TrackingPing.id))
+                    .limit(1)
+                )
+                ping_res = await db.execute(ping_stmt)
+                existing_ping = ping_res.scalars().first()
+                if existing_ping:
+                    existing_ping.location_name = latest_txn_name
+                    existing_ping.last_ping_at = latest_txn_time
+                    if latest_txn_coord:
+                        existing_ping.last_latitude = Decimal(str(latest_txn_coord[0]))
+                        existing_ping.last_longitude = Decimal(str(latest_txn_coord[1]))
+                else:
+                    new_ping = TrackingPing(
+                        vehicle_number=clean_vehicle,
+                        tracking_mode="FASTAG",
+                        identifier=clean_vehicle,
+                        location_name=latest_txn_name,
+                        last_ping_at=latest_txn_time,
+                        last_latitude=Decimal(str(latest_txn_coord[0])) if latest_txn_coord else None,
+                        last_longitude=Decimal(str(latest_txn_coord[1])) if latest_txn_coord else None,
+                        status="ACTIVE",
+                    )
+                    db.add(new_ping)
+
+        # Update or create cooldown record
+        if cooldown_rec:
+            cooldown_rec.last_sync = now_utc
+        else:
+            cooldown_rec = FastagCooldown(vehicle_number=clean_vehicle, last_sync=now_utc)
+            db.add(cooldown_rec)
+
+        await db.commit()
+        cooldown_active = True
+        seconds_passed = 0
+
+    # 3. Determine Trip Context (Manual > Active Fastag Trip > Active LR)
+    trip_data: Optional[Dict[str, Any]] = None
+
+    if manual_from and manual_to:
+        trip_data = {
+            "id": None,
+            "trip_number": "MANUAL",
+            "is_manual": True,
+            "lr_id": None,
+            "lr_no": None,
+            "from_location": manual_from.strip(),
+            "to_location": manual_to.strip(),
+            "waypoints": [manual_from.strip(), manual_to.strip()],
+            "status": "ACTIVE",
+        }
+    else:
+        # Check active FastagTripRecord
+        active_trip_stmt = (
+            select(FastagTripRecord)
+            .where(FastagTripRecord.vehicle_number == clean_vehicle, FastagTripRecord.status == "ACTIVE")
+            .order_by(desc(FastagTripRecord.id))
+        )
+        act_trip_res = await db.execute(active_trip_stmt)
+        active_trip = act_trip_res.scalars().first()
+
+        if active_trip:
+            wps = [active_trip.origin_name]
+            if active_trip.intermediate_stops and isinstance(active_trip.intermediate_stops, list):
+                wps.extend([s for s in active_trip.intermediate_stops if s])
+            wps.append(active_trip.destination_name)
+
+            trip_data = {
+                "id": active_trip.id,
+                "trip_number": active_trip.trip_number,
+                "is_manual": active_trip.is_manual,
+                "lr_id": active_trip.lr_id,
+                "lr_no": active_trip.lr_number,
+                "from_location": active_trip.origin_name,
+                "to_location": active_trip.destination_name,
+                "waypoints": wps,
+                "status": active_trip.status,
+            }
+        else:
+            # Check active LR
+            lr_stmt = (
+                select(LR)
+                .where(func.replace(func.replace(LR.vehicle_number, " ", ""), "-", "") == clean_vehicle)
+                .order_by(desc(LR.id))
+                .options(selectinload(LR.origin_location), selectinload(LR.destination_location))
+                .limit(1)
+            )
+            lr_res = await db.execute(lr_stmt)
+            lr_obj = lr_res.scalars().first()
+
+            if lr_obj:
+                orig_name = lr_obj.origin_location.name if lr_obj.origin_location else "Origin"
+                dest_name = lr_obj.destination_location.name if lr_obj.destination_location else "Destination"
+                wps = [orig_name]
+                if lr_obj.via:
+                    wps.append(lr_obj.via.strip())
+                wps.append(dest_name)
+
+                trip_data = {
+                    "id": None,
+                    "trip_number": lr_obj.lr_number,
+                    "is_manual": False,
+                    "lr_id": lr_obj.id,
+                    "lr_no": lr_obj.lr_number,
+                    "from_location": orig_name,
+                    "to_location": dest_name,
+                    "waypoints": wps,
+                    "status": "In Transit" if lr_obj.booking_status != "Delivered" else "Delivered",
+                }
+
+    # 4. Fetch Toll Logs for Vehicle (Filtered by Trip / 7-30 days)
+    tolls_query = select(TollLog).where(TollLog.vehicle_number == clean_vehicle)
+    if trip_data and trip_data.get("waypoints"):
+        seven_days_ago = now_utc - timedelta(days=7)
+        tolls_query = tolls_query.where(TollLog.reader_read_time >= seven_days_ago)
+
+    tolls_query = tolls_query.order_by(desc(TollLog.reader_read_time)).limit(40)
+    tolls_res = await db.execute(tolls_query)
+    raw_route_logs = list(reversed(tolls_res.scalars().all()))
+
+    route_output: List[Dict[str, Any]] = []
+    toll_points: List[Tuple[float, float]] = []
+
+    for toll in raw_route_logs:
+        lat = float(toll.latitude) if toll.latitude is not None else None
+        lng = float(toll.longitude) if toll.longitude is not None else None
+        if lat is None or lng is None:
+            if toll.geocode and "," in toll.geocode:
+                parts = toll.geocode.split(",")
+                try:
+                    lat = float(parts[0].strip())
+                    lng = float(parts[1].strip())
+                except Exception:
+                    pass
+            if lat is None or lng is None:
+                coords = resolve_location_coordinates(toll.toll_plaza_name)
+                if coords:
+                    lat, lng = coords
+
+        if lat is not None and lng is not None:
+            toll_points.append((lat, lng))
+
+        formatted_time = toll.reader_read_time.strftime("%d %b %Y, %I:%M %p") if toll.reader_read_time else ""
+        route_output.append(
+            {
+                "id": toll.id,
+                "vehicle_number": toll.vehicle_number,
+                "lr_no": toll.lr_no,
+                "toll_plaza_name": toll.toll_plaza_name,
+                "geocode": f"{lat},{lng}" if lat and lng else toll.geocode,
+                "latitude": Decimal(str(lat)) if lat is not None else None,
+                "longitude": Decimal(str(lng)) if lng is not None else None,
+                "reader_read_time": toll.reader_read_time,
+                "formatted_time": formatted_time,
+            }
+        )
+
+    # 5. Compute Covered, Remaining & Total Distance and Progress %
+    origin_coord = None
+    dest_coord = None
+    if trip_data and trip_data.get("from_location"):
+        origin_coord = resolve_location_coordinates(trip_data["from_location"])
+    if trip_data and trip_data.get("to_location"):
+        dest_coord = resolve_location_coordinates(trip_data["to_location"])
+
+    covered_km = 0.0
+    if origin_coord and toll_points:
+        covered_km += haversine_distance_km(origin_coord[0], origin_coord[1], toll_points[0][0], toll_points[0][1])
+    for i in range(len(toll_points) - 1):
+        covered_km += haversine_distance_km(
+            toll_points[i][0], toll_points[i][1], toll_points[i + 1][0], toll_points[i + 1][1]
+        )
+
+    remaining_km = 0.0
+    if dest_coord:
+        if toll_points:
+            remaining_km = haversine_distance_km(
+                toll_points[-1][0], toll_points[-1][1], dest_coord[0], dest_coord[1]
+            )
+        elif origin_coord:
+            remaining_km = haversine_distance_km(
+                origin_coord[0], origin_coord[1], dest_coord[0], dest_coord[1]
+            )
+
+    # Road curvature adjustment factor (~1.2x straight line for Indian highway network)
+    covered_km = round(covered_km * 1.18, 1)
+    remaining_km = round(remaining_km * 1.18, 1) if dest_coord else 0.0
+    total_km = round(covered_km + remaining_km, 1)
+
+    progress_pct = 0
+    if total_km > 0:
+        progress_pct = min(100, int(round((covered_km / total_km) * 100)))
+    elif covered_km > 0:
+        progress_pct = 100
+
+    trip_status = "Active Tracking"
+    if dest_coord:
+        if progress_pct >= 95 or (trip_data and trip_data.get("status") in ("COMPLETED", "Delivered")):
+            trip_status = "Trip Completed"
+        else:
+            trip_status = "In Transit"
+
+    # Update active FastagTripRecord if present
+    if trip_data and trip_data.get("id"):
+        trip_rec = await db.get(FastagTripRecord, trip_data["id"])
+        if trip_rec:
+            trip_rec.covered_distance_km = Decimal(str(covered_km))
+            trip_rec.remaining_distance_km = Decimal(str(remaining_km))
+            trip_rec.total_distance_km = Decimal(str(total_km))
+            trip_rec.toll_count = len(route_output)
+            if route_output:
+                trip_rec.last_toll_name = route_output[-1]["toll_plaza_name"]
+                trip_rec.last_toll_time = route_output[-1]["reader_read_time"]
+            trip_rec.last_sync_at = now_utc
+            await db.commit()
+
+    return {
+        "vehicle": clean_vehicle,
+        "api_called": api_called,
+        "cooldown_active": cooldown_active,
+        "seconds_since_last_sync": seconds_passed,
+        "trip": trip_data,
+        "route": route_output,
+        "metrics": {
+            "covered_km": covered_km,
+            "remaining_km": remaining_km,
+            "total_km": total_km,
+            "progress_pct": progress_pct,
+            "status": trip_status,
+        },
+        "error": api_error,
+    }
+
+
+async def create_manual_fastag_trip(
+    db: AsyncSession,
+    data: FastagTripCreate,
+) -> FastagTripRecord:
+    """
+    Creates and persists a FASTag Trip record with manual Origin and Destination waypoints.
+    Allows users to track vehicles without requiring an existing LR consignment.
+    """
+    clean_vehicle = clean_vehicle_number(data.vehicle_number)
+    if not clean_vehicle:
+        raise AppException("Valid Vehicle Number is required.", status_code=status.HTTP_400_BAD_REQUEST)
+
+    if not data.origin_name or not data.destination_name:
+        raise AppException("Origin (From) and Destination (To) locations are required.", status_code=status.HTTP_400_BAD_REQUEST)
+
+    # Generate sequential/unique trip code: FT-YYYYMM-XXXX
+    month_str = datetime.now(timezone.utc).strftime("%Y%m")
+    count_stmt = select(func.count(FastagTripRecord.id))
+    count_res = await db.execute(count_stmt)
+    seq = (count_res.scalar() or 0) + 1
+    trip_number = f"FT-{month_str}-{seq:04d}"
+
+    # Check if vehicle has an LR
+    lr_number = None
+    if data.lr_id:
+        lr_obj = await db.get(LR, data.lr_id)
+        if lr_obj:
+            lr_number = lr_obj.lr_number
+
+    trip = FastagTripRecord(
+        trip_number=trip_number,
+        vehicle_number=clean_vehicle,
+        is_manual=data.lr_id is None,
+        lr_id=data.lr_id,
+        lr_number=lr_number,
+        origin_name=data.origin_name.strip(),
+        destination_name=data.destination_name.strip(),
+        intermediate_stops=data.intermediate_stops or [],
+        status="ACTIVE",
+        notes=data.notes,
+        last_sync_at=datetime.now(timezone.utc),
+    )
+    db.add(trip)
+    await db.commit()
+    await db.refresh(trip)
+
+    # Immediately link any recent tolls for this vehicle
+    link_stmt = select(TollLog).where(
+        TollLog.vehicle_number == clean_vehicle,
+        TollLog.fastag_trip_id.is_(None)
+    )
+    link_res = await db.execute(link_stmt)
+    recent_tolls = link_res.scalars().all()
+    if recent_tolls:
+        for t in recent_tolls:
+            t.fastag_trip_id = trip.id
+        trip.toll_count = len(recent_tolls)
+        trip.last_toll_name = recent_tolls[-1].toll_plaza_name
+        trip.last_toll_time = recent_tolls[-1].reader_read_time
+        await db.commit()
+        await db.refresh(trip)
+
+    return trip
+
+
+async def list_fastag_trips(
+    db: AsyncSession,
+    status_filter: Optional[str] = None,
+    vehicle: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+) -> List[FastagTripRecord]:
+    """Lists saved FASTag trips with optional status or vehicle filter."""
+    stmt = select(FastagTripRecord).order_by(desc(FastagTripRecord.created_at))
+    if status_filter and status_filter.upper() != "ALL":
+        stmt = stmt.where(FastagTripRecord.status.ilike(status_filter.strip()))
+    if vehicle:
+        clean_v = clean_vehicle_number(vehicle)
+        stmt = stmt.where(FastagTripRecord.vehicle_number.ilike(f"%{clean_v}%"))
+
+    stmt = stmt.offset(skip).limit(limit)
+    res = await db.execute(stmt)
+    return list(res.scalars().all())
+
+
+async def get_fastag_trip_details(
+    db: AsyncSession,
+    trip_id: int,
+) -> Optional[FastagTripRecord]:
+    """Retrieves single FASTag trip record with selectin loaded relations."""
+    stmt = (
+        select(FastagTripRecord)
+        .where(FastagTripRecord.id == trip_id)
+        .options(selectinload(FastagTripRecord.toll_logs))
+    )
+    res = await db.execute(stmt)
+    return res.scalars().first()
+
+
+async def update_fastag_trip(
+    db: AsyncSession,
+    trip_id: int,
+    data: FastagTripUpdate,
+) -> FastagTripRecord:
+    """Updates a FASTag trip (e.g. mark as COMPLETED, change waypoints or notes)."""
+    trip = await db.get(FastagTripRecord, trip_id)
+    if not trip:
+        raise AppException("FASTag trip not found.", status_code=status.HTTP_404_NOT_FOUND)
+
+    if data.origin_name is not None:
+        trip.origin_name = data.origin_name.strip()
+    if data.destination_name is not None:
+        trip.destination_name = data.destination_name.strip()
+    if data.intermediate_stops is not None:
+        trip.intermediate_stops = data.intermediate_stops
+    if data.notes is not None:
+        trip.notes = data.notes
+    if data.status is not None:
+        trip.status = data.status.upper()
+        if trip.status == "COMPLETED" and not trip.end_date:
+            trip.end_date = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(trip)
+    return trip
+
+
+async def delete_fastag_trip(
+    db: AsyncSession,
+    trip_id: int,
+) -> bool:
+    """Deletes a manual FASTag trip."""
+    trip = await db.get(FastagTripRecord, trip_id)
+    if not trip:
+        raise AppException("FASTag trip not found.", status_code=status.HTTP_404_NOT_FOUND)
+    await db.delete(trip)
+    await db.commit()
+    return True
+
+
+async def auto_sync_all_in_transit_fastag(db: AsyncSession) -> Dict[str, Any]:
+    """
+    Auto-syncs all vehicles that currently have an active FASTag trip or an in-transit LR.
+    Direct equivalent of legacy action=auto_sync.
+    """
+    # 1. Distinct vehicles from active FASTag trips
+    active_trips_stmt = select(FastagTripRecord.vehicle_number).where(FastagTripRecord.status == "ACTIVE").distinct()
+    trip_res = await db.execute(active_trips_stmt)
+    trip_vehicles = set(trip_res.scalars().all())
+
+    # 2. Distinct vehicles from in-transit LRs
+    lr_stmt = select(LR.vehicle_number).where(
+        LR.booking_status.in_(["Dispatched", "In Transit", "Booked"])
+    ).distinct()
+    lr_res = await db.execute(lr_stmt)
+    for v in lr_res.scalars().all():
+        if v:
+            trip_vehicles.add(clean_vehicle_number(v))
+
+    synced_count = 0
+    errors: List[str] = []
+
+    for v in trip_vehicles:
+        clean_v = clean_vehicle_number(v)
+        if not clean_v:
+            continue
+        try:
+            res = await track_fastag_vehicle(db, clean_v, force_sync=False)
+            if res.get("api_called"):
+                synced_count += 1
+        except Exception as e:
+            errors.append(f"{clean_v}: {str(e)}")
+
+    return {
+        "vehicles_checked": len(trip_vehicles),
+        "live_api_synced": synced_count,
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "errors": errors[:5],
+    }
 
 

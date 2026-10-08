@@ -19,6 +19,9 @@ from app.tenant_db.models import (
     TrackingPing,
     SIMConsentStatus,
     SIMTripRecord,
+    FastagCooldown,
+    FastagTripRecord,
+    TollLog,
 )
 
 __all__ = [
@@ -42,4 +45,7 @@ __all__ = [
     "EWayBill",
     "TrackingPing",
     "SIMTripRecord",
+    "FastagCooldown",
+    "FastagTripRecord",
+    "TollLog",
 ]

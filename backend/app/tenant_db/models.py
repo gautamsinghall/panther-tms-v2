@@ -686,6 +686,7 @@ class LR(TenantBase):
     load_type_rel = relationship("LoadType", foreign_keys=[load_type_id], lazy="selectin")
     lr_series = relationship("SeriesMaster", foreign_keys=[lr_series_id], lazy="selectin")
     sim_trips = relationship("SIMTripRecord", back_populates="lr", lazy="selectin")
+    fastag_trips = relationship("FastagTripRecord", back_populates="lr", lazy="selectin")
 
 
 class HireChallan(TenantBase):
@@ -941,6 +942,85 @@ class SIMTripRecord(TenantBase):
     )
 
     lr = relationship("LR", back_populates="sim_trips", lazy="selectin")
+
+
+class FastagCooldown(TenantBase):
+    """
+    1-Hour API rate limit and cooldown per vehicle for FASTag Logitrack / NETC API.
+    Prevents redundant third-party API queries.
+    """
+    __tablename__ = "transport_fastag_cooldown"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_number = Column(String(20), unique=True, nullable=False, index=True)
+    last_sync = Column(DateTime(timezone=True), nullable=False)
+
+
+class FastagTripRecord(TenantBase):
+    """
+    FASTag Trip Tracking Record (Manual or LR-Linked).
+    Allows setting custom/manual Origin (From) and Destination (To) route waypoints
+    even if the user does not want to create an LR, as well as linking to an existing LR.
+    """
+    __tablename__ = "transport_fastag_trips"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trip_number = Column(String(50), unique=True, nullable=False, index=True)
+    vehicle_number = Column(String(20), nullable=False, index=True)
+    is_manual = Column(Boolean, default=True, nullable=False)
+    lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True, index=True)
+    lr_number = Column(String(50), nullable=True)
+    origin_name = Column(String(255), nullable=False)
+    destination_name = Column(String(255), nullable=False)
+    intermediate_stops = Column(JSON, default=list, nullable=True)
+    status = Column(String(50), default="ACTIVE", nullable=False)  # ACTIVE, COMPLETED, CANCELLED
+    start_date = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=True)
+    total_distance_km = Column(Numeric(10, 2), nullable=True)
+    covered_distance_km = Column(Numeric(10, 2), nullable=True)
+    remaining_distance_km = Column(Numeric(10, 2), nullable=True)
+    toll_count = Column(Integer, default=0, nullable=False)
+    last_toll_name = Column(String(255), nullable=True)
+    last_toll_time = Column(DateTime(timezone=True), nullable=True)
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    lr = relationship("LR", back_populates="fastag_trips", lazy="selectin")
+    toll_logs = relationship("TollLog", back_populates="fastag_trip", lazy="selectin", cascade="all, delete-orphan")
+
+
+class TollLog(TenantBase):
+    """
+    Toll plaza crossings and geocoded checkpoints detected via NETC / FASTag API.
+    """
+    __tablename__ = "transport_fastag_toll_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_number = Column(String(20), nullable=False, index=True)
+    lr_id = Column(Integer, ForeignKey("transport_lrs.id"), nullable=True, index=True)
+    lr_no = Column(String(50), nullable=True, index=True)
+    fastag_trip_id = Column(Integer, ForeignKey("transport_fastag_trips.id"), nullable=True, index=True)
+    toll_plaza_name = Column(String(255), nullable=False)
+    geocode = Column(String(100), nullable=True)  # e.g. "25.7711,73.3234"
+    latitude = Column(Numeric(9, 6), nullable=True)
+    longitude = Column(Numeric(9, 6), nullable=True)
+    reader_read_time = Column(DateTime(timezone=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    fastag_trip = relationship("FastagTripRecord", back_populates="toll_logs", lazy="selectin")
 
 
 # ==============================================================================

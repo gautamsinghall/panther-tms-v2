@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     FREIGHT_TIGER_BASE_URL: str = "https://api.freighttiger.com/api/tether"
     FREIGHT_TIGER_AUTH_TOKEN: Optional[str] = None
 
+    # FASTag Tracking Integration (Loaded from project env / Dokploy)
+    FASTAG_API_URL: str = "https://logitrack.webcorevision.com:5000/api/v1/fastag"
+    FASTAG_API_KEY: Optional[str] = None
+    GOOGLE_MAPS_API_KEY: Optional[str] = None
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

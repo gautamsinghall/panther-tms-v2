@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Building2,
   Truck,
+  Radio,
   FileSpreadsheet,
   FileCheck2,
   Calculator,
@@ -158,6 +159,15 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "truck_hiring_note", title: "Truck Hiring Note", href: "/transport/truck-hiring-note" },
       { feature: "eway_bill", title: "Update E-Way", href: "/transport/eway-bill" },
       { feature: "tracking", title: "Sim Based Tracking", href: "/transport/tracking" },
+      { feature: "fastag_tracking", title: "FASTag Tracking", href: "/transport/tracking/fastag" },
+    ],
+  },
+  {
+    id: "tracking",
+    title: "Tracking",
+    items: [
+      { feature: "fastag_tracking", title: "FASTag Tracking", href: "/transport/tracking/fastag" },
+      { feature: "tracking", title: "Sim Based Tracking", href: "/transport/tracking" },
     ],
   },
   {
@@ -299,6 +309,7 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   company: <Building2 className="w-5 h-5" />,
   settings: <Settings className="w-5 h-5" />,
   profile: <UserCircle className="w-5 h-5" />,
+  tracking: <Navigation className="w-5 h-5" />,
 };
 
 // Sub-item specific Lucide icons for all modules
@@ -318,7 +329,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/general/packing-method": Package,
   "/general/load-type": Layers,
 
-  // Transport
+  // Transport & Tracking
   "/transport/jobs": ClipboardList,
   "/transport/lr-booking": FileText,
   "/transport/hire-challan": FileSpreadsheet,
@@ -330,7 +341,8 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/transport/pod-records": CheckSquare,
   "/transport/truck-hiring-note": FileSignature,
   "/transport/eway-bill": QrCode,
-  "/transport/tracking": Navigation,
+  "/transport/tracking": Radio,
+  "/transport/tracking/fastag": Navigation,
 
   // Transport Reports
   "/transport-reports/lr-register": BookOpen,
@@ -442,7 +454,8 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   pod_records: CheckSquare,
   truck_hiring_note: FileSignature,
   eway_bill: QrCode,
-  tracking: Navigation,
+  tracking: Radio,
+  fastag_tracking: Navigation,
   lr_register: BookOpen,
   invoice_register: Receipt,
   lr_client_wise: Users,

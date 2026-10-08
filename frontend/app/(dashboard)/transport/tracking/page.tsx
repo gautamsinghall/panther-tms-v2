@@ -316,6 +316,29 @@ export default function TrackingPage() {
     }
   };
 
+  const handleSimulateConsent = async (trip: SIMTripRecord) => {
+    try {
+      const updated = await apiClient<SIMTripRecord>(
+        `/api/v1/transport/tracking/sim/${trip.id}/simulate-consent`,
+        {
+          method: "POST",
+          body: JSON.stringify({ is_consent_done: true }),
+        }
+      );
+      setSimTrips((prev) => prev.map((t) => (t.id === trip.id ? updated : t)));
+      if (selectedTrip?.id === trip.id) {
+        setSelectedTrip(updated);
+      }
+      setFeedbackMessage({
+        type: "success",
+        text: `Driver consent accepted for ${trip.vehicle_number}! Real-time cell tower location fixes activated.`,
+      });
+      loadPings();
+    } catch (err: any) {
+      alert(err.message || "Failed to simulate driver consent.");
+    }
+  };
+
   const handleSyncAllTrips = async () => {
     setIsSyncingAll(true);
     try {
@@ -617,7 +640,7 @@ export default function TrackingPage() {
       header: "Tracking Mode",
       cell: (row) => {
         let variant: "info" | "primary" | "success" | "neutral" = "neutral";
-        let label = row.tracking_mode;
+        let label: string = row.tracking_mode;
         if (row.tracking_mode === "GPS") {
           variant = "primary";
           label = "GPS";
@@ -777,6 +800,13 @@ export default function TrackingPage() {
           icon: Smartphone,
           onClick: () => setIsStartTripModalOpen(true),
         }}
+        secondaryActions={[
+          {
+            label: "FASTag Toll Tracking",
+            icon: Navigation,
+            href: "/transport/tracking/fastag",
+          },
+        ]}
       />
 
       {/* Tabs */}

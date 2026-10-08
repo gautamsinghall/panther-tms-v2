@@ -57,6 +57,15 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "truck_hiring_note", "title": "Truck Hiring Note", "href": "/transport/truck-hiring-note"},
             {"feature": "eway_bill", "title": "Update E-Way", "href": "/transport/eway-bill"},
             {"feature": "tracking", "title": "Sim Based Tracking", "href": "/transport/tracking"},
+            {"feature": "fastag_tracking", "title": "FASTag Tracking", "href": "/transport/tracking/fastag"},
+        ],
+    },
+    {
+        "id": "tracking",
+        "title": "Tracking",
+        "items": [
+            {"feature": "fastag_tracking", "title": "FASTag Tracking", "href": "/transport/tracking/fastag"},
+            {"feature": "tracking", "title": "Sim Based Tracking", "href": "/transport/tracking"},
         ],
     },
     {
