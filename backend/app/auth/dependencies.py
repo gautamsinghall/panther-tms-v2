@@ -283,9 +283,13 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
             has_perm = any(
                 (
                     p.module.replace("-", "_").lower() == norm_mod_target
-                    or (norm_mod_target in ("settings", "company") and p.module.replace("-", "_").lower() in ("settings", "company") and feature in ("users", "roles"))
+                    or (norm_mod_target in ("settings", "company") and p.module.replace("-", "_").lower() in ("settings", "company") and feature in ("users", "roles", "api_center"))
+                    or (norm_mod_target in ("transport", "tracking") and p.module.replace("-", "_").lower() in ("transport", "tracking") and feature in ("tracking", "fastag_tracking", "sim_tracking"))
                 )
-                and p.feature == feature
+                and (
+                    p.feature == feature
+                    or (feature in ("tracking", "fastag_tracking", "sim_tracking") and p.feature in ("tracking", "fastag_tracking", "sim_tracking"))
+                )
                 and (p.permission == permission or p.permission == "all" or permission == "all")
                 and p.is_allowed
                 for p in user.custom_role.permissions

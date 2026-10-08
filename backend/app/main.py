@@ -42,6 +42,25 @@ async def lifespan(app: FastAPI):
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
             await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
+            await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS fastag_credits_left INTEGER DEFAULT 0;"))
+            await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS fastag_wallet_transactions (
+                    id SERIAL PRIMARY KEY,
+                    tenant_id VARCHAR(10) NOT NULL,
+                    company_code VARCHAR(100) NOT NULL,
+                    transaction_type VARCHAR(20) NOT NULL,
+                    api_calls_count INTEGER NOT NULL DEFAULT 1,
+                    rate_per_call NUMERIC(10, 2) NOT NULL DEFAULT 1.50,
+                    amount NUMERIC(10, 2) NOT NULL DEFAULT 1.50,
+                    vehicle_number VARCHAR(30),
+                    description VARCHAR(255) NOT NULL,
+                    balance_after INTEGER NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_tenant_id ON fastag_wallet_transactions(tenant_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_created_at ON fastag_wallet_transactions(created_at);"))
             # Backfill existing records if any
             await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (company_name ILIKE '%demo%');"))
             await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (company_name ILIKE '%demo%');"))

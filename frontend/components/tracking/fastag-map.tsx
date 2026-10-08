@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
 
 export interface TollCheckpoint {
   id: number;
@@ -323,68 +324,94 @@ export function FastagMap({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const storedKey =
-      localStorage.getItem("fastag_gmap_key") ||
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-      "";
+    let isMounted = true;
 
-    // 1. Ensure Leaflet CSS & JS are loaded into document head
-    if (!document.getElementById("leaflet-css")) {
-      const link = document.createElement("link");
-      link.id = "leaflet-css";
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
-
-    const loadLeafletScript = () => {
-      if ((window as any).L) {
-        initLeaflet();
-        return;
+    const setupMapEngines = async () => {
+      // 1. Ensure Leaflet CSS & JS are loaded into document head (as available fallback)
+      if (!document.getElementById("leaflet-css")) {
+        const link = document.createElement("link");
+        link.id = "leaflet-css";
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
       }
-      if (!document.getElementById("leaflet-js")) {
-        const script = document.createElement("script");
-        script.id = "leaflet-js";
-        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-        script.async = true;
-        script.onload = () => initLeaflet();
-        document.head.appendChild(script);
+
+      const loadLeafletScript = () => {
+        if (!isMounted) return;
+        if ((window as any).L) {
+          initLeaflet();
+          return;
+        }
+        if (!document.getElementById("leaflet-js")) {
+          const script = document.createElement("script");
+          script.id = "leaflet-js";
+          script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+          script.async = true;
+          script.onload = () => {
+            if (isMounted) initLeaflet();
+          };
+          document.head.appendChild(script);
+        }
+      };
+
+      // 2. Resolve Google Maps key: check localStorage, NEXT_PUBLIC env, or backend /config
+      let key =
+        localStorage.getItem("fastag_gmap_key") ||
+        process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
+        "";
+
+      if (!key) {
+        try {
+          const cfg = await apiClient<{ google_maps_api_key?: string }>("/api/v1/transport/tracking/fastag/config");
+          if (cfg?.google_maps_api_key) {
+            key = cfg.google_maps_api_key;
+            localStorage.setItem("fastag_gmap_key", key);
+          }
+        } catch (e) {
+          // If backend fetch fails, fall back to Leaflet
+        }
+      }
+
+      // 3. If Google Maps API Key exists, load Google Maps SDK and activate Google engine
+      if (key && key.trim() !== "") {
+        if ((window as any).google?.maps) {
+          initGoogleMaps();
+          return;
+        }
+
+        (window as any).gm_authFailure = () => {
+          console.warn("Google Maps auth failure. Gracefully falling back to Leaflet.");
+          loadLeafletScript();
+        };
+
+        (window as any).initGoogleMapsCallback = () => {
+          if (isMounted) initGoogleMaps();
+        };
+
+        if (!document.getElementById("google-maps-js")) {
+          const script = document.createElement("script");
+          script.id = "google-maps-js";
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+            key.trim()
+          )}&libraries=places,geometry&callback=initGoogleMapsCallback`;
+          script.async = true;
+          script.onerror = () => {
+            console.warn("Failed loading Google Maps script. Falling back to Leaflet.");
+            loadLeafletScript();
+          };
+          document.head.appendChild(script);
+        }
+      } else {
+        // No Google Maps Key configured, use Leaflet immediately
+        loadLeafletScript();
       }
     };
 
-    // 2. If Google Maps API Key exists, try to load Google Maps JS
-    if (storedKey && storedKey.trim() !== "") {
-      if ((window as any).google?.maps) {
-        initGoogleMaps();
-        return;
-      }
+    setupMapEngines();
 
-      (window as any).gm_authFailure = () => {
-        console.warn("Google Maps auth failure. Gracefully falling back to Leaflet.");
-        loadLeafletScript();
-      };
-
-      (window as any).initGoogleMapsCallback = () => {
-        initGoogleMaps();
-      };
-
-      if (!document.getElementById("google-maps-js")) {
-        const script = document.createElement("script");
-        script.id = "google-maps-js";
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-          storedKey.trim()
-        )}&libraries=places,geometry&callback=initGoogleMapsCallback`;
-        script.async = true;
-        script.onerror = () => {
-          console.warn("Failed loading Google Maps script. Falling back to Leaflet.");
-          loadLeafletScript();
-        };
-        document.head.appendChild(script);
-      }
-    } else {
-      // No Google Maps Key configured, use Leaflet immediately
-      loadLeafletScript();
-    }
+    return () => {
+      isMounted = false;
+    };
   }, [initGoogleMaps, initLeaflet]);
 
   // ---------------------------------------------------------------------------
@@ -754,6 +781,21 @@ export function FastagMap({
     <div className={`relative w-full h-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50 flex flex-col ${className}`}>
       {/* Top Floating Controls */}
       <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2 py-1.5 rounded-lg shadow-md border border-slate-200/80 text-xs">
+        <button
+          type="button"
+          onClick={() => {
+            if (mapEngine === "google") {
+              initLeaflet();
+            } else {
+              initGoogleMaps();
+            }
+          }}
+          className="px-2 py-1 rounded font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 border border-slate-200 cursor-pointer"
+          title={`Switch to ${mapEngine === "google" ? "Leaflet OpenStreetMap" : "Google Maps"}`}
+        >
+          <Layers className="w-3.5 h-3.5 text-indigo-600" />
+          <span>{mapEngine === "google" ? "Google" : "Leaflet"}</span>
+        </button>
         <button
           type="button"
           onClick={() => handleMapTypeChange("roadmap")}

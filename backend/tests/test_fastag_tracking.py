@@ -145,6 +145,52 @@ class TestFASTagTracking(unittest.TestCase):
         self.assertLess(PLAN_TIERS["FREE"], MODULE_MIN_TIERS["tracking"])
 
 
+    def test_fastag_config_schema(self):
+        from app.modules.transport.schemas import FastagConfigResponse
+
+        cfg = FastagConfigResponse(
+            google_maps_configured=True,
+            fastag_api_configured=True,
+            default_map_engine="google",
+            google_maps_api_key="AIzaSyTestKey123",
+            fastag_credits_left=0,
+            rate_per_fetch=1.50,
+        )
+        self.assertEqual(cfg.default_map_engine, "google")
+        self.assertEqual(cfg.google_maps_api_key, "AIzaSyTestKey123")
+        self.assertEqual(cfg.fastag_credits_left, 0)
+        self.assertEqual(cfg.rate_per_fetch, 1.50)
+        self.assertIn("1.50", cfg.pricing_notice)
+
+    def test_fastag_wallet_response_schema(self):
+        from app.modules.profile.schemas import FastagWalletResponse, FastagWalletTransactionItem
+
+        tx = FastagWalletTransactionItem(
+            id=1,
+            created_at=datetime.now(timezone.utc),
+            transaction_type="DEBIT",
+            api_calls_count=1,
+            rate_per_call=1.50,
+            amount=1.50,
+            vehicle_number="MH04GP1234",
+            description="FASTag Live Telemetry Fetch for MH04GP1234",
+            balance_after=4,
+        )
+        resp = FastagWalletResponse(
+            api_calls_left=4,
+            rate_per_fetch=1.50,
+            equivalent_balance_inr=6.00,
+            is_exhausted=False,
+            transactions=[tx],
+        )
+        self.assertEqual(resp.api_calls_left, 4)
+        self.assertEqual(resp.rate_per_fetch, 1.50)
+        self.assertEqual(resp.equivalent_balance_inr, 6.00)
+        self.assertFalse(resp.is_exhausted)
+        self.assertEqual(len(resp.transactions), 1)
+        self.assertEqual(resp.transactions[0].transaction_type, "DEBIT")
+
+
 if __name__ == "__main__":
     unittest.main()
 

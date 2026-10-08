@@ -66,6 +66,7 @@ class Tenant(ControlBase):
     current_period_end = Column(DateTime(timezone=True), nullable=True)
     grace_period_until = Column(DateTime(timezone=True), nullable=True)
     razorpay_customer_id = Column(String(100), nullable=True)
+    fastag_credits_left = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -75,6 +76,27 @@ class Tenant(ControlBase):
     )
 
     plan = relationship("Plan", back_populates="tenants")
+
+
+class FastagWalletTransaction(ControlBase):
+    """
+    Stores audit transactions for FASTag API telemetry wallet credits.
+    Stored in panther_control database per tenant.
+    Tariff is fixed at Rs. 1.50 per vehicle fetch.
+    """
+    __tablename__ = "fastag_wallet_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(String(10), ForeignKey("tenants.tenant_id"), nullable=False, index=True)
+    company_code = Column(String(100), nullable=False, index=True)
+    transaction_type = Column(String(20), nullable=False)  # "DEBIT" or "CREDIT"
+    api_calls_count = Column(Integer, nullable=False, default=1)
+    rate_per_call = Column(Numeric(10, 2), nullable=False, default=1.50)
+    amount = Column(Numeric(10, 2), nullable=False, default=1.50)
+    vehicle_number = Column(String(30), nullable=True)
+    description = Column(String(255), nullable=False)
+    balance_after = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
 
 class WebhookEvent(ControlBase):

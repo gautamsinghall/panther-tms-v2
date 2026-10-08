@@ -227,6 +227,11 @@ class ApiCenterSettingResponse(BaseModel):
     ft_base_url: Optional[str] = "https://api.freighttiger.com/api/tether"
     has_ft_auth_token: bool = False
     is_ft_active: bool = True
+    # Telemetry Gateways Status (Dokploy & panther_control)
+    fastag_configured: bool = False
+    google_maps_configured: bool = False
+    fastag_credits_left: int = 0
+    fastag_rate_per_fetch: float = 1.50
 
 
 class ApiCenterSettingUpdate(BaseModel):
@@ -256,4 +261,26 @@ class ApiCenterTestResponse(BaseModel):
     message: str
     token_preview: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
+
+
+# FASTag Wallet Schemas (panther_control)
+class FastagWalletTransactionItem(BaseModel):
+    id: int
+    created_at: datetime
+    transaction_type: str
+    api_calls_count: int
+    rate_per_call: float
+    amount: float
+    vehicle_number: Optional[str] = None
+    description: str
+    balance_after: int
+
+
+class FastagWalletResponse(BaseModel):
+    api_calls_left: int = 0
+    rate_per_fetch: float = 1.50
+    equivalent_balance_inr: float = 0.00
+    is_exhausted: bool = True
+    pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
+    transactions: List[FastagWalletTransactionItem] = Field(default_factory=list)
 

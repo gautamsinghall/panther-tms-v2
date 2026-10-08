@@ -268,7 +268,10 @@ export default function FastagTrackingPage() {
       addRecentSearch(cleanVehicle);
 
       if (res.error) {
-        setFeedback({ type: "info", message: `FASTag notice: ${res.error}` });
+        setFeedback({
+          type: res.error.toLowerCase().includes("exhausted") || res.error.includes("0 calls") ? "error" : "info",
+          message: res.error,
+        });
       } else if (res.api_called) {
         setFeedback({
           type: "success",

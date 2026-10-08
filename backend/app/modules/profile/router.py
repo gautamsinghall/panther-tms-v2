@@ -1,10 +1,11 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.tenant_db.session import get_tenant_db
+from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import (
     require_permission, get_current_user, get_current_company_admin
 )
+from app.control.models import Tenant
 from app.tenant_db.models import User
 from app.modules.profile.schemas import (
     ChangePasswordRequest, UserProfileUpdate, UserProfileResponse,
@@ -13,7 +14,8 @@ from app.modules.profile.schemas import (
     EmailSettingUpdate, EmailSettingResponse,
     MonthlyPnLResponse,
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
-    ApiCenterTestRequest, ApiCenterTestResponse
+    ApiCenterTestRequest, ApiCenterTestResponse,
+    FastagWalletResponse
 )
 from app.modules.profile import service
 
@@ -195,9 +197,10 @@ async def get_monthly_pnl(
 )
 async def get_api_center(
     current_admin: User = Depends(get_current_company_admin),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_api_center_setting(db)
+    return await service.get_api_center_setting(db, tenant_id=tenant.tenant_id)
 
 
 @router.put(
@@ -224,4 +227,16 @@ async def test_ewb(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.test_ewb_connection(db, req)
+
+
+@router.get(
+    "/api-center/fastag-wallet",
+    response_model=FastagWalletResponse,
+    summary="Get FASTag & Toll Telemetry wallet balance and transaction ledger (panther_control)"
+)
+async def get_fastag_wallet(
+    current_admin: User = Depends(get_current_company_admin),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    return await service.get_fastag_wallet_info(tenant.tenant_id, tenant.company_code)
 

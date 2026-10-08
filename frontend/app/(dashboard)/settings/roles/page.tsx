@@ -68,7 +68,16 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
       { id: "pod_records", label: "POD Tracking" },
       { id: "truck_hiring_note", label: "Truck Hiring Notes" },
       { id: "eway_bill", label: "Update E-Way" },
-      { id: "tracking", label: "Sim Based Tracking" },
+      { id: "tracking", label: "Fleet Telemetry & Tracking" },
+    ],
+  },
+  {
+    id: "tracking",
+    title: "Vehicle Tracking & Telemetry",
+    features: [
+      { id: "fastag_tracking", label: "FASTag Toll Telemetry" },
+      { id: "sim_tracking", label: "SIM / Cellular Consent Tracking" },
+      { id: "tracking", label: "Live Vehicle Route & History" },
     ],
   },
   {
@@ -171,6 +180,7 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
       { id: "branch", label: "Issuing Offices / Branches" },
       { id: "users", label: "Employee & User Management" },
       { id: "roles", label: "Roles & Permissions Management" },
+      { id: "api_center", label: "API Center (E-Way, FASTag, Maps Gateway)" },
     ],
   },
   {
@@ -245,6 +255,14 @@ export default function RolesPage() {
           if (p.module === "company" && (p.feature === "users" || p.feature === "roles")) {
             mapping[`settings:${p.feature}:${p.permission}`] = true;
           }
+          if (p.module === "transport" && p.feature === "tracking") {
+            mapping[`tracking:fastag_tracking:${p.permission}`] = true;
+            mapping[`tracking:sim_tracking:${p.permission}`] = true;
+            mapping[`tracking:tracking:${p.permission}`] = true;
+          }
+          if (p.module === "tracking") {
+            mapping[`transport:tracking:${p.permission}`] = true;
+          }
         }
       });
     }
@@ -310,6 +328,15 @@ export default function RolesPage() {
             permissions.push({
               module: "settings",
               feature,
+              permission,
+              is_allowed: true,
+            });
+          }
+          // If permission is under tracking, also add transport tracking for backward compatibility
+          if (module === "tracking") {
+            permissions.push({
+              module: "transport",
+              feature: "tracking",
               permission,
               is_allowed: true,
             });

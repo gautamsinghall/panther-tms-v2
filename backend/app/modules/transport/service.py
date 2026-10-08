@@ -1401,16 +1401,78 @@ async def sync_all_active_sim_trips(db: AsyncSession) -> int:
 fastag_client = FASTagProviderClient()
 
 
+async def check_and_deduct_fastag_credit(
+    tenant_id: Optional[str],
+    company_code: Optional[str],
+    vehicle_number: str,
+) -> Tuple[bool, int, str]:
+    """
+    Checks if tenant has at least 1 credit remaining in panther_control database.
+    If credits > 0, debits 1 call, creates FastagWalletTransaction, and returns (True, remaining, "").
+    If credits <= 0, returns (False, 0, "FASTag API credits exhausted (0 calls remaining)...").
+    Tariff is strictly Rs. 1.50 per vehicle fetch.
+    """
+    if not tenant_id and not company_code:
+        # If no tenant context provided (e.g. testing / fallback), allow pass
+        return True, 999, ""
+
+    from app.core.database import ControlSessionLocal
+    from app.control.models import Tenant as ControlTenant, FastagWalletTransaction
+    from sqlalchemy import select, or_
+
+    try:
+        async with ControlSessionLocal() as session:
+            stmt = select(ControlTenant).where(
+                or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+            ).with_for_update()
+            res = await session.execute(stmt)
+            tenant_obj = res.scalar_one_or_none()
+            if not tenant_obj:
+                return False, 0, "Tenant record not found in control database."
+
+            current_credits = tenant_obj.fastag_credits_left or 0
+            if current_credits <= 0:
+                return False, 0, (
+                    "FASTag API credits exhausted (0 calls remaining). "
+                    "Standard tariff is ₹1.50 per vehicle fetch. Live query blocked. "
+                    "Please contact your system administrator to allocate API credits."
+                )
+
+            tenant_obj.fastag_credits_left = current_credits - 1
+            new_balance = tenant_obj.fastag_credits_left
+
+            tx = FastagWalletTransaction(
+                tenant_id=tenant_obj.tenant_id,
+                company_code=tenant_obj.company_code,
+                transaction_type="DEBIT",
+                api_calls_count=1,
+                rate_per_call=Decimal("1.50"),
+                amount=Decimal("1.50"),
+                vehicle_number=vehicle_number,
+                description=f"FASTag Live Telemetry Fetch for {vehicle_number}",
+                balance_after=new_balance,
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(tx)
+            await session.commit()
+            return True, new_balance, ""
+    except Exception as e:
+        return False, 0, f"FASTag credit check error: {str(e)}"
+
+
 async def track_fastag_vehicle(
     db: AsyncSession,
     vehicle_number: str,
     force_sync: bool = False,
     manual_from: Optional[str] = None,
     manual_to: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Tracks a vehicle using Logitrack/NETC FASTag telemetry.
     Respects 1-hour rate limit cooldown unless force_sync is requested.
+    Verifies tenant credit balance in panther_control; blocks live queries if 0.
     Extracts chronological toll checkpoints, computes road distances and progress,
     and returns trip overview & timeline.
     """
@@ -1440,11 +1502,22 @@ async def track_fastag_vehicle(
 
     # 2. Call Live FASTag API if cooldown passed or forced
     if should_call_api:
-        success, raw_txns, err_msg = await fastag_client.fetch_toll_transactions(clean_vehicle)
-        api_called = True
-        api_error = err_msg
+        # Check credit balance in panther_control
+        has_credit, remaining, credit_err = await check_and_deduct_fastag_credit(
+            tenant_id=tenant_id,
+            company_code=company_code,
+            vehicle_number=clean_vehicle,
+        )
+        if not has_credit:
+            should_call_api = False
+            api_called = False
+            api_error = credit_err
+        else:
+            success, raw_txns, err_msg = await fastag_client.fetch_toll_transactions(clean_vehicle)
+            api_called = True
+            api_error = err_msg
 
-        if success and raw_txns:
+        if should_call_api and success and raw_txns:
             # Query existing tolls to prevent duplicate entries
             existing_tolls_stmt = select(TollLog).where(TollLog.vehicle_number == clean_vehicle)
             existing_tolls_res = await db.execute(existing_tolls_stmt)
@@ -1889,7 +1962,11 @@ async def delete_fastag_trip(
     return True
 
 
-async def auto_sync_all_in_transit_fastag(db: AsyncSession) -> Dict[str, Any]:
+async def auto_sync_all_in_transit_fastag(
+    db: AsyncSession,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Auto-syncs all vehicles that currently have an active FASTag trip or an in-transit LR.
     Direct equivalent of legacy action=auto_sync.
@@ -1916,7 +1993,13 @@ async def auto_sync_all_in_transit_fastag(db: AsyncSession) -> Dict[str, Any]:
         if not clean_v:
             continue
         try:
-            res = await track_fastag_vehicle(db, clean_v, force_sync=False)
+            res = await track_fastag_vehicle(
+                db,
+                clean_v,
+                force_sync=False,
+                tenant_id=tenant_id,
+                company_code=company_code,
+            )
             if res.get("api_called"):
                 synced_count += 1
         except Exception as e:

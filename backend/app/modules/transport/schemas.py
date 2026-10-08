@@ -893,4 +893,8 @@ class FastagConfigResponse(BaseModel):
     google_maps_configured: bool
     fastag_api_configured: bool
     default_map_engine: str
+    google_maps_api_key: Optional[str] = None
+    fastag_credits_left: int = 0
+    rate_per_fetch: float = 1.50
+    pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
 

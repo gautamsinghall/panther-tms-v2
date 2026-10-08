@@ -1109,12 +1109,34 @@ async def sync_all_sim_trips(
 @router.get("/tracking/fastag/config", response_model=FastagConfigResponse)
 async def get_fastag_config(
     current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
 ):
     """Returns whether FASTag API and Google Maps API are configured in the environment."""
+    from app.core.config import settings
+    from app.core.database import ControlSessionLocal
+    from app.control.models import Tenant as ControlTenant
+    from sqlalchemy import select
+
+    credits_left = 0
+    try:
+        async with ControlSessionLocal() as session:
+            stmt = select(ControlTenant.fastag_credits_left).where(
+                ControlTenant.tenant_id == tenant.tenant_id
+            )
+            res = await session.execute(stmt)
+            val = res.scalar_one_or_none()
+            if val is not None:
+                credits_left = int(val)
+    except Exception:
+        pass
+
     return FastagConfigResponse(
         google_maps_configured=bool(settings.GOOGLE_MAPS_API_KEY),
         fastag_api_configured=bool(settings.FASTAG_API_KEY),
         default_map_engine="google" if settings.GOOGLE_MAPS_API_KEY else "leaflet",
+        google_maps_api_key=settings.GOOGLE_MAPS_API_KEY or "",
+        fastag_credits_left=credits_left,
+        rate_per_fetch=1.50,
     )
 
 
@@ -1125,12 +1147,14 @@ async def track_fastag_vehicle_endpoint(
     manual_from: Optional[str] = Query(None, description="Manual origin location name"),
     manual_to: Optional[str] = Query(None, description="Manual destination location name"),
     current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """
     Live FASTag vehicle tracking.
     Queries toll plaza logs, calculates highway progress & distances,
     and returns full route waypoints and timeline.
+    Checks tenant API credit balance in panther_control and blocks live calls if 0.
     """
     return await service.track_fastag_vehicle(
         db=db,
@@ -1138,6 +1162,8 @@ async def track_fastag_vehicle_endpoint(
         force_sync=force,
         manual_from=manual_from,
         manual_to=manual_to,
+        tenant_id=tenant.tenant_id,
+        company_code=tenant.company_code,
     )
 
 

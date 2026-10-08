@@ -18,7 +18,8 @@ from app.modules.profile.schemas import (
     CompanySettingUpdate, EmailSettingUpdate,
     MonthlyPnLResponse, MonthlyPnLItem,
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
-    ApiCenterTestRequest, ApiCenterTestResponse
+    ApiCenterTestRequest, ApiCenterTestResponse,
+    FastagWalletResponse, FastagWalletTransactionItem
 )
 
 logger = logging.getLogger("panther.profile.service")
@@ -493,8 +494,25 @@ async def calculate_monthly_pnl(db: AsyncSession, month: Optional[str] = None) -
 
 # --- API Center & E-Way Bill Integration ---
 
-async def get_api_center_setting(db: AsyncSession) -> ApiCenterSettingResponse:
+async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = None) -> ApiCenterSettingResponse:
     company = await get_company_setting(db)
+
+    credits_left = 0
+    if tenant_id:
+        try:
+            from app.core.database import ControlSessionLocal
+            from app.control.models import Tenant as ControlTenant
+            from sqlalchemy import select
+            async with ControlSessionLocal() as session:
+                res = await session.execute(
+                    select(ControlTenant.fastag_credits_left).where(ControlTenant.tenant_id == tenant_id)
+                )
+                val = res.scalar_one_or_none()
+                if val is not None:
+                    credits_left = int(val)
+        except Exception:
+            pass
+
     return ApiCenterSettingResponse(
         ewb_username=company.ewb_username,
         ewb_password=None,  # Never leak password to the frontend or browser console
@@ -509,6 +527,10 @@ async def get_api_center_setting(db: AsyncSession) -> ApiCenterSettingResponse:
         ft_base_url=company.ft_base_url or "https://api.freighttiger.com/api/tether",
         has_ft_auth_token=bool(company.ft_auth_token),
         is_ft_active=company.is_ft_active if company.is_ft_active is not None else True,
+        fastag_configured=bool(settings.FASTAG_API_KEY),
+        google_maps_configured=bool(settings.GOOGLE_MAPS_API_KEY),
+        fastag_credits_left=credits_left,
+        fastag_rate_per_fetch=1.50,
     )
 
 
@@ -613,5 +635,59 @@ async def test_ewb_connection(db: AsyncSession, req: ApiCenterTestRequest) -> Ap
         return ApiCenterTestResponse(
             success=False,
             message=f"Unexpected error during connection test: {str(e)}"
+        )
+
+
+async def get_fastag_wallet_info(tenant_id: str, company_code: str) -> FastagWalletResponse:
+    from app.core.database import ControlSessionLocal
+    from app.control.models import Tenant as ControlTenant, FastagWalletTransaction
+    from sqlalchemy import select, or_, desc
+
+    async with ControlSessionLocal() as session:
+        stmt = select(ControlTenant).where(
+            or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+        )
+        res = await session.execute(stmt)
+        tenant_obj = res.scalar_one_or_none()
+
+        credits_left = int(tenant_obj.fastag_credits_left or 0) if tenant_obj else 0
+        tid = tenant_obj.tenant_id if tenant_obj else tenant_id
+
+        tx_stmt = (
+            select(FastagWalletTransaction)
+            .where(
+                or_(
+                    FastagWalletTransaction.tenant_id == tid,
+                    FastagWalletTransaction.company_code == company_code,
+                )
+            )
+            .order_by(desc(FastagWalletTransaction.id))
+            .limit(100)
+        )
+        tx_res = await session.execute(tx_stmt)
+        tx_objs = tx_res.scalars().all()
+
+        transactions = [
+            FastagWalletTransactionItem(
+                id=tx.id,
+                created_at=tx.created_at,
+                transaction_type=tx.transaction_type,
+                api_calls_count=tx.api_calls_count,
+                rate_per_call=float(tx.rate_per_call),
+                amount=float(tx.amount),
+                vehicle_number=tx.vehicle_number,
+                description=tx.description,
+                balance_after=tx.balance_after,
+            )
+            for tx in tx_objs
+        ]
+
+        return FastagWalletResponse(
+            api_calls_left=credits_left,
+            rate_per_fetch=1.50,
+            equivalent_balance_inr=round(float(credits_left * 1.50), 2),
+            is_exhausted=(credits_left <= 0),
+            pricing_notice="Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator.",
+            transactions=transactions,
         )
 
