@@ -24,6 +24,7 @@ import {
   Map as MapIcon,
   Phone,
   Send,
+  FileText,
 } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Form } from "@/components/forms/form";
@@ -427,24 +428,6 @@ export default function TrackingPage() {
               <span className="truncate">{row.route_code}</span>
             </div>
           )}
-        </div>
-      ),
-    },
-    {
-      key: "lr_number",
-      header: "Consignment (LR)",
-      cell: (row) => (
-        <div className="min-w-[130px]">
-          {row.lr_number ? (
-            <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded border border-indigo-200/50 inline-block">
-              {row.lr_number}
-            </span>
-          ) : (
-            <span className="text-xs text-slate-400 italic">Unlinked Leg</span>
-          )}
-          <div className="text-[10px] text-slate-400 font-mono mt-0.5 truncate max-w-[140px]" title={row.feed_unique_id}>
-            UID: {row.feed_unique_id}
-          </div>
         </div>
       ),
     },
@@ -1184,23 +1167,45 @@ export default function TrackingPage() {
         {selectedTrip && (
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-6 shadow-2xs">
             {/* Header Plate & Status Banner */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-              <div>
-                <VehiclePlate vehicleNumber={selectedTrip.vehicle_number} />
-                <div className="text-xs text-slate-500 font-medium mt-1">
-                  Driver: <span className="text-slate-800 font-semibold">{selectedTrip.driver_name || "Assigned Driver"}</span> (+91 {selectedTrip.driver_phone})
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <VehiclePlate vehicleNumber={selectedTrip.vehicle_number} />
+                  <div className="text-xs text-slate-500 font-medium mt-1">
+                    Driver: <span className="text-slate-800 font-semibold">{selectedTrip.driver_name || "Assigned Driver"}</span> (+91 {selectedTrip.driver_phone})
+                  </div>
+                </div>
+                <div className="text-right space-y-1">
+                  <Badge
+                    variant={selectedTrip.is_consent_done ? "success" : "warning"}
+                    dot
+                    className="text-xs"
+                  >
+                    {selectedTrip.is_consent_done ? "Consent Active" : "Consent Pending"}
+                  </Badge>
+                  <div className="text-[11px] font-mono text-slate-400">
+                    Status: {selectedTrip.status}
+                  </div>
                 </div>
               </div>
-              <div className="text-right space-y-1">
-                <Badge
-                  variant={selectedTrip.is_consent_done ? "success" : "warning"}
-                  dot
-                  className="text-xs"
-                >
-                  {selectedTrip.is_consent_done ? "Consent Active" : "Consent Pending"}
-                </Badge>
-                <div className="text-[11px] font-mono text-slate-400">
-                  Status: {selectedTrip.status}
+
+              {/* Consignment (LR) & Tracking UID */}
+              <div className="pt-2.5 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                    Consignment (LR):
+                  </span>
+                  {selectedTrip.lr_number ? (
+                    <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50/90 px-2.5 py-0.5 rounded border border-indigo-200/60 inline-block shadow-2xs">
+                      {selectedTrip.lr_number}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Unlinked Leg</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-500 font-mono" title={selectedTrip.feed_unique_id}>
+                  UID: <span className="text-slate-700 font-semibold">{selectedTrip.feed_unique_id}</span>
                 </div>
               </div>
             </div>
