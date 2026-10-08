@@ -222,7 +222,8 @@ export function DataTable<T extends Record<string, any>>({
     document.body.removeChild(link);
   };
 
-  const cellPaddingClass = density === "comfortable" ? "py-3 px-4" : "py-2 px-3";
+  const cellPaddingClass = density === "comfortable" ? "py-2.5 px-3" : "py-1.5 px-2";
+  const checkboxPaddingClass = density === "comfortable" ? "py-2.5 px-3" : "py-1.5 px-2";
 
   const paginationButtons = useMemo(() => {
     const pages: (number | string)[] = [];
@@ -340,7 +341,7 @@ export function DataTable<T extends Record<string, any>>({
               <tr>
                 {/* Select All Checkbox Column */}
                 {selectable && (
-                  <th className="w-10 px-4 py-3 text-center">
+                  <th className={cn("w-9 text-center", checkboxPaddingClass)}>
                     <input
                       type="checkbox"
                       checked={allCurrentPageSelected}
@@ -394,7 +395,8 @@ export function DataTable<T extends Record<string, any>>({
                 {actions.length > 0 && (
                   <th
                     className={cn(
-                      "px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono",
+                      "text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono",
+                      cellPaddingClass,
                       actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
                     )}
                   >
@@ -411,7 +413,7 @@ export function DataTable<T extends Record<string, any>>({
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={`skel-${idx}`} className="bg-white">
                     {selectable && (
-                      <td className="px-4 py-3 text-center">
+                      <td className={cn("text-center", checkboxPaddingClass)}>
                         <Skeleton className="w-4 h-4 rounded mx-auto" />
                       </td>
                     )}
@@ -421,7 +423,7 @@ export function DataTable<T extends Record<string, any>>({
                       </td>
                     ))}
                     {actions.length > 0 && (
-                      <td className={cn("px-4 py-3", actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right")}>
+                      <td className={cn(cellPaddingClass, actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right")}>
                         <Skeleton className={cn("h-4 rounded", actionLayout === "inline" ? "w-16 mx-auto" : "w-6 ml-auto")} />
                       </td>
                     )}
@@ -488,7 +490,7 @@ export function DataTable<T extends Record<string, any>>({
                     >
                       {/* Checkbox Column */}
                       {selectable && (
-                        <td className="w-10 px-4 py-3 text-center">
+                        <td className={cn("w-9 text-center", checkboxPaddingClass)}>
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -504,6 +506,7 @@ export function DataTable<T extends Record<string, any>>({
                         return (
                           <td
                             key={col.key}
+                            style={{ width: col.width }}
                             className={cn(
                               "text-xs sm:text-[13px] text-slate-800 font-medium",
                               cellPaddingClass,
@@ -520,7 +523,7 @@ export function DataTable<T extends Record<string, any>>({
                       {actions.length > 0 && (
                         <td
                           className={cn(
-                            "px-4 py-3",
+                            cellPaddingClass,
                             actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
                           )}
                         >

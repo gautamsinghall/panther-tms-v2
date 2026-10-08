@@ -420,10 +420,10 @@ export default function TrackingPage() {
       header: "Vehicle & Route",
       sortable: true,
       cell: (row) => (
-        <div className="space-y-1 min-w-[150px]">
+        <div className="space-y-0.5 max-w-[150px] min-w-0">
           <VehiclePlate vehicleNumber={row.vehicle_number} />
           {row.route_code && (
-            <div className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
+            <div className="text-[11px] font-medium text-slate-500 flex items-center gap-1 min-w-0" title={row.route_code}>
               <Navigation className="w-3 h-3 text-slate-400 shrink-0" />
               <span className="truncate">{row.route_code}</span>
             </div>
@@ -433,13 +433,13 @@ export default function TrackingPage() {
     },
     {
       key: "driver",
-      header: "Driver & Mobile (SIM)",
+      header: "Driver & Mobile",
       cell: (row) => (
-        <div className="min-w-[150px]">
-          <div className="text-xs font-semibold text-slate-900 truncate">
+        <div className="max-w-[130px] min-w-0">
+          <div className="text-xs font-semibold text-slate-900 truncate" title={row.driver_name || "Assigned Driver"}>
             {row.driver_name || "Assigned Driver"}
           </div>
-          <div className="text-[11px] font-mono text-slate-600 inline-flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
+          <div className="text-[11px] font-mono text-slate-600 inline-flex items-center gap-1 mt-0.5 whitespace-nowrap">
             <Smartphone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span>+91 {row.driver_phone}</span>
           </div>
@@ -452,7 +452,7 @@ export default function TrackingPage() {
       cell: (row) => {
         if (row.is_consent_done) {
           return (
-            <div className="flex flex-col gap-1 items-start whitespace-nowrap">
+            <div className="flex flex-col gap-0.5 items-start whitespace-nowrap">
               <Badge variant="success" dot className="text-xs font-medium">
                 Consent Granted
               </Badge>
@@ -461,8 +461,8 @@ export default function TrackingPage() {
           );
         }
         return (
-          <div className="flex flex-col gap-1 items-start whitespace-nowrap">
-            <Badge variant="warning" className="text-xs font-medium gap-1.5 flex items-center">
+          <div className="flex flex-col gap-0.5 items-start whitespace-nowrap">
+            <Badge variant="warning" className="text-xs font-medium gap-1 flex items-center">
               <Clock className="w-3 h-3 text-amber-600 animate-spin" style={{ animationDuration: "3s" }} />
               Awaiting SMS Reply
             </Badge>
@@ -475,24 +475,26 @@ export default function TrackingPage() {
     },
     {
       key: "last_location",
-      header: "Last Cell Tower Fix",
+      header: "Last Cell Fix",
       cell: (row) => {
         if (!row.is_consent_done) {
           return (
-            <div className="text-xs text-slate-400 italic flex items-center gap-1 min-w-[170px]">
+            <div className="text-xs text-slate-400 italic flex items-center gap-1 max-w-[150px] min-w-0">
               <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span>Awaiting driver SMS consent</span>
+              <span className="truncate" title="Awaiting driver SMS consent">Awaiting consent</span>
             </div>
           );
         }
         return (
-          <div className="max-w-[240px] min-w-[170px]">
-            <div className="font-medium text-slate-800 text-xs flex items-start gap-1">
+          <div className="max-w-[150px] min-w-0">
+            <div className="font-medium text-slate-800 text-xs flex items-start gap-1 min-w-0">
               <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
-              <span className="truncate">{row.last_location_address || "Transit Checkpoint"}</span>
+              <span className="truncate" title={row.last_location_address || "Transit Checkpoint"}>
+                {row.last_location_address || "Transit Checkpoint"}
+              </span>
             </div>
             {row.last_latitude && (
-              <div className="text-[11px] font-mono text-slate-500 mt-0.5 ml-4">
+              <div className="text-[10px] font-mono text-slate-500 mt-0.5 ml-4">
                 {Number(row.last_latitude).toFixed(4)}, {Number(row.last_longitude).toFixed(4)}
               </div>
             )}
@@ -509,8 +511,8 @@ export default function TrackingPage() {
       key: "destination_eta",
       header: "Destination & ETA",
       cell: (row) => (
-        <div className="min-w-[150px]">
-          <div className="text-xs font-medium text-slate-800 truncate max-w-[160px]">
+        <div className="max-w-[130px] min-w-0">
+          <div className="text-xs font-medium text-slate-800 truncate" title={row.destination_address || "Destination"}>
             {row.destination_address || "Destination"}
           </div>
           {row.distance_remaining_km && (
@@ -542,16 +544,16 @@ export default function TrackingPage() {
       key: "actions",
       header: "Actions",
       cell: (row) => (
-        <div className="flex items-center gap-1.5 whitespace-nowrap">
+        <div className="flex items-center gap-1 whitespace-nowrap">
           {row.share_url && (
             <a
               href={row.share_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 h-7.5 px-2.5 text-xs font-semibold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 hover:text-indigo-800 border border-indigo-200/80 rounded-lg whitespace-nowrap shrink-0 shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 h-7 px-2 text-xs font-semibold text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 hover:text-indigo-800 border border-indigo-200/80 rounded-lg whitespace-nowrap shrink-0 shadow-2xs transition-colors cursor-pointer"
               title="Open Public Live Tracking Link"
             >
-              <ExternalLink className="w-3.5 h-3.5 shrink-0 text-indigo-600" />
+              <ExternalLink className="w-3 h-3 shrink-0 text-indigo-600" />
               <span>Live Map</span>
             </a>
           )}
@@ -560,7 +562,7 @@ export default function TrackingPage() {
             onClick={() => handleSyncTrip(row.id)}
             disabled={syncingTripId === row.id}
             className={cn(
-              "inline-flex items-center justify-center h-7.5 w-7.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 shadow-2xs transition-all shrink-0 cursor-pointer disabled:opacity-50",
+              "inline-flex items-center justify-center h-7 w-7 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 shadow-2xs transition-all shrink-0 cursor-pointer disabled:opacity-50",
               syncingTripId === row.id && "bg-slate-50 text-indigo-600"
             )}
             title="Refresh latest location telemetry"
@@ -578,7 +580,7 @@ export default function TrackingPage() {
               setSelectedTrip(row);
               setIsTripDetailsModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 h-7.5 px-2.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 border border-slate-200 rounded-lg shadow-2xs hover:border-slate-300 transition-colors shrink-0 cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-1 h-7 px-2 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 border border-slate-200 rounded-lg shadow-2xs hover:border-slate-300 transition-colors shrink-0 cursor-pointer whitespace-nowrap"
             title="View trip details and telemetry timeline"
           >
             <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -591,7 +593,7 @@ export default function TrackingPage() {
                 setSelectedTrip(row);
                 setIsCloseModalOpen(true);
               }}
-              className="inline-flex items-center gap-1 h-7.5 px-2.5 text-xs font-medium text-rose-700 bg-rose-50/80 hover:bg-rose-100 hover:text-rose-800 border border-rose-200 rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer whitespace-nowrap"
+              className="inline-flex items-center gap-1 h-7 px-2 text-xs font-medium text-rose-700 bg-rose-50/80 hover:bg-rose-100 hover:text-rose-800 border border-rose-200 rounded-lg shadow-2xs transition-colors shrink-0 cursor-pointer whitespace-nowrap"
               title="End and close this tracking trip"
             >
               <X className="w-3.5 h-3.5 shrink-0" />
