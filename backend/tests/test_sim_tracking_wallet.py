@@ -91,6 +91,38 @@ class TestSIMTrackingWallet(unittest.TestCase):
         self.assertEqual(resp.active_trips_count, 2)
         self.assertFalse(resp.is_exhausted)
 
+    def test_freight_tiger_endpoint_constants(self):
+        from app.integrations.freight_tiger.client import (
+            PRIMARY_ADD_TRIP_URL,
+            PRIMARY_CLOSE_TRIP_URL,
+            PRIMARY_GET_TRIP_BY_UID_URL,
+            FreightTigerClient,
+        )
+        self.assertEqual(PRIMARY_ADD_TRIP_URL, "https://api.freighttiger.com/api/tether/connect/trip/add")
+        self.assertEqual(PRIMARY_CLOSE_TRIP_URL, "https://api.freighttiger.com/api/tether/connect/trip/close")
+        self.assertEqual(PRIMARY_GET_TRIP_BY_UID_URL, "https://api.freighttiger.com/api/tether/connect/trip/uid")
+
+        # Verify client initialization sanitizes legacy integration.freighttiger.com
+        client = FreightTigerClient(base_url="https://integration.freighttiger.com/saas")
+        self.assertEqual(client.base_url, "https://api.freighttiger.com/api/tether")
+
+    def test_freight_tiger_token_resolution(self):
+        import os
+        from app.core.config import resolve_freight_tiger_token
+
+        # Test explicit override
+        token = resolve_freight_tiger_token("my_explicit_token")
+        self.assertEqual(token, "my_explicit_token")
+
+        # Test environment variable resolution
+        os.environ["FT_AUTH_TOKEN"] = "test_env_jwt_token_123"
+        try:
+            resolved = resolve_freight_tiger_token()
+            self.assertEqual(resolved, "test_env_jwt_token_123")
+        finally:
+            os.environ.pop("FT_AUTH_TOKEN", None)
+
 
 if __name__ == "__main__":
     unittest.main()
+

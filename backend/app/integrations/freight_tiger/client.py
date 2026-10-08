@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 import httpx
-from app.core.config import settings
+from app.core.config import settings, sanitize_ft_base_url, resolve_freight_tiger_token
 from app.core.errors import AppException
 
 logger = logging.getLogger("panther.integrations.freight_tiger")
@@ -68,8 +68,9 @@ INDIAN_CITY_COORDINATES: Dict[str, Tuple[float, float]] = {
 
 PRIMARY_ADD_TRIP_URL = "https://api.freighttiger.com/api/tether/connect/trip/add"
 PRIMARY_CLOSE_TRIP_URL = "https://api.freighttiger.com/api/tether/connect/trip/close"
-PRIMARY_GET_TRIP_BY_UID_URL = "https://api.freighttiger.com/api/gateway/integration/trip/uid"
+PRIMARY_GET_TRIP_BY_UID_URL = "https://api.freighttiger.com/api/tether/connect/trip/uid"
 PRIMARY_GET_TRIP_BY_ID_URL = "https://api.freighttiger.com/api/tether/connect/trip/id"
+PRIMARY_GATEWAY_UID_URL = "https://api.freighttiger.com/api/gateway/integration/trip/uid"
 
 
 class FreightTigerClient:
@@ -93,9 +94,8 @@ class FreightTigerClient:
         base_url: Optional[str] = None,
         auth_token: Optional[str] = None,
     ):
-        self.base_url = (base_url or settings.FREIGHT_TIGER_BASE_URL or "https://api.freighttiger.com/api/tether").rstrip("/")
-        raw_token = auth_token or settings.FREIGHT_TIGER_AUTH_TOKEN
-        self.auth_token = raw_token.strip() if raw_token else None
+        self.base_url = sanitize_ft_base_url(base_url)
+        self.auth_token = resolve_freight_tiger_token(auth_token)
         # In-memory store for simulated sandbox trips when no live FT credentials are provided
         self._simulated_trips: Dict[str, Dict[str, Any]] = {}
 
@@ -204,105 +204,82 @@ class FreightTigerClient:
         if custom_values:
             payload["customValues"] = custom_values
 
-        # 4. If live FT auth token is configured, make real HTTP request to Freight Tiger
+        # 4. If live FT auth token is configured, make real HTTP request to Freight Tiger AddTrip API
         if self.auth_token:
-            endpoints = [
-                PRIMARY_ADD_TRIP_URL,
-                f"{self.base_url}/connect/trip/add",
-                f"{self.base_url}/saas/trip/add",
-            ]
-            # Deduplicate endpoints preserving priority
-            seen_urls = set()
-            candidate_endpoints = []
-            for ep in endpoints:
-                if ep not in seen_urls:
-                    seen_urls.add(ep)
-                    candidate_endpoints.append(ep)
+            target_endpoint = PRIMARY_ADD_TRIP_URL
 
-            last_error_detail = None
-            last_status_code = 500
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                try:
+                    logger.info(f"Calling Freight Tiger AddTrip API: {target_endpoint} for vehicle {payload['vehicleNumber']}")
+                    resp = await client.post(target_endpoint, json=payload, headers=self._get_headers())
+                except httpx.TimeoutException:
+                    logger.error(f"Timeout connecting to Freight Tiger API at {target_endpoint}")
+                    raise AppException(
+                        status_code=504,
+                        error_code="FREIGHT_TIGER_TIMEOUT",
+                        message=f"Freight Tiger AddTrip request timed out after 25s at {target_endpoint}. Please retry.",
+                    )
+                except Exception as conn_err:
+                    logger.error(f"Network connection error to {target_endpoint}: {conn_err}")
+                    raise AppException(
+                        status_code=502,
+                        error_code="FREIGHT_TIGER_NETWORK_ERROR",
+                        message=f"Network connection error to Freight Tiger ({target_endpoint}): {conn_err}",
+                    )
 
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                for endpoint in candidate_endpoints:
+                # If successful 200 or 201
+                if resp.status_code in (200, 201):
                     try:
-                        logger.info(f"Calling Freight Tiger AddTrip API: {endpoint} for vehicle {payload['vehicleNumber']}")
-                        resp = await client.post(endpoint, json=payload, headers=self._get_headers())
-                    except Exception as conn_err:
-                        logger.warning(f"Connection error to {endpoint}: {conn_err}")
-                        last_error_detail = f"Network connection error: {conn_err}"
-                        last_status_code = 502
-                        continue
+                        data = resp.json()
+                    except Exception:
+                        data = {"status": True, "message": resp.text}
 
-                    # If endpoint returned 404, try next candidate
-                    if resp.status_code == 404:
-                        last_error_detail = f"Endpoint {endpoint} not found (404)"
-                        continue
-
-                    # If successful 200 or 201
-                    if resp.status_code in (200, 201):
-                        try:
-                            data = resp.json()
-                        except Exception:
-                            data = {"status": True, "message": resp.text}
-
-                        # Check if response body indicates business failure
-                        if data.get("status") is False:
-                            err_msg = data.get("message") or "Freight Tiger rejected trip creation"
-                            if isinstance(err_msg, list):
-                                err_msg = ", ".join(str(m) for m in err_msg)
-                            logger.error(f"Freight Tiger AddTrip business error: {err_msg}")
-                            raise AppException(
-                                status_code=400,
-                                error_code="FREIGHT_TIGER_REJECTED",
-                                message=f"Freight Tiger Error: {err_msg}",
-                                details=data,
-                            )
-
-                        result = data.get("result") or data.get("data") or {}
-                        trip_id = result.get("id") or result.get("trip_id")
-                        share_url = result.get("shareUrl") or result.get("share_url")
-                        logger.info(f"Freight Tiger AddTrip succeeded! Trip ID: {trip_id}, FeedUID: {uid}")
-
-                        return {
-                            "success": True,
-                            "trip_id": trip_id,
-                            "feed_unique_id": uid,
-                            "share_url": share_url,
-                            "is_consent_done": False,
-                            "status": "Open",
-                            "status_code": 1,
-                            "message": data.get("message") or "Trip created successfully in Freight Tiger. Telecom consent SMS dispatched.",
-                            "is_simulated": False,
-                        }
-
-                    # Non-2xx status code from Freight Tiger
-                    last_status_code = resp.status_code
-                    try:
-                        err_json = resp.json()
-                        err_msg = err_json.get("message") or err_json.get("error") or resp.text
+                    # Check if response body indicates business failure
+                    if data.get("status") is False:
+                        err_msg = data.get("message") or data.get("error") or "Freight Tiger rejected trip creation"
                         if isinstance(err_msg, list):
                             err_msg = ", ".join(str(m) for m in err_msg)
-                    except Exception:
-                        err_msg = resp.text
-
-                    logger.error(f"Freight Tiger AddTrip returned {resp.status_code} at {endpoint}: {err_msg}")
-                    last_error_detail = err_msg
-
-                    # If authentication or validation error, raise immediately with clear reason
-                    if resp.status_code in (400, 401, 403, 422):
+                        logger.error(f"Freight Tiger AddTrip business error: {err_msg}")
                         raise AppException(
-                            status_code=resp.status_code,
-                            error_code="FREIGHT_TIGER_API_ERROR",
-                            message=f"Freight Tiger Error ({resp.status_code}): {err_msg}",
-                            details={"endpoint": endpoint, "response": err_msg},
+                            status_code=400,
+                            error_code="FREIGHT_TIGER_REJECTED",
+                            message=f"Freight Tiger Error: {err_msg}",
+                            details=data,
                         )
 
-            # If all candidate endpoints failed or timed out
-            raise AppException(
-                status_code=last_status_code if last_status_code in (400, 401, 403, 422, 502) else 502,
-                error_code="FREIGHT_TIGER_COMMUNICATION_FAILED",
-                message=f"Freight Tiger AddTrip API failed: {last_error_detail}",
-            )
+                    result = data.get("result") or data.get("data") or {}
+                    trip_id = result.get("id") or result.get("trip_id")
+                    share_url = result.get("shareUrl") or result.get("share_url")
+                    logger.info(f"Freight Tiger AddTrip succeeded! Trip ID: {trip_id}, FeedUID: {uid}")
+
+                    return {
+                        "success": True,
+                        "trip_id": trip_id,
+                        "feed_unique_id": uid,
+                        "share_url": share_url,
+                        "is_consent_done": False,
+                        "status": "Open",
+                        "status_code": 1,
+                        "message": data.get("message") or "Trip created successfully in Freight Tiger. Telecom consent SMS dispatched.",
+                        "is_simulated": False,
+                    }
+
+                # Non-2xx status code from Freight Tiger
+                try:
+                    err_json = resp.json()
+                    err_msg = err_json.get("message") or err_json.get("error") or err_json.get("msg") or resp.text
+                    if isinstance(err_msg, list):
+                        err_msg = ", ".join(str(m) for m in err_msg)
+                except Exception:
+                    err_msg = resp.text or f"HTTP {resp.status_code}"
+
+                logger.error(f"Freight Tiger AddTrip returned {resp.status_code} at {target_endpoint}: {err_msg}")
+                raise AppException(
+                    status_code=resp.status_code if resp.status_code in (400, 401, 403, 404, 422) else 502,
+                    error_code="FREIGHT_TIGER_API_ERROR",
+                    message=f"Freight Tiger Error ({resp.status_code}): {err_msg}",
+                    details={"endpoint": target_endpoint, "response": err_msg, "status_code": resp.status_code},
+                )
 
         # 5. Local development / Sandbox simulation mode (ONLY when auth_token is unconfigured)
         logger.info(f"No Freight Tiger auth_token configured. Running in sandbox simulation mode for vehicle {vehicle_number}.")
@@ -356,9 +333,7 @@ class FreightTigerClient:
             if trip_id:
                 endpoints.append(f"{PRIMARY_GET_TRIP_BY_ID_URL}/{trip_id}")
             endpoints.append(f"{PRIMARY_GET_TRIP_BY_UID_URL}/{feed_unique_id}")
-            endpoints.append(f"{self.base_url}/saas/trip/uid/{feed_unique_id}")
-            if trip_id:
-                endpoints.append(f"{self.base_url}/saas/trip/{trip_id}")
+            endpoints.append(f"{PRIMARY_GATEWAY_UID_URL}/{feed_unique_id}")
 
             async with httpx.AsyncClient(timeout=15.0) as client:
                 for endpoint in endpoints:
@@ -494,25 +469,22 @@ class FreightTigerClient:
             payload["trip_id"] = int(trip_id)
 
         if self.auth_token:
-            endpoints = [
-                PRIMARY_CLOSE_TRIP_URL,
-                f"{self.base_url}/connect/trip/close",
-                f"{self.base_url}/saas/trip/close",
-            ]
+            endpoint = PRIMARY_CLOSE_TRIP_URL
             async with httpx.AsyncClient(timeout=15.0) as client:
-                for endpoint in endpoints:
-                    try:
-                        logger.info(f"Calling Freight Tiger CloseTrip API: {endpoint}")
-                        resp = await client.post(endpoint, json=payload, headers=self._get_headers())
-                        if resp.status_code in (200, 201):
-                            data = resp.json()
-                            return {
-                                "success": True,
-                                "message": data.get("message") or data.get("response") or "Trip closed successfully in Freight Tiger.",
-                                "is_simulated": False,
-                            }
-                    except Exception as exc:
-                        logger.warning(f"Error closing trip via {endpoint}: {exc}")
+                try:
+                    logger.info(f"Calling Freight Tiger CloseTrip API: {endpoint}")
+                    resp = await client.post(endpoint, json=payload, headers=self._get_headers())
+                    if resp.status_code in (200, 201):
+                        data = resp.json()
+                        return {
+                            "success": True,
+                            "message": data.get("message") or data.get("response") or "Trip closed successfully in Freight Tiger.",
+                            "is_simulated": False,
+                        }
+                    else:
+                        logger.warning(f"CloseTrip returned {resp.status_code}: {resp.text}")
+                except Exception as exc:
+                    logger.warning(f"Error closing trip via {endpoint}: {exc}")
 
         # Update simulated state
         if feed_unique_id and feed_unique_id in self._simulated_trips:

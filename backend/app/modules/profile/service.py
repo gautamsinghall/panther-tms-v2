@@ -5,7 +5,7 @@ from datetime import datetime, timezone, date
 from decimal import Decimal
 from sqlalchemy import select, func, extract
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.config import settings
+from app.core.config import settings, sanitize_ft_base_url, resolve_freight_tiger_token
 from app.core.errors import AppException
 from app.core.security import verify_password, get_password_hash
 from app.tenant_db.models import (
@@ -525,8 +525,8 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         has_gsp_secret_override=bool(company.gsp_client_secret_override),
         platform_gsp_configured=bool(settings.GSP_CLIENT_ID and settings.GSP_CLIENT_SECRET),
         platform_gsp_base_url=settings.GSP_BASE_URL,
-        ft_base_url=company.ft_base_url or "https://api.freighttiger.com/api/tether",
-        has_ft_auth_token=bool(company.ft_auth_token),
+        ft_base_url=sanitize_ft_base_url(company.ft_base_url),
+        has_ft_auth_token=bool(resolve_freight_tiger_token(company.ft_auth_token)),
         is_ft_active=company.is_ft_active if company.is_ft_active is not None else True,
         fastag_configured=bool(settings.FASTAG_API_KEY),
         google_maps_configured=bool(settings.GOOGLE_MAPS_API_KEY),
@@ -559,7 +559,7 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
     if data.gsp_base_url_override is not None:
         company.gsp_base_url_override = data.gsp_base_url_override.strip() if data.gsp_base_url_override else None
     if data.ft_base_url is not None:
-        company.ft_base_url = data.ft_base_url.strip() if data.ft_base_url else "https://api.freighttiger.com/api/tether"
+        company.ft_base_url = sanitize_ft_base_url(data.ft_base_url)
     if data.ft_auth_token is not None:
         token = data.ft_auth_token.strip()
         if token and not token.startswith("••"):

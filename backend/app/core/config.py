@@ -1,7 +1,7 @@
 import os
 from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import computed_field
+from pydantic import computed_field, Field, AliasChoices
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
@@ -49,8 +49,26 @@ class Settings(BaseSettings):
     GSP_CLIENT_SECRET: Optional[str] = None
 
     # Freight Tiger SIM Tracking Integration (PRD §11 / FT Trip APIs)
-    FREIGHT_TIGER_BASE_URL: str = "https://api.freighttiger.com/api/tether"
-    FREIGHT_TIGER_AUTH_TOKEN: Optional[str] = None
+    FREIGHT_TIGER_BASE_URL: str = Field(
+        default="https://api.freighttiger.com/api/tether",
+        validation_alias=AliasChoices(
+            "FREIGHT_TIGER_BASE_URL",
+            "FT_BASE_URL",
+        ),
+    )
+    FREIGHT_TIGER_AUTH_TOKEN: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FREIGHT_TIGER_AUTH_TOKEN",
+            "FT_AUTH_TOKEN",
+            "FREIGHT_TIGER_TOKEN",
+            "FT_TOKEN",
+            "FREIGHTTIGER_AUTH_TOKEN",
+            "FREIGHTTIGER_TOKEN",
+            "FREIGHT_TIGER_API_KEY",
+            "FT_API_KEY",
+        ),
+    )
 
     # FASTag Tracking Integration (Loaded from project env / Dokploy)
     FASTAG_API_URL: str = "https://logitrack.webcorevision.com:5000/api/v1/fastag"
@@ -102,3 +120,41 @@ class Settings(BaseSettings):
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{db_name}"
 
 settings = Settings()
+
+def sanitize_ft_base_url(url: Optional[str] = None) -> str:
+    cleaned = (url or settings.FREIGHT_TIGER_BASE_URL or "https://api.freighttiger.com/api/tether").strip().rstrip("/")
+    if "integration.freighttiger.com" in cleaned or not cleaned:
+        return "https://api.freighttiger.com/api/tether"
+    return cleaned
+
+def resolve_freight_tiger_token(explicit_token: Optional[str] = None) -> Optional[str]:
+    """
+    Resolves Freight Tiger Bearer JWT authentication token with robust fallback:
+    1. settings.FREIGHT_TIGER_AUTH_TOKEN (from parsed .env via Pydantic)
+    2. os.environ inspection across all known aliases (.env, Dokploy, Docker runtime)
+    3. Explicit token override (e.g. from tenant company settings)
+    """
+    # 1. Environment variables (primary source of truth when configured in .env / Dokploy)
+    for key in (
+        "FREIGHT_TIGER_AUTH_TOKEN",
+        "FT_AUTH_TOKEN",
+        "FREIGHT_TIGER_TOKEN",
+        "FT_TOKEN",
+        "FREIGHTTIGER_AUTH_TOKEN",
+        "FREIGHTTIGER_TOKEN",
+        "FREIGHT_TIGER_API_KEY",
+        "FT_API_KEY",
+    ):
+        val = os.getenv(key)
+        if val and val.strip():
+            return val.strip()
+
+    if settings.FREIGHT_TIGER_AUTH_TOKEN and settings.FREIGHT_TIGER_AUTH_TOKEN.strip():
+        return settings.FREIGHT_TIGER_AUTH_TOKEN.strip()
+
+    # 2. Database company settings fallback
+    if explicit_token and explicit_token.strip():
+        return explicit_token.strip()
+
+    return None
+

@@ -147,6 +147,7 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
                         await t_conn.execute(text("ALTER TABLE company_settings ALTER COLUMN logo_url TYPE TEXT;"))
+                        await t_conn.execute(text("UPDATE company_settings SET ft_base_url = 'https://api.freighttiger.com/api/tether' WHERE ft_base_url LIKE '%integration.freighttiger.com%' OR ft_base_url IS NULL;"))
 
                         # Freight Tiger SIM Tracking Schema Evolution
                         await t_conn.execute(text("""

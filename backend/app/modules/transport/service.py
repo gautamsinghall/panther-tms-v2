@@ -1310,12 +1310,10 @@ async def create_sim_trip(
     cs_res = await db.execute(cs_stmt)
     comp_setting = cs_res.scalars().first()
 
-    ft_client = freight_tiger_client
-    if comp_setting and comp_setting.ft_auth_token:
-        ft_client = FreightTigerClient(
-            base_url=comp_setting.ft_base_url or "https://api.freighttiger.com/api/tether",
-            auth_token=comp_setting.ft_auth_token,
-        )
+    ft_client = FreightTigerClient(
+        base_url=comp_setting.ft_base_url if comp_setting else None,
+        auth_token=comp_setting.ft_auth_token if comp_setting else None,
+    )
 
     # Call Freight Tiger API
     origin_payload: Dict[str, Any] = {"address": origin_addr or "Origin Hub"}
@@ -1456,12 +1454,10 @@ async def sync_sim_trip(
     cs_res = await db.execute(cs_stmt)
     comp_setting = cs_res.scalars().first()
 
-    ft_client = freight_tiger_client
-    if comp_setting and comp_setting.ft_auth_token:
-        ft_client = FreightTigerClient(
-            base_url=comp_setting.ft_base_url or "https://api.freighttiger.com/api/tether",
-            auth_token=comp_setting.ft_auth_token,
-        )
+    ft_client = FreightTigerClient(
+        base_url=comp_setting.ft_base_url if comp_setting else None,
+        auth_token=comp_setting.ft_auth_token if comp_setting else None,
+    )
 
     ft_data = await ft_client.get_trip_details(
         feed_unique_id=trip.feed_unique_id,
@@ -1524,12 +1520,10 @@ async def close_sim_trip(db: AsyncSession, trip: SIMTripRecord, comment: Optiona
     cs_res = await db.execute(cs_stmt)
     comp_setting = cs_res.scalars().first()
 
-    ft_client = freight_tiger_client
-    if comp_setting and comp_setting.ft_auth_token:
-        ft_client = FreightTigerClient(
-            base_url=comp_setting.ft_base_url or "https://api.freighttiger.com/api/tether",
-            auth_token=comp_setting.ft_auth_token,
-        )
+    ft_client = FreightTigerClient(
+        base_url=comp_setting.ft_base_url if comp_setting else None,
+        auth_token=comp_setting.ft_auth_token if comp_setting else None,
+    )
 
     await ft_client.close_trip(
         feed_unique_id=trip.feed_unique_id,
