@@ -106,6 +106,45 @@ class TestFASTagTracking(unittest.TestCase):
         self.assertEqual(client.api_url, "https://test.fastag.example/api")
         self.assertEqual(client.api_key, "test_env_key")
 
+    def test_navigation_structure_deduplication(self):
+        from app.auth.navigation import ALL_NAVIGATION_MODULES
+        
+        # 1. Verify tracking is NOT inside transport
+        transport_mod = next(m for m in ALL_NAVIGATION_MODULES if m["id"] == "transport")
+        transport_features = [it["feature"] for it in transport_mod["items"]]
+        self.assertNotIn("tracking", transport_features)
+        self.assertNotIn("fastag_tracking", transport_features)
+
+        # 2. Verify tracking module exists and has fastag and sim tracking
+        tracking_mod = next(m for m in ALL_NAVIGATION_MODULES if m["id"] == "tracking")
+        tracking_features = [it["feature"] for it in tracking_mod["items"]]
+        self.assertIn("fastag_tracking", tracking_features)
+        self.assertIn("tracking", tracking_features)
+        self.assertEqual(tracking_mod["items"][0]["href"], "/tracking/fastag")
+        self.assertEqual(tracking_mod["items"][1]["href"], "/tracking/sim")
+
+    def test_plan_tier_hierarchy(self):
+        from app.auth.navigation import PLAN_TIERS, MODULE_MIN_TIERS
+
+        # Free: tier 1, Pro: tier 2, Business: tier 3, Enterprise: tier 4
+        self.assertEqual(PLAN_TIERS["FREE"], 1)
+        self.assertEqual(PLAN_TIERS["PRO"], 2)
+        self.assertEqual(PLAN_TIERS["BUSINESS"], 3)
+        self.assertEqual(PLAN_TIERS["ENTERPRISE"], 4)
+
+        # Tracking module requires Tier 2 (Pro)
+        self.assertEqual(MODULE_MIN_TIERS["tracking"], 2)
+
+        # Enterprise (Tier 4) >= Tracking (Tier 2) -> Unlocked
+        self.assertGreaterEqual(PLAN_TIERS["ENTERPRISE"], MODULE_MIN_TIERS["tracking"])
+        # Business (Tier 3) >= Tracking (Tier 2) -> Unlocked
+        self.assertGreaterEqual(PLAN_TIERS["BUSINESS"], MODULE_MIN_TIERS["tracking"])
+        # Pro (Tier 2) >= Tracking (Tier 2) -> Unlocked
+        self.assertGreaterEqual(PLAN_TIERS["PRO"], MODULE_MIN_TIERS["tracking"])
+        # Free (Tier 1) < Tracking (Tier 2) -> Locked
+        self.assertLess(PLAN_TIERS["FREE"], MODULE_MIN_TIERS["tracking"])
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -17,6 +17,7 @@ import {
   FileSignature,
   QrCode,
   Navigation,
+  Radio,
   Building2,
   MapPin,
   Factory,
@@ -72,9 +73,13 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/transport/vehicle-owners": { title: "Vehicle Owner", icon: Key },
   "/transport/arrival-reports": { title: "Arrival Report", icon: CalendarCheck },
   "/transport/pod-records": { title: "POD Records", icon: CheckSquare },
-  "/transport/truck-hiring-note": { title: "Truck Hiring Note", icon: FileSignature },
   "/transport/eway-bill": { title: "Update E-Way", icon: QrCode },
-  "/transport/tracking": { title: "Sim Based Tracking", icon: Navigation },
+  "/transport/tracking": { title: "Sim Based Tracking", icon: Radio },
+  "/transport/tracking/fastag": { title: "FASTag Tracking", icon: Navigation },
+
+  // Tracking
+  "/tracking/fastag": { title: "FASTag Tracking", icon: Navigation },
+  "/tracking/sim": { title: "Sim Based Tracking", icon: Radio },
 
   // Transport Reports
   "/transport-reports/lr-register": { title: "LR Booking Register", icon: FileSpreadsheet },

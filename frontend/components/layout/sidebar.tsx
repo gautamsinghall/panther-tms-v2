@@ -158,16 +158,14 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "pod_records", title: "POD Records", href: "/transport/pod-records" },
       { feature: "truck_hiring_note", title: "Truck Hiring Note", href: "/transport/truck-hiring-note" },
       { feature: "eway_bill", title: "Update E-Way", href: "/transport/eway-bill" },
-      { feature: "tracking", title: "Sim Based Tracking", href: "/transport/tracking" },
-      { feature: "fastag_tracking", title: "FASTag Tracking", href: "/transport/tracking/fastag" },
     ],
   },
   {
     id: "tracking",
     title: "Tracking",
     items: [
-      { feature: "fastag_tracking", title: "FASTag Tracking", href: "/transport/tracking/fastag" },
-      { feature: "tracking", title: "Sim Based Tracking", href: "/transport/tracking" },
+      { feature: "fastag_tracking", title: "FASTag Tracking", href: "/tracking/fastag" },
+      { feature: "tracking", title: "Sim Based Tracking", href: "/tracking/sim" },
     ],
   },
   {
@@ -343,6 +341,8 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/transport/eway-bill": QrCode,
   "/transport/tracking": Radio,
   "/transport/tracking/fastag": Navigation,
+  "/tracking/fastag": Navigation,
+  "/tracking/sim": Radio,
 
   // Transport Reports
   "/transport-reports/lr-register": BookOpen,
@@ -576,11 +576,15 @@ export function Sidebar() {
         if (Array.isArray(data) && data.length > 0) {
           const normalized = data.map((g) => ({
             ...g,
-            items: g.items?.map((it) =>
-              it.href === "/transport/tracking" || it.feature === "tracking"
-                ? { ...it, title: "Sim Based Tracking" }
-                : it
-            ),
+            items: g.items?.map((it) => {
+              if (it.href === "/tracking/sim" || it.href === "/transport/tracking" || it.feature === "tracking") {
+                return { ...it, title: "Sim Based Tracking" };
+              }
+              if (it.href === "/tracking/fastag" || it.href === "/transport/tracking/fastag" || it.feature === "fastag_tracking") {
+                return { ...it, title: "FASTag Tracking" };
+              }
+              return it;
+            }),
           }));
           setNavGroups(normalized);
           const expanded: Record<string, boolean> = {};

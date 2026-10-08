@@ -30,7 +30,7 @@ interface CommandItem {
   id: string;
   title: string;
   description: string;
-  category: "Transport" | "Accounts" | "Masters" | "Reports" | "Settings" | "Company Settings" | "LR Record";
+  category: "Transport" | "Tracking" | "Accounts" | "Masters" | "Reports" | "Settings" | "Company Settings" | "LR Record";
   href: string;
   icon: React.ReactNode;
   keywords?: string[];
@@ -78,8 +78,8 @@ const COMMAND_ITEMS: CommandItem[] = [
     id: "fastag-tracking",
     title: "FASTag Toll Checkpoint Tracking",
     description: "Real-time NETC toll plaza pings, road-following routes, and highway journey progress",
-    category: "Transport",
-    href: "/transport/tracking/fastag",
+    category: "Tracking",
+    href: "/tracking/fastag",
     icon: <Truck className="w-4 h-4 text-[#4F46E5]" />,
     keywords: ["fastag", "toll", "tracking", "netc", "route", "plaza", "highway"],
   },
@@ -87,8 +87,8 @@ const COMMAND_ITEMS: CommandItem[] = [
     id: "tracking",
     title: "Sim Based Tracking",
     description: "SIM cell-tower triangulation, driver consent, and fleet telemetry",
-    category: "Transport",
-    href: "/transport/tracking",
+    category: "Tracking",
+    href: "/tracking/sim",
     icon: <Clock className="w-4 h-4 text-[#4F46E5]" />,
     keywords: ["sim", "tracking", "cell tower", "gps", "telemetry", "location"],
   },

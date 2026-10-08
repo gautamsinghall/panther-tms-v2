@@ -27,6 +27,7 @@ export interface TollCheckpoint {
 export interface TripRouteData {
   id?: number | null;
   trip_number?: string | null;
+  vehicle_number?: string | null;
   is_manual?: boolean;
   lr_id?: number | null;
   lr_no?: string | null;
@@ -104,6 +105,13 @@ export function FastagMap({
   const [customApiKey, setCustomApiKey] = useState("");
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
 
+  // Callback ref & deduplication to eliminate infinite render loop
+  const onMetricsComputedRef = useRef(onMetricsComputed);
+  useEffect(() => {
+    onMetricsComputedRef.current = onMetricsComputed;
+  }, [onMetricsComputed]);
+  const lastRenderedKeyRef = useRef<string>("");
+
   // Map references
   const googleMapRef = useRef<any>(null);
   const googleTrafficLayerRef = useRef<any>(null);
@@ -113,6 +121,31 @@ export function FastagMap({
   const leafletMapRef = useRef<any>(null);
   const leafletMarkersRef = useRef<any[]>([]);
   const leafletPolylinesRef = useRef<any[]>([]);
+
+  // Cleanup map instances on component unmount
+  useEffect(() => {
+    return () => {
+      if (leafletMapRef.current) {
+        try {
+          leafletMapRef.current.remove();
+        } catch {
+          // Ignore unmount error if already cleaned
+        }
+        leafletMapRef.current = null;
+      }
+      if (googleMapRef.current) {
+        googleOverlaysRef.current.forEach((o) => {
+          try { o?.setMap?.(null); } catch {}
+        });
+        googleOverlaysRef.current = [];
+        googlePolylinesRef.current.forEach((p) => {
+          try { p?.setMap?.(null); } catch {}
+        });
+        googlePolylinesRef.current = [];
+        googleMapRef.current = null;
+      }
+    };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Geocoding Service (Google Geocoder -> Nominatim OSM Fallback)
@@ -614,8 +647,8 @@ export function FastagMap({
     const totalKm = coveredKm + remainingKm;
     const progressPct = totalKm > 0 ? Math.min(100, Math.round((coveredKm / totalKm) * 100)) : coveredKm > 0 ? 100 : 0;
 
-    if (onMetricsComputed) {
-      onMetricsComputed({ coveredKm, remainingKm, totalKm, progressPct });
+    if (onMetricsComputedRef.current) {
+      onMetricsComputedRef.current({ coveredKm, remainingKm, totalKm, progressPct });
     }
 
     // 8. Auto-fit Bounds to center the entire route
@@ -646,14 +679,15 @@ export function FastagMap({
     geocodeLocation,
     getRoadHighwayRoute,
     createGoogleHtmlOverlay,
-    onMetricsComputed,
   ]);
 
   useEffect(() => {
-    if (isMapReady) {
-      renderMapLayers();
-    }
-  }, [isMapReady, route, trip, renderMapLayers]);
+    if (!isMapReady) return;
+    const currentKey = `${mapEngine}_${route?.length || 0}_${route?.map((r) => r.id || r.toll_plaza_name).join(",")}_${trip?.vehicle_number || ""}_${trip?.waypoints?.join(",") || ""}`;
+    if (lastRenderedKeyRef.current === currentKey) return;
+    lastRenderedKeyRef.current = currentKey;
+    renderMapLayers();
+  }, [isMapReady, mapEngine, route, trip, renderMapLayers]);
 
   // ---------------------------------------------------------------------------
   // Smooth Pan & Zoom to Focused Toll

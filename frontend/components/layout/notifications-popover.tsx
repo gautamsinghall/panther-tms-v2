@@ -34,7 +34,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     timeAgo: "8 mins ago",
     type: "dispatch",
     unread: true,
-    href: "/transport/tracking",
+    href: "/tracking/fastag",
   },
   {
     id: "n-2",

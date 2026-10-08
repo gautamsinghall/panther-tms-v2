@@ -1388,7 +1388,7 @@ export default function LRBookingPage() {
               driver_name: row.driver_name,
             }),
           });
-          router.push("/transport/tracking");
+          router.push("/tracking/sim");
         } catch (err: any) {
           alert(err.message || "Failed to start SIM tracking.");
         }
