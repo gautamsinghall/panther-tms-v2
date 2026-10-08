@@ -1,7 +1,8 @@
 import json
+import logging
 import time
 import httpx
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import select, func, desc, or_
@@ -31,11 +32,15 @@ from app.tenant_db.models import (
     TrackingPing,
     SIMTripRecord,
     SIMConsentStatus,
+    SimWalletTransaction,
     CompanySetting,
     FastagCooldown,
     FastagTripRecord,
     TollLog,
 )
+
+logger = logging.getLogger(__name__)
+
 from app.modules.transport.schemas import (
     VehicleOwnerCreate, VehicleOwnerUpdate,
     DriverCreate, DriverUpdate,
@@ -1151,9 +1156,107 @@ def parse_iso_or_utc(date_str: Optional[str]) -> Optional[datetime]:
         return None
 
 
-async def create_sim_trip(db: AsyncSession, data: SIMTripCreate) -> SIMTripRecord:
+SIM_RATE_PER_DAY = Decimal("8.50")
+
+
+async def check_and_deduct_sim_credit(
+    tenant_db: Optional[AsyncSession] = None,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+    vehicle_number: Optional[str] = None,
+    trip_id: Optional[int] = None,
+    days_billed: int = 1,
+    description: Optional[str] = None,
+) -> Tuple[bool, Decimal, str]:
+    """
+    Checks if tenant has sufficient SIM tracking wallet balance in panther_control database.
+    Rate: ₹8.50 per trip per 24 hours (day).
+    If balance >= days_billed * 8.50:
+      Debits the amount in panther_control,
+      Creates SimWalletTransaction strictly in tenant-specific database,
+      Returns (True, remaining_balance, "").
+    If balance is insufficient:
+      Returns (False, current_balance, error_message).
+    """
+    if not tenant_id and not company_code:
+        # Fallback when testing without tenant context
+        return True, Decimal("999.00"), ""
+
+    from app.core.database import ControlSessionLocal, get_tenant_session_maker
+    from app.control.models import Tenant as ControlTenant
+    from app.tenant_db.models import SimWalletTransaction
+    from sqlalchemy import select, or_
+
+    charge_amount = Decimal(str(round(days_billed * 8.50, 2)))
+
+    try:
+        async with ControlSessionLocal() as session:
+            stmt = select(ControlTenant).where(
+                or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+            ).with_for_update()
+            res = await session.execute(stmt)
+            tenant_obj = res.scalar_one_or_none()
+            if not tenant_obj:
+                return False, Decimal("0.00"), "Tenant record not found in control database."
+
+            current_balance = Decimal(str(tenant_obj.sim_wallet_balance or 0.00))
+            if current_balance < charge_amount:
+                return False, current_balance, (
+                    f"SIM Tracking Wallet balance insufficient (₹{current_balance:.2f} available, ₹{charge_amount:.2f} required). "
+                    f"Tariff is strictly ₹8.50 per trip per 24 hours. Recharges are managed by system administrator."
+                )
+
+            tenant_obj.sim_wallet_balance = current_balance - charge_amount
+            new_balance = Decimal(str(tenant_obj.sim_wallet_balance))
+            target_company_code = tenant_obj.company_code or company_code
+            await session.commit()
+
+        # Record audit transaction in tenant-specific database (NEVER in panther_control)
+        tx_data = {
+            "transaction_type": "DEBIT",
+            "amount": charge_amount,
+            "rate_per_day": SIM_RATE_PER_DAY,
+            "days_billed": days_billed,
+            "vehicle_number": vehicle_number,
+            "trip_id": trip_id,
+            "description": description or f"SIM Tracking charge for {vehicle_number} ({days_billed} x 24hr cycle)",
+            "balance_after": new_balance,
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        if tenant_db:
+            try:
+                tx = SimWalletTransaction(**tx_data)
+                tenant_db.add(tx)
+                await tenant_db.commit()
+            except Exception as e:
+                logger.warning(f"Could not record SimWalletTransaction in provided tenant_db: {e}")
+        elif target_company_code:
+            try:
+                resolved_db_name = f"panther_tenant_{target_company_code.lower()}"
+                t_session_maker = get_tenant_session_maker(resolved_db_name)
+                async with t_session_maker() as t_session:
+                    tx = SimWalletTransaction(**tx_data)
+                    t_session.add(tx)
+                    await t_session.commit()
+            except Exception as e:
+                logger.warning(f"Could not record SimWalletTransaction in tenant session: {e}")
+
+        return True, new_balance, ""
+    except Exception as e:
+        logger.error(f"Error in check_and_deduct_sim_credit: {e}", exc_info=True)
+        return False, Decimal("0.00"), f"Wallet processing error: {str(e)}"
+
+
+async def create_sim_trip(
+    db: AsyncSession,
+    data: SIMTripCreate,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> SIMTripRecord:
     """
     Creates a new SIM-based trip via Freight Tiger, initiating carrier driver consent SMS.
+    Deducts ₹8.50 for Day 1 (first 24-hr window) from the SIM Tracking Wallet.
     """
     vehicle_num = data.vehicle_number.strip().upper()
     driver_phone = data.driver_phone.strip()
@@ -1162,6 +1265,23 @@ async def create_sim_trip(db: AsyncSession, data: SIMTripCreate) -> SIMTripRecor
     dest_addr = data.destination_address
     lr_number = data.lr_number
     route_code = data.route_code
+
+    # Verify wallet and deduct ₹8.50 for the initial 24 hours
+    allowed, bal, err_msg = await check_and_deduct_sim_credit(
+        tenant_db=db,
+        tenant_id=tenant_id,
+        company_code=company_code,
+        vehicle_number=vehicle_num,
+        days_billed=1,
+        description=f"Trip initiation (Day 1 / 24h cycle) for vehicle {vehicle_num}",
+    )
+    if not allowed:
+        raise AppException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=err_msg,
+            error_code="INSUFFICIENT_SIM_WALLET_BALANCE",
+            details={"current_balance": float(bal), "required": 8.50},
+        )
 
     # If linked to LR, populate missing details from LR consignment
     if data.lr_id:
@@ -1219,6 +1339,7 @@ async def create_sim_trip(db: AsyncSession, data: SIMTripCreate) -> SIMTripRecor
         share_trip=data.share_trip,
     )
 
+    now_utc = datetime.now(timezone.utc)
     sim_record = SIMTripRecord(
         feed_unique_id=ft_resp["feed_unique_id"],
         ft_trip_id=ft_resp.get("trip_id"),
@@ -1234,11 +1355,29 @@ async def create_sim_trip(db: AsyncSession, data: SIMTripCreate) -> SIMTripRecor
         origin_address=origin_addr,
         destination_address=dest_addr,
         route_code=route_code,
-        last_synced_at=datetime.now(timezone.utc),
+        last_synced_at=now_utc,
+        last_billed_at=now_utc,
+        billing_cycles_charged=1,
     )
     db.add(sim_record)
     await db.commit()
     await db.refresh(sim_record)
+
+    # Associate trip_id with the debit transaction if pending
+    try:
+        from app.tenant_db.models import SimWalletTransaction
+        tx_stmt = select(SimWalletTransaction).where(
+            SimWalletTransaction.vehicle_number == vehicle_num,
+            SimWalletTransaction.trip_id.is_(None)
+        ).order_by(desc(SimWalletTransaction.id)).limit(1)
+        tx_res = await db.execute(tx_stmt)
+        tx_obj = tx_res.scalar_one_or_none()
+        if tx_obj:
+            tx_obj.trip_id = sim_record.id
+            await db.commit()
+    except Exception:
+        pass
+
     return sim_record
 
 
@@ -1267,11 +1406,52 @@ async def get_sim_trip_by_uid(db: AsyncSession, feed_unique_id: str) -> Optional
     return res.scalars().first()
 
 
-async def sync_sim_trip(db: AsyncSession, trip: SIMTripRecord) -> SIMTripRecord:
+async def sync_sim_trip(
+    db: AsyncSession,
+    trip: SIMTripRecord,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> SIMTripRecord:
     """
     Polls Freight Tiger for the latest tracking state, telecom consent,
     and cell-tower location fixes, updating the trip and recording a Telemetry Ping.
+    Charges ₹8.50 for each subsequent 24-hr period exceeded while trip is active.
+    Location fetches within the paid 24-hr window are unlimited with ₹0 deduction.
     """
+    now_utc = datetime.now(timezone.utc)
+
+    # If trip is open, check if it has exceeded 24 hours from last_billed_at
+    if trip.status and trip.status.lower() != "closed" and not trip.closed_at:
+        billed_anchor = trip.last_billed_at or trip.created_at or now_utc
+        if billed_anchor.tzinfo is None:
+            billed_anchor = billed_anchor.replace(tzinfo=timezone.utc)
+
+        seconds_elapsed = (now_utc - billed_anchor).total_seconds()
+        if seconds_elapsed >= 86400:
+            cycles_exceeded = int(seconds_elapsed // 86400)
+            if cycles_exceeded >= 1:
+                # Deduct ₹8.50 per 24hr cycle
+                allowed, bal, err_msg = await check_and_deduct_sim_credit(
+                    tenant_db=db,
+                    tenant_id=tenant_id,
+                    company_code=company_code,
+                    vehicle_number=trip.vehicle_number,
+                    trip_id=trip.id,
+                    days_billed=cycles_exceeded,
+                    description=f"Trip exceeded 24 hours: renewed for {cycles_exceeded} day(s) (Day {(trip.billing_cycles_charged or 1) + 1}-{(trip.billing_cycles_charged or 1) + cycles_exceeded}) for vehicle {trip.vehicle_number}",
+                )
+                if not allowed:
+                    raise AppException(
+                        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                        message=err_msg,
+                        error_code="INSUFFICIENT_SIM_WALLET_BALANCE",
+                        details={"current_balance": float(bal), "cycles_needed": cycles_exceeded, "rate_per_day": 8.50},
+                    )
+
+                trip.billing_cycles_charged = (trip.billing_cycles_charged or 1) + cycles_exceeded
+                trip.last_billed_at = billed_anchor + timedelta(seconds=cycles_exceeded * 86400)
+                await db.commit()
+
     cs_stmt = select(CompanySetting).limit(1)
     cs_res = await db.execute(cs_stmt)
     comp_setting = cs_res.scalars().first()
@@ -1366,7 +1546,13 @@ async def close_sim_trip(db: AsyncSession, trip: SIMTripRecord, comment: Optiona
     return trip
 
 
-async def simulate_sim_consent(db: AsyncSession, trip: SIMTripRecord, is_consent_done: bool = True) -> SIMTripRecord:
+async def simulate_sim_consent(
+    db: AsyncSession,
+    trip: SIMTripRecord,
+    is_consent_done: bool = True,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> SIMTripRecord:
     """
     Toggles simulated telecom consent and immediately syncs the location.
     """
@@ -1374,10 +1560,14 @@ async def simulate_sim_consent(db: AsyncSession, trip: SIMTripRecord, is_consent
     trip.is_consent_done = is_consent_done
     trip.consent_status = SIMConsentStatus.ACCEPTED.value if is_consent_done else SIMConsentStatus.PENDING.value
     await db.commit()
-    return await sync_sim_trip(db, trip)
+    return await sync_sim_trip(db, trip, tenant_id=tenant_id, company_code=company_code)
 
 
-async def sync_all_active_sim_trips(db: AsyncSession) -> int:
+async def sync_all_active_sim_trips(
+    db: AsyncSession,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> int:
     """
     Refreshes location & consent across all open SIM trips.
     """
@@ -1387,11 +1577,12 @@ async def sync_all_active_sim_trips(db: AsyncSession) -> int:
     count = 0
     for t in trips:
         try:
-            await sync_sim_trip(db, t)
+            await sync_sim_trip(db, t, tenant_id=tenant_id, company_code=company_code)
             count += 1
         except Exception as exc:
-            pass
+            logger.warning(f"Failed to sync SIM trip #{t.id}: {exc}")
     return count
+
 
 
 # ==============================================================================

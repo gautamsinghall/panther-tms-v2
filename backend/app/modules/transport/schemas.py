@@ -799,6 +799,8 @@ class SIMTripResponse(BaseModel):
     destination_address: Optional[str] = None
     route_code: Optional[str] = None
     last_synced_at: Optional[datetime] = None
+    last_billed_at: Optional[datetime] = None
+    billing_cycles_charged: int = 1
     closed_at: Optional[datetime] = None
     close_comment: Optional[str] = None
     created_at: datetime

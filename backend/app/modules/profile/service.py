@@ -19,7 +19,8 @@ from app.modules.profile.schemas import (
     MonthlyPnLResponse, MonthlyPnLItem,
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
     ApiCenterTestRequest, ApiCenterTestResponse,
-    FastagWalletResponse, FastagWalletTransactionItem
+    FastagWalletResponse, FastagWalletTransactionItem,
+    SimWalletResponse, SimWalletTransactionItem, SimWalletRechargeRequest
 )
 
 logger = logging.getLogger("panther.profile.service")
@@ -737,4 +738,134 @@ async def update_fastag_cooldown(db: AsyncSession, cooldown_minutes: int) -> int
     await db.commit()
     await db.refresh(company)
     return company.fastag_cooldown_minutes
+
+
+# --- SIM Tracking Wallet Operations (panther_control & isolated tenant DB) ---
+
+async def get_sim_wallet_info(
+    tenant_db: Optional[AsyncSession] = None,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> SimWalletResponse:
+    from app.core.database import ControlSessionLocal, get_tenant_session_maker
+    from app.control.models import Tenant as ControlTenant
+    from app.tenant_db.models import SimWalletTransaction, SIMTripRecord
+    from sqlalchemy import select, or_, desc, func
+
+    balance_inr = Decimal("0.00")
+    resolved_company_code = company_code
+    try:
+        async with ControlSessionLocal() as session:
+            stmt = select(ControlTenant).where(
+                or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+            )
+            res = await session.execute(stmt)
+            tenant_obj = res.scalar_one_or_none()
+            if tenant_obj:
+                balance_inr = Decimal(str(tenant_obj.sim_wallet_balance or 0.00))
+                if not resolved_company_code:
+                    resolved_company_code = tenant_obj.company_code
+    except Exception as e:
+        logger.warning(f"Error fetching sim_wallet_balance from panther_control: {e}")
+        balance_inr = Decimal("0.00")
+
+    # Fetch transactions and active trips count
+    tx_objs = []
+    active_trips_count = 0
+    try:
+        if tenant_db:
+            tx_stmt = select(SimWalletTransaction).order_by(desc(SimWalletTransaction.id)).limit(100)
+            tx_res = await tenant_db.execute(tx_stmt)
+            tx_objs = tx_res.scalars().all()
+
+            cnt_stmt = select(func.count(SIMTripRecord.id)).where(SIMTripRecord.status.ilike("open"))
+            cnt_res = await tenant_db.execute(cnt_stmt)
+            active_trips_count = cnt_res.scalar() or 0
+        elif resolved_company_code:
+            resolved_db_name = f"panther_tenant_{resolved_company_code.lower()}"
+            t_session_maker = get_tenant_session_maker(resolved_db_name)
+            async with t_session_maker() as t_session:
+                tx_stmt = select(SimWalletTransaction).order_by(desc(SimWalletTransaction.id)).limit(100)
+                tx_res = await t_session.execute(tx_stmt)
+                tx_objs = tx_res.scalars().all()
+
+                cnt_stmt = select(func.count(SIMTripRecord.id)).where(SIMTripRecord.status.ilike("open"))
+                cnt_res = await t_session.execute(cnt_stmt)
+                active_trips_count = cnt_res.scalar() or 0
+    except Exception as tx_err:
+        logger.warning(f"Error fetching sim transactions from tenant DB: {tx_err}")
+        tx_objs = []
+
+    transactions = [
+        SimWalletTransactionItem(
+            id=tx.id,
+            created_at=tx.created_at,
+            transaction_type=tx.transaction_type,
+            amount=float(tx.amount),
+            rate_per_day=float(tx.rate_per_day),
+            days_billed=tx.days_billed,
+            vehicle_number=tx.vehicle_number,
+            trip_id=tx.trip_id,
+            description=tx.description,
+            balance_after=float(tx.balance_after),
+        )
+        for tx in tx_objs
+    ]
+
+    bal_float = round(float(balance_inr), 2)
+    return SimWalletResponse(
+        balance_inr=bal_float,
+        rate_per_day=8.50,
+        active_trips_count=active_trips_count,
+        is_exhausted=(bal_float < 8.50),
+        pricing_notice="Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Recharges are managed by system administrator.",
+        transactions=transactions,
+    )
+
+
+async def recharge_sim_wallet(
+    tenant_db: AsyncSession,
+    tenant_id: str,
+    amount: float,
+    description: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> SimWalletResponse:
+    from app.core.database import ControlSessionLocal
+    from app.control.models import Tenant as ControlTenant
+    from app.tenant_db.models import SimWalletTransaction
+    from sqlalchemy import select, or_
+
+    recharge_dec = Decimal(str(round(amount, 2)))
+    new_balance = Decimal("0.00")
+
+    async with ControlSessionLocal() as session:
+        stmt = select(ControlTenant).where(
+            or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+        ).with_for_update()
+        res = await session.execute(stmt)
+        tenant_obj = res.scalar_one_or_none()
+        if not tenant_obj:
+            raise AppException("Tenant record not found in control plane.", status_code=404)
+
+        current_balance = Decimal(str(tenant_obj.sim_wallet_balance or 0.00))
+        tenant_obj.sim_wallet_balance = current_balance + recharge_dec
+        new_balance = Decimal(str(tenant_obj.sim_wallet_balance))
+        await session.commit()
+
+    # Record CREDIT transaction in tenant database
+    tx = SimWalletTransaction(
+        transaction_type="CREDIT",
+        amount=recharge_dec,
+        rate_per_day=Decimal("8.50"),
+        days_billed=0,
+        vehicle_number=None,
+        trip_id=None,
+        description=description or f"Wallet recharge of ₹{recharge_dec:.2f} by system administrator",
+        balance_after=new_balance,
+        created_at=datetime.now(timezone.utc),
+    )
+    tenant_db.add(tx)
+    await tenant_db.commit()
+
+    return await get_sim_wallet_info(tenant_db, tenant_id=tenant_id, company_code=company_code)
 

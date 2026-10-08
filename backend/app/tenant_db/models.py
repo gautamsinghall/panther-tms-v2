@@ -933,6 +933,8 @@ class SIMTripRecord(TenantBase):
     route_code = Column(String(100), nullable=True)
 
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
+    last_billed_at = Column(DateTime(timezone=True), nullable=True)
+    billing_cycles_charged = Column(Integer, default=1, nullable=False)
     closed_at = Column(DateTime(timezone=True), nullable=True)
     close_comment = Column(Text, nullable=True)
 
@@ -1042,6 +1044,26 @@ class FastagWalletTransaction(TenantBase):
     vehicle_number = Column(String(30), nullable=True, index=True)
     description = Column(String(255), nullable=False)
     balance_after = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+
+class SimWalletTransaction(TenantBase):
+    """
+    Stores tenant-specific audit ledger transactions for SIM Based Tracking telemetry wallet money.
+    Stored directly in the tenant's isolated database.
+    Tariff is strictly Rs. 8.50 per trip per 24 hours (day).
+    """
+    __tablename__ = "sim_wallet_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_type = Column(String(20), nullable=False)  # "DEBIT" or "CREDIT"
+    trip_id = Column(String(100), nullable=True, index=True)
+    vehicle_number = Column(String(30), nullable=True, index=True)
+    rate_per_day = Column(Numeric(10, 2), nullable=False, default=8.50)
+    days_billed = Column(Integer, nullable=False, default=1)
+    amount = Column(Numeric(10, 2), nullable=False, default=8.50)
+    balance_after = Column(Numeric(10, 2), nullable=False)
+    description = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
 

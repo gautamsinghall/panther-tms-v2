@@ -15,7 +15,8 @@ from app.modules.profile.schemas import (
     MonthlyPnLResponse,
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
     ApiCenterTestRequest, ApiCenterTestResponse,
-    FastagWalletResponse, FastagCooldownUpdate
+    FastagWalletResponse, FastagCooldownUpdate,
+    SimWalletResponse, SimWalletRechargeRequest
 )
 from app.modules.profile import service
 
@@ -260,4 +261,44 @@ async def update_fastag_cooldown(
         "cooldown_minutes": updated_val,
         "message": f"FASTag rate limit cooldown updated to {updated_val} minutes."
     }
+
+
+# --- SIM Based Tracking Telemetry Wallet (Admin Gated) ---
+
+@router.get(
+    "/api-center/sim-wallet",
+    response_model=SimWalletResponse,
+    summary="Get SIM tracking telemetry wallet balance, active trips, and transaction ledger"
+)
+async def get_sim_wallet(
+    current_admin: User = Depends(get_current_company_admin),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_sim_wallet_info(
+        tenant_db=db,
+        tenant_id=tenant.tenant_id,
+        company_code=tenant.company_code,
+    )
+
+
+@router.post(
+    "/api-center/sim-wallet/recharge",
+    response_model=SimWalletResponse,
+    summary="Recharge SIM tracking telemetry wallet (System Administrator Action)"
+)
+async def recharge_sim_wallet(
+    req: SimWalletRechargeRequest,
+    current_admin: User = Depends(get_current_company_admin),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    target_tenant_id = req.tenant_id or tenant.tenant_id
+    return await service.recharge_sim_wallet(
+        tenant_db=db,
+        tenant_id=target_tenant_id,
+        amount=req.amount,
+        description=req.description,
+        company_code=tenant.company_code,
+    )
 

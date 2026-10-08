@@ -50,10 +50,13 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS fastag_credits_left INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sim_wallet_balance NUMERIC(12, 2) DEFAULT 0.00;"))
                 # Only initialize to 0 if NULL (new or uninitialized column); never overwrite existing/recharged credits on re-runs
                 await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
+                await conn.execute(text("UPDATE tenants SET sim_wallet_balance = 0.00 WHERE sim_wallet_balance IS NULL;"))
                 # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
                 await conn.execute(text("DROP TABLE IF EXISTS fastag_wallet_transactions;"))
+                await conn.execute(text("DROP TABLE IF EXISTS sim_wallet_transactions;"))
                 # Backfill existing records if any
                 await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (company_name ILIKE '%demo%');"))
                 await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (company_name ILIKE '%demo%');"))
@@ -206,6 +209,27 @@ async def lifespan(app: FastAPI):
                         """))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_created_at ON fastag_wallet_transactions(created_at);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fastag_wallet_tx_vehicle ON fastag_wallet_transactions(vehicle_number);"))
+
+                        # SIM Tracking Schema Evolution & Wallet Transactions (Isolated in Tenant DB)
+                        await t_conn.execute(text("ALTER TABLE transport_sim_trips ADD COLUMN IF NOT EXISTS last_billed_at TIMESTAMPTZ;"))
+                        await t_conn.execute(text("ALTER TABLE transport_sim_trips ADD COLUMN IF NOT EXISTS billing_cycles_charged INTEGER DEFAULT 1;"))
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS sim_wallet_transactions (
+                                id SERIAL PRIMARY KEY,
+                                transaction_type VARCHAR(20) NOT NULL,
+                                amount NUMERIC(10, 2) NOT NULL,
+                                rate_per_day NUMERIC(10, 2) DEFAULT 8.50 NOT NULL,
+                                days_billed INTEGER DEFAULT 1 NOT NULL,
+                                vehicle_number VARCHAR(30),
+                                trip_id VARCHAR(100),
+                                description VARCHAR(255) NOT NULL,
+                                balance_after NUMERIC(10, 2) NOT NULL,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sim_wallet_tx_created_at ON sim_wallet_transactions(created_at);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sim_wallet_tx_vehicle ON sim_wallet_transactions(vehicle_number);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_sim_wallet_tx_trip_id ON sim_wallet_transactions(trip_id);"))
                         
                         # Issuing Office Schema Evolution & Backfill
                         for office_col_tbl in [

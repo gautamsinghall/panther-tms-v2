@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.errors import AppException, ForbiddenException
+from app.core.errors import AppException, ForbiddenException, ResourceNotFoundException as NotFoundException
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
@@ -1004,6 +1004,8 @@ def _format_sim_trip(t: Any) -> SIMTripResponse:
         destination_address=t.destination_address,
         route_code=t.route_code,
         last_synced_at=t.last_synced_at,
+        last_billed_at=getattr(t, "last_billed_at", None),
+        billing_cycles_charged=getattr(t, "billing_cycles_charged", 1) or 1,
         closed_at=t.closed_at,
         close_comment=t.close_comment,
         created_at=t.created_at,
@@ -1026,13 +1028,20 @@ async def list_sim_trips(
 async def start_sim_tracking(
     data: SIMTripCreate,
     current_user: User = Depends(require_permission("transport", "tracking", "create")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """
     Initiates Freight Tiger SIM-based tracking for a vehicle & driver.
     Queues telecom carrier driver consent SMS.
+    Deducts ₹8.50 from SIM Tracking Wallet for initial 24 hours.
     """
-    trip = await service.create_sim_trip(db, data)
+    trip = await service.create_sim_trip(
+        db,
+        data,
+        tenant_id=tenant.tenant_id,
+        company_code=tenant.company_code,
+    )
     return _format_sim_trip(trip)
 
 
@@ -1052,13 +1061,19 @@ async def get_sim_trip(
 async def sync_sim_trip(
     trip_id: int,
     current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """Polls Freight Tiger for live GPS/cell-tower coordinates and consent status."""
     trip = await service.get_sim_trip_by_id(db, trip_id)
     if not trip:
         raise NotFoundException("SIM Trip not found")
-    updated_trip = await service.sync_sim_trip(db, trip)
+    updated_trip = await service.sync_sim_trip(
+        db,
+        trip,
+        tenant_id=tenant.tenant_id,
+        company_code=tenant.company_code,
+    )
     return _format_sim_trip(updated_trip)
 
 
@@ -1082,24 +1097,37 @@ async def simulate_sim_consent(
     trip_id: int,
     data: SIMConsentSimulate,
     current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """Sandbox demonstration endpoint: simulates driver SMS reply accepting telecom consent."""
     trip = await service.get_sim_trip_by_id(db, trip_id)
     if not trip:
         raise NotFoundException("SIM Trip not found")
-    updated_trip = await service.simulate_sim_consent(db, trip, is_consent_done=data.is_consent_done)
+    updated_trip = await service.simulate_sim_consent(
+        db,
+        trip,
+        is_consent_done=data.is_consent_done,
+        tenant_id=tenant.tenant_id,
+        company_code=tenant.company_code,
+    )
     return _format_sim_trip(updated_trip)
 
 
 @router.post("/tracking/sim/sync-all", response_model=SIMTrackingSyncResponse)
 async def sync_all_sim_trips(
     current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """Polls Freight Tiger for all open line-haul trips."""
-    count = await service.sync_all_active_sim_trips(db)
+    count = await service.sync_all_active_sim_trips(
+        db,
+        tenant_id=tenant.tenant_id,
+        company_code=tenant.company_code,
+    )
     return SIMTrackingSyncResponse(trips_synced=count, message=f"Successfully synced {count} active SIM tracking trips.")
+
 
 
 # ==============================================================================

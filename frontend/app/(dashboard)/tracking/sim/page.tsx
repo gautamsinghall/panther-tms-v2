@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import {
   Plus,
   Radio,
@@ -25,6 +26,8 @@ import {
   Phone,
   Send,
   FileText,
+  Wallet,
+  ArrowRight,
 } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Form } from "@/components/forms/form";
@@ -84,6 +87,8 @@ export interface SIMTripRecord {
   destination_address?: string | null;
   route_code?: string | null;
   last_synced_at?: string | null;
+  last_billed_at?: string | null;
+  billing_cycles_charged?: number;
   closed_at?: string | null;
   close_comment?: string | null;
   created_at: string;
@@ -1026,6 +1031,24 @@ export default function TrackingPage() {
             </p>
           </div>
 
+          <div className="p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                <Wallet className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-amber-900 font-medium">
+                Standard Tariff: <strong className="font-bold">₹8.50 per trip per 24 hours</strong>. Day 1 is debited upon start. Auto-renews if trip exceeds 24h. Unlimited daily location pings.
+              </span>
+            </div>
+            <Link
+              href="/api-center/sim"
+              className="text-indigo-600 font-semibold hover:text-indigo-800 text-xs shrink-0 flex items-center gap-1"
+            >
+              <span>Manage SIM Wallet</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
           <form onSubmit={handleStartSimTrip} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-1.5 min-w-0">
@@ -1331,6 +1354,26 @@ export default function TrackingPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* SIM Billing & Cycle Counter Status */}
+            <div className="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-amber-950 flex items-center gap-2">
+                    <span>Billing Day {selectedTrip.billing_cycles_charged || 1} (24h Active Cycle)</span>
+                  </div>
+                  <div className="text-[11px] text-amber-800 mt-0.5">
+                    Tariff: ₹8.50 / trip / 24hr • Renews automatically when trip exceeds 24 hrs
+                  </div>
+                </div>
+              </div>
+              <Badge variant="warning" className="bg-white text-amber-900 border-amber-300 font-mono text-[10px] px-2 py-0.5">
+                {selectedTrip.billing_cycles_charged || 1} x ₹8.50 Billed
+              </Badge>
             </div>
 
             {/* Corridor & Route Specs */}
