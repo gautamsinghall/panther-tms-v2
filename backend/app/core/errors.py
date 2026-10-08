@@ -74,6 +74,51 @@ class QuotaExceededException(AppException):
             details=details or {"limit_key": limit_key, "limit": current_limit},
         )
 
+class DuplicateResourceException(AppException):
+    def __init__(self, message: str = "Resource already exists", details: Optional[Any] = None):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            error_code="DUPLICATE_RESOURCE",
+            message=message,
+            details=details,
+        )
+
+class RateLimitException(AppException):
+    def __init__(self, message: str = "Rate limit exceeded", details: Optional[Any] = None):
+        super().__init__(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            error_code="RATE_LIMIT_EXCEEDED",
+            message=message,
+            details=details,
+        )
+
+class ValidationException(AppException):
+    def __init__(self, message: str = "Validation failed", details: Optional[Any] = None):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            error_code="VALIDATION_ERROR",
+            message=message,
+            details=details,
+        )
+
+class ResourceNotFoundException(AppException):
+    def __init__(self, message: str = "Resource not found", details: Optional[Any] = None):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="NOT_FOUND",
+            message=message,
+            details=details,
+        )
+
+class InternalServerException(AppException):
+    def __init__(self, message: str = "Internal server error", details: Optional[Any] = None):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code="INTERNAL_SERVER_ERROR",
+            message=message,
+            details=details,
+        )
+
 
 import logging
 import traceback
