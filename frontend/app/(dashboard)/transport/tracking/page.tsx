@@ -36,6 +36,7 @@ import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { SegmentTabs } from "@/components/ui/tabs";
 import { ColumnDef } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
+import { apiClient } from "@/lib/api-client";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
