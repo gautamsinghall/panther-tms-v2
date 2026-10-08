@@ -173,6 +173,15 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
     ],
   },
   {
+    id: "api_center",
+    title: "API Center",
+    features: [
+      { id: "eway_bill_api", label: "E-Way Bill API" },
+      { id: "fastag_tracking_api", label: "FASTag Tracking API" },
+      { id: "sim_tracking_api", label: "SIM Based Tracking API" },
+    ],
+  },
+  {
     id: "company",
     title: "Company Settings",
     features: [
@@ -180,7 +189,6 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
       { id: "branch", label: "Issuing Offices / Branches" },
       { id: "users", label: "Employee & User Management" },
       { id: "roles", label: "Roles & Permissions Management" },
-      { id: "api_center", label: "API Center (E-Way, FASTag, Maps Gateway)" },
     ],
   },
   {

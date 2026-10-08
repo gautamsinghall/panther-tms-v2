@@ -423,7 +423,6 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/company/branches": Network,
   "/company/users": UserCog,
   "/company/roles": ShieldCheck,
-  "/company/api-center": KeyRound,
 
   // API Center
   "/api-center/eway-bill": FileSpreadsheet,

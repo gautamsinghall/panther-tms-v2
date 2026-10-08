@@ -201,6 +201,7 @@ async def get_user_navigation(
                 allowed_items = [
                     map_item(it) for it in mod["items"]
                     if (mod["id"], it["feature"]) in allowed_features
+                    or ("api_center", it["feature"]) in allowed_features
                     or ("company", "api_center") in allowed_features
                     or ("profile", "company") in allowed_features
                     or is_admin
@@ -214,7 +215,6 @@ async def get_user_navigation(
                     if (mod["id"], it["feature"]) in allowed_features
                     or (it["feature"] == "company_details" and ("profile", "company") in allowed_features)
                     or (it["feature"] == "branch" and ("profile", "branch") in allowed_features)
-                    or (it["feature"] == "api_center" and (("profile", "company") in allowed_features or ("company", "api_center") in allowed_features))
                     or (it["feature"] in ("users", "roles") and (("settings", it["feature"]) in allowed_features or ("company", it["feature"]) in allowed_features))
                 ]
                 if allowed_items:

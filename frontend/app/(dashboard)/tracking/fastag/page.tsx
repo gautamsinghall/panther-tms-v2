@@ -234,9 +234,10 @@ export default function FastagTrackingPage() {
 
       setActiveVehicle(res.vehicle || cleanVehicle);
       setApiCalled(Boolean(res.api_called));
+      const cooldownLimit = res.cooldown_seconds ?? 600;
       setCooldownRemainingSec(
         res.seconds_since_last_sync !== null && res.seconds_since_last_sync !== undefined
-          ? Math.max(0, 3600 - res.seconds_since_last_sync)
+          ? Math.max(0, cooldownLimit - res.seconds_since_last_sync)
           : null
       );
 

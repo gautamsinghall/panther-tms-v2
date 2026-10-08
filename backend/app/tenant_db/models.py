@@ -116,6 +116,9 @@ class CompanySetting(TenantBase):
     ft_auth_token = Column(Text, nullable=True)
     is_ft_active = Column(Boolean, default=True, nullable=False)
 
+    # FASTag Telemetry Rate Limit Cooldown (in minutes, default 10 min)
+    fastag_cooldown_minutes = Column(Integer, default=10, nullable=False)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

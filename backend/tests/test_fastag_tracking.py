@@ -209,6 +209,35 @@ class TestFASTagTracking(unittest.TestCase):
         col = Tenant.__table__.columns["fastag_credits_left"]
         self.assertEqual(col.default.arg, 0)
 
+    def test_company_setting_fastag_cooldown_default_10(self):
+        from app.tenant_db.models import CompanySetting
+
+        self.assertTrue(hasattr(CompanySetting, "fastag_cooldown_minutes"))
+        col = CompanySetting.__table__.columns["fastag_cooldown_minutes"]
+        self.assertEqual(col.default.arg, 10)
+
+    def test_fastag_cooldown_schemas_and_validation(self):
+        from app.modules.transport.schemas import FastagConfigResponse, FastagTrackResponse
+        from app.modules.profile.schemas import FastagWalletResponse, FastagCooldownUpdate
+
+        cfg = FastagConfigResponse(
+            google_maps_configured=True,
+            fastag_api_configured=True,
+            default_map_engine="google",
+            fastag_credits_left=5,
+        )
+        self.assertEqual(cfg.cooldown_minutes, 10)
+
+        wallet = FastagWalletResponse(api_calls_left=5)
+        self.assertEqual(wallet.cooldown_minutes, 10)
+
+        update_dto = FastagCooldownUpdate(cooldown_minutes=15)
+        self.assertEqual(update_dto.cooldown_minutes, 15)
+
+        # Invalid: cooldown less than 1 min
+        with self.assertRaises(Exception):
+            FastagCooldownUpdate(cooldown_minutes=0)
+
 
 if __name__ == "__main__":
     unittest.main()

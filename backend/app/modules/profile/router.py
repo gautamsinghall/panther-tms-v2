@@ -15,7 +15,7 @@ from app.modules.profile.schemas import (
     MonthlyPnLResponse,
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
     ApiCenterTestRequest, ApiCenterTestResponse,
-    FastagWalletResponse
+    FastagWalletResponse, FastagCooldownUpdate
 )
 from app.modules.profile import service
 
@@ -244,4 +244,20 @@ async def get_fastag_wallet(
         tenant_id=tenant.tenant_id,
         company_code=tenant.company_code,
     )
+
+
+@router.put(
+    "/api-center/fastag-cooldown",
+    summary="Update FASTag rate limit cooldown timing in minutes (Admin Only)"
+)
+async def update_fastag_cooldown(
+    data: FastagCooldownUpdate,
+    current_admin: User = Depends(get_current_company_admin),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    updated_val = await service.update_fastag_cooldown(db, data.cooldown_minutes)
+    return {
+        "cooldown_minutes": updated_val,
+        "message": f"FASTag rate limit cooldown updated to {updated_val} minutes."
+    }
 

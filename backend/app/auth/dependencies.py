@@ -283,7 +283,8 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
             has_perm = any(
                 (
                     p.module.replace("-", "_").lower() == norm_mod_target
-                    or (norm_mod_target in ("settings", "company") and p.module.replace("-", "_").lower() in ("settings", "company") and feature in ("users", "roles", "api_center"))
+                    or (norm_mod_target in ("settings", "company") and p.module.replace("-", "_").lower() in ("settings", "company") and feature in ("users", "roles"))
+                    or (norm_mod_target in ("api_center", "company") and p.module.replace("-", "_").lower() in ("api_center", "company") and feature in ("api_center", "eway_bill_api", "fastag_tracking_api", "sim_tracking_api"))
                     or (norm_mod_target in ("transport", "tracking") and p.module.replace("-", "_").lower() in ("transport", "tracking") and feature in ("tracking", "fastag_tracking", "sim_tracking"))
                 )
                 and (

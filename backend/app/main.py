@@ -139,7 +139,8 @@ async def lifespan(app: FastAPI):
                             "is_ewb_active BOOLEAN DEFAULT TRUE",
                             "gsp_client_id_override VARCHAR(255)", "gsp_client_secret_override VARCHAR(255)", "gsp_base_url_override VARCHAR(255)",
                             "ft_base_url VARCHAR(255) DEFAULT 'https://api.freighttiger.com/api/tether'",
-                            "ft_auth_token TEXT", "is_ft_active BOOLEAN DEFAULT TRUE"
+                            "ft_auth_token TEXT", "is_ft_active BOOLEAN DEFAULT TRUE",
+                            "fastag_cooldown_minutes INTEGER DEFAULT 10"
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
                         await t_conn.execute(text("ALTER TABLE company_settings ALTER COLUMN logo_url TYPE TEXT;"))

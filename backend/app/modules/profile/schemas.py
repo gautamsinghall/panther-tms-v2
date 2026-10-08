@@ -232,6 +232,7 @@ class ApiCenterSettingResponse(BaseModel):
     google_maps_configured: bool = False
     fastag_credits_left: int = 0
     fastag_rate_per_fetch: float = 1.50
+    fastag_cooldown_minutes: int = 10
 
 
 class ApiCenterSettingUpdate(BaseModel):
@@ -245,6 +246,7 @@ class ApiCenterSettingUpdate(BaseModel):
     ft_base_url: Optional[str] = None
     ft_auth_token: Optional[str] = None
     is_ft_active: Optional[bool] = None
+    fastag_cooldown_minutes: Optional[int] = None
 
 
 class ApiCenterTestRequest(BaseModel):
@@ -282,5 +284,10 @@ class FastagWalletResponse(BaseModel):
     equivalent_balance_inr: float = 0.00
     is_exhausted: bool = True
     pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
+    cooldown_minutes: int = 10
     transactions: List[FastagWalletTransactionItem] = Field(default_factory=list)
+
+
+class FastagCooldownUpdate(BaseModel):
+    cooldown_minutes: int = Field(..., ge=1, le=1440, description="Cooldown interval in minutes")
 

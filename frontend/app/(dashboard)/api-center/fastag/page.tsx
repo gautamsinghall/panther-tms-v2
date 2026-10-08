@@ -15,6 +15,10 @@ import {
   ExternalLink,
   ShieldCheck,
   Search,
+  Clock,
+  Save,
+  Check,
+  Sliders,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -42,6 +46,7 @@ interface FastagWalletData {
   equivalent_balance_inr: number;
   is_exhausted: boolean;
   pricing_notice: string;
+  cooldown_minutes?: number;
   transactions: FastagWalletTxn[];
 }
 
@@ -53,10 +58,19 @@ export default function FastagApiPage() {
     is_exhausted: true,
     pricing_notice:
       "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator.",
+    cooldown_minutes: 10,
     transactions: [],
   });
   const [isWalletLoading, setIsWalletLoading] = useState(true);
   const [walletTxFilter, setWalletTxFilter] = useState<string>("");
+
+  // Cooldown Configuration (Default 10 minutes)
+  const [cooldownMinutes, setCooldownMinutes] = useState<number>(10);
+  const [isSavingCooldown, setIsSavingCooldown] = useState(false);
+  const [cooldownFeedback, setCooldownFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const fetchWallet = async () => {
     try {
@@ -64,11 +78,47 @@ export default function FastagApiPage() {
       const data = await apiClient.get<FastagWalletData>("/api/v1/profile/api-center/fastag-wallet");
       if (data) {
         setWalletData(data);
+        if (typeof data.cooldown_minutes === "number") {
+          setCooldownMinutes(data.cooldown_minutes);
+        }
       }
     } catch (err) {
       console.warn("Failed loading FASTag wallet:", err);
     } finally {
       setIsWalletLoading(false);
+    }
+  };
+
+  const handleSaveCooldown = async (minsToSave?: number) => {
+    const mins = minsToSave ?? cooldownMinutes;
+    if (isNaN(mins) || mins < 1) {
+      setCooldownFeedback({
+        type: "error",
+        message: "Please enter a valid cooldown interval of at least 1 minute.",
+      });
+      return;
+    }
+
+    try {
+      setIsSavingCooldown(true);
+      setCooldownFeedback(null);
+      const res = await apiClient.put<{ cooldown_minutes: number; message: string }>(
+        "/api/v1/profile/api-center/fastag-cooldown",
+        { cooldown_minutes: mins }
+      );
+      setCooldownMinutes(res.cooldown_minutes);
+      setCooldownFeedback({
+        type: "success",
+        message: `Rate limit cooldown updated to ${res.cooldown_minutes} minutes successfully.`,
+      });
+      setTimeout(() => setCooldownFeedback(null), 4000);
+    } catch (err: any) {
+      setCooldownFeedback({
+        type: "error",
+        message: err.message || "Failed to update cooldown timing.",
+      });
+    } finally {
+      setIsSavingCooldown(false);
     }
   };
 
@@ -192,6 +242,117 @@ export default function FastagApiPage() {
           </div>
         </div>
       </div>
+
+      {/* Telemetry Cooldown Configuration Card */}
+      <Card className="p-6 rounded-2xl border border-slate-200/90 shadow-2xs bg-white space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>FASTag Telemetry Rate Limit &amp; Cooldown</span>
+                <Badge variant="primary" className="bg-indigo-50/70 border-indigo-200 text-indigo-700 text-[10px] font-mono">
+                  Default: 10 Min
+                </Badge>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+                Configure the minimum cooldown interval between live NETC queries per vehicle. Queries within this window return cached toll logs for free, preventing redundant ₹1.50 balance deductions.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-medium">Active Window:</span>
+            <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-900 font-mono font-bold text-xs border border-slate-200">
+              {cooldownMinutes} minutes
+            </span>
+          </div>
+        </div>
+
+        {/* Quick Presets & Custom Stepper */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-slate-400" />
+              <span>Select Cooldown Interval</span>
+            </label>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { label: "5m", val: 5 },
+                { label: "10m (Default)", val: 10 },
+                { label: "15m", val: 15 },
+                { label: "30m", val: 30 },
+                { label: "60m", val: 60 },
+              ].map((preset) => (
+                <button
+                  key={preset.val}
+                  type="button"
+                  onClick={() => {
+                    setCooldownMinutes(preset.val);
+                    handleSaveCooldown(preset.val);
+                  }}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer ${
+                    cooldownMinutes === preset.val
+                      ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Duration & Save */}
+          <div className="flex items-center gap-2.5 self-end">
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={1}
+                max={1440}
+                value={cooldownMinutes}
+                onChange={(e) => setCooldownMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-24 h-9 text-xs font-mono font-bold text-center"
+              />
+              <span className="text-xs text-slate-500 font-medium">minutes</span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleSaveCooldown()}
+              disabled={isSavingCooldown}
+              className="h-9 text-xs gap-1.5 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white shadow-2xs"
+            >
+              {isSavingCooldown ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              <span>Save Setting</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Feedback Alert */}
+        {cooldownFeedback && (
+          <div
+            className={`p-3 rounded-xl border flex items-center gap-2.5 text-xs transition-all ${
+              cooldownFeedback.type === "success"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border-rose-200 text-rose-800"
+            }`}
+          >
+            {cooldownFeedback.type === "success" ? (
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span className="font-medium">{cooldownFeedback.message}</span>
+          </div>
+        )}
+      </Card>
 
       {/* Main Ledger Card */}
       <Card className="p-6 rounded-2xl border border-slate-200 shadow-xs bg-white space-y-6">

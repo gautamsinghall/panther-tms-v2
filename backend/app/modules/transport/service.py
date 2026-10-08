@@ -1501,7 +1501,17 @@ async def track_fastag_vehicle(
     if not clean_vehicle:
         raise AppException("Invalid vehicle number provided.", status_code=status.HTTP_400_BAD_REQUEST)
 
-    # 1. Cooldown Check (3600 seconds)
+    # 1. Cooldown Check (Default 10 minutes = 600s, configurable in API Center)
+    company_stmt = select(CompanySetting).limit(1)
+    company_res = await db.execute(company_stmt)
+    company_rec = company_res.scalars().first()
+    cooldown_minutes = (
+        company_rec.fastag_cooldown_minutes
+        if company_rec and company_rec.fastag_cooldown_minutes is not None
+        else 10
+    )
+    cooldown_seconds = max(60, cooldown_minutes * 60)
+
     cooldown_stmt = select(FastagCooldown).where(FastagCooldown.vehicle_number == clean_vehicle)
     cooldown_res = await db.execute(cooldown_stmt)
     cooldown_rec = cooldown_res.scalars().first()
@@ -1514,7 +1524,7 @@ async def track_fastag_vehicle(
     if cooldown_rec:
         passed = (now_utc - cooldown_rec.last_sync).total_seconds()
         seconds_passed = int(passed)
-        if passed < 3600 and passed >= 0 and not force_sync:
+        if passed < cooldown_seconds and passed >= 0 and not force_sync:
             cooldown_active = True
             should_call_api = False
 
@@ -1831,6 +1841,8 @@ async def track_fastag_vehicle(
         "api_called": api_called,
         "cooldown_active": cooldown_active,
         "seconds_since_last_sync": seconds_passed,
+        "cooldown_seconds": cooldown_seconds,
+        "cooldown_minutes": cooldown_minutes,
         "trip": trip_data,
         "route": route_output,
         "metrics": {

@@ -1110,11 +1110,13 @@ async def sync_all_sim_trips(
 async def get_fastag_config(
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
 ):
     """Returns whether FASTag API and Google Maps API are configured in the environment."""
     from app.core.config import settings
     from app.core.database import ControlSessionLocal
     from app.control.models import Tenant as ControlTenant
+    from app.tenant_db.models import CompanySetting
     from sqlalchemy import select
 
     credits_left = 0
@@ -1130,6 +1132,15 @@ async def get_fastag_config(
     except Exception:
         pass
 
+    cooldown_minutes = 10
+    try:
+        cs_res = await db.execute(select(CompanySetting.fastag_cooldown_minutes).limit(1))
+        cs_val = cs_res.scalar_one_or_none()
+        if cs_val is not None:
+            cooldown_minutes = int(cs_val)
+    except Exception:
+        pass
+
     return FastagConfigResponse(
         google_maps_configured=bool(settings.GOOGLE_MAPS_API_KEY),
         fastag_api_configured=bool(settings.FASTAG_API_KEY),
@@ -1137,6 +1148,7 @@ async def get_fastag_config(
         google_maps_api_key=settings.GOOGLE_MAPS_API_KEY or "",
         fastag_credits_left=credits_left,
         rate_per_fetch=1.50,
+        cooldown_minutes=cooldown_minutes,
     )
 
 

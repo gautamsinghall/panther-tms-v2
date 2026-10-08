@@ -883,6 +883,8 @@ class FastagTrackResponse(BaseModel):
     api_called: bool
     cooldown_active: bool
     seconds_since_last_sync: Optional[int] = None
+    cooldown_seconds: Optional[int] = 600
+    cooldown_minutes: Optional[int] = 10
     trip: Optional[Dict[str, Any]] = None
     route: List[TollLogResponse] = []
     metrics: FastagTrackingMetrics
@@ -896,5 +898,6 @@ class FastagConfigResponse(BaseModel):
     google_maps_api_key: Optional[str] = None
     fastag_credits_left: int = 0
     rate_per_fetch: float = 1.50
+    cooldown_minutes: int = 10
     pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
 

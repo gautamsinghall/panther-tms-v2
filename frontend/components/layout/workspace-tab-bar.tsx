@@ -140,7 +140,11 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/company/branches": { title: "Issuing Offices", icon: Building2 },
   "/company/users": { title: "User Management", icon: UserCog },
   "/company/roles": { title: "Roles & Permissions", icon: ShieldCheck },
-  "/company/api-center": { title: "API Center", icon: Sliders },
+
+  // API Center
+  "/api-center/eway-bill": { title: "E-Way Bill API", icon: FileSpreadsheet },
+  "/api-center/fastag": { title: "FASTag Tracking API", icon: Navigation },
+  "/api-center/sim": { title: "SIM Tracking API", icon: Radio },
 
   // Settings
   "/settings/users": { title: "User Management", icon: UserCog },

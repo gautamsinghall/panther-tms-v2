@@ -531,6 +531,7 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         google_maps_configured=bool(settings.GOOGLE_MAPS_API_KEY),
         fastag_credits_left=credits_left,
         fastag_rate_per_fetch=1.50,
+        fastag_cooldown_minutes=company.fastag_cooldown_minutes if company.fastag_cooldown_minutes is not None else 10,
     )
 
 
@@ -566,6 +567,8 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
             company.ft_auth_token = None
     if data.is_ft_active is not None:
         company.is_ft_active = data.is_ft_active
+    if data.fastag_cooldown_minutes is not None:
+        company.fastag_cooldown_minutes = max(1, data.fastag_cooldown_minutes)
 
     company.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -699,12 +702,39 @@ async def get_fastag_wallet_info(
         for tx in tx_objs
     ]
 
+    # 3. Fetch FASTag rate limit cooldown from company_settings (default 10 min)
+    cooldown_minutes = 10
+    try:
+        if tenant_db:
+            cs = await get_company_setting(tenant_db)
+            if cs and cs.fastag_cooldown_minutes is not None:
+                cooldown_minutes = cs.fastag_cooldown_minutes
+        elif resolved_company_code:
+            resolved_db_name = f"panther_tenant_{resolved_company_code.lower()}"
+            t_session_maker = get_tenant_session_maker(resolved_db_name)
+            async with t_session_maker() as t_session:
+                cs = await get_company_setting(t_session)
+                if cs and cs.fastag_cooldown_minutes is not None:
+                    cooldown_minutes = cs.fastag_cooldown_minutes
+    except Exception as cs_err:
+        logger.warning(f"Error fetching fastag cooldown from company_settings: {cs_err}")
+
     return FastagWalletResponse(
         api_calls_left=credits_left,
         rate_per_fetch=1.50,
         equivalent_balance_inr=round(float(credits_left * 1.50), 2),
         is_exhausted=(credits_left <= 0),
         pricing_notice="Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator.",
+        cooldown_minutes=cooldown_minutes,
         transactions=transactions,
     )
+
+
+async def update_fastag_cooldown(db: AsyncSession, cooldown_minutes: int) -> int:
+    company = await get_company_setting(db)
+    company.fastag_cooldown_minutes = max(1, cooldown_minutes)
+    company.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(company)
+    return company.fastag_cooldown_minutes
 
