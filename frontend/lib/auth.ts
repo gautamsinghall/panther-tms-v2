@@ -119,12 +119,13 @@ export function getAssignedOffices(): OfficeSummary[] {
   return auth?.assignedOffices || [];
 }
 
-export function setActiveOffice(office: OfficeSummary): void {
+export function setActiveOffice(office: OfficeSummary, forceDispatch = false): void {
   const auth = getStoredAuth();
   if (auth) {
+    const prevOfficeId = auth.activeOffice?.id;
     auth.activeOffice = office;
     setStoredAuth(auth);
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && (forceDispatch || prevOfficeId !== office.id)) {
       window.dispatchEvent(new CustomEvent("panther_office_changed", { detail: office }));
     }
   }

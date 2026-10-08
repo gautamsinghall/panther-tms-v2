@@ -157,7 +157,7 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "pod_records", title: "POD Records", href: "/transport/pod-records" },
       { feature: "truck_hiring_note", title: "Truck Hiring Note", href: "/transport/truck-hiring-note" },
       { feature: "eway_bill", title: "Update E-Way", href: "/transport/eway-bill" },
-      { feature: "tracking", title: "Tracking (SIM / GPS / FASTag)", href: "/transport/tracking" },
+      { feature: "tracking", title: "Sim Based Tracking", href: "/transport/tracking" },
     ],
   },
   {

@@ -273,7 +273,7 @@ export default function TrackingPage() {
       }
       setFeedbackMessage({
         type: "success",
-        text: `Trip ${updated.feed_unique_id} refreshed from Freight Tiger. Consent: ${updated.is_consent_done ? "Granted" : "Pending"}.`,
+        text: `Trip ${updated.feed_unique_id} telemetry refreshed. Consent: ${updated.is_consent_done ? "Granted" : "Pending"}.`,
       });
       loadPings();
     } catch (err: any) {
@@ -536,7 +536,7 @@ export default function TrackingPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200/60 transition-colors"
-              title="Open Freight Tiger Public Live Tracking Link"
+              title="Open Public Live Tracking Link"
             >
               <ExternalLink className="w-3 h-3" />
               Live Map
@@ -548,7 +548,7 @@ export default function TrackingPage() {
             onClick={() => handleSyncTrip(row.id)}
             disabled={syncingTripId === row.id}
             className="h-7 w-7 p-0"
-            title="Refresh latest location from Freight Tiger"
+            title="Refresh latest location telemetry"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${syncingTripId === row.id ? "animate-spin" : ""}`} />
           </Button>
@@ -699,7 +699,7 @@ export default function TrackingPage() {
           type: "select",
           required: true,
           options: [
-            { label: "SIM / Cell Tower (Freight Tiger)", value: "SIM" },
+            { label: "SIM / Cell Tower Telemetry", value: "SIM" },
             { label: "GPS Telemetry Device", value: "GPS" },
             { label: "FASTag Toll Plaza Ping", value: "FASTAG" },
           ],
@@ -744,10 +744,10 @@ export default function TrackingPage() {
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Transport", href: "/transport" },
-          { label: "Fleet Tracking" },
+          { label: "Sim Based Tracking" },
         ]}
-        title="Fleet & SIM Tracking (Freight Tiger)"
-        description="SIM-based carrier triangulation and unified telemetry shell supporting telecom carrier driver consent (Airtel/Jio/Vi/BSNL), GPS devices, and FASTag toll pings."
+        title="Sim Based Tracking"
+        description="Cell tower triangulation and unified telemetry supporting carrier driver consent (Airtel, Jio, Vi, BSNL), GPS devices, and FASTag toll checkpoints."
         primaryAction={{
           label: "Start SIM Tracking",
           icon: Smartphone,
@@ -763,7 +763,7 @@ export default function TrackingPage() {
           tabs={[
             {
               id: "sim",
-              label: "SIM Live Tracking (Freight Tiger)",
+              label: "SIM Live Tracking",
               icon: <Smartphone className="w-3.5 h-3.5" />,
               badge: simStats.active > 0 ? simStats.active : undefined,
             },
@@ -828,7 +828,7 @@ export default function TrackingPage() {
       )}
 
       {/* =========================================================================
-          TAB 1: SIM LIVE TRACKING (FREIGHT TIGER)
+          TAB 1: SIM LIVE TRACKING
          ========================================================================= */}
       {activeTab === "sim" && (
         <div className="space-y-5">
@@ -858,25 +858,6 @@ export default function TrackingPage() {
               subtext="Delivered consignment journeys"
               icon={<CheckCircle2 className="w-4 h-4 text-slate-600" />}
             />
-          </div>
-
-          {/* Integration Status Callout */}
-          <div className="p-4 bg-gradient-to-r from-indigo-50/70 via-slate-50 to-indigo-50/30 border border-indigo-100 rounded-xl flex items-start gap-3 shadow-2xs">
-            <Smartphone className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
-            <div className="text-xs text-slate-700 space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-900">
-                  Freight Tiger Telecom Gateway (Airtel • Jio • Vi • BSNL)
-                </span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800">
-                  FT API Compliant
-                </span>
-              </div>
-              <p className="text-slate-600 leading-relaxed">
-                SIM tracking operates via telecom cell-tower triangulation without requiring any smartphone GPS app.
-                When you dispatch a trip, an automated consent SMS is queued to the driver&apos;s 10-digit number. Once the driver accepts, live location coordinates, ETA, and public shareable map links are synchronized.
-              </p>
-            </div>
           </div>
 
           {/* SIM Trips DataTable */}
@@ -950,155 +931,177 @@ export default function TrackingPage() {
           setIsStartTripModalOpen(false);
           resetFormData();
         }}
-        title="Start SIM Tracking (Freight Tiger)"
+        title="Start SIM Tracking"
         subtitle="Initiate telecom cell-tower tracking by driver mobile & vehicle registration"
-        size="lg"
+        width="xl"
       >
-        <form onSubmit={handleStartSimTrip} className="space-y-5">
-          {/* LR Selector for Quick Pre-fill */}
-          <div className="p-3.5 bg-indigo-50/60 border border-indigo-100 rounded-xl space-y-2">
-            <label className="text-xs font-semibold text-indigo-900 flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-indigo-600" />
-              Link Consignment / LR (Optional Quick Autofill)
-            </label>
-            <select
-              value={selectedLrId}
-              onChange={(e) => handleLrSelect(e.target.value)}
-              className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            >
-              <option value="">-- Choose active consignment or enter manually --</option>
-              {availableLRs.map((lr) => (
-                <option key={lr.id} value={lr.id}>
-                  {lr.lr_number} • {lr.vehicle_number} • {lr.origin_name || "Origin"} ➔ {lr.destination_name || "Dest"} ({lr.driver_name || "Driver"})
-                </option>
-              ))}
-            </select>
-            <p className="text-[11px] text-indigo-700/80">
-              Selecting an LR automatically pulls vehicle number, driver phone, origin, and destination.
+        {/* Pre-fill LR Link Context Banner */}
+        <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Truck className="w-4 h-4 text-indigo-600" />
+                Link Consignment / LR:
+              </span>
+              <span className="text-[11px] font-semibold text-indigo-700 bg-white/90 px-2 py-0.5 rounded border border-indigo-200">
+                Optional Quick Autofill
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium">
+              Auto-fills vehicle plate, driver phone, and route locations
+            </span>
+          </div>
+          <select
+            value={selectedLrId}
+            onChange={(e) => handleLrSelect(e.target.value)}
+            className="w-full text-xs font-medium bg-white border border-indigo-200/90 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs cursor-pointer"
+          >
+            <option value="">-- Choose active consignment or enter manually --</option>
+            {availableLRs.map((lr) => (
+              <option key={lr.id} value={lr.id}>
+                {lr.lr_number} • {lr.vehicle_number} • {lr.origin_name || "Origin"} ➔ {lr.destination_name || "Dest"} ({lr.driver_name || "Driver"})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Outer Form Box / Container Card matching LR Add Form */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-6 shadow-2xs">
+          {/* Section Header */}
+          <div className="border-b border-slate-100 pb-3.5">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+              Vehicle &amp; Driver Authorization
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-normal">
+              Vehicle registration, driver 10-digit mobile number for telecom ping consent, and transit corridor.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Vehicle Registration Plate *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. MH12AB1234"
-                value={formData.vehicle_number}
-                onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value.toUpperCase() })}
-                className="w-full text-xs font-mono font-bold uppercase bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Driver Mobile Phone (10 Digits) *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">+91</span>
+          <form onSubmit={handleStartSimTrip} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5 min-w-0">
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+                  Vehicle Registration Plate <span className="text-rose-500">*</span>
+                </label>
                 <input
-                  type="tel"
+                  type="text"
                   required
-                  maxLength={10}
-                  placeholder="9876543210"
-                  value={formData.driver_phone}
-                  onChange={(e) => setFormData({ ...formData, driver_phone: e.target.value })}
-                  className="w-full text-xs font-mono pl-11 bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  placeholder="e.g. MH12AB1234"
+                  value={formData.vehicle_number}
+                  onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value.toUpperCase() })}
+                  className="w-full h-10 px-3.5 text-xs font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                />
+              </div>
+
+              <div className="space-y-1.5 min-w-0">
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+                  Driver Mobile Phone (10 Digits) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-xs font-semibold text-slate-400 font-mono select-none">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="9876543210"
+                    value={formData.driver_phone}
+                    onChange={(e) => setFormData({ ...formData, driver_phone: e.target.value })}
+                    className="w-full h-10 pl-12 pr-3.5 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5 min-w-0">
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+                  Driver Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Ramesh Kumar"
+                  value={formData.driver_name}
+                  onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
+                  className="w-full h-10 px-3.5 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                />
+              </div>
+
+              <div className="space-y-1.5 min-w-0">
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+                  Route Code / Corridor
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mumbai-Pune Express"
+                  value={formData.route_code}
+                  onChange={(e) => setFormData({ ...formData, route_code: e.target.value })}
+                  className="w-full h-10 px-3.5 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                />
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5 min-w-0">
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+                  Origin Loading Hub / Landmark
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. JNPT Nhava Sheva, Navi Mumbai, Maharashtra"
+                  value={formData.origin_address}
+                  onChange={(e) => setFormData({ ...formData, origin_address: e.target.value })}
+                  className="w-full h-10 px-3.5 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                />
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5 min-w-0">
+                <label className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+                  Destination Unloading Hub / City
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Chakan Industrial Area, Pune, Maharashtra"
+                  value={formData.destination_address}
+                  onChange={(e) => setFormData({ ...formData, destination_address: e.target.value })}
+                  className="w-full h-10 px-3.5 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Driver Full Name
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Ramesh Kumar"
-                value={formData.driver_name}
-                onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
+            {/* Consent Information Banner */}
+            <div className="p-4 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-start gap-3 text-xs text-amber-900 shadow-2xs">
+              <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="space-y-0.5">
+                <span className="font-bold text-amber-950">Telecom Carrier Consent Ping:</span>
+                <p className="text-amber-800 leading-relaxed text-[11px]">
+                  Per Indian telecom regulations, starting tracking sends an SMS to the driver. The driver replies with 1 / YES or clicks the verification prompt. Location fixes start immediately once consent is verified.
+                </p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Route Code / Corridor
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Mumbai-Pune Express"
-                value={formData.route_code}
-                onChange={(e) => setFormData({ ...formData, route_code: e.target.value })}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
+            {/* Actions Footer */}
+            <div className="flex items-center justify-end gap-3 pt-5 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsStartTripModalOpen(false);
+                  resetFormData();
+                }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSubmitting}
+                className="gap-2 px-5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                {isSubmitting ? "Initiating..." : "Initiate SIM Tracking & Send SMS"}
+              </Button>
             </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Origin Loading Hub / Landmark
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. JNPT Nhava Sheva, Navi Mumbai, Maharashtra"
-                value={formData.origin_address}
-                onChange={(e) => setFormData({ ...formData, origin_address: e.target.value })}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Destination Unloading Hub / City
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Chakan Industrial Area, Pune, Maharashtra"
-                value={formData.destination_address}
-                onChange={(e) => setFormData({ ...formData, destination_address: e.target.value })}
-                className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              />
-            </div>
-          </div>
-
-          {/* Consent Information Banner */}
-          <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-lg flex items-start gap-2.5 text-xs text-amber-900">
-            <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-            <div>
-              <span className="font-semibold">Telecom Carrier Consent Ping:</span>
-              <p className="mt-0.5 text-amber-800 leading-relaxed text-[11px]">
-                Per Indian telecom regulations, starting tracking sends an SMS to the driver. The driver replies with 1 / YES or clicks the verification prompt. Location fixes start immediately once consent is verified.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-200">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsStartTripModalOpen(false);
-                resetFormData();
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              disabled={isSubmitting}
-              className="gap-1.5"
-            >
-              <Send className="w-3.5 h-3.5" />
-              {isSubmitting ? "Initiating..." : "Initiate SIM Tracking & Send SMS"}
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </EntityDrawer>
 
       {/* =========================================================================
@@ -1111,11 +1114,11 @@ export default function TrackingPage() {
           setSelectedTrip(null);
         }}
         title={`Trip Telemetry: ${selectedTrip?.vehicle_number || ""}`}
-        subtitle={`Freight Tiger Feed UID: ${selectedTrip?.feed_unique_id || ""}`}
-        size="lg"
+        subtitle={`Feed UID: ${selectedTrip?.feed_unique_id || ""}`}
+        width="xl"
       >
         {selectedTrip && (
-          <div className="space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-6 shadow-2xs">
             {/* Header Plate & Status Banner */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
               <div>
@@ -1144,7 +1147,7 @@ export default function TrackingPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-indigo-950 flex items-center gap-1.5">
                     <MapIcon className="w-3.5 h-3.5 text-indigo-600" />
-                    Public Live Tracking URL (Freight Tiger)
+                    Public Live Tracking URL
                   </span>
                   <a
                     href={selectedTrip.share_url}
@@ -1292,7 +1295,7 @@ export default function TrackingPage() {
                 className="gap-1.5 text-xs"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncingTripId === selectedTrip.id ? "animate-spin" : ""}`} />
-                Refresh from Freight Tiger
+                Refresh Live Location
               </Button>
               <Button
                 variant="outline"
@@ -1321,48 +1324,50 @@ export default function TrackingPage() {
         }}
         title="Close SIM Tracking Session"
         subtitle={`Mark trip complete for vehicle ${selectedTrip?.vehicle_number || ""}`}
-        size="md"
+        width="md"
       >
-        <form onSubmit={handleCloseTripSubmit} className="space-y-4">
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Closing this trip will notify Freight Tiger to stop polling telecom cell towers for driver +91 {selectedTrip?.driver_phone}.
-          </p>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Delivery / Closing Remarks
-            </label>
-            <textarea
-              rows={3}
-              placeholder="e.g. Consignment delivered in good condition at warehouse gate."
-              value={closeComment}
-              onChange={(e) => setCloseComment(e.target.value)}
-              className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsCloseModalOpen(false);
-                setSelectedTrip(null);
-                setCloseComment("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              disabled={isSubmitting}
-              className="bg-rose-600 hover:bg-rose-700 text-white"
-            >
-              {isSubmitting ? "Closing..." : "Confirm & Close Trip"}
-            </Button>
-          </div>
-        </form>
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 space-y-5 shadow-2xs">
+          <form onSubmit={handleCloseTripSubmit} className="space-y-4">
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Closing this trip will stop polling telecom cell towers for driver +91 {selectedTrip?.driver_phone}.
+            </p>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Delivery / Closing Remarks
+              </label>
+              <textarea
+                rows={3}
+                placeholder="e.g. Consignment delivered in good condition at warehouse gate."
+                value={closeComment}
+                onChange={(e) => setCloseComment(e.target.value)}
+                className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsCloseModalOpen(false);
+                  setSelectedTrip(null);
+                  setCloseComment("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={isSubmitting}
+                className="bg-rose-600 hover:bg-rose-700 text-white"
+              >
+                {isSubmitting ? "Closing..." : "Confirm & Close Trip"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </EntityDrawer>
 
       {/* =========================================================================

@@ -74,7 +74,7 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/transport/pod-records": { title: "POD Records", icon: CheckSquare },
   "/transport/truck-hiring-note": { title: "Truck Hiring Note", icon: FileSignature },
   "/transport/eway-bill": { title: "Update E-Way", icon: QrCode },
-  "/transport/tracking": { title: "Tracking (SIM / GPS / FASTag)", icon: Navigation },
+  "/transport/tracking": { title: "Sim Based Tracking", icon: Navigation },
 
   // Transport Reports
   "/transport-reports/lr-register": { title: "LR Booking Register", icon: FileSpreadsheet },

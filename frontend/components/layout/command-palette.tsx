@@ -76,12 +76,12 @@ const COMMAND_ITEMS: CommandItem[] = [
   },
   {
     id: "tracking",
-    title: "Live FASTag & GPS Tracking",
-    description: "Track fleet toll pings and live vehicle locations",
+    title: "Sim Based Tracking",
+    description: "SIM cell-tower triangulation, driver consent, and fleet telemetry",
     category: "Transport",
     href: "/transport/tracking",
     icon: <Clock className="w-4 h-4 text-[#4F46E5]" />,
-    keywords: ["fastag", "gps", "tracking", "toll", "location"],
+    keywords: ["sim", "tracking", "fastag", "gps", "telemetry", "location"],
   },
   {
     id: "company-vehicles",

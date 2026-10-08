@@ -22,10 +22,16 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
       const customEvent = e as CustomEvent<OfficeSummary>;
       const off = customEvent.detail;
       const keyId = off?.id !== undefined ? String(off.id) : "all";
-      if (isFormOpen) {
-        closeFormTab(false);
-      }
-      setOfficeKey(`${keyId}-${Date.now()}`);
+      setOfficeKey((prev) => {
+        const prevId = prev.split("-")[0];
+        if (prevId === keyId) {
+          return prev;
+        }
+        if (isFormOpen) {
+          closeFormTab(false);
+        }
+        return `${keyId}-${Date.now()}`;
+      });
     };
 
     window.addEventListener("panther_office_changed", handleOfficeChange);

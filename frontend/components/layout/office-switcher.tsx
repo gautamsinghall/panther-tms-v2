@@ -66,7 +66,10 @@ export function OfficeSwitcher() {
       setActiveOfficeState(currentActive);
     } else if (currentActive && assigned.some((o) => o.id === currentActive.id)) {
       const refreshedActive = assigned.find((o) => o.id === currentActive.id)!;
-      setActiveOffice(refreshedActive);
+      if (auth) {
+        auth.activeOffice = refreshedActive;
+        setStoredAuth(auth);
+      }
       setActiveOfficeState(refreshedActive);
     } else if (assigned.length > 0) {
       const defaultOff = assigned.find((o) => o.is_default) || assigned[0];
@@ -95,12 +98,10 @@ export function OfficeSwitcher() {
 
     window.addEventListener("panther_office_changed", handleOfficeChange);
     window.addEventListener("panther_branches_updated", handleBranchesUpdated);
-    window.addEventListener("focus", handleBranchesUpdated);
 
     return () => {
       window.removeEventListener("panther_office_changed", handleOfficeChange);
       window.removeEventListener("panther_branches_updated", handleBranchesUpdated);
-      window.removeEventListener("focus", handleBranchesUpdated);
     };
   }, []);
 

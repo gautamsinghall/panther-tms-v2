@@ -68,7 +68,7 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
       { id: "pod_records", label: "POD Tracking" },
       { id: "truck_hiring_note", label: "Truck Hiring Notes" },
       { id: "eway_bill", label: "Update E-Way" },
-      { id: "tracking", label: "Tracking (FASTag/GPS)" },
+      { id: "tracking", label: "Sim Based Tracking" },
     ],
   },
   {
