@@ -4,7 +4,7 @@ import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 export interface KpiCardProps {
   title: string;
-  value: string | number;
+  value: string | number | React.ReactNode;
   subtext?: string;
   icon?: React.ReactNode;
   trend?: {

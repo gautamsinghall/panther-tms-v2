@@ -561,9 +561,17 @@ export function Sidebar() {
       try {
         const data = await apiClient<NavGroup[]>("/api/v1/auth/navigation");
         if (Array.isArray(data) && data.length > 0) {
-          setNavGroups(data);
+          const normalized = data.map((g) => ({
+            ...g,
+            items: g.items?.map((it) =>
+              it.href === "/transport/tracking" || it.feature === "tracking"
+                ? { ...it, title: "Sim Based Tracking" }
+                : it
+            ),
+          }));
+          setNavGroups(normalized);
           const expanded: Record<string, boolean> = {};
-          data.forEach((g) => {
+          normalized.forEach((g) => {
             if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
               expanded[g.id] = true;
             }

@@ -81,7 +81,7 @@ const COMMAND_ITEMS: CommandItem[] = [
     category: "Transport",
     href: "/transport/tracking",
     icon: <Clock className="w-4 h-4 text-[#4F46E5]" />,
-    keywords: ["sim", "tracking", "fastag", "gps", "telemetry", "location"],
+    keywords: ["sim", "tracking", "cell tower", "gps", "telemetry", "location"],
   },
   {
     id: "company-vehicles",
