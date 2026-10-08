@@ -19,6 +19,7 @@ MODULE_MIN_TIERS = {
     "profile": 1,
     "settings": 1,
     "company": 1,
+    "api_center": 1,
     "tracking": 2,           # PRO, BUSINESS, ENTERPRISE
     "transport_reports": 2,   # PRO, BUSINESS, ENTERPRISE
     "reports": 2,             # PRO, BUSINESS, ENTERPRISE
@@ -178,6 +179,15 @@ ALL_NAVIGATION_MODULES = [
         ],
     },
     {
+        "id": "api_center",
+        "title": "API Center",
+        "items": [
+            {"feature": "eway_bill_api", "title": "E-Way Bill API", "href": "/api-center/eway-bill"},
+            {"feature": "fastag_tracking_api", "title": "FASTag Tracking API", "href": "/api-center/fastag"},
+            {"feature": "sim_tracking_api", "title": "SIM Based Tracking API", "href": "/api-center/sim"},
+        ],
+    },
+    {
         "id": "company",
         "title": "Company Settings",
         "items": [
@@ -185,7 +195,6 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "branch", "title": "Issuing Offices / Branches", "href": "/company/branches"},
             {"feature": "users", "title": "User Management", "href": "/company/users"},
             {"feature": "roles", "title": "Roles & Permissions", "href": "/company/roles"},
-            {"feature": "api_center", "title": "API Center", "href": "/company/api-center"},
         ],
     },
     {

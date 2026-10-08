@@ -261,6 +261,15 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     ],
   },
   {
+    id: "api_center",
+    title: "API Center",
+    items: [
+      { feature: "eway_bill_api", title: "E-Way Bill API", href: "/api-center/eway-bill" },
+      { feature: "fastag_tracking_api", title: "FASTag Tracking API", href: "/api-center/fastag" },
+      { feature: "sim_tracking_api", title: "SIM Based Tracking API", href: "/api-center/sim" },
+    ],
+  },
+  {
     id: "company",
     title: "Company Settings",
     items: [
@@ -268,7 +277,6 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "branch", title: "Issuing Offices / Branches", href: "/company/branches" },
       { feature: "users", title: "User Management", href: "/company/users" },
       { feature: "roles", title: "Roles & Permissions", href: "/company/roles" },
-      { feature: "api_center", title: "API Center", href: "/company/api-center" },
     ],
   },
   {
@@ -308,6 +316,8 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   settings: <Settings className="w-5 h-5" />,
   profile: <UserCircle className="w-5 h-5" />,
   tracking: <Navigation className="w-5 h-5" />,
+  api_center: <KeyRound className="w-5 h-5" />,
+  "api-center": <KeyRound className="w-5 h-5" />,
 };
 
 // Sub-item specific Lucide icons for all modules
@@ -415,6 +425,11 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/company/roles": ShieldCheck,
   "/company/api-center": KeyRound,
 
+  // API Center
+  "/api-center/eway-bill": FileSpreadsheet,
+  "/api-center/fastag": Navigation,
+  "/api-center/sim": Radio,
+
   // Settings
   "/settings/users": UserCog,
   "/settings/roles": ShieldCheck,
@@ -514,6 +529,10 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   company: Building2,
   company_details: Building2,
   api_center: KeyRound,
+  eway_bill_api: FileSpreadsheet,
+  fastag_api: Navigation,
+  fastag_tracking_api: Navigation,
+  sim_tracking_api: Radio,
   account: UserCircle,
   branch: Network,
   change_password: KeyRound,

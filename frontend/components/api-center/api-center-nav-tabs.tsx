@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, GitBranch, KeyRound } from "lucide-react";
+import { FileSpreadsheet, Navigation, Radio } from "lucide-react";
 import { getStoredAuth } from "@/lib/auth";
 
-export function CompanyNavTabs() {
+export function ApiCenterNavTabs() {
   const pathname = usePathname();
   const [tenantPrefix, setTenantPrefix] = useState("");
 
@@ -24,16 +24,22 @@ export function CompanyNavTabs() {
 
   const tabs = [
     {
-      label: "Company Details & Branding",
-      href: "/company/details",
-      icon: Building2,
-      active: pathname?.endsWith("/company/details"),
+      label: "E-Way Bill API",
+      href: "/api-center/eway-bill",
+      icon: FileSpreadsheet,
+      active: pathname?.includes("/api-center/eway-bill"),
     },
     {
-      label: "Issuing Offices / Branches",
-      href: "/company/branches",
-      icon: GitBranch,
-      active: pathname?.endsWith("/company/branches"),
+      label: "FASTag Tracking API",
+      href: "/api-center/fastag",
+      icon: Navigation,
+      active: pathname?.includes("/api-center/fastag"),
+    },
+    {
+      label: "SIM Based Tracking API",
+      href: "/api-center/sim",
+      icon: Radio,
+      active: pathname?.includes("/api-center/sim"),
     },
   ];
 
