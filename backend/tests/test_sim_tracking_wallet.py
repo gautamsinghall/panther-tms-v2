@@ -4,7 +4,7 @@ from decimal import Decimal
 from app.control.models import Tenant
 from app.tenant_db.models import SIMTripRecord, SimWalletTransaction
 from app.modules.transport.schemas import SIMTripCreate, SIMTripResponse
-from app.modules.profile.schemas import SimWalletResponse, SimWalletRechargeRequest
+from app.modules.profile.schemas import SimWalletResponse
 
 
 class TestSIMTrackingWallet(unittest.TestCase):
@@ -83,18 +83,13 @@ class TestSIMTrackingWallet(unittest.TestCase):
             rate_per_day=8.50,
             active_trips_count=2,
             is_exhausted=False,
-            pricing_notice="Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Recharges are managed by system administrator.",
+            pricing_notice="Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Wallet balance is maintained directly in database by system administrator.",
             transactions=[],
         )
         self.assertEqual(resp.balance_inr, 100.0)
         self.assertEqual(resp.rate_per_day, 8.50)
         self.assertEqual(resp.active_trips_count, 2)
         self.assertFalse(resp.is_exhausted)
-
-    def test_sim_wallet_recharge_request_schema(self):
-        req = SimWalletRechargeRequest(amount=500.0, description="Quarterly admin refill")
-        self.assertEqual(req.amount, 500.0)
-        self.assertEqual(req.description, "Quarterly admin refill")
 
 
 if __name__ == "__main__":

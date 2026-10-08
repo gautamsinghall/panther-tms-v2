@@ -4,28 +4,18 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Radio,
-  Smartphone,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
   Signal,
-  Activity,
-  Server,
   Zap,
   Copy,
   Check,
-  Info,
   ArrowRight,
   RefreshCw,
   Wallet,
   Receipt,
-  CreditCard,
   Lock,
   Search,
-  AlertCircle,
-  PlusCircle,
-  Sliders,
+  Database,
+  Info,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -64,21 +54,11 @@ export default function SimApiPage() {
     active_trips_count: 0,
     is_exhausted: true,
     pricing_notice:
-      "Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Recharges are managed by system administrator.",
+      "Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Wallet balance is maintained directly in database by system administrator.",
     transactions: [],
   });
   const [isWalletLoading, setIsWalletLoading] = useState(true);
   const [walletTxFilter, setWalletTxFilter] = useState<string>("");
-
-  // System Administrator Recharge states
-  const [rechargeAmount, setRechargeAmount] = useState<string>("255");
-  const [rechargeDescription, setRechargeDescription] = useState<string>("");
-  const [isRecharging, setIsRecharging] = useState(false);
-  const [rechargeFeedback, setRechargeFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, key: string) => {
@@ -106,51 +86,6 @@ export default function SimApiPage() {
   useEffect(() => {
     fetchWallet();
   }, []);
-
-  const handleAdminRecharge = async (amountPreset?: number) => {
-    const rawVal = amountPreset !== undefined ? amountPreset : parseFloat(rechargeAmount);
-    if (isNaN(rawVal) || rawVal <= 0) {
-      setRechargeFeedback({
-        type: "error",
-        message: "Please enter a valid positive recharge amount in INR.",
-      });
-      return;
-    }
-
-    try {
-      setIsRecharging(true);
-      setRechargeFeedback(null);
-      const data = await apiClient.post<SimWalletData>(
-        "/api/v1/profile/api-center/sim-wallet/recharge",
-        {
-          amount: rawVal,
-          description:
-            rechargeDescription.trim() ||
-            `Administrator wallet top-up of ₹${rawVal.toFixed(2)}`,
-        }
-      );
-      if (data) {
-        setWalletData(data);
-      }
-      setRechargeFeedback({
-        type: "success",
-        message: `Successfully credited ₹${rawVal.toFixed(
-          2
-        )} to SIM Tracking Wallet. New balance: ₹${Number(
-          data?.balance_inr || 0
-        ).toFixed(2)}.`,
-      });
-      setRechargeDescription("");
-      setTimeout(() => setRechargeFeedback(null), 5000);
-    } catch (err: any) {
-      setRechargeFeedback({
-        type: "error",
-        message: err.message || "Failed to process administrator recharge.",
-      });
-    } finally {
-      setIsRecharging(false);
-    }
-  };
 
   const filteredTransactions = (walletData?.transactions || []).filter((tx) => {
     if (!walletTxFilter) return true;
@@ -237,7 +172,7 @@ export default function SimApiPage() {
             >
               {!walletData.is_exhausted
                 ? "Active Quota"
-                : "Exhausted (Recharge Required)"}
+                : "Exhausted (Contact Admin)"}
             </span>
             <span className="text-[10px] font-mono text-slate-400">
               panther_control Default: ₹0.00
@@ -306,124 +241,34 @@ export default function SimApiPage() {
         </div>
       </div>
 
-      {/* System Administrator Wallet Recharge Section */}
-      <Card className="p-6 rounded-2xl border border-slate-200 shadow-2xs bg-white space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      {/* Database Administrator Balance Management Notice */}
+      <Card className="p-5 rounded-2xl border border-slate-200/90 shadow-2xs bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
-              <CreditCard className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 shadow-2xs shrink-0">
+              <Database className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>System Administrator SIM Wallet Management</span>
-                <Badge variant="neutral" className="text-[10px] bg-slate-50">
-                  Admin Managed
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Database-Managed Wallet Allocation
+                </h3>
+                <Badge variant="neutral" className="text-[10px] bg-slate-100 text-slate-700">
+                  Database Direct
                 </Badge>
-              </h2>
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Recharges are managed strictly by system administrators. Funds are stored in the central control database and audited in the tenant ledger.
+                SIM Tracking Wallet balance is maintained directly in the <code className="font-mono text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">panther_control</code> database by the system administrator. Deductions occur automatically upon trip dispatch and when trips exceed 24 hours.
               </p>
             </div>
           </div>
 
-          <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-xl text-xs text-amber-900 flex items-start gap-2 max-w-md">
+          <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2 max-w-md">
             <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <p className="leading-relaxed text-[11px]">
               {walletData.pricing_notice}
             </p>
           </div>
-        </div>
-
-        {/* Quick Amount Presets & Recharge Form */}
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-2">
-              Quick Top-up Presets
-            </label>
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { amount: 85, label: "₹85 (10 trip-days)" },
-                { amount: 255, label: "₹255 (30 trip-days)" },
-                { amount: 500, label: "₹500" },
-                { amount: 1000, label: "₹1,000" },
-                { amount: 2500, label: "₹2,500" },
-              ].map((preset) => (
-                <button
-                  key={preset.amount}
-                  type="button"
-                  onClick={() => {
-                    setRechargeAmount(String(preset.amount));
-                    handleAdminRecharge(preset.amount);
-                  }}
-                  disabled={isRecharging}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  +{preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2">
-            <div className="sm:col-span-4">
-              <label className="text-xs font-medium text-slate-600 block mb-1">
-                Custom Recharge Amount (₹)
-              </label>
-              <Input
-                type="number"
-                min="8.5"
-                step="0.5"
-                value={rechargeAmount}
-                onChange={(e) => setRechargeAmount(e.target.value)}
-                placeholder="e.g. 500"
-                className="h-9 text-xs font-mono font-bold"
-              />
-            </div>
-            <div className="sm:col-span-5">
-              <label className="text-xs font-medium text-slate-600 block mb-1">
-                Transaction Note / Reason (Optional)
-              </label>
-              <Input
-                type="text"
-                value={rechargeDescription}
-                onChange={(e) => setRechargeDescription(e.target.value)}
-                placeholder="e.g. Monthly fleet SIM tracking allocation"
-                className="h-9 text-xs"
-              />
-            </div>
-            <div className="sm:col-span-3 flex items-end">
-              <Button
-                type="button"
-                onClick={() => handleAdminRecharge()}
-                disabled={isRecharging}
-                className="w-full h-9 text-xs font-semibold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
-              >
-                {isRecharging ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <PlusCircle className="w-3.5 h-3.5" />
-                )}
-                <span>Credit Wallet</span>
-              </Button>
-            </div>
-          </div>
-
-          {rechargeFeedback && (
-            <div
-              className={`p-3 rounded-xl border flex items-center gap-2.5 text-xs transition-all ${
-                rechargeFeedback.type === "success"
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                  : "bg-rose-50 border-rose-200 text-rose-800"
-              }`}
-            >
-              {rechargeFeedback.type === "success" ? (
-                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-              )}
-              <span className="font-medium">{rechargeFeedback.message}</span>
-            </div>
-          )}
         </div>
       </Card>
 
@@ -439,7 +284,7 @@ export default function SimApiPage() {
                 <span>SIM Tracking Wallet Ledger &amp; Deductions</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Full immutable audit trail of ₹8.50/trip/24h debits and administrator recharges.
+                Full immutable audit trail of ₹8.50/trip/24h debits recorded in the tenant database.
               </p>
             </div>
           </div>
@@ -612,11 +457,11 @@ export default function SimApiPage() {
 
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
             <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center font-mono">
-              Admin
+              DB
             </div>
-            <h4 className="text-xs font-bold text-slate-800">Admin Recharges</h4>
+            <h4 className="text-xs font-bold text-slate-800">DB Administration</h4>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Default SIM wallet balance in panther_control is ₹0.00. Recharges are managed strictly by system administrators.
+              Default SIM wallet balance in panther_control is ₹0.00. Balances are added directly from the database by system administrators.
             </p>
           </div>
         </div>

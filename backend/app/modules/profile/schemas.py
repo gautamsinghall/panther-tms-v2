@@ -311,12 +311,6 @@ class SimWalletResponse(BaseModel):
     rate_per_day: float = 8.50
     active_trips_count: int = 0
     is_exhausted: bool = True
-    pricing_notice: str = "Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Recharges are managed by system administrator."
+    pricing_notice: str = "Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Wallet balance is maintained directly in database by system administrator."
     transactions: List[SimWalletTransactionItem] = Field(default_factory=list)
-
-
-class SimWalletRechargeRequest(BaseModel):
-    amount: float = Field(..., gt=0, description="Amount in INR to credit to SIM tracking wallet")
-    description: Optional[str] = "Wallet recharge by administrator"
-    tenant_id: Optional[str] = None
 

@@ -20,7 +20,7 @@ from app.modules.profile.schemas import (
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
     ApiCenterTestRequest, ApiCenterTestResponse,
     FastagWalletResponse, FastagWalletTransactionItem,
-    SimWalletResponse, SimWalletTransactionItem, SimWalletRechargeRequest
+    SimWalletResponse, SimWalletTransactionItem
 )
 
 logger = logging.getLogger("panther.profile.service")
@@ -818,54 +818,7 @@ async def get_sim_wallet_info(
         rate_per_day=8.50,
         active_trips_count=active_trips_count,
         is_exhausted=(bal_float < 8.50),
-        pricing_notice="Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Recharges are managed by system administrator.",
+        pricing_notice="Standard tariff: ₹8.50 per trip per 24 hours (unlimited location fetch in a day). Wallet balance is maintained directly in database by system administrator.",
         transactions=transactions,
     )
-
-
-async def recharge_sim_wallet(
-    tenant_db: AsyncSession,
-    tenant_id: str,
-    amount: float,
-    description: Optional[str] = None,
-    company_code: Optional[str] = None,
-) -> SimWalletResponse:
-    from app.core.database import ControlSessionLocal
-    from app.control.models import Tenant as ControlTenant
-    from app.tenant_db.models import SimWalletTransaction
-    from sqlalchemy import select, or_
-
-    recharge_dec = Decimal(str(round(amount, 2)))
-    new_balance = Decimal("0.00")
-
-    async with ControlSessionLocal() as session:
-        stmt = select(ControlTenant).where(
-            or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
-        ).with_for_update()
-        res = await session.execute(stmt)
-        tenant_obj = res.scalar_one_or_none()
-        if not tenant_obj:
-            raise AppException("Tenant record not found in control plane.", status_code=404)
-
-        current_balance = Decimal(str(tenant_obj.sim_wallet_balance or 0.00))
-        tenant_obj.sim_wallet_balance = current_balance + recharge_dec
-        new_balance = Decimal(str(tenant_obj.sim_wallet_balance))
-        await session.commit()
-
-    # Record CREDIT transaction in tenant database
-    tx = SimWalletTransaction(
-        transaction_type="CREDIT",
-        amount=recharge_dec,
-        rate_per_day=Decimal("8.50"),
-        days_billed=0,
-        vehicle_number=None,
-        trip_id=None,
-        description=description or f"Wallet recharge of ₹{recharge_dec:.2f} by system administrator",
-        balance_after=new_balance,
-        created_at=datetime.now(timezone.utc),
-    )
-    tenant_db.add(tx)
-    await tenant_db.commit()
-
-    return await get_sim_wallet_info(tenant_db, tenant_id=tenant_id, company_code=company_code)
 

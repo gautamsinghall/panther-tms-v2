@@ -16,7 +16,7 @@ from app.modules.profile.schemas import (
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
     ApiCenterTestRequest, ApiCenterTestResponse,
     FastagWalletResponse, FastagCooldownUpdate,
-    SimWalletResponse, SimWalletRechargeRequest
+    SimWalletResponse
 )
 from app.modules.profile import service
 
@@ -278,27 +278,6 @@ async def get_sim_wallet(
     return await service.get_sim_wallet_info(
         tenant_db=db,
         tenant_id=tenant.tenant_id,
-        company_code=tenant.company_code,
-    )
-
-
-@router.post(
-    "/api-center/sim-wallet/recharge",
-    response_model=SimWalletResponse,
-    summary="Recharge SIM tracking telemetry wallet (System Administrator Action)"
-)
-async def recharge_sim_wallet(
-    req: SimWalletRechargeRequest,
-    current_admin: User = Depends(get_current_company_admin),
-    tenant: Tenant = Depends(get_current_tenant),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    target_tenant_id = req.tenant_id or tenant.tenant_id
-    return await service.recharge_sim_wallet(
-        tenant_db=db,
-        tenant_id=target_tenant_id,
-        amount=req.amount,
-        description=req.description,
         company_code=tenant.company_code,
     )
 
