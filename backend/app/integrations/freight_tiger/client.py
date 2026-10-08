@@ -199,8 +199,6 @@ class FreightTigerClient:
             "share_trip": 1 if share_trip else 0,
         }
 
-        if route_code:
-            payload["primary_attributes"] = {"route_code": route_code}
         if custom_values:
             payload["customValues"] = custom_values
 
