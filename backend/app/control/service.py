@@ -62,8 +62,8 @@ DEFAULT_PLANS = [
         "code": "PRO",
         "name": "Pro Fleet",
         "description": "Full operations & accounting for small transport companies",
-        "price_monthly": 2499.00,
-        "price_yearly": 24990.00,
+        "price_monthly": 5000.00,
+        "price_yearly": 60000.00,
         "entitlements": [
             ("module_home", "true"),
             ("module_general", "true"),
@@ -127,8 +127,8 @@ DEFAULT_PLANS = [
         "code": "ENTERPRISE",
         "name": "Enterprise Unlimited",
         "description": "Unlimited scale, multi-branch, priority support",
-        "price_monthly": 14999.00,
-        "price_yearly": 149990.00,
+        "price_monthly": 10000.00,
+        "price_yearly": 120000.00,
         "entitlements": [
             ("module_home", "true"),
             ("module_general", "true"),
@@ -141,6 +141,42 @@ DEFAULT_PLANS = [
             ("module_reports", "true"),
             ("module_statements", "true"),
             ("module_fleet", "true"),
+            ("module_settings", "true"),
+            ("module_profile", "true"),
+            ("feature_eway_bill", "true"),
+            ("feature_eway_alerts", "true"),
+            ("feature_api_access", "true"),
+            ("feature_tracking", "true"),
+            ("feature_fastag_tracking", "true"),
+            ("max_users", "unlimited"),
+            ("max_vehicles", "unlimited"),
+            ("max_lrs_per_month", "unlimited"),
+            ("max_hire_challans_per_month", "unlimited"),
+            ("max_vouchers_per_month", "unlimited"),
+            ("max_ledgers", "unlimited"),
+            ("max_masters", "unlimited"),
+        ],
+    },
+    {
+        "code": "CUSTOM",
+        "name": "Custom Plan",
+        "description": "Modular on-demand TMS sections tailored to operational needs",
+        "price_monthly": 0.00,
+        "price_yearly": 0.00,
+        "entitlements": [
+            ("module_home", "true"),
+            ("module_general", "true"),
+            ("module_transport", "true"),
+            ("module_tracking", "true"),
+            ("module_transport_reports", "true"),
+            ("module_einvoicing", "true"),
+            ("module_accounts", "true"),
+            ("module_misc", "true"),
+            ("module_reports", "true"),
+            ("module_statements", "true"),
+            ("module_fleet", "true"),
+            ("module_api_center", "true"),
+            ("module_company", "true"),
             ("module_settings", "true"),
             ("module_profile", "true"),
             ("feature_eway_bill", "true"),
@@ -413,8 +449,8 @@ async def initiate_signup(
 
     amount = float(plan.price_yearly if data.billing_cycle == "yearly" else plan.price_monthly)
 
-    # Free plan (or 0 price) -> Immediate self-serve provisioning
-    if plan.code == "FREE" or amount == 0.0:
+    # Free or Custom plan (or 0 price) -> Immediate self-serve provisioning
+    if plan.code in ("FREE", "CUSTOM") or amount == 0.0:
         tenant = await provision_tenant(
             TenantProvisionRequest(
                 company_code=company_code,

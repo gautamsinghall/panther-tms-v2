@@ -8,6 +8,7 @@ PLAN_TIERS = {
     "PRO": 2,
     "BUSINESS": 3,
     "ENTERPRISE": 4,
+    "CUSTOM": 5,
 }
 
 MODULE_MIN_TIERS = {

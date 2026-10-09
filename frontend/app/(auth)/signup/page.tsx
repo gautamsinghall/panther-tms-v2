@@ -26,6 +26,7 @@ import {
   FileText,
   Crown,
   Headset,
+  SlidersHorizontal,
 } from "lucide-react";
 import TextAnimation from "@/components/ui/staggerText";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
@@ -47,6 +48,66 @@ interface PlanOption {
     invoices: string;
   };
 }
+
+export interface CustomSectionOption {
+  id: string;
+  title: string;
+  description: string;
+  priceYearly: number;
+  badge?: string;
+}
+
+export const CUSTOM_TMS_SECTIONS: CustomSectionOption[] = [
+  {
+    id: "operations",
+    title: "Consignments & Operations",
+    description: "Job Orders, GR/LR Booking, Hire Challans, POD Tracking & Arrival Reports",
+    priceYearly: 15000,
+    badge: "Operations",
+  },
+  {
+    id: "tracking",
+    title: "Vehicle Tracking & Telemetry",
+    description: "Live FASTag toll plaza telemetry, SIM consent tracking & vehicle route history",
+    priceYearly: 12000,
+    badge: "Telematics",
+  },
+  {
+    id: "einvoicing",
+    title: "E-Invoicing & E-Way Portal",
+    description: "Direct NIC GSP integration, automated IRN generation, cancellation & E-Way sync",
+    priceYearly: 10000,
+    badge: "Compliance",
+  },
+  {
+    id: "accounts",
+    title: "Transport Accounting & Invoicing",
+    description: "Freight billing, double-entry vouchers, client ledgers & bank reconciliation",
+    priceYearly: 15000,
+    badge: "Financials",
+  },
+  {
+    id: "fleet",
+    title: "Fleet & Tyre Management",
+    description: "Driver trip advances, trip expense registers, tyre serial logs & maintenance",
+    priceYearly: 8000,
+    badge: "Maintenance",
+  },
+  {
+    id: "reports",
+    title: "Financial Statements & Reports",
+    description: "Comprehensive daybook, trial balance, P&L, balance sheet & GST returns",
+    priceYearly: 8000,
+    badge: "Auditing",
+  },
+  {
+    id: "api_center",
+    title: "API Center & Developer Access",
+    description: "RESTful webhooks, developer credentials, toll query & tracking programmatic APIs",
+    priceYearly: 10000,
+    badge: "Integrations",
+  },
+];
 
 const PLANS: PlanOption[] = [
   {
@@ -72,8 +133,8 @@ const PLANS: PlanOption[] = [
   {
     code: "PRO",
     name: "Pro Fleet",
-    priceMonthly: 2499,
-    priceYearly: 24990,
+    priceMonthly: 5000,
+    priceYearly: 60000,
     description: "Complete operations & double-entry transport accounting.",
     popular: true,
     features: [
@@ -91,43 +152,43 @@ const PLANS: PlanOption[] = [
     },
   },
   {
-    code: "BUSINESS",
-    name: "Business Logistics",
-    priceMonthly: 7999,
-    priceYearly: 79990,
-    description: "Advanced fleet telematics, NIC E-Invoicing & compliance.",
-    features: [
-      "Everything in Pro Fleet",
-      "Fleet Management & Trip P&L",
-      "Trip Advance & Fuel Expense",
-      "E-Way Bill & E-Invoice Auto IRN",
-      "FASTag & GPS Tracking Feeds",
-      "Vehicle Service & Tyre Logs",
-    ],
-    limits: {
-      users: "15 Users",
-      vehicles: "75 Vehicles",
-      invoices: "1,000 Vouchers & Invoices/mo",
-    },
-  },
-  {
     code: "ENTERPRISE",
     name: "Enterprise Scale",
-    priceMonthly: 19999,
-    priceYearly: 199990,
+    priceMonthly: 10000,
+    priceYearly: 120000,
     description: "Unlimited scale with isolated workspace schema and custom SLA.",
     features: [
-      "Everything in Business Logistics",
+      "Everything in Pro Fleet",
       "Full Statements & GST Returns",
+      "E-Way Bill & E-Invoice Auto IRN",
+      "FASTag & GPS Tracking Feeds",
       "Unlimited Operational Scale",
-      "Priority Webhook & SLA Guarantee",
       "Isolated Company Workspace Schema",
-      "Tenant Data Isolation & Encryption",
     ],
     limits: {
       users: "Unlimited",
       vehicles: "Unlimited",
       invoices: "Unlimited Vouchers & Invoices",
+    },
+  },
+  {
+    code: "CUSTOM",
+    name: "Custom Plan",
+    priceMonthly: 0,
+    priceYearly: 0,
+    description: "Demand specific TMS sections tailored to your workflow. Pay solely for what you activate.",
+    features: [
+      "Modular TMS Section Selection",
+      "Demand Specific Operational Workflows",
+      "On-Demand FASTag & SIM Telematics",
+      "Selective E-Way & NIC IRN Invoicing",
+      "Custom Fleet & User Capacities",
+      "Dedicated Solution Engineering",
+    ],
+    limits: {
+      users: "Custom Allocation",
+      vehicles: "Tailored Capacity",
+      invoices: "Volume On-Demand",
     },
   },
 ];
@@ -139,6 +200,28 @@ export default function SignupPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [billingCycle, setBillingCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [selectedPlan, setSelectedPlan] = useState<string>("PRO");
+
+  // Custom Demanded TMS Sections state (for Custom Plan)
+  const [demandedSections, setDemandedSections] = useState<string[]>([
+    "operations",
+    "tracking",
+    "accounts",
+  ]);
+
+  const toggleDemandedSection = (id: string) => {
+    setDemandedSections((prev) =>
+      prev.includes(id)
+        ? prev.length > 1
+          ? prev.filter((s) => s !== id)
+          : prev
+        : [...prev, id]
+    );
+  };
+
+  const calculatedCustomPrice = demandedSections.reduce(
+    (sum, id) => sum + (CUSTOM_TMS_SECTIONS.find((s) => s.id === id)?.priceYearly || 0),
+    0
+  );
 
   // Form details
   const [companyName, setCompanyName] = useState("");
@@ -608,11 +691,16 @@ export default function SignupPage() {
 
                 {/* Price + Mini Sparklines */}
                 <div className="pt-2 flex items-center justify-between">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                      ₹{billingCycle === "MONTHLY" ? "2,499" : "2,082"}
+                  <div className="flex flex-col">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                        ₹5,000
+                      </span>
+                      <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                    </div>
+                    <span className="text-[11px] text-indigo-600 font-medium">
+                      {billingCycle === "YEARLY" ? "₹60,000 billed annually" : "₹5,000 billed monthly"}
                     </span>
-                    <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
                   </div>
                   {/* Purple Mini Sparklines */}
                   <div className="flex items-end gap-1 h-7 opacity-35">
@@ -700,128 +788,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* 3. BUSINESS LOGISTICS CARD */}
-            <div
-              onClick={() => setSelectedPlan("BUSINESS")}
-              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${selectedPlan === "BUSINESS"
-                  ? "border-amber-500 ring-2 ring-amber-500/20 shadow-lg"
-                  : "border-slate-200/90 shadow-sm hover:border-slate-300 hover:shadow-md"
-                }`}
-            >
-              <div className="space-y-4">
-                {/* Icon & Title */}
-                <div className="flex items-start justify-between">
-                  <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
-                    <Truck className="w-6 h-6" />
-                  </div>
-                  <div className="flex gap-1 opacity-20">
-                    <div className="w-2 h-2 rounded-full bg-amber-600" />
-                    <div className="w-2 h-2 rounded-full bg-amber-600" />
-                  </div>
-                </div>
-
-                <div>
-                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Business Logistics</h2>
-                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
-                    Advanced fleet telematics, NIC E-Invoicing & compliance.
-                  </p>
-                </div>
-
-                {/* Price + Mini Sparklines */}
-                <div className="pt-2 flex items-center justify-between">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                      ₹{billingCycle === "MONTHLY" ? "7,999" : "6,665"}
-                    </span>
-                    <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
-                  </div>
-                  {/* Amber Mini Sparklines */}
-                  <div className="flex items-end gap-1 h-7 opacity-35">
-                    <div className="w-1.5 h-3 bg-amber-500 rounded-xs" />
-                    <div className="w-1.5 h-4 bg-amber-500 rounded-xs" />
-                    <div className="w-1.5 h-6 bg-amber-500 rounded-xs" />
-                    <div className="w-1.5 h-5 bg-amber-500 rounded-xs" />
-                    <div className="w-1.5 h-7 bg-amber-500 rounded-xs" />
-                  </div>
-                </div>
-
-                {/* Limits Row */}
-                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Users className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Team Users</span>
-                    </div>
-                    <span className="font-bold text-slate-900">15 Users</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Truck className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Fleet Vehicles</span>
-                    </div>
-                    <span className="font-bold text-slate-900">75 Vehicles</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <FileText className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Monthly Vouchers & Invoices</span>
-                    </div>
-                    <span className="font-bold text-slate-900">1,000 Vouchers & Invoices/mo</span>
-                  </div>
-                </div>
-
-                {/* Included Modules */}
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    INCLUDED MODULES
-                  </span>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0 font-bold" />
-                      <span className="font-bold text-slate-900">Everything in Pro Fleet</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Fleet Management & Trip P&L</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Trip Advance & Fuel Expense</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>E-Way Bill & E-Invoice Auto IRN</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>FASTag & GPS Tracking Feeds</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Vehicle Service & Tyre Logs</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              {/* CTA */}
-              <div className="pt-5 mt-auto">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedPlan("BUSINESS");
-                    setStep(2);
-                  }}
-                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-[#FFF7ED] hover:bg-[#FFEDD5] border border-orange-200/80 text-orange-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <span>Choose Business Logistics</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* 4. ENTERPRISE SCALE CARD (ENTERPRISE TIER) */}
+            {/* 3. ENTERPRISE SCALE CARD (ENTERPRISE TIER) */}
             <div
               onClick={() => setSelectedPlan("ENTERPRISE")}
               className={`relative bg-[#0B132B] rounded-2xl border border-slate-700/80 p-5 sm:p-6 flex flex-col justify-between shadow-2xl text-white transition-all duration-200 cursor-pointer ${selectedPlan === "ENTERPRISE"
@@ -853,11 +820,16 @@ export default function SignupPage() {
 
                 {/* Price + Mini Sparklines */}
                 <div className="pt-2 flex items-center justify-between">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                      ₹{billingCycle === "MONTHLY" ? "19,999" : "16,665"}
+                  <div className="flex flex-col">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                        ₹10,000
+                      </span>
+                      <span className="text-xs sm:text-sm text-slate-400 font-medium">/mo</span>
+                    </div>
+                    <span className="text-[11px] text-blue-300 font-medium">
+                      {billingCycle === "YEARLY" ? "₹1,20,000 billed annually" : "₹10,000 billed monthly"}
                     </span>
-                    <span className="text-xs sm:text-sm text-slate-400 font-medium">/mo</span>
                   </div>
                   {/* Blue/Slate Mini Sparklines */}
                   <div className="flex items-end gap-1 h-7 opacity-35">
@@ -902,7 +874,7 @@ export default function SignupPage() {
                   <ul className="space-y-1.5 text-xs text-slate-300">
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-400 shrink-0 font-bold" />
-                      <span className="font-bold text-white">Everything in Business Logistics</span>
+                      <span className="font-bold text-white">Everything in Pro Fleet</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
@@ -910,19 +882,19 @@ export default function SignupPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>E-Way Bill & E-Invoice Auto IRN</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>FASTag & GPS Tracking Feeds</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                       <span>Unlimited Operational Scale</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                      <span>Priority Webhook & SLA Guarantee</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                       <span>Isolated Company Workspace Schema</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                      <span>Tenant Data Isolation & Encryption</span>
                     </li>
                   </ul>
                 </div>
@@ -944,23 +916,221 @@ export default function SignupPage() {
                 </button>
               </div>
             </div>
+
+            {/* 4. CUSTOM PLAN CARD (MODULAR & ON-DEMAND) */}
+            <div
+              onClick={() => setSelectedPlan("CUSTOM")}
+              className={`relative bg-white rounded-2xl border-2 border-violet-500/80 ring-4 ring-violet-500/10 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-violet-500/10 transition-all duration-200 cursor-pointer ${selectedPlan === "CUSTOM" ? "-translate-y-1" : "hover:-translate-y-0.5"
+                }`}
+            >
+              {/* Floating Top Badge */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center gap-1 bg-violet-600 text-white text-[10px] font-extrabold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-md whitespace-nowrap">
+                  🛠️ MODULAR & ON-DEMAND
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {/* Icon & Title */}
+                <div className="flex items-start justify-between">
+                  <div className="w-11 h-11 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600">
+                    <SlidersHorizontal className="w-6 h-6" />
+                  </div>
+                  <div className="flex gap-1 opacity-30">
+                    <div className="w-2 h-2 rounded-full bg-violet-600" />
+                    <div className="w-2 h-2 rounded-full bg-violet-600" />
+                    <div className="w-2 h-2 rounded-full bg-violet-600" />
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Custom Plan</h2>
+                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
+                    Demand specific TMS sections tailored to your workflow. Modular dynamic pricing.
+                  </p>
+                </div>
+
+                {/* Price + Mini Visual */}
+                <div className="pt-2 flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                        On-Demand
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-violet-600 font-medium">
+                      Pricing dynamic per demanded module
+                    </span>
+                  </div>
+                  {/* Violet Mini Bars */}
+                  <div className="flex items-end gap-1 h-7 opacity-35">
+                    <div className="w-1.5 h-6 bg-violet-500 rounded-xs" />
+                    <div className="w-1.5 h-3 bg-violet-500 rounded-xs" />
+                    <div className="w-1.5 h-7 bg-violet-500 rounded-xs" />
+                    <div className="w-1.5 h-4 bg-violet-500 rounded-xs" />
+                    <div className="w-1.5 h-5 bg-violet-500 rounded-xs" />
+                  </div>
+                </div>
+
+                {/* Limits Row */}
+                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Users className="w-3.5 h-3.5 text-violet-600" />
+                      <span>Team Users</span>
+                    </div>
+                    <span className="font-bold text-slate-900">Custom Allocation</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Truck className="w-3.5 h-3.5 text-violet-600" />
+                      <span>Fleet Vehicles</span>
+                    </div>
+                    <span className="font-bold text-slate-900">Tailored Capacity</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <FileText className="w-3.5 h-3.5 text-violet-600" />
+                      <span>Monthly Vouchers & Invoices</span>
+                    </div>
+                    <span className="font-bold text-slate-900">Volume On-Demand</span>
+                  </div>
+                </div>
+
+                {/* Included Modules */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    DEMANDED TMS SECTIONS
+                  </span>
+                  <ul className="space-y-1.5 text-xs text-slate-600">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0 font-bold" />
+                      <span className="font-bold text-slate-900">Pick & choose any TMS modules</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <span>LR Booking & Dispatch Operations</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <span>FASTag & Cellular SIM Telematics</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <span>GST E-Way Bill & Auto IRN Invoicing</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <span>Double-Entry Transport Accounting</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <span>Developer API Center & Webhooks</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="pt-5 mt-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPlan("CUSTOM");
+                    setStep(2);
+                  }}
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/25 transition-all cursor-pointer"
+                >
+                  <span>Configure Custom Plan</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {/* STEP 2: ACCOUNT DETAILS (Aligned with Login styling) */}
         {step === 2 && (
-          <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5 my-auto w-full">
+          <div className={`${selectedPlan === "CUSTOM" ? "max-w-2xl" : "max-w-lg"} mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5 my-auto w-full transition-all`}>
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
               <div>
                 <h2 className="text-xl font-bold tracking-tight text-slate-900">Workspace Details</h2>
                 <p className="text-xs text-slate-500 mt-0.5">Configure your company tenant and master administrator.</p>
               </div>
               <div className="text-right">
-                <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200/80 font-mono shadow-2xs">
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full border font-mono shadow-2xs ${
+                  selectedPlan === "CUSTOM"
+                    ? "text-violet-700 bg-violet-50 border-violet-200/80"
+                    : "text-indigo-700 bg-indigo-50 border-indigo-200/80"
+                }`}>
                   {selectedPlan} Plan
                 </span>
               </div>
             </div>
+
+            {/* If Custom Plan is selected, provide the dynamic TMS Section Selector */}
+            {selectedPlan === "CUSTOM" && (
+              <div className="p-4 bg-violet-50/70 border border-violet-200/90 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-violet-200/60 pb-2.5">
+                  <div>
+                    <h3 className="text-xs font-bold text-violet-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-violet-600" />
+                      Demand Your TMS Sections
+                    </h3>
+                    <p className="text-[11px] text-violet-700 mt-0.5">
+                      Toggle required modules. Pricing dynamically scales based on selected sections.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold font-mono text-violet-900 bg-white px-2.5 py-1 rounded-lg border border-violet-200 shadow-2xs">
+                      ₹{calculatedCustomPrice.toLocaleString("en-IN")}/yr
+                    </span>
+                    <span className="text-[10px] text-violet-600 block">
+                      (₹{Math.round(calculatedCustomPrice / 12).toLocaleString("en-IN")}/mo)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {CUSTOM_TMS_SECTIONS.map((sec) => {
+                    const isSelected = demandedSections.includes(sec.id);
+                    return (
+                      <div
+                        key={sec.id}
+                        onClick={() => toggleDemandedSection(sec.id)}
+                        className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all select-none flex items-start gap-2.5 ${
+                          isSelected
+                            ? "bg-white border-violet-500 shadow-2xs ring-1 ring-violet-500/20"
+                            : "bg-white/60 border-violet-200/60 opacity-80 hover:bg-white hover:border-violet-300"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}} // handled by parent onClick
+                          className="mt-0.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 pointer-events-none"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-semibold text-slate-900 truncate">{sec.title}</span>
+                            <span className="text-[10px] font-mono text-violet-700 shrink-0 font-medium">
+                              +₹{(sec.priceYearly / 1000).toFixed(0)}k/yr
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{sec.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-[11px] text-violet-800">
+                  <span>Active Demanded: <strong className="font-semibold text-violet-950">{demandedSections.length} of {CUSTOM_TMS_SECTIONS.length} Sections</strong></span>
+                  <span className="text-[10px] text-violet-600 italic">On-demand modular billing</span>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleInitiateSignup} className="space-y-4">
               {/* Company Name */}
@@ -1098,7 +1268,11 @@ export default function SignupPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-2/3 h-11 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60"
+                  className={`w-2/3 h-11 text-xs font-semibold rounded-xl text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 ${
+                    selectedPlan === "CUSTOM"
+                      ? "bg-violet-600 hover:bg-violet-700 active:bg-violet-800"
+                      : "bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800"
+                  }`}
                 >
                   {isLoading ? (
                     <>
@@ -1108,6 +1282,11 @@ export default function SignupPage() {
                   ) : selectedPlan === "FREE" ? (
                     <>
                       <span>Complete Free Setup</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  ) : selectedPlan === "CUSTOM" ? (
+                    <>
+                      <span>Complete Custom Setup (₹{calculatedCustomPrice.toLocaleString("en-IN")}/yr)</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : (
@@ -1164,6 +1343,12 @@ export default function SignupPage() {
                     <span className="text-slate-500 font-sans">Plan:</span>
                     <span className="font-semibold text-slate-900">{selectedPlan}</span>
                   </div>
+                  {selectedPlan === "CUSTOM" && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 font-sans">Demanded Modules:</span>
+                      <span className="font-semibold text-violet-700">{demandedSections.length} Sections Active</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500 font-sans">Admin Email:</span>
                     <span className="font-semibold text-slate-900">{adminEmail}</span>

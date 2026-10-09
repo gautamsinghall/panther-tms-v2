@@ -198,6 +198,19 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
       { id: "series_master", label: "Series Master" },
       { id: "admin_setting", label: "Admin Setting" },
       { id: "activity", label: "User Activity Log" },
+      { id: "users", label: "User Management" },
+      { id: "roles", label: "Roles Management" },
+    ],
+  },
+  {
+    id: "profile",
+    title: "User Profile & Branch Access",
+    features: [
+      { id: "account", label: "User Account Profile" },
+      { id: "change_password", label: "Change Password" },
+      { id: "email", label: "Outbound Email Dispatch Settings" },
+      { id: "monthly_pnl", label: "Monthly Consolidated P&L" },
+      { id: "branch", label: "Operating Branch View" },
     ],
   },
 ];
@@ -263,6 +276,14 @@ export default function RolesPage() {
           if (p.module === "company" && (p.feature === "users" || p.feature === "roles")) {
             mapping[`settings:${p.feature}:${p.permission}`] = true;
           }
+          // Synchronize branch between company and profile
+          if (p.module === "profile" && p.feature === "branch") {
+            mapping[`company:branch:${p.permission}`] = true;
+          }
+          if (p.module === "company" && p.feature === "branch") {
+            mapping[`profile:branch:${p.permission}`] = true;
+          }
+          // Synchronize tracking
           if (p.module === "transport" && p.feature === "tracking") {
             mapping[`tracking:fastag_tracking:${p.permission}`] = true;
             mapping[`tracking:sim_tracking:${p.permission}`] = true;
@@ -270,6 +291,10 @@ export default function RolesPage() {
           }
           if (p.module === "tracking") {
             mapping[`transport:tracking:${p.permission}`] = true;
+            if (p.feature === "tracking") {
+              mapping[`tracking:sim_tracking:${p.permission}`] = true;
+              mapping[`tracking:fastag_tracking:${p.permission}`] = true;
+            }
           }
         }
       });
@@ -331,23 +356,24 @@ export default function RolesPage() {
             permission,
             is_allowed: true,
           });
-          // If permission is under company for users/roles, also add settings entry for backward compatibility
+          // Dual save mappings for complete backward and cross-route compatibility
           if (module === "company" && (feature === "users" || feature === "roles")) {
-            permissions.push({
-              module: "settings",
-              feature,
-              permission,
-              is_allowed: true,
-            });
+            permissions.push({ module: "settings", feature, permission, is_allowed: true });
           }
-          // If permission is under tracking, also add transport tracking for backward compatibility
+          if (module === "settings" && (feature === "users" || feature === "roles")) {
+            permissions.push({ module: "company", feature, permission, is_allowed: true });
+          }
           if (module === "tracking") {
-            permissions.push({
-              module: "transport",
-              feature: "tracking",
-              permission,
-              is_allowed: true,
-            });
+            permissions.push({ module: "transport", feature: "tracking", permission, is_allowed: true });
+            if (feature === "sim_tracking" || feature === "fastag_tracking") {
+              permissions.push({ module: "tracking", feature: "tracking", permission, is_allowed: true });
+            }
+          }
+          if (module === "company" && feature === "branch") {
+            permissions.push({ module: "profile", feature: "branch", permission, is_allowed: true });
+          }
+          if (module === "profile" && feature === "branch") {
+            permissions.push({ module: "company", feature: "branch", permission, is_allowed: true });
           }
         }
       });

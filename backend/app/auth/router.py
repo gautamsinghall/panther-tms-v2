@@ -150,9 +150,33 @@ async def get_user_navigation(
     if not is_admin and current_user.custom_role and current_user.custom_role.permissions:
         for p in current_user.custom_role.permissions:
             if p.is_allowed and p.permission in ("view", "all"):
-                allowed_features.add((p.module, p.feature))
-                allowed_features.add((p.module.replace("_", "-"), p.feature))
-                allowed_features.add((p.module.replace("-", "_"), p.feature))
+                mod_norm = p.module.lower().strip()
+                feat_norm = p.feature.lower().strip()
+                allowed_features.add((mod_norm, feat_norm))
+                allowed_features.add((mod_norm.replace("_", "-"), feat_norm))
+                allowed_features.add((mod_norm.replace("-", "_"), feat_norm))
+                # Tracking aliases
+                if mod_norm in ("tracking", "transport") and feat_norm in ("tracking", "sim_tracking"):
+                    allowed_features.add(("tracking", "tracking"))
+                    allowed_features.add(("tracking", "sim_tracking"))
+                    allowed_features.add(("transport", "tracking"))
+                if mod_norm in ("tracking", "transport") and feat_norm in ("fastag_tracking", "fastag"):
+                    allowed_features.add(("tracking", "fastag_tracking"))
+                    allowed_features.add(("transport", "fastag_tracking"))
+                # Company / Settings aliases for users & roles
+                if mod_norm in ("company", "settings") and feat_norm in ("users", "roles"):
+                    allowed_features.add(("company", feat_norm))
+                    allowed_features.add(("settings", feat_norm))
+                # Profile / Company aliases for branch & company details
+                if mod_norm in ("profile", "company") and feat_norm in ("branch", "company", "company_details"):
+                    allowed_features.add(("profile", "branch"))
+                    allowed_features.add(("company", "branch"))
+                    allowed_features.add(("profile", "company"))
+                    allowed_features.add(("company", "company_details"))
+                # API Center aliases
+                if mod_norm in ("api_center", "api-center", "company") and feat_norm in ("api_center", "eway_bill_api", "fastag_tracking_api", "sim_tracking_api"):
+                    allowed_features.add(("api_center", feat_norm))
+                    allowed_features.add(("api-center", feat_norm))
 
     for mod in ALL_NAVIGATION_MODULES:
         entitled = is_module_entitled(mod["id"])
@@ -190,10 +214,14 @@ async def get_user_navigation(
             if mod["id"] == "home":
                 result.append({**mod, "is_locked": False})
             elif mod["id"] == "profile":
-                # Employees only see personal account and change password
                 allowed_items = [
                     map_item(it) for it in mod["items"]
-                    if it["feature"] in ("account", "change_password") or (mod["id"], it["feature"]) in allowed_features
+                    if it["feature"] in ("account", "change_password")
+                    or (mod["id"], it["feature"]) in allowed_features
+                    or ("profile", it["feature"]) in allowed_features
+                    or (it["feature"] == "branch" and (("company", "branch") in allowed_features or ("profile", "branch") in allowed_features))
+                    or (it["feature"] == "email" and (("profile", "email") in allowed_features or ("settings", "admin_setting") in allowed_features))
+                    or (it["feature"] == "monthly_pnl" and (("profile", "monthly_pnl") in allowed_features or ("reports", "profit_loss") in allowed_features))
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
@@ -202,6 +230,7 @@ async def get_user_navigation(
                     map_item(it) for it in mod["items"]
                     if (mod["id"], it["feature"]) in allowed_features
                     or ("api_center", it["feature"]) in allowed_features
+                    or ("api-center", it["feature"]) in allowed_features
                     or ("company", "api_center") in allowed_features
                     or ("profile", "company") in allowed_features
                     or is_admin
@@ -209,7 +238,6 @@ async def get_user_navigation(
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
             elif mod["id"] == "company":
-                # Employees can access company settings if they have company, branch, users, or roles permissions
                 allowed_items = [
                     map_item(it) for it in mod["items"]
                     if (mod["id"], it["feature"]) in allowed_features
@@ -219,10 +247,32 @@ async def get_user_navigation(
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
+            elif mod["id"] == "tracking":
+                allowed_items = [
+                    map_item(it) for it in mod["items"]
+                    if (mod["id"], it["feature"]) in allowed_features
+                    or ("tracking", it["feature"]) in allowed_features
+                    or ("transport", "tracking") in allowed_features
+                    or (it["feature"] in ("sim_tracking", "tracking") and (("tracking", "sim_tracking") in allowed_features or ("tracking", "tracking") in allowed_features))
+                    or (it["feature"] in ("fastag_tracking", "tracking") and (("tracking", "fastag_tracking") in allowed_features or ("tracking", "tracking") in allowed_features))
+                ]
+                if allowed_items:
+                    result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
+            elif mod["id"] in ("transport-reports", "transport_reports"):
+                allowed_items = [
+                    map_item(it) for it in mod["items"]
+                    if (mod["id"], it["feature"]) in allowed_features
+                    or ("transport_reports", it["feature"]) in allowed_features
+                    or ("transport-reports", it["feature"]) in allowed_features
+                ]
+                if allowed_items:
+                    result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})
             else:
                 allowed_items = [
                     map_item(it) for it in mod["items"]
                     if (mod["id"], it["feature"]) in allowed_features
+                    or (mod["id"].replace("-", "_"), it["feature"]) in allowed_features
+                    or (mod["id"].replace("_", "-"), it["feature"]) in allowed_features
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})

@@ -531,6 +531,7 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   eway_bill_api: FileSpreadsheet,
   fastag_api: Navigation,
   fastag_tracking_api: Navigation,
+  sim_tracking: Radio,
   sim_tracking_api: Radio,
   account: UserCircle,
   branch: Network,
