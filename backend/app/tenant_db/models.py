@@ -932,6 +932,18 @@ class SIMTripRecord(TenantBase):
     destination_address = Column(Text, nullable=True)
     route_code = Column(String(100), nullable=True)
 
+    # Carrier & Operations Metadata
+    operator_name = Column(String(50), nullable=True)  # Jio, Airtel, Vi, BSNL
+    consignor_name = Column(String(200), nullable=True)
+    consignee_name = Column(String(200), nullable=True)
+    milestone = Column(String(100), default="In Transit", nullable=True)
+    trip_direction = Column(String(50), default="Outbound", nullable=True)
+    is_delayed = Column(Boolean, default=False, nullable=False)
+    is_starred = Column(Boolean, default=False, nullable=False)
+    ewb_number = Column(String(100), nullable=True)
+    ewb_expiry = Column(DateTime(timezone=True), nullable=True)
+    comments = Column(JSON, default=list, nullable=True)
+
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
     last_billed_at = Column(DateTime(timezone=True), nullable=True)
     billing_cycles_charged = Column(Integer, default=1, nullable=False)

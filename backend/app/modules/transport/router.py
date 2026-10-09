@@ -22,7 +22,7 @@ from app.modules.transport.schemas import (
     TruckHiringNoteCreate, TruckHiringNoteResponse,
     EWayBillCreate, EWayBillResponse,
     TrackingPingCreate, TrackingPingResponse,
-    SIMTripCreate, SIMTripClose, SIMConsentSimulate, SIMTripResponse, SIMTrackingSyncResponse,
+    SIMTripCreate, SIMTripUpdate, SIMTripCommentCreate, SIMTripClose, SIMConsentSimulate, SIMTripResponse, SIMTrackingSyncResponse,
     FastagTripCreate, FastagTripUpdate, FastagTripResponse,
     FastagTrackResponse, FastagConfigResponse, TollLogResponse,
 )
@@ -978,6 +978,18 @@ async def record_tracking_ping(
 # ==============================================================================
 
 def _format_sim_trip(t: Any) -> SIMTripResponse:
+    consignor_name = getattr(t, "consignor_name", None)
+    consignee_name = getattr(t, "consignee_name", None)
+    if not consignor_name and getattr(t, "lr", None) and getattr(t.lr, "consigner", None):
+        consignor_name = t.lr.consigner.name
+    if not consignee_name and getattr(t, "lr", None) and getattr(t.lr, "consignee", None):
+        consignee_name = t.lr.consignee.name
+
+    operator_name = getattr(t, "operator_name", None)
+    if not operator_name and t.driver_phone:
+        from app.integrations.freight_tiger import detect_telecom_operator
+        operator_name = detect_telecom_operator(t.driver_phone)
+
     return SIMTripResponse(
         id=t.id,
         feed_unique_id=t.feed_unique_id,
@@ -987,6 +999,16 @@ def _format_sim_trip(t: Any) -> SIMTripResponse:
         vehicle_number=t.vehicle_number,
         driver_name=t.driver_name,
         driver_phone=t.driver_phone,
+        operator_name=operator_name or "Jio",
+        consignor_name=consignor_name or "NA",
+        consignee_name=consignee_name or "NA",
+        milestone=getattr(t, "milestone", "In Transit") or "In Transit",
+        trip_direction=getattr(t, "trip_direction", "Outbound") or "Outbound",
+        is_delayed=bool(getattr(t, "is_delayed", False)),
+        is_starred=bool(getattr(t, "is_starred", False)),
+        ewb_number=getattr(t, "ewb_number", None),
+        ewb_expiry=getattr(t, "ewb_expiry", None),
+        comments=getattr(t, "comments", []) or [],
         consent_status=t.consent_status,
         is_consent_done=t.is_consent_done,
         status=t.status,
@@ -1089,6 +1111,37 @@ async def close_sim_trip(
     if not trip:
         raise NotFoundException("SIM Trip not found")
     updated_trip = await service.close_sim_trip(db, trip, comment=data.comment)
+    return _format_sim_trip(updated_trip)
+
+
+@router.patch("/tracking/sim/{trip_id}", response_model=SIMTripResponse)
+async def update_sim_trip(
+    trip_id: int,
+    data: SIMTripUpdate,
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Updates editable SIM trip parameters (driver details, star status, milestone, operator)."""
+    trip = await service.get_sim_trip_by_id(db, trip_id)
+    if not trip:
+        raise NotFoundException("SIM Trip not found")
+    updated_trip = await service.update_sim_trip(db, trip, data)
+    return _format_sim_trip(updated_trip)
+
+
+@router.post("/tracking/sim/{trip_id}/comments", response_model=SIMTripResponse)
+async def add_sim_trip_comment(
+    trip_id: int,
+    data: SIMTripCommentCreate,
+    current_user: User = Depends(require_permission("transport", "tracking", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Appends an operational note or dispatcher comment to the trip record."""
+    trip = await service.get_sim_trip_by_id(db, trip_id)
+    if not trip:
+        raise NotFoundException("SIM Trip not found")
+    author_name = current_user.full_name or current_user.email or "Dispatcher"
+    updated_trip = await service.add_sim_trip_comment(db, trip, data.comment, author=author_name)
     return _format_sim_trip(updated_trip)
 
 

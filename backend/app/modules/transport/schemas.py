@@ -756,8 +756,11 @@ class SIMTripCreate(BaseModel):
     vehicle_number: str = Field(..., min_length=4, max_length=20)
     driver_phone: str = Field(..., min_length=10, max_length=15)
     driver_name: Optional[str] = None
+    operator_name: Optional[str] = None
     lr_id: Optional[int] = None
     lr_number: Optional[str] = None
+    consignor_name: Optional[str] = None
+    consignee_name: Optional[str] = None
     origin_address: Optional[str] = None
     origin_lat: Optional[float] = None
     origin_lng: Optional[float] = None
@@ -765,7 +768,27 @@ class SIMTripCreate(BaseModel):
     destination_lat: Optional[float] = None
     destination_lng: Optional[float] = None
     route_code: Optional[str] = None
+    trip_direction: Optional[str] = "Outbound"
+    milestone: Optional[str] = "In Transit"
+    is_starred: Optional[bool] = False
+    ewb_number: Optional[str] = None
     share_trip: bool = True
+
+class SIMTripUpdate(BaseModel):
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
+    operator_name: Optional[str] = None
+    consignor_name: Optional[str] = None
+    consignee_name: Optional[str] = None
+    milestone: Optional[str] = None
+    trip_direction: Optional[str] = None
+    is_starred: Optional[bool] = None
+    is_delayed: Optional[bool] = None
+    ewb_number: Optional[str] = None
+
+class SIMTripCommentCreate(BaseModel):
+    comment: str = Field(..., min_length=1)
+    author: Optional[str] = None
 
 class SIMTripClose(BaseModel):
     comment: Optional[str] = None
@@ -782,6 +805,16 @@ class SIMTripResponse(BaseModel):
     vehicle_number: str
     driver_name: Optional[str] = None
     driver_phone: str
+    operator_name: Optional[str] = "Jio"
+    consignor_name: Optional[str] = "NA"
+    consignee_name: Optional[str] = "NA"
+    milestone: Optional[str] = "In Transit"
+    trip_direction: Optional[str] = "Outbound"
+    is_delayed: bool = False
+    is_starred: bool = False
+    ewb_number: Optional[str] = None
+    ewb_expiry: Optional[datetime] = None
+    comments: Optional[List[Dict[str, Any]]] = None
     consent_status: str
     is_consent_done: bool
     status: str

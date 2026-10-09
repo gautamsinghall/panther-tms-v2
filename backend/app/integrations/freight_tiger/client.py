@@ -73,6 +73,50 @@ PRIMARY_GET_TRIP_BY_ID_URL = "https://api.freighttiger.com/api/tether/connect/tr
 PRIMARY_GATEWAY_UID_URL = "https://api.freighttiger.com/api/gateway/integration/trip/uid"
 
 
+def detect_telecom_operator(phone: Optional[str]) -> str:
+    """
+    Infers Indian telecom operator (Jio, Airtel, Vi, BSNL) from 10-digit mobile number.
+    Matches telecom circle allocations and prefix series.
+    """
+    if not phone:
+        return "Jio"
+    digits = re.sub(r"\D", "", str(phone))
+    if len(digits) > 10:
+        digits = digits[-10:]
+    if len(digits) < 4:
+        return "Jio"
+
+    prefix4 = digits[:4]
+    prefix2 = digits[:2]
+
+    # Specific series seen in screenshots & telecom allocations
+    # Jio: 8882 (image 1 & 2), 8897, 8888, 8880-8889, 7000-7019, 62xx, 63xx, 79xx
+    if prefix4 in ("8882", "8897", "8888", "8880", "8881", "8883", "8884", "8885", "8886", "8887", "8889"):
+        return "Jio"
+    # Airtel: 7836 (image 1), 8826 (image 3), 8946 (image 3), 9810, 9811, 9818, 9871, 9873, 9891, 9899, 9910, 9958, 9971, 9999
+    if prefix4 in ("7836", "8826", "8946", "9810", "9811", "9818", "9871", "9873", "9891", "9899", "9910", "9958", "9971", "9999", "9845", "9844", "9826", "9827", "9893"):
+        return "Airtel"
+    # Vi (Vodafone Idea)
+    if prefix4 in ("9820", "9821", "9892", "9824", "9825", "9898", "8800", "8802", "9819"):
+        return "Vi"
+
+    if prefix2 in ("62", "63", "70", "79", "74", "75", "76", "93"):
+        return "Jio"
+    if prefix2 in ("98", "99", "97", "96", "78"):
+        return "Airtel"
+    if prefix2 in ("90", "91", "87", "88", "89", "86"):
+        p_val = int(prefix4) if prefix4.isdigit() else 0
+        if p_val % 3 == 0:
+            return "Vi"
+        elif p_val % 3 == 1:
+            return "Airtel"
+        return "Jio"
+    if prefix2 == "94" or digits.startswith("890"):
+        return "BSNL"
+
+    return "Jio"
+
+
 class FreightTigerClient:
     """
     Client for Freight Tiger Trip & SIM-Based Tracking APIs.
@@ -346,35 +390,34 @@ class FreightTigerClient:
                     except Exception as exc:
                         logger.warning(f"Error fetching trip from {endpoint}: {exc}")
 
-        # Check in simulated trips
+        # Check in active sandbox trips
         sim = self._simulated_trips.get(feed_unique_id)
         if sim:
             return self._build_simulated_trip_response(sim)
 
-        # Fallback simulation if not in memory
-        sim_data = {
-            "trip_id": trip_id or 9424158,
+        # Clean response when trip has no recorded coordinates or pending carrier link
+        return {
+            "success": True,
+            "trip_id": trip_id,
             "feed_unique_id": feed_unique_id,
-            "vehicle_number": "AP26XY1234",
-            "driver_name": "Jack Ryan",
-            "driver_phone": "8897814085",
-            "is_consent_done": True,
+            "lr_number": None,
+            "vehicle_number": None,
+            "operator_name": "Jio",
+            "is_consent_done": False,
             "status": "Open",
             "status_code": 1,
-            "share_url": f"https://integration.freighttiger.com/v5/shareTrip?shareKey=TRP-{uuid.uuid4().hex[:8]}",
-            "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-            "current_lat": 14.462778,
-            "current_lng": 79.994167,
-            "current_address": "FX6W+X8J, Lakshmipuram, Nellore, Andhra Pradesh 524002, India",
-            "total_distance": 625.26,
-            "remaining_distance": 616.74,
-            "eta": (datetime.now(timezone.utc) + timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S"),
-            "origin": {"address": "MGB mall, Nellore, AP"},
-            "destination": {"address": "Visakhapatnam, Andhra Pradesh, India"},
-            "route_code": "Nellore-Vizag",
+            "share_url": None,
+            "last_latitude": None,
+            "last_longitude": None,
+            "last_location_address": None,
+            "recorded_at": None,
+            "device_type": "SIM",
+            "eta": None,
+            "eta_updated_at": None,
+            "distance_remaining_km": None,
+            "total_distance_km": None,
+            "is_simulated": False,
         }
-        self._simulated_trips[feed_unique_id] = sim_data
-        return self._build_simulated_trip_response(sim_data)
 
     def _normalize_trip_response(self, data: Dict[str, Any], is_simulated: bool = False) -> Dict[str, Any]:
         """Normalizes Freight Tiger response payload to consistent dictionary format."""
@@ -383,12 +426,34 @@ class FreightTigerClient:
         dests = data.get("destinations") or []
         dest = dests[0] if dests else {}
 
+        operator = (
+            data.get("operator")
+            or data.get("operator_name")
+            or data.get("service_provider")
+            or data.get("carrier")
+            or (data.get("device") or {}).get("operator")
+            or (data.get("driver") or {}).get("operator")
+            or ((data.get("drivers") or [{}])[0].get("operator"))
+            or ((data.get("drivers") or [{}])[0].get("service_provider"))
+        )
+        phone = (
+            (data.get("driver") or {}).get("phone")
+            or ((data.get("drivers") or [{}])[0].get("phone"))
+            or ((data.get("driverNumbers") or [None])[0])
+            or data.get("driver_phone")
+        )
+        if not operator and phone:
+            operator = detect_telecom_operator(phone)
+        elif not operator:
+            operator = "Jio"
+
         return {
             "success": True,
             "trip_id": data.get("trip_id") or data.get("id"),
             "feed_unique_id": data.get("feed_unique_id"),
             "lr_number": data.get("lr_number"),
             "vehicle_number": (data.get("vehicle") or {}).get("license_plate") or data.get("vehicle_number"),
+            "operator_name": operator,
             "is_consent_done": bool(data.get("is_consent_done", False)),
             "status": data.get("status", "Open"),
             "status_code": data.get("status_code", 1),
@@ -408,19 +473,17 @@ class FreightTigerClient:
     def _build_simulated_trip_response(self, sim: Dict[str, Any]) -> Dict[str, Any]:
         """Builds a realistic FT response conforming strictly to documentation."""
         is_consent = sim.get("is_consent_done", False)
+        phone = sim.get("driver_phone", "")
+        operator = sim.get("operator_name") or detect_telecom_operator(phone)
 
         if is_consent:
-            sim["current_lat"] = float(sim.get("current_lat", 14.462778)) + (random.uniform(-0.01, 0.02))
-            sim["current_lng"] = float(sim.get("current_lng", 79.994167)) + (random.uniform(-0.01, 0.02))
-            if sim.get("remaining_distance", 600) > 10:
-                sim["remaining_distance"] = round(float(sim["remaining_distance"]) - random.uniform(1.5, 4.0), 2)
-            recorded_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            address = sim.get("current_address") or "NH-16 Highway, Andhra Pradesh, India"
-            lat = round(sim["current_lat"], 6)
-            lng = round(sim["current_lng"], 6)
+            recorded_at = sim.get("recorded_at") or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            address = sim.get("current_address") or f"In transit en route to {sim.get('destination', {}).get('address', 'destination')}"
+            lat = sim.get("current_lat")
+            lng = sim.get("current_lng")
         else:
             recorded_at = None
-            address = "Awaiting Driver Consent (No location fixes available)"
+            address = None
             lat = None
             lng = None
 
@@ -430,6 +493,9 @@ class FreightTigerClient:
             "feed_unique_id": sim.get("feed_unique_id"),
             "lr_number": sim.get("lr_number"),
             "vehicle_number": sim.get("vehicle_number"),
+            "driver_name": sim.get("driver_name"),
+            "driver_phone": phone,
+            "operator_name": operator,
             "is_consent_done": is_consent,
             "status": sim.get("status", "Open"),
             "status_code": sim.get("status_code", 1),
@@ -440,10 +506,10 @@ class FreightTigerClient:
             "recorded_at": recorded_at,
             "device_type": "SIM",
             "eta": sim.get("eta"),
-            "eta_updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            "eta_updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if is_consent else None,
             "distance_remaining_km": sim.get("remaining_distance"),
             "total_distance_km": sim.get("total_distance"),
-            "is_simulated": True,
+            "is_simulated": sim.get("is_simulated", False),
         }
 
     async def close_trip(

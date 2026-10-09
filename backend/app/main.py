@@ -186,6 +186,19 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_sim_trips_vehicle_number ON transport_sim_trips (vehicle_number);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_sim_trips_driver_phone ON transport_sim_trips (driver_phone);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_sim_trips_lr_id ON transport_sim_trips (lr_id);"))
+                        for sim_col in [
+                            "operator_name VARCHAR(50)",
+                            "consignor_name VARCHAR(200)",
+                            "consignee_name VARCHAR(200)",
+                            "milestone VARCHAR(100) DEFAULT 'In Transit'",
+                            "trip_direction VARCHAR(50) DEFAULT 'Outbound'",
+                            "is_delayed BOOLEAN DEFAULT FALSE",
+                            "is_starred BOOLEAN DEFAULT FALSE",
+                            "ewb_number VARCHAR(100)",
+                            "ewb_expiry TIMESTAMP WITH TIME ZONE",
+                            "comments JSON DEFAULT '[]'",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE transport_sim_trips ADD COLUMN IF NOT EXISTS {sim_col};"))
                         await t_conn.execute(text("ALTER TABLE transport_pod_records ALTER COLUMN document_path TYPE TEXT;"))
                         for br_col in [
                             "pan VARCHAR(10)", "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)",

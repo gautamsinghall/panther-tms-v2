@@ -55,6 +55,8 @@ from app.modules.transport.schemas import (
     EWayBillCreate,
     TrackingPingCreate,
     SIMTripCreate,
+    SIMTripUpdate,
+    SIMTripCommentCreate,
     SIMTripClose,
     SIMConsentSimulate,
     FastagTripCreate,
@@ -64,7 +66,7 @@ from app.modules.transport.schemas import (
     TollLogResponse,
     FastagTrackingMetrics,
 )
-from app.integrations.freight_tiger import freight_tiger_client, FreightTigerClient
+from app.integrations.freight_tiger import freight_tiger_client, FreightTigerClient, detect_telecom_operator
 from app.integrations.fastag_provider import (
     FASTagProviderClient,
     clean_vehicle_number,
@@ -1313,11 +1315,18 @@ async def create_sim_trip(
             details={"current_balance": float(current_bal), "required": 8.50},
         )
 
+    consignor_name = data.consignor_name
+    consignee_name = data.consignee_name
+    ewb_number = data.ewb_number
+    ewb_expiry = None
+
     # 2. If linked to LR, populate missing details from LR consignment
     if data.lr_id:
         lr_stmt = select(LR).options(
             selectinload(LR.origin_location),
             selectinload(LR.destination_location),
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
         ).where(LR.id == data.lr_id)
         lr_res = await db.execute(lr_stmt)
         lr_obj = lr_res.scalars().first()
@@ -1334,6 +1343,14 @@ async def create_sim_trip(
                 origin_addr = f"{lr_obj.origin_location.name}, {lr_obj.origin_location.city_name or ''}"
             if not dest_addr and lr_obj.destination_location:
                 dest_addr = f"{lr_obj.destination_location.name}, {lr_obj.destination_location.city_name or ''}"
+            if not consignor_name and lr_obj.consigner:
+                consignor_name = lr_obj.consigner.name
+            if not consignee_name and lr_obj.consignee:
+                consignee_name = lr_obj.consignee.name
+            if not ewb_number and lr_obj.invoice_no:
+                ewb_number = lr_obj.invoice_no
+            if lr_obj.eway_bill_expiry:
+                ewb_expiry = datetime.combine(lr_obj.eway_bill_expiry, datetime.min.time(), tzinfo=timezone.utc)
 
     # 3. Check for company setting credentials override
     cs_stmt = select(CompanySetting).limit(1)
@@ -1367,6 +1384,8 @@ async def create_sim_trip(
         share_trip=data.share_trip,
     )
 
+    resolved_operator = data.operator_name or ft_resp.get("operator_name") or detect_telecom_operator(driver_phone)
+
     # 5. Create local trip record in tenant DB
     now_utc = datetime.now(timezone.utc)
     sim_record = SIMTripRecord(
@@ -1376,6 +1395,16 @@ async def create_sim_trip(
         vehicle_number=vehicle_num,
         driver_name=driver_name,
         driver_phone=driver_phone,
+        operator_name=resolved_operator,
+        consignor_name=consignor_name or "NA",
+        consignee_name=consignee_name or "NA",
+        milestone=data.milestone or "In Transit",
+        trip_direction=data.trip_direction or "Outbound",
+        is_starred=bool(data.is_starred),
+        is_delayed=False,
+        ewb_number=ewb_number,
+        ewb_expiry=ewb_expiry,
+        comments=[],
         consent_status=SIMConsentStatus.PENDING.value,
         is_consent_done=False,
         status="Open",
@@ -1514,6 +1543,7 @@ async def sync_sim_trip(
     trip.consent_status = SIMConsentStatus.ACCEPTED.value if is_consent else SIMConsentStatus.PENDING.value
     trip.status = ft_data.get("status", trip.status)
     trip.status_code = ft_data.get("status_code", trip.status_code)
+    trip.operator_name = trip.operator_name or ft_data.get("operator_name") or detect_telecom_operator(trip.driver_phone)
 
     if ft_data.get("share_url"):
         trip.share_url = ft_data["share_url"]
@@ -1528,6 +1558,9 @@ async def sync_sim_trip(
         trip.recorded_at = rec_at
 
         # Save to general telemetry pings (for unified fleet map & logs)
+        speed_raw = ft_data.get("speed_kmh")
+        speed_val = Decimal(str(round(float(speed_raw), 1))) if speed_raw is not None else Decimal("0.0")
+
         ping = TrackingPing(
             vehicle_number=trip.vehicle_number,
             tracking_mode=TrackingMode.SIM.value,
@@ -1535,7 +1568,7 @@ async def sync_sim_trip(
             last_latitude=trip.last_latitude,
             last_longitude=trip.last_longitude,
             location_name=trip.last_location_address or "SIM Cell Tower Triangulation",
-            speed_kmh=Decimal("42.0") if is_consent else Decimal("0.0"),
+            speed_kmh=speed_val,
             last_ping_at=rec_at,
             status="ACTIVE",
         )
@@ -1543,15 +1576,61 @@ async def sync_sim_trip(
 
     if ft_data.get("distance_remaining_km") is not None:
         trip.distance_remaining_km = Decimal(str(round(float(ft_data["distance_remaining_km"]), 2)))
+        if trip.distance_remaining_km <= Decimal("5.0"):
+            trip.milestone = "At Unloading"
+        elif trip.status.lower() == "open" and not trip.milestone:
+            trip.milestone = "In Transit"
+
     if ft_data.get("total_distance_km") is not None:
         trip.total_distance_km = Decimal(str(round(float(ft_data["total_distance_km"]), 2)))
 
     if ft_data.get("eta"):
         trip.eta = parse_iso_or_utc(ft_data.get("eta"))
+        if trip.eta and trip.eta < now_utc and trip.status.lower() == "open":
+            trip.is_delayed = True
+        else:
+            trip.is_delayed = False
+
     if ft_data.get("eta_updated_at"):
         trip.eta_updated_at = parse_iso_or_utc(ft_data.get("eta_updated_at"))
 
     trip.last_synced_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(trip)
+    return trip
+
+
+async def update_sim_trip(
+    db: AsyncSession,
+    trip: SIMTripRecord,
+    update_data: SIMTripUpdate,
+) -> SIMTripRecord:
+    """Updates operational metadata for an existing SIM tracking trip."""
+    for field, val in update_data.model_dump(exclude_unset=True).items():
+        if hasattr(trip, field) and val is not None:
+            setattr(trip, field, val)
+    await db.commit()
+    await db.refresh(trip)
+    return trip
+
+
+async def add_sim_trip_comment(
+    db: AsyncSession,
+    trip: SIMTripRecord,
+    comment_text: str,
+    author: Optional[str] = None,
+) -> SIMTripRecord:
+    """Appends an operational checkpoint comment to the trip record."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    existing_comments = list(trip.comments or [])
+    new_comment = {
+        "id": len(existing_comments) + 1,
+        "text": comment_text,
+        "author": author or "Dispatcher",
+        "created_at": now_iso,
+    }
+    existing_comments.append(new_comment)
+    trip.comments = existing_comments
     await db.commit()
     await db.refresh(trip)
     return trip
