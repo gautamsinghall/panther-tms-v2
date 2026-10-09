@@ -49,65 +49,6 @@ interface PlanOption {
   };
 }
 
-export interface CustomSectionOption {
-  id: string;
-  title: string;
-  description: string;
-  priceYearly: number;
-  badge?: string;
-}
-
-export const CUSTOM_TMS_SECTIONS: CustomSectionOption[] = [
-  {
-    id: "operations",
-    title: "Consignments & Operations",
-    description: "Job Orders, GR/LR Booking, Hire Challans, POD Tracking & Arrival Reports",
-    priceYearly: 15000,
-    badge: "Operations",
-  },
-  {
-    id: "tracking",
-    title: "Vehicle Tracking & Telemetry",
-    description: "Live FASTag toll plaza telemetry, SIM consent tracking & vehicle route history",
-    priceYearly: 12000,
-    badge: "Telematics",
-  },
-  {
-    id: "einvoicing",
-    title: "E-Invoicing & E-Way Portal",
-    description: "Direct NIC GSP integration, automated IRN generation, cancellation & E-Way sync",
-    priceYearly: 10000,
-    badge: "Compliance",
-  },
-  {
-    id: "accounts",
-    title: "Transport Accounting & Invoicing",
-    description: "Freight billing, double-entry vouchers, client ledgers & bank reconciliation",
-    priceYearly: 15000,
-    badge: "Financials",
-  },
-  {
-    id: "fleet",
-    title: "Fleet & Tyre Management",
-    description: "Driver trip advances, trip expense registers, tyre serial logs & maintenance",
-    priceYearly: 8000,
-    badge: "Maintenance",
-  },
-  {
-    id: "reports",
-    title: "Financial Statements & Reports",
-    description: "Comprehensive daybook, trial balance, P&L, balance sheet & GST returns",
-    priceYearly: 8000,
-    badge: "Auditing",
-  },
-  {
-    id: "api_center",
-    title: "API Center & Developer Access",
-    description: "RESTful webhooks, developer credentials, toll query & tracking programmatic APIs",
-    priceYearly: 10000,
-    badge: "Integrations",
-  },
-];
 
 const PLANS: PlanOption[] = [
   {
@@ -176,14 +117,14 @@ const PLANS: PlanOption[] = [
     name: "Custom Plan",
     priceMonthly: 0,
     priceYearly: 0,
-    description: "Demand specific TMS sections tailored to your workflow. Pay solely for what you activate.",
+    description: "Tailored TMS modules & enterprise workflows. Contact authority to activate custom features.",
     features: [
-      "Modular TMS Section Selection",
-      "Demand Specific Operational Workflows",
-      "On-Demand FASTag & SIM Telematics",
+      "Custom TMS Module Activation",
+      "Tailored Operational Workflows",
+      "Dedicated Enterprise Setup",
       "Selective E-Way & NIC IRN Invoicing",
       "Custom Fleet & User Capacities",
-      "Dedicated Solution Engineering",
+      "Contact authority for feature configuration",
     ],
     limits: {
       users: "Custom Allocation",
@@ -201,27 +142,6 @@ export default function SignupPage() {
   const [billingCycle, setBillingCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [selectedPlan, setSelectedPlan] = useState<string>("PRO");
 
-  // Custom Demanded TMS Sections state (for Custom Plan)
-  const [demandedSections, setDemandedSections] = useState<string[]>([
-    "operations",
-    "tracking",
-    "accounts",
-  ]);
-
-  const toggleDemandedSection = (id: string) => {
-    setDemandedSections((prev) =>
-      prev.includes(id)
-        ? prev.length > 1
-          ? prev.filter((s) => s !== id)
-          : prev
-        : [...prev, id]
-    );
-  };
-
-  const calculatedCustomPrice = demandedSections.reduce(
-    (sum, id) => sum + (CUSTOM_TMS_SECTIONS.find((s) => s.id === id)?.priceYearly || 0),
-    0
-  );
 
   // Form details
   const [companyName, setCompanyName] = useState("");
@@ -917,7 +837,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* 4. CUSTOM PLAN CARD (MODULAR & ON-DEMAND) */}
+            {/* 4. CUSTOM PLAN CARD */}
             <div
               onClick={() => setSelectedPlan("CUSTOM")}
               className={`relative bg-white rounded-2xl border-2 border-violet-500/80 ring-4 ring-violet-500/10 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-violet-500/10 transition-all duration-200 cursor-pointer ${selectedPlan === "CUSTOM" ? "-translate-y-1" : "hover:-translate-y-0.5"
@@ -926,7 +846,7 @@ export default function SignupPage() {
               {/* Floating Top Badge */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="inline-flex items-center gap-1 bg-violet-600 text-white text-[10px] font-extrabold px-3.5 py-0.5 rounded-full uppercase tracking-wider shadow-md whitespace-nowrap">
-                  🛠️ MODULAR & ON-DEMAND
+                  🛠️ CUSTOM PLAN
                 </span>
               </div>
 
@@ -946,20 +866,20 @@ export default function SignupPage() {
                 <div>
                   <h2 className="font-bold text-xl text-slate-900 tracking-tight">Custom Plan</h2>
                   <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
-                    Demand specific TMS sections tailored to your workflow. Modular dynamic pricing.
+                    Tailored TMS modules & enterprise workflows. Contact authority to activate custom features.
                   </p>
                 </div>
 
-                {/* Price + Mini Visual */}
+                {/* Price */}
                 <div className="pt-2 flex items-center justify-between">
                   <div className="flex flex-col">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                        On-Demand
+                        Custom
                       </span>
                     </div>
                     <span className="text-[11px] text-violet-600 font-medium">
-                      Pricing dynamic per demanded module
+                      Contact authority for feature configuration
                     </span>
                   </div>
                   {/* Violet Mini Bars */}
@@ -1000,32 +920,24 @@ export default function SignupPage() {
                 {/* Included Modules */}
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    DEMANDED TMS SECTIONS
+                    CUSTOM PLAN DETAILS
                   </span>
                   <ul className="space-y-1.5 text-xs text-slate-600">
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-violet-600 shrink-0 font-bold" />
-                      <span className="font-bold text-slate-900">Pick & choose any TMS modules</span>
+                      <span className="font-bold text-slate-900">Tailored TMS module configuration</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-                      <span>LR Booking & Dispatch Operations</span>
+                      <span>Dedicated enterprise workflow design</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-                      <span>FASTag & Cellular SIM Telematics</span>
+                      <span>Direct support & provisioning</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-                      <span>GST E-Way Bill & Auto IRN Invoicing</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-                      <span>Double-Entry Transport Accounting</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
-                      <span>Developer API Center & Webhooks</span>
+                      <span>Contact authority to activate features</span>
                     </li>
                   </ul>
                 </div>
@@ -1042,7 +954,7 @@ export default function SignupPage() {
                   }}
                   className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/25 transition-all cursor-pointer"
                 >
-                  <span>Configure Custom Plan</span>
+                  <span>Choose Custom Plan</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -1052,7 +964,7 @@ export default function SignupPage() {
 
         {/* STEP 2: ACCOUNT DETAILS (Aligned with Login styling) */}
         {step === 2 && (
-          <div className={`${selectedPlan === "CUSTOM" ? "max-w-2xl" : "max-w-lg"} mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5 my-auto w-full transition-all`}>
+          <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5 my-auto w-full transition-all">
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
               <div>
                 <h2 className="text-xl font-bold tracking-tight text-slate-900">Workspace Details</h2>
@@ -1069,65 +981,35 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* If Custom Plan is selected, provide the dynamic TMS Section Selector */}
+            {/* If Custom Plan is selected, show concise contact message */}
             {selectedPlan === "CUSTOM" && (
-              <div className="p-4 bg-violet-50/70 border border-violet-200/90 rounded-xl space-y-3">
-                <div className="flex items-center justify-between border-b border-violet-200/60 pb-2.5">
-                  <div>
-                    <h3 className="text-xs font-bold text-violet-950 uppercase tracking-wider flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-violet-600" />
-                      Demand Your TMS Sections
+              <div className="p-4 bg-violet-50/80 border border-violet-200/90 rounded-xl space-y-2.5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0 mt-0.5">
+                    <Headset className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1.5 flex-1">
+                    <h3 className="text-xs font-bold text-violet-950 uppercase tracking-wide">
+                      Custom Feature Activation
                     </h3>
-                    <p className="text-[11px] text-violet-700 mt-0.5">
-                      Toggle required modules. Pricing dynamically scales based on selected sections.
+                    <p className="text-xs text-violet-800 leading-relaxed">
+                      Custom plan modules and enterprise workflows require administrative configuration. Please contact the concerned authority or our support team to activate specific features for your organization.
                     </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold font-mono text-violet-900 bg-white px-2.5 py-1 rounded-lg border border-violet-200 shadow-2xs">
-                      ₹{calculatedCustomPrice.toLocaleString("en-IN")}/yr
-                    </span>
-                    <span className="text-[10px] text-violet-600 block">
-                      (₹{Math.round(calculatedCustomPrice / 12).toLocaleString("en-IN")}/mo)
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  {CUSTOM_TMS_SECTIONS.map((sec) => {
-                    const isSelected = demandedSections.includes(sec.id);
-                    return (
-                      <div
-                        key={sec.id}
-                        onClick={() => toggleDemandedSection(sec.id)}
-                        className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all select-none flex items-start gap-2.5 ${
-                          isSelected
-                            ? "bg-white border-violet-500 shadow-2xs ring-1 ring-violet-500/20"
-                            : "bg-white/60 border-violet-200/60 opacity-80 hover:bg-white hover:border-violet-300"
-                        }`}
+                    <div className="pt-0.5 flex flex-wrap items-center gap-3 text-xs">
+                      <a
+                        href="mailto:support@panthertms.com?subject=Custom%20TMS%20Plan%20Feature%20Activation"
+                        className="inline-flex items-center gap-1.5 font-semibold text-violet-700 hover:text-violet-900 hover:underline"
                       >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {}} // handled by parent onClick
-                          className="mt-0.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 pointer-events-none"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-semibold text-slate-900 truncate">{sec.title}</span>
-                            <span className="text-[10px] font-mono text-violet-700 shrink-0 font-medium">
-                              +₹{(sec.priceYearly / 1000).toFixed(0)}k/yr
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{sec.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center justify-between pt-1 text-[11px] text-violet-800">
-                  <span>Active Demanded: <strong className="font-semibold text-violet-950">{demandedSections.length} of {CUSTOM_TMS_SECTIONS.length} Sections</strong></span>
-                  <span className="text-[10px] text-violet-600 italic">On-demand modular billing</span>
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>support@panthertms.com</span>
+                      </a>
+                      <span className="text-violet-300">•</span>
+                      <span className="inline-flex items-center gap-1.5 text-violet-700 font-medium">
+                        <Building2 className="w-3.5 h-3.5" />
+                        <span>Contact Concerned Authority</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1286,7 +1168,7 @@ export default function SignupPage() {
                     </>
                   ) : selectedPlan === "CUSTOM" ? (
                     <>
-                      <span>Complete Custom Setup (₹{calculatedCustomPrice.toLocaleString("en-IN")}/yr)</span>
+                      <span>Complete Custom Setup</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : (
@@ -1345,8 +1227,8 @@ export default function SignupPage() {
                   </div>
                   {selectedPlan === "CUSTOM" && (
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-500 font-sans">Demanded Modules:</span>
-                      <span className="font-semibold text-violet-700">{demandedSections.length} Sections Active</span>
+                      <span className="text-slate-500 font-sans">Custom Plan:</span>
+                      <span className="font-semibold text-violet-700">Contact authority for feature activation</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
