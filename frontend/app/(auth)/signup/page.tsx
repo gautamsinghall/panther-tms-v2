@@ -28,7 +28,6 @@ import {
   Headset,
   SlidersHorizontal,
 } from "lucide-react";
-import TextAnimation from "@/components/ui/staggerText";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
 import { getApiBaseUrl } from "@/lib/auth";
@@ -349,7 +348,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen lg:h-screen w-full flex flex-col bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative lg:overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col justify-between bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative">
       {/* Clean neutral ambient background with subtle radial glow and right-side freight truck atmosphere */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         {/* Subtle center ambient glow */}
@@ -377,9 +376,9 @@ export default function SignupPage() {
       {/* ========================================================================= */}
       {/* MAIN CONTENT AREA: Viewport optimized                                    */}
       {/* ========================================================================= */}
-      <main className="flex-1 flex flex-col justify-center px-4 sm:px-8 lg:px-10 xl:px-12 py-3 lg:py-4 max-w-[1640px] w-full mx-auto relative z-10 overflow-y-auto lg:overflow-hidden min-h-0">
+      <main className="flex-1 flex flex-col px-4 sm:px-8 lg:px-10 xl:px-12 py-3 lg:py-5 max-w-[1640px] w-full mx-auto relative z-10 min-h-0">
         {/* Workflow Title & Stepper Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2.5 lg:mb-3 border-b border-slate-200/70 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2.5 lg:mb-4 border-b border-slate-200/70 shrink-0">
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono">
               <Layers className="w-3.5 h-3.5" />
@@ -395,19 +394,28 @@ export default function SignupPage() {
                 </span>
               )}
               {step === 2 && (
-                <TextAnimation divideBy="word" delay={0.05}>
-                  Configure Enterprise Workspace
-                </TextAnimation>
+                <span>
+                  {selectedPlan === "CUSTOM" ? (
+                    <span>
+                      Custom Plan{" "}
+                      <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent font-extrabold">
+                        Feature Activation
+                      </span>
+                    </span>
+                  ) : (
+                    "Configure Enterprise Workspace"
+                  )}
+                </span>
               )}
               {step === 3 && (
-                <TextAnimation divideBy="word" delay={0.05}>
-                  Setting Up Your Workspace
-                </TextAnimation>
+                <span>Setting Up Your Workspace</span>
               )}
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
               {step === 1 && "Choose the subscription edition that matches your active fleet capacity and business needs."}
-              {step === 2 && "Set up your isolated tenant database and master administrator."}
+              {step === 2 && (selectedPlan === "CUSTOM"
+                ? "Custom modules require administrative setup. Contact the concerned authority to activate this plan."
+                : "Set up your isolated tenant database and master administrator.")}
               {step === 3 && "Automated multi-tenant environment provisioning in progress."}
             </p>
           </div>
@@ -426,7 +434,7 @@ export default function SignupPage() {
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 2 ? "bg-[#1D4ED8] text-white shadow-2xs" : step > 2 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
                   {step > 2 ? "✓" : "2"}
                 </span>
-                <span>Workspace</span>
+                <span>{selectedPlan === "CUSTOM" ? "Contact Authority" : "Workspace"}</span>
               </div>
               <span className={`w-4 h-px ${step > 2 ? "bg-indigo-600" : "bg-slate-200"}`} />
               <div className={`flex items-center gap-1.5 ${step === 3 ? "text-slate-900 font-bold" : "text-slate-400"}`}>
@@ -981,205 +989,220 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* If Custom Plan is selected, show concise contact message */}
-            {selectedPlan === "CUSTOM" && (
-              <div className="p-4 bg-violet-50/80 border border-violet-200/90 rounded-xl space-y-2.5">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0 mt-0.5">
-                    <Headset className="w-4 h-4" />
-                  </div>
-                  <div className="space-y-1.5 flex-1">
-                    <h3 className="text-xs font-bold text-violet-950 uppercase tracking-wide">
-                      Custom Feature Activation
-                    </h3>
-                    <p className="text-xs text-violet-800 leading-relaxed">
-                      Custom plan modules and enterprise workflows require administrative configuration. Please contact the concerned authority or our support team to activate specific features for your organization.
-                    </p>
-                    <div className="pt-0.5 flex flex-wrap items-center gap-3 text-xs">
-                      <a
-                        href="mailto:support@panthertms.com?subject=Custom%20TMS%20Plan%20Feature%20Activation"
-                        className="inline-flex items-center gap-1.5 font-semibold text-violet-700 hover:text-violet-900 hover:underline"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        <span>support@panthertms.com</span>
-                      </a>
-                      <span className="text-violet-300">•</span>
-                      <span className="inline-flex items-center gap-1.5 text-violet-700 font-medium">
-                        <Building2 className="w-3.5 h-3.5" />
-                        <span>Contact Concerned Authority</span>
-                      </span>
+            {/* If Custom Plan is selected: ONLY show the boxed contact notification & actions, NO form inputs */}
+            {selectedPlan === "CUSTOM" ? (
+              <div className="space-y-5">
+                <div className="p-4 sm:p-5 bg-violet-50/80 border border-violet-200/90 rounded-2xl space-y-3">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0 mt-0.5">
+                      <Headset className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1.5 flex-1">
+                      <h3 className="text-xs font-bold text-violet-950 uppercase tracking-wide">
+                        CUSTOM FEATURE ACTIVATION
+                      </h3>
+                      <p className="text-xs text-violet-800 leading-relaxed">
+                        Custom plan modules and enterprise workflows require administrative configuration. Please contact the concerned authority or our support team to activate specific features for your organization.
+                      </p>
+                      <div className="pt-1 flex flex-wrap items-center gap-3 text-xs">
+                        <a
+                          href="mailto:support@panthertms.com?subject=Custom%20TMS%20Plan%20Feature%20Activation"
+                          className="inline-flex items-center gap-1.5 font-semibold text-violet-700 hover:text-violet-900 hover:underline"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          <span>support@panthertms.com</span>
+                        </a>
+                        <span className="text-violet-300">•</span>
+                        <a
+                          href="mailto:support@panthertms.com?subject=Contact%20Concerned%20Authority%20-%20Custom%20Plan"
+                          className="inline-flex items-center gap-1.5 text-violet-700 font-medium hover:text-violet-900 hover:underline"
+                        >
+                          <Building2 className="w-3.5 h-3.5" />
+                          <span>Contact Concerned Authority</span>
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            <form onSubmit={handleInitiateSignup} className="space-y-4">
-              {/* Company Name */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 tracking-tight">
-                  Registered company name
-                </label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-3.5 pointer-events-none text-slate-400">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={companyName}
-                    onChange={(e) => handleCompanyChange(e.target.value)}
-                    placeholder="Apex Fast Freight Pvt Ltd"
-                    className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
-                  />
+                {/* Direct Action Buttons for Custom Plan */}
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-2xs transition-all cursor-pointer"
+                  >
+                    Back to Plans
+                  </button>
+                  <a
+                    href="mailto:support@panthertms.com?subject=Custom%20TMS%20Plan%20Feature%20Activation%20Request&body=Hello%20PantherTMS%20Team%2C%0A%0AI%20would%20like%20to%20request%20a%20Custom%20TMS%20Plan%20for%20my%20organization.%0A%0ACompany%20Name%3A%20%0AContact%20Number%3A%20%0ARequired%20Modules%3A%20%0A%0AThank%20you."
+                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white bg-violet-600 hover:bg-violet-700 active:bg-violet-800 shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Contact Concerned Authority</span>
+                  </a>
                 </div>
               </div>
-
-              {/* Company Code */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
-                    Company Code (Unique Login Identifier)
-                  </label>
-                  <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">
-                    Letters Only [A-Z]
-                  </span>
-                </div>
-                <div className="relative flex items-center">
-                  <div className="absolute left-3.5 pointer-events-none text-indigo-600 font-mono text-xs font-bold">
-                    #
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={companyCode}
-                    onChange={(e) => setCompanyCode(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
-                    placeholder="APEXFREIGHT"
-                    className="w-full pl-9 pr-3.5 py-2.5 text-sm font-bold font-mono tracking-wider text-indigo-700 placeholder:text-slate-300 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all uppercase"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  Strictly uppercase alphabets only. You and your team will use this code + email + password to log in.
-                </p>
-              </div>
-
-              {/* Administrator Name & Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            ) : (
+              /* Standard Self-Service Form (Free Starter, Pro Fleet, Enterprise Scale) */
+              <form onSubmit={handleInitiateSignup} className="space-y-4">
+                {/* Company Name */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-slate-700 tracking-tight">
-                    Admin full name
+                    Registered company name
                   </label>
                   <div className="relative flex items-center">
                     <div className="absolute left-3.5 pointer-events-none text-slate-400">
-                      <User className="w-4 h-4" />
+                      <Building2 className="w-4 h-4" />
                     </div>
                     <input
                       type="text"
                       required
-                      value={adminName}
-                      onChange={(e) => setAdminName(e.target.value)}
-                      placeholder="Rahul Verma"
+                      value={companyName}
+                      onChange={(e) => handleCompanyChange(e.target.value)}
+                      placeholder="Apex Fast Freight Pvt Ltd"
                       className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
 
+                {/* Company Code */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
-                    Admin work email
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                      Company Code (Unique Login Identifier)
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">
+                      Letters Only [A-Z]
+                    </span>
+                  </div>
                   <div className="relative flex items-center">
-                    <div className="absolute left-3.5 pointer-events-none text-slate-400">
-                      <Mail className="w-4 h-4" />
+                    <div className="absolute left-3.5 pointer-events-none text-indigo-600 font-mono text-xs font-bold">
+                      #
                     </div>
                     <input
-                      type="email"
+                      type="text"
                       required
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                      placeholder="admin@apexfreight.com"
-                      className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                      value={companyCode}
+                      onChange={(e) => setCompanyCode(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
+                      placeholder="APEXFREIGHT"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-sm font-bold font-mono tracking-wider text-indigo-700 placeholder:text-slate-300 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all uppercase"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Strictly uppercase alphabets only. You and your team will use this code + email + password to log in.
+                  </p>
+                </div>
+
+                {/* Administrator Name & Email */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                      Admin full name
+                    </label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={adminName}
+                        onChange={(e) => setAdminName(e.target.value)}
+                        placeholder="Rahul Verma"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                      Admin work email
+                    </label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        placeholder="admin@apexfreight.com"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                      Admin password (Min 8 characters)
+                    </label>
+                    <span className="text-[11px] text-slate-400 select-none">
+                      Security compliant
+                    </span>
+                  </div>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-10 pr-3.5 py-2.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Password */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
-                    Admin password (Min 8 characters)
-                  </label>
-                  <span className="text-[11px] text-slate-400 select-none">
-                    Security compliant
+                {/* Tenant Isolation Badge */}
+                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl text-xs text-slate-600 flex items-center gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Data isolation enforced with dedicated company schema and automated daily backups.
                   </span>
                 </div>
-                <div className="relative flex items-center">
-                  <div className="absolute left-3.5 pointer-events-none text-slate-400">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <input
-                    type="password"
-                    required
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-10 pr-3.5 py-2.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
-                  />
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    disabled={isLoading}
+                    className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        <span>Initializing...</span>
+                      </>
+                    ) : selectedPlan === "FREE" ? (
+                      <>
+                        <span>Complete Free Setup</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    ) : (
+                      <>
+                        <span>Proceed to Razorpay Autopay</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
                 </div>
-              </div>
-
-              {/* Tenant Isolation Badge */}
-              <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl text-xs text-slate-600 flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>
-                  Data isolation enforced with dedicated company schema and automated daily backups.
-                </span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  disabled={isLoading}
-                  className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`w-2/3 h-11 text-xs font-semibold rounded-xl text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 ${
-                    selectedPlan === "CUSTOM"
-                      ? "bg-violet-600 hover:bg-violet-700 active:bg-violet-800"
-                      : "bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800"
-                  }`}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                      <span>Initializing...</span>
-                    </>
-                  ) : selectedPlan === "FREE" ? (
-                    <>
-                      <span>Complete Free Setup</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  ) : selectedPlan === "CUSTOM" ? (
-                    <>
-                      <span>Complete Custom Setup</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  ) : (
-                    <>
-                      <span>Proceed to Razorpay Autopay</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         )}
 
