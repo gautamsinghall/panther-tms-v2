@@ -1,35 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Radio,
   MapPin,
-  Info,
   RefreshCw,
   Navigation,
-  Activity,
   Signal,
-  Smartphone,
-  CheckCircle2,
   Clock,
   ExternalLink,
-  ShieldCheck,
-  AlertCircle,
-  Copy,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   Truck,
   Check,
   X,
-  Map as MapIcon,
   Phone,
-  Send,
   FileText,
-  Wallet,
-  ArrowRight,
   Star,
   Settings,
   MoreVertical,
@@ -37,15 +24,16 @@ import {
   Edit2,
   MessageSquare,
   Search,
-  Filter,
   Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { apiClient } from "@/lib/api-client";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
-import { CarrierLogo, CarrierPhoneBadge, getCarrierBrand } from "@/components/tracking/sim-carrier-badge";
+import {
+  CarrierLogo,
+  CarrierPhoneBadge,
+  detectTelecomOperator,
+} from "@/components/tracking/sim-carrier-badge";
 import { SIMTrackingMap } from "@/components/tracking/sim-tracking-map";
 
 // ---------------------------------------------------------------------------
@@ -123,7 +111,10 @@ export default function SIMTrackingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Expanded trip row ID (only one row expanded at a time, per Image 1 & 2)
+  // Syncing / Refreshing state per trip
+  const [syncingTripIds, setSyncingTripIds] = useState<Set<number>>(new Set());
+
+  // Expanded trip row ID (only one row expanded at a time)
   const [expandedTripId, setExpandedTripId] = useState<number | null>(null);
   const [expandedSubTab, setExpandedSubTab] = useState<
     "tracking" | "full_details" | "documents" | "comments" | "alert" | "lr" | "yard"
@@ -169,14 +160,13 @@ export default function SIMTrackingPage() {
   const [emailInput, setEmailInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Add Trip Form State
+  // Add Trip Form State - SIM operator is ALWAYS auto-fetched from driver mobile phone
   const [availableLRs, setAvailableLRs] = useState<LRSummary[]>([]);
   const [selectedLrId, setSelectedLrId] = useState<string>("");
   const [addFormData, setAddFormData] = useState({
     vehicle_number: "",
     driver_phone: "",
     driver_name: "",
-    operator_name: "Auto-detect",
     lr_id: undefined as number | undefined,
     lr_number: "",
     consignor_name: "",
@@ -188,11 +178,10 @@ export default function SIMTrackingPage() {
     share_trip: true,
   });
 
-  // Edit Trip Form State
+  // Edit Trip Form State - SIM operator is ALWAYS auto-fetched
   const [editFormData, setEditFormData] = useState({
     driver_name: "",
     driver_phone: "",
-    operator_name: "",
     consignor_name: "",
     consignee_name: "",
     milestone: "",
@@ -245,6 +234,34 @@ export default function SIMTrackingPage() {
     window.addEventListener("click", handleOutsideClick);
     return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
+
+  // Auto-dismiss feedback messages after 5 seconds
+  useEffect(() => {
+    if (!feedbackMessage) return;
+    const timer = setTimeout(() => setFeedbackMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [feedbackMessage]);
+
+  // ---------------------------------------------------------------------------
+  // Google Maps Directions Helper
+  // ---------------------------------------------------------------------------
+
+  const openGoogleMapsRoute = (trip: SIMTripRecord) => {
+    const origin = encodeURIComponent(trip.origin_address || "Origin Hub");
+    const destination = encodeURIComponent(trip.destination_address || "Destination Hub");
+    const waypoint =
+      trip.last_latitude && trip.last_longitude
+        ? `${trip.last_latitude},${trip.last_longitude}`
+        : trip.last_location_address
+        ? encodeURIComponent(trip.last_location_address)
+        : "";
+
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`;
+    if (waypoint) {
+      url += `&waypoints=${waypoint}`;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   // ---------------------------------------------------------------------------
   // Handlers for Add Trip
@@ -303,11 +320,12 @@ export default function SIMTrackingPage() {
     setIsSubmitting(true);
     setFeedbackMessage(null);
     try {
+      const detectedCarrier = detectTelecomOperator(cleanPhone);
       const payload = {
         ...addFormData,
         vehicle_number: addFormData.vehicle_number.trim().toUpperCase(),
         driver_phone: cleanPhone.slice(-10),
-        operator_name: addFormData.operator_name === "Auto-detect" ? undefined : addFormData.operator_name,
+        operator_name: detectedCarrier, // Always auto-fetched
       };
       await apiClient("/api/v1/transport/tracking/sim/start", {
         method: "POST",
@@ -315,7 +333,7 @@ export default function SIMTrackingPage() {
       });
       setFeedbackMessage({
         type: "success",
-        text: `Trip initialized for ${payload.vehicle_number}. Telecom driver consent request queued to +91 ${payload.driver_phone}.`,
+        text: `Trip initialized for ${payload.vehicle_number} (${detectedCarrier}). Driver consent request queued to +91 ${payload.driver_phone}.`,
       });
       setIsAddTripModalOpen(false);
       resetAddFormData();
@@ -333,7 +351,6 @@ export default function SIMTrackingPage() {
       vehicle_number: "",
       driver_phone: "",
       driver_name: "",
-      operator_name: "Auto-detect",
       lr_id: undefined,
       lr_number: "",
       consignor_name: "",
@@ -365,7 +382,9 @@ export default function SIMTrackingPage() {
     }
   };
 
+  // Refresh current location telemetry for a trip
   const handleSyncTrip = async (tripId: number) => {
+    setSyncingTripIds((prev) => new Set(prev).add(tripId));
     try {
       const updated = await apiClient<SIMTripRecord>(`/api/v1/transport/tracking/sim/${tripId}/sync`, {
         method: "POST",
@@ -373,10 +392,18 @@ export default function SIMTrackingPage() {
       setSimTrips((prev) => prev.map((t) => (t.id === tripId ? updated : t)));
       setFeedbackMessage({
         type: "success",
-        text: `Trip telemetry synced. Driver consent: ${updated.is_consent_done ? "Granted" : "Pending SMS"}.`,
+        text: `Current location refreshed for ${updated.vehicle_number}. Last fix: ${
+          updated.last_location_address || "In Transit"
+        }.`,
       });
     } catch (err: any) {
-      alert(err.message || "Failed to sync trip tracking telemetry.");
+      alert(err.message || "Failed to refresh trip tracking telemetry.");
+    } finally {
+      setSyncingTripIds((prev) => {
+        const next = new Set(prev);
+        next.delete(tripId);
+        return next;
+      });
     }
   };
 
@@ -409,14 +436,20 @@ export default function SIMTrackingPage() {
     if (!activeModalTrip) return;
     setIsSubmitting(true);
     try {
+      const cleanPhone = editFormData.driver_phone.replace(/\D/g, "").slice(-10);
+      const autoCarrier = detectTelecomOperator(cleanPhone);
       const updated = await apiClient<SIMTripRecord>(`/api/v1/transport/tracking/sim/${activeModalTrip.id}`, {
         method: "PATCH",
-        body: JSON.stringify(editFormData),
+        body: JSON.stringify({
+          ...editFormData,
+          driver_phone: cleanPhone,
+          operator_name: autoCarrier, // Auto-fetched
+        }),
       });
       setSimTrips((prev) => prev.map((t) => (t.id === activeModalTrip.id ? updated : t)));
       setFeedbackMessage({
         type: "success",
-        text: `Trip ${activeModalTrip.vehicle_number} updated successfully.`,
+        text: `Trip ${activeModalTrip.vehicle_number} updated successfully (${autoCarrier}).`,
       });
       setIsEditModalOpen(false);
       setActiveModalTrip(null);
@@ -515,7 +548,7 @@ export default function SIMTrackingPage() {
 
     return {
       inPlant,
-      inTransit: Math.max(inTransit, 1), // Default display baseline
+      inTransit: Math.max(inTransit, 1),
       atLastmile,
       atUnloading: Math.max(atUnloading, 1),
       others: Math.max(others, 0),
@@ -641,22 +674,63 @@ export default function SIMTrackingPage() {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
+      {/* Toast Feedback */}
+      {feedbackMessage && (
+        <div
+          className={cn(
+            "fixed top-4 right-4 z-[9999] px-4 py-2.5 rounded-xl shadow-lg border text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2",
+            feedbackMessage.type === "success"
+              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+              : "bg-rose-50 text-rose-800 border-rose-200"
+          )}
+        >
+          {feedbackMessage.type === "success" ? (
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+          ) : (
+            <X className="w-4 h-4 text-rose-600 shrink-0" />
+          )}
+          <span>{feedbackMessage.text}</span>
+        </div>
+      )}
+
       {/* =========================================================================
-          TOP HEADER: My Trips + "+ Add Trip"
+          TOP HEADER: My Trips + Global Action Buttons
          ========================================================================= */}
       <div className="flex items-center justify-between pb-1">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">My Trips</h1>
-        <Button
-          onClick={() => {
-            resetAddFormData();
-            setIsAddTripModalOpen(true);
-          }}
-          className="gap-1.5 bg-[#0066cc] hover:bg-[#0052a3] text-white font-semibold shadow-xs text-sm cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Add Trip</span>
-        </Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">My Trips</h1>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Cellular tower SIM tracking for verified Indian logistics line-haul movements
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* General Refresh Telemetry Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadSimTrips}
+            disabled={isLoading}
+            className="gap-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+            title="Refresh All Trips Data"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-indigo-600")} />
+            <span>Refresh</span>
+          </Button>
+
+          {/* Add Trip Button (Global Indigo Theme) */}
+          <Button
+            onClick={() => {
+              resetAddFormData();
+              setIsAddTripModalOpen(true);
+            }}
+            className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs text-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Add Trip</span>
+          </Button>
+        </div>
       </div>
 
       {/* =========================================================================
@@ -673,7 +747,7 @@ export default function SIMTrackingPage() {
             className={cn(
               "pb-3.5 transition-colors relative cursor-pointer flex items-center gap-2",
               activeTab === "open"
-                ? "text-[#0066cc] font-bold border-b-2 border-[#0066cc]"
+                ? "text-indigo-600 font-bold border-b-2 border-indigo-600"
                 : "text-slate-600 hover:text-slate-900"
             )}
           >
@@ -681,7 +755,9 @@ export default function SIMTrackingPage() {
             <span
               className={cn(
                 "text-xs px-2 py-0.5 rounded-full font-medium",
-                activeTab === "open" ? "bg-blue-100 text-[#0066cc]" : "bg-slate-100 text-slate-600"
+                activeTab === "open"
+                  ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                  : "bg-slate-100 text-slate-600"
               )}
             >
               {openTripsList.length}
@@ -697,7 +773,7 @@ export default function SIMTrackingPage() {
             className={cn(
               "pb-3.5 transition-colors relative cursor-pointer flex items-center gap-2",
               activeTab === "closed"
-                ? "text-[#0066cc] font-bold border-b-2 border-[#0066cc]"
+                ? "text-indigo-600 font-bold border-b-2 border-indigo-600"
                 : "text-slate-600 hover:text-slate-900"
             )}
           >
@@ -705,7 +781,9 @@ export default function SIMTrackingPage() {
             <span
               className={cn(
                 "text-xs px-2 py-0.5 rounded-full font-medium",
-                activeTab === "closed" ? "bg-blue-100 text-[#0066cc]" : "bg-slate-100 text-slate-600"
+                activeTab === "closed"
+                  ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                  : "bg-slate-100 text-slate-600"
               )}
             >
               {closedTripsList.length}
@@ -724,11 +802,11 @@ export default function SIMTrackingPage() {
       </div>
 
       {/* =========================================================================
-          FILTER PILLS ROW: Selected 2 | [ ] Delayed 0 | [ ] Starred 0 | [ ] EWB Expired 0 | [ ] Untracked 0
+          FILTER PILLS ROW: Selected 0 | [ ] Delayed 0 | [ ] Starred 0 | [ ] EWB Expired 0 | [ ] Untracked 0
          ========================================================================= */}
       <div className="flex flex-wrap items-center gap-3 pt-1">
-        {/* Selected badge */}
-        <div className="px-3 py-1 rounded bg-[#fef3c7] text-[#92400e] border border-[#fde68a] text-xs font-bold tracking-tight shadow-2xs">
+        {/* Selected badge (Global Neutral Indigo Styling) */}
+        <div className="px-3 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold tracking-tight shadow-2xs">
           Selected {selectedTripIds.length}
         </div>
 
@@ -738,7 +816,7 @@ export default function SIMTrackingPage() {
             type="checkbox"
             checked={filterDelayed}
             onChange={(e) => setFilterDelayed(e.target.checked)}
-            className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc] focus:ring-0"
+            className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
           />
           <span>Delayed {kpiCounts.delayed}</span>
         </label>
@@ -748,7 +826,7 @@ export default function SIMTrackingPage() {
             type="checkbox"
             checked={filterStarred}
             onChange={(e) => setFilterStarred(e.target.checked)}
-            className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc] focus:ring-0"
+            className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
           />
           <span>Starred {kpiCounts.starred}</span>
         </label>
@@ -758,7 +836,7 @@ export default function SIMTrackingPage() {
             type="checkbox"
             checked={filterEwbExpired}
             onChange={(e) => setFilterEwbExpired(e.target.checked)}
-            className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc] focus:ring-0"
+            className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
           />
           <span>EWB Expired {kpiCounts.ewbExpired}</span>
         </label>
@@ -768,14 +846,14 @@ export default function SIMTrackingPage() {
             type="checkbox"
             checked={filterUntracked}
             onChange={(e) => setFilterUntracked(e.target.checked)}
-            className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc] focus:ring-0"
+            className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
           />
           <span>Untracked {kpiCounts.untracked}</span>
         </label>
       </div>
 
       {/* =========================================================================
-          METRICS CARDS ROW (5 Cards matching Image 1)
+          METRICS CARDS ROW (5 Cards matching Reference Design)
          ========================================================================= */}
       {activeTab === "open" && (
         <div className="flex items-center gap-3 w-full">
@@ -821,11 +899,11 @@ export default function SIMTrackingPage() {
             <div className="text-xs text-slate-500 font-medium mt-1">Others</div>
           </div>
 
-          {/* Reset all filter link on far right */}
+          {/* Reset all filter link on far right (Global Indigo Link) */}
           <button
             type="button"
             onClick={resetAllFilters}
-            className="text-xs font-semibold text-[#0066cc] hover:underline whitespace-nowrap pl-2 cursor-pointer"
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline whitespace-nowrap pl-2 cursor-pointer"
           >
             Reset all filter
           </button>
@@ -833,8 +911,7 @@ export default function SIMTrackingPage() {
       )}
 
       {/* =========================================================================
-          SEARCH & FILTER ROW (Image 1):
-          [All Trips v] [Search] | [All Consignee v] | [All Consignors v] | [Start Time -> End Time v] | [More Filters] [Apply]
+          SEARCH & FILTER ROW
          ========================================================================= */}
       <div className="flex flex-wrap items-center gap-2.5 pt-1">
         {/* All Trips Dropdown + Search input */}
@@ -914,7 +991,7 @@ export default function SIMTrackingPage() {
           variant="outline"
           size="sm"
           onClick={() => alert("All active logistics filters are displayed in the toolbar above.")}
-          className="h-9 px-3 text-xs font-semibold text-[#0066cc] border-slate-200 hover:bg-slate-50 gap-1 cursor-pointer"
+          className="h-9 px-3 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 gap-1 cursor-pointer"
         >
           <ChevronDown className="w-3.5 h-3.5" />
           <span>More Filters</span>
@@ -923,18 +1000,15 @@ export default function SIMTrackingPage() {
         {/* Apply */}
         <Button
           size="sm"
-          onClick={() => {
-            /* Reactive useMemo automatically updates on filter changes */
-          }}
-          className="h-9 px-4 text-xs font-bold text-white bg-[#0066cc] hover:bg-[#0052a3] cursor-pointer"
+          onClick={() => {}}
+          className="h-9 px-4 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer shadow-2xs"
         >
           Apply
         </Button>
       </div>
 
       {/* =========================================================================
-          META HEADER & SORT:
-          "{N} Trips Available (Last 30 Days)" | Sort By: [ Trip Creation Time - Recent First v ]
+          META HEADER & SORT
          ========================================================================= */}
       <div className="flex items-center justify-between text-xs pt-1 pb-1">
         <div className="font-semibold text-slate-700">
@@ -957,17 +1031,17 @@ export default function SIMTrackingPage() {
       </div>
 
       {/* =========================================================================
-          TRIPS TABLE (Conforming strictly to Image 1 & 3)
+          TRIPS TABLE (overflow-visible to fix 3-dot dropdown clipping!)
          ========================================================================= */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-visible relative">
         {/* Table Header */}
-        <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-600 select-none">
+        <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-slate-50/90 border-b border-slate-200 text-xs font-bold text-slate-600 select-none rounded-t-xl">
           <div className="col-span-1 flex items-center gap-2">
             <input
               type="checkbox"
               checked={filteredTrips.length > 0 && selectedTripIds.length === filteredTrips.length}
               onChange={handleSelectAll}
-              className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc] focus:ring-0 cursor-pointer"
+              className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
             />
             <Star className="w-3.5 h-3.5 text-slate-400 stroke-1" />
           </div>
@@ -993,7 +1067,7 @@ export default function SIMTrackingPage() {
         {/* Loading and Empty States */}
         {isLoading ? (
           <div className="p-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
-            <RefreshCw className="w-5 h-5 animate-spin text-[#0066cc]" />
+            <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
             <span>Loading live tracking telemetry...</span>
           </div>
         ) : filteredTrips.length === 0 ? (
@@ -1010,18 +1084,20 @@ export default function SIMTrackingPage() {
             </Button>
           </div>
         ) : (
-          filteredTrips.map((trip) => {
+          filteredTrips.map((trip, tripIndex) => {
             const isExpanded = expandedTripId === trip.id;
             const isSelected = selectedTripIds.includes(trip.id);
             const isClosed = trip.status.toLowerCase() === "closed";
+            const isSyncing = syncingTripIds.has(trip.id);
+            const isNearBottom = tripIndex >= filteredTrips.length - 2 && filteredTrips.length > 2;
 
             return (
               <div key={trip.id} className="border-b border-slate-200/80 last:border-none transition-colors">
                 {/* Main Row Content */}
                 <div
                   className={cn(
-                    "grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-slate-50/60 transition-colors",
-                    isExpanded && "bg-blue-50/20"
+                    "grid grid-cols-12 gap-3 px-4 py-3.5 items-center hover:bg-slate-50/70 transition-colors",
+                    isExpanded && "bg-indigo-50/30"
                   )}
                 >
                   {/* Col 1: Checkbox & Star */}
@@ -1030,7 +1106,7 @@ export default function SIMTrackingPage() {
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => handleSelectTrip(trip.id)}
-                      className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc] focus:ring-0 cursor-pointer"
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     />
                     <button
                       type="button"
@@ -1048,12 +1124,15 @@ export default function SIMTrackingPage() {
                   </div>
 
                   {/* Col 2: Consignor / Consignee */}
-                  <div className="col-span-2 text-xs font-semibold text-slate-800 truncate" title={`${trip.consignor_name || "NA"} / ${trip.consignee_name || "NA"}`}>
+                  <div
+                    className="col-span-2 text-xs font-semibold text-slate-800 truncate"
+                    title={`${trip.consignor_name || "NA"} / ${trip.consignee_name || "NA"}`}
+                  >
                     {trip.consignor_name && trip.consignor_name !== "NA" ? trip.consignor_name : "NA"} /{" "}
                     {trip.consignee_name && trip.consignee_name !== "NA" ? trip.consignee_name : "NA"}
                   </div>
 
-                  {/* Col 3: Route (Green Solid Dot to Red Ring Dot with dashed vertical line) */}
+                  {/* Col 3: Route */}
                   <div className="col-span-2">
                     <div className="flex flex-col gap-1 text-xs">
                       {/* Origin */}
@@ -1075,7 +1154,7 @@ export default function SIMTrackingPage() {
                     </div>
                   </div>
 
-                  {/* Col 4: Trip Info (Truck + HR30AB0001, Outbound, Carrier Logo + Phone) */}
+                  {/* Col 4: Trip Info (Truck + HR30AB0001, Outbound, Auto-detected Carrier Logo + Phone) */}
                   <div className="col-span-2 space-y-1">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
                       <Truck className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -1097,7 +1176,7 @@ export default function SIMTrackingPage() {
                   {/* Columns for Open Trips */}
                   {activeTab === "open" ? (
                     <>
-                      {/* Col 5: Status (Clock On Time, WiFi Signal High Tracking • SIM, ETA) */}
+                      {/* Col 5: Status */}
                       <div className="col-span-2 space-y-1">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                           <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -1114,16 +1193,25 @@ export default function SIMTrackingPage() {
                         )}
                       </div>
 
-                      {/* Col 6: Milestone (Tower icon At Unloading, Map Pin address, Time) */}
+                      {/* Col 6: Milestone (CLICKABLE to Open in Google Maps with Origin & Destination) */}
                       <div className="col-span-2 space-y-1">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                           <Radio className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           <span>{trip.milestone || (trip.is_consent_done ? "In Transit" : "Consent Pending")}</span>
                         </div>
-                        <div className="flex items-start gap-1 text-[11px] text-[#0066cc] font-medium truncate" title={trip.last_location_address || "Transit Checkpoint"}>
-                          <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                          <span className="truncate">{trip.last_location_address || "Transit Checkpoint"}</span>
-                        </div>
+                        {/* Interactive Clickable Milestone Location opening in Google Maps */}
+                        <button
+                          type="button"
+                          onClick={() => openGoogleMapsRoute(trip)}
+                          className="group flex items-start gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-medium text-left truncate cursor-pointer transition-colors max-w-full"
+                          title="Open Route in Google Maps (Origin ➔ Current Milestone ➔ Destination)"
+                        >
+                          <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                          <span className="truncate underline decoration-indigo-200 group-hover:decoration-indigo-600">
+                            {trip.last_location_address || trip.milestone || "Transit Checkpoint"}
+                          </span>
+                          <ExternalLink className="w-2.5 h-2.5 shrink-0 text-indigo-400 group-hover:text-indigo-600 mt-0.5 ml-0.5" />
+                        </button>
                         {trip.recorded_at && (
                           <div className="text-[11px] font-medium text-slate-400">
                             {formatDateTime(trip.recorded_at)}
@@ -1133,6 +1221,17 @@ export default function SIMTrackingPage() {
 
                       {/* Col 7: Actions */}
                       <div className="col-span-1 flex items-center justify-end gap-1.5 relative">
+                        {/* Dedicated "Refresh Current Location" Icon Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleSyncTrip(trip.id)}
+                          disabled={isSyncing}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
+                          title="Refresh Current Location from Cell Tower"
+                        >
+                          <RefreshCw className={cn("w-3.5 h-3.5 text-indigo-600", isSyncing && "animate-spin")} />
+                        </button>
+
                         {/* Share Button */}
                         <button
                           type="button"
@@ -1140,7 +1239,7 @@ export default function SIMTrackingPage() {
                           className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
                           title="Share Live Tracking Link"
                         >
-                          <Share2 className="w-3.5 h-3.5 text-[#0066cc]" />
+                          <Share2 className="w-3.5 h-3.5 text-slate-600 hover:text-indigo-600" />
                         </button>
 
                         {/* Phone Button */}
@@ -1149,10 +1248,10 @@ export default function SIMTrackingPage() {
                           className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
                           title={`Call Driver +91 ${trip.driver_phone}`}
                         >
-                          <Phone className="w-3.5 h-3.5 text-[#0066cc]" />
+                          <Phone className="w-3.5 h-3.5 text-slate-600 hover:text-indigo-600" />
                         </a>
 
-                        {/* Three Dots Menu Button (Image 4) */}
+                        {/* Three Dots Menu Button with High Z-Index and Smart Dropdown */}
                         <div className="relative">
                           <button
                             type="button"
@@ -1160,30 +1259,53 @@ export default function SIMTrackingPage() {
                               e.stopPropagation();
                               setActionMenuTripId(actionMenuTripId === trip.id ? null : trip.id);
                             }}
-                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
+                            className={cn(
+                              "p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer",
+                              actionMenuTripId === trip.id && "bg-slate-100 border-slate-300"
+                            )}
                             title="More Actions"
                           >
-                            <MoreVertical className="w-3.5 h-3.5 text-slate-500" />
+                            <MoreVertical className="w-3.5 h-3.5 text-slate-600" />
                           </button>
 
-                          {/* Action Dropdown Menu (Image 4: Close, Edit, Add Comment, Email Location History) */}
+                          {/* Action Dropdown Menu - Fully elevated, never clipped */}
                           {actionMenuTripId === trip.id && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              className="absolute right-0 top-8 z-50 w-48 rounded-xl bg-white border border-slate-200 shadow-lg py-1.5 text-xs font-medium text-slate-700 animate-in fade-in zoom-in-95"
+                              className={cn(
+                                "absolute right-0 z-[60] w-52 rounded-xl bg-white border border-slate-200 shadow-xl py-1.5 text-xs font-medium text-slate-700 animate-in fade-in zoom-in-95 ring-1 ring-black/5",
+                                isNearBottom ? "bottom-full mb-1.5 origin-bottom-right" : "top-full mt-1.5 origin-top-right"
+                              )}
                             >
+                              {/* 1. Refresh Current Location */}
                               <button
                                 type="button"
                                 onClick={() => {
                                   setActionMenuTripId(null);
-                                  setActiveModalTrip(trip);
-                                  setIsCloseModalOpen(true);
+                                  handleSyncTrip(trip.id);
                                 }}
-                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 text-rose-600 hover:text-rose-700 cursor-pointer"
+                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-indigo-600 hover:text-indigo-700 cursor-pointer"
                               >
-                                <X className="w-3.5 h-3.5" />
-                                <span>Close</span>
+                                <RefreshCw className={cn("w-3.5 h-3.5 text-indigo-600", isSyncing && "animate-spin")} />
+                                <span>Refresh Current Location</span>
                               </button>
+
+                              {/* 2. Open Route in Google Maps */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenuTripId(null);
+                                  openGoogleMapsRoute(trip);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-slate-900 cursor-pointer"
+                              >
+                                <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>Open in Google Maps</span>
+                              </button>
+
+                              <div className="my-1 border-t border-slate-100" />
+
+                              {/* 3. Edit */}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1192,7 +1314,6 @@ export default function SIMTrackingPage() {
                                   setEditFormData({
                                     driver_name: trip.driver_name || "",
                                     driver_phone: trip.driver_phone || "",
-                                    operator_name: trip.operator_name || "Jio",
                                     consignor_name: trip.consignor_name || "",
                                     consignee_name: trip.consignee_name || "",
                                     milestone: trip.milestone || "In Transit",
@@ -1200,11 +1321,13 @@ export default function SIMTrackingPage() {
                                   });
                                   setIsEditModalOpen(true);
                                 }}
-                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-slate-900 cursor-pointer"
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-slate-500" />
                                 <span>Edit</span>
                               </button>
+
+                              {/* 4. Add Comment */}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1212,11 +1335,13 @@ export default function SIMTrackingPage() {
                                   setActiveModalTrip(trip);
                                   setIsCommentModalOpen(true);
                                 }}
-                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-slate-900 cursor-pointer"
                               >
                                 <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
                                 <span>Add Comment</span>
                               </button>
+
+                              {/* 5. Email Location History */}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1224,10 +1349,26 @@ export default function SIMTrackingPage() {
                                   setActiveModalTrip(trip);
                                   setIsEmailModalOpen(true);
                                 }}
-                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                                className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-slate-900 cursor-pointer"
                               >
                                 <Mail className="w-3.5 h-3.5 text-slate-500" />
                                 <span>Email Location History</span>
+                              </button>
+
+                              <div className="my-1 border-t border-slate-100" />
+
+                              {/* 6. Close Trip */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenuTripId(null);
+                                  setActiveModalTrip(trip);
+                                  setIsCloseModalOpen(true);
+                                }}
+                                className="w-full text-left px-3.5 py-2 hover:bg-rose-50/70 flex items-center gap-2.5 text-rose-600 hover:text-rose-700 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                <span>Close</span>
                               </button>
                             </div>
                           )}
@@ -1235,7 +1376,7 @@ export default function SIMTrackingPage() {
                       </div>
                     </>
                   ) : (
-                    /* Columns for Closed Trips (Image 3) */
+                    /* Columns for Closed Trips */
                     <>
                       {/* Arrival / Closed */}
                       <div className="col-span-2 text-xs font-semibold text-slate-800 space-y-1">
@@ -1256,7 +1397,7 @@ export default function SIMTrackingPage() {
                           className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
                           title="Share Tracking Link"
                         >
-                          <Share2 className="w-3.5 h-3.5 text-[#0066cc]" />
+                          <Share2 className="w-3.5 h-3.5 text-slate-600 hover:text-indigo-600" />
                         </button>
                         <button
                           type="button"
@@ -1272,8 +1413,22 @@ export default function SIMTrackingPage() {
                         {actionMenuTripId === trip.id && (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-8 z-50 w-44 rounded-xl bg-white border border-slate-200 shadow-lg py-1.5 text-xs font-medium text-slate-700"
+                            className={cn(
+                              "absolute right-0 z-[60] w-48 rounded-xl bg-white border border-slate-200 shadow-xl py-1.5 text-xs font-medium text-slate-700 ring-1 ring-black/5",
+                              isNearBottom ? "bottom-full mb-1.5 origin-bottom-right" : "top-full mt-1.5 origin-top-right"
+                            )}
                           >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionMenuTripId(null);
+                                openGoogleMapsRoute(trip);
+                              }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                              <span>Open in Google Maps</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => {
@@ -1293,9 +1448,7 @@ export default function SIMTrackingPage() {
                   )}
                 </div>
 
-                {/* Sub-row Footer Bar (Image 1 & 3):
-                    "Hide < Created: 9 Oct, 2026 Trip: 62343790 Feed Unique Id: FT-HR30AB0001-1791535226 LR: LR-2026-0001"
-                    and on the right: "v Details" / "^ Details" toggle */}
+                {/* Sub-row Footer Bar */}
                 <div className="flex items-center justify-between px-4 py-2 bg-slate-50/50 border-t border-slate-100 text-[11px] font-medium text-slate-500 select-none">
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-slate-600">Created:</span>
@@ -1314,7 +1467,7 @@ export default function SIMTrackingPage() {
                   <button
                     type="button"
                     onClick={() => setExpandedTripId(isExpanded ? null : trip.id)}
-                    className="flex items-center gap-1 font-bold text-[#0066cc] hover:underline cursor-pointer"
+                    className="flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
                   >
                     <span>Details</span>
                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -1322,11 +1475,11 @@ export default function SIMTrackingPage() {
                 </div>
 
                 {/* =====================================================================
-                    EXPANDED DETAILS VIEW (Image 2)
+                    EXPANDED DETAILS VIEW
                    ===================================================================== */}
                 {isExpanded && (
                   <div className="p-4 bg-white border-t border-slate-200">
-                    {/* Sub-Navigation Tabs Bar (Image 2) */}
+                    {/* Sub-Navigation Tabs Bar */}
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-4 text-xs font-semibold">
                       <div className="flex items-center gap-6">
                         {[
@@ -1345,7 +1498,7 @@ export default function SIMTrackingPage() {
                             className={cn(
                               "pb-2 transition-colors relative cursor-pointer",
                               expandedSubTab === subTab.id
-                                ? "text-[#0066cc] font-bold border-b-2 border-[#0066cc]"
+                                ? "text-indigo-600 font-bold border-b-2 border-indigo-600"
                                 : "text-slate-600 hover:text-slate-900"
                             )}
                           >
@@ -1362,12 +1515,24 @@ export default function SIMTrackingPage() {
                     {/* Sub-tab 1: Tracking View (Two-Column Layout with Map) */}
                     {expandedSubTab === "tracking" && (
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                        {/* Left Column (Image 2: Last Known Location, Distance, Vehicle Detail, Driver's Phone, Route Points) */}
+                        {/* Left Column */}
                         <div className="lg:col-span-5 space-y-4 text-xs">
-                          {/* Last Known Location */}
+                          {/* Last Known Location + Refresh Location Button */}
                           <div>
-                            <div className="font-bold text-slate-800 text-sm">Last Known Location</div>
-                            <div className="text-slate-600 mt-1 leading-relaxed">
+                            <div className="flex items-center justify-between">
+                              <div className="font-bold text-slate-800 text-sm">Last Known Location</div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleSyncTrip(trip.id)}
+                                disabled={isSyncing}
+                                className="h-7 px-2.5 text-xs font-semibold text-indigo-600 border-indigo-200 hover:bg-indigo-50 gap-1.5 cursor-pointer shadow-2xs"
+                              >
+                                <RefreshCw className={cn("w-3 h-3 text-indigo-600", isSyncing && "animate-spin")} />
+                                <span>Refresh Location</span>
+                              </Button>
+                            </div>
+                            <div className="text-slate-700 mt-1 leading-relaxed font-medium">
                               {trip.last_location_address ||
                                 (trip.is_consent_done
                                   ? "Cell tower location telemetry fix en route"
@@ -1377,6 +1542,15 @@ export default function SIMTrackingPage() {
                               Last Updated at:{" "}
                               {trip.recorded_at ? formatDateTime(trip.recorded_at) : formatDateTime(trip.updated_at)}
                             </div>
+                            {/* Direct Open in Google Maps Link */}
+                            <button
+                              type="button"
+                              onClick={() => openGoogleMapsRoute(trip)}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline mt-2 cursor-pointer"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Open directions in Google Maps (Origin ➔ Milestone ➔ Destination)</span>
+                            </button>
                           </div>
 
                           {/* Distance */}
@@ -1403,7 +1577,7 @@ export default function SIMTrackingPage() {
                             </div>
                           </div>
 
-                          {/* Driver's Phone with Consent check and Carrier Logo */}
+                          {/* Driver's Phone with Consent check and Auto Carrier */}
                           <div className="border-t border-slate-100 pt-3">
                             <div className="flex items-center gap-2">
                               <span className="text-slate-500 text-[11px] font-semibold">Driver's Phone</span>
@@ -1427,7 +1601,7 @@ export default function SIMTrackingPage() {
                             </div>
                           </div>
 
-                          {/* Route Checkpoints (A and B with Arrival info) */}
+                          {/* Route Checkpoints (A and B) */}
                           <div className="border-t border-slate-100 pt-3 space-y-3">
                             {/* Point A */}
                             <div className="flex items-start gap-2.5">
@@ -1454,12 +1628,12 @@ export default function SIMTrackingPage() {
                             </div>
 
                             <div className="text-slate-500 text-[11px] font-medium pt-1">
-                              Primary Geofence: Primary
+                              Primary Geofence: Active
                             </div>
                           </div>
                         </div>
 
-                        {/* Right Column (Image 2: Interactive Leaflet Map) */}
+                        {/* Right Column: Interactive Map (Google Maps / Leaflet) */}
                         <div className="lg:col-span-7">
                           <SIMTrackingMap
                             vehicleNumber={trip.vehicle_number}
@@ -1490,8 +1664,11 @@ export default function SIMTrackingPage() {
                           <div className="font-bold text-slate-900 mt-1 font-mono">+91 {trip.driver_phone}</div>
                         </div>
                         <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                          <div className="text-slate-500 font-semibold text-[11px]">Telecom Carrier</div>
-                          <div className="font-bold text-slate-900 mt-1">{trip.operator_name || "Jio"}</div>
+                          <div className="text-slate-500 font-semibold text-[11px]">SIM Service Provider</div>
+                          <div className="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
+                            <CarrierLogo phone={trip.driver_phone} carrier={trip.operator_name} className="w-4 h-4" />
+                            <span>{detectTelecomOperator(trip.driver_phone)}</span>
+                          </div>
                         </div>
                         <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                           <div className="text-slate-500 font-semibold text-[11px]">Origin Location</div>
@@ -1564,13 +1741,13 @@ export default function SIMTrackingPage() {
           MODALS
          ========================================================================= */}
 
-      {/* 1. ADD TRIP MODAL */}
+      {/* 1. ADD TRIP MODAL - No manual operator select, always auto-fetched */}
       {isAddTripModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Truck className="w-4 h-4 text-[#0066cc]" />
+                <Truck className="w-4 h-4 text-indigo-600" />
                 <span>Start SIM-Based Tracking</span>
               </h2>
               <button
@@ -1591,7 +1768,7 @@ export default function SIMTrackingPage() {
                 <select
                   value={selectedLrId}
                   onChange={(e) => handleLrSelect(e.target.value)}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-[#0066cc] cursor-pointer"
+                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-indigo-600 cursor-pointer"
                 >
                   <option value="">-- Manual Entry (No LR Link) --</option>
                   {availableLRs.map((l) => (
@@ -1611,7 +1788,7 @@ export default function SIMTrackingPage() {
                     placeholder="e.g. HR30AB0001"
                     value={addFormData.vehicle_number}
                     onChange={(e) => setAddFormData({ ...addFormData, vehicle_number: e.target.value.toUpperCase() })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs uppercase font-mono font-bold"
+                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs uppercase font-mono font-bold focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                   />
                 </div>
 
@@ -1623,25 +1800,24 @@ export default function SIMTrackingPage() {
                     placeholder="e.g. 8882920719"
                     value={addFormData.driver_phone}
                     onChange={(e) => setAddFormData({ ...addFormData, driver_phone: e.target.value })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-mono font-semibold"
+                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-mono font-semibold focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* Auto-detected SIM service provider - NO manual selection */}
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Telecom Service Provider</label>
-                  <select
-                    value={addFormData.operator_name}
-                    onChange={(e) => setAddFormData({ ...addFormData, operator_name: e.target.value })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-semibold cursor-pointer"
-                  >
-                    <option value="Auto-detect">Auto-detect from mobile series</option>
-                    <option value="Jio">Jio (Reliance Jio)</option>
-                    <option value="Airtel">Airtel (Bharti Airtel)</option>
-                    <option value="Vi">Vi (Vodafone Idea)</option>
-                    <option value="BSNL">BSNL</option>
-                  </select>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    SIM Service Provider
+                  </label>
+                  <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-800">
+                    <CarrierLogo phone={addFormData.driver_phone} className="w-4 h-4 shrink-0" />
+                    <span>{detectTelecomOperator(addFormData.driver_phone)}</span>
+                    <span className="text-[10px] text-slate-500 font-medium ml-auto bg-slate-200/70 px-1.5 py-0.5 rounded">
+                      Auto-detected
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -1651,7 +1827,7 @@ export default function SIMTrackingPage() {
                     placeholder="e.g. Driver Name"
                     value={addFormData.driver_name}
                     onChange={(e) => setAddFormData({ ...addFormData, driver_name: e.target.value })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs"
+                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -1664,7 +1840,7 @@ export default function SIMTrackingPage() {
                     placeholder="e.g. delhi"
                     value={addFormData.origin_address}
                     onChange={(e) => setAddFormData({ ...addFormData, origin_address: e.target.value })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs"
+                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                   />
                 </div>
 
@@ -1675,7 +1851,7 @@ export default function SIMTrackingPage() {
                     placeholder="e.g. Gurugram, Haryana"
                     value={addFormData.destination_address}
                     onChange={(e) => setAddFormData({ ...addFormData, destination_address: e.target.value })}
-                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs"
+                    className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -1688,7 +1864,7 @@ export default function SIMTrackingPage() {
                   type="submit"
                   size="sm"
                   disabled={isSubmitting}
-                  className="bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
                 >
                   {isSubmitting ? "Starting..." : "Start SIM Tracking"}
                 </Button>
@@ -1730,7 +1906,7 @@ export default function SIMTrackingPage() {
                   placeholder="e.g. Consignment safely delivered at unloading point"
                   value={closeComment}
                   onChange={(e) => setCloseComment(e.target.value)}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                  className="w-full p-2.5 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                 />
               </div>
 
@@ -1747,13 +1923,13 @@ export default function SIMTrackingPage() {
         </div>
       )}
 
-      {/* 3. EDIT TRIP MODAL */}
+      {/* 3. EDIT TRIP MODAL - No manual operator select, always auto-fetched */}
       {isEditModalOpen && activeModalTrip && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-[#0066cc]" />
+                <Edit2 className="w-4 h-4 text-indigo-600" />
                 <span>Edit Trip Details - {activeModalTrip.vehicle_number}</span>
               </h2>
               <button
@@ -1772,7 +1948,7 @@ export default function SIMTrackingPage() {
                   type="text"
                   value={editFormData.driver_name}
                   onChange={(e) => setEditFormData({ ...editFormData, driver_name: e.target.value })}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs"
+                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                 />
               </div>
 
@@ -1782,22 +1958,22 @@ export default function SIMTrackingPage() {
                   type="text"
                   value={editFormData.driver_phone}
                   onChange={(e) => setEditFormData({ ...editFormData, driver_phone: e.target.value })}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-mono"
+                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                 />
               </div>
 
+              {/* SIM Service Provider - Auto-fetched */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Telecom Service Provider</label>
-                <select
-                  value={editFormData.operator_name}
-                  onChange={(e) => setEditFormData({ ...editFormData, operator_name: e.target.value })}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-semibold"
-                >
-                  <option value="Jio">Jio (Reliance Jio)</option>
-                  <option value="Airtel">Airtel (Bharti Airtel)</option>
-                  <option value="Vi">Vi (Vodafone Idea)</option>
-                  <option value="BSNL">BSNL</option>
-                </select>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  SIM Service Provider
+                </label>
+                <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-800">
+                  <CarrierLogo phone={editFormData.driver_phone} className="w-4 h-4 shrink-0" />
+                  <span>{detectTelecomOperator(editFormData.driver_phone)}</span>
+                  <span className="text-[10px] text-slate-500 font-medium ml-auto bg-slate-200/70 px-1.5 py-0.5 rounded">
+                    Auto-detected
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -1805,7 +1981,7 @@ export default function SIMTrackingPage() {
                 <select
                   value={editFormData.milestone}
                   onChange={(e) => setEditFormData({ ...editFormData, milestone: e.target.value })}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-semibold"
+                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-indigo-600 focus:outline-hidden cursor-pointer"
                 >
                   <option value="In Transit">In Transit</option>
                   <option value="At Unloading">At Unloading</option>
@@ -1819,7 +1995,12 @@ export default function SIMTrackingPage() {
                 <Button type="button" variant="outline" size="sm" onClick={() => setIsEditModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" disabled={isSubmitting} className="bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold">
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSubmitting}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
+                >
                   {isSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
@@ -1834,7 +2015,7 @@ export default function SIMTrackingPage() {
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-[#0066cc]" />
+                <MessageSquare className="w-4 h-4 text-indigo-600" />
                 <span>Add Comment - Trip {activeModalTrip.vehicle_number}</span>
               </h2>
               <button
@@ -1855,7 +2036,7 @@ export default function SIMTrackingPage() {
                   placeholder="Enter tracking checkpoint update, driver update, or yard instruction..."
                   value={commentInput}
                   onChange={(e) => setCommentInput(e.target.value)}
-                  className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                  className="w-full p-2.5 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                 />
               </div>
 
@@ -1863,7 +2044,12 @@ export default function SIMTrackingPage() {
                 <Button type="button" variant="outline" size="sm" onClick={() => setIsCommentModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" disabled={isSubmitting} className="bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold">
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSubmitting}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
+                >
                   {isSubmitting ? "Recording..." : "Record Comment"}
                 </Button>
               </div>
@@ -1878,7 +2064,7 @@ export default function SIMTrackingPage() {
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Mail className="w-4 h-4 text-[#0066cc]" />
+                <Mail className="w-4 h-4 text-indigo-600" />
                 <span>Email Location History</span>
               </h2>
               <button
@@ -1905,7 +2091,7 @@ export default function SIMTrackingPage() {
                   placeholder="e.g. logistics@client.com"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs"
+                  className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                 />
               </div>
 
@@ -1913,7 +2099,11 @@ export default function SIMTrackingPage() {
                 <Button type="button" variant="outline" size="sm" onClick={() => setIsEmailModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" className="bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold">
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
+                >
                   Send Email
                 </Button>
               </div>
@@ -1946,7 +2136,7 @@ export default function SIMTrackingPage() {
                   type="checkbox"
                   checked={displayOptions.showEta}
                   onChange={(e) => setDisplayOptions({ ...displayOptions, showEta: e.target.checked })}
-                  className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc]"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="font-medium">Show Estimated Arrival Time (ETA)</span>
               </label>
@@ -1956,7 +2146,7 @@ export default function SIMTrackingPage() {
                   type="checkbox"
                   checked={displayOptions.showEwb}
                   onChange={(e) => setDisplayOptions({ ...displayOptions, showEwb: e.target.checked })}
-                  className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc]"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="font-medium">Show E-Way Bill Number on Row Footer</span>
               </label>
@@ -1966,13 +2156,17 @@ export default function SIMTrackingPage() {
                   type="checkbox"
                   checked={displayOptions.compactRows}
                   onChange={(e) => setDisplayOptions({ ...displayOptions, compactRows: e.target.checked })}
-                  className="w-3.5 h-3.5 rounded border-slate-300 text-[#0066cc]"
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="font-medium">Compact Row Spacing</span>
               </label>
 
               <div className="flex justify-end pt-3 border-t border-slate-200">
-                <Button size="sm" onClick={() => setIsDisplayOptionsModalOpen(false)}>
+                <Button
+                  size="sm"
+                  onClick={() => setIsDisplayOptionsModalOpen(false)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
                   Done
                 </Button>
               </div>
