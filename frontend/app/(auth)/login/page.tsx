@@ -114,89 +114,93 @@ export default function LoginPage() {
       {/* MAIN CONTAINER: Split Layout (~64% Left / ~36% Right)                     */}
       {/* ========================================================================= */}
       <main className="flex-1 w-full max-w-[1580px] mx-auto px-6 sm:px-10 lg:px-14 py-1 xl:py-2 relative flex flex-col lg:flex-row items-stretch justify-between min-h-0">
+        {/* Full-Hero Seamless Environmental Background Scene */}
+        <div className="hidden lg:block absolute inset-0 pointer-events-none select-none z-0 overflow-hidden">
+          <div
+            className="w-full h-full relative"
+            style={{
+              maskImage:
+                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.06) 12%, rgba(0,0,0,0.4) 28%, black 48%, black 86%, rgba(0,0,0,0.3) 96%, transparent 100%)",
+              WebkitMaskImage:
+                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.06) 12%, rgba(0,0,0,0.4) 28%, black 48%, black 86%, rgba(0,0,0,0.3) 96%, transparent 100%)",
+            }}
+          >
+            <img
+              src="/logistics-truck-bg.jpg"
+              alt="PantherTMS Freight Operations"
+              className="w-full h-full object-cover object-[62%_center]"
+            />
+            {/* Multi-Directional Atmospheric Blends - eliminates all entity seams */}
+            {/* Left: Soft atmospheric fade into white text space */}
+            <div className="absolute inset-y-0 left-0 w-[54%] bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/92 via-[#F8FAFC]/55 to-transparent" />
+            {/* Right: Soft atmospheric fade behind and right of workspace card */}
+            <div className="absolute inset-y-0 right-0 w-[34%] bg-gradient-to-l from-[#F8FAFC]/95 via-[#F8FAFC]/55 to-transparent" />
+            {/* Top: Seamless melt into header */}
+            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/60 to-transparent" />
+            {/* Bottom: Seamless melt into footer */}
+            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/75 to-transparent" />
+          </div>
+        </div>
+
         {/* ======================================================================= */}
         {/* LEFT PRODUCT AREA: Brand Hero, Visual Scene, Telemetry Cards           */}
         {/* ======================================================================= */}
-        <div className="w-full lg:w-[63%] xl:w-[64%] flex flex-col justify-between py-1 relative z-10">
-          {/* 1. Natural Aspect Ratio Logistics Scene (Truck, Port, Highway) with Right Fade */}
-          <div className="hidden lg:block absolute -right-4 xl:right-0 bottom-0 top-10 w-[740px] xl:w-[830px] pointer-events-none select-none z-0">
-            <div
-              className="w-full h-full relative overflow-hidden"
-              style={{
-                maskImage:
-                  "radial-gradient(ellipse 76% 74% at 46% 50%, black 30%, transparent 76%)",
-                WebkitMaskImage:
-                  "radial-gradient(ellipse 76% 74% at 46% 50%, black 30%, transparent 76%)",
-              }}
-            >
-              <img
-                src="/logistics-truck-bg.jpg"
-                alt="PantherTMS Freight Operations"
-                className="w-full h-full object-cover object-[56%_center]"
-              />
-              {/* Soft directional edge blends - perfectly dissolves into page background */}
-              {/* Top soft blend */}
-              <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/80 to-transparent" />
-              {/* Bottom soft blend */}
-              <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/90 to-transparent" />
-              {/* Left soft blend */}
-              <div className="absolute inset-y-0 left-0 w-36 bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/70 to-transparent" />
-              {/* Right soft blend (smooth gradient fade on right side of image) */}
-              <div className="absolute inset-y-0 right-0 w-52 xl:w-64 bg-gradient-to-l from-[#F8FAFC] via-[#F8FAFC]/95 to-transparent z-10" />
-              <div className="absolute inset-y-0 right-0 w-80 bg-gradient-to-l from-[#F8FAFC] to-transparent opacity-60 z-10" />
-            </div>
-          </div>
+        <div className="w-full lg:w-[60%] xl:w-[62%] flex flex-col justify-between py-1 relative z-10">
 
           {/* 2. Left Headline, Subtitle, and Feature Highlights */}
-          <div className="space-y-5 max-w-[520px] z-10 my-auto">
+          <div className="space-y-4 max-w-[560px] z-10 my-auto">
             {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span>Multi-Tenant Transport Operations Platform</span>
             </div>
 
             {/* Headline */}
-            <h1 className="text-3xl sm:text-4xl xl:text-[42px] font-extrabold tracking-tight text-slate-900 leading-[1.25]">
-              Enterprise transport operations,{" "}
-              <span className="text-indigo-600">dependably handled.</span>
+            <h1 className="text-2xl sm:text-3xl xl:text-[36px] font-extrabold tracking-tight text-slate-900 leading-[1.2]">
+              Enterprise transport operations,
+              <span className="text-indigo-600 block mt-1">dependably handled.</span>
             </h1>
 
-            {/* Supporting Copy */}
-            <p className="text-sm text-slate-600 leading-relaxed font-normal">
-              Unified consignment management, Lorry Receipts (GR/LR), double-entry transport accounting, and statutory GST compliance tailored for Indian logistics businesses.
-            </p>
+            {/* Supporting Copy - Frosted High-Contrast Container for crystal clear readability */}
+            <div className="rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs max-w-[520px]">
+              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-medium">
+                Unified consignment management, Lorry Receipts (GR/LR), double-entry transport accounting, and statutory GST compliance tailored for Indian logistics businesses.
+              </p>
+            </div>
 
             {/* 4 Feature Highlights Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+              <div className="p-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
                 <Truck className="w-4 h-4 text-indigo-600" />
                 <div className="text-xs font-bold text-slate-900">Consignments</div>
                 <div className="text-[11px] text-slate-500 leading-tight">LR booking & lorry contracts</div>
               </div>
 
-              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+              <div className="p-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
                 <FileText className="w-4 h-4 text-emerald-600" />
                 <div className="text-xs font-bold text-slate-900">Accounting</div>
                 <div className="text-[11px] text-slate-500 leading-tight">Double-entry ledger & vouchers</div>
               </div>
 
-              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+              <div className="p-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
                 <Building2 className="w-4 h-4 text-blue-600" />
                 <div className="text-xs font-bold text-slate-900">Multi-Branch</div>
                 <div className="text-[11px] text-slate-500 leading-tight">Issuing offices & access control</div>
               </div>
 
-              <div className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
+              <div className="p-3 bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-2xs text-left space-y-1">
                 <ShieldCheck className="w-4 h-4 text-purple-600" />
                 <div className="text-xs font-bold text-slate-900">Compliance</div>
                 <div className="text-[11px] text-slate-500 leading-tight">GST E-Way Bill & IRN ready</div>
               </div>
             </div>
 
-            {/* Security Guarantee Note */}
-            <div className="flex items-center gap-2 text-xs text-slate-500 pt-2 font-medium">
-              <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>Isolated tenant data with encrypted session authentication</span>
+            {/* Security Guarantee Note - Pill Badge with High-Contrast Frosted Backing */}
+            <div className="pt-1">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-slate-200/90 text-xs font-semibold text-slate-700 shadow-2xs">
+                <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Isolated tenant data with encrypted session authentication</span>
+              </div>
             </div>
           </div>
         </div>
