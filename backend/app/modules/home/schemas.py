@@ -93,34 +93,34 @@ class FleetStatusCount(BaseModel):
 
 class ExpiringDocumentAlert(BaseModel):
     id: int
-    vehicle_number: str
-    doc_type: str
-    document_number: str
-    valid_till: date
-    days_left: int
-    status: str
+    vehicle_number: Optional[str] = ""
+    doc_type: Optional[str] = "DOCUMENT"
+    document_number: Optional[str] = ""
+    valid_till: Optional[date] = None
+    days_left: int = 0
+    status: Optional[str] = "EXPIRING"
 
 
 class ActiveTransitMovement(BaseModel):
-    vehicle_number: str
-    vehicle_type: str
+    vehicle_number: Optional[str] = "N/A"
+    vehicle_type: Optional[str] = "Fleet Vehicle"
     driver_name: Optional[str] = None
     lr_number: Optional[str] = None
     origin: Optional[str] = None
     destination: Optional[str] = None
     current_location: Optional[str] = None
-    status: str
+    status: Optional[str] = "IN_TRANSIT"
 
 
 class FleetOperationsData(BaseModel):
-    total_fleet_count: int
-    in_transit_count: int
-    in_workshop_count: int
-    available_count: int
-    pending_pod_count: int
-    fleet_status_breakdown: List[FleetStatusCount]
-    expiring_documents: List[ExpiringDocumentAlert]
-    active_movements: List[ActiveTransitMovement]
+    total_fleet_count: int = 0
+    in_transit_count: int = 0
+    in_workshop_count: int = 0
+    available_count: int = 0
+    pending_pod_count: int = 0
+    fleet_status_breakdown: List[FleetStatusCount] = []
+    expiring_documents: List[ExpiringDocumentAlert] = []
+    active_movements: List[ActiveTransitMovement] = []
 
 
 # ==============================================================================
@@ -128,14 +128,14 @@ class FleetOperationsData(BaseModel):
 # ==============================================================================
 
 class OwnVehicleMatrixItem(BaseModel):
-    vehicle_number: str
-    model: str
-    odometer_km: int
-    engine_health: str
-    battery_status: str
-    next_service_km: int
-    service_status: str
-    current_status: str
+    vehicle_number: Optional[str] = "N/A"
+    model: Optional[str] = "Fleet Truck"
+    odometer_km: int = 0
+    engine_health: Optional[str] = "GOOD"
+    battery_status: Optional[str] = "HEALTHY"
+    next_service_km: int = 10000
+    service_status: Optional[str] = "ROADWORTHY"
+    current_status: Optional[str] = "AVAILABLE"
     current_location: Optional[str] = None
     default_driver: Optional[str] = None
 

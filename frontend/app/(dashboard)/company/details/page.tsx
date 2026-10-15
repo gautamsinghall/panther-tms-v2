@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { getStoredAuth } from "@/lib/auth";
-import { CompanyNavTabs } from "@/components/company/company-nav-tabs";
+
 
 interface BranchOption {
   id: number;
@@ -296,7 +296,7 @@ export default function CompanyDetailsPage() {
         </div>
       </PageHeader>
 
-      <CompanyNavTabs />
+
 
       {/* Informative Separation Guide Banner */}
       <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-xl text-sky-950 flex items-start gap-3 shadow-2xs">

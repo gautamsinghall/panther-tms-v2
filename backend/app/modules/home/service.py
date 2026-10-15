@@ -363,11 +363,6 @@ async def get_fleet_operations(
 ) -> FleetOperationsData:
     # 1. Company & Market Vehicles
     cv_count_stmt = select(func.count(models.CompanyVehicle.id)).where(models.CompanyVehicle.is_active == True)
-    if office_id is not None:
-        if include_unassigned:
-            cv_count_stmt = cv_count_stmt.where(or_(models.CompanyVehicle.issuing_office_id == office_id, models.CompanyVehicle.issuing_office_id == None))
-        else:
-            cv_count_stmt = cv_count_stmt.where(models.CompanyVehicle.issuing_office_id == office_id)
     cv_res = await session.execute(cv_count_stmt)
     cv_count = cv_res.scalar() or 0
 
@@ -497,11 +492,6 @@ async def get_own_fleet(
     include_unassigned: bool = True,
 ) -> OwnFleetData:
     cv_stmt = select(models.CompanyVehicle).options(selectinload(models.CompanyVehicle.default_driver))
-    if office_id is not None:
-        if include_unassigned:
-            cv_stmt = cv_stmt.where(or_(models.CompanyVehicle.issuing_office_id == office_id, models.CompanyVehicle.issuing_office_id == None))
-        else:
-            cv_stmt = cv_stmt.where(models.CompanyVehicle.issuing_office_id == office_id)
     cv_res = await session.execute(cv_stmt)
     company_vehicles = cv_res.scalars().all()
 

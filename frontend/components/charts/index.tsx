@@ -190,33 +190,40 @@ export function DonutDistributionChart({
   outerRadius = 80,
   valueFormatter = (v) => `${v}`,
 }: DonutDistributionChartProps) {
+  const isAllZero = !data || data.length === 0 || data.every((d) => Number(d.value || 0) === 0);
+  const displayData = isAllZero
+    ? [{ name: "No Active Deployments", value: 1, color: "#E2E8F0" }]
+    : data.filter((d) => Number(d.value || 0) > 0);
+
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={displayData}
             cx="50%"
             cy="50%"
             innerRadius={innerRadius}
             outerRadius={outerRadius}
-            paddingAngle={3}
+            paddingAngle={isAllZero ? 0 : 3}
             dataKey="value"
           >
-            {data.map((entry, index) => (
+            {displayData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #E4E7EC",
-              borderRadius: "8px",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
-              fontSize: "12px",
-            }}
-            formatter={(value: any, name: any) => [valueFormatter(Number(value)), name]}
-          />
+          {!isAllZero && (
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E4E7EC",
+                borderRadius: "8px",
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+                fontSize: "12px",
+              }}
+              formatter={(value: any, name: any) => [valueFormatter(Number(value)), name]}
+            />
+          )}
         </PieChart>
       </ResponsiveContainer>
     </div>
