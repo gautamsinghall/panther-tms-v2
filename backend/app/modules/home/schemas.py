@@ -149,3 +149,18 @@ class OwnFleetData(BaseModel):
     tyre_mounted_count: int
     tyre_retread_due_count: int
     vehicles: List[OwnVehicleMatrixItem]
+
+
+# ==============================================================================
+# 5. Real Notifications Schema
+# ==============================================================================
+
+class NotificationItemSchema(BaseModel):
+    id: str
+    title: str
+    message: str
+    timeAgo: str
+    type: str  # "dispatch" | "alert" | "payment" | "success"
+    unread: bool = True
+    href: str
+

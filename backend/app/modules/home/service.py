@@ -21,6 +21,7 @@ from app.modules.home.schemas import (
     ActiveTransitMovement,
     OwnFleetData,
     OwnVehicleMatrixItem,
+    NotificationItemSchema,
 )
 
 # One canonical movement definition is shared by dashboard KPIs, funnel stages,
@@ -564,3 +565,221 @@ async def get_own_fleet(
         tyre_retread_due_count=retread_due_cnt,
         vehicles=vehicles_matrix,
     )
+
+
+# ==============================================================================
+# 5. Real Notifications Service
+# ==============================================================================
+
+def format_time_ago(dt: Optional[datetime]) -> str:
+    if not dt:
+        return "recently"
+    now = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    diff = now - dt
+    seconds = int(diff.total_seconds())
+    if seconds < 60:
+        return "just now"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} min{'s' if minutes > 1 else ''} ago"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+    days = hours // 24
+    if days < 30:
+        return f"{days} day{'s' if days > 1 else ''} ago"
+    return f"{days // 30} month{'s' if days // 30 > 1 else ''} ago"
+
+
+async def get_real_notifications(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = True,
+) -> List[NotificationItemSchema]:
+    """
+    Synthesize live, un-mocked notifications strictly from active tenant records:
+    1. Expiring/expired vehicle compliance documents
+    2. Live FASTag toll crossing detections
+    3. Active freight movements & pending POD deliveries
+    4. Expiring E-Way bills
+    5. Recent posted vouchers and client freight invoices
+    """
+    notifications: List[NotificationItemSchema] = []
+    today = date.today()
+    now = datetime.now(timezone.utc)
+
+    # 1. Expiring / Expired Vehicle Documents (Alerts)
+    threshold = today + timedelta(days=30)
+    doc_stmt = (
+        select(models.VehicleDocument)
+        .where(models.VehicleDocument.valid_till <= threshold)
+        .order_by(models.VehicleDocument.valid_till.asc())
+        .limit(4)
+    )
+    doc_res = await session.execute(doc_stmt)
+    for doc in doc_res.scalars().all():
+        days_left = (doc.valid_till - today).days if doc.valid_till else 0
+        doc_name = doc.doc_type.replace("_", " ").title() if doc.doc_type else "Document"
+        if days_left < 0:
+            title = f"{doc_name} Expired"
+            msg = f"Vehicle {doc.vehicle_number} {doc_name} expired on {doc.valid_till}."
+            time_str = f"{abs(days_left)}d overdue"
+        else:
+            title = f"{doc_name} Expiring"
+            msg = f"Vehicle {doc.vehicle_number} {doc_name} expires in {days_left} days ({doc.valid_till})."
+            time_str = f"{days_left}d left"
+        notifications.append(
+            NotificationItemSchema(
+                id=f"doc-{doc.id}",
+                title=title,
+                message=msg,
+                timeAgo=time_str,
+                type="alert",
+                unread=True,
+                href="/fleet/documents",
+            )
+        )
+
+    # 2. FASTag Active Toll Crossings (Dispatch)
+    fastag_stmt = (
+        select(models.FastagTripRecord)
+        .where(
+            models.FastagTripRecord.status == "ACTIVE",
+            models.FastagTripRecord.last_toll_name.isnot(None),
+        )
+        .order_by(desc(models.FastagTripRecord.last_toll_time))
+        .limit(3)
+    )
+    ft_res = await session.execute(fastag_stmt)
+    for ft in ft_res.scalars().all():
+        notifications.append(
+            NotificationItemSchema(
+                id=f"fastag-{ft.id}",
+                title="Vehicle Movement Alert",
+                message=f"Truck {ft.vehicle_number} passed Toll Plaza: {ft.last_toll_name}.",
+                timeAgo=format_time_ago(ft.last_toll_time),
+                type="dispatch",
+                unread=True,
+                href="/tracking/fastag",
+            )
+        )
+
+    # 3. Active / Recent Consignments (Dispatch / Movement)
+    lr_stmt = (
+        select(models.LR)
+        .options(
+            selectinload(models.LR.destination_location),
+        )
+    )
+    if office_id is not None:
+        if include_unassigned:
+            lr_stmt = lr_stmt.where(or_(models.LR.issuing_office_id == office_id, models.LR.issuing_office_id == None))
+        else:
+            lr_stmt = lr_stmt.where(models.LR.issuing_office_id == office_id)
+    lr_stmt = lr_stmt.order_by(desc(models.LR.created_at)).limit(4)
+    lr_res = await session.execute(lr_stmt)
+    for lr in lr_res.scalars().all():
+        dest = lr.destination_location.city_name if lr.destination_location else "Destination"
+        veh = f" ({lr.vehicle_number})" if lr.vehicle_number else ""
+        if lr.status in ("IN_TRANSIT", "BOOKED", "LOADED"):
+            notifications.append(
+                NotificationItemSchema(
+                    id=f"lr-{lr.id}",
+                    title=f"Consignment {lr.status.replace('_', ' ').title()}",
+                    message=f"LR #{lr.lr_number}{veh} en route to {dest}.",
+                    timeAgo=format_time_ago(lr.created_at),
+                    type="dispatch",
+                    unread=True,
+                    href="/transport/lr-booking",
+                )
+            )
+        elif lr.status == "DELIVERED":
+            notifications.append(
+                NotificationItemSchema(
+                    id=f"lr-{lr.id}",
+                    title="Consignment Delivered",
+                    message=f"LR #{lr.lr_number}{veh} delivered. Awaiting POD verification.",
+                    timeAgo=format_time_ago(lr.created_at),
+                    type="success",
+                    unread=False,
+                    href="/transport/pod-records",
+                )
+            )
+
+    # 4. Pending POD Verification (Alert)
+    pod_stmt = (
+        select(models.PODRecord)
+        .options(selectinload(models.PODRecord.lr))
+        .where(models.PODRecord.verification_status == "PENDING")
+        .order_by(desc(models.PODRecord.created_at))
+        .limit(3)
+    )
+    pod_res = await session.execute(pod_stmt)
+    for pod in pod_res.scalars().all():
+        lr_num = pod.lr.lr_number if pod.lr else "LR"
+        notifications.append(
+            NotificationItemSchema(
+                id=f"pod-{pod.id}",
+                title="POD Verification Pending",
+                message=f"Proof of Delivery for {lr_num} submitted by {pod.receiver_name}. Awaiting approval.",
+                timeAgo=format_time_ago(pod.created_at),
+                type="alert",
+                unread=True,
+                href="/transport/pod-records",
+            )
+        )
+
+    # 5. E-Way Bills Expiring within 48h (Alert)
+    ewb_stmt = (
+        select(models.EWayBill)
+        .where(
+            models.EWayBill.status == "ACTIVE",
+            models.EWayBill.valid_until.isnot(None),
+            models.EWayBill.valid_until <= now + timedelta(hours=48),
+        )
+        .order_by(models.EWayBill.valid_until.asc())
+        .limit(3)
+    )
+    ewb_res = await session.execute(ewb_stmt)
+    for ewb in ewb_res.scalars().all():
+        diff_h = int((ewb.valid_until - now).total_seconds() / 3600)
+        time_msg = f"expires in {diff_h} hours" if diff_h > 0 else "has expired"
+        notifications.append(
+            NotificationItemSchema(
+                id=f"ewb-{ewb.id}",
+                title="E-Way Bill Expiring Soon" if diff_h > 0 else "E-Way Bill Expired",
+                message=f"EWB #{ewb.eway_bill_number} for Vehicle {ewb.vehicle_number or 'Fleet'} {time_msg}.",
+                timeAgo=f"{diff_h}h left" if diff_h > 0 else "expired",
+                type="alert",
+                unread=True,
+                href="/transport/eway-bill",
+            )
+        )
+
+    # 6. Recent Payment & Freight Invoices (Payment)
+    v_stmt = select(models.Voucher).where(models.Voucher.is_void == False)
+    if office_id is not None:
+        if include_unassigned:
+            v_stmt = v_stmt.where(or_(models.Voucher.issuing_office_id == office_id, models.Voucher.issuing_office_id == None))
+        else:
+            v_stmt = v_stmt.where(models.Voucher.issuing_office_id == office_id)
+    v_stmt = v_stmt.order_by(desc(models.Voucher.created_at)).limit(3)
+    v_res = await session.execute(v_stmt)
+    for v in v_res.scalars().all():
+        v_title = v.voucher_type.replace("_", " ").title()
+        notifications.append(
+            NotificationItemSchema(
+                id=f"voucher-{v.id}",
+                title=f"{v_title} Posted",
+                message=f"{v_title} #{v.voucher_number} posted (₹{float(v.total_amount or 0):,.2f}).",
+                timeAgo=format_time_ago(v.created_at),
+                type="payment",
+                unread=False,
+                href="/accounts/transport-invoice" if "INVOICE" in v.voucher_type else "/accounts/payment-voucher",
+            )
+        )
+
+    return notifications
+

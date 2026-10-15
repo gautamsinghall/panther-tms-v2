@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,7 @@ from app.modules.home.schemas import (
     FinancialAnalysisData,
     FleetOperationsData,
     OwnFleetData,
+    NotificationItemSchema,
 )
 
 router = APIRouter(prefix="/home", tags=["Home Module Dashboards"])
@@ -89,4 +90,24 @@ async def get_own_fleet(
         office_id=target_office_id,
         include_unassigned=include_unassigned,
     )
+
+
+@router.get(
+    "/notifications",
+    response_model=List[NotificationItemSchema],
+    summary="Get real operational notifications synced strictly from live tenant DB data",
+)
+async def get_real_notifications(
+    current_user: User = Depends(get_current_user),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await home_service.get_real_notifications(
+        session=db,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
+    )
+
 

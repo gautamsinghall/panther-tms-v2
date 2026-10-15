@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -11,7 +11,7 @@ import {
   Receipt,
   Check,
   ArrowRight,
-  ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -26,79 +26,53 @@ interface NotificationItem {
   href: string;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "n-1",
-    title: "Vehicle Movement Alert",
-    message: "Truck HR-55-AJ-9021 passed Toll Plaza: Kherki Daula (Delhi Hub Corridor).",
-    timeAgo: "8 mins ago",
-    type: "dispatch",
-    unread: true,
-    href: "/tracking/fastag",
-  },
-  {
-    id: "n-2",
-    title: "E-Way Bill Expiring Soon",
-    message: "EWB #121008472912 for LR-2026-00102 expires in 3 hours. Update Part-B if en route.",
-    timeAgo: "25 mins ago",
-    type: "alert",
-    unread: true,
-    href: "/transport/eway-bill",
-  },
-  {
-    id: "n-3",
-    title: "Freight Payment Disbursed",
-    message: "ATH Payment Voucher PV-2026-0042 posted (₹15,000 advance to Malwa Roadlines).",
-    timeAgo: "1 hour ago",
-    type: "payment",
-    unread: true,
-    href: "/accounts/payment-voucher",
-  },
-  {
-    id: "n-4",
-    title: "POD Verified & Closed",
-    message: "Delivery POD collected and verified for Consignment LR-2026-00101 (Maruti Suzuki).",
-    timeAgo: "3 hours ago",
-    type: "success",
-    unread: false,
-    href: "/transport/pod-records",
-  },
-  {
-    id: "n-5",
-    title: "Statutory Tax Summary Ready",
-    message: "Monthly GST Output Ledger reconciled with 12 B2B freight invoices.",
-    timeAgo: "1 day ago",
-    type: "payment",
-    unread: false,
-    href: "/statements/gst-output",
-  },
-];
-
 export function NotificationsPopover() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [isLoading, setIsLoading] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
-  useEffect(() => {
-    async function checkEntitlements() {
-      try {
-        const nav = await apiClient<any[]>("/api/v1/auth/navigation");
-        if (Array.isArray(nav)) {
-          const transportMod = nav.find((m) => m.id === "transport");
-          const isEwayLocked = transportMod?.items?.find((it: any) => it.feature === "eway_bill")?.is_locked;
-          if (isEwayLocked) {
-            setNotifications((prev) => prev.filter((n) => !n.title.toLowerCase().includes("e-way")));
+  const loadNotifications = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiClient<NotificationItem[]>("/api/v1/home/notifications");
+      if (Array.isArray(data)) {
+        let readIds: string[] = [];
+        if (typeof window !== "undefined") {
+          try {
+            const stored = localStorage.getItem("panther_read_notifications");
+            if (stored) readIds = JSON.parse(stored);
+          } catch {
+            // ignore
           }
         }
-      } catch {
-        // Fallback to default notifications
+        const synced = data.map((n) => ({
+          ...n,
+          unread: !readIds.includes(n.id) && (n.unread ?? true),
+        }));
+        setNotifications(synced);
+      } else {
+        setNotifications([]);
       }
+    } catch {
+      setNotifications([]);
+    } finally {
+      setIsLoading(false);
     }
-    checkEntitlements();
   }, []);
+
+  useEffect(() => {
+    loadNotifications();
+
+    const handleOfficeChange = () => {
+      loadNotifications();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
+  }, [loadNotifications]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -111,13 +85,37 @@ export function NotificationsPopover() {
   }, []);
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, unread: false }));
+      if (typeof window !== "undefined") {
+        try {
+          const allIds = updated.map((n) => n.id);
+          localStorage.setItem("panther_read_notifications", JSON.stringify(allIds));
+        } catch {
+          // ignore
+        }
+      }
+      return updated;
+    });
   };
 
   const handleNotificationClick = (item: NotificationItem) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n))
-    );
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === item.id ? { ...n, unread: false } : n));
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("panther_read_notifications");
+          const readIds: string[] = stored ? JSON.parse(stored) : [];
+          if (!readIds.includes(item.id)) {
+            readIds.push(item.id);
+            localStorage.setItem("panther_read_notifications", JSON.stringify(readIds));
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return updated;
+    });
     setIsOpen(false);
     router.push(item.href);
   };
@@ -178,7 +176,7 @@ export function NotificationsPopover() {
               <button
                 type="button"
                 onClick={markAllAsRead}
-                className="text-[11px] text-[#4F46E5] hover:text-[#4338CA] hover:underline font-medium flex items-center gap-1"
+                className="text-[11px] text-[#4F46E5] hover:text-[#4338CA] hover:underline font-medium flex items-center gap-1 cursor-pointer"
               >
                 <Check className="w-3 h-3" />
                 Mark all read
@@ -188,43 +186,60 @@ export function NotificationsPopover() {
 
           {/* Notifications List */}
           <div className="max-h-[360px] overflow-y-auto divide-y divide-[#F2F4F7]">
-            {notifications.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => handleNotificationClick(item)}
-                className={cn(
-                  "p-3.5 hover:bg-[#F8F9FB] transition-colors cursor-pointer flex items-start gap-3 group",
-                  item.unread && "bg-[#F8F9FC]"
-                )}
-              >
+            {isLoading && notifications.length === 0 ? (
+              <div className="py-10 flex flex-col items-center justify-center text-center">
+                <Loader2 className="w-5 h-5 text-indigo-600 animate-spin mb-2" />
+                <span className="text-xs text-slate-500">Checking notifications...</span>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="py-12 px-6 flex flex-col items-center justify-center text-center">
+                <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="text-xs font-bold text-slate-800">All caught up!</div>
+                <div className="text-[11px] text-slate-400 mt-1 max-w-[220px]">
+                  No operational alerts or pending notifications at this time.
+                </div>
+              </div>
+            ) : (
+              notifications.map((item) => (
                 <div
+                  key={item.id}
+                  onClick={() => handleNotificationClick(item)}
                   className={cn(
-                    "p-2 rounded-control border shrink-0 mt-0.5",
-                    item.unread ? "bg-white border-[#C7D2FE] shadow-xs" : "bg-[#F8F9FB] border-[#E4E7EC]"
+                    "p-3.5 hover:bg-[#F8F9FB] transition-colors cursor-pointer flex items-start gap-3 group",
+                    item.unread && "bg-[#F8F9FC]"
                   )}
                 >
-                  {getIcon(item.type)}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-[#101828] truncate">
-                      {item.title}
-                    </span>
-                    <span className="text-xs text-slate-400 shrink-0 font-mono">
-                      {item.timeAgo}
-                    </span>
+                  <div
+                    className={cn(
+                      "p-2 rounded-control border shrink-0 mt-0.5",
+                      item.unread ? "bg-white border-[#C7D2FE] shadow-xs" : "bg-[#F8F9FB] border-[#E4E7EC]"
+                    )}
+                  >
+                    {getIcon(item.type)}
                   </div>
-                  <p className="text-xs text-slate-600 mt-0.5 leading-normal">
-                    {item.message}
-                  </p>
-                </div>
 
-                {item.unread && (
-                  <span className="w-2 h-2 rounded-full bg-[#4F46E5] shrink-0 mt-1.5" />
-                )}
-              </div>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-[#101828] truncate">
+                        {item.title}
+                      </span>
+                      <span className="text-xs text-slate-400 shrink-0 font-mono">
+                        {item.timeAgo}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-0.5 leading-normal">
+                      {item.message}
+                    </p>
+                  </div>
+
+                  {item.unread && (
+                    <span className="w-2 h-2 rounded-full bg-[#4F46E5] shrink-0 mt-1.5" />
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           {/* Footer */}
@@ -235,14 +250,15 @@ export function NotificationsPopover() {
                 setIsOpen(false);
                 router.push("/settings/activity");
               }}
-              className="text-xs text-[#4F46E5] hover:text-[#4338CA] font-medium inline-flex items-center gap-1"
+              className="text-xs text-[#4F46E5] hover:text-[#4338CA] font-medium inline-flex items-center gap-1 cursor-pointer"
             >
               View System Audit Trail <ArrowRight className="w-3 h-3" />
             </button>
-            <span className="text-xs text-slate-400">Operational Alerts</span>
+            <span className="text-xs text-slate-400">Live Telemetry</span>
           </div>
         </div>
       )}
     </div>
   );
 }
+
