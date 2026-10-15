@@ -167,16 +167,27 @@ async def get_user_navigation(
                 if mod_norm in ("company", "settings") and feat_norm in ("users", "roles"):
                     allowed_features.add(("company", feat_norm))
                     allowed_features.add(("settings", feat_norm))
-                # Profile / Company aliases for branch & company details
-                if mod_norm in ("profile", "company") and feat_norm in ("branch", "company", "company_details"):
-                    allowed_features.add(("profile", "branch"))
-                    allowed_features.add(("company", "branch"))
-                    allowed_features.add(("profile", "company"))
+                # Profile / Company aliases for company details
+                if (mod_norm in ("company", "profile") and feat_norm in ("company", "company_details")):
                     allowed_features.add(("company", "company_details"))
-                # API Center aliases
-                if mod_norm in ("api_center", "api-center", "company") and feat_norm in ("api_center", "eway_bill_api", "fastag_tracking_api", "sim_tracking_api"):
-                    allowed_features.add(("api_center", feat_norm))
-                    allowed_features.add(("api-center", feat_norm))
+                    allowed_features.add(("profile", "company"))
+
+                # Profile / Company aliases for branch
+                if (mod_norm in ("company", "profile") and feat_norm == "branch"):
+                    allowed_features.add(("company", "branch"))
+                    allowed_features.add(("profile", "branch"))
+
+                # API Center aliases (strictly per individual feature)
+                if mod_norm in ("api_center", "api-center", "company"):
+                    if feat_norm in ("eway_bill_api", "eway_bill", "ewb"):
+                        allowed_features.add(("api_center", "eway_bill_api"))
+                        allowed_features.add(("api-center", "eway_bill_api"))
+                    elif feat_norm in ("fastag_tracking_api", "fastag_tracking", "fastag"):
+                        allowed_features.add(("api_center", "fastag_tracking_api"))
+                        allowed_features.add(("api-center", "fastag_tracking_api"))
+                    elif feat_norm in ("sim_tracking_api", "sim_tracking", "sim"):
+                        allowed_features.add(("api_center", "sim_tracking_api"))
+                        allowed_features.add(("api-center", "sim_tracking_api"))
 
     for mod in ALL_NAVIGATION_MODULES:
         entitled = is_module_entitled(mod["id"])
@@ -231,9 +242,6 @@ async def get_user_navigation(
                     if (mod["id"], it["feature"]) in allowed_features
                     or ("api_center", it["feature"]) in allowed_features
                     or ("api-center", it["feature"]) in allowed_features
-                    or ("company", "api_center") in allowed_features
-                    or ("profile", "company") in allowed_features
-                    or is_admin
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})

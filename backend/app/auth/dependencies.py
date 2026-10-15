@@ -206,6 +206,102 @@ async def get_current_office(
     request.state.office_id = chosen.id
     return chosen
 
+def _matches_permission(
+    req_mod: str,
+    req_feat: str,
+    req_perm: str,
+    p_mod: str,
+    p_feat: str,
+    p_perm: str,
+    p_allowed: bool,
+) -> bool:
+    if not p_allowed:
+        return False
+
+    # Action checking: exact match, wildcard, or view subsumed by edit/create/delete/approve
+    perm_match = (
+        p_perm == req_perm
+        or p_perm == "all"
+        or req_perm == "all"
+        or (req_perm == "view" and p_perm in ("edit", "create", "delete", "approve"))
+    )
+    if not perm_match:
+        return False
+
+    # Module normalization
+    m_req = req_mod.replace("-", "_").lower().strip()
+    m_p = p_mod.replace("-", "_").lower().strip()
+
+    # Feature normalization
+    f_req = req_feat.lower().strip()
+    f_p = p_feat.lower().strip()
+
+    if req_feat in ("*", "all", "general", "any"):
+        return m_req == m_p or m_req in ("*", "all") or m_p in ("*", "all")
+
+    # Direct exact match
+    if m_req == m_p and f_req == f_p:
+        return True
+
+    # 1. Company Details: (profile, company) <-> (company, company_details)
+    if (m_req in ("profile", "company") and f_req in ("company", "company_details")) and \
+       (m_p in ("profile", "company") and f_p in ("company", "company_details")):
+        return True
+
+    # 2. Branch: (profile, branch) <-> (company, branch)
+    if (m_req in ("profile", "company") and f_req == "branch") and \
+       (m_p in ("profile", "company") and f_p == "branch"):
+        return True
+
+    # 3. Users & Roles: (company, feat) <-> (settings, feat) for feat in ('users', 'roles')
+    if (m_req in ("company", "settings") and f_req in ("users", "roles")) and \
+       (m_p in ("company", "settings") and f_p in ("users", "roles")):
+        return f_req == f_p
+
+    # 4. API Center:
+    # E-Way Bill: eway_bill_api, eway_bill, ewb across api_center / api-center / company
+    if (m_req in ("api_center", "api-center", "company") and f_req in ("eway_bill_api", "eway_bill", "ewb")) and \
+       (m_p in ("api_center", "api-center", "company") and f_p in ("eway_bill_api", "eway_bill", "ewb")):
+        return True
+
+    # FASTag API: fastag_tracking_api, fastag_tracking, fastag across api_center / api-center / company
+    if (m_req in ("api_center", "api-center", "company") and f_req in ("fastag_tracking_api", "fastag_tracking", "fastag")) and \
+       (m_p in ("api_center", "api-center", "company") and f_p in ("fastag_tracking_api", "fastag_tracking", "fastag")):
+        return True
+
+    # SIM API: sim_tracking_api, sim_tracking, sim across api_center / api-center / company
+    if (m_req in ("api_center", "api-center", "company") and f_req in ("sim_tracking_api", "sim_tracking", "sim")) and \
+       (m_p in ("api_center", "api-center", "company") and f_p in ("sim_tracking_api", "sim_tracking", "sim")):
+        return True
+
+    # 5. Tracking telemetry:
+    # SIM tracking: tracking, sim_tracking, sim across tracking / transport
+    if (m_req in ("tracking", "transport") and f_req in ("tracking", "sim_tracking", "sim")) and \
+       (m_p in ("tracking", "transport") and f_p in ("tracking", "sim_tracking", "sim")):
+        return True
+
+    # FASTag tracking: fastag, fastag_tracking across tracking / transport
+    if (m_req in ("tracking", "transport") and f_req in ("fastag", "fastag_tracking")) and \
+       (m_p in ("tracking", "transport") and f_p in ("fastag", "fastag_tracking")):
+        return True
+
+    # 6. Email settings: (profile, email) <-> (settings, admin_setting)
+    if (m_req in ("profile", "settings") and f_req in ("email", "admin_setting")) and \
+       (m_p in ("profile", "settings") and f_p in ("email", "admin_setting")):
+        return True
+
+    # 7. Monthly P&L: (profile, monthly_pnl) <-> (reports, profit_loss)
+    if (m_req in ("profile", "reports") and f_req in ("monthly_pnl", "profit_loss")) and \
+       (m_p in ("profile", "reports") and f_p in ("monthly_pnl", "profit_loss")):
+        return True
+
+    # 8. Reports: transport_reports <-> transport-reports
+    if m_req in ("transport_reports", "transport-reports") and m_p in ("transport_reports", "transport-reports") and f_req == f_p:
+        return True
+
+    return False
+
+
 def require_permission(module: str, feature: str, permission: str) -> Callable:
     """
     Unified authorization dependency per rules.md §5 and architecture.md §6:
@@ -238,11 +334,15 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
 
         if tenant.plan and tenant.plan.entitlements:
             is_entitled = False
-            for ent in tenant.plan.entitlements:
-                if ent.feature_key in (module_key, "module_all") and ent.is_enabled:
-                    if ent.limit_value.lower() in ("true", "1", "yes"):
-                        is_entitled = True
-                        break
+            # Core tenant modules are built-in and always entitled
+            if norm_mod in ("home", "profile", "company", "api_center", "api-center", "settings"):
+                is_entitled = True
+            else:
+                for ent in tenant.plan.entitlements:
+                    if ent.feature_key in (module_key, "module_all") and ent.is_enabled:
+                        if ent.limit_value.lower() in ("true", "1", "yes"):
+                            is_entitled = True
+                            break
             if not is_entitled:
                 raise EntitlementLockedException(
                     module=module,
@@ -271,31 +371,18 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
                 details={"required": f"{module}.{feature}.{permission}"}
             )
 
-        norm_mod_target = module.replace("-", "_").lower()
-        if feature in ("*", "all", "general", "any"):
-            has_perm = any(
-                (p.module.replace("-", "_").lower() == norm_mod_target or module in ("*", "all"))
-                and (p.permission == permission or p.permission == "all" or permission == "all")
-                and p.is_allowed
-                for p in user.custom_role.permissions
+        has_perm = any(
+            _matches_permission(
+                req_mod=module,
+                req_feat=feature,
+                req_perm=permission,
+                p_mod=p.module,
+                p_feat=p.feature,
+                p_perm=p.permission,
+                p_allowed=p.is_allowed,
             )
-        else:
-            has_perm = any(
-                (
-                    p.module.replace("-", "_").lower() == norm_mod_target
-                    or (norm_mod_target in ("settings", "company") and p.module.replace("-", "_").lower() in ("settings", "company") and feature in ("users", "roles"))
-                    or (norm_mod_target in ("api_center", "company") and p.module.replace("-", "_").lower() in ("api_center", "company") and feature in ("api_center", "eway_bill_api", "fastag_tracking_api", "sim_tracking_api"))
-                    or (norm_mod_target in ("transport", "tracking") and p.module.replace("-", "_").lower() in ("transport", "tracking") and feature in ("tracking", "fastag_tracking", "sim_tracking"))
-                )
-                and (
-                    p.feature == feature
-                    or (feature in ("tracking", "sim_tracking") and p.feature in ("tracking", "sim_tracking"))
-                    or (feature in ("fastag_tracking", "fastag") and p.feature in ("fastag_tracking", "fastag"))
-                )
-                and (p.permission == permission or p.permission == "all" or permission == "all")
-                and p.is_allowed
-                for p in user.custom_role.permissions
-            )
+            for p in user.custom_role.permissions
+        )
 
         if not has_perm:
             raise ForbiddenException(

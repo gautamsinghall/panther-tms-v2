@@ -146,6 +146,14 @@ export default function RolesPage() {
           mapping[`company:${normFeature}:${p.permission}`] = p.is_allowed;
         } else if (normModule === "profile" && normFeature === "branch") {
           mapping[`company:branch:${p.permission}`] = p.is_allowed;
+        } else if ((normModule === "profile" || normModule === "company") && (normFeature === "company" || normFeature === "company_details")) {
+          mapping[`company:company_details:${p.permission}`] = p.is_allowed;
+        } else if ((normModule === "api_center" || normModule === "api-center" || normModule === "company") && (normFeature === "eway_bill" || normFeature === "eway_bill_api" || normFeature === "ewb")) {
+          mapping[`api_center:eway_bill_api:${p.permission}`] = p.is_allowed;
+        } else if ((normModule === "api_center" || normModule === "api-center" || normModule === "company") && (normFeature === "fastag_tracking_api" || normFeature === "fastag_tracking" || normFeature === "fastag")) {
+          mapping[`api_center:fastag_tracking_api:${p.permission}`] = p.is_allowed;
+        } else if ((normModule === "api_center" || normModule === "api-center" || normModule === "company") && (normFeature === "sim_tracking_api" || normFeature === "sim_tracking" || normFeature === "sim")) {
+          mapping[`api_center:sim_tracking_api:${p.permission}`] = p.is_allowed;
         } else if (normModule === "transport" && normFeature === "tracking") {
           mapping[`tracking:sim_tracking:${p.permission}`] = p.is_allowed;
         } else if (normModule === "tracking" && normFeature === "tracking") {
@@ -257,6 +265,14 @@ export default function RolesPage() {
             is_allowed: true,
           });
         }
+        if (module === "company" && feature === "company_details") {
+          permissionsMap.set(`profile:company:${permission}`, {
+            module: "profile",
+            feature: "company",
+            permission,
+            is_allowed: true,
+          });
+        }
         if (module === "tracking" && feature === "sim_tracking") {
           permissionsMap.set(`tracking:tracking:${permission}`, {
             module: "tracking",
@@ -300,6 +316,14 @@ export default function RolesPage() {
             permission,
             is_allowed: true,
           });
+          if (feature === "eway_bill_api") {
+            permissionsMap.set(`api_center:eway_bill:${permission}`, {
+              module: "api_center",
+              feature: "eway_bill",
+              permission,
+              is_allowed: true,
+            });
+          }
         }
       });
 

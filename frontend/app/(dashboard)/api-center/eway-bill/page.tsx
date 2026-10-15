@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
-import { ApiCenterNavTabs } from "@/components/api-center/api-center-nav-tabs";
+
 
 interface ApiCenterData {
   ewb_username: string;
@@ -208,8 +208,7 @@ export default function EWayBillApiPage() {
         </div>
       </PageHeader>
 
-      {/* API Center Sub-Nav Tabs */}
-      <ApiCenterNavTabs />
+
 
       {/* Global Alerts */}
       {feedback && (

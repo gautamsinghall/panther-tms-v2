@@ -128,7 +128,7 @@ async def delete_branch_record(
     summary="Get tenant company profile & tax parameters"
 )
 async def get_company(
-    current_user: User = Depends(require_permission("profile", "company", "view")),
+    current_user: User = Depends(require_permission("company", "company_details", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.get_company_setting(db)
@@ -137,25 +137,25 @@ async def get_company(
 @router.put(
     "/company",
     response_model=CompanySettingResponse,
-    summary="Update tenant company profile & tax parameters (Admin Only)"
+    summary="Update tenant company profile & tax parameters"
 )
 async def update_company(
     data: CompanySettingUpdate,
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("company", "company_details", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.update_company_setting(db, data)
 
 
-# --- Email Settings (Admin Gated) ---
+# --- Email Settings ---
 
 @router.get(
     "/email-settings",
     response_model=EmailSettingResponse,
-    summary="Get tenant outbound email dispatch settings (Admin Only)"
+    summary="Get tenant outbound email dispatch settings"
 )
 async def get_email(
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("profile", "email", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.get_email_setting(db)
@@ -164,32 +164,32 @@ async def get_email(
 @router.put(
     "/email-settings",
     response_model=EmailSettingResponse,
-    summary="Update tenant outbound email dispatch settings (Admin Only)"
+    summary="Update tenant outbound email dispatch settings"
 )
 async def update_email(
     data: EmailSettingUpdate,
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("profile", "email", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.update_email_setting(db, data)
 
 
-# --- Monthly P&L (All Branches / Clubbed Companies - Admin Gated) ---
+# --- Monthly P&L (All Branches / Clubbed Companies) ---
 
 @router.get(
     "/monthly-pnl",
     response_model=MonthlyPnLResponse,
-    summary="Get consolidated Monthly P&L across all branches (Admin Only per PRD §7.12)"
+    summary="Get consolidated Monthly P&L across all branches"
 )
 async def get_monthly_pnl(
     month: Optional[str] = Query(None, description="Optional accounting month in YYYY-MM format"),
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("profile", "monthly_pnl", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.calculate_monthly_pnl(db, month=month)
 
 
-# --- API Center Settings (Admin Gated) ---
+# --- API Center Settings ---
 
 @router.get(
     "/api-center",
@@ -197,7 +197,7 @@ async def get_monthly_pnl(
     summary="Get tenant API center & E-Way Bill configurations"
 )
 async def get_api_center(
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("api_center", "eway_bill_api", "view")),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
@@ -207,11 +207,11 @@ async def get_api_center(
 @router.put(
     "/api-center",
     response_model=ApiCenterSettingResponse,
-    summary="Update tenant API center & E-Way Bill configurations (Admin Only)"
+    summary="Update tenant API center & E-Way Bill configurations"
 )
 async def update_api_center(
     data: ApiCenterSettingUpdate,
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("api_center", "eway_bill_api", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.update_api_center_setting(db, data)
@@ -220,11 +220,11 @@ async def update_api_center(
 @router.post(
     "/api-center/test-ewb",
     response_model=ApiCenterTestResponse,
-    summary="Test GSP / NIC E-Way Bill gateway authentication & credentials (Admin Only)"
+    summary="Test GSP / NIC E-Way Bill gateway authentication & credentials"
 )
 async def test_ewb(
     req: ApiCenterTestRequest,
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("api_center", "eway_bill_api", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.test_ewb_connection(db, req)
@@ -236,7 +236,7 @@ async def test_ewb(
     summary="Get FASTag & Toll Telemetry wallet balance and transaction ledger"
 )
 async def get_fastag_wallet(
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("api_center", "fastag_tracking_api", "view")),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
@@ -249,11 +249,11 @@ async def get_fastag_wallet(
 
 @router.put(
     "/api-center/fastag-cooldown",
-    summary="Update FASTag rate limit cooldown timing in minutes (Admin Only)"
+    summary="Update FASTag rate limit cooldown timing in minutes"
 )
 async def update_fastag_cooldown(
     data: FastagCooldownUpdate,
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("api_center", "fastag_tracking_api", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     updated_val = await service.update_fastag_cooldown(db, data.cooldown_minutes)
@@ -263,7 +263,7 @@ async def update_fastag_cooldown(
     }
 
 
-# --- SIM Based Tracking Telemetry Wallet (Admin Gated) ---
+# --- SIM Based Tracking Telemetry Wallet ---
 
 @router.get(
     "/api-center/sim-wallet",
@@ -271,7 +271,7 @@ async def update_fastag_cooldown(
     summary="Get SIM tracking telemetry wallet balance, active trips, and transaction ledger"
 )
 async def get_sim_wallet(
-    current_admin: User = Depends(get_current_company_admin),
+    current_user: User = Depends(require_permission("api_center", "sim_tracking_api", "view")),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):

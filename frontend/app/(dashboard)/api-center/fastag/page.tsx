@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
-import { ApiCenterNavTabs } from "@/components/api-center/api-center-nav-tabs";
+
 
 interface FastagWalletTxn {
   id: number;
@@ -158,8 +158,7 @@ export default function FastagApiPage() {
         </div>
       </PageHeader>
 
-      {/* API Center Sub-Nav Tabs */}
-      <ApiCenterNavTabs />
+
 
       {/* Overview KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
