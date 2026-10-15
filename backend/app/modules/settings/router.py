@@ -8,13 +8,14 @@ from app.auth.dependencies import require_permission, get_current_company_admin,
 from app.control.models import Tenant
 from app.tenant_db.models import User, Branch
 from app.modules.settings.schemas import (
-    RoleCreate, RoleUpdate, RoleResponse,
+    RoleCreate, RoleUpdate, RoleResponse, ModuleSchema,
     UserCreate, UserUpdate, UserListItem, AssignedOfficeInfo, PermissionItem,
     SeriesCategoryCreate, SeriesCategoryUpdate, SeriesCategoryResponse,
     SeriesMasterCreate, SeriesMasterUpdate, SeriesMasterResponse, SeriesCheckResponse,
     AdminSettingItem, AdminSettingsBulkUpdate, AdminSettingResponse, UserActivityResponse
 )
 from app.modules.settings import service
+from app.auth.navigation import get_permissions_schema
 
 
 router = APIRouter(prefix="/settings", tags=["Settings & RBAC"])
@@ -93,6 +94,16 @@ async def list_roles(
             )
         )
     return result
+
+@router.get(
+    "/roles/permissions-schema",
+    response_model=List[ModuleSchema],
+    summary="Get dynamic permissions matrix schema derived directly from navigation modules"
+)
+async def get_permissions_schema_endpoint(
+    current_user: User = Depends(require_permission("settings", "roles", "view")),
+):
+    return get_permissions_schema()
 
 @router.post(
     "/roles",

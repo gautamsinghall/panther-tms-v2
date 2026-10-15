@@ -217,3 +217,34 @@ ALL_NAVIGATION_MODULES = [
         ],
     },
 ]
+
+
+def get_permissions_schema() -> list:
+    """
+    Dynamically generates the permissions matrix schema from ALL_NAVIGATION_MODULES.
+    Filters out workspace-only views (like 'home') and normalizes module & feature identifiers.
+    Any new menu item added to ALL_NAVIGATION_MODULES will automatically appear in Edit Role & Permissions.
+    """
+    schema = []
+    for mod in ALL_NAVIGATION_MODULES:
+        if mod.get("id") == "home":
+            continue
+
+        norm_mod_id = mod["id"].replace("-", "_")
+        features = []
+        for it in mod.get("items", []):
+            feat_id = it.get("feature", "")
+            if norm_mod_id == "tracking" and feat_id == "tracking":
+                feat_id = "sim_tracking"
+            features.append({
+                "id": feat_id,
+                "label": it.get("title", feat_id),
+            })
+
+        schema.append({
+            "id": norm_mod_id,
+            "title": mod.get("title", norm_mod_id),
+            "features": features,
+        })
+    return schema
+

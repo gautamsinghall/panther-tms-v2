@@ -29,6 +29,15 @@ class RoleResponse(RoleBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class FeatureSchema(BaseModel):
+    id: str
+    label: str
+
+class ModuleSchema(BaseModel):
+    id: str
+    title: str
+    features: List[FeatureSchema]
+
 class AssignedOfficeInfo(BaseModel):
     office_id: int
     office_code: str

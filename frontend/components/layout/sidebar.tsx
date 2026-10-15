@@ -96,7 +96,7 @@ import { getStoredAuth } from "@/lib/auth";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { PlanGateDialog, formatPlanName } from "@/components/ui/plan-gate";
 
-interface NavSubItem {
+export interface NavSubItem {
   feature?: string;
   title: string;
   href: string;
@@ -105,7 +105,7 @@ interface NavSubItem {
   required_plan?: string | null;
 }
 
-interface NavGroup {
+export interface NavGroup {
   id: string;
   title: string;
   icon?: React.ReactNode;
@@ -118,7 +118,7 @@ interface NavGroup {
 /**
  * Navigation modules per docs/design.md §4 & docs/architecture.md §5
  */
-const ALL_NAVIGATION_MODULES: NavGroup[] = [
+export const ALL_NAVIGATION_MODULES: NavGroup[] = [
   {
     id: "home",
     title: "Home",

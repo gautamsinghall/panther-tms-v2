@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiClient } from "@/lib/api-client";
+import { ALL_NAVIGATION_MODULES, NavGroup } from "@/components/layout/sidebar";
 
 interface PermissionItem {
   module: string;
@@ -36,184 +37,6 @@ interface ModuleDef {
   features: FeatureDef[];
 }
 
-/**
- * Clean, unified module & feature definitions matching the latest application menu 1-to-1.
- * Dead links, duplicate features, and obsolete options have been removed.
- */
-const MODULE_DEFINITIONS: ModuleDef[] = [
-  {
-    id: "general",
-    title: "General (Masters)",
-    features: [
-      { id: "billing_client", label: "Billing Client" },
-      { id: "consignee", label: "Consignee" },
-      { id: "consigner", label: "Consigner" },
-      { id: "location", label: "Location" },
-      { id: "industry", label: "Industry" },
-      { id: "designation", label: "Designation" },
-      { id: "group_company", label: "Group Company" },
-      { id: "unit", label: "Unit" },
-      { id: "method_of_packing", label: "Method of Packing" },
-      { id: "load_type", label: "Load Type" },
-    ],
-  },
-  {
-    id: "transport",
-    title: "Transport (Operations)",
-    features: [
-      { id: "jobs", label: "Job Creation" },
-      { id: "lr_booking", label: "GR / LR Booking" },
-      { id: "hire_challan", label: "Hire Challan" },
-      { id: "drivers", label: "Manage Driver" },
-      { id: "company_vehicles", label: "Company Vehicle" },
-      { id: "market_vehicles", label: "Market Vehicle" },
-      { id: "vehicle_owners", label: "Vehicle Owner" },
-      { id: "arrival_reports", label: "Arrival Report" },
-      { id: "pod_records", label: "POD Records" },
-      { id: "truck_hiring_note", label: "Truck Hiring Note" },
-      { id: "eway_bill", label: "Update E-Way" },
-    ],
-  },
-  {
-    id: "tracking",
-    title: "Tracking",
-    features: [
-      { id: "fastag_tracking", label: "FASTag Tracking" },
-      { id: "sim_tracking", label: "SIM Based Tracking" },
-    ],
-  },
-  {
-    id: "transport_reports",
-    title: "Transport Reports",
-    features: [
-      { id: "lr_register", label: "LR Booking Register" },
-      { id: "invoice_register", label: "Invoice Register" },
-      { id: "lr_client_wise", label: "LR Client-Wise" },
-      { id: "hc_register", label: "Hire Challan Register" },
-      { id: "pending_hc", label: "Pending HC Report" },
-      { id: "unbilled", label: "Unbilled Reports" },
-      { id: "arrival_register", label: "Arrival Report Register" },
-      { id: "unused_series", label: "Unused GR / LR Series" },
-    ],
-  },
-  {
-    id: "einvoicing",
-    title: "E-Invoicing",
-    features: [
-      { id: "generate_irn", label: "Generate IRN" },
-      { id: "irn_list", label: "IRN Generated List" },
-      { id: "cancel_irn", label: "Cancel IRN" },
-      { id: "taxpayer", label: "Taxpayer Details" },
-    ],
-  },
-  {
-    id: "accounts",
-    title: "Accounts & Billing",
-    features: [
-      { id: "transport_invoice", label: "Transport Invoice" },
-      { id: "general_invoice", label: "General Invoice" },
-      { id: "proforma_invoice", label: "Proforma Invoice" },
-      { id: "purchases", label: "Purchase Register" },
-      { id: "receipt_voucher", label: "Receipt Voucher" },
-      { id: "payment_voucher", label: "Payment Voucher" },
-      { id: "contra_voucher", label: "Contra Voucher" },
-      { id: "credit_debit_notes", label: "Credit / Debit Note" },
-    ],
-  },
-  {
-    id: "misc",
-    title: "Misc (Masters)",
-    features: [
-      { id: "primary_group", label: "Primary Group" },
-      { id: "group_in_primary", label: "Group in Primary" },
-      { id: "subgroup", label: "Subgroup in Group" },
-      { id: "employee_master", label: "Employee Master" },
-      { id: "charge_head", label: "Charge Head" },
-      { id: "tax_category", label: "Tax Category" },
-    ],
-  },
-  {
-    id: "reports",
-    title: "Financial Reports",
-    features: [
-      { id: "daybook", label: "Daybook" },
-      { id: "ledger", label: "Ledger" },
-      { id: "trial_balance", label: "Trial Balance" },
-      { id: "balance_sheet", label: "Balance Sheet" },
-      { id: "profit_loss", label: "Profit & Loss" },
-      { id: "sales_register", label: "Sales Register" },
-      { id: "purchase_register", label: "Purchase Register" },
-      { id: "bank_reconciliation", label: "Bank Reconciliation" },
-      { id: "special_report", label: "Special Report" },
-    ],
-  },
-  {
-    id: "statements",
-    title: "Statements",
-    features: [
-      { id: "gst_output", label: "GST Output" },
-      { id: "gst_input", label: "GST Input" },
-      { id: "os_debtor", label: "O/S Debtor" },
-      { id: "os_creditor", label: "O/S Creditor" },
-      { id: "tds_payable", label: "TDS Payable" },
-      { id: "tds_return", label: "TDS Return" },
-      { id: "opening_balance", label: "Opening Balance Details" },
-    ],
-  },
-  {
-    id: "fleet",
-    title: "Fleet Management",
-    features: [
-      { id: "trip_expense", label: "Trip Expense" },
-      { id: "trip_advance", label: "Trip Advance" },
-      { id: "expense_register", label: "Trip Expense Register" },
-      { id: "truck_pnl", label: "Truck-Wise P&L" },
-      { id: "vehicle_health", label: "Vehicle Health" },
-      { id: "documents", label: "Vehicle Documents" },
-      { id: "tyre", label: "Tyre Management" },
-      { id: "service", label: "Repair & Service" },
-    ],
-  },
-  {
-    id: "api_center",
-    title: "API Center",
-    features: [
-      { id: "eway_bill_api", label: "E-Way Bill API" },
-      { id: "fastag_tracking_api", label: "FASTag Tracking API" },
-      { id: "sim_tracking_api", label: "SIM Based Tracking API" },
-    ],
-  },
-  {
-    id: "company",
-    title: "Company Settings",
-    features: [
-      { id: "company_details", label: "Company Details" },
-      { id: "branch", label: "Issuing Offices / Branches" },
-      { id: "users", label: "User Management" },
-      { id: "roles", label: "Roles & Permissions" },
-    ],
-  },
-  {
-    id: "settings",
-    title: "Settings",
-    features: [
-      { id: "series_master", label: "Series Master" },
-      { id: "admin_setting", label: "Admin Setting" },
-      { id: "activity", label: "User Activity Log" },
-    ],
-  },
-  {
-    id: "profile",
-    title: "Profile",
-    features: [
-      { id: "account", label: "User Account" },
-      { id: "change_password", label: "Change Password" },
-      { id: "email", label: "Email Settings" },
-      { id: "monthly_pnl", label: "Monthly P&L" },
-    ],
-  },
-];
-
 const ACTIONS = ["view", "create", "edit", "delete", "approve"] as const;
 
 function normalizeModuleId(mod: string): string {
@@ -223,8 +46,37 @@ function normalizeModuleId(mod: string): string {
   return m.replace(/-/g, "_");
 }
 
+/**
+ * Dynamically builds module & feature definitions from ALL_NAVIGATION_MODULES.
+ * Any new menu item or route added to navigation will automatically appear in this matrix.
+ */
+function buildModuleDefinitionsFromNav(navGroups: NavGroup[]): ModuleDef[] {
+  return navGroups
+    .filter((g) => g.id !== "home")
+    .map((g) => {
+      const normModuleId = normalizeModuleId(g.id);
+      return {
+        id: normModuleId,
+        title: g.title,
+        features: (g.items || []).map((it) => {
+          let featId = (it.feature || "").toLowerCase().trim();
+          if (normModuleId === "tracking" && featId === "tracking") {
+            featId = "sim_tracking";
+          }
+          return {
+            id: featId,
+            label: it.title,
+          };
+        }),
+      };
+    });
+}
+
 export default function RolesPage() {
   const [roles, setRoles] = useState<RoleRecord[]>([]);
+  const [moduleDefinitions, setModuleDefinitions] = useState<ModuleDef[]>(() =>
+    buildModuleDefinitionsFromNav(ALL_NAVIGATION_MODULES)
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
@@ -241,21 +93,31 @@ export default function RolesPage() {
   // Selected permission map: key = `${module}:${feature}:${permission}` -> boolean
   const [permMap, setPermMap] = useState<Record<string, boolean>>({});
 
-  const loadRoles = async () => {
+  const loadRolesAndSchema = async () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await apiClient<RoleRecord[]>("/api/v1/settings/roles");
-      setRoles(res);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to load roles.");
+      const [rolesRes, schemaRes] = await Promise.allSettled([
+        apiClient<RoleRecord[]>("/api/v1/settings/roles"),
+        apiClient<ModuleDef[]>("/api/v1/settings/roles/permissions-schema"),
+      ]);
+
+      if (rolesRes.status === "fulfilled") {
+        setRoles(rolesRes.value);
+      } else {
+        setErrorMessage(rolesRes.reason?.message || "Failed to load roles.");
+      }
+
+      if (schemaRes.status === "fulfilled" && Array.isArray(schemaRes.value) && schemaRes.value.length > 0) {
+        setModuleDefinitions(schemaRes.value);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadRoles();
+    loadRolesAndSchema();
   }, []);
 
   const openCreateDrawer = () => {
@@ -342,7 +204,7 @@ export default function RolesPage() {
   const setAllModules = (allow: boolean) => {
     setPermMap((prev) => {
       const next = { ...prev };
-      MODULE_DEFINITIONS.forEach((mod) => {
+      moduleDefinitions.forEach((mod) => {
         mod.features.forEach((feat) => {
           ACTIONS.forEach((act) => {
             next[`${mod.id}:${feat.id}:${act}`] = allow;
@@ -464,7 +326,7 @@ export default function RolesPage() {
       }
 
       setIsDrawerOpen(false);
-      await loadRoles();
+      await loadRolesAndSchema();
     } catch (err: any) {
       alert(err.message || "Failed to save role.");
     } finally {
@@ -473,19 +335,21 @@ export default function RolesPage() {
   };
 
   const filteredModules = useMemo(() => {
-    if (!searchQuery.trim()) return MODULE_DEFINITIONS;
+    if (!searchQuery.trim()) return moduleDefinitions;
     const q = searchQuery.toLowerCase().trim();
-    return MODULE_DEFINITIONS.map((mod) => {
-      const modMatches = mod.title.toLowerCase().includes(q);
-      const matchedFeatures = mod.features.filter(
-        (f) => modMatches || f.label.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)
-      );
-      if (matchedFeatures.length > 0) {
-        return { ...mod, features: matchedFeatures };
-      }
-      return null;
-    }).filter(Boolean) as ModuleDef[];
-  }, [searchQuery]);
+    return moduleDefinitions
+      .map((mod) => {
+        const modMatches = mod.title.toLowerCase().includes(q);
+        const matchedFeatures = mod.features.filter(
+          (f) => modMatches || f.label.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)
+        );
+        if (matchedFeatures.length > 0) {
+          return { ...mod, features: matchedFeatures };
+        }
+        return null;
+      })
+      .filter(Boolean) as ModuleDef[];
+  }, [moduleDefinitions, searchQuery]);
 
   const activeGrantedCount = useMemo(() => {
     return Object.values(permMap).filter(Boolean).length;
@@ -502,7 +366,7 @@ export default function RolesPage() {
     try {
       await apiClient(`/api/v1/settings/roles/${deleteTarget.id}`, { method: "DELETE" });
       setDeleteTarget(null);
-      loadRoles();
+      await loadRolesAndSchema();
     } catch (err: any) {
       alert(err.message || "Failed to delete role.");
     } finally {
