@@ -33,15 +33,17 @@ async def create_new_role(db: AsyncSession, data: RoleCreate) -> Role:
     for perm in data.permissions:
         role_perm = RolePermission(
             role_id=role.id,
-            module=perm.module.lower(),
-            feature=perm.feature.lower(),
-            permission=perm.permission.lower(),
+            module=perm.module.lower().strip(),
+            feature=perm.feature.lower().strip(),
+            permission=perm.permission.lower().strip(),
             is_allowed=perm.is_allowed,
         )
         db.add(role_perm)
 
     await db.commit()
-    await db.refresh(role)
+    # Re-fetch with fresh selectinload to guarantee newly committed permissions are loaded
+    stmt = select(Role).options(selectinload(Role.permissions)).where(Role.id == role.id)
+    role = (await db.execute(stmt)).scalar_one()
     return role
 
 async def update_existing_role(db: AsyncSession, role_id: int, data: RoleUpdate) -> Role:
@@ -56,21 +58,28 @@ async def update_existing_role(db: AsyncSession, role_id: int, data: RoleUpdate)
         role.description = data.description
 
     if data.permissions is not None:
-        # Clear existing permissions
+        # Clear existing permissions and deduplicate new permissions
         await db.execute(delete(RolePermission).where(RolePermission.role_id == role.id))
+        seen = set()
         for perm in data.permissions:
+            key = (perm.module.lower().strip(), perm.feature.lower().strip(), perm.permission.lower().strip())
+            if key in seen:
+                continue
+            seen.add(key)
             role_perm = RolePermission(
                 role_id=role.id,
-                module=perm.module.lower(),
-                feature=perm.feature.lower(),
-                permission=perm.permission.lower(),
+                module=key[0],
+                feature=key[1],
+                permission=key[2],
                 is_allowed=perm.is_allowed,
             )
             db.add(role_perm)
 
     await db.commit()
-    await db.refresh(role)
-    return role
+    # Re-fetch with fresh selectinload to guarantee newly committed permissions are returned
+    stmt = select(Role).options(selectinload(Role.permissions)).where(Role.id == role.id)
+    refreshed_role = (await db.execute(stmt)).scalar_one()
+    return refreshed_role
 
 async def delete_existing_role(db: AsyncSession, role_id: int) -> None:
     stmt = select(Role).where(Role.id == role_id)

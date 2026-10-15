@@ -124,7 +124,6 @@ const ALL_NAVIGATION_MODULES: NavGroup[] = [
     title: "Home",
     items: [
       { feature: "overview", title: "Overview Dashboard", href: "/" },
-      { feature: "components_demo", title: "Components Demo", href: "/components-demo" },
     ],
   },
   {

@@ -289,7 +289,8 @@ def require_permission(module: str, feature: str, permission: str) -> Callable:
                 )
                 and (
                     p.feature == feature
-                    or (feature in ("tracking", "fastag_tracking", "sim_tracking") and p.feature in ("tracking", "fastag_tracking", "sim_tracking"))
+                    or (feature in ("tracking", "sim_tracking") and p.feature in ("tracking", "sim_tracking"))
+                    or (feature in ("fastag_tracking", "fastag") and p.feature in ("fastag_tracking", "fastag"))
                 )
                 and (p.permission == permission or p.permission == "all" or permission == "all")
                 and p.is_allowed

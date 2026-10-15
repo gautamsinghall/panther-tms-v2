@@ -252,9 +252,8 @@ async def get_user_navigation(
                     map_item(it) for it in mod["items"]
                     if (mod["id"], it["feature"]) in allowed_features
                     or ("tracking", it["feature"]) in allowed_features
-                    or ("transport", "tracking") in allowed_features
-                    or (it["feature"] in ("sim_tracking", "tracking") and (("tracking", "sim_tracking") in allowed_features or ("tracking", "tracking") in allowed_features))
-                    or (it["feature"] in ("fastag_tracking", "tracking") and (("tracking", "fastag_tracking") in allowed_features or ("tracking", "tracking") in allowed_features))
+                    or (it["feature"] in ("sim_tracking", "tracking") and (("tracking", "sim_tracking") in allowed_features or ("tracking", "tracking") in allowed_features or ("transport", "tracking") in allowed_features))
+                    or (it["feature"] in ("fastag_tracking", "fastag") and (("tracking", "fastag_tracking") in allowed_features or ("tracking", "fastag") in allowed_features or ("transport", "fastag_tracking") in allowed_features))
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, Shield, ShieldCheck, Trash2, Edit2, Lock } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Shield, ShieldCheck, Trash2, Edit2, Lock, Search, CheckCircle2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
@@ -36,48 +36,50 @@ interface ModuleDef {
   features: FeatureDef[];
 }
 
+/**
+ * Clean, unified module & feature definitions matching the latest application menu 1-to-1.
+ * Dead links, duplicate features, and obsolete options have been removed.
+ */
 const MODULE_DEFINITIONS: ModuleDef[] = [
   {
     id: "general",
-    title: "General Module (Masters)",
+    title: "General (Masters)",
     features: [
-      { id: "consignee", label: "Consignees" },
-      { id: "consigner", label: "Consigners" },
-      { id: "location", label: "Locations (Country/State/City/Hub)" },
-      { id: "industry", label: "Industries" },
-      { id: "designation", label: "Designations" },
-      { id: "group_company", label: "Group Companies" },
-      { id: "unit", label: "Units of Measurement" },
-      { id: "method_of_packing", label: "Methods of Packing" },
-      { id: "load_type", label: "Load Types" },
-      { id: "billing_client", label: "Billing Clients" },
+      { id: "billing_client", label: "Billing Client" },
+      { id: "consignee", label: "Consignee" },
+      { id: "consigner", label: "Consigner" },
+      { id: "location", label: "Location" },
+      { id: "industry", label: "Industry" },
+      { id: "designation", label: "Designation" },
+      { id: "group_company", label: "Group Company" },
+      { id: "unit", label: "Unit" },
+      { id: "method_of_packing", label: "Method of Packing" },
+      { id: "load_type", label: "Load Type" },
     ],
   },
   {
     id: "transport",
     title: "Transport (Operations)",
     features: [
-      { id: "jobs", label: "Job Orders" },
+      { id: "jobs", label: "Job Creation" },
       { id: "lr_booking", label: "GR / LR Booking" },
-      { id: "hire_challan", label: "Hire Challans" },
-      { id: "drivers", label: "Driver Management" },
-      { id: "company_vehicles", label: "Company Fleet" },
-      { id: "market_vehicles", label: "Market Vehicles" },
-      { id: "vehicle_owners", label: "Vehicle Owners" },
-      { id: "arrival_reports", label: "Arrival Reports" },
-      { id: "pod_records", label: "POD Tracking" },
-      { id: "truck_hiring_note", label: "Truck Hiring Notes" },
+      { id: "hire_challan", label: "Hire Challan" },
+      { id: "drivers", label: "Manage Driver" },
+      { id: "company_vehicles", label: "Company Vehicle" },
+      { id: "market_vehicles", label: "Market Vehicle" },
+      { id: "vehicle_owners", label: "Vehicle Owner" },
+      { id: "arrival_reports", label: "Arrival Report" },
+      { id: "pod_records", label: "POD Records" },
+      { id: "truck_hiring_note", label: "Truck Hiring Note" },
       { id: "eway_bill", label: "Update E-Way" },
-      { id: "tracking", label: "Fleet Telemetry & Tracking" },
     ],
   },
   {
     id: "tracking",
-    title: "Vehicle Tracking & Telemetry",
+    title: "Tracking",
     features: [
-      { id: "fastag_tracking", label: "FASTag Toll Telemetry" },
-      { id: "sim_tracking", label: "SIM / Cellular Consent Tracking" },
-      { id: "tracking", label: "Live Vehicle Route & History" },
+      { id: "fastag_tracking", label: "FASTag Tracking" },
+      { id: "sim_tracking", label: "SIM Based Tracking" },
     ],
   },
   {
@@ -91,7 +93,7 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
       { id: "pending_hc", label: "Pending HC Report" },
       { id: "unbilled", label: "Unbilled Reports" },
       { id: "arrival_register", label: "Arrival Report Register" },
-      { id: "unused_series", label: "Unused GR/LR Series" },
+      { id: "unused_series", label: "Unused GR / LR Series" },
     ],
   },
   {
@@ -108,26 +110,26 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
     id: "accounts",
     title: "Accounts & Billing",
     features: [
-      { id: "transport_invoice", label: "Transport Invoices" },
-      { id: "general_invoice", label: "General Invoices" },
-      { id: "proforma_invoice", label: "Proforma Invoices" },
+      { id: "transport_invoice", label: "Transport Invoice" },
+      { id: "general_invoice", label: "General Invoice" },
+      { id: "proforma_invoice", label: "Proforma Invoice" },
       { id: "purchases", label: "Purchase Register" },
-      { id: "receipt_voucher", label: "Receipt Vouchers" },
-      { id: "payment_voucher", label: "Payment Vouchers" },
-      { id: "contra_voucher", label: "Contra Vouchers" },
-      { id: "credit_debit_notes", label: "Credit / Debit Notes" },
+      { id: "receipt_voucher", label: "Receipt Voucher" },
+      { id: "payment_voucher", label: "Payment Voucher" },
+      { id: "contra_voucher", label: "Contra Voucher" },
+      { id: "credit_debit_notes", label: "Credit / Debit Note" },
     ],
   },
   {
     id: "misc",
     title: "Misc (Masters)",
     features: [
-      { id: "primary_group", label: "Primary Groups" },
-      { id: "group_in_primary", label: "Groups in Primary" },
-      { id: "subgroup", label: "Subgroups in Group" },
-      { id: "employee_master", label: "Employee Masters" },
-      { id: "charge_head", label: "Charge Heads" },
-      { id: "tax_category", label: "Tax Categories" },
+      { id: "primary_group", label: "Primary Group" },
+      { id: "group_in_primary", label: "Group in Primary" },
+      { id: "subgroup", label: "Subgroup in Group" },
+      { id: "employee_master", label: "Employee Master" },
+      { id: "charge_head", label: "Charge Head" },
+      { id: "tax_category", label: "Tax Category" },
     ],
   },
   {
@@ -135,7 +137,7 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
     title: "Financial Reports",
     features: [
       { id: "daybook", label: "Daybook" },
-      { id: "ledger", label: "Ledgers" },
+      { id: "ledger", label: "Ledger" },
       { id: "trial_balance", label: "Trial Balance" },
       { id: "balance_sheet", label: "Balance Sheet" },
       { id: "profit_loss", label: "Profit & Loss" },
@@ -151,8 +153,8 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
     features: [
       { id: "gst_output", label: "GST Output" },
       { id: "gst_input", label: "GST Input" },
-      { id: "os_debtor", label: "O/S Debtors" },
-      { id: "os_creditor", label: "O/S Creditors" },
+      { id: "os_debtor", label: "O/S Debtor" },
+      { id: "os_creditor", label: "O/S Creditor" },
       { id: "tds_payable", label: "TDS Payable" },
       { id: "tds_return", label: "TDS Return" },
       { id: "opening_balance", label: "Opening Balance Details" },
@@ -162,12 +164,12 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
     id: "fleet",
     title: "Fleet Management",
     features: [
-      { id: "trip_expense", label: "Trip Expenses" },
-      { id: "trip_advance", label: "Trip Advances" },
+      { id: "trip_expense", label: "Trip Expense" },
+      { id: "trip_advance", label: "Trip Advance" },
       { id: "expense_register", label: "Trip Expense Register" },
       { id: "truck_pnl", label: "Truck-Wise P&L" },
-      { id: "vehicle_health", label: "Vehicle Health & Maintenance" },
-      { id: "documents", label: "Vehicle Compliance Documents" },
+      { id: "vehicle_health", label: "Vehicle Health" },
+      { id: "documents", label: "Vehicle Documents" },
       { id: "tyre", label: "Tyre Management" },
       { id: "service", label: "Repair & Service" },
     ],
@@ -187,35 +189,39 @@ const MODULE_DEFINITIONS: ModuleDef[] = [
     features: [
       { id: "company_details", label: "Company Details" },
       { id: "branch", label: "Issuing Offices / Branches" },
-      { id: "users", label: "Employee & User Management" },
-      { id: "roles", label: "Roles & Permissions Management" },
+      { id: "users", label: "User Management" },
+      { id: "roles", label: "Roles & Permissions" },
     ],
   },
   {
     id: "settings",
-    title: "Settings & System Admin",
+    title: "Settings",
     features: [
       { id: "series_master", label: "Series Master" },
       { id: "admin_setting", label: "Admin Setting" },
       { id: "activity", label: "User Activity Log" },
-      { id: "users", label: "User Management" },
-      { id: "roles", label: "Roles Management" },
     ],
   },
   {
     id: "profile",
-    title: "User Profile & Branch Access",
+    title: "Profile",
     features: [
-      { id: "account", label: "User Account Profile" },
+      { id: "account", label: "User Account" },
       { id: "change_password", label: "Change Password" },
-      { id: "email", label: "Outbound Email Dispatch Settings" },
-      { id: "monthly_pnl", label: "Monthly Consolidated P&L" },
-      { id: "branch", label: "Operating Branch View" },
+      { id: "email", label: "Email Settings" },
+      { id: "monthly_pnl", label: "Monthly P&L" },
     ],
   },
 ];
 
 const ACTIONS = ["view", "create", "edit", "delete", "approve"] as const;
+
+function normalizeModuleId(mod: string): string {
+  const m = (mod || "").toLowerCase().trim();
+  if (m === "transport-reports" || m === "transport_reports") return "transport_reports";
+  if (m === "api-center" || m === "api_center") return "api_center";
+  return m.replace(/-/g, "_");
+}
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<RoleRecord[]>([]);
@@ -224,6 +230,7 @@ export default function RolesPage() {
   const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
   const [roleName, setRoleName] = useState("");
   const [roleDescription, setRoleDescription] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -255,6 +262,7 @@ export default function RolesPage() {
     setEditingRoleId(null);
     setRoleName("");
     setRoleDescription("");
+    setSearchQuery("");
     setPermMap({});
     setIsDrawerOpen(true);
   };
@@ -263,39 +271,27 @@ export default function RolesPage() {
     setEditingRoleId(role.id);
     setRoleName(role.name);
     setRoleDescription(role.description || "");
+    setSearchQuery("");
 
     const mapping: Record<string, boolean> = {};
     if (role.permissions) {
       role.permissions.forEach((p) => {
-        if (p.is_allowed) {
-          mapping[`${p.module}:${p.feature}:${p.permission}`] = true;
-          // Synchronize between company and settings for users & roles so either one displays checked
-          if (p.module === "settings" && (p.feature === "users" || p.feature === "roles")) {
-            mapping[`company:${p.feature}:${p.permission}`] = true;
-          }
-          if (p.module === "company" && (p.feature === "users" || p.feature === "roles")) {
-            mapping[`settings:${p.feature}:${p.permission}`] = true;
-          }
-          // Synchronize branch between company and profile
-          if (p.module === "profile" && p.feature === "branch") {
-            mapping[`company:branch:${p.permission}`] = true;
-          }
-          if (p.module === "company" && p.feature === "branch") {
-            mapping[`profile:branch:${p.permission}`] = true;
-          }
-          // Synchronize tracking
-          if (p.module === "transport" && p.feature === "tracking") {
-            mapping[`tracking:fastag_tracking:${p.permission}`] = true;
-            mapping[`tracking:sim_tracking:${p.permission}`] = true;
-            mapping[`tracking:tracking:${p.permission}`] = true;
-          }
-          if (p.module === "tracking") {
-            mapping[`transport:tracking:${p.permission}`] = true;
-            if (p.feature === "tracking") {
-              mapping[`tracking:sim_tracking:${p.permission}`] = true;
-              mapping[`tracking:fastag_tracking:${p.permission}`] = true;
-            }
-          }
+        const normModule = normalizeModuleId(p.module);
+        let normFeature = (p.feature || "").toLowerCase().trim();
+
+        // Harmonize legacy aliases cleanly so all options accurately reflect in the matrix
+        if (normModule === "settings" && (normFeature === "users" || normFeature === "roles")) {
+          mapping[`company:${normFeature}:${p.permission}`] = p.is_allowed;
+        } else if (normModule === "profile" && normFeature === "branch") {
+          mapping[`company:branch:${p.permission}`] = p.is_allowed;
+        } else if (normModule === "transport" && normFeature === "tracking") {
+          mapping[`tracking:sim_tracking:${p.permission}`] = p.is_allowed;
+        } else if (normModule === "tracking" && normFeature === "tracking") {
+          mapping[`tracking:sim_tracking:${p.permission}`] = p.is_allowed;
+        } else if (normModule === "tracking" && normFeature === "fastag") {
+          mapping[`tracking:fastag_tracking:${p.permission}`] = p.is_allowed;
+        } else {
+          mapping[`${normModule}:${normFeature}:${p.permission}`] = p.is_allowed;
         }
       });
     }
@@ -310,6 +306,12 @@ export default function RolesPage() {
       // If setting create/edit/delete/approve to true, automatically enable view
       if (action !== "view" && next[key]) {
         next[`${module}:${feature}:view`] = true;
+      }
+      // If setting view to false, automatically disable all actions for this feature
+      if (action === "view" && !next[key]) {
+        ACTIONS.forEach((act) => {
+          next[`${module}:${feature}:${act}`] = false;
+        });
       }
       return next;
     });
@@ -337,6 +339,20 @@ export default function RolesPage() {
     });
   };
 
+  const setAllModules = (allow: boolean) => {
+    setPermMap((prev) => {
+      const next = { ...prev };
+      MODULE_DEFINITIONS.forEach((mod) => {
+        mod.features.forEach((feat) => {
+          ACTIONS.forEach((act) => {
+            next[`${mod.id}:${feat.id}:${act}`] = allow;
+          });
+        });
+      });
+      return next;
+    });
+  };
+
   const handleSaveRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roleName.trim()) {
@@ -346,44 +362,93 @@ export default function RolesPage() {
 
     setIsSubmitting(true);
     try {
-      const permissions: PermissionItem[] = [];
+      const permissionsMap = new Map<string, PermissionItem>();
+
       Object.entries(permMap).forEach(([key, isAllowed]) => {
-        if (isAllowed) {
-          const [module, feature, permission] = key.split(":");
-          permissions.push({
-            module,
+        if (!isAllowed) return; // Crucial: unchecked options are omitted so they are deleted cleanly
+
+        const [module, feature, permission] = key.split(":");
+        if (!module || !feature || !permission) return;
+
+        // Canonical permission
+        permissionsMap.set(`${module}:${feature}:${permission}`, {
+          module,
+          feature,
+          permission,
+          is_allowed: true,
+        });
+
+        // Dual save aliases so existing backend routes & tests work seamlessly
+        if (module === "company" && (feature === "users" || feature === "roles")) {
+          permissionsMap.set(`settings:${feature}:${permission}`, {
+            module: "settings",
             feature,
             permission,
             is_allowed: true,
           });
-          // Dual save mappings for complete backward and cross-route compatibility
-          if (module === "company" && (feature === "users" || feature === "roles")) {
-            permissions.push({ module: "settings", feature, permission, is_allowed: true });
-          }
-          if (module === "settings" && (feature === "users" || feature === "roles")) {
-            permissions.push({ module: "company", feature, permission, is_allowed: true });
-          }
-          if (module === "tracking") {
-            permissions.push({ module: "transport", feature: "tracking", permission, is_allowed: true });
-            if (feature === "sim_tracking" || feature === "fastag_tracking") {
-              permissions.push({ module: "tracking", feature: "tracking", permission, is_allowed: true });
-            }
-          }
-          if (module === "company" && feature === "branch") {
-            permissions.push({ module: "profile", feature: "branch", permission, is_allowed: true });
-          }
-          if (module === "profile" && feature === "branch") {
-            permissions.push({ module: "company", feature: "branch", permission, is_allowed: true });
-          }
+        }
+        if (module === "company" && feature === "branch") {
+          permissionsMap.set(`profile:branch:${permission}`, {
+            module: "profile",
+            feature: "branch",
+            permission,
+            is_allowed: true,
+          });
+        }
+        if (module === "tracking" && feature === "sim_tracking") {
+          permissionsMap.set(`tracking:tracking:${permission}`, {
+            module: "tracking",
+            feature: "tracking",
+            permission,
+            is_allowed: true,
+          });
+          permissionsMap.set(`transport:tracking:${permission}`, {
+            module: "transport",
+            feature: "tracking",
+            permission,
+            is_allowed: true,
+          });
+        }
+        if (module === "tracking" && feature === "fastag_tracking") {
+          permissionsMap.set(`tracking:fastag:${permission}`, {
+            module: "tracking",
+            feature: "fastag",
+            permission,
+            is_allowed: true,
+          });
+          permissionsMap.set(`transport:fastag_tracking:${permission}`, {
+            module: "transport",
+            feature: "fastag_tracking",
+            permission,
+            is_allowed: true,
+          });
+        }
+        if (module === "transport_reports") {
+          permissionsMap.set(`transport-reports:${feature}:${permission}`, {
+            module: "transport-reports",
+            feature,
+            permission,
+            is_allowed: true,
+          });
+        }
+        if (module === "api_center") {
+          permissionsMap.set(`api-center:${feature}:${permission}`, {
+            module: "api-center",
+            feature,
+            permission,
+            is_allowed: true,
+          });
         }
       });
+
+      const permissions = Array.from(permissionsMap.values());
 
       if (editingRoleId) {
         await apiClient(`/api/v1/settings/roles/${editingRoleId}`, {
           method: "PUT",
           body: JSON.stringify({
-            name: roleName,
-            description: roleDescription,
+            name: roleName.trim(),
+            description: roleDescription.trim(),
             permissions,
           }),
         });
@@ -391,21 +456,40 @@ export default function RolesPage() {
         await apiClient("/api/v1/settings/roles", {
           method: "POST",
           body: JSON.stringify({
-            name: roleName,
-            description: roleDescription,
+            name: roleName.trim(),
+            description: roleDescription.trim(),
             permissions,
           }),
         });
       }
 
       setIsDrawerOpen(false);
-      loadRoles();
+      await loadRoles();
     } catch (err: any) {
       alert(err.message || "Failed to save role.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const filteredModules = useMemo(() => {
+    if (!searchQuery.trim()) return MODULE_DEFINITIONS;
+    const q = searchQuery.toLowerCase().trim();
+    return MODULE_DEFINITIONS.map((mod) => {
+      const modMatches = mod.title.toLowerCase().includes(q);
+      const matchedFeatures = mod.features.filter(
+        (f) => modMatches || f.label.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)
+      );
+      if (matchedFeatures.length > 0) {
+        return { ...mod, features: matchedFeatures };
+      }
+      return null;
+    }).filter(Boolean) as ModuleDef[];
+  }, [searchQuery]);
+
+  const activeGrantedCount = useMemo(() => {
+    return Object.values(permMap).filter(Boolean).length;
+  }, [permMap]);
 
   const handleDeleteRole = async () => {
     if (!deleteTarget) return;
@@ -581,99 +665,152 @@ export default function RolesPage() {
             </div>
           </div>
 
-          {/* Permission Matrix */}
+          {/* Permission Matrix Header & Search */}
           <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-bold text-text-primary">
-                Granular Feature Permissions
-              </h4>
-              <p className="text-xs text-text-secondary">
-                Configure view, create, edit, delete, and approve permissions per feature.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 rounded-xl border border-border">
+              <div>
+                <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                  <span>Granular Feature Permissions</span>
+                  <Badge variant="primary" className="text-xs">
+                    {activeGrantedCount} active
+                  </Badge>
+                </h4>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Configure view, create, edit, delete, and approve permissions per feature.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAllModules(true)}
+                  className="text-xs h-8"
+                >
+                  Grant All Modules
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAllModules(false)}
+                  className="text-xs h-8 text-text-muted hover:text-danger"
+                >
+                  Revoke All
+                </Button>
+              </div>
             </div>
 
-            {MODULE_DEFINITIONS.map((mod) => (
-              <div
-                key={mod.id}
-                className="border border-border rounded-xl overflow-hidden bg-surface"
-              >
-                <div className="bg-canvas px-4 py-2.5 flex items-center justify-between border-b border-border">
-                  <span className="font-bold text-xs text-text-primary uppercase tracking-wider">
-                    {mod.title}
-                  </span>
-                  <div className="flex items-center gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setModuleAll(mod, true)}
-                      className="text-primary hover:underline font-medium"
-                    >
-                      Grant All
-                    </button>
-                    <span className="text-border">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setModuleAll(mod, false)}
-                      className="text-text-muted hover:underline"
-                    >
-                      Revoke All
-                    </button>
+            {/* Filter Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search modules or features (e.g. consignee, tracking, invoice, users)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-9 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary text-xs"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {filteredModules.length === 0 ? (
+              <div className="p-8 text-center bg-surface border border-border rounded-xl text-text-muted text-sm">
+                No modules or features match &quot;{searchQuery}&quot;.
+              </div>
+            ) : (
+              filteredModules.map((mod) => (
+                <div
+                  key={mod.id}
+                  className="border border-border rounded-xl overflow-hidden bg-surface shadow-xs"
+                >
+                  <div className="bg-canvas px-4 py-2.5 flex items-center justify-between border-b border-border">
+                    <span className="font-bold text-xs text-text-primary uppercase tracking-wider">
+                      {mod.title}
+                    </span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setModuleAll(mod, true)}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Grant All
+                      </button>
+                      <span className="text-border">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setModuleAll(mod, false)}
+                        className="text-text-muted hover:underline"
+                      >
+                        Revoke All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-border">
+                    {mod.features.map((feat) => (
+                      <div
+                        key={feat.id}
+                        className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-canvas/50 transition-colors"
+                      >
+                        <div className="sm:w-1/3">
+                          <span className="text-xs font-semibold text-text-primary">
+                            {feat.label}
+                          </span>
+                          <span className="block text-[11px] font-mono text-text-muted">
+                            {mod.id}:{feat.id}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+                          {ACTIONS.map((action) => {
+                            const checked = !!permMap[`${mod.id}:${feat.id}:${action}`];
+                            return (
+                              <label
+                                key={action}
+                                className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() =>
+                                    togglePermission(mod.id, feat.id, action)
+                                  }
+                                  className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
+                                />
+                                <span className="capitalize">{action}</span>
+                              </label>
+                            );
+                          })}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const allChecked = ACTIONS.every(
+                                (act) => permMap[`${mod.id}:${feat.id}:${act}`]
+                              );
+                              setRowAll(mod.id, feat.id, !allChecked);
+                            }}
+                            className="text-[11px] text-text-muted hover:text-primary ml-2"
+                          >
+                            Toggle Row
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-
-                <div className="divide-y divide-border">
-                  {mod.features.map((feat) => (
-                    <div
-                      key={feat.id}
-                      className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-canvas/50 transition-colors"
-                    >
-                      <div className="sm:w-1/3">
-                        <span className="text-xs font-semibold text-text-primary">
-                          {feat.label}
-                        </span>
-                        <span className="block text-[11px] font-mono text-text-muted">
-                          {mod.id}:{feat.id}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
-                        {ACTIONS.map((action) => {
-                          const checked = !!permMap[`${mod.id}:${feat.id}:${action}`];
-                          return (
-                            <label
-                              key={action}
-                              className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  togglePermission(mod.id, feat.id, action)
-                                }
-                                className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
-                              />
-                              <span className="capitalize">{action}</span>
-                            </label>
-                          );
-                        })}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const allChecked = ACTIONS.every(
-                              (act) => permMap[`${mod.id}:${feat.id}:${act}`]
-                            );
-                            setRowAll(mod.id, feat.id, !allChecked);
-                          }}
-                          className="text-[11px] text-text-muted hover:text-primary ml-2"
-                        >
-                          Toggle Row
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </form>
       </EntityDrawer>
