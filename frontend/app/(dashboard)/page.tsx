@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Truck,
@@ -36,6 +36,7 @@ import {
   Zap,
   Map,
   Radio,
+  Navigation,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -56,7 +57,8 @@ import { SegmentTabs } from "@/components/ui/tabs";
 import { AreaTrendChart, BarMetricChart, DonutDistributionChart } from "@/components/charts";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
-import { getWorkspaceUrl } from "@/lib/auth";
+import { getWorkspaceUrl, getStoredAuth } from "@/lib/auth";
+import type { NavGroup } from "@/components/layout/sidebar";
 import { DataState } from "@/components/ui/data-state";
 
 type ActiveTab = "overview" | "finance" | "operations" | "own_fleet";
@@ -170,6 +172,179 @@ function FunnelRow({
   );
 }
 
+interface QuickActionCandidate {
+  id: string;
+  title: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  colorTheme: {
+    border: string;
+    bg: string;
+    hoverBg: string;
+    text: string;
+    iconColor: string;
+  };
+}
+
+const QUICK_ACTION_CANDIDATES: QuickActionCandidate[] = [
+  {
+    id: "lr-booking",
+    title: "Book GR/LR",
+    href: "/transport/lr-booking",
+    icon: FileText,
+    colorTheme: {
+      border: "border-indigo-100/90",
+      bg: "bg-indigo-50/60",
+      hoverBg: "hover:bg-indigo-100/70",
+      text: "text-indigo-700",
+      iconColor: "text-indigo-600",
+    },
+  },
+  {
+    id: "transport-invoice",
+    title: "Create Invoice",
+    href: "/accounts/transport-invoice",
+    icon: Receipt,
+    colorTheme: {
+      border: "border-emerald-100/90",
+      bg: "bg-emerald-50/60",
+      hoverBg: "hover:bg-emerald-100/70",
+      text: "text-emerald-700",
+      iconColor: "text-emerald-600",
+    },
+  },
+  {
+    id: "jobs",
+    title: "New Trip Order",
+    href: "/transport/jobs",
+    icon: Truck,
+    colorTheme: {
+      border: "border-amber-100/90",
+      bg: "bg-amber-50/60",
+      hoverBg: "hover:bg-amber-100/70",
+      text: "text-amber-700",
+      iconColor: "text-amber-600",
+    },
+  },
+  {
+    id: "lr-register",
+    title: "Generate Report",
+    href: "/transport-reports/lr-register",
+    icon: BarChart3,
+    colorTheme: {
+      border: "border-blue-100/90",
+      bg: "bg-blue-50/60",
+      hoverBg: "hover:bg-blue-100/70",
+      text: "text-blue-700",
+      iconColor: "text-blue-600",
+    },
+  },
+  {
+    id: "fastag-tracking",
+    title: "FASTag Tracking",
+    href: "/tracking/fastag",
+    icon: Navigation,
+    colorTheme: {
+      border: "border-sky-100/90",
+      bg: "bg-sky-50/60",
+      hoverBg: "hover:bg-sky-100/70",
+      text: "text-sky-700",
+      iconColor: "text-sky-600",
+    },
+  },
+  {
+    id: "sim-tracking",
+    title: "SIM Based Tracking",
+    href: "/tracking/sim",
+    icon: Radio,
+    colorTheme: {
+      border: "border-purple-100/90",
+      bg: "bg-purple-50/60",
+      hoverBg: "hover:bg-purple-100/70",
+      text: "text-purple-700",
+      iconColor: "text-purple-600",
+    },
+  },
+  {
+    id: "pod-records",
+    title: "Verify POD Records",
+    href: "/transport/pod-records",
+    icon: CheckCircle2,
+    colorTheme: {
+      border: "border-teal-100/90",
+      bg: "bg-teal-50/60",
+      hoverBg: "hover:bg-teal-100/70",
+      text: "text-teal-700",
+      iconColor: "text-teal-600",
+    },
+  },
+  {
+    id: "eway-bill",
+    title: "Update E-Way Bills",
+    href: "/transport/eway-bill",
+    icon: FileSpreadsheet,
+    colorTheme: {
+      border: "border-cyan-100/90",
+      bg: "bg-cyan-50/60",
+      hoverBg: "hover:bg-cyan-100/70",
+      text: "text-cyan-700",
+      iconColor: "text-cyan-600",
+    },
+  },
+  {
+    id: "documents",
+    title: "Vehicle Documents",
+    href: "/fleet/documents",
+    icon: ShieldCheck,
+    colorTheme: {
+      border: "border-amber-100/90",
+      bg: "bg-amber-50/60",
+      hoverBg: "hover:bg-amber-100/70",
+      text: "text-amber-700",
+      iconColor: "text-amber-600",
+    },
+  },
+  {
+    id: "service",
+    title: "Fleet Service & Repair",
+    href: "/fleet/service",
+    icon: Wrench,
+    colorTheme: {
+      border: "border-slate-200",
+      bg: "bg-slate-50",
+      hoverBg: "hover:bg-slate-100",
+      text: "text-slate-700",
+      iconColor: "text-slate-600",
+    },
+  },
+  {
+    id: "payment-voucher",
+    title: "Payment Voucher",
+    href: "/accounts/payment-voucher",
+    icon: CreditCard,
+    colorTheme: {
+      border: "border-rose-100/90",
+      bg: "bg-rose-50/60",
+      hoverBg: "hover:bg-rose-100/70",
+      text: "text-rose-700",
+      iconColor: "text-rose-600",
+    },
+  },
+  {
+    id: "daybook",
+    title: "Financial Daybook",
+    href: "/reports/daybook",
+    icon: BookOpen,
+    colorTheme: {
+      border: "border-violet-100/90",
+      bg: "bg-violet-50/60",
+      hoverBg: "hover:bg-violet-100/70",
+      text: "text-violet-700",
+      iconColor: "text-violet-600",
+    },
+  },
+];
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [chartPeriod, setChartPeriod] = useState<"Daily" | "Weekly" | "Monthly">("Monthly");
@@ -247,6 +422,64 @@ export default function DashboardPage() {
     businessData?.monthly_trends && businessData.monthly_trends.length > 0
       ? businessData.monthly_trends
       : defaultMonthlyTrends;
+
+  // Real data-driven navigation permissions to gate quick actions and direct links
+  const [navGroups, setNavGroups] = useState<NavGroup[] | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient<NavGroup[]>("/api/v1/auth/navigation")
+      .then((data) => {
+        if (isMounted && Array.isArray(data)) {
+          setNavGroups(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load navigation permissions:", err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const auth = typeof window !== "undefined" ? getStoredAuth() : null;
+  const userRole = (auth?.role || "").toUpperCase().trim();
+  const isAdmin = ["COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"].includes(userRole);
+
+  const canAccessRoute = useCallback(
+    (targetPath: string): boolean => {
+      if (isAdmin) {
+        if (!navGroups) return true;
+        for (const g of navGroups) {
+          for (const it of g.items || []) {
+            if (it.href === targetPath) {
+              return !it.is_locked && !g.is_locked;
+            }
+          }
+        }
+        return true;
+      }
+
+      if (!navGroups) {
+        return false;
+      }
+
+      for (const g of navGroups) {
+        if (g.is_locked) continue;
+        for (const it of g.items || []) {
+          if (it.href === targetPath) {
+            return !it.is_locked;
+          }
+        }
+      }
+      return false;
+    },
+    [isAdmin, navGroups]
+  );
+
+  const permittedQuickActions = useMemo(() => {
+    return QUICK_ACTION_CANDIDATES.filter((action) => canAccessRoute(action.href)).slice(0, 4);
+  }, [canAccessRoute]);
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -426,31 +659,37 @@ export default function DashboardPage() {
           </div>
 
           {/* Book GR/LR */}
-          <Link
-            href={getWorkspaceUrl("/transport/lr-booking")}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
-          >
-            <FileText className="w-3.5 h-3.5 text-slate-500" />
-            <span>Book GR/LR</span>
-          </Link>
+          {canAccessRoute("/transport/lr-booking") && (
+            <Link
+              href={getWorkspaceUrl("/transport/lr-booking")}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5 text-slate-500" />
+              <span>Book GR/LR</span>
+            </Link>
+          )}
 
           {/* Create Invoice */}
-          <Link
-            href={getWorkspaceUrl("/accounts/transport-invoice")}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
-          >
-            <Receipt className="w-3.5 h-3.5 text-slate-500" />
-            <span>Create Invoice</span>
-          </Link>
+          {canAccessRoute("/accounts/transport-invoice") && (
+            <Link
+              href={getWorkspaceUrl("/accounts/transport-invoice")}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
+            >
+              <Receipt className="w-3.5 h-3.5 text-slate-500" />
+              <span>Create Invoice</span>
+            </Link>
+          )}
 
           {/* + New Trip Order */}
-          <Link
-            href={getWorkspaceUrl("/transport/jobs")}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] active:bg-[#3730A3] text-white text-xs font-semibold shadow-sm transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Trip Order</span>
-          </Link>
+          {canAccessRoute("/transport/jobs") && (
+            <Link
+              href={getWorkspaceUrl("/transport/jobs")}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] active:bg-[#3730A3] text-white text-xs font-semibold shadow-sm transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Trip Order</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -768,13 +1007,15 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <Link
-                  href="/transport-reports/lr-register"
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
-                >
-                  <span>View All</span>
-                  <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
+                {canAccessRoute("/transport-reports/lr-register") && (
+                  <Link
+                    href={getWorkspaceUrl("/transport-reports/lr-register")}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
+                  >
+                    <span>View All</span>
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                )}
               </div>
 
               {businessData?.top_corridors && businessData.top_corridors.length > 0 ? (
@@ -828,13 +1069,15 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <Link
-                  href={getWorkspaceUrl("/transport/lr-booking")}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
-                >
-                  <span>View All</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
+                {canAccessRoute("/transport/lr-booking") && (
+                  <Link
+                    href={getWorkspaceUrl("/transport/lr-booking")}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group"
+                  >
+                    <span>View All</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                )}
               </div>
 
               {businessData?.recent_operations && businessData.recent_operations.length > 0 ? (
@@ -912,52 +1155,43 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* 2x2 Action Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 pt-2">
-                <Link
-                  href={getWorkspaceUrl("/transport/lr-booking")}
-                  className="rounded-xl border border-indigo-100/90 bg-indigo-50/60 hover:bg-indigo-100/70 p-3 flex items-center justify-between text-indigo-700 group transition-all shadow-2xs"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span className="text-xs font-bold text-slate-800 truncate">Book GR/LR</span>
+              {/* Dynamic Action Cards */}
+              {permittedQuickActions.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 pt-2">
+                  {permittedQuickActions.map((action) => {
+                    const IconComp = action.icon;
+                    return (
+                      <Link
+                        key={action.id}
+                        href={getWorkspaceUrl(action.href)}
+                        className={cn(
+                          "rounded-xl border p-3 flex items-center justify-between group transition-all shadow-2xs",
+                          action.colorTheme.border,
+                          action.colorTheme.bg,
+                          action.colorTheme.hoverBg,
+                          action.colorTheme.text
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <IconComp className={cn("w-4 h-4 shrink-0", action.colorTheme.iconColor)} />
+                          <span className="text-xs font-bold text-slate-800 truncate">{action.title}</span>
+                        </div>
+                        <ArrowRight className={cn("w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform shrink-0", action.colorTheme.iconColor)} />
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-6 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 text-center flex flex-col items-center justify-center my-auto">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
+                    <ShieldCheck className="w-4 h-4 text-slate-400" />
                   </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-indigo-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                </Link>
-
-                <Link
-                  href={getWorkspaceUrl("/accounts/transport-invoice")}
-                  className="rounded-xl border border-emerald-100/90 bg-emerald-50/60 hover:bg-emerald-100/70 p-3 flex items-center justify-between text-emerald-700 group transition-all shadow-2xs"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Receipt className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="text-xs font-bold text-slate-800 truncate">Create Invoice</span>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-emerald-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                </Link>
-
-                <Link
-                  href={getWorkspaceUrl("/transport/jobs")}
-                  className="rounded-xl border border-amber-100/90 bg-amber-50/60 hover:bg-amber-100/70 p-3 flex items-center justify-between text-amber-700 group transition-all shadow-2xs"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Truck className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span className="text-xs font-bold text-slate-800 truncate">New Trip Order</span>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-amber-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                </Link>
-
-                <Link
-                  href={getWorkspaceUrl("/transport-reports/lr-register")}
-                  className="rounded-xl border border-blue-100/90 bg-blue-50/60 hover:bg-blue-100/70 p-3 flex items-center justify-between text-blue-700 group transition-all shadow-2xs"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <BarChart3 className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span className="text-xs font-bold text-slate-800 truncate">Generate Report</span>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-blue-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                </Link>
-              </div>
+                  <p className="text-xs font-semibold text-slate-700">No Quick Actions Available</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 max-w-xs">
+                    No permitted operational actions are available for your current role.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

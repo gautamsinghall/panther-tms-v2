@@ -50,6 +50,7 @@ const MODULE_TITLES: Record<string, { label: string; defaultHref: string }> = {
   general: { label: "General", defaultHref: "/general/billing-client" },
   company: { label: "Company Settings", defaultHref: "/company/details" },
   profile: { label: "Profile", defaultHref: "/profile/account" },
+  tracking: { label: "Tracking", defaultHref: "/tracking/fastag" },
 };
 
 const SUBROUTE_TITLES: Record<string, string> = {
@@ -65,6 +66,8 @@ const SUBROUTE_TITLES: Record<string, string> = {
   "truck-hiring-note": "Truck Hiring Note",
   "eway-bill": "E-Way Bills",
   tracking: "Sim Based Tracking",
+  sim: "SIM Based Tracking",
+  fastag: "FASTag Tracking",
   "transport-invoice": "Transport Invoices",
   "general-invoice": "General Invoices",
   "proforma-invoice": "Proforma Invoices",

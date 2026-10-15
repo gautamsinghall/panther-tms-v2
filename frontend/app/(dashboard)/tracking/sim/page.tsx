@@ -27,6 +27,7 @@ import {
   Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { apiClient } from "@/lib/api-client";
 import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import {
@@ -695,43 +696,45 @@ export default function SIMTrackingPage() {
       )}
 
       {/* =========================================================================
-          TOP HEADER: My Trips + Global Action Buttons
+          TOP HEADER: Standard PageHeader with Breadcrumbs + Action Buttons
          ========================================================================= */}
-      <div className="flex items-center justify-between pb-1">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">My Trips</h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Cellular tower SIM tracking for verified Indian logistics line-haul movements
-          </p>
-        </div>
+      <PageHeader
+        title="SIM Based Tracking"
+        description="Cellular tower SIM tracking for verified Indian logistics line-haul movements"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/" },
+          { label: "Tracking", href: "/tracking/fastag" },
+          { label: "SIM Based Tracking" },
+        ]}
+        actions={
+          <div className="flex items-center gap-2">
+            {/* General Refresh Telemetry Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadSimTrips}
+              disabled={isLoading}
+              className="gap-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+              title="Refresh All Trips Data"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-indigo-600")} />
+              <span>Refresh</span>
+            </Button>
 
-        <div className="flex items-center gap-2">
-          {/* General Refresh Telemetry Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadSimTrips}
-            disabled={isLoading}
-            className="gap-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
-            title="Refresh All Trips Data"
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-indigo-600")} />
-            <span>Refresh</span>
-          </Button>
-
-          {/* Add Trip Button (Global Indigo Theme) */}
-          <Button
-            onClick={() => {
-              resetAddFormData();
-              setIsAddTripModalOpen(true);
-            }}
-            className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs text-sm cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Add Trip</span>
-          </Button>
-        </div>
-      </div>
+            {/* Add Trip Button (Global Indigo Theme) */}
+            <Button
+              onClick={() => {
+                resetAddFormData();
+                setIsAddTripModalOpen(true);
+              }}
+              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs text-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Add Trip</span>
+            </Button>
+          </div>
+        }
+      />
 
       {/* =========================================================================
           MAIN TABS BAR: Open Trips (N) | Closed Trips (N) | Display Options
