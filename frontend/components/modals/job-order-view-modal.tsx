@@ -123,6 +123,7 @@ export function JobOrderViewModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const triggerElementRef = useRef<HTMLElement | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const modalBodyRef = useRef<HTMLDivElement>(null);
   const primaryActionRef = useRef<HTMLButtonElement>(null);
 
   // Mount on client
@@ -239,6 +240,10 @@ export function JobOrderViewModal({
   if (!isOpen || !mounted || !job) return null;
 
   const handlePrint = () => {
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
     window.print();
   };
 
@@ -368,11 +373,11 @@ export function JobOrderViewModal({
       aria-modal="true"
       aria-labelledby="job-order-dialog-title"
       aria-describedby="job-order-dialog-description"
-      className="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:absolute print:inset-0"
+      className="job-order-modal-portal fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto"
     >
       {/* Accessible Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in print:hidden"
+        className="job-order-modal-backdrop fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in print:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -388,34 +393,83 @@ export function JobOrderViewModal({
           body {
             margin: 0 !important;
             padding: 0 !important;
-            height: 100% !important;
-            background: white !important;
+            height: auto !important;
+            min-height: 0 !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+          }
+          /* Completely hide the rest of the application outside the modal portal */
+          body > *:not(.job-order-modal-portal) {
+            display: none !important;
           }
           body * {
             visibility: hidden;
           }
-          #job-order-printable-document,
-          #job-order-printable-document * {
+          .job-order-modal-portal,
+          .job-order-modal-portal * {
             visibility: visible;
           }
-          #job-order-printable-document {
-            position: absolute;
-            left: 0;
-            top: 0;
+          .no-print,
+          .no-print *,
+          .job-order-modal-backdrop,
+          .job-order-modal-backdrop * {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          .job-order-modal-portal {
+            position: static !important;
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            inset: auto !important;
+            z-index: auto !important;
+          }
+          .job-order-modal-container {
+            position: static !important;
+            display: block !important;
             width: 100% !important;
             max-width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
             margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+            transform: none !important;
+            animation: none !important;
+            background: #ffffff !important;
+          }
+          .job-order-modal-body {
+            position: static !important;
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: transparent !important;
+          }
+          #job-order-printable-document {
+            position: static !important;
+            display: block !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
             padding: 0 !important;
             box-shadow: none !important;
             border: 1.5px solid black !important;
-            background: white !important;
+            background: #ffffff !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-          }
-          .no-print {
-            display: none !important;
           }
         }
       `}</style>
@@ -424,7 +478,7 @@ export function JobOrderViewModal({
       <div
         ref={modalRef}
         tabIndex={-1}
-        className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] focus:outline-none print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
+        className="job-order-modal-container relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] focus:outline-none print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
       >
         {/* Top Control Bar (Hidden in Print) */}
         <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/90 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
@@ -549,7 +603,7 @@ export function JobOrderViewModal({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="overflow-y-auto flex-1 bg-slate-50/60">
+        <div ref={modalBodyRef} className="job-order-modal-body overflow-y-auto flex-1 bg-slate-50/60">
           {isLoadingDetails ? (
             <div className="min-h-[420px] flex flex-col items-center justify-center p-8 space-y-3">
               <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />

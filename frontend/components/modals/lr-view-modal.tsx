@@ -116,6 +116,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
   const [selectedCopy, setSelectedCopy] = useState<"Consignor" | "Consignee" | "Driver" | "Office">("Consignor");
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const modalBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -172,6 +173,10 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
   if (!isOpen || !mounted || !lr) return null;
 
   const handlePrint = () => {
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
     window.print();
   };
 
@@ -258,9 +263,9 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
   const jurisdictionText = issuingBranch?.document_notes?.trim() || `Subject to ${officeCity} Jurisdiction only`;
 
   const modalNode = (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:absolute print:inset-0">
+    <div className="lr-modal-portal fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto">
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in print:hidden"
+        className="lr-modal-backdrop fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in print:hidden"
         onClick={onClose}
       />
 
@@ -275,40 +280,89 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
           body {
             margin: 0 !important;
             padding: 0 !important;
-            height: 100% !important;
-            background: white !important;
+            height: auto !important;
+            min-height: 0 !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+          }
+          /* Completely hide the rest of the application outside the modal portal */
+          body > *:not(.lr-modal-portal) {
+            display: none !important;
           }
           body * {
             visibility: hidden;
           }
-          #lr-printable-document,
-          #lr-printable-document * {
+          .lr-modal-portal,
+          .lr-modal-portal * {
             visibility: visible;
           }
-          #lr-printable-document {
-            position: absolute;
-            left: 0;
-            top: 0;
+          .no-print,
+          .no-print *,
+          .lr-modal-backdrop,
+          .lr-modal-backdrop * {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          .lr-modal-portal {
+            position: static !important;
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            inset: auto !important;
+            z-index: auto !important;
+          }
+          .lr-modal-container {
+            position: static !important;
+            display: block !important;
             width: 100% !important;
             max-width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
             margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+            transform: none !important;
+            animation: none !important;
+            background: #ffffff !important;
+          }
+          .lr-modal-body {
+            position: static !important;
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: transparent !important;
+          }
+          #lr-printable-document {
+            position: static !important;
+            display: block !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
             padding: 0 !important;
             box-shadow: none !important;
             border: 1.5px solid black !important;
-            background: white !important;
+            background: #ffffff !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .no-print {
-            display: none !important;
-          }
         }
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="lr-modal-container relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Hidden in Print) */}
         <div className="px-6 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
           <div className="flex items-center gap-2">
@@ -385,7 +439,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         </div>
 
         {/* Modal Printable Body - Clean A4 Goods Receipt / Consignment Note */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
+        <div ref={modalBodyRef} className="lr-modal-body p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
           <div
             id="lr-printable-document"
             ref={printRef}
