@@ -306,37 +306,61 @@ async def import_jobs_from_excel(
             "imported_jobs": [],
         }
 
-    # In-memory caches to speed up master resolution
-    consigner_cache: Dict[str, Consigner] = {}
-    consignee_cache: Dict[str, Consignee] = {}
-    location_cache: Dict[str, Location] = {}
-    billing_client_cache: Dict[str, BillingClient] = {}
+    # In-memory caches to speed up master resolution (office-scoped and global templates)
+    consigner_office_cache: Dict[str, Consigner] = {}
+    consigner_global_cache: Dict[str, Consigner] = {}
+    consignee_office_cache: Dict[str, Consignee] = {}
+    consignee_global_cache: Dict[str, Consignee] = {}
+    location_office_cache: Dict[str, Location] = {}
+    location_global_cache: Dict[str, Location] = {}
+    billing_client_office_cache: Dict[str, BillingClient] = {}
+    billing_client_global_cache: Dict[str, BillingClient] = {}
 
     # Pre-populate caches with existing active masters
     try:
-        all_c_res = await db.execute(select(Consigner))
+        all_c_res = await db.execute(select(Consigner).where(Consigner.is_active == True))
         for c in all_c_res.scalars().all():
-            consigner_cache[c.name.strip().lower()] = c
+            k_name = c.name.strip().lower()
+            consigner_global_cache[k_name] = c
             if c.code:
-                consigner_cache[c.code.strip().lower()] = c
+                consigner_global_cache[c.code.strip().lower()] = c
+            if c.issuing_office_id == resolved_office_id or c.issuing_office_id is None:
+                consigner_office_cache[k_name] = c
+                if c.code:
+                    consigner_office_cache[c.code.strip().lower()] = c
 
-        all_ce_res = await db.execute(select(Consignee))
+        all_ce_res = await db.execute(select(Consignee).where(Consignee.is_active == True))
         for ce in all_ce_res.scalars().all():
-            consignee_cache[ce.name.strip().lower()] = ce
+            k_name = ce.name.strip().lower()
+            consignee_global_cache[k_name] = ce
             if ce.code:
-                consignee_cache[ce.code.strip().lower()] = ce
+                consignee_global_cache[ce.code.strip().lower()] = ce
+            if ce.issuing_office_id == resolved_office_id or ce.issuing_office_id is None:
+                consignee_office_cache[k_name] = ce
+                if ce.code:
+                    consignee_office_cache[ce.code.strip().lower()] = ce
 
-        all_loc_res = await db.execute(select(Location))
+        all_loc_res = await db.execute(select(Location).where(Location.is_active == True))
         for loc in all_loc_res.scalars().all():
-            location_cache[loc.city_name.strip().lower()] = loc
+            k_name = loc.city_name.strip().lower()
+            location_global_cache[k_name] = loc
             if loc.location_code:
-                location_cache[loc.location_code.strip().lower()] = loc
+                location_global_cache[loc.location_code.strip().lower()] = loc
+            if loc.issuing_office_id == resolved_office_id or loc.issuing_office_id is None:
+                location_office_cache[k_name] = loc
+                if loc.location_code:
+                    location_office_cache[loc.location_code.strip().lower()] = loc
 
-        all_bc_res = await db.execute(select(BillingClient))
+        all_bc_res = await db.execute(select(BillingClient).where(BillingClient.is_active == True))
         for bc in all_bc_res.scalars().all():
-            billing_client_cache[bc.name.strip().lower()] = bc
+            k_name = bc.name.strip().lower()
+            billing_client_global_cache[k_name] = bc
             if bc.code:
-                billing_client_cache[bc.code.strip().lower()] = bc
+                billing_client_global_cache[bc.code.strip().lower()] = bc
+            if bc.issuing_office_id == resolved_office_id or bc.issuing_office_id is None:
+                billing_client_office_cache[k_name] = bc
+                if bc.code:
+                    billing_client_office_cache[bc.code.strip().lower()] = bc
     except Exception:
         pass
 
@@ -365,10 +389,32 @@ async def import_jobs_from_excel(
             stmt_s = stmt_s.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
         series_res = await db.execute(stmt_s)
         job_series = series_res.scalars().first()
+
+        # Fallback to active company default series if branch has no office-specific series
+        if not job_series and resolved_office_id:
+            stmt_fallback = (
+                select(SeriesMaster)
+                .where(
+                    SeriesMaster.document_type.in_(["JOB", "TRIP"]),
+                    SeriesMaster.is_active == True,
+                )
+                .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+            )
+            series_res = await db.execute(stmt_fallback)
+            job_series = series_res.scalars().first()
     except Exception:
         pass
 
-    series_prefix = (job_series.prefix or "") if job_series else ""
+    branch_code = ""
+    if resolved_office_id:
+        try:
+            br_obj = await db.get(Branch, resolved_office_id)
+            if br_obj and br_obj.code:
+                branch_code = br_obj.code.strip().upper()
+        except Exception:
+            pass
+
+    series_prefix = (job_series.prefix or "") if job_series else (f"{branch_code}-JOB-2026-" if branch_code else "JOB-2026-")
     series_suffix = (job_series.suffix or "") if job_series else ""
 
     # Tracking sets for In-Excel Duplication Check
@@ -483,58 +529,103 @@ async def import_jobs_from_excel(
                 continue
 
         # -------------------------------------------------------------------
-        # Sub-field Resolution & Auto-creation
+        # Sub-field Resolution & Auto-creation (Office-isolated with template inheritance)
         # -------------------------------------------------------------------
         # 1. Billing Client
         client_key = raw_client.lower()
-        client_obj = billing_client_cache.get(client_key)
+        client_obj = billing_client_office_cache.get(client_key)
         if not client_obj:
+            existing_template = billing_client_global_cache.get(client_key)
             client_obj = BillingClient(
                 name=raw_client,
-                country="India",
+                code=existing_template.code if existing_template else None,
+                company_name=existing_template.company_name if existing_template else None,
+                contact_person=existing_template.contact_person if existing_template else None,
+                phone=existing_template.phone if existing_template else None,
+                email=existing_template.email if existing_template else None,
+                gstin=existing_template.gstin if existing_template else None,
+                pan=existing_template.pan if existing_template else None,
+                tds_rate=existing_template.tds_rate if existing_template else Decimal("0.00"),
+                credit_period_days=existing_template.credit_period_days if existing_template else 30,
+                credit_limit=existing_template.credit_limit if existing_template else Decimal("0.00"),
+                payment_terms=existing_template.payment_terms if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                city=existing_template.city if existing_template else None,
+                state=existing_template.state if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
+                country=existing_template.country if existing_template else "India",
                 is_active=True,
                 issuing_office_id=resolved_office_id,
             )
             db.add(client_obj)
             await db.flush()
-            billing_client_cache[client_key] = client_obj
+            billing_client_office_cache[client_key] = client_obj
+            billing_client_global_cache[client_key] = client_obj
 
         # 2. Consigner
         consigner_key = raw_consigner.lower()
-        consigner_obj = consigner_cache.get(consigner_key)
+        consigner_obj = consigner_office_cache.get(consigner_key)
         if not consigner_obj:
+            existing_template = consigner_global_cache.get(consigner_key)
             consigner_obj = Consigner(
                 name=raw_consigner,
-                country="India",
+                code=existing_template.code if existing_template else None,
+                contact_person=existing_template.contact_person if existing_template else None,
+                phone=existing_template.phone if existing_template else None,
+                email=existing_template.email if existing_template else None,
+                gstin=existing_template.gstin if existing_template else None,
+                pan=existing_template.pan if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                city=existing_template.city if existing_template else None,
+                state=existing_template.state if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
+                country=existing_template.country if existing_template else "India",
                 is_active=True,
                 issuing_office_id=resolved_office_id,
             )
             db.add(consigner_obj)
             await db.flush()
-            consigner_cache[consigner_key] = consigner_obj
+            consigner_office_cache[consigner_key] = consigner_obj
+            consigner_global_cache[consigner_key] = consigner_obj
 
         # 3. Consignee
         consignee_key = raw_consignee.lower()
-        consignee_obj = consignee_cache.get(consignee_key)
+        consignee_obj = consignee_office_cache.get(consignee_key)
         if not consignee_obj:
+            existing_template = consignee_global_cache.get(consignee_key)
             consignee_obj = Consignee(
                 name=raw_consignee,
-                country="India",
+                code=existing_template.code if existing_template else None,
+                contact_person=existing_template.contact_person if existing_template else None,
+                phone=existing_template.phone if existing_template else None,
+                email=existing_template.email if existing_template else None,
+                gstin=existing_template.gstin if existing_template else None,
+                pan=existing_template.pan if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                city=existing_template.city if existing_template else None,
+                state=existing_template.state if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
+                country=existing_template.country if existing_template else "India",
                 is_active=True,
                 issuing_office_id=resolved_office_id,
             )
             db.add(consignee_obj)
             await db.flush()
-            consignee_cache[consignee_key] = consignee_obj
+            consignee_office_cache[consignee_key] = consignee_obj
+            consignee_global_cache[consignee_key] = consignee_obj
 
         # 4. Origin Location
         origin_key = raw_origin.lower()
-        origin_obj = location_cache.get(origin_key)
+        origin_obj = location_office_cache.get(origin_key)
         if not origin_obj:
+            existing_template = location_global_cache.get(origin_key)
             origin_obj = Location(
                 city_name=raw_origin.title(),
-                state="General",
-                country="India",
+                state=existing_template.state if existing_template else "General",
+                country=existing_template.country if existing_template else "India",
+                location_code=existing_template.location_code if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
                 is_pickup_point=True,
                 is_drop_point=True,
                 is_active=True,
@@ -542,16 +633,21 @@ async def import_jobs_from_excel(
             )
             db.add(origin_obj)
             await db.flush()
-            location_cache[origin_key] = origin_obj
+            location_office_cache[origin_key] = origin_obj
+            location_global_cache[origin_key] = origin_obj
 
         # 5. Destination Location
         dest_key = raw_dest.lower()
-        dest_obj = location_cache.get(dest_key)
+        dest_obj = location_office_cache.get(dest_key)
         if not dest_obj:
+            existing_template = location_global_cache.get(dest_key)
             dest_obj = Location(
                 city_name=raw_dest.title(),
-                state="General",
-                country="India",
+                state=existing_template.state if existing_template else "General",
+                country=existing_template.country if existing_template else "India",
+                location_code=existing_template.location_code if existing_template else None,
+                address=existing_template.address if existing_template else None,
+                pincode=existing_template.pincode if existing_template else None,
                 is_pickup_point=True,
                 is_drop_point=True,
                 is_active=True,
@@ -559,11 +655,12 @@ async def import_jobs_from_excel(
             )
             db.add(dest_obj)
             await db.flush()
-            location_cache[dest_key] = dest_obj
+            location_office_cache[dest_key] = dest_obj
+            location_global_cache[dest_key] = dest_obj
 
         # -------------------------------------------------------------------
         # 2b. Database Business Duplicate Check
-        # Check if an identical active job with same consigner, consignee, route, and dispatch date already exists
+        # Check if an identical active job with same consigner, consignee, route, and dispatch date already exists for this issuing office
         # -------------------------------------------------------------------
         db_dup_query = (
             select(Job.id, Job.job_number, Job.status)
@@ -576,6 +673,9 @@ async def import_jobs_from_excel(
                 Job.status != JobStatus.CANCELLED.value,
             )
         )
+        if resolved_office_id:
+            db_dup_query = db_dup_query.where(Job.issuing_office_id == resolved_office_id)
+
         if raw_cargo:
             db_dup_query = db_dup_query.where(
                 or_(
@@ -614,13 +714,27 @@ async def import_jobs_from_excel(
         # Allocate Voucher Number & Create Job
         # -------------------------------------------------------------------
         try:
+            allocated_job_number = None
             if apply_series_prefix_suffix:
-                allocated_job_number = await allocate_or_validate_voucher_number(
-                    db,
-                    "JOB",
-                    manual_number=effective_job_no if effective_job_no else None,
-                    issuing_office_id=resolved_office_id,
-                )
+                try:
+                    allocated_job_number = await allocate_or_validate_voucher_number(
+                        db,
+                        "JOB",
+                        manual_number=effective_job_no if effective_job_no else None,
+                        issuing_office_id=resolved_office_id,
+                    )
+                except AppException as ae:
+                    if ae.error_code in ("SERIES_NOT_CONFIGURED", "MANUAL_SERIES_NOT_CONFIGURED"):
+                        if effective_job_no:
+                            allocated_job_number = effective_job_no
+                        else:
+                            real_usage = await get_real_voucher_usage(db, "JOB", prefix=series_prefix)
+                            disp = compute_series_display_data(job_series, real_usage=real_usage) if job_series else {"next_number": 1}
+                            next_seq = disp["next_number"]
+                            prefix_to_use = series_prefix or (f"{branch_code}-JOB-2026-" if branch_code else "JOB-2026-")
+                            allocated_job_number = f"{prefix_to_use}{str(next_seq).zfill(4)}"
+                    else:
+                        raise ae
             else:
                 if effective_job_no:
                     allocated_job_number = effective_job_no

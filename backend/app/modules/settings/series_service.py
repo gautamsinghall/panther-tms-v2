@@ -739,6 +739,19 @@ async def allocate_or_validate_voucher_number(
     res = await db.execute(stmt)
     series = res.scalars().first()
 
+    # Fallback to active company default series if branch has no office-specific series
+    if not series and issuing_office_id:
+        fallback_stmt = (
+            select(SeriesMaster)
+            .where(
+                SeriesMaster.document_type.in_([norm_type, raw_doc]),
+                SeriesMaster.is_active == True,
+            )
+            .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+        )
+        res = await db.execute(fallback_stmt)
+        series = res.scalars().first()
+
     # Rule: LR, HC, General Invoice, Transport Invoice mandatory manual check
     if is_mandatory_manual and not series:
         readable_title = norm_type.replace("_", " ").title()
@@ -800,6 +813,12 @@ async def allocate_or_validate_voucher_number(
                 else:
                     range_stmt = range_stmt.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
                 all_ranges = (await db.execute(range_stmt)).scalars().all()
+                if not all_ranges and issuing_office_id:
+                    fb_ranges_stmt = select(SeriesMaster).where(
+                        SeriesMaster.document_type.in_([norm_type, raw_doc]),
+                        SeriesMaster.is_active == True,
+                    ).order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
+                    all_ranges = (await db.execute(fb_ranges_stmt)).scalars().all()
 
                 # Extract pure sequence number by stripping prefix and suffix first
                 num_val = extract_sequence_number(clean_val, prefix, suffix)
@@ -862,6 +881,18 @@ async def allocate_or_validate_voucher_number(
         await db.flush()
         return final_number
 
+    # If series is NOT found, but manual number was provided for non-mandatory manual types:
+    if manual_number and manual_number.strip() and not is_mandatory_manual:
+        clean_val = manual_number.strip()
+        all_used = await get_all_used_numbers_for_doc(db, norm_type)
+        if clean_val in all_used:
+            raise AppException(
+                status_code=400,
+                error_code="VOUCHER_NUMBER_ALREADY_USED",
+                message=f"Voucher number '{clean_val}' is already used. Please choose an unused voucher number.",
+            )
+        return clean_val
+
     # If series is NOT found, reject saving as per requirement
     readable_title = norm_type.replace("_", " ").title()
     raise AppException(
@@ -910,7 +941,15 @@ async def check_series_status(
     res = await db.execute(stmt)
     series = res.scalars().first()
 
-    # If target_office_id was specified, but no office-specific series was matched
+    # If target_office_id was specified, but no office-specific series was matched, fallback to active default series
+    if not series and target_office_id:
+        fallback_stmt = select(SeriesMaster).where(
+            SeriesMaster.document_type.in_([norm_type, raw_doc]),
+            SeriesMaster.is_active == True,
+        ).order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+        series = (await db.execute(fallback_stmt)).scalars().first()
+
+    # If target_office_id was specified, but no series was matched
     if not series:
         return {
             "configured": False,

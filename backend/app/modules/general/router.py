@@ -19,7 +19,7 @@ async def list_billing_clients(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await service.list_billing_clients(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/billing-clients", response_model=schemas.BillingClientResponse, status_code=status.HTTP_201_CREATED, summary="Create a billing client")
@@ -69,7 +69,7 @@ async def list_consignees(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await service.list_consignees(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/consignees", response_model=schemas.ConsigneeResponse, status_code=status.HTTP_201_CREATED, summary="Create a consignee")
@@ -119,7 +119,7 @@ async def list_consigners(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await service.list_consigners(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/consigners", response_model=schemas.ConsignerResponse, status_code=status.HTTP_201_CREATED, summary="Create a consigner")
@@ -169,7 +169,7 @@ async def list_locations(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await service.list_locations(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/locations", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, summary="Create a location")
