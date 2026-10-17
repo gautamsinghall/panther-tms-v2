@@ -7,12 +7,13 @@ from typing import Optional, List, Dict, Any, Tuple
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.tenant_db.models import (
     Job,
     JobStatus,
+    Branch,
     Consigner,
     Consignee,
     Location,
@@ -223,6 +224,7 @@ async def import_jobs_from_excel(
     filename: str,
     user_id: Optional[int] = None,
     apply_series_prefix_suffix: bool = True,
+    office_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Parses Excel (.xlsx/.xls) or CSV file, performs deep 2-level deduplication:
@@ -230,7 +232,15 @@ async def import_jobs_from_excel(
     2. Database duplicate check (existing job_number, existing trip matching route, dates, parties).
     Resolves/auto-creates sub-fields (Billing Client, Origin, Destination, Consigner, Consignee).
     Supports importing with or without configured series prefix/postfix.
+    Assigns jobs to the specified office_id (fallback to Head Office if unspecified/all).
     """
+    resolved_office_id = office_id
+    if not resolved_office_id or resolved_office_id == 0:
+        br_res = await db.execute(
+            select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1)
+        )
+        resolved_office_id = br_res.scalar_one_or_none()
+
     rows_data: List[Dict[str, Any]] = []
 
     # 1. Parse File into List of dicts
@@ -333,14 +343,27 @@ async def import_jobs_from_excel(
     # Fetch active SeriesMaster for JOB to determine prefix and suffix
     job_series = None
     try:
-        series_res = await db.execute(
+        stmt_s = (
             select(SeriesMaster)
             .where(
                 SeriesMaster.document_type.in_(["JOB", "TRIP"]),
                 SeriesMaster.is_active == True,
             )
-            .order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
         )
+        if resolved_office_id:
+            stmt_s = stmt_s.where(
+                or_(
+                    SeriesMaster.issuing_office_id == resolved_office_id,
+                    SeriesMaster.issuing_office_id.is_(None),
+                )
+            ).order_by(
+                case((SeriesMaster.issuing_office_id == resolved_office_id, 1), else_=0).desc(),
+                SeriesMaster.is_default.desc(),
+                SeriesMaster.id.desc(),
+            )
+        else:
+            stmt_s = stmt_s.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+        series_res = await db.execute(stmt_s)
         job_series = series_res.scalars().first()
     except Exception:
         pass
@@ -590,7 +613,8 @@ async def import_jobs_from_excel(
                 allocated_job_number = await allocate_or_validate_voucher_number(
                     db,
                     "JOB",
-                    manual_number=effective_job_no if effective_job_no else None
+                    manual_number=effective_job_no if effective_job_no else None,
+                    issuing_office_id=resolved_office_id,
                 )
             else:
                 if effective_job_no:
@@ -629,6 +653,7 @@ async def import_jobs_from_excel(
                 special_instructions=raw_instructions or None,
                 status=JobStatus.OPEN.value,
                 created_by_user_id=user_id,
+                issuing_office_id=resolved_office_id,
             )
             db.add(new_job)
             await db.flush()
@@ -636,6 +661,7 @@ async def import_jobs_from_excel(
             imported_jobs.append({
                 "id": new_job.id,
                 "job_number": new_job.job_number,
+                "issuing_office_id": new_job.issuing_office_id,
                 "consigner": consigner_obj.name,
                 "consignee": consignee_obj.name,
                 "origin": origin_obj.city_name,

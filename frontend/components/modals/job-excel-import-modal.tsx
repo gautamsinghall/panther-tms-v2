@@ -16,10 +16,11 @@ import {
   Info,
   Loader2,
   Sparkles,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient, getApiBaseUrl } from "@/lib/api-client";
-import { getStoredAuth } from "@/lib/auth";
+import { getStoredAuth, getActiveOffice, OfficeSummary } from "@/lib/auth";
 
 interface SkippedDuplicate {
   row: number;
@@ -58,14 +59,17 @@ interface JobExcelImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  activeOffice?: OfficeSummary | null;
 }
 
 export function JobExcelImportModal({
   isOpen,
   onClose,
   onSuccess,
+  activeOffice: propActiveOffice,
 }: JobExcelImportModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(() => propActiveOffice || getActiveOffice());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
@@ -86,6 +90,22 @@ export function JobExcelImportModal({
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (propActiveOffice !== undefined) {
+      setActiveOfficeState(propActiveOffice);
+    } else {
+      setActiveOfficeState(getActiveOffice());
+    }
+  }, [propActiveOffice, isOpen]);
+
+  useEffect(() => {
+    const handleOfficeChange = (e: any) => {
+      setActiveOfficeState(e.detail || getActiveOffice());
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
+  }, []);
+
   // Reset state and fetch Series Master info when opening
   useEffect(() => {
     if (isOpen) {
@@ -95,7 +115,12 @@ export function JobExcelImportModal({
       setIsUploading(false);
       setApplySeriesPrefixSuffix(true);
 
-      apiClient<any>("/api/v1/settings/series/check/JOB")
+      const effOfficeId = activeOffice?.id && activeOffice.id !== 0 ? activeOffice.id : undefined;
+      const checkUrl = effOfficeId 
+        ? `/api/v1/settings/series/check/JOB?office_id=${effOfficeId}`
+        : `/api/v1/settings/series/check/JOB`;
+
+      apiClient<any>(checkUrl, { officeId: effOfficeId })
         .then((res) => {
           if (res && res.configured) {
             setSeriesInfo(res);
@@ -105,7 +130,7 @@ export function JobExcelImportModal({
         })
         .catch(() => setSeriesInfo(null));
     }
-  }, [isOpen]);
+  }, [isOpen, activeOffice]);
 
   if (!isOpen || !mounted) return null;
 
@@ -196,15 +221,28 @@ export function JobExcelImportModal({
       setIsUploading(true);
       setUploadError(null);
 
+      const effOfficeId = activeOffice?.id && activeOffice.id !== 0 ? activeOffice.id : undefined;
+
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("apply_series_prefix_suffix", applySeriesPrefixSuffix ? "true" : "false");
+      if (effOfficeId) {
+        formData.append("office_id", String(effOfficeId));
+      }
+
+      const queryParams = new URLSearchParams({
+        apply_series_prefix_suffix: String(applySeriesPrefixSuffix),
+      });
+      if (effOfficeId) {
+        queryParams.set("office_id", String(effOfficeId));
+      }
 
       const result = await apiClient<JobExcelImportResult>(
-        `/api/v1/transport/jobs/import-excel?apply_series_prefix_suffix=${applySeriesPrefixSuffix}`,
+        `/api/v1/transport/jobs/import-excel?${queryParams.toString()}`,
         {
           method: "POST",
           body: formData,
+          officeId: effOfficeId,
         }
       );
 
@@ -264,6 +302,35 @@ export function JobExcelImportModal({
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
           {!importResult ? (
             <>
+              {/* Target Office Notice */}
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200/60 flex items-center justify-center text-indigo-700 shrink-0">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block leading-tight">
+                      Target Issuing Office
+                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {activeOffice && activeOffice.id !== 0 ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          {activeOffice.name} {activeOffice.code ? `(${activeOffice.code})` : ""}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                          All Offices (Auto-assigned to Head Office)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs text-slate-500 hidden sm:inline">
+                  Jobs will be registered under this office
+                </span>
+              </div>
+
               {/* Step 1: Download Template */}
               <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-4 space-y-3">
                 <div className="flex items-start justify-between gap-4">

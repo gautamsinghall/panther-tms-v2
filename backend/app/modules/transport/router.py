@@ -242,7 +242,10 @@ async def import_jobs_excel(
     file: UploadFile = File(...),
     apply_series_prefix_suffix: Optional[bool] = Query(None),
     apply_series_prefix_suffix_form: Optional[str] = Form(None, alias="apply_series_prefix_suffix"),
+    office_id: Optional[int] = Query(None),
+    office_id_form: Optional[str] = Form(None, alias="office_id"),
     current_user: User = Depends(require_permission("transport", "jobs", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """
@@ -252,6 +255,7 @@ async def import_jobs_excel(
     - Against Database: catches existing job numbers and active identical trip orders.
     - Resolves and auto-creates sub-fields (Billing Client, Origin/Destination Location, Consigner, Consignee).
     - Supports importing with or without configured series prefix/postfix.
+    - Accurately links imported jobs to the active issuing office.
     """
     if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         raise AppException(
@@ -274,12 +278,27 @@ async def import_jobs_excel(
     elif apply_series_prefix_suffix_form is not None:
         should_apply_series = str(apply_series_prefix_suffix_form).strip().lower() in ("true", "1", "yes")
 
+    target_office_id = None
+    if office_id is not None and office_id > 0:
+        target_office_id = office_id
+    elif office_id_form is not None:
+        try:
+            val = int(str(office_id_form).strip())
+            if val > 0:
+                target_office_id = val
+        except (ValueError, TypeError):
+            pass
+
+    if not target_office_id and current_office:
+        target_office_id = current_office.id
+
     return await import_jobs_from_excel(
         db=db,
         file_bytes=file_bytes,
         filename=file.filename,
         user_id=current_user.id,
         apply_series_prefix_suffix=should_apply_series,
+        office_id=target_office_id,
     )
 
 @router.get("/jobs", response_model=List[JobResponse])

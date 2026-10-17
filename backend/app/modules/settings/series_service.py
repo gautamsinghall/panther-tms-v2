@@ -724,7 +724,13 @@ async def allocate_or_validate_voucher_number(
         SeriesMaster.is_active == True,
     )
     if issuing_office_id:
-        stmt = stmt.where(SeriesMaster.issuing_office_id == issuing_office_id).order_by(
+        stmt = stmt.where(
+            or_(
+                SeriesMaster.issuing_office_id == issuing_office_id,
+                SeriesMaster.issuing_office_id.is_(None),
+            )
+        ).order_by(
+            case((SeriesMaster.issuing_office_id == issuing_office_id, 1), else_=0).desc(),
             SeriesMaster.is_default.desc(),
             SeriesMaster.id.desc(),
         )
@@ -781,7 +787,13 @@ async def allocate_or_validate_voucher_number(
                     SeriesMaster.is_active == True,
                 )
                 if issuing_office_id:
-                    range_stmt = range_stmt.where(SeriesMaster.issuing_office_id == issuing_office_id).order_by(
+                    range_stmt = range_stmt.where(
+                        or_(
+                            SeriesMaster.issuing_office_id == issuing_office_id,
+                            SeriesMaster.issuing_office_id.is_(None),
+                        )
+                    ).order_by(
+                        case((SeriesMaster.issuing_office_id == issuing_office_id, 1), else_=0).desc(),
                         SeriesMaster.is_default.desc(),
                         SeriesMaster.id.asc(),
                     )
@@ -882,7 +894,13 @@ async def check_series_status(
         SeriesMaster.is_active == True,
     )
     if target_office_id:
-        stmt = stmt.where(SeriesMaster.issuing_office_id == target_office_id).order_by(
+        stmt = stmt.where(
+            or_(
+                SeriesMaster.issuing_office_id == target_office_id,
+                SeriesMaster.issuing_office_id.is_(None),
+            )
+        ).order_by(
+            case((SeriesMaster.issuing_office_id == target_office_id, 1), else_=0).desc(),
             SeriesMaster.is_default.desc(),
             SeriesMaster.id.desc(),
         )
