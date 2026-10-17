@@ -55,6 +55,11 @@ export default function LocationPage() {
 
   useEffect(() => {
     loadData();
+    const handleOfficeChange = () => {
+      loadData();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
   const filteredData = useMemo(() => {

@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.control.models import Tenant
-from app.tenant_db.models import User
-from app.auth.dependencies import get_current_user, require_permission
+from app.tenant_db.models import User, Branch
+from app.auth.dependencies import get_current_user, require_permission, get_current_office
 from app.core.errors import ForbiddenException
 from app.modules.reports import schemas, service
 from app.workers.tasks import get_redis_client, generate_report_export_job
@@ -52,15 +52,20 @@ async def get_daybook(
     to_date: Optional[date] = Query(None),
     voucher_type: Optional[str] = Query(None),
     account_id: Optional[int] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: User = Depends(require_reports_permission("view", "daybook")),
 ):
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
     return await service.get_daybook(
         session,
         from_date=from_date,
         to_date=to_date,
         voucher_type=voucher_type,
         account_id=account_id,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
     )
 
 
@@ -69,14 +74,19 @@ async def get_account_ledger(
     account_id: int = Query(..., description="ID of the account to view ledger for"),
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: User = Depends(require_reports_permission("view", "ledger")),
 ):
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
     return await service.get_account_ledger(
         session,
         account_id=account_id,
         from_date=from_date,
         to_date=to_date,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
     )
 
 
@@ -97,7 +107,7 @@ async def get_profit_and_loss(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
     session: AsyncSession = Depends(get_tenant_db),
-    _perm: User = Depends(require_reports_permission("view", "profit_loss")),
+    _perm: User = Depends(require_reports_permission("view", "profit_and_loss")),
 ):
     return await service.get_profit_and_loss(
         session,
@@ -122,13 +132,18 @@ async def get_balance_sheet(
 async def get_sales_register(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: User = Depends(require_reports_permission("view", "sales_register")),
 ):
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
     return await service.get_sales_register(
         session,
         from_date=from_date,
         to_date=to_date,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
     )
 
 
@@ -136,13 +151,18 @@ async def get_sales_register(
 async def get_purchase_register(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
+    current_office: Optional[Branch] = Depends(get_current_office),
     session: AsyncSession = Depends(get_tenant_db),
     _perm: User = Depends(require_reports_permission("view", "purchase_register")),
 ):
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
     return await service.get_purchase_register(
         session,
         from_date=from_date,
         to_date=to_date,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
     )
 
 

@@ -894,9 +894,12 @@ async def verify_pod_record(
 @router.get("/truck-hiring-notes", response_model=List[TruckHiringNoteResponse])
 async def list_truck_hiring_notes(
     current_user: User = Depends(require_permission("transport", "truck_hiring_note", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_all_truck_hiring_notes(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await service.get_all_truck_hiring_notes(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/truck-hiring-notes", response_model=TruckHiringNoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_truck_hiring_note(
@@ -925,9 +928,12 @@ async def fetch_eway_bill_details(
 @router.get("/eway-bills", response_model=List[EWayBillResponse])
 async def list_eway_bills(
     current_user: User = Depends(require_permission("transport", "eway_bill", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    bills = await service.get_all_eway_bills(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    bills = await service.get_all_eway_bills(db, office_id=target_office_id, include_unassigned=include_unassigned)
     return [
         EWayBillResponse(
             id=b.id,

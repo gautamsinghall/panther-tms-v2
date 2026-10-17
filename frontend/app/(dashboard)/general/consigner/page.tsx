@@ -70,6 +70,11 @@ export default function ConsignerPage() {
     if (typeof window !== "undefined" && window.location.search.includes("add=true")) {
       setIsDrawerOpen(true);
     }
+    const handleOfficeChange = () => {
+      loadData();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
   // Filtered dataset

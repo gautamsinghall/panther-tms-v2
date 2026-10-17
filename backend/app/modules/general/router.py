@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
-from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user
+from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User
+from app.tenant_db.models import User, Branch
 from app.modules.general import schemas, service
 
 router = APIRouter(prefix="/general", tags=["General (Master Data)"])
@@ -15,19 +15,24 @@ router = APIRouter(prefix="/general", tags=["General (Master Data)"])
 @router.get("/billing-clients", response_model=List[schemas.BillingClientResponse], summary="List all billing clients")
 async def list_billing_clients(
     current_user: User = Depends(require_permission("general", "billing_client", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.list_billing_clients(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await service.list_billing_clients(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/billing-clients", response_model=schemas.BillingClientResponse, status_code=status.HTTP_201_CREATED, summary="Create a billing client")
 async def create_billing_client(
     data: schemas.BillingClientCreate,
     current_user: User = Depends(require_permission("general", "billing_client", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
-    return await service.create_billing_client(db, data)
+    office_id = current_office.id if current_office else None
+    return await service.create_billing_client(db, data, office_id=office_id)
 
 @router.get("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Get billing client by ID")
 async def get_billing_client(
@@ -60,19 +65,24 @@ async def delete_billing_client(
 @router.get("/consignees", response_model=List[schemas.ConsigneeResponse], summary="List all consignees")
 async def list_consignees(
     current_user: User = Depends(require_permission("general", "consignee", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.list_consignees(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await service.list_consignees(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/consignees", response_model=schemas.ConsigneeResponse, status_code=status.HTTP_201_CREATED, summary="Create a consignee")
 async def create_consignee(
     data: schemas.ConsigneeCreate,
     current_user: User = Depends(require_permission("general", "consignee", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
-    return await service.create_consignee(db, data)
+    office_id = current_office.id if current_office else None
+    return await service.create_consignee(db, data, office_id=office_id)
 
 @router.get("/consignees/{id}", response_model=schemas.ConsigneeResponse, summary="Get consignee by ID")
 async def get_consignee(
@@ -105,19 +115,24 @@ async def delete_consignee(
 @router.get("/consigners", response_model=List[schemas.ConsignerResponse], summary="List all consigners")
 async def list_consigners(
     current_user: User = Depends(require_permission("general", "consigner", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.list_consigners(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await service.list_consigners(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/consigners", response_model=schemas.ConsignerResponse, status_code=status.HTTP_201_CREATED, summary="Create a consigner")
 async def create_consigner(
     data: schemas.ConsignerCreate,
     current_user: User = Depends(require_permission("general", "consigner", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
-    return await service.create_consigner(db, data)
+    office_id = current_office.id if current_office else None
+    return await service.create_consigner(db, data, office_id=office_id)
 
 @router.get("/consigners/{id}", response_model=schemas.ConsignerResponse, summary="Get consigner by ID")
 async def get_consigner(
@@ -150,19 +165,24 @@ async def delete_consigner(
 @router.get("/locations", response_model=List[schemas.LocationResponse], summary="List all locations")
 async def list_locations(
     current_user: User = Depends(require_permission("general", "location", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.list_locations(db)
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await service.list_locations(db, office_id=target_office_id, include_unassigned=include_unassigned)
 
 @router.post("/locations", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, summary="Create a location")
 async def create_location(
     data: schemas.LocationCreate,
     current_user: User = Depends(require_permission("general", "location", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
-    return await service.create_location(db, data)
+    office_id = current_office.id if current_office else None
+    return await service.create_location(db, data, office_id=office_id)
 
 @router.get("/locations/{id}", response_model=schemas.LocationResponse, summary="Get location by ID")
 async def get_location(

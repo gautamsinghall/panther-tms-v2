@@ -21,6 +21,7 @@ class BillingClientBase(BaseModel):
     state: Optional[str] = None
     pincode: Optional[str] = None
     country: Optional[str] = "India"
+    issuing_office_id: Optional[int] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -51,6 +52,7 @@ class BillingClientUpdate(BaseModel):
     state: Optional[str] = None
     pincode: Optional[str] = None
     country: Optional[str] = None
+    issuing_office_id: Optional[int] = None
     is_active: Optional[bool] = None
 
     @model_validator(mode="before")
@@ -64,6 +66,8 @@ class BillingClientUpdate(BaseModel):
 class BillingClientResponse(BillingClientBase):
     id: int
     is_active: bool
+    issuing_office_id: Optional[int] = None
+    issuing_office_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -83,6 +87,7 @@ class ConsigneeBase(BaseModel):
     state: Optional[str] = None
     pincode: Optional[str] = None
     country: Optional[str] = "India"
+    issuing_office_id: Optional[int] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -108,6 +113,7 @@ class ConsigneeUpdate(BaseModel):
     state: Optional[str] = None
     pincode: Optional[str] = None
     country: Optional[str] = None
+    issuing_office_id: Optional[int] = None
     is_active: Optional[bool] = None
 
     @model_validator(mode="before")
@@ -121,6 +127,8 @@ class ConsigneeUpdate(BaseModel):
 class ConsigneeResponse(ConsigneeBase):
     id: int
     is_active: bool
+    issuing_office_id: Optional[int] = None
+    issuing_office_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -140,6 +148,7 @@ class ConsignerBase(BaseModel):
     state: Optional[str] = None
     pincode: Optional[str] = None
     country: Optional[str] = "India"
+    issuing_office_id: Optional[int] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -165,6 +174,7 @@ class ConsignerUpdate(BaseModel):
     state: Optional[str] = None
     pincode: Optional[str] = None
     country: Optional[str] = None
+    issuing_office_id: Optional[int] = None
     is_active: Optional[bool] = None
 
     @model_validator(mode="before")
@@ -178,6 +188,8 @@ class ConsignerUpdate(BaseModel):
 class ConsignerResponse(ConsignerBase):
     id: int
     is_active: bool
+    issuing_office_id: Optional[int] = None
+    issuing_office_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -193,6 +205,7 @@ class LocationBase(BaseModel):
     is_drop_point: bool = True
     address: Optional[str] = None
     pincode: Optional[str] = None
+    issuing_office_id: Optional[int] = None
 
 class LocationCreate(LocationBase):
     is_active: bool = True
@@ -206,11 +219,14 @@ class LocationUpdate(BaseModel):
     is_drop_point: Optional[bool] = None
     address: Optional[str] = None
     pincode: Optional[str] = None
+    issuing_office_id: Optional[int] = None
     is_active: Optional[bool] = None
 
 class LocationResponse(LocationBase):
     id: int
     is_active: bool
+    issuing_office_id: Optional[int] = None
+    issuing_office_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

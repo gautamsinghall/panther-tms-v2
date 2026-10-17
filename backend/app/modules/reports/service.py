@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
@@ -54,6 +54,8 @@ async def get_daybook(
     to_date: Optional[date] = None,
     voucher_type: Optional[str] = None,
     account_id: Optional[int] = None,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
 ) -> DaybookResponse:
     stmt = (
         select(LedgerEntry)
@@ -74,6 +76,11 @@ async def get_daybook(
         stmt = stmt.where(Voucher.voucher_type == voucher_type)
     if account_id:
         stmt = stmt.where(LedgerEntry.account_id == account_id)
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(Voucher.issuing_office_id == office_id)
 
     stmt = stmt.order_by(LedgerEntry.entry_date.asc(), Voucher.id.asc(), LedgerEntry.id.asc())
     res = await session.execute(stmt)
@@ -126,6 +133,8 @@ async def get_account_ledger(
     account_id: int,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
 ) -> LedgerResponse:
     # 1. Fetch Account and its groups
     acc_stmt = (
@@ -163,6 +172,11 @@ async def get_account_ledger(
                 Voucher.is_void == False,
             )
         )
+        if office_id:
+            if include_unassigned:
+                prior_stmt = prior_stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+            else:
+                prior_stmt = prior_stmt.where(Voucher.issuing_office_id == office_id)
         prior_res = await session.execute(prior_stmt)
         p_dr, p_cr = prior_res.one()
         prior_dr = Decimal(str(p_dr or "0.00"))
@@ -192,6 +206,11 @@ async def get_account_ledger(
         tx_stmt = tx_stmt.where(LedgerEntry.entry_date >= from_date)
     if to_date:
         tx_stmt = tx_stmt.where(LedgerEntry.entry_date <= to_date)
+    if office_id:
+        if include_unassigned:
+            tx_stmt = tx_stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+        else:
+            tx_stmt = tx_stmt.where(Voucher.issuing_office_id == office_id)
 
     tx_stmt = tx_stmt.order_by(LedgerEntry.entry_date.asc(), Voucher.id.asc(), LedgerEntry.id.asc())
     tx_res = await session.execute(tx_stmt)
@@ -634,6 +653,8 @@ async def get_sales_register(
     session: AsyncSession,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
 ) -> SalesRegisterResponse:
     stmt = (
         select(Voucher)
@@ -651,6 +672,11 @@ async def get_sales_register(
         stmt = stmt.where(Voucher.voucher_date >= from_date)
     if to_date:
         stmt = stmt.where(Voucher.voucher_date <= to_date)
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(Voucher.issuing_office_id == office_id)
 
     stmt = stmt.order_by(Voucher.voucher_date.asc(), Voucher.id.asc())
     res = await session.execute(stmt)
@@ -742,6 +768,8 @@ async def get_purchase_register(
     session: AsyncSession,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
 ) -> PurchaseRegisterResponse:
     purchase_types = [
         VoucherType.NORMAL_PURCHASE.value,
@@ -763,6 +791,11 @@ async def get_purchase_register(
         stmt = stmt.where(Voucher.voucher_date >= from_date)
     if to_date:
         stmt = stmt.where(Voucher.voucher_date <= to_date)
+    if office_id:
+        if include_unassigned:
+            stmt = stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(Voucher.issuing_office_id == office_id)
 
     stmt = stmt.order_by(Voucher.voucher_date.asc(), Voucher.id.asc())
     res = await session.execute(stmt)

@@ -443,7 +443,7 @@ export default function DashboardPage() {
   }, []);
 
   const auth = typeof window !== "undefined" ? getStoredAuth() : null;
-  const userRole = (auth?.role || "").toUpperCase().trim();
+  const userRole = (auth?.user?.role || (auth as any)?.role || "").toUpperCase().trim();
   const isAdmin = ["COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"].includes(userRole);
 
   const canAccessRoute = useCallback(

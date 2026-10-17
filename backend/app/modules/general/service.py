@@ -1,5 +1,5 @@
 from typing import List, Optional, Type, TypeVar
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
 from app.tenant_db.models import (
@@ -18,8 +18,18 @@ from app.tenant_db.models import (
 T = TypeVar("T")
 
 # Generic CRUD helper for simple masters
-async def _get_all(db: AsyncSession, model: Type[T]) -> List[T]:
+async def _get_all(
+    db: AsyncSession,
+    model: Type[T],
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[T]:
     stmt = select(model).order_by(model.id.desc())
+    if office_id and hasattr(model, "issuing_office_id"):
+        if include_unassigned:
+            stmt = stmt.where(or_(model.issuing_office_id == office_id, model.issuing_office_id.is_(None)))
+        else:
+            stmt = stmt.where(model.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -43,14 +53,21 @@ async def _soft_delete(db: AsyncSession, model: Type[T], entity_id: int) -> T:
     return entity
 
 # --- Billing Client Service ---
-async def list_billing_clients(db: AsyncSession) -> List[BillingClient]:
-    return await _get_all(db, BillingClient)
+async def list_billing_clients(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[BillingClient]:
+    return await _get_all(db, BillingClient, office_id=office_id, include_unassigned=include_unassigned)
 
 async def get_billing_client(db: AsyncSession, cid: int) -> BillingClient:
     return await _get_by_id(db, BillingClient, cid)
 
-async def create_billing_client(db: AsyncSession, data) -> BillingClient:
-    entity = BillingClient(**data.model_dump())
+async def create_billing_client(db: AsyncSession, data, office_id: Optional[int] = None) -> BillingClient:
+    data_dict = data.model_dump()
+    if office_id and not data_dict.get("issuing_office_id"):
+        data_dict["issuing_office_id"] = office_id
+    entity = BillingClient(**data_dict)
     db.add(entity)
     await db.commit()
     await db.refresh(entity)
@@ -68,14 +85,21 @@ async def delete_billing_client(db: AsyncSession, cid: int) -> BillingClient:
     return await _soft_delete(db, BillingClient, cid)
 
 # --- Consignee Service ---
-async def list_consignees(db: AsyncSession) -> List[Consignee]:
-    return await _get_all(db, Consignee)
+async def list_consignees(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[Consignee]:
+    return await _get_all(db, Consignee, office_id=office_id, include_unassigned=include_unassigned)
 
 async def get_consignee(db: AsyncSession, cid: int) -> Consignee:
     return await _get_by_id(db, Consignee, cid)
 
-async def create_consignee(db: AsyncSession, data) -> Consignee:
-    entity = Consignee(**data.model_dump())
+async def create_consignee(db: AsyncSession, data, office_id: Optional[int] = None) -> Consignee:
+    data_dict = data.model_dump()
+    if office_id and not data_dict.get("issuing_office_id"):
+        data_dict["issuing_office_id"] = office_id
+    entity = Consignee(**data_dict)
     db.add(entity)
     await db.commit()
     await db.refresh(entity)
@@ -93,14 +117,21 @@ async def delete_consignee(db: AsyncSession, cid: int) -> Consignee:
     return await _soft_delete(db, Consignee, cid)
 
 # --- Consigner Service ---
-async def list_consigners(db: AsyncSession) -> List[Consigner]:
-    return await _get_all(db, Consigner)
+async def list_consigners(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[Consigner]:
+    return await _get_all(db, Consigner, office_id=office_id, include_unassigned=include_unassigned)
 
 async def get_consigner(db: AsyncSession, cid: int) -> Consigner:
     return await _get_by_id(db, Consigner, cid)
 
-async def create_consigner(db: AsyncSession, data) -> Consigner:
-    entity = Consigner(**data.model_dump())
+async def create_consigner(db: AsyncSession, data, office_id: Optional[int] = None) -> Consigner:
+    data_dict = data.model_dump()
+    if office_id and not data_dict.get("issuing_office_id"):
+        data_dict["issuing_office_id"] = office_id
+    entity = Consigner(**data_dict)
     db.add(entity)
     await db.commit()
     await db.refresh(entity)
@@ -118,14 +149,21 @@ async def delete_consigner(db: AsyncSession, cid: int) -> Consigner:
     return await _soft_delete(db, Consigner, cid)
 
 # --- Location Service ---
-async def list_locations(db: AsyncSession) -> List[Location]:
-    return await _get_all(db, Location)
+async def list_locations(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[Location]:
+    return await _get_all(db, Location, office_id=office_id, include_unassigned=include_unassigned)
 
 async def get_location(db: AsyncSession, lid: int) -> Location:
     return await _get_by_id(db, Location, lid)
 
-async def create_location(db: AsyncSession, data) -> Location:
-    entity = Location(**data.model_dump())
+async def create_location(db: AsyncSession, data, office_id: Optional[int] = None) -> Location:
+    data_dict = data.model_dump()
+    if office_id and not data_dict.get("issuing_office_id"):
+        data_dict["issuing_office_id"] = office_id
+    entity = Location(**data_dict)
     db.add(entity)
     await db.commit()
     await db.refresh(entity)

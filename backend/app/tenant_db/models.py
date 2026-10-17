@@ -156,6 +156,7 @@ class BillingClient(TenantBase):
     pincode = Column(String(20), nullable=True)
     country = Column(String(100), default="India", nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -163,6 +164,8 @@ class BillingClient(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id])
 
 
 class Consignee(TenantBase):
@@ -183,6 +186,7 @@ class Consignee(TenantBase):
     pincode = Column(String(20), nullable=True)
     country = Column(String(100), default="India", nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -190,6 +194,8 @@ class Consignee(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id])
 
 
 class Consigner(TenantBase):
@@ -210,6 +216,7 @@ class Consigner(TenantBase):
     pincode = Column(String(20), nullable=True)
     country = Column(String(100), default="India", nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -217,6 +224,8 @@ class Consigner(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id])
 
 
 class Location(TenantBase):
@@ -233,6 +242,7 @@ class Location(TenantBase):
     address = Column(Text, nullable=True)
     pincode = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -240,6 +250,8 @@ class Location(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id])
 
 
 class Industry(TenantBase):

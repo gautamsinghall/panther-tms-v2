@@ -492,7 +492,8 @@ async def import_jobs_from_excel(
             client_obj = BillingClient(
                 name=raw_client,
                 country="India",
-                is_active=True
+                is_active=True,
+                issuing_office_id=resolved_office_id,
             )
             db.add(client_obj)
             await db.flush()
@@ -505,7 +506,8 @@ async def import_jobs_from_excel(
             consigner_obj = Consigner(
                 name=raw_consigner,
                 country="India",
-                is_active=True
+                is_active=True,
+                issuing_office_id=resolved_office_id,
             )
             db.add(consigner_obj)
             await db.flush()
@@ -518,7 +520,8 @@ async def import_jobs_from_excel(
             consignee_obj = Consignee(
                 name=raw_consignee,
                 country="India",
-                is_active=True
+                is_active=True,
+                issuing_office_id=resolved_office_id,
             )
             db.add(consignee_obj)
             await db.flush()
@@ -534,7 +537,8 @@ async def import_jobs_from_excel(
                 country="India",
                 is_pickup_point=True,
                 is_drop_point=True,
-                is_active=True
+                is_active=True,
+                issuing_office_id=resolved_office_id,
             )
             db.add(origin_obj)
             await db.flush()
@@ -550,7 +554,8 @@ async def import_jobs_from_excel(
                 country="India",
                 is_pickup_point=True,
                 is_drop_point=True,
-                is_active=True
+                is_active=True,
+                issuing_office_id=resolved_office_id,
             )
             db.add(dest_obj)
             await db.flush()

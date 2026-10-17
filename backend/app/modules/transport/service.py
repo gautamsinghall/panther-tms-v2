@@ -865,8 +865,24 @@ async def verify_pod_record(db: AsyncSession, pod_id: int, verification_status: 
 # Truck Hiring Note Services
 # ===========================================================================
 
-async def get_all_truck_hiring_notes(db: AsyncSession) -> List[TruckHiringNote]:
+async def get_all_truck_hiring_notes(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[TruckHiringNote]:
     stmt = select(TruckHiringNote).order_by(desc(TruckHiringNote.created_at))
+    if office_id:
+        stmt = stmt.outerjoin(HireChallan, TruckHiringNote.hire_challan_id == HireChallan.id)
+        if include_unassigned:
+            stmt = stmt.where(
+                or_(
+                    HireChallan.issuing_office_id == office_id,
+                    HireChallan.issuing_office_id.is_(None),
+                    TruckHiringNote.hire_challan_id.is_(None),
+                )
+            )
+        else:
+            stmt = stmt.where(HireChallan.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -890,8 +906,24 @@ async def create_truck_hiring_note(db: AsyncSession, data: TruckHiringNoteCreate
 # E-Way Bill Services (Manual Entry per Rules §2)
 # ===========================================================================
 
-async def get_all_eway_bills(db: AsyncSession) -> List[EWayBill]:
+async def get_all_eway_bills(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[EWayBill]:
     stmt = select(EWayBill).order_by(desc(EWayBill.created_at))
+    if office_id:
+        stmt = stmt.outerjoin(LR, EWayBill.lr_id == LR.id)
+        if include_unassigned:
+            stmt = stmt.where(
+                or_(
+                    LR.issuing_office_id == office_id,
+                    LR.issuing_office_id.is_(None),
+                    EWayBill.lr_id.is_(None),
+                )
+            )
+        else:
+            stmt = stmt.where(LR.issuing_office_id == office_id)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 

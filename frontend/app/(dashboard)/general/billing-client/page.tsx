@@ -112,6 +112,11 @@ export default function BillingClientPage() {
       setEditingRecord(null);
       setIsDrawerOpen(true);
     }
+    const handleOfficeChange = () => {
+      loadData();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
   const openCreateDrawer = () => {

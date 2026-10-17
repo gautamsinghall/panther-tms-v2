@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { login, getStoredAuth } from "@/lib/auth";
 import { AuthNavbar } from "@/components/layout/auth-navbar";
+import { PantherCinematicLoader } from "@/components/layout/panther-cinematic-loader";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -61,14 +62,7 @@ export default function LoginPage() {
   }, [router]);
 
   if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#F8FAFC]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-medium text-slate-500 font-mono">Checking session...</span>
-        </div>
-      </div>
-    );
+    return <PantherCinematicLoader label="Initializing logistics systems…" />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
