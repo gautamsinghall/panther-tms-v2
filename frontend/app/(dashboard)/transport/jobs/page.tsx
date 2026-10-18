@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet, Eye, Pencil } from "lucide-react";
@@ -467,7 +468,7 @@ export default function JobsPage() {
       setEditingJob(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to save trip / job.");
+      toast.error(err.message || "Failed to save trip / job.");
     } finally {
       setIsSubmitting(false);
     }

@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -290,7 +291,7 @@ export default function MarketVehiclesPage() {
     // 10 MB maximum upload limit
     const maxSizeBytes = 10 * 1024 * 1024;
     if (file.size > maxSizeBytes) {
-      alert("File size exceeds 10 MB limit. Please select a smaller document.");
+      toast.error("File size exceeds 10 MB limit. Please select a smaller document.");
       e.target.value = "";
       return;
     }
@@ -303,7 +304,7 @@ export default function MarketVehiclesPage() {
       "image/webp",
     ];
     if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|jpe?g|png|webp)$/i)) {
-      alert("Only PDF and Image files (JPG, PNG, WEBP) are supported.");
+      toast.info("Only PDF and Image files (JPG, PNG, WEBP); are supported.");
       e.target.value = "";
       return;
     }
@@ -453,7 +454,7 @@ export default function MarketVehiclesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
-      alert("Please complete required vehicle fields (Registration Number, Body Spec, and Capacity).");
+      toast.warning("Please complete required vehicle fields (Registration Number, Body Spec, and Capacity);.");
       return;
     }
 
@@ -514,7 +515,7 @@ export default function MarketVehiclesPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to save market vehicle.");
+      toast.error(err.message || "Failed to save market vehicle.");
     } finally {
       setIsSubmitting(false);
     }
@@ -691,12 +692,18 @@ export default function MarketVehiclesPage() {
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate ${row.vehicle_number}?`)) return;
+        const ok = await confirmModal({
+          title: "Deactivate Vehicle",
+          description: `Are you sure you want to deactivate ${row.vehicle_number}?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
         try {
           await apiClient(`/api/v1/transport/market-vehicles/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate vehicle.");
+          toast.error(err.message || "Failed to deactivate vehicle.");
         }
       },
     },

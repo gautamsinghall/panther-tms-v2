@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, UserCheck, Trash2 } from "lucide-react";
@@ -64,7 +65,7 @@ export default function EmployeeMasterPage() {
       setDeleteTarget(null);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to delete employee");
+      toast.error(err.message || "Failed to delete employee");
     } finally {
       setIsDeleting(false);
     }

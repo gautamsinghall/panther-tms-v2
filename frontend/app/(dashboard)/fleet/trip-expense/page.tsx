@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useEffect, useState } from "react";
 import { Plus, Fuel, CreditCard, FileSpreadsheet, RefreshCw } from "lucide-react";
@@ -102,7 +103,7 @@ export default function TripExpensePage() {
       });
       fetchData(activeFilter);
     } catch (err: any) {
-      alert(err.message || "Failed to create trip expense voucher.");
+      toast.error(err.message || "Failed to create trip expense voucher.");
     }
   };
 

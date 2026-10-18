@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Plus, Trash2, Truck } from "lucide-react";
@@ -247,7 +248,7 @@ export default function CompanyVehiclesPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create vehicle record.");
+      toast.error(err.message || "Failed to create vehicle record.");
     } finally {
       setIsSubmitting(false);
     }
@@ -263,7 +264,7 @@ export default function CompanyVehiclesPage() {
       setDeactivatingRecord(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to deactivate vehicle.");
+      toast.error(err.message || "Failed to deactivate vehicle.");
     } finally {
       setIsDeactivating(false);
     }

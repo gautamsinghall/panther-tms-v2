@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, GitBranch, Trash2 } from "lucide-react";
@@ -62,7 +63,7 @@ export default function SubgroupPage() {
       setDeleteTarget(null);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to delete subgroup");
+      toast.error(err.message || "Failed to delete subgroup");
     } finally {
       setIsDeleting(false);
     }

@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -56,10 +57,16 @@ function CancelIRNContent() {
   const handleCancelIRN = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!irn.trim()) {
-      alert("Please enter or select a valid 64-character IRN.");
+      toast.warning("Please enter or select a valid 64-character IRN.");
       return;
     }
-    if (!confirm(`Are you sure you want to cancel IRN on the GST Portal? This action cannot be undone.`)) {
+    const ok = await confirmModal({
+      title: "Cancel E-Invoice IRN",
+      description: "Are you sure you want to cancel IRN on the GST Portal? This action cannot be undone.",
+      confirmText: "Cancel IRN",
+      variant: "danger",
+    });
+    if (!ok) {
       return;
     }
 

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState } from "react";
 import { Search, Building2, ShieldCheck, MapPin, Calendar, CheckCircle2, AlertTriangle, UserCheck } from "lucide-react";
@@ -30,7 +31,7 @@ export default function TaxpayerDetailsPage() {
     e.preventDefault();
     const query = gstin.trim().toUpperCase();
     if (query.length !== 15) {
-      alert("GSTIN must be exactly 15 alphanumeric characters.");
+      toast.warning("GSTIN must be exactly 15 alphanumeric characters.");
       return;
     }
 

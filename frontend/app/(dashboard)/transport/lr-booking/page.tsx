@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
@@ -1365,7 +1366,7 @@ export default function LRBookingPage() {
           });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to dispatch LR.");
+          toast.error(err.message || "Failed to dispatch LR.");
         }
       },
     },
@@ -1374,7 +1375,7 @@ export default function LRBookingPage() {
       icon: <Smartphone className="w-3.5 h-3.5 text-indigo-600" />,
       onClick: async (row) => {
         if (!row.vehicle_number || !row.driver_phone) {
-          alert(`LR #${row.lr_number} requires vehicle number and driver mobile phone to start SIM tracking.`);
+          toast.info(`LR #${row.lr_number} requires vehicle number and driver mobile phone to start SIM tracking.`);
           return;
         }
         try {
@@ -1390,7 +1391,7 @@ export default function LRBookingPage() {
           });
           router.push("/tracking/sim");
         } catch (err: any) {
-          alert(err.message || "Failed to start SIM tracking.");
+          toast.error(err.message || "Failed to start SIM tracking.");
         }
       },
     },

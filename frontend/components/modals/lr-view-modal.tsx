@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -227,7 +228,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
       pdf.save(`LR_${lr.lr_number}.pdf`);
     } catch (err) {
       console.error("Failed to generate LR PDF:", err);
-      alert("Failed to export LR PDF. You can also use the browser Print dialog.");
+      toast.error("Failed to export LR PDF. You can also use the browser Print dialog.");
     } finally {
       setIsDownloadingPdf(false);
     }

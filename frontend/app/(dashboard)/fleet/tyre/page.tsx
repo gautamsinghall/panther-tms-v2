@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useEffect, useState } from "react";
 import { Plus, RefreshCw, AlertCircle } from "lucide-react";
@@ -90,7 +91,7 @@ export default function TyreManagementPage() {
       });
       fetchData();
     } catch (err: any) {
-      alert(err.message || "Failed to register tyre.");
+      toast.error(err.message || "Failed to register tyre.");
     }
   };
 

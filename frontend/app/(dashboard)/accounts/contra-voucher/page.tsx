@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, ArrowLeftRight, Ban, CheckCircle, AlertCircle, Eye, ArrowRight } from "lucide-react";
@@ -88,13 +89,13 @@ export default function ContraVoucherPage() {
   const handleCreateContra = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!seriesInfo?.configured || !seriesInfo?.next_number_formatted) {
-      alert("Contra Voucher cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("Contra Voucher cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     const amt = parseFloat(amount) || 0;
     if (amt <= 0) {
-      alert("Transfer amount must be greater than 0.");
+      toast.warning("Transfer amount must be greater than 0.");
       return;
     }
 
@@ -137,7 +138,7 @@ export default function ContraVoucherPage() {
   const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
-      alert("Void reason must be at least 10 characters as per audit rules.");
+      toast.warning("Void reason must be at least 10 characters as per audit rules.");
       return;
     }
 

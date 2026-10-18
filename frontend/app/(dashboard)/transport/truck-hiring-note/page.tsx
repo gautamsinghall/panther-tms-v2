@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, FileText } from "lucide-react";
@@ -217,7 +218,7 @@ export default function TruckHiringNotePage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create hiring note.");
+      toast.error(err.message || "Failed to create hiring note.");
     } finally {
       setIsSubmitting(false);
     }

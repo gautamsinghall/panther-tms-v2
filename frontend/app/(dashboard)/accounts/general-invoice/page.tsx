@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Receipt, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye } from "lucide-react";
@@ -160,7 +161,7 @@ export default function GeneralInvoicePage() {
     const tot = parseFloat(totalAmount) || 0;
     const tax = parseFloat(taxAmount) || 0;
     if (tot <= 0) {
-      alert("Total amount must be greater than 0.");
+      toast.warning("Total amount must be greater than 0.");
       return;
     }
 
@@ -169,12 +170,12 @@ export default function GeneralInvoicePage() {
       (manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0)
     );
     if (!isConfigured) {
-      alert("General Invoice cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("General Invoice cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     if (isManualSeries && !voucherNumber) {
-      alert("Please select an available invoice number from the selected series range.");
+      toast.warning("Please select an available invoice number from the selected series range.");
       return;
     }
 
@@ -182,7 +183,7 @@ export default function GeneralInvoicePage() {
       ? voucherNumber.trim()
       : (seriesInfo?.configured ? seriesInfo.next_number_formatted : "");
     if (!effectiveNumber) {
-      alert("Invoice number is missing. Please ensure a series is configured in Settings > Series Master.");
+      toast.error("Invoice number is missing. Please ensure a series is configured in Settings > Series Master.");
       return;
     }
 
@@ -220,7 +221,7 @@ export default function GeneralInvoicePage() {
   const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
-      alert("Void reason must be at least 10 characters as per audit rules.");
+      toast.warning("Void reason must be at least 10 characters as per audit rules.");
       return;
     }
 
@@ -244,7 +245,13 @@ export default function GeneralInvoicePage() {
   };
 
   const handleGenerateIRN = async (voucher: VoucherRecord) => {
-    if (!confirm(`Generate E-Invoice IRN for ${voucher.voucher_number}?`)) return;
+    const ok = await confirmModal({
+      title: "Generate E-Invoice IRN",
+      description: `Generate E-Invoice IRN for ${voucher.voucher_number}?`,
+      confirmText: "Generate IRN",
+      variant: "primary",
+    });
+    if (!ok) return;
     try {
       await apiClient("/api/v1/einvoicing/generate-irn", {
         method: "POST",

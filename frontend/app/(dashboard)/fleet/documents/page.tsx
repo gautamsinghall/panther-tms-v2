@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useEffect, useState } from "react";
 import { Plus, RefreshCw, AlertTriangle, ShieldCheck } from "lucide-react";
@@ -80,7 +81,7 @@ export default function FleetDocumentsPage() {
       });
       fetchData();
     } catch (err: any) {
-      alert(err.message || "Failed to upload document record.");
+      toast.error(err.message || "Failed to upload document record.");
     }
   };
 

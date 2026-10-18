@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -208,10 +209,16 @@ export default function IssuingOfficesPage() {
 
   const handleDeleteBranch = async (branch: BranchItem) => {
     if (branch.is_head_office) {
-      alert("Corporate Head Office / Primary Issuing Office cannot be deleted.");
+      toast.error("Corporate Head Office / Primary Issuing Office cannot be deleted.");
       return;
     }
-    if (!confirm(`Are you sure you want to delete issuing office '${branch.name}' (${branch.code})?`)) {
+    const ok = await confirmModal({
+      title: "Delete Issuing Office",
+      description: `Are you sure you want to delete issuing office '${branch.name}' (${branch.code})?`,
+      confirmText: "Delete Office",
+      variant: "danger",
+    });
+    if (!ok) {
       return;
     }
 
@@ -226,7 +233,7 @@ export default function IssuingOfficesPage() {
       }
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      alert(err.message || "Failed to delete issuing office.");
+      toast.error(err.message || "Failed to delete issuing office.");
     }
   };
 

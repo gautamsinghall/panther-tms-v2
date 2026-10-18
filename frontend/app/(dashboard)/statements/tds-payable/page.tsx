@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Download, Printer, RefreshCw } from "lucide-react";
@@ -67,7 +68,7 @@ export default function TDSPayablePage() {
         window.open(job.download_url, "_blank");
       }
     } catch (err: any) {
-      alert("Export failed: " + err.message);
+      toast.error("Export failed: " + err.message);
     } finally {
       setIsExporting(false);
     }

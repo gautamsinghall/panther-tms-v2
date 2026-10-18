@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, Phone, Pencil, FileText, CheckCircle2 } from "lucide-react";
@@ -385,7 +386,7 @@ export default function DriversPage() {
       setEditingRecord(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to save driver record.");
+      toast.error(err.message || "Failed to save driver record.");
     } finally {
       setIsSubmitting(false);
     }
@@ -401,7 +402,7 @@ export default function DriversPage() {
       setDeactivatingRecord(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to deactivate driver.");
+      toast.error(err.message || "Failed to deactivate driver.");
     } finally {
       setIsDeactivating(false);
     }

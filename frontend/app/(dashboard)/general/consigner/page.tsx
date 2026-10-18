@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, Edit3, Building2, Phone, Mail } from "lucide-react";
@@ -301,7 +302,7 @@ export default function ConsignerPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create consigner record.");
+      toast.error(err.message || "Failed to create consigner record.");
     } finally {
       setIsSubmitting(false);
     }
@@ -317,7 +318,7 @@ export default function ConsignerPage() {
       setDeactivatingRecord(null);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to deactivate consigner.");
+      toast.error(err.message || "Failed to deactivate consigner.");
     } finally {
       setIsDeactivating(false);
     }

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, PackageCheck, AlertTriangle } from "lucide-react";
@@ -219,7 +220,7 @@ export default function ArrivalReportsPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to record arrival report.");
+      toast.error(err.message || "Failed to record arrival report.");
     } finally {
       setIsSubmitting(false);
     }

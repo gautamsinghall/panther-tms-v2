@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useEffect, useState } from "react";
 import { Plus, CheckCircle, RefreshCw } from "lucide-react";
@@ -85,7 +86,7 @@ export default function TripAdvancePage() {
       });
       fetchData();
     } catch (err: any) {
-      alert(err.message || "Failed to disburse trip advance.");
+      toast.error(err.message || "Failed to disburse trip advance.");
     }
   };
 
@@ -105,7 +106,7 @@ export default function TripAdvancePage() {
       setSettleNotes("");
       fetchData();
     } catch (err: any) {
-      alert(err.message || "Failed to settle trip advance.");
+      toast.error(err.message || "Failed to settle trip advance.");
     }
   };
 

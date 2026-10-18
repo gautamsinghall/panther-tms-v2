@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, X, ArrowUpRight, Ban, CheckCircle, AlertCircle, Eye, Truck } from "lucide-react";
@@ -132,13 +133,13 @@ export default function PaymentVoucherPage() {
   const handleCreateStandardPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stdSeries?.configured || !stdSeries?.next_number_formatted) {
-      alert("Payment Voucher cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("Payment Voucher cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     const amt = parseFloat(amount) || 0;
     if (amt <= 0) {
-      alert("Payment amount must be greater than 0.");
+      toast.warning("Payment amount must be greater than 0.");
       return;
     }
 
@@ -175,13 +176,13 @@ export default function PaymentVoucherPage() {
   const handleCreateAth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!athSeries?.configured || !athSeries?.next_number_formatted) {
-      alert("ATH Payment cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("ATH Payment cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     const amt = parseFloat(athAmount) || 0;
     if (!athChallanId || amt <= 0) {
-      alert("Please select a valid Hire Challan and enter an amount.");
+      toast.warning("Please select a valid Hire Challan and enter an amount.");
       return;
     }
 
@@ -213,13 +214,13 @@ export default function PaymentVoucherPage() {
   const handleCreateBth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bthSeries?.configured || !bthSeries?.next_number_formatted) {
-      alert("BTH Payment cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("BTH Payment cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     const amt = parseFloat(bthAmount) || 0;
     if (!bthChallanId || amt <= 0) {
-      alert("Please select a valid Hire Challan and enter an amount.");
+      toast.warning("Please select a valid Hire Challan and enter an amount.");
       return;
     }
 
@@ -251,7 +252,7 @@ export default function PaymentVoucherPage() {
   const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
-      alert("Void reason must be at least 10 characters as per audit rules.");
+      toast.warning("Void reason must be at least 10 characters as per audit rules.");
       return;
     }
 

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, CheckCircle, FileCheck, Paperclip } from "lucide-react";
@@ -194,7 +195,7 @@ export default function PODRecordsPage() {
           });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to verify POD.");
+          toast.error(err.message || "Failed to verify POD.");
         }
       },
     },
@@ -295,7 +296,7 @@ export default function PODRecordsPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to record POD.");
+      toast.error(err.message || "Failed to record POD.");
     } finally {
       setIsSubmitting(false);
     }

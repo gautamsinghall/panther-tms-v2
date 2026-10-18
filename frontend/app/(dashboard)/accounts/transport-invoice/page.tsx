@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, X, FileText, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye, IndianRupee } from "lucide-react";
@@ -197,7 +198,7 @@ export default function TransportInvoicePage() {
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLrId) {
-      alert("Please select a valid LR.");
+      toast.warning("Please select a valid LR.");
       return;
     }
 
@@ -206,12 +207,12 @@ export default function TransportInvoicePage() {
       (manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0)
     );
     if (!isConfigured) {
-      alert("Transport Invoice cannot be generated because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("Transport Invoice cannot be generated because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     if (isManualSeries && !invoiceNumber) {
-      alert("Please select an available invoice number from the selected series range.");
+      toast.warning("Please select an available invoice number from the selected series range.");
       return;
     }
 
@@ -219,7 +220,7 @@ export default function TransportInvoicePage() {
       ? invoiceNumber.trim()
       : (seriesInfo?.configured ? seriesInfo.next_number_formatted : "");
     if (!effectiveNumber) {
-      alert("Invoice number is missing. Please ensure a series is configured in Settings > Series Master.");
+      toast.error("Invoice number is missing. Please ensure a series is configured in Settings > Series Master.");
       return;
     }
 
@@ -250,7 +251,7 @@ export default function TransportInvoicePage() {
 
   const handleVoidVoucher = async () => {
     if (!voidVoucherId || !voidReason.trim()) {
-      alert("Please provide an audit reason for voiding this invoice.");
+      toast.warning("Please provide an audit reason for voiding this invoice.");
       return;
     }
 

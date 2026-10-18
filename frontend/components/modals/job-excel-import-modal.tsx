@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -169,7 +170,7 @@ export function JobExcelImportModal({
       window.URL.revokeObjectURL(downloadUrl);
       a.remove();
     } catch (err: any) {
-      alert(err.message || "Failed to download template.");
+      toast.error(err.message || "Failed to download template.");
     } finally {
       setIsDownloadingTemplate(false);
     }

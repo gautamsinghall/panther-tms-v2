@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useEffect, useState } from "react";
 import { Plus, RefreshCw, Wrench } from "lucide-react";
@@ -98,7 +99,7 @@ export default function RepairServicePage() {
       });
       fetchData();
     } catch (err: any) {
-      alert(err.message || "Failed to create job card.");
+      toast.error(err.message || "Failed to create job card.");
     }
   };
 

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, FileSpreadsheet, Ban, CheckCircle, AlertCircle, Eye } from "lucide-react";
@@ -89,14 +90,14 @@ export default function ProformaInvoicePage() {
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!seriesInfo?.configured || !seriesInfo?.next_number_formatted) {
-      alert("Proforma Invoice cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("Proforma Invoice cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     const tot = parseFloat(totalAmount) || 0;
     const tax = parseFloat(taxAmount) || 0;
     if (tot <= 0) {
-      alert("Estimated total amount must be greater than 0.");
+      toast.warning("Estimated total amount must be greater than 0.");
       return;
     }
 
@@ -134,7 +135,7 @@ export default function ProformaInvoicePage() {
   const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
-      alert("Void reason must be at least 10 characters as per audit rules.");
+      toast.warning("Void reason must be at least 10 characters as per audit rules.");
       return;
     }
 

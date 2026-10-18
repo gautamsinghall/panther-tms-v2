@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { toast, confirmModal } from "@/lib/toast";
 import {
   Plus,
   Loader2,
@@ -483,7 +484,13 @@ export default function SeriesMasterPage() {
   };
 
   const handleDeleteSeries = async (seriesId: number) => {
-    if (!confirm("Are you sure you want to delete this series range? This cannot be undone.")) return;
+    const ok = await confirmModal({
+      title: "Delete Series Range",
+      description: "Are you sure you want to delete this series range? This cannot be undone.",
+      confirmText: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
     setError(null);
     try {
       await apiClient(`/api/v1/settings/series/${seriesId}`, {

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, Shield, UserPlus, Edit2, Building2, MapPin, Check, Star, AlertCircle } from "lucide-react";
@@ -169,15 +170,15 @@ export default function UsersPage() {
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formFullName.trim()) {
-      alert("Please enter employee's full name.");
+      toast.warning("Please enter employee's full name.");
       return;
     }
     if (!editingUser && !formEmail.trim()) {
-      alert("Please enter a valid email address.");
+      toast.warning("Please enter a valid email address.");
       return;
     }
     if (!editingUser && !formPassword.trim()) {
-      alert("Please provide an initial password for the employee.");
+      toast.warning("Please provide an initial password for the employee.");
       return;
     }
 
@@ -248,7 +249,7 @@ export default function UsersPage() {
         window.dispatchEvent(new CustomEvent("panther_branches_updated"));
       }
     } catch (err: any) {
-      alert(err.message || "Failed to save user.");
+      toast.error(err.message || "Failed to save user.");
     } finally {
       setIsSubmitting(false);
     }
@@ -411,11 +412,11 @@ export default function UsersPage() {
       hidden: (row) => row.email.toLowerCase() === "admin@demo.com" || row.id === currentAuth?.user?.id,
       onClick: async (row) => {
         if (row.email.toLowerCase() === "admin@demo.com") {
-          alert("The demo administrator account cannot be deactivated.");
+          toast.error("The demo administrator account cannot be deactivated.");
           return;
         }
         if (currentAuth?.user?.id && row.id === currentAuth.user.id) {
-          alert("You cannot deactivate your own account.");
+          toast.error("You cannot deactivate your own account.");
           return;
         }
         try {
@@ -425,7 +426,7 @@ export default function UsersPage() {
           });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to update user status.");
+          toast.error(err.message || "Failed to update user status.");
         }
       },
     },

@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Shield, ShieldCheck, Trash2, Edit2, Lock, Search, CheckCircle2, RotateCcw } from "lucide-react";
@@ -313,7 +314,7 @@ export default function RolesPage() {
   const handleSaveRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roleName.trim()) {
-      alert("Role name is required.");
+      toast.warning("Role name is required.");
       return;
     }
 
@@ -439,7 +440,7 @@ export default function RolesPage() {
       setIsDrawerOpen(false);
       await loadRolesAndSchema();
     } catch (err: any) {
-      alert(err.message || "Failed to save role.");
+      toast.error(err.message || "Failed to save role.");
     } finally {
       setIsSubmitting(false);
     }
@@ -469,7 +470,7 @@ export default function RolesPage() {
   const handleDeleteRole = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.is_system) {
-      alert("System roles cannot be deleted.");
+      toast.error("System roles cannot be deleted.");
       return;
     }
 
@@ -479,7 +480,7 @@ export default function RolesPage() {
       setDeleteTarget(null);
       await loadRolesAndSchema();
     } catch (err: any) {
-      alert(err.message || "Failed to delete role.");
+      toast.error(err.message || "Failed to delete role.");
     } finally {
       setIsDeleting(false);
     }

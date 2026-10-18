@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, Edit3, Layers, CheckCircle2, AlertCircle } from "lucide-react";
@@ -133,7 +134,13 @@ export default function LoadTypePage() {
       variant: "danger",
       disabled: (row) => !row.is_active,
       onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate "${row.name}"?`)) return;
+        const ok = await confirmModal({
+          title: "Deactivate Load Type",
+          description: `Are you sure you want to deactivate "${row.name}"?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
         try {
           await apiClient(`/api/v1/general/load-types/${row.id}`, { method: "DELETE" });
           loadData();
@@ -141,7 +148,7 @@ export default function LoadTypePage() {
             window.dispatchEvent(new Event("panther_load_types_changed"));
           }
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate load type.");
+          toast.error(err.message || "Failed to deactivate load type.");
         }
       },
     },
@@ -213,7 +220,7 @@ export default function LoadTypePage() {
         }
       }
     } catch (err: any) {
-      alert(err.message || "Failed to save load type.");
+      toast.error(err.message || "Failed to save load type.");
     } finally {
       setIsSubmitting(false);
     }

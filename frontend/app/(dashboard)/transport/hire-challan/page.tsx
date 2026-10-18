@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
@@ -948,28 +949,28 @@ export default function HireChallansPage() {
     }
 
     if (!editingId && (!isSeriesConfigured || !challanNumber.trim())) {
-      alert("Hire Challan cannot be saved because no series is configured for this issuing office. Please setup or import the series in Settings > Series Master.");
+      toast.success("Hire Challan cannot be saved because no series is configured for this issuing office. Please setup or import the series in Settings > Series Master.");
       return;
     }
 
     if (!effectiveOfficeId) {
-      alert("No active issuing office / branch found. Please ensure an active office is configured.");
+      toast.warning("No active issuing office / branch found. Please ensure an active office is configured.");
       return;
     }
     if (!challanNumber.trim()) {
-      alert("Hire Challan number is missing. Please ensure a series is configured in Settings > Series Master.");
+      toast.error("Hire Challan number is missing. Please ensure a series is configured in Settings > Series Master.");
       return;
     }
     if (!fromLocation.trim()) {
-      alert("Please specify the 'From' location.");
+      toast.warning("Please specify the 'From' location.");
       return;
     }
     if (!toLocation.trim()) {
-      alert("Please specify the 'To' location.");
+      toast.warning("Please specify the 'To' location.");
       return;
     }
     if (!vehicleNumber.trim()) {
-      alert("Please enter or select a Vehicle Number.");
+      toast.warning("Please enter or select a Vehicle Number.");
       return;
     }
 
@@ -1011,13 +1012,13 @@ export default function HireChallansPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        alert(`Hire Challan ${challanNumber} updated successfully!`);
+        toast.success(`Hire Challan ${challanNumber} updated successfully!`);
       } else {
         await apiClient("/api/v1/transport/hire-challans", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        alert(`Hire Challan ${challanNumber} issued successfully!`);
+        toast.success(`Hire Challan ${challanNumber} issued successfully!`);
       }
 
       setIsDrawerOpen(false);
@@ -1026,7 +1027,7 @@ export default function HireChallansPage() {
       // Reload records list smoothly in background
       await fetchChallans(true);
     } catch (err: any) {
-      alert(err.message || "Failed to save hire challan.");
+      toast.error(err.message || "Failed to save hire challan.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1034,7 +1035,13 @@ export default function HireChallansPage() {
 
   // Settle Challan Action
   const handleSettle = async (row: HireChallanRecord) => {
-    if (!confirm(`Settle final balance of ${formatCurrency(row.balance_amount)} for challan ${row.challan_number}?`)) {
+    const ok = await confirmModal({
+      title: "Settle Hire Challan",
+      description: `Settle final balance of ${formatCurrency(row.balance_amount)} for challan ${row.challan_number}?`,
+      confirmText: "Settle Challan",
+      variant: "primary",
+    });
+    if (!ok) {
       return;
     }
     try {
@@ -1044,7 +1051,7 @@ export default function HireChallansPage() {
       });
       await fetchChallans(true);
     } catch (err: any) {
-      alert(err.message || "Failed to settle challan.");
+      toast.error(err.message || "Failed to settle challan.");
     }
   };
 

@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -78,12 +79,18 @@ export default function DesignationPage() {
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate ${row.title}?`)) return;
+        const ok = await confirmModal({
+          title: "Deactivate Designation",
+          description: `Are you sure you want to deactivate ${row.title}?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
         try {
           await apiClient(`/api/v1/general/designations/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate designation.");
+          toast.error(err.message || "Failed to deactivate designation.");
         }
       },
     },
@@ -127,7 +134,7 @@ export default function DesignationPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create designation.");
+      toast.error(err.message || "Failed to create designation.");
     } finally {
       setIsSubmitting(false);
     }

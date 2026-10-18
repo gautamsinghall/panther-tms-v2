@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -78,12 +79,18 @@ export default function IndustryPage() {
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate ${row.name}?`)) return;
+        const ok = await confirmModal({
+          title: "Deactivate Industry",
+          description: `Are you sure you want to deactivate ${row.name}?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
         try {
           await apiClient(`/api/v1/general/industries/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate industry.");
+          toast.error(err.message || "Failed to deactivate industry.");
         }
       },
     },
@@ -128,7 +135,7 @@ export default function IndustryPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create industry.");
+      toast.error(err.message || "Failed to create industry.");
     } finally {
       setIsSubmitting(false);
     }

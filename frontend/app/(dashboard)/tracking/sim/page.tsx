@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -309,12 +310,12 @@ export default function SIMTrackingPage() {
   const handleStartSimTrip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addFormData.vehicle_number.trim() || !addFormData.driver_phone.trim()) {
-      alert("Please provide both Vehicle Number and 10-digit Driver Mobile Phone.");
+      toast.warning("Please provide both Vehicle Number and 10-digit Driver Mobile Phone.");
       return;
     }
     const cleanPhone = addFormData.driver_phone.replace(/\D/g, "");
     if (cleanPhone.length < 10) {
-      alert("Driver mobile phone must be strictly 10 digits for Indian telecom SIM consent.");
+      toast.warning("Driver mobile phone must be strictly 10 digits for Indian telecom SIM consent.");
       return;
     }
 
@@ -340,7 +341,7 @@ export default function SIMTrackingPage() {
       resetAddFormData();
       loadSimTrips();
     } catch (err: any) {
-      alert(err.message || "Failed to initiate SIM trip tracking.");
+      toast.error(err.message || "Failed to initiate SIM trip tracking.");
     } finally {
       setIsSubmitting(false);
     }
@@ -398,7 +399,7 @@ export default function SIMTrackingPage() {
         }.`,
       });
     } catch (err: any) {
-      alert(err.message || "Failed to refresh trip tracking telemetry.");
+      toast.error(err.message || "Failed to refresh trip tracking telemetry.");
     } finally {
       setSyncingTripIds((prev) => {
         const next = new Set(prev);
@@ -426,7 +427,7 @@ export default function SIMTrackingPage() {
       setCloseComment("");
       loadSimTrips();
     } catch (err: any) {
-      alert(err.message || "Failed to close trip.");
+      toast.error(err.message || "Failed to close trip.");
     } finally {
       setIsSubmitting(false);
     }
@@ -455,7 +456,7 @@ export default function SIMTrackingPage() {
       setIsEditModalOpen(false);
       setActiveModalTrip(null);
     } catch (err: any) {
-      alert(err.message || "Failed to update trip details.");
+      toast.error(err.message || "Failed to update trip details.");
     } finally {
       setIsSubmitting(false);
     }
@@ -479,7 +480,7 @@ export default function SIMTrackingPage() {
       setCommentInput("");
       setActiveModalTrip(null);
     } catch (err: any) {
-      alert(err.message || "Failed to add comment.");
+      toast.error(err.message || "Failed to add comment.");
     } finally {
       setIsSubmitting(false);
     }
@@ -993,7 +994,7 @@ export default function SIMTrackingPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => alert("All active logistics filters are displayed in the toolbar above.")}
+          onClick={() => toast.info("All active logistics filters are displayed in the toolbar above.")}
           className="h-9 px-3 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 gap-1 cursor-pointer"
         >
           <ChevronDown className="w-3.5 h-3.5" />

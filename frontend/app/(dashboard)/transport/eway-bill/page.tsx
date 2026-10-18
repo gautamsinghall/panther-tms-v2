@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, Lock, ShieldAlert } from "lucide-react";
@@ -216,7 +217,7 @@ export default function EWayBillsPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to update E-Way bill.");
+      toast.error(err.message || "Failed to update E-Way bill.");
     } finally {
       setIsSubmitting(false);
     }

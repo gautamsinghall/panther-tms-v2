@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, X, ShoppingCart, Ban, CheckCircle, AlertCircle, Eye } from "lucide-react";
@@ -99,14 +100,14 @@ export default function PurchasesPage() {
   const handleCreatePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeSeries?.configured || !activeSeries?.next_number_formatted) {
-      alert("Purchase Bill cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      toast.error("Purchase Bill cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
     const tot = parseFloat(totalAmount) || 0;
     const tax = parseFloat(taxAmount) || 0;
     if (tot <= 0) {
-      alert("Taxable purchase amount must be greater than 0.");
+      toast.warning("Taxable purchase amount must be greater than 0.");
       return;
     }
 
@@ -144,7 +145,7 @@ export default function PurchasesPage() {
   const handleVoidVoucher = async () => {
     if (!voidVoucherId) return;
     if (voidReason.trim().length < 10) {
-      alert("Void reason must be at least 10 characters as per audit rules.");
+      toast.warning("Void reason must be at least 10 characters as per audit rules.");
       return;
     }
 

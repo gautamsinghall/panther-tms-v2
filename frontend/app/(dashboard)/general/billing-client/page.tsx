@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -176,7 +177,7 @@ export default function BillingClientPage() {
       setEditingRecord(null);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to save billing client.");
+      toast.error(err.message || "Failed to save billing client.");
     } finally {
       setIsSubmitting(false);
     }
@@ -192,7 +193,7 @@ export default function BillingClientPage() {
       setDeactivatingRecord(null);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to deactivate billing client.");
+      toast.error(err.message || "Failed to deactivate billing client.");
     } finally {
       setIsDeactivating(false);
     }
@@ -206,7 +207,7 @@ export default function BillingClientPage() {
       });
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to update client status.");
+      toast.error(err.message || "Failed to update client status.");
     }
   };
 

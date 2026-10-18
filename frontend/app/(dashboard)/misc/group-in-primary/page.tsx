@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { Plus, FolderTree, Trash2 } from "lucide-react";
@@ -62,7 +63,7 @@ export default function GroupInPrimaryPage() {
       setDeleteTarget(null);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to delete group");
+      toast.error(err.message || "Failed to delete group");
     } finally {
       setIsDeleting(false);
     }

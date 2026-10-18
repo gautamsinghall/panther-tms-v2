@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, MapPin, Trash2 } from "lucide-react";
@@ -145,12 +146,18 @@ export default function LocationPage() {
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       onClick: async (row) => {
-        if (!confirm(`Are you sure you want to deactivate ${row.city_name}?`)) return;
+        const ok = await confirmModal({
+          title: "Deactivate Location",
+          description: `Are you sure you want to deactivate ${row.city_name}?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
         try {
           await apiClient(`/api/v1/general/locations/${row.id}`, { method: "DELETE" });
           loadData();
         } catch (err: any) {
-          alert(err.message || "Failed to deactivate location.");
+          toast.error(err.message || "Failed to deactivate location.");
         }
       },
     },
@@ -213,7 +220,7 @@ export default function LocationPage() {
       setIsDrawerOpen(false);
       loadData();
     } catch (err: any) {
-      alert(err.message || "Failed to create location.");
+      toast.error(err.message || "Failed to create location.");
     } finally {
       setIsSubmitting(false);
     }

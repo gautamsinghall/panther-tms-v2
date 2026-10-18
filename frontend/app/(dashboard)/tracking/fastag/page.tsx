@@ -1,4 +1,5 @@
 "use client";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
@@ -297,7 +298,7 @@ export default function FastagTrackingPage() {
   const handleSaveManualTrip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualForm.vehicle_number.trim() || !manualForm.origin_name.trim() || !manualForm.destination_name.trim()) {
-      alert("Please provide Vehicle Number, Origin (From), and Destination (To).");
+      toast.warning("Please provide Vehicle Number, Origin (From), and Destination (To).");
       return;
     }
 
@@ -345,7 +346,7 @@ export default function FastagTrackingPage() {
       setVehicleInput(created.vehicle_number);
       executeTrack(created.vehicle_number, false);
     } catch (err: any) {
-      alert(err.message || "Failed to save manual FASTag trip.");
+      toast.error(err.message || "Failed to save manual FASTag trip.");
     } finally {
       setIsSubmittingTrip(false);
     }
@@ -369,7 +370,7 @@ export default function FastagTrackingPage() {
         executeTrack(activeVehicle, false);
       }
     } catch (err: any) {
-      alert(err.message || "Auto-sync request failed.");
+      toast.error(err.message || "Auto-sync request failed.");
     } finally {
       setIsAutoSyncing(false);
     }
@@ -379,7 +380,13 @@ export default function FastagTrackingPage() {
   // Complete / Close Saved Trip
   // ---------------------------------------------------------------------------
   const handleCloseTrip = async (tripId: number) => {
-    if (!confirm("Are you sure you want to mark this FASTag trip as Completed?")) return;
+    const ok = await confirmModal({
+      title: "Complete FASTag Trip",
+      description: "Are you sure you want to mark this FASTag trip as Completed?",
+      confirmText: "Mark Completed",
+      variant: "primary",
+    });
+    if (!ok) return;
     try {
       await apiClient(`/api/v1/transport/tracking/fastag/trips/${tripId}`, {
         method: "PATCH",
@@ -388,7 +395,7 @@ export default function FastagTrackingPage() {
       loadSavedTrips();
       setFeedback({ type: "success", message: "Trip marked as Completed." });
     } catch (err: any) {
-      alert(err.message || "Failed to update trip status.");
+      toast.error(err.message || "Failed to update trip status.");
     }
   };
 
@@ -396,7 +403,13 @@ export default function FastagTrackingPage() {
   // Delete Saved Trip
   // ---------------------------------------------------------------------------
   const handleDeleteTrip = async (tripId: number) => {
-    if (!confirm("Are you sure you want to delete this trip record?")) return;
+    const ok = await confirmModal({
+      title: "Delete FASTag Trip",
+      description: "Are you sure you want to delete this trip record?",
+      confirmText: "Delete Trip",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await apiClient(`/api/v1/transport/tracking/fastag/trips/${tripId}`, {
         method: "DELETE",
@@ -404,7 +417,7 @@ export default function FastagTrackingPage() {
       loadSavedTrips();
       setFeedback({ type: "info", message: "Trip deleted successfully." });
     } catch (err: any) {
-      alert(err.message || "Failed to delete trip.");
+      toast.error(err.message || "Failed to delete trip.");
     }
   };
 
@@ -746,7 +759,7 @@ export default function FastagTrackingPage() {
                     size="sm"
                     onClick={() => {
                       if (!activeVehicle) {
-                        alert("Please track a vehicle first.");
+                        toast.warning("Please track a vehicle first.");
                         return;
                       }
                       executeTrack(activeVehicle, false, customOrigin, customDestination);

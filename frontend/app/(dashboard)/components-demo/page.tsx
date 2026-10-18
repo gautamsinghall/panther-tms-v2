@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "@/lib/toast";
 
 import React, { useState } from "react";
 import { DataTable } from "@/components/tables/data-table";
@@ -204,17 +205,17 @@ export default function ComponentsDemoPage() {
     {
       label: "View LR Details",
       icon: <Eye className="w-3.5 h-3.5" />,
-      onClick: (row) => alert(`Viewing ${row.lrNumber}`),
+      onClick: (row) => toast.info(`Viewing ${row.lrNumber}`),
     },
     {
       label: "Print Consignment Challan",
       icon: <Printer className="w-3.5 h-3.5" />,
-      onClick: (row) => alert(`Printing challan for ${row.lrNumber}`),
+      onClick: (row) => toast.info(`Printing challan for ${row.lrNumber}`),
     },
     {
       label: "Edit Record",
       icon: <Edit3 className="w-3.5 h-3.5" />,
-      onClick: (row) => alert(`Editing ${row.lrNumber}`),
+      onClick: (row) => toast.info(`Editing ${row.lrNumber}`),
       disabled: (row) => row.status === "Cancelled",
     },
     {
@@ -352,7 +353,7 @@ export default function ComponentsDemoPage() {
           {
             label: "Export Mock Data",
             icon: <Download className="w-3.5 h-3.5" />,
-            onClick: () => alert("Exporting mock dataset as CSV..."),
+            onClick: () => toast.info("Exporting mock dataset as CSV..."),
           },
         ]}
       />
