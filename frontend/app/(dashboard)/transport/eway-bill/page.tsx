@@ -226,7 +226,7 @@ export default function EWayBillsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Update E-Way Bills"
-        description="Attach government GST E-Way bills, update Part-B truck numbers, and monitor validity."
+        description="Attach GST E-Way bills, update Part-B vehicle numbers, and monitor validity."
         breadcrumbs={[
           { label: "Transport", href: "/transport/jobs" },
           { label: "E-Way Bills" },

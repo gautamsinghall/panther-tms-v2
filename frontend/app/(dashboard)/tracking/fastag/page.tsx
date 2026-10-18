@@ -472,7 +472,7 @@ export default function FastagTrackingPage() {
       {/* Page Header with Action Buttons */}
       <PageHeader
         title="FASTag Vehicle Tracking"
-        description="National Electronic Toll Collection (NETC) highway telemetry, road-following transit routes, and trip progress tracking"
+        description="NETC FASTag highway telemetry, transit corridors, and vehicle trip progress."
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Tracking", href: "/tracking/fastag" },

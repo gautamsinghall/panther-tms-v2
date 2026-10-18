@@ -169,7 +169,7 @@ export default function TrialBalancePage() {
     <div className="space-y-6">
       <PageHeader
         title="Trial Balance"
-        description="Verify strict financial equilibrium across all ledger accounts computed from real double-entry postings."
+        description="Verify financial equilibrium across ledger accounts from double-entry postings."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Trial Balance" },

@@ -261,7 +261,7 @@ export default function PurchasesPage() {
           { label: "Purchase Register" },
         ]}
         title="Purchase Register"
-        description="Track operational truck purchases (fuel, tyres, spare parts) and general overhead expenses with input tax credit (ITC) tracking."
+        description="Track fleet purchases (fuel, tyres, spares) and overhead expenses with ITC tracking."
         primaryAction={{
           label: "Record Purchase Bill",
           icon: Plus,

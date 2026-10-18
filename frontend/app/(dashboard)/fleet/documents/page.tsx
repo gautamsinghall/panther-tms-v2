@@ -144,7 +144,7 @@ export default function FleetDocumentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Vehicle Documents & Compliance"
-        description="Track commercial fitness certificates, national permits, comprehensive insurance, PUC, and RTO taxes with auto-expiry alerts."
+        description="Track vehicle fitness, permits, insurance, PUC, and RTO taxes with expiry alerts."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Documents" },

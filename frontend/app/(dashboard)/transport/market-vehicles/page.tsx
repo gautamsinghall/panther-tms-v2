@@ -706,7 +706,7 @@ export default function MarketVehiclesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Market Vehicles"
-        description="Comprehensive registry of hired market trucks, technical specifications, compliance validity, and maintenance equipment."
+        description="Registry of hired market trucks, technical specs, compliance validity, and equipment."
         breadcrumbs={[
           { label: "Transport", href: "/transport/jobs" },
           { label: "Market Vehicles" },

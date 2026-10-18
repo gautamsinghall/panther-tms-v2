@@ -86,7 +86,7 @@ export default function TransportReportsHubPage() {
           { label: "Transport Reports" },
         ]}
         title="Transport & Operational Reports"
-        description="Real-time operational registers, financial reconciliations, and compliance audits for enterprise transport logistics."
+        description="Operational registers, financial reconciliations, and transport compliance audits."
         primaryAction={{
           label: "View LR Register",
           href: "/transport-reports/lr-register",

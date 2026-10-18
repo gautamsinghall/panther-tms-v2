@@ -245,7 +245,7 @@ export default function ContraVoucherPage() {
     <div className="space-y-6">
       <PageHeader
         title="Contra Vouchers"
-        description="Record internal fund movements between physical cash and bank accounts or inter-bank transfers."
+        description="Record internal fund transfers between cash and bank accounts or inter-bank."
         breadcrumbs={[
           { label: "Accounts", href: "/accounts" },
           { label: "Contra Vouchers" },

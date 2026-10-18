@@ -1443,7 +1443,7 @@ export default function LRBookingPage() {
     <div className="space-y-6">
       <PageHeader
         title="Lorry Receipts (GR / LR)"
-        description="Official carrier consignment notes: track freight movement, dispatch states, destination arrivals, and POD verification."
+        description="Track freight movements, dispatch states, arrivals, and POD verification."
         primaryAction={{
           label: "New LR Booking",
           icon: <Plus className="w-4 h-4" />,

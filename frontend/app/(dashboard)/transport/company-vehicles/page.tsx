@@ -274,7 +274,7 @@ export default function CompanyVehiclesPage() {
       {/* PageHeader */}
       <PageHeader
         title="Company Vehicles"
-        description="Manage company-owned fleet assets, capacity limits, odometers, and driver assignments."
+        description="Manage company fleet assets, capacity limits, odometers, and driver assignments."
         primaryAction={{
           label: "Add Vehicle",
           icon: <Plus className="w-4 h-4" />,

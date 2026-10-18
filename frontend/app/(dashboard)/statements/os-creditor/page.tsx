@@ -168,7 +168,7 @@ export default function OutstandingCreditorsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Outstanding Creditors (Accounts Payable)"
-        description="Aged payables schedule tracking obligations to truck owners, fuel pumps, and maintenance vendors."
+        description="Aged payables tracking obligations to truck owners, fuel pumps, and vendors."
         breadcrumbs={[
           { label: "Statements", href: "/statements/gst-output" },
           { label: "O/S Creditor" },

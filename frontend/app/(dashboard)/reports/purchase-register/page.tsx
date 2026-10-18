@@ -153,7 +153,7 @@ export default function PurchaseRegisterPage() {
     <div className="space-y-6">
       <PageHeader
         title="Purchase Register"
-        description="Audit record of supplier purchases, tyre bills, diesel fuel logs, and hired market truck payments."
+        description="Record of supplier purchases, tyre bills, fuel logs, and market truck payments."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Purchase Register" },

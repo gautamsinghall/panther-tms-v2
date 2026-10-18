@@ -193,7 +193,7 @@ export default function TruckPnLPage() {
     <div className="space-y-6">
       <PageHeader
         title="Truck-Wise Profit & Loss"
-        description="Derived profitability reporting by individual vehicle unit factoring invoiced freight revenue against diesel, FASTag tolls, driver allowances, and workshop maintenance."
+        description="Vehicle profitability factoring freight revenue against operating costs."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Truck P&L" },

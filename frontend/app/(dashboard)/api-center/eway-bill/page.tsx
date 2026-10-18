@@ -191,7 +191,7 @@ export default function EWayBillApiPage() {
       {/* Page Header */}
       <PageHeader
         title="API Center"
-        description="Unified external gateway credentials, real-time telemetry integrations, and developer hooks."
+        description="Unified gateway credentials, real-time telemetry integrations, and webhooks."
       >
         <div className="flex items-center gap-2">
           <Button

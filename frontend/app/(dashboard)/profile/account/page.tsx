@@ -98,7 +98,7 @@ export default function UserAccountPage() {
     <div className="space-y-6">
       <PageHeader
         title="User Account Settings"
-        description="Manage your profile information, credentials, and individual session preferences."
+        description="Manage your profile information, credentials, and session preferences."
         breadcrumbs={[
           { label: "Profile", href: "/profile/account" },
           { label: "User Account" },

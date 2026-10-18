@@ -168,7 +168,7 @@ export default function OutstandingDebtorsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Outstanding Debtors (Accounts Receivable)"
-        description="Aged trade receivables statement categorizing unpaid client freight invoices into overdue buckets."
+        description="Aged receivables statement categorizing unpaid freight invoices by overdue period."
         breadcrumbs={[
           { label: "Statements", href: "/statements/gst-output" },
           { label: "O/S Debtor" },

@@ -368,7 +368,7 @@ export default function IssuingOfficesPage() {
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <PageHeader
         title="Issuing Offices / Branches"
-        description="Location-specific operational entities: each office independently maintains its registered address, state GSTIN, contact information, and bank details."
+        description="Manage company branches, registered addresses, state GSTINs, and bank accounts."
         breadcrumbs={[
           { label: "Company Settings", href: "/company/details" },
           { label: "Issuing Offices / Branches" },

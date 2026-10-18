@@ -202,7 +202,7 @@ export default function TripAdvancePage() {
     <div className="space-y-6">
       <PageHeader
         title="Driver Trip Advance"
-        description="Issue advances to drivers for fuel, en-route meals, and vehicle permits, and reconcile against settled trip bills."
+        description="Issue driver advances for fuel, permits, and food, and reconcile trip settlements."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Trip Advance" },

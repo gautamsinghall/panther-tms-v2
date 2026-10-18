@@ -127,7 +127,7 @@ export default function ArrivalRegisterPage() {
           { label: "Arrival Register" },
         ]}
         title="Arrival Report Register"
-        description="Destination arrival register for cargo unloading, condition, and shortage discrepancies."
+        description="Arrival register for destination unloading, cargo conditions, and shortages."
         primaryAction={{
           label: "Refresh Register",
           icon: RefreshCw,

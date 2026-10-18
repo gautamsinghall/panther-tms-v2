@@ -169,7 +169,7 @@ export default function GSTOutputStatementPage() {
     <div className="space-y-6">
       <PageHeader
         title="GST Output Statement (GSTR-1)"
-        description="Statutory statement of outward taxable supplies, B2B invoices, and GTA reverse charge (RCM) liabilities."
+        description="Statement of outward taxable supplies, B2B invoices, and GTA reverse charge (RCM)."
         breadcrumbs={[
           { label: "Statements", href: "/statements/gst-output" },
           { label: "GST Output" },

@@ -150,7 +150,7 @@ export default function TDSPayablePage() {
     <div className="space-y-6">
       <PageHeader
         title="TDS Payable Report"
-        description="Tax Deducted at Source schedule tracking Section 194C (Transporters) and 194J deductions pending government deposit."
+        description="TDS schedule tracking Section 194C and 194J deductions pending deposit."
         breadcrumbs={[
           { label: "Statements", href: "/statements/gst-output" },
           { label: "TDS Payable" },

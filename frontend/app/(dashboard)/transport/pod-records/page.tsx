@@ -305,7 +305,7 @@ export default function PODRecordsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Proof of Delivery (POD)"
-        description="Verify signed delivery receipts, track delivery acknowledgments, and approve freight billing."
+        description="Verify signed delivery receipts, track delivery proofs, and approve billing."
         breadcrumbs={[
           { label: "Transport", href: "/transport/jobs" },
           { label: "POD Records" },

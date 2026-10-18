@@ -197,7 +197,7 @@ export default function TripExpenseRegisterPage() {
     <div className="space-y-6">
       <PageHeader
         title="Trip Expense Register"
-        description="Derived financial register of all on-road trip vouchers with category subtotals, vehicle-wise filters, and audit export."
+        description="Financial register of on-road trip vouchers with vehicle filters and audit export."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Trip Expense Register" },

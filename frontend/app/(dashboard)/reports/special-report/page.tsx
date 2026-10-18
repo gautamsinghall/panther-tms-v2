@@ -160,7 +160,7 @@ export default function SpecialReportPage() {
     <div className="space-y-6">
       <PageHeader
         title="Special Report (Trip P&L Drilldown)"
-        description="Comprehensive operational drilldown tracking trip-by-trip freight revenue, market hire cost, and gross margin percentage."
+        description="Operational drilldown tracking freight revenue, hire cost, and gross margins."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Special Report" },

@@ -160,7 +160,7 @@ export default function BankReconciliationPage() {
     <div className="space-y-6">
       <PageHeader
         title="Bank Reconciliation"
-        description="Verify company bank ledger postings against bank statement with unpresented and uncredited adjustment schedule."
+        description="Reconcile company bank ledger postings against bank statement adjustments."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Bank Reconciliation" },

@@ -234,7 +234,7 @@ export default function VehicleOwnersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Vehicle Owners"
-        description="Manage market vehicle fleet owners, freight brokers, and supplier banking records."
+        description="Manage market truck owners, freight brokers, and supplier banking records."
         breadcrumbs={[
           { label: "Transport", href: "/transport/jobs" },
           { label: "Vehicle Owners" },

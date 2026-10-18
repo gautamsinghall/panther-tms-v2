@@ -93,7 +93,7 @@ export default function MonthlyPnLPage() {
     <div className="space-y-6">
       <PageHeader
         title="Monthly Profit & Loss Statement"
-        description="Comprehensive consolidated operating revenue and direct freight expenses across all company branches and clubbed entities."
+        description="Consolidated operating revenue and direct freight expenses across branches."
         breadcrumbs={[
           { label: "Profile", href: "/profile/account" },
           { label: "Monthly P&L" },

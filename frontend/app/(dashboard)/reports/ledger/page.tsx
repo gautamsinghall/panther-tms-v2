@@ -199,7 +199,7 @@ export default function LedgerReportPage() {
     <div className="space-y-6">
       <PageHeader
         title="Account Ledger"
-        description="Comprehensive account statement showing opening balance, debit/credit entries, and running balance."
+        description="Account statement showing opening balance, debit/credit entries, and balances."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Ledger" },

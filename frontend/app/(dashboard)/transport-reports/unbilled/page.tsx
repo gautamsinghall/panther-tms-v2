@@ -128,7 +128,7 @@ export default function UnbilledReportsPage() {
           { label: "Unbilled Consignments" },
         ]}
         title="Unbilled Consignments Report"
-        description="Completed deliveries and verified PODs that are still awaiting customer invoicing."
+        description="Completed deliveries and verified PODs awaiting customer freight invoicing."
         primaryAction={{
           label: "Refresh Report",
           icon: RefreshCw,

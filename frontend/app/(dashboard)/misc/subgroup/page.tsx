@@ -179,7 +179,7 @@ export default function SubgroupPage() {
     <div className="space-y-6">
       <PageHeader
         title="Subgroups"
-        description="Granular account divisions nested under groups in primary for analytical drilldown."
+        description="Granular account divisions nested under primary groups for ledger drilldown."
         breadcrumbs={[
           { label: "Masters", href: "/misc/primary-group" },
           { label: "Subgroups" },

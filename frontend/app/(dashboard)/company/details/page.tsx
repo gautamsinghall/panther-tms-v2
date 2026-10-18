@@ -265,7 +265,7 @@ export default function CompanyDetailsPage() {
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <PageHeader
         title="Company Details & Global Branding"
-        description="Global corporate profile, brand logo, signing authority, and default issuing office shared across all transport operations."
+        description="Corporate profile, brand identity, signing authority, and default issuing office."
         breadcrumbs={[
           { label: "Company Settings", href: "/company/details" },
           { label: "Company Details" },

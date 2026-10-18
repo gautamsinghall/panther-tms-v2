@@ -515,7 +515,7 @@ export default function JobsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Trips & Job Orders"
-        description="Operational dispatch movements: create freight bookings, monitor corridor routes, and transition into LR bookings."
+        description="Create freight dispatch bookings, monitor corridor routes, and transition to LRs."
         primaryAction={{
           label: "Create Trip Order",
           icon: <Plus className="w-4 h-4" />,

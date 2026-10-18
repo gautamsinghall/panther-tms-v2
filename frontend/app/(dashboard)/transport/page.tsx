@@ -97,7 +97,7 @@ export default function TransportOverviewPage() {
           { label: "Transport Operations" },
         ]}
         title="Transport Operations Command"
-        description="End-to-end transport operational lifecycle: Job → LR Booking → Hire Challan → Arrival → POD Verification."
+        description="End-to-end transport operations: Job → LR Booking → Hire Challan → Arrival → POD."
         primaryAction={{
           label: "Book New LR",
           href: "/transport/lr-booking",

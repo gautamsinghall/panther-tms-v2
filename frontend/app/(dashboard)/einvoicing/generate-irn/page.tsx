@@ -105,7 +105,7 @@ export default function GenerateIRNPage() {
     <div className="space-y-6">
       <PageHeader
         title="Generate E-Invoice IRN"
-        description="Initiate GST Suvidha Provider (GSP) compliant Invoice Reference Number (IRN) generation with signed QR code."
+        description="Generate GST Suvidha Provider (GSP) compliant IRN with signed QR code."
         breadcrumbs={[
           { label: "Accounts", href: "/accounts" },
           { label: "E-Invoicing", href: "/einvoicing" },

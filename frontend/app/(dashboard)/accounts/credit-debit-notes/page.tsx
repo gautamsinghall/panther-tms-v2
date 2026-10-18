@@ -262,7 +262,7 @@ export default function CreditDebitNotesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Credit & Debit Notes"
-        description="Issue customer credit adjustments, shortage claims, vendor purchase deductions, and GST adjustments."
+        description="Issue customer credit adjustments, shortage claims, and vendor deductions."
         breadcrumbs={[
           { label: "Accounts", href: "/accounts" },
           { label: "Credit & Debit Notes" },

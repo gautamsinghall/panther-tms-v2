@@ -135,7 +135,7 @@ export default function OpeningBalanceDetailsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Opening Balance Details"
-        description="Schedule of initial account balances brought forward into the system and verification of double-entry opening balance equality."
+        description="Schedule of opening account balances with double-entry balance verification."
         breadcrumbs={[
           { label: "Statements", href: "/statements/gst-output" },
           { label: "Opening Balance Details" },

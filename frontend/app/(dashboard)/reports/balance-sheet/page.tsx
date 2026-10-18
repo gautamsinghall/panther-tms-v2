@@ -78,7 +78,7 @@ export default function BalanceSheetPage() {
     <div className="space-y-6">
       <PageHeader
         title="Balance Sheet"
-        description="Statutory statement of assets, liabilities, and equity reserves computed from real ledger accounts."
+        description="Statement of assets, liabilities, and equity reserves from real ledger accounts."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Balance Sheet" },

@@ -338,7 +338,7 @@ export default function ComponentsDemoPage() {
       {/* Top Header */}
       <PageHeader
         title="Component Showcase & Design Tokens"
-        description="Live preview and stress-test suite for Design System v2 tokens, tables, vehicle plates, status badges, and forms."
+        description="Preview and test suite for design tokens, tables, vehicle plates, and badges."
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Component Showcase" },

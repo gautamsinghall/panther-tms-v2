@@ -139,7 +139,7 @@ export default function TDSReturnPage() {
     <div className="space-y-6">
       <PageHeader
         title="TDS Return Report (Form 26Q)"
-        description="Quarterly summary schedule of tax deducted at source under Chapter XVII-B of the Income Tax Act."
+        description="Quarterly summary of tax deducted at source under Chapter XVII-B (Form 26Q)."
         breadcrumbs={[
           { label: "Statements", href: "/statements/gst-output" },
           { label: "TDS Return" },

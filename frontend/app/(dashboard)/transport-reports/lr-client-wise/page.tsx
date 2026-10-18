@@ -119,7 +119,7 @@ export default function LRClientWisePage() {
           { label: "Client-Wise Summary" },
         ]}
         title="LR Client-Wise Report"
-        description="Consignment volume, freight turnover, and delivery performance summarized by client."
+        description="Consignment volume, freight turnover, and delivery performance by client."
         primaryAction={{
           label: "Refresh Report",
           icon: RefreshCw,

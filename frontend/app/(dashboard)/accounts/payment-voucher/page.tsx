@@ -374,7 +374,7 @@ export default function PaymentVoucherPage() {
           { label: "Payment Vouchers" },
         ]}
         title="Payment Vouchers & Lorry Settlements"
-        description="Disburse vendor payments, advance truck hire payments (ATH), and final balance settlements (BTH) with automatic ledger postings."
+        description="Disburse vendor payments, truck hire advances (ATH), and balance settlements (BTH)."
         primaryAction={{
           label: "Standard Payment",
           icon: Plus,

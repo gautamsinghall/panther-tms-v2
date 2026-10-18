@@ -152,7 +152,7 @@ export default function UserActivityLogPage() {
     <div className="space-y-6">
       <PageHeader
         title="User Activity & Audit Trail"
-        description="Immutable chronological security log tracking system actions, user logins, records created, and financial postings."
+        description="Security log tracking system actions, user logins, records created, and postings."
         breadcrumbs={[
           { label: "Settings", href: "/settings/users" },
           { label: "Activity Log" },

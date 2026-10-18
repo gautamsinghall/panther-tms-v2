@@ -94,7 +94,7 @@ export default function AdminSettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="System Administration & Preferences"
-        description="Global tenant operating parameters, telematics API gateways, SMS dispatch alerts, and localization."
+        description="Tenant operating parameters, telematics gateways, SMS alerts, and localization."
         breadcrumbs={[
           { label: "Settings", href: "/settings/users" },
           { label: "Admin Setting" },

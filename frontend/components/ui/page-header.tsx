@@ -276,7 +276,7 @@ export function PageHeader({
 
       {/* Main Title & Action Row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 leading-tight">
               {title}
@@ -284,7 +284,7 @@ export function PageHeader({
             {badge}
           </div>
           {description && (
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-600 mt-1 max-w-3xl">
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600 mt-1">
               {description}
             </p>
           )}

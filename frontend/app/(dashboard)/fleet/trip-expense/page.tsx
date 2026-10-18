@@ -180,7 +180,7 @@ export default function TripExpensePage() {
     <div className="space-y-6">
       <PageHeader
         title="Trip Expense Management"
-        description="Record, audit, and reconcile on-road expenses including diesel, FASTag tolls, driver allowances, and repair vouchers."
+        description="Record and reconcile on-road trip expenses including fuel, tolls, and repairs."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Trip Expense" },

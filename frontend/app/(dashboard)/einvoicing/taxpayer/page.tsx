@@ -52,7 +52,7 @@ export default function TaxpayerDetailsPage() {
     <div className="space-y-6 max-w-4xl">
       <PageHeader
         title="Verify Taxpayer & GSTIN Search"
-        description="Perform live online taxpayer validation to verify vendor, consignor, and customer GST registrations prior to billing."
+        description="Live taxpayer validation to verify vendor and customer GST registrations."
         breadcrumbs={[
           { label: "Accounts", href: "/accounts" },
           { label: "E-Invoicing", href: "/einvoicing" },

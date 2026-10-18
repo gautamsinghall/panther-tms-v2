@@ -145,7 +145,7 @@ export default function LRRegisterPage() {
           { label: "LR Booking Register" },
         ]}
         title="LR Booking Register"
-        description="Operational register of booked and in-transit lorry receipts, routes, vehicles, packages, and freight balances."
+        description="Register of booked and in-transit lorry receipts, routes, and freight balances."
         primaryAction={{
           label: "Refresh Register",
           icon: RefreshCw,

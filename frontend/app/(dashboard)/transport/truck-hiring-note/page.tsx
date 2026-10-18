@@ -227,7 +227,7 @@ export default function TruckHiringNotePage() {
     <div className="space-y-6">
       <PageHeader
         title="Truck Hiring Notes"
-        description="Issue vehicle hiring slips, disburse pump diesel slips, and track driver cash advances."
+        description="Issue vehicle hiring slips, pump diesel slips, and track driver advances."
         breadcrumbs={[
           { label: "Transport", href: "/transport/jobs" },
           { label: "Truck Hiring Notes" },

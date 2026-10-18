@@ -165,7 +165,7 @@ export default function RepairServicePage() {
     <div className="space-y-6">
       <PageHeader
         title="Repair & Maintenance Workshop"
-        description="Schedule preventative maintenance, track breakdown job cards, and manage workshop service invoices."
+        description="Schedule preventative maintenance, track breakdown cards, and workshop invoices."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Repair & Service" },

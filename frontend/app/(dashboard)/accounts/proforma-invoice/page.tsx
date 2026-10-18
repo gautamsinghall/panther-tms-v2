@@ -238,7 +238,7 @@ export default function ProformaInvoicePage() {
     <div className="space-y-6">
       <PageHeader
         title="Proforma Invoices"
-        description="Generate provisional commercial estimates and quotations prior to final freight dispatch or service execution."
+        description="Generate provisional estimates and quotations prior to final freight dispatch."
         breadcrumbs={[
           { label: "Accounts", href: "/accounts" },
           { label: "Proforma Invoices" },

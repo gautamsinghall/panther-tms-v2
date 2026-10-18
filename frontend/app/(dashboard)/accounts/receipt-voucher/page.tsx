@@ -241,7 +241,7 @@ export default function ReceiptVoucherPage() {
           { label: "Receipt Vouchers" },
         ]}
         title="Receipt Vouchers"
-        description="Record customer inflows, NEFT/RTGS collections, and cash receipts against freight receivables."
+        description="Record customer collections, NEFT/RTGS, and cash receipts against receivables."
         primaryAction={{
           label: "New Receipt Voucher",
           icon: Plus,

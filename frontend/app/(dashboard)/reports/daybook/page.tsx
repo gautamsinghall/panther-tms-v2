@@ -146,7 +146,7 @@ export default function DaybookReportPage() {
     <div className="space-y-6">
       <PageHeader
         title="Daybook"
-        description="Chronological record of all daily debit and credit transactions across all voucher types."
+        description="Chronological record of daily debit and credit transactions across vouchers."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Daybook" },

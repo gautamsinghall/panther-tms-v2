@@ -81,7 +81,7 @@ export default function ProfitLossPage() {
     <div className="space-y-6">
       <PageHeader
         title="Profit & Loss Statement"
-        description="Operating financial performance summarizing freight revenues, direct transport costs, and net margins."
+        description="Financial performance summarizing freight revenues, direct costs, and net margins."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Profit & Loss" },

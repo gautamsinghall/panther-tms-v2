@@ -425,7 +425,7 @@ export default function TransportInvoicePage() {
     <div className="space-y-6">
       <PageHeader
         title="Transport Invoices"
-        description="Freight billing engine: generate double-entry customer invoices linked to delivered LRs with automated GST and NIC E-Invoicing."
+        description="Generate customer freight invoices linked to delivered LRs with automated GST."
         primaryAction={{
           label: "Create Invoice from LR",
           icon: <Plus className="w-4 h-4" />,

@@ -166,7 +166,7 @@ export default function SalesRegisterPage() {
     <div className="space-y-6">
       <PageHeader
         title="Sales Register"
-        description="Comprehensive audit of all transport and general billing invoices with tax breakdown and IRN linkage."
+        description="Audit of transport and general billing invoices with tax breakdown and IRN linkage."
         breadcrumbs={[
           { label: "Reports", href: "/reports/daybook" },
           { label: "Sales Register" },

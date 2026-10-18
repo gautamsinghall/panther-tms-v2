@@ -411,7 +411,7 @@ export default function DriversPage() {
     <div className="space-y-6">
       <PageHeader
         title="Fleet Drivers"
-        description="Manage commercial heavy vehicle drivers, licensing compliance, emergency contacts, and active statuses."
+        description="Manage heavy vehicle drivers, licensing compliance, and emergency contacts."
         primaryAction={{
           label: "Add Driver",
           icon: <Plus className="w-4 h-4" />,

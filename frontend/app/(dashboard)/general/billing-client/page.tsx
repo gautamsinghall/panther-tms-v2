@@ -602,7 +602,7 @@ export default function BillingClientPage() {
       {/* Page Header */}
       <PageHeader
         title="Billing Clients"
-        description="Register and manage corporate bill-to parties, debtor accounts, credit ceilings, and GST compliance profiles."
+        description="Manage corporate bill-to parties, debtor accounts, credit limits, and GST."
         breadcrumbs={[
           { label: "General", href: "/general/consigner" },
           { label: "Billing Clients" },

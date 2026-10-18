@@ -813,7 +813,7 @@ export default function SeriesMasterPage() {
     <div className="space-y-6">
       <PageHeader
         title="Document Series Master"
-        description="Unified sequence numbering engine: configure automatic sequence rules, prefixes, and physical batch booklets across branches."
+        description="Configure automatic sequence numbering, document prefixes, and series booklets."
         breadcrumbs={[
           { label: "Settings", href: "/settings/users" },
           { label: "Series Master" },

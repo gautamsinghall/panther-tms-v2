@@ -328,7 +328,7 @@ export default function ConsignerPage() {
       {/* Standardized PageHeader per docs/design.md §10 */}
       <PageHeader
         title="Consigners"
-        description="Manage corporate dispatching shippers, commercial billing profiles, and GST compliance."
+        description="Manage corporate dispatching shippers, billing profiles, and GST compliance."
         breadcrumbs={[
           { label: "General", href: "/general/consigner" },
           { label: "Consigners" },

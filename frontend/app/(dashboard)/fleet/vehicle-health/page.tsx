@@ -153,7 +153,7 @@ export default function VehicleHealthPage() {
     <div className="space-y-6">
       <PageHeader
         title="Vehicle Health & Telematics"
-        description="Monitor fleet diagnostic codes, preventative maintenance schedules, and mechanical roadworthiness."
+        description="Monitor vehicle diagnostic codes, maintenance schedules, and roadworthiness."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Vehicle Health" },

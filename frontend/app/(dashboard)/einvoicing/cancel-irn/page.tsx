@@ -90,7 +90,7 @@ function CancelIRNContent() {
     <div className="space-y-6 max-w-3xl">
       <PageHeader
         title="Cancel E-Invoice IRN"
-        description="Submit an official 24-hour window cancellation request for an issued GST Invoice Reference Number."
+        description="Submit 24-hour cancellation requests for issued GST Invoice Reference Numbers."
         breadcrumbs={[
           { label: "Accounts", href: "/accounts" },
           { label: "E-Invoicing", href: "/einvoicing" },

@@ -160,7 +160,7 @@ export default function IRNListPage() {
     <div className="space-y-6">
       <PageHeader
         title="IRN Generated Register"
-        description="Complete audit trail of all electronic invoice IRNs dispatched to the GST portal with signed QR codes and cancellation timestamps."
+        description="Audit trail of electronic invoice IRNs with signed QR codes and GST timestamps."
         breadcrumbs={[
           { label: "Accounts", href: "/accounts" },
           { label: "E-Invoicing", href: "/einvoicing" },

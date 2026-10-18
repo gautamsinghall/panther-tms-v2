@@ -95,7 +95,7 @@ export default function EmailSettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Automated Email & Dispatch Gateways"
-        description="Configure tenant SMTP parameters for automatic LR booking confirmation, hire challan dispatches, and PDF invoices."
+        description="Configure tenant SMTP parameters for automated LR and invoice email dispatches."
         breadcrumbs={[
           { label: "Profile", href: "/profile/account" },
           { label: "Email Settings" },

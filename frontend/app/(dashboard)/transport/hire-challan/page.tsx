@@ -1210,7 +1210,7 @@ export default function HireChallansPage() {
       {/* 1. Standard TMS PageHeader */}
       <PageHeader
         title="Hire Challans"
-        description="Issue hire challans for market fleet vehicles, track advances, and manage loading/unloading expenses."
+        description="Issue hire challans for market vehicles, track advances, and settlements."
         breadcrumbs={[
           { label: "Transport", href: "/transport/jobs" },
           { label: "Hire Challans" },

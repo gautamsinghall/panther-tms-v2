@@ -374,7 +374,7 @@ export default function GeneralInvoicePage() {
     <div className="space-y-6">
       <PageHeader
         title="General Invoices"
-        description="Bill non-freight revenue, ancillary services, and warehousing fees with automatic double-entry accounting."
+        description="Bill non-freight revenue, ancillary fees, and warehousing with double-entry."
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Accounts", href: "/accounts" },

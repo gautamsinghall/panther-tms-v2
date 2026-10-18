@@ -121,7 +121,7 @@ export default function AccountsOverviewPage() {
           { label: "Accounts" },
         ]}
         title="Accounts & Financial Ledger"
-        description="Enterprise double-entry ledger maintaining mathematical balance across all transaction vouchers."
+        description="Enterprise double-entry ledger maintaining balance across transaction vouchers."
         primaryAction={{
           label: "Create Transport Invoice",
           href: "/accounts/transport-invoice",

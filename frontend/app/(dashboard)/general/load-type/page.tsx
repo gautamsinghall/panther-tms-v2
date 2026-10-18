@@ -228,7 +228,7 @@ export default function LoadTypePage() {
     <div className="space-y-6">
       <PageHeader
         title="Load Types Master"
-        description="Configure standard carriage load types (FTL, PTL, Container, ODC, Bulk) automatically available in LR bookings and transport contracts."
+        description="Configure carriage load types (FTL, PTL, Container, Bulk) for transport bookings."
         primaryAction={{
           label: "New Load Type",
           icon: <Plus className="w-4 h-4" />,

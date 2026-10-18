@@ -156,7 +156,7 @@ export default function GSTInputStatementPage() {
     <div className="space-y-6">
       <PageHeader
         title="GST Input Statement (GSTR-2B)"
-        description="Inward taxable supplies statement for reconciliation and Input Tax Credit (ITC) claim audit."
+        description="Inward supplies statement for reconciliation and Input Tax Credit (ITC) audit."
         breadcrumbs={[
           { label: "Statements", href: "/statements/gst-output" },
           { label: "GST Input" },

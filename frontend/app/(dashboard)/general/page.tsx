@@ -92,7 +92,7 @@ export default function GeneralOverviewPage() {
     <div className="space-y-6">
       <PageHeader
         title="General Module Masters"
-        description="Core master registry managing clients, geographic locations, packaging, and commercial dimensions."
+        description="Master registry managing clients, locations, packaging, and dimensions."
         breadcrumbs={[
           { label: "Home", href: "/" },
           { label: "General" },

@@ -170,7 +170,7 @@ export default function TyreManagementPage() {
     <div className="space-y-6">
       <PageHeader
         title="Tyre Inventory & Lifecycle Management"
-        description="Monitor axle fitments, tread depth wear inspection, retreading schedules, and scrap disposal."
+        description="Monitor axle fitments, tread depth wear, retreading schedules, and disposal."
         breadcrumbs={[
           { label: "Fleet", href: "/fleet/trip-expense" },
           { label: "Tyre Management" },
