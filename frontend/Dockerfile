@@ -9,7 +9,8 @@ RUN npm install --prefer-offline --no-audit
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+ENV NEXT_CPU_COUNT=1
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npm run build
 
 # Stage 2: Ultra-lightweight production runner

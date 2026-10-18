@@ -49,7 +49,6 @@ interface RouteInfo {
 
 const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/": { title: "Overview Dashboard", icon: LayoutDashboard },
-  "/components-demo": { title: "Components Demo", icon: Layers },
 
   // General
   "/general/billing-client": { title: "Billing Client", icon: Building2 },
@@ -74,8 +73,6 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/transport/arrival-reports": { title: "Arrival Report", icon: CalendarCheck },
   "/transport/pod-records": { title: "POD Records", icon: CheckSquare },
   "/transport/eway-bill": { title: "Update E-Way", icon: QrCode },
-  "/transport/tracking": { title: "Sim Based Tracking", icon: Radio },
-  "/transport/tracking/fastag": { title: "FASTag Tracking", icon: Navigation },
 
   // Tracking
   "/tracking/fastag": { title: "FASTag Tracking", icon: Navigation },

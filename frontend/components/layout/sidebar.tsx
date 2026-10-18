@@ -323,7 +323,6 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
 const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: string }>> = {
   // Home
   "/": LayoutDashboard,
-  "/components-demo": Boxes,
 
   // General
   "/general/consignee": UserCheck,
@@ -348,8 +347,6 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/transport/pod-records": CheckSquare,
   "/transport/truck-hiring-note": FileSignature,
   "/transport/eway-bill": QrCode,
-  "/transport/tracking": Radio,
-  "/transport/tracking/fastag": Navigation,
   "/tracking/fastag": Navigation,
   "/tracking/sim": Radio,
 
