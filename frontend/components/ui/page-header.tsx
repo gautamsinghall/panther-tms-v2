@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { cn } from "@/lib/utils";
 import { getStoredAuth } from "@/lib/auth";
 
@@ -316,25 +317,19 @@ export function PageHeader({
             ))}
 
             {primaryAction && (
-              <Button
-                variant={primaryAction.variant || "primary"}
-                size="md"
+              <PrimaryActionButton
+                size="default"
                 disabled={primaryAction.disabled}
-                onClick={primaryAction.onClick}
-                className="shadow-xs text-xs font-semibold h-9 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center gap-2 group"
+                onClick={primaryAction.onClick as ((e: React.MouseEvent<HTMLButtonElement>) => void) | undefined}
+                href={primaryAction.href}
+                icon={
+                  primaryAction.icon
+                    ? () => <>{renderActionIcon(primaryAction.icon)}</>
+                    : null
+                }
               >
-                {primaryAction.href ? (
-                  <Link href={primaryAction.href} className="inline-flex items-center gap-2">
-                    {renderActionIcon(primaryAction.icon)}
-                    <span>{cleanActionLabel(primaryAction.label)}</span>
-                  </Link>
-                ) : (
-                  <>
-                    {renderActionIcon(primaryAction.icon)}
-                    <span>{cleanActionLabel(primaryAction.label)}</span>
-                  </>
-                )}
-              </Button>
+                {cleanActionLabel(primaryAction.label)}
+              </PrimaryActionButton>
             )}
 
             {actions}
