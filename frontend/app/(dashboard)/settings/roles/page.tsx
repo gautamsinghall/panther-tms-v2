@@ -38,7 +38,7 @@ interface ModuleDef {
   features: FeatureDef[];
 }
 
-const ACTIONS = ["view", "create", "edit", "delete", "approve"] as const;
+const ACTIONS = ["view", "create", "edit", "approve"] as const;
 
 function normalizeModuleId(mod: string): string {
   const m = (mod || "").toLowerCase().trim();
@@ -175,6 +175,7 @@ export default function RolesPage() {
     const mapping: Record<string, boolean> = {};
     if (role.permissions) {
       role.permissions.forEach((p) => {
+        if (p.permission === "delete") return; // Delete option is removed
         const normModule = normalizeModuleId(p.module);
         let normFeature = (p.feature || "").toLowerCase().trim();
 
@@ -324,7 +325,7 @@ export default function RolesPage() {
         if (!isAllowed) return; // Crucial: unchecked options are omitted so they are deleted cleanly
 
         const [module, feature, permission] = key.split(":");
-        if (!module || !feature || !permission) return;
+        if (!module || !feature || !permission || permission === "delete") return;
 
         // Canonical permission
         permissionsMap.set(`${module}:${feature}:${permission}`, {
@@ -650,7 +651,7 @@ export default function RolesPage() {
                   </Badge>
                 </h4>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  Configure view, create, edit, delete, and approve permissions per feature.
+                  Configure view, create, edit, and approve permissions per feature or select whole columns with one click.
                 </p>
               </div>
 
@@ -742,118 +743,122 @@ export default function RolesPage() {
                   key={mod.id}
                   className="border border-border rounded-xl overflow-hidden bg-surface shadow-xs"
                 >
-                  <div className="bg-canvas px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border">
-                    <div className="sm:w-1/3 flex items-center gap-2">
-                      <span className="font-bold text-xs text-text-primary uppercase tracking-wider">
-                        {mod.title}
-                      </span>
-                      <span className="text-[10px] bg-surface text-text-muted px-1.5 py-0.5 rounded-full border border-border">
-                        {mod.features.length}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-                      {ACTIONS.map((action) => {
-                        const allChecked =
-                          mod.features.length > 0 &&
-                          mod.features.every(
-                            (feat) => !!permMap[`${mod.id}:${feat.id}:${action}`]
-                          );
-                        const someChecked =
-                          !allChecked &&
-                          mod.features.some(
-                            (feat) => !!permMap[`${mod.id}:${feat.id}:${action}`]
-                          );
-
-                        return (
-                          <label
-                            key={action}
-                            className="min-w-[68px] sm:min-w-[76px] flex items-center gap-1.5 text-xs font-semibold text-text-primary cursor-pointer select-none hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-surface border border-transparent hover:border-border"
-                            title={`Click to ${allChecked ? "revoke" : "grant"} all ${action.toUpperCase()} in ${mod.title}`}
-                          >
-                            <IndeterminateCheckbox
-                              checked={allChecked}
-                              indeterminate={someChecked}
-                              onChange={() => setModuleColumn(mod, action, !allChecked)}
-                              className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer"
-                              ariaLabel={`Select all ${action} in ${mod.title}`}
-                            />
-                            <span className="capitalize">{action}</span>
-                          </label>
-                        );
-                      })}
-
-                      <div className="flex items-center gap-2 text-xs ml-auto sm:ml-2 pl-2 border-l border-border">
-                        <button
-                          type="button"
-                          onClick={() => setModuleAll(mod, true)}
-                          className="text-primary hover:underline font-medium text-[11px]"
-                        >
-                          Grant All
-                        </button>
-                        <span className="text-border">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setModuleAll(mod, false)}
-                          className="text-text-muted hover:underline text-[11px]"
-                        >
-                          Revoke All
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-border">
-                    {mod.features.map((feat) => (
-                      <div
-                        key={feat.id}
-                        className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-canvas/50 transition-colors"
-                      >
-                        <div className="sm:w-1/3">
-                          <span className="text-xs font-semibold text-text-primary">
-                            {feat.label}
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[660px]">
+                      {/* Module Header Row - Perfectly Aligned Grid */}
+                      <div className="bg-canvas px-4 py-2.5 border-b border-border grid grid-cols-[1fr_88px_88px_88px_88px_140px] items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0 pr-2">
+                          <span className="font-bold text-xs text-text-primary uppercase tracking-wider truncate">
+                            {mod.title}
                           </span>
-                          <span className="block text-[11px] font-mono text-text-muted">
-                            {mod.id}:{feat.id}
+                          <span className="text-[10px] bg-surface text-text-muted px-1.5 py-0.5 rounded-full border border-border shrink-0">
+                            {mod.features.length}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
-                          {ACTIONS.map((action) => {
-                            const checked = !!permMap[`${mod.id}:${feat.id}:${action}`];
-                            return (
-                              <label
-                                key={action}
-                                className="min-w-[68px] sm:min-w-[76px] flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none hover:text-text-primary py-0.5 px-1.5"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() =>
-                                    togglePermission(mod.id, feat.id, action)
-                                  }
-                                  className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5"
-                                />
-                                <span className="capitalize">{action}</span>
-                              </label>
+                        {ACTIONS.map((action) => {
+                          const allChecked =
+                            mod.features.length > 0 &&
+                            mod.features.every(
+                              (feat) => !!permMap[`${mod.id}:${feat.id}:${action}`]
                             );
-                          })}
+                          const someChecked =
+                            !allChecked &&
+                            mod.features.some(
+                              (feat) => !!permMap[`${mod.id}:${feat.id}:${action}`]
+                            );
 
+                          return (
+                            <label
+                              key={action}
+                              className="flex items-center gap-1.5 text-xs font-semibold text-text-primary cursor-pointer select-none hover:text-primary transition-colors py-1 px-1 rounded hover:bg-surface border border-transparent hover:border-border"
+                              title={`Click to ${allChecked ? "revoke" : "grant"} all ${action.toUpperCase()} in ${mod.title}`}
+                            >
+                              <IndeterminateCheckbox
+                                checked={allChecked}
+                                indeterminate={someChecked}
+                                onChange={() => setModuleColumn(mod, action, !allChecked)}
+                                className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer shrink-0"
+                                ariaLabel={`Select all ${action} in ${mod.title}`}
+                              />
+                              <span className="capitalize">{action}</span>
+                            </label>
+                          );
+                        })}
+
+                        <div className="flex items-center justify-end gap-1.5 text-xs text-right pr-1">
                           <button
                             type="button"
-                            onClick={() => {
-                              const allChecked = ACTIONS.every(
-                                (act) => permMap[`${mod.id}:${feat.id}:${act}`]
-                              );
-                              setRowAll(mod.id, feat.id, !allChecked);
-                            }}
-                            className="text-[11px] text-text-muted hover:text-primary ml-auto sm:ml-2 pl-2 text-right"
+                            onClick={() => setModuleAll(mod, true)}
+                            className="text-primary hover:underline font-medium text-[11px]"
                           >
-                            Toggle Row
+                            Grant All
+                          </button>
+                          <span className="text-border">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setModuleAll(mod, false)}
+                            className="text-text-muted hover:underline text-[11px]"
+                          >
+                            Revoke All
                           </button>
                         </div>
                       </div>
-                    ))}
+
+                      {/* Feature Rows - Exactly Same Grid Track Alignment */}
+                      <div className="divide-y divide-border">
+                        {mod.features.map((feat) => (
+                          <div
+                            key={feat.id}
+                            className="px-4 py-3 grid grid-cols-[1fr_88px_88px_88px_88px_140px] items-center gap-2 hover:bg-canvas/50 transition-colors"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <span className="text-xs font-semibold text-text-primary block truncate">
+                                {feat.label}
+                              </span>
+                              <span className="block text-[11px] font-mono text-text-muted truncate">
+                                {mod.id}:{feat.id}
+                              </span>
+                            </div>
+
+                            {ACTIONS.map((action) => {
+                              const checked = !!permMap[`${mod.id}:${feat.id}:${action}`];
+                              return (
+                                <label
+                                  key={action}
+                                  className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none hover:text-text-primary py-1 px-1 rounded hover:bg-canvas transition-colors"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() =>
+                                      togglePermission(mod.id, feat.id, action)
+                                    }
+                                    className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer shrink-0"
+                                  />
+                                  <span className="capitalize">{action}</span>
+                                </label>
+                              );
+                            })}
+
+                            <div className="text-right pr-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allChecked = ACTIONS.every(
+                                    (act) => permMap[`${mod.id}:${feat.id}:${act}`]
+                                  );
+                                  setRowAll(mod.id, feat.id, !allChecked);
+                                }}
+                                className="text-[11px] text-text-muted hover:text-primary transition-colors"
+                              >
+                                Toggle Row
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))
