@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: panther-postgres
     restart: unless-stopped
-    command: postgres -c shared_buffers=128MB -c work_mem=4MB -c maintenance_work_mem=32MB -c effective_cache_size=256MB -c max_connections=60 -c random_page_cost=1.1 -c checkpoint_completion_target=0.9 -c wal_buffers=8MB -c min_wal_size=16MB -c max_wal_size=128MB
+    command: postgres -c shared_buffers=128MB -c work_mem=4MB -c maintenance_work_mem=32MB -c effective_cache_size=256MB -c max_connections=60 -c random_page_cost=1.1 -c checkpoint_completion_target=0.9 -c wal_buffers=8MB -c min_wal_size=32MB -c max_wal_size=256MB
     deploy:
       resources:
         limits:
