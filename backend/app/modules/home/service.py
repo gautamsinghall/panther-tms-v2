@@ -95,6 +95,16 @@ async def get_business_overview(
     v_res = await session.execute(v_stmt)
     billed_revenue = Decimal(str(v_res.scalar() or "0.00"))
 
+    v_cnt_stmt = (
+        select(func.count(models.Voucher.id))
+        .where(
+            models.Voucher.is_void == False,
+            *office_filter(models.Voucher.issuing_office_id),
+        )
+    )
+    v_cnt_res = await session.execute(v_cnt_stmt)
+    total_vouchers = v_cnt_res.scalar() or 0
+
     if billed_revenue == Decimal("0.00"):
         lr_rev_stmt = (
             select(func.sum(models.LR.total_freight_amount))
@@ -232,7 +242,7 @@ async def get_business_overview(
         in_transit_count=in_transit_count,
         delivered_count=delivered_count,
         net_billed_revenue=billed_revenue,
-        total_vouchers_reconciled=0,
+        total_vouchers_reconciled=total_vouchers,
         monthly_trends=monthly_trends,
         pipeline_stages=pipeline_stages,
         top_corridors=top_corridors,

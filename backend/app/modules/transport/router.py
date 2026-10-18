@@ -303,7 +303,7 @@ async def import_jobs_excel(
 
 @router.get("/jobs", response_model=List[JobResponse])
 async def list_jobs(
-    limit: int = Query(default=500, ge=1, le=2000),
+    limit: Optional[int] = Query(default=None, ge=1),
     offset: int = Query(default=0, ge=0),
     search: Optional[str] = Query(default=None),
     current_user: User = Depends(require_permission("transport", "jobs", "view")),
@@ -549,7 +549,7 @@ def _build_lr_response(l: LR) -> LRResponse:
 
 @router.get("/lrs", response_model=List[LRResponse])
 async def list_lrs(
-    limit: int = Query(default=500, ge=1, le=2000),
+    limit: Optional[int] = Query(default=None, ge=1),
     offset: int = Query(default=0, ge=0),
     search: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),

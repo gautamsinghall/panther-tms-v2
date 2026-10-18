@@ -311,7 +311,7 @@ async def get_all_jobs(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
-    limit: int = 500,
+    limit: Optional[int] = None,
     offset: int = 0,
     search: Optional[str] = None,
 ) -> List[Job]:
@@ -342,7 +342,10 @@ async def get_all_jobs(
                 Job.cargo_description.ilike(pattern),
             )
         )
-    stmt = stmt.limit(limit).offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    if offset:
+        stmt = stmt.offset(offset)
     result = await db.execute(stmt)
     return list(result.scalars().unique().all())
 
@@ -415,7 +418,7 @@ async def get_all_lrs(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
-    limit: int = 500,
+    limit: Optional[int] = None,
     offset: int = 0,
     search: Optional[str] = None,
 ) -> List[LR]:
@@ -445,7 +448,10 @@ async def get_all_lrs(
                 LR.invoice_no.ilike(pattern),
             )
         )
-    stmt = stmt.limit(limit).offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    if offset:
+        stmt = stmt.offset(offset)
     result = await db.execute(stmt)
     return list(result.scalars().unique().all())
 
