@@ -9,6 +9,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { apiClient } from "@/lib/api-client";
 import { ALL_NAVIGATION_MODULES, NavGroup } from "@/components/layout/sidebar";
+import { cn } from "@/lib/utils";
 
 interface PermissionItem {
   module: string;
@@ -70,6 +71,42 @@ function buildModuleDefinitionsFromNav(navGroups: NavGroup[]): ModuleDef[] {
         }),
       };
     });
+}
+
+function IndeterminateCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+  className,
+  title,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: () => void;
+  className?: string;
+  title?: string;
+  ariaLabel?: string;
+}) {
+  const ref = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className={className}
+      title={title}
+      aria-label={ariaLabel}
+    />
+  );
 }
 
 export default function RolesPage() {
@@ -221,6 +258,55 @@ export default function RolesPage() {
       });
       return next;
     });
+  };
+
+  const setModuleColumn = (module: ModuleDef, action: string, allow: boolean) => {
+    setPermMap((prev) => {
+      const next = { ...prev };
+      module.features.forEach((feat) => {
+        next[`${module.id}:${feat.id}:${action}`] = allow;
+        // If enabling create/edit/delete/approve, automatically enable view
+        if (action !== "view" && allow) {
+          next[`${module.id}:${feat.id}:view`] = true;
+        }
+        // If disabling view, automatically disable all other actions for this feature
+        if (action === "view" && !allow) {
+          ACTIONS.forEach((act) => {
+            next[`${module.id}:${feat.id}:${act}`] = false;
+          });
+        }
+      });
+      return next;
+    });
+  };
+
+  const setAllModulesColumn = (action: string, allow: boolean) => {
+    setPermMap((prev) => {
+      const next = { ...prev };
+      moduleDefinitions.forEach((mod) => {
+        mod.features.forEach((feat) => {
+          next[`${mod.id}:${feat.id}:${action}`] = allow;
+          if (action !== "view" && allow) {
+            next[`${mod.id}:${feat.id}:view`] = true;
+          }
+          if (action === "view" && !allow) {
+            ACTIONS.forEach((act) => {
+              next[`${mod.id}:${feat.id}:${act}`] = false;
+            });
+          }
+        });
+      });
+      return next;
+    });
+  };
+
+  const toggleGlobalColumn = (action: string) => {
+    const isAllGranted =
+      moduleDefinitions.length > 0 &&
+      moduleDefinitions.every((mod) =>
+        mod.features.every((feat) => !!permMap[`${mod.id}:${feat.id}:${action}`])
+      );
+    setAllModulesColumn(action, !isAllGranted);
   };
 
   const handleSaveRole = async (e: React.FormEvent) => {
@@ -590,6 +676,41 @@ export default function RolesPage() {
               </div>
             </div>
 
+            {/* Quick Column Bulk Actions Bar */}
+            <div className="bg-canvas/80 border border-border rounded-xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-text-primary text-xs">Global Column Quick-Select:</span>
+                <span className="text-text-muted text-[11px] hidden sm:inline">
+                  Click to toggle an entire permission column across all modules:
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {ACTIONS.map((action) => {
+                  const isAllGranted =
+                    moduleDefinitions.length > 0 &&
+                    moduleDefinitions.every((mod) =>
+                      mod.features.every((feat) => !!permMap[`${mod.id}:${feat.id}:${action}`])
+                    );
+                  return (
+                    <button
+                      key={action}
+                      type="button"
+                      onClick={() => toggleGlobalColumn(action)}
+                      className={cn(
+                        "px-2.5 py-1 text-xs rounded-lg font-medium transition-all border select-none",
+                        isAllGranted
+                          ? "bg-primary text-white border-primary shadow-xs font-semibold"
+                          : "bg-surface text-text-primary border-border hover:border-primary/50 hover:bg-canvas"
+                      )}
+                      title={`Toggle all ${action} permissions across all modules`}
+                    >
+                      {isAllGranted ? "✓ " : ""}All {action.charAt(0).toUpperCase() + action.slice(1)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Filter Search Input */}
             <div className="relative">
               <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
@@ -621,26 +742,64 @@ export default function RolesPage() {
                   key={mod.id}
                   className="border border-border rounded-xl overflow-hidden bg-surface shadow-xs"
                 >
-                  <div className="bg-canvas px-4 py-2.5 flex items-center justify-between border-b border-border">
-                    <span className="font-bold text-xs text-text-primary uppercase tracking-wider">
-                      {mod.title}
-                    </span>
-                    <div className="flex items-center gap-2 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setModuleAll(mod, true)}
-                        className="text-primary hover:underline font-medium"
-                      >
-                        Grant All
-                      </button>
-                      <span className="text-border">|</span>
-                      <button
-                        type="button"
-                        onClick={() => setModuleAll(mod, false)}
-                        className="text-text-muted hover:underline"
-                      >
-                        Revoke All
-                      </button>
+                  <div className="bg-canvas px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border">
+                    <div className="sm:w-1/3 flex items-center gap-2">
+                      <span className="font-bold text-xs text-text-primary uppercase tracking-wider">
+                        {mod.title}
+                      </span>
+                      <span className="text-[10px] bg-surface text-text-muted px-1.5 py-0.5 rounded-full border border-border">
+                        {mod.features.length}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                      {ACTIONS.map((action) => {
+                        const allChecked =
+                          mod.features.length > 0 &&
+                          mod.features.every(
+                            (feat) => !!permMap[`${mod.id}:${feat.id}:${action}`]
+                          );
+                        const someChecked =
+                          !allChecked &&
+                          mod.features.some(
+                            (feat) => !!permMap[`${mod.id}:${feat.id}:${action}`]
+                          );
+
+                        return (
+                          <label
+                            key={action}
+                            className="min-w-[68px] sm:min-w-[76px] flex items-center gap-1.5 text-xs font-semibold text-text-primary cursor-pointer select-none hover:text-primary transition-colors py-0.5 px-1.5 rounded hover:bg-surface border border-transparent hover:border-border"
+                            title={`Click to ${allChecked ? "revoke" : "grant"} all ${action.toUpperCase()} in ${mod.title}`}
+                          >
+                            <IndeterminateCheckbox
+                              checked={allChecked}
+                              indeterminate={someChecked}
+                              onChange={() => setModuleColumn(mod, action, !allChecked)}
+                              className="rounded border-border text-primary focus:ring-primary w-3.5 h-3.5 cursor-pointer"
+                              ariaLabel={`Select all ${action} in ${mod.title}`}
+                            />
+                            <span className="capitalize">{action}</span>
+                          </label>
+                        );
+                      })}
+
+                      <div className="flex items-center gap-2 text-xs ml-auto sm:ml-2 pl-2 border-l border-border">
+                        <button
+                          type="button"
+                          onClick={() => setModuleAll(mod, true)}
+                          className="text-primary hover:underline font-medium text-[11px]"
+                        >
+                          Grant All
+                        </button>
+                        <span className="text-border">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setModuleAll(mod, false)}
+                          className="text-text-muted hover:underline text-[11px]"
+                        >
+                          Revoke All
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -659,13 +818,13 @@ export default function RolesPage() {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+                        <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
                           {ACTIONS.map((action) => {
                             const checked = !!permMap[`${mod.id}:${feat.id}:${action}`];
                             return (
                               <label
                                 key={action}
-                                className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none"
+                                className="min-w-[68px] sm:min-w-[76px] flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer select-none hover:text-text-primary py-0.5 px-1.5"
                               >
                                 <input
                                   type="checkbox"
@@ -688,7 +847,7 @@ export default function RolesPage() {
                               );
                               setRowAll(mod.id, feat.id, !allChecked);
                             }}
-                            className="text-[11px] text-text-muted hover:text-primary ml-2"
+                            className="text-[11px] text-text-muted hover:text-primary ml-auto sm:ml-2 pl-2 text-right"
                           >
                             Toggle Row
                           </button>
