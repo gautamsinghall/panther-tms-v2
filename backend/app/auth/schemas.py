@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 class LoginRequest(BaseModel):
@@ -29,6 +29,7 @@ class TokenResponse(BaseModel):
     tenant_name: str
     assigned_offices: List[OfficeSummary] = []
     active_office: Optional[OfficeSummary] = None
+    navigation: Optional[List[Dict[str, Any]]] = None
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

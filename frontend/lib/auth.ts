@@ -26,6 +26,7 @@ export interface StoredAuth {
   user: StoredUser;
   assignedOffices?: OfficeSummary[];
   activeOffice?: OfficeSummary | null;
+  navigation?: any[];
 }
 
 const AUTH_STORAGE_KEY = "panther_tms_auth";
@@ -143,6 +144,22 @@ export function updateAssignedOffices(offices: OfficeSummary[]): void {
     setStoredAuth(auth);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("panther_branches_updated", { detail: offices }));
+    }
+  }
+}
+
+export function getStoredNavigation(): any[] | null {
+  const auth = getStoredAuth();
+  return auth?.navigation && auth.navigation.length > 0 ? auth.navigation : null;
+}
+
+export function updateStoredNavigation(navigation: any[]): void {
+  const auth = getStoredAuth();
+  if (auth) {
+    auth.navigation = navigation;
+    setStoredAuth(auth);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("panther_navigation_updated", { detail: navigation }));
     }
   }
 }
@@ -277,6 +294,7 @@ export async function login(
     },
     assignedOffices: result.assigned_offices || [],
     activeOffice: result.active_office || (result.assigned_offices && result.assigned_offices[0]) || null,
+    navigation: Array.isArray(result.navigation) ? result.navigation : [],
   };
 
   setStoredAuth(authData);

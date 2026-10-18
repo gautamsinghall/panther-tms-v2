@@ -9,7 +9,6 @@ import { WorkspaceTabBar } from "@/components/layout/workspace-tab-bar";
 import { WorkspaceTabsProvider, useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { cn } from "@/lib/utils";
 import { FileEdit, ArrowRight } from "lucide-react";
-import { PantherCinematicLoader } from "@/components/layout/panther-cinematic-loader";
 
 function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
   const { activeTab, isFormOpen, formTabInfo, setActiveTab, closeFormTab } = useWorkspaceTabs();
@@ -130,7 +129,16 @@ export default function DashboardLayout({
 
   // While verifying authentication or if unauthenticated, do NOT render Sidebar, Header, or Dashboard content
   if (!isAuthenticated) {
-    return <PantherCinematicLoader label="Preparing your workspace…" />;
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#F8FAFC]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium text-slate-500 font-mono">
+            Verifying workspace session...
+          </span>
+        </div>
+      </div>
+    );
   }
 
   return (

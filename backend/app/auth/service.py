@@ -1,12 +1,14 @@
 from typing import Optional, List
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import UnauthorizedException, AppException
 from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token
 from app.control.models import Tenant
-from app.tenant_db.models import User
+from app.tenant_db.models import User, Role
 from app.auth.schemas import LoginRequest, TokenResponse, RefreshTokenRequest, OfficeSummary
+from app.auth.navigation import build_user_navigation
 
 async def authenticate_user(
     db: AsyncSession,
@@ -14,7 +16,11 @@ async def authenticate_user(
     login_data: LoginRequest
 ) -> TokenResponse:
     email = login_data.email.lower().strip()
-    stmt = select(User).where(User.email == email)
+    stmt = (
+        select(User)
+        .options(selectinload(User.custom_role).selectinload(Role.permissions))
+        .where(User.email == email)
+    )
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
@@ -59,6 +65,7 @@ async def authenticate_user(
     )
 
     offices_list, active_office_summary = await get_user_office_context(db, user)
+    navigation = build_user_navigation(current_user=user, tenant=tenant)
 
     return TokenResponse(
         access_token=access_token,
@@ -70,6 +77,7 @@ async def authenticate_user(
         tenant_name=tenant.company_name,
         assigned_offices=offices_list,
         active_office=active_office_summary,
+        navigation=navigation,
     )
 
 async def get_user_office_context(db: AsyncSession, user: User) -> tuple[list[OfficeSummary], Optional[OfficeSummary]]:

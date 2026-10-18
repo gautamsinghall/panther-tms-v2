@@ -92,7 +92,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
-import { getStoredAuth } from "@/lib/auth";
+import { getStoredAuth, getStoredNavigation, updateStoredNavigation } from "@/lib/auth";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { PlanGateDialog, formatPlanName } from "@/components/ui/plan-gate";
 
@@ -552,7 +552,22 @@ function getSubItemIcon(sub: NavSubItem): React.ComponentType<{ className?: stri
 export function Sidebar() {
   const pathname = usePathname();
   const { isFormOpen, closeFormTab, setActiveTab } = useWorkspaceTabs();
-  const [navGroups, setNavGroups] = useState<NavGroup[]>(ALL_NAVIGATION_MODULES);
+  const [navGroups, setNavGroups] = useState<NavGroup[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = getStoredNavigation();
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        return cached;
+      }
+    }
+    return [];
+  });
+  const [isLoadingNav, setIsLoadingNav] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const cached = getStoredNavigation();
+      return !cached || cached.length === 0;
+    }
+    return true;
+  });
   const [tenantPrefix, setTenantPrefix] = useState("");
 
   useEffect(() => {
@@ -588,10 +603,11 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     async function loadNavigation() {
       try {
         const data = await apiClient<NavGroup[]>("/api/v1/auth/navigation");
-        if (Array.isArray(data) && data.length > 0) {
+        if (isMounted && Array.isArray(data)) {
           const normalized = data.map((g) => ({
             ...g,
             items: g.items?.map((it) => {
@@ -605,6 +621,7 @@ export function Sidebar() {
             }),
           }));
           setNavGroups(normalized);
+          updateStoredNavigation(normalized);
           const expanded: Record<string, boolean> = {};
           normalized.forEach((g) => {
             if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
@@ -621,9 +638,16 @@ export function Sidebar() {
           return;
         }
         // Fallback retained for non-auth errors (e.g. temporary network glitch)
+      } finally {
+        if (isMounted) {
+          setIsLoadingNav(false);
+        }
       }
     }
     loadNavigation();
+    return () => {
+      isMounted = false;
+    };
   }, [normalizedPathname]);
 
   // Keep only the active module group open when navigating
@@ -717,7 +741,27 @@ export function Sidebar() {
 
       {/* Navigation List — Linear-style Inset Item Hierarchy */}
       <div className="flex-1 overflow-y-auto py-3 px-2.5 space-y-1.5">
-        {navGroups.map((group) => {
+        {isLoadingNav && navGroups.length === 0 ? (
+          <div className="py-2 px-1 space-y-2 animate-pulse">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg bg-slate-50 border border-slate-100",
+                  isCollapsed ? "justify-center p-2.5" : "px-2.5 py-2.5"
+                )}
+              >
+                <div className="w-4 h-4 rounded bg-slate-200 shrink-0" />
+                {!isCollapsed && <div className="h-3 bg-slate-200 rounded w-28" />}
+              </div>
+            ))}
+          </div>
+        ) : navGroups.length === 0 ? (
+          <div className="px-3 py-6 text-center text-xs text-slate-400">
+            {!isCollapsed && "No authorized modules found."}
+          </div>
+        ) : (
+          navGroups.map((group) => {
           const isExpanded = expandedGroups[group.id] ?? false;
           const hasActiveChild = group.items?.some((item) => item.href === normalizedPathname);
           const icon = MODULE_ICONS[group.id] || <Layers className="w-4 h-4" />;
@@ -838,7 +882,7 @@ export function Sidebar() {
               )}
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* RBAC Active Footer — Linear/Stripe Enterprise Status */}
