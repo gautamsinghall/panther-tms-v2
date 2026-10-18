@@ -1181,7 +1181,7 @@ export default function SignupPage() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-60 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800"
+                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 shadow-[0_1px_2px_rgba(79,70,229,0.22),0_0_0_1px_rgba(79,70,229,0.10)] hover:from-indigo-400 hover:to-indigo-500 hover:shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
                   >
                     {isLoading ? (
                       <>
@@ -1273,7 +1273,7 @@ export default function SignupPage() {
 
                 <button
                   type="button"
-                  className="w-full h-11 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full h-11 text-xs font-semibold rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-[0_1px_2px_rgba(79,70,229,0.22),0_0_0_1px_rgba(79,70,229,0.10)] hover:from-indigo-400 hover:to-indigo-500 hover:shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
                   onClick={() => router.push(`/login?company_code=${companyCode}&email=${encodeURIComponent(adminEmail)}`)}
                 >
                   <span>Go to Login</span>

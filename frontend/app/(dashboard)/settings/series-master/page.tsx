@@ -951,7 +951,7 @@ export default function SeriesMasterPage() {
             size="sm"
             onClick={handleInitializeDefaults}
             disabled={initializingDefaults}
-            className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs shrink-0 rounded-xl"
+            className="gap-1.5 text-xs shrink-0"
             title="Import all 16 standard automatic voucher templates for this issuing office"
           >
             {initializingDefaults ? (

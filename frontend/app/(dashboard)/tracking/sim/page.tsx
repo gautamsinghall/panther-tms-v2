@@ -721,13 +721,13 @@ export default function SIMTrackingPage() {
               <span>Refresh</span>
             </Button>
 
-            {/* Add Trip Button (Global Indigo Theme) */}
             <Button
+              variant="primary"
               onClick={() => {
                 resetAddFormData();
                 setIsAddTripModalOpen(true);
               }}
-              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs text-sm cursor-pointer"
+              className="gap-1.5"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Add Trip</span>
@@ -1000,11 +1000,11 @@ export default function SIMTrackingPage() {
           <span>More Filters</span>
         </Button>
 
-        {/* Apply */}
         <Button
           size="sm"
+          variant="primary"
           onClick={() => {}}
-          className="h-9 px-4 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer shadow-2xs"
+          className="h-9 px-4 text-xs font-semibold"
         >
           Apply
         </Button>
@@ -1866,8 +1866,9 @@ export default function SIMTrackingPage() {
                 <Button
                   type="submit"
                   size="sm"
+                  variant="primary"
+                  isLoading={isSubmitting}
                   disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
                 >
                   {isSubmitting ? "Starting..." : "Start SIM Tracking"}
                 </Button>
@@ -2001,8 +2002,9 @@ export default function SIMTrackingPage() {
                 <Button
                   type="submit"
                   size="sm"
+                  variant="primary"
+                  isLoading={isSubmitting}
                   disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
                 >
                   {isSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
@@ -2050,8 +2052,9 @@ export default function SIMTrackingPage() {
                 <Button
                   type="submit"
                   size="sm"
+                  variant="primary"
+                  isLoading={isSubmitting}
                   disabled={isSubmitting}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
                 >
                   {isSubmitting ? "Recording..." : "Record Comment"}
                 </Button>
@@ -2105,7 +2108,7 @@ export default function SIMTrackingPage() {
                 <Button
                   type="submit"
                   size="sm"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold cursor-pointer"
+                  variant="primary"
                 >
                   Send Email
                 </Button>

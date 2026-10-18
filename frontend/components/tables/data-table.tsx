@@ -655,8 +655,8 @@ export function DataTable<T extends Record<string, any>>({
                       className={cn(
                         "min-w-[28px] h-7 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer font-mono",
                         isCurrent
-                          ? "bg-indigo-600 text-white shadow-xs"
-                          : "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                          ? "bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-xs border border-indigo-700/30 font-semibold"
+                          : "border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
                       {btn}

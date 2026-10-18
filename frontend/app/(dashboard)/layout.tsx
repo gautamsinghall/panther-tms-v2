@@ -77,7 +77,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => setActiveTab("form")}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white text-xs font-semibold rounded-xl shadow-[0_1px_2px_rgba(79,70,229,0.22),0_0_0_1px_rgba(79,70,229,0.10)] hover:from-indigo-400 hover:to-indigo-500 hover:shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all cursor-pointer"
                 >
                   <span>Return to Form</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -85,7 +85,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => closeFormTab(true)}
-                  className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-600 hover:text-rose-600 text-xs font-medium rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-rose-600 text-xs font-semibold rounded-xl border border-slate-300 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:-translate-y-px active:translate-y-0 transition-all cursor-pointer"
                 >
                   Discard Draft
                 </button>

@@ -278,10 +278,10 @@ export function LRInvoiceItemsTable({
           {!disabled && (
             <Button
               type="button"
-              variant="outline"
+              variant="primary"
               size="sm"
               onClick={handleAddRow}
-              className="h-8 text-xs font-semibold gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white border-transparent transition-colors cursor-pointer shadow-2xs rounded-xl"
+              className="gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Line</span>
@@ -538,7 +538,7 @@ export function LRInvoiceItemsTable({
                                 String(row.eway_bill_number).trim().length < 6
                               }
                               title="Auto-fetch details from government E-Way Bill portal"
-                              className="h-9 px-2.5 text-xs font-semibold flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0 shadow-2xs"
+                              className="h-9 px-2.5 text-xs font-semibold flex items-center gap-1 bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white rounded-xl shadow-[0_1px_2px_rgba(79,70,229,0.22)] hover:from-indigo-400 hover:to-indigo-500 hover:shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
                             >
                               {fetchingRowIdx === idx ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
