@@ -8,13 +8,14 @@ from sqlalchemy.ext.asyncio import (
 from app.core.config import settings
 
 # Control plane DB engine & session maker
+# Pool sizing: 2 workers × pool_size=5 = 10 connections reserved for control plane
 control_engine: AsyncEngine = create_async_engine(
     settings.control_db_async_url,
     echo=False,
-    pool_size=15,
-    max_overflow=20,
-    pool_timeout=15,
-    pool_recycle=300,
+    pool_size=5,
+    max_overflow=5,
+    pool_timeout=10,
+    pool_recycle=1800,
     pool_pre_ping=True,
 )
 
@@ -41,13 +42,14 @@ _tenant_session_makers: Dict[str, async_sessionmaker] = {}
 def get_tenant_engine(db_name: str) -> AsyncEngine:
     if db_name not in _tenant_engines:
         url = settings.get_tenant_db_async_url(db_name)
+        # Pool sizing: 2 workers × pool_size=5 = 10 connections per tenant engine
         _tenant_engines[db_name] = create_async_engine(
             url,
             echo=False,
-            pool_size=10,
-            max_overflow=15,
-            pool_timeout=15,
-            pool_recycle=300,
+            pool_size=5,
+            max_overflow=5,
+            pool_timeout=10,
+            pool_recycle=1800,
             pool_pre_ping=True,
         )
     return _tenant_engines[db_name]
@@ -70,3 +72,4 @@ async def close_all_connections():
         await engine.dispose()
     _tenant_engines.clear()
     _tenant_session_makers.clear()
+

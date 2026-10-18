@@ -303,13 +303,23 @@ async def import_jobs_excel(
 
 @router.get("/jobs", response_model=List[JobResponse])
 async def list_jobs(
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    search: Optional[str] = Query(default=None),
     current_user: User = Depends(require_permission("transport", "jobs", "view")),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
-    jobs = await service.get_all_jobs(db, office_id=target_office_id, include_unassigned=include_unassigned)
+    jobs = await service.get_all_jobs(
+        db,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
+        limit=limit,
+        offset=offset,
+        search=search,
+    )
     return [
         JobResponse(
             id=j.id,
@@ -539,6 +549,9 @@ def _build_lr_response(l: LR) -> LRResponse:
 
 @router.get("/lrs", response_model=List[LRResponse])
 async def list_lrs(
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+    search: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
@@ -547,8 +560,16 @@ async def list_lrs(
 
     target_office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
-    lrs = await service.get_all_lrs(db, office_id=target_office_id, include_unassigned=include_unassigned)
+    lrs = await service.get_all_lrs(
+        db,
+        office_id=target_office_id,
+        include_unassigned=include_unassigned,
+        limit=limit,
+        offset=offset,
+        search=search,
+    )
     return [_build_lr_response(l) for l in lrs]
+
 
 
 @router.get("/lrs-search", response_model=List[LRSearchResult])

@@ -307,15 +307,44 @@ async def delete_company_vehicle(db: AsyncSession, vehicle_id: int) -> None:
 # Job Services & State Machine
 # ===========================================================================
 
-async def get_all_jobs(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False) -> List[Job]:
-    stmt = select(Job).order_by(desc(Job.created_at))
+async def get_all_jobs(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+    limit: int = 500,
+    offset: int = 0,
+    search: Optional[str] = None,
+) -> List[Job]:
+    from app.tenant_db.models import Consigner, Consignee, Location, BillingClient, Branch as BranchModel
+    stmt = (
+        select(Job)
+        .options(
+            selectinload(Job.consigner),
+            selectinload(Job.consignee),
+            selectinload(Job.origin_location),
+            selectinload(Job.destination_location),
+            selectinload(Job.billing_client),
+            selectinload(Job.issuing_office),
+        )
+        .order_by(desc(Job.created_at))
+    )
     if office_id:
         if include_unassigned:
             stmt = stmt.where(or_(Job.issuing_office_id == office_id, Job.issuing_office_id.is_(None)))
         else:
             stmt = stmt.where(Job.issuing_office_id == office_id)
+    if search:
+        pattern = f"%{search.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Job.job_number.ilike(pattern),
+                Job.billing_party.ilike(pattern),
+                Job.cargo_description.ilike(pattern),
+            )
+        )
+    stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    return list(result.scalars().unique().all())
 
 async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] = None, office_id: Optional[int] = None) -> Job:
     target_office_id = data.issuing_office_id or office_id
@@ -382,15 +411,43 @@ async def transition_job_status(db: AsyncSession, job_id: int, target_status: Jo
 # LR / GR Services & State Machine
 # ===========================================================================
 
-async def get_all_lrs(db: AsyncSession, office_id: Optional[int] = None, include_unassigned: bool = False) -> List[LR]:
-    stmt = select(LR).order_by(desc(LR.created_at))
+async def get_all_lrs(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+    limit: int = 500,
+    offset: int = 0,
+    search: Optional[str] = None,
+) -> List[LR]:
+    stmt = (
+        select(LR)
+        .options(
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+            selectinload(LR.issuing_office),
+            selectinload(LR.billing_customer),
+        )
+        .order_by(desc(LR.created_at))
+    )
     if office_id:
         if include_unassigned:
             stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
         else:
             stmt = stmt.where(LR.issuing_office_id == office_id)
+    if search:
+        pattern = f"%{search.strip()}%"
+        stmt = stmt.where(
+            or_(
+                LR.lr_number.ilike(pattern),
+                LR.vehicle_number.ilike(pattern),
+                LR.invoice_no.ilike(pattern),
+            )
+        )
+    stmt = stmt.limit(limit).offset(offset)
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    return list(result.scalars().unique().all())
 
 
 async def search_lrs(

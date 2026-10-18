@@ -3,14 +3,27 @@ services:
     image: postgres:16-alpine
     container_name: panther-postgres
     restart: unless-stopped
-    command: postgres -c shared_buffers=128MB -c work_mem=4MB -c maintenance_work_mem=32MB -c effective_cache_size=256MB -c max_connections=60 -c random_page_cost=1.1 -c checkpoint_completion_target=0.9 -c wal_buffers=8MB -c min_wal_size=32MB -c max_wal_size=256MB
+    command: postgres
+      -c shared_buffers=256MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=64MB
+      -c effective_cache_size=512MB
+      -c max_connections=50
+      -c random_page_cost=1.1
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c min_wal_size=32MB
+      -c max_wal_size=512MB
+      -c effective_io_concurrency=200
+      -c default_statistics_target=100
+      -c log_min_duration_statement=1000
     deploy:
       resources:
         limits:
-          cpus: '0.60'
-          memory: 512M
+          cpus: '0.75'
+          memory: 768M
         reservations:
-          memory: 128M
+          memory: 256M
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-panther}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-panther_secret}
@@ -31,12 +44,12 @@ services:
     image: redis:7-alpine
     container_name: panther-redis
     restart: unless-stopped
-    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save ""
+    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru --save "" --hz 10 --lazyfree-lazy-eviction yes
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 96M
+          cpus: '0.20'
+          memory: 128M
         reservations:
           memory: 32M
     ports:
@@ -61,7 +74,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.80'
+          cpus: '1.00'
           memory: 512M
         reservations:
           memory: 192M
@@ -69,7 +82,9 @@ services:
       - path: .env
         required: false
     environment:
-      - WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}
+      - WEB_CONCURRENCY=${WEB_CONCURRENCY:-2}
+      - UVICORN_LOOP=uvloop
+      - UVICORN_HTTP=httptools
       - POSTGRES_USER=${POSTGRES_USER:-panther}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-panther_secret}
       - POSTGRES_HOST=postgres
@@ -115,10 +130,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.80'
-          memory: 384M
+          cpus: '0.50'
+          memory: 256M
         reservations:
-          memory: 128M
+          memory: 96M
     env_file:
       - path: .env
         required: false

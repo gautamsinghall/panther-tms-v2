@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.core.database import control_engine, close_all_connections, ControlSessionLocal
 from app.core.errors import register_error_handlers
@@ -411,6 +412,38 @@ app = FastAPI(
 
 # Register error handlers for standardized API error envelopes
 register_error_handlers(app)
+
+# Cache-Control middleware: adds browser/CDN caching hints to read-only GET endpoints
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    # Endpoints that serve relatively stable data — 30s stale-while-revalidate
+    CACHEABLE_PREFIXES = (
+        "/api/v1/home/",
+        "/api/v1/general/",
+        "/api/v1/misc/",
+        "/api/v1/transport/vehicle-owners",
+        "/api/v1/transport/drivers",
+        "/api/v1/transport/market-vehicles",
+        "/api/v1/transport/company-vehicles",
+    )
+    # Short-lived data: list endpoints with frequent mutations
+    SHORT_CACHE_PREFIXES = (
+        "/api/v1/transport/jobs",
+        "/api/v1/transport/lrs",
+        "/api/v1/transport/hire-challans",
+        "/api/v1/accounts/",
+    )
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.method == "GET" and response.status_code == 200:
+            path = request.url.path
+            if any(path.startswith(p) for p in self.CACHEABLE_PREFIXES):
+                response.headers["Cache-Control"] = "private, max-age=30, stale-while-revalidate=60"
+            elif any(path.startswith(p) for p in self.SHORT_CACHE_PREFIXES):
+                response.headers["Cache-Control"] = "private, max-age=10, stale-while-revalidate=30"
+        return response
+
+app.add_middleware(CacheControlMiddleware)
 
 # Response compression (added BEFORE CORS so CORS wraps the outermost layer)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
