@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   Radio,
@@ -105,6 +106,9 @@ interface LRSummary {
 }
 
 export default function SIMTrackingPage() {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   // Main Tab: "open" vs "closed"
   const [activeTab, setActiveTab] = useState<"open" | "closed">("open");
 
@@ -160,6 +164,7 @@ export default function SIMTrackingPage() {
   const [closeComment, setCloseComment] = useState("");
   const [commentInput, setCommentInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
+  const [mounted, setMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Add Trip Form State - SIM operator is ALWAYS auto-fetched from driver mobile phone
@@ -226,6 +231,7 @@ export default function SIMTrackingPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     loadSimTrips();
     loadLRs();
   }, []);
@@ -1746,8 +1752,8 @@ export default function SIMTrackingPage() {
          ========================================================================= */}
 
       {/* 1. ADD TRIP MODAL - No manual operator select, always auto-fetched */}
-      {isAddTripModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+      {mounted && isAddTripModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1876,12 +1882,13 @@ export default function SIMTrackingPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 2. CLOSE TRIP MODAL */}
-      {isCloseModalOpen && activeModalTrip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+      {mounted && isCloseModalOpen && activeModalTrip && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-rose-50/50">
               <h2 className="text-base font-bold text-rose-900 flex items-center gap-2">
@@ -1925,12 +1932,13 @@ export default function SIMTrackingPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 3. EDIT TRIP MODAL - No manual operator select, always auto-fetched */}
-      {isEditModalOpen && activeModalTrip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+      {mounted && isEditModalOpen && activeModalTrip && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -2012,12 +2020,13 @@ export default function SIMTrackingPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 4. ADD COMMENT MODAL */}
-      {isCommentModalOpen && activeModalTrip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+      {mounted && isCommentModalOpen && activeModalTrip && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -2062,12 +2071,13 @@ export default function SIMTrackingPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 5. EMAIL LOCATION HISTORY MODAL */}
-      {isEmailModalOpen && activeModalTrip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+      {mounted && isEmailModalOpen && activeModalTrip && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -2116,12 +2126,13 @@ export default function SIMTrackingPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 6. DISPLAY OPTIONS MODAL */}
-      {isDisplayOptionsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+      {mounted && isDisplayOptionsModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -2179,7 +2190,8 @@ export default function SIMTrackingPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

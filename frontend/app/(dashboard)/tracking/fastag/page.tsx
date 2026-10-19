@@ -2,6 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   RefreshCw,
@@ -67,6 +68,7 @@ interface LRSummary {
 
 export default function FastagTrackingPage() {
   const [vehicleInput, setVehicleInput] = useState("");
+  const [mounted, setMounted] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isForceSyncing, setIsForceSyncing] = useState(false);
   const [isAutoSyncing, setIsAutoSyncing] = useState(false);
@@ -149,6 +151,7 @@ export default function FastagTrackingPage() {
   // Load Initial Data & Recent Searches
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    setMounted(true);
     if (typeof window !== "undefined") {
       try {
         const stored = JSON.parse(localStorage.getItem("fastag_searches") || "[]");
@@ -1053,8 +1056,8 @@ export default function FastagTrackingPage() {
       </div>
 
       {/* Modal: New Manual FASTag Trip */}
-      {isManualModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      {mounted && isManualModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 text-slate-900 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <div className="flex items-center gap-2">
@@ -1198,7 +1201,8 @@ export default function FastagTrackingPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

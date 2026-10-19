@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { toast, confirmModal } from "@/lib/toast";
 import {
   Plus,
@@ -256,6 +257,7 @@ export default function SeriesMasterPage() {
   const [quickSuffix, setQuickSuffix] = useState("");
   const [isSavingQuickFormat, setIsSavingQuickFormat] = useState(false);
   const [quickFormatError, setQuickFormatError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // Drawer / Creation Form State
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -310,6 +312,7 @@ export default function SeriesMasterPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     loadData();
   }, []);
 
@@ -1024,8 +1027,8 @@ export default function SeriesMasterPage() {
       )}
 
       {/* Quick Edit Format Modal (Isolated state: ZERO layout shifting or screen dancing!) */}
-      {quickFormatSeries && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+      {mounted && quickFormatSeries && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
           <div
             className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
@@ -1125,7 +1128,8 @@ export default function SeriesMasterPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Series Configure / Edit Workspace Drawer */}

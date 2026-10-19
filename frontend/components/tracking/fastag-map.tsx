@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Layers,
   Map as MapIcon,
@@ -105,6 +106,10 @@ export function FastagMap({
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [customApiKey, setCustomApiKey] = useState("");
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Callback ref & deduplication to eliminate infinite render loop
   const onMetricsComputedRef = useRef(onMetricsComputed);
@@ -880,8 +885,8 @@ export function FastagMap({
       </div>
 
       {/* Google Maps API Key Modal */}
-      {isApiKeyModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      {mounted && isApiKeyModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border border-slate-200 text-slate-900">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -944,7 +949,8 @@ export function FastagMap({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

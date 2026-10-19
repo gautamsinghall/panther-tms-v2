@@ -674,7 +674,7 @@ export function Sidebar() {
       )}
     >
       {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
-      <div className="flex h-16 items-center justify-between px-3.5 border-b border-slate-200/80 bg-white">
+      <div className="flex h-16 items-center justify-between px-3.5 border-b border-slate-200/80 bg-white shrink-0">
         {!isCollapsed && (
           <Link
             href={tenantPrefix || "/"}

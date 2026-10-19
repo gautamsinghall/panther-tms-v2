@@ -143,7 +143,7 @@ export default function DashboardLayout({
 
   return (
     <WorkspaceTabsProvider>
-      <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+      <div className="flex h-screen h-[100dvh] max-h-screen w-full overflow-hidden bg-[#F8FAFC]">
         {/* Sidebar Navigation - Always accessible & unblocked */}
         <Sidebar />
 

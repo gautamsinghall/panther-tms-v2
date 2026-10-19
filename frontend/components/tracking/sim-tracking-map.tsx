@@ -547,7 +547,7 @@ export function SIMTrackingMap({
     <div
       className={cn(
         "relative w-full h-[460px] rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-2xs",
-        isFullscreen && "fixed inset-0 z-50 h-screen w-screen rounded-none",
+        isFullscreen && "fixed inset-0 z-[9999] h-screen w-screen rounded-none",
         className
       )}
     >

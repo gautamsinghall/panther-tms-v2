@@ -2,6 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   RotateCw,
@@ -203,6 +204,7 @@ export default function HireChallansPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedChallanDetail, setSelectedChallanDetail] = useState<HireChallanRecord | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [isRefreshingDrivers, setIsRefreshingDrivers] = useState(false);
 
   // Stable refs to prevent circular effect dependencies & infinite render loops
@@ -484,6 +486,7 @@ export default function HireChallansPage() {
   }, [autoFillSeriesAndHCNo]);
 
   useEffect(() => {
+    setMounted(true);
     fetchChallans(false);
     fetchMasterData();
 
@@ -2181,8 +2184,8 @@ export default function HireChallansPage() {
       </EntityDrawer>
 
       {/* 5. CHALLAN DETAIL VIEW MODAL */}
-      {selectedChallanDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+      {mounted && selectedChallanDetail && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
           <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
@@ -2391,7 +2394,8 @@ export default function HireChallansPage() {
                 )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Quick Create Driver Modal */}

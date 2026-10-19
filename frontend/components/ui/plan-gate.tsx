@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Lock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +22,11 @@ interface PlanGateDialogProps {
 
 export function PlanGateDialog({ isOpen, onClose, requiredPlan, featureName }: PlanGateDialogProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -32,10 +38,10 @@ export function PlanGateDialog({ isOpen, onClose, requiredPlan, featureName }: P
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const planName = formatPlanName(requiredPlan);
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4" role="presentation">
       <button className="absolute inset-0 bg-slate-950/45" onClick={onClose} aria-label="Close plan information" />
       <div
@@ -67,7 +73,8 @@ export function PlanGateDialog({ isOpen, onClose, requiredPlan, featureName }: P
           <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
