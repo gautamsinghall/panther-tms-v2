@@ -208,6 +208,20 @@ async def lifespan(app: FastAPI):
                             await t_conn.execute(text(f"ALTER TABLE profile_branches ADD COLUMN IF NOT EXISTS {br_col};"))
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
 
+                        # User Activity (Audit Log) Schema Evolution
+                        for act_col in [
+                            "user_name VARCHAR(255)",
+                            "office_id INTEGER REFERENCES profile_branches(id) ON DELETE SET NULL",
+                            "office_name VARCHAR(255)",
+                            "office_code VARCHAR(50)",
+                            "entity_identifier VARCHAR(255)",
+                            "status VARCHAR(50) DEFAULT 'SUCCESS'",
+                            "details_json JSON",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE settings_user_activities ADD COLUMN IF NOT EXISTS {act_col};"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_settings_user_activities_office_id ON settings_user_activities (office_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_settings_user_activities_entity_identifier ON settings_user_activities (entity_identifier);"))
+
                         # FASTag Wallet Transactions Table (Isolated in Tenant DB)
                         await t_conn.execute(text("""
                             CREATE TABLE IF NOT EXISTS fastag_wallet_transactions (
@@ -373,6 +387,10 @@ async def lifespan(app: FastAPI):
                                     text(f"UPDATE {tbl} SET issuing_office_id = :bid WHERE issuing_office_id IS NULL;"),
                                     {"bid": default_branch_id}
                                 )
+                            await t_conn.execute(
+                                text("UPDATE settings_user_activities SET office_id = :bid WHERE office_id IS NULL;"),
+                                {"bid": default_branch_id}
+                            )
                             # Backfill user_office_assignments for existing users with no assignments
                             await t_conn.execute(
                                 text("""

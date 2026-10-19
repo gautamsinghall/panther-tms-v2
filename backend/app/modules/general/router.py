@@ -6,6 +6,7 @@ from app.auth.dependencies import require_permission, check_entitlement_limit, g
 from app.control.models import Tenant
 from app.tenant_db.models import User, Branch
 from app.modules.general import schemas, service
+from app.services.activity_logger import log_activity
 
 router = APIRouter(prefix="/general", tags=["General (Master Data)"])
 
@@ -32,7 +33,21 @@ async def create_billing_client(
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
     office_id = current_office.id if current_office else None
-    return await service.create_billing_client(db, data, office_id=office_id)
+    client = await service.create_billing_client(db, data, office_id=office_id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CLIENT_CREATED",
+        module="general",
+        entity_type="BillingClient",
+        entity_id=str(client.id),
+        entity_identifier=client.name,
+        office_id=office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={"name": client.name, "city": client.city, "gstin": client.gstin},
+    )
+    return client
 
 @router.get("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Get billing client by ID")
 async def get_billing_client(
@@ -49,7 +64,19 @@ async def update_billing_client(
     current_user: User = Depends(require_permission("general", "billing_client", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_billing_client(db, id, data)
+    client = await service.update_billing_client(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CLIENT_UPDATED",
+        module="general",
+        entity_type="BillingClient",
+        entity_id=str(client.id),
+        entity_identifier=client.name,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return client
+
 
 @router.delete("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Deactivate billing client")
 async def delete_billing_client(

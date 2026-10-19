@@ -9,6 +9,7 @@ from app.core.errors import ForbiddenException
 from app.control.models import Tenant
 from app.tenant_db.models import User, Branch
 from app.modules.accounts import schemas, service
+from app.services.activity_logger import log_activity
 
 router = APIRouter(
     prefix="/accounts",
@@ -161,6 +162,24 @@ async def create_voucher(
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     office_id = current_office.id if current_office else None
     voucher = await service.post_voucher(session, data, office_id=office_id)
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="VOUCHER_CREATED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": voucher.voucher_number,
+            "voucher_type": voucher.voucher_type,
+            "total_amount": float(voucher.total_amount or 0),
+            "party_name": voucher.party_name,
+        },
+    )
     return map_voucher_response(voucher)
 
 
@@ -170,11 +189,29 @@ async def create_transport_invoice(
     current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
     _perm: bool = Depends(require_permission("accounts", "transport_invoice", "create")),
 ):
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     office_id = current_office.id if current_office else None
     voucher = await service.create_transport_invoice_from_lr(session, data, office_id=office_id)
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="INVOICE_CREATED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": voucher.voucher_number,
+            "total_amount": float(voucher.total_amount or 0),
+            "lr_id": data.lr_id,
+        },
+    )
     return map_voucher_response(voucher)
 
 
@@ -184,11 +221,28 @@ async def create_ath_payment(
     current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
     _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
 ):
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     office_id = current_office.id if current_office else None
     voucher = await service.create_ath_payment(session, data, office_id=office_id)
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PAYMENT_VOUCHER_CREATED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id or office_id,
+        details_json={
+            "voucher_number": voucher.voucher_number,
+            "voucher_type": "ATH",
+            "amount": float(data.amount or 0),
+            "lr_id": data.lr_id,
+        },
+    )
     return map_voucher_response(voucher)
 
 
@@ -198,11 +252,28 @@ async def create_bth_payment(
     current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
     _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
 ):
     await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
     office_id = current_office.id if current_office else None
     voucher = await service.create_bth_payment(session, data, office_id=office_id)
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PAYMENT_VOUCHER_CREATED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id or office_id,
+        details_json={
+            "voucher_number": voucher.voucher_number,
+            "voucher_type": "BTH",
+            "amount": float(data.amount or 0),
+            "lr_id": data.lr_id,
+        },
+    )
     return map_voucher_response(voucher)
 
 
@@ -215,4 +286,17 @@ async def void_voucher_endpoint(
     _perm: User = Depends(require_accounts_permission("edit")),
 ):
     voucher = await service.void_voucher(session, voucher_id, data, user_id=current_user.id)
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="VOUCHER_VOIDED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id,
+        details=f"Voided voucher {voucher.voucher_number}: {data.reason}",
+        details_json={"reason": data.reason},
+    )
     return map_voucher_response(voucher)
+

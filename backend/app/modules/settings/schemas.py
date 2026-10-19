@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class PermissionItem(BaseModel):
@@ -193,13 +193,50 @@ class UserActivityResponse(BaseModel):
     id: int
     user_id: Optional[int] = None
     user_email: str
+    user_name: Optional[str] = None
     user_role: str
     action: str
     module: str
     entity_type: Optional[str] = None
     entity_id: Optional[str] = None
+    entity_identifier: Optional[str] = None
+    office_id: Optional[int] = None
+    office_name: Optional[str] = None
+    office_code: Optional[str] = None
+    status: str = "SUCCESS"
     details: Optional[str] = None
+    details_json: Optional[Dict[str, Any]] = None
     ip_address: Optional[str] = None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class ActivityStatsResponse(BaseModel):
+    total_activities: int
+    today_activities: int
+    active_users: int
+    critical_mutations: int
+    active_offices: int
+
+
+class ActivityOfficeOption(BaseModel):
+    id: int
+    code: str
+    name: str
+    city: str
+    is_head_office: bool
+
+
+class ActivityUserOption(BaseModel):
+    email: str
+    name: str
+
+
+class ActivityFiltersResponse(BaseModel):
+    users: List[ActivityUserOption]
+    actions: List[str]
+    modules: List[str]
+    offices: List[ActivityOfficeOption]
+    is_admin: bool
+
 

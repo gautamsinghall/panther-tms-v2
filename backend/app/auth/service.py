@@ -67,6 +67,30 @@ async def authenticate_user(
     offices_list, active_office_summary = await get_user_office_context(db, user)
     navigation = build_user_navigation(current_user=user, tenant=tenant)
 
+    try:
+        from app.services.activity_logger import log_activity
+        await log_activity(
+            db=db,
+            user=user,
+            action="USER_LOGIN",
+            module="auth",
+            entity_type="User",
+            entity_id=str(user.id),
+            entity_identifier=user.email,
+            office_id=active_office_summary.id if active_office_summary else None,
+            office_name=active_office_summary.name if active_office_summary else None,
+            office_code=active_office_summary.code if active_office_summary else None,
+            details=f"User {user.email} logged in successfully",
+            details_json={
+                "email": user.email,
+                "role": user.role,
+                "active_office": active_office_summary.name if active_office_summary else None,
+            },
+            commit=True,
+        )
+    except Exception:
+        pass
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,

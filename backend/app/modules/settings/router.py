@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 from datetime import date
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
@@ -12,7 +12,8 @@ from app.modules.settings.schemas import (
     UserCreate, UserUpdate, UserListItem, AssignedOfficeInfo, PermissionItem,
     SeriesCategoryCreate, SeriesCategoryUpdate, SeriesCategoryResponse,
     SeriesMasterCreate, SeriesMasterUpdate, SeriesMasterResponse, SeriesCheckResponse,
-    AdminSettingItem, AdminSettingsBulkUpdate, AdminSettingResponse, UserActivityResponse
+    AdminSettingItem, AdminSettingsBulkUpdate, AdminSettingResponse, UserActivityResponse,
+    ActivityStatsResponse, ActivityFiltersResponse
 )
 from app.modules.settings import service
 from app.auth.navigation import get_permissions_schema
@@ -460,22 +461,72 @@ async def update_admin_settings(
     summary="List user activity audit logs"
 )
 async def list_activity_logs(
+    request: Request,
+    response: Response,
     limit: int = 100,
-    module: str = None,
-    user_email: str = None,
-    action: str = None,
+    offset: int = 0,
+    office_id: Optional[str] = Query(None),
+    module: Optional[str] = Query(None),
+    user_email: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
+    entity_type: Optional[str] = Query(None),
+    entity_identifier: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     current_user: User = Depends(require_permission("settings", "activity", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_activity_logs(
+    header_office = request.headers.get("X-Office-ID")
+    records, total_count = await service.get_activity_logs(
         db,
+        current_user=current_user,
+        office_id=office_id,
+        header_office_id=header_office,
         limit=limit,
+        offset=offset,
         module=module,
         user_email=user_email,
         action=action,
+        entity_type=entity_type,
+        entity_identifier=entity_identifier,
+        search=search,
         date_from=date_from,
         date_to=date_to,
     )
+    response.headers["X-Total-Count"] = str(total_count)
+    return records
+
+
+@router.get(
+    "/activity/stats",
+    response_model=ActivityStatsResponse,
+    summary="Get user activity audit summary statistics"
+)
+async def get_activity_stats(
+    request: Request,
+    office_id: Optional[str] = Query(None),
+    current_user: User = Depends(require_permission("settings", "activity", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    header_office = request.headers.get("X-Office-ID")
+    return await service.get_activity_stats_service(
+        db,
+        current_user=current_user,
+        office_id=office_id,
+        header_office_id=header_office,
+    )
+
+
+@router.get(
+    "/activity/filters",
+    response_model=ActivityFiltersResponse,
+    summary="Get available filter options for activity logs"
+)
+async def get_activity_filters(
+    current_user: User = Depends(require_permission("settings", "activity", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_activity_filters_service(db, current_user=current_user)
+
 

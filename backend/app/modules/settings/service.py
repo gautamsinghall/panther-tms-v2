@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union, Tuple, Dict, Any
 from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
@@ -630,55 +630,94 @@ async def update_admin_settings(db: AsyncSession, settings_items: List[AdminSett
 
 
 # --- User Activity (Audit Log) ---
+from app.services.activity_logger import (
+    log_activity, query_activity_logs, get_activity_stats as calc_activity_stats,
+    get_activity_filters as fetch_activity_filters
+)
 
 async def log_user_activity(
     db: AsyncSession,
-    user: User,
-    action: str,
-    module: str,
+    user: Optional[User] = None,
+    action: str = "",
+    module: str = "",
     entity_type: Optional[str] = None,
     entity_id: Optional[str] = None,
     details: Optional[str] = None,
     ip_address: Optional[str] = None,
-) -> UserActivity:
-    act = UserActivity(
-        user_id=user.id if user else None,
-        user_email=user.email if user else "system",
-        user_role=user.role if user else "SYSTEM",
+    entity_identifier: Optional[str] = None,
+    office_id: Optional[int] = None,
+    office_name: Optional[str] = None,
+    office_code: Optional[str] = None,
+    status: str = "SUCCESS",
+    details_json: Optional[dict] = None,
+) -> Optional[UserActivity]:
+    return await log_activity(
+        db=db,
+        user=user,
         action=action,
         module=module,
         entity_type=entity_type,
-        entity_id=str(entity_id) if entity_id is not None else None,
+        entity_id=entity_id,
+        entity_identifier=entity_identifier,
+        office_id=office_id,
+        office_name=office_name,
+        office_code=office_code,
         details=details,
+        details_json=details_json,
         ip_address=ip_address,
+        status=status,
     )
-    db.add(act)
-    await db.commit()
-    await db.refresh(act)
-    return act
 
 async def get_activity_logs(
     db: AsyncSession,
+    current_user: Optional[User] = None,
+    office_id: Optional[Union[int, str]] = None,
+    header_office_id: Optional[str] = None,
     limit: int = 100,
+    offset: int = 0,
     module: Optional[str] = None,
     user_email: Optional[str] = None,
     action: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    entity_identifier: Optional[str] = None,
+    search: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
-) -> List[UserActivity]:
-    stmt = select(UserActivity)
-    if module:
-        stmt = stmt.where(UserActivity.module == module.lower().strip())
-    if user_email:
-        stmt = stmt.where(UserActivity.user_email == user_email.lower().strip())
-    if action:
-        stmt = stmt.where(UserActivity.action == action.upper().strip())
-    if date_from:
-        stmt = stmt.where(UserActivity.created_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc))
-    if date_to:
-        next_day = date_to + timedelta(days=1)
-        stmt = stmt.where(UserActivity.created_at < datetime.combine(next_day, time.min, tzinfo=timezone.utc))
-    stmt = stmt.order_by(UserActivity.created_at.desc()).limit(limit)
-    result = await db.execute(stmt)
-    return list(result.scalars().all())
+) -> Tuple[List[UserActivity], int]:
+    # Fallback user if not passed (e.g. legacy callers)
+    acting_user = current_user
+    if not acting_user:
+        acting_user = User(role="COMPANY_ADMIN", email="system@panthertms.com", full_name="Company Administrator")
+
+    return await query_activity_logs(
+        db=db,
+        current_user=acting_user,
+        office_id=office_id,
+        header_office_id=header_office_id,
+        module=module,
+        action=action,
+        entity_type=entity_type,
+        entity_identifier=entity_identifier,
+        user_email=user_email,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=offset,
+    )
+
+async def get_activity_stats_service(
+    db: AsyncSession,
+    current_user: User,
+    office_id: Optional[Union[int, str]] = None,
+    header_office_id: Optional[str] = None,
+) -> dict:
+    return await calc_activity_stats(db, current_user, office_id=office_id, header_office_id=header_office_id)
+
+async def get_activity_filters_service(
+    db: AsyncSession,
+    current_user: User,
+) -> dict:
+    return await fetch_activity_filters(db, current_user)
+
 

@@ -1712,16 +1712,25 @@ class UserActivity(TenantBase):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     user_email = Column(String(255), nullable=False, index=True)
+    user_name = Column(String(255), nullable=True)
     user_role = Column(String(50), nullable=False)
     action = Column(String(150), nullable=False, index=True)
     module = Column(String(100), nullable=False, index=True)
-    entity_type = Column(String(100), nullable=True)
-    entity_id = Column(String(100), nullable=True)
+    entity_type = Column(String(100), nullable=True, index=True)
+    entity_id = Column(String(100), nullable=True, index=True)
+    entity_identifier = Column(String(255), nullable=True, index=True)
+    office_id = Column(Integer, ForeignKey("profile_branches.id", ondelete="SET NULL"), nullable=True, index=True)
+    office_name = Column(String(255), nullable=True)
+    office_code = Column(String(50), nullable=True)
+    status = Column(String(50), default="SUCCESS", nullable=False)
     details = Column(Text, nullable=True)
+    details_json = Column(JSON, nullable=True)
     ip_address = Column(String(45), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     user = relationship("User")
+    office = relationship("Branch", lazy="selectin")
+
 
 
 class Branch(TenantBase):

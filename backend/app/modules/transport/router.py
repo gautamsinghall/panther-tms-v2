@@ -8,6 +8,7 @@ from app.auth.dependencies import require_permission, get_current_user, check_en
 from app.control.models import Tenant
 from app.tenant_db.models import User, Branch, LR
 from app.modules.transport import service
+from app.services.activity_logger import log_activity
 from app.modules.transport.excel_import import generate_job_import_template, import_jobs_from_excel
 from app.modules.transport.schemas import (
     VehicleOwnerCreate, VehicleOwnerUpdate, VehicleOwnerResponse,
@@ -76,7 +77,18 @@ async def create_vehicle_owner(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
-    return await service.create_vehicle_owner(db, data)
+    owner = await service.create_vehicle_owner(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="VEHICLE_OWNER_CREATED",
+        module="transport",
+        entity_type="VehicleOwner",
+        entity_id=str(owner.id),
+        entity_identifier=owner.name,
+        details_json={"name": owner.name, "pan": owner.pan, "phone": owner.phone},
+    )
+    return owner
 
 @router.put("/vehicle-owners/{id}", response_model=VehicleOwnerResponse)
 async def update_vehicle_owner(
@@ -85,7 +97,18 @@ async def update_vehicle_owner(
     current_user: User = Depends(require_permission("transport", "vehicle_owners", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_vehicle_owner(db, id, data)
+    owner = await service.update_vehicle_owner(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="VEHICLE_OWNER_UPDATED",
+        module="transport",
+        entity_type="VehicleOwner",
+        entity_id=str(owner.id),
+        entity_identifier=owner.name,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return owner
 
 @router.delete("/vehicle-owners/{id}", status_code=status.HTTP_200_OK)
 async def delete_vehicle_owner(
@@ -94,6 +117,14 @@ async def delete_vehicle_owner(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_vehicle_owner(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="VEHICLE_OWNER_DEACTIVATED",
+        module="transport",
+        entity_type="VehicleOwner",
+        entity_id=str(id),
+    )
     return {"message": "Vehicle Owner deactivated."}
 
 # ==============================================================================
@@ -114,7 +145,18 @@ async def create_driver(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
-    return await service.create_driver(db, data)
+    drv = await service.create_driver(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="DRIVER_CREATED",
+        module="transport",
+        entity_type="Driver",
+        entity_id=str(drv.id),
+        entity_identifier=drv.name,
+        details_json={"name": drv.name, "phone": drv.phone, "license_number": drv.license_number},
+    )
+    return drv
 
 @router.put("/drivers/{id}", response_model=DriverResponse)
 async def update_driver(
@@ -123,7 +165,18 @@ async def update_driver(
     current_user: User = Depends(require_permission("transport", "drivers", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_driver(db, id, data)
+    drv = await service.update_driver(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="DRIVER_UPDATED",
+        module="transport",
+        entity_type="Driver",
+        entity_id=str(drv.id),
+        entity_identifier=drv.name,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return drv
 
 @router.delete("/drivers/{id}", status_code=status.HTTP_200_OK)
 async def delete_driver(
@@ -132,6 +185,14 @@ async def delete_driver(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_driver(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="DRIVER_DEACTIVATED",
+        module="transport",
+        entity_type="Driver",
+        entity_id=str(id),
+    )
     return {"message": "Driver deactivated."}
 
 # ==============================================================================
@@ -158,7 +219,18 @@ async def create_market_vehicle(
     current_user: User = Depends(require_permission("transport", "market_vehicles", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_market_vehicle(db, data)
+    v = await service.create_market_vehicle(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="MARKET_VEHICLE_CREATED",
+        module="transport",
+        entity_type="Vehicle",
+        entity_id=str(v.id),
+        entity_identifier=v.vehicle_number,
+        details_json={"vehicle_number": v.vehicle_number, "vehicle_type": v.vehicle_type},
+    )
+    return v
 
 @router.put("/market-vehicles/{id}", response_model=MarketVehicleResponse)
 async def update_market_vehicle(
@@ -167,7 +239,18 @@ async def update_market_vehicle(
     current_user: User = Depends(require_permission("transport", "market_vehicles", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_market_vehicle(db, id, data)
+    v = await service.update_market_vehicle(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="MARKET_VEHICLE_UPDATED",
+        module="transport",
+        entity_type="Vehicle",
+        entity_id=str(v.id),
+        entity_identifier=v.vehicle_number,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return v
 
 @router.delete("/market-vehicles/{id}", status_code=status.HTTP_200_OK)
 async def delete_market_vehicle(
@@ -176,6 +259,14 @@ async def delete_market_vehicle(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_market_vehicle(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="MARKET_VEHICLE_DEACTIVATED",
+        module="transport",
+        entity_type="Vehicle",
+        entity_id=str(id),
+    )
     return {"message": "Market vehicle deactivated."}
 
 # ==============================================================================
@@ -196,7 +287,19 @@ async def create_company_vehicle(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_vehicles")
-    return await service.create_company_vehicle(db, data)
+    v = await service.create_company_vehicle(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="COMPANY_VEHICLE_CREATED",
+        module="transport",
+        entity_type="Vehicle",
+        entity_id=str(v.id),
+        entity_identifier=v.registration_number,
+        details_json={"registration_number": v.registration_number, "make": v.make, "model": v.model},
+    )
+    return v
+
 
 @router.put("/company-vehicles/{id}", response_model=CompanyVehicleResponse)
 async def update_company_vehicle(
@@ -361,6 +464,27 @@ async def create_job(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     job = await service.create_job(db, data, user_id=current_user.id, office_id=current_office.id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="JOB_CREATED",
+        module="transport",
+        entity_type="Job",
+        entity_id=str(job.id),
+        entity_identifier=job.job_number,
+        office_id=job.issuing_office_id or current_office.id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "job_number": job.job_number,
+            "job_date": str(job.job_date) if job.job_date else None,
+            "billing_party": job.billing_party,
+            "status": job.status,
+            "cargo_description": job.cargo_description,
+            "estimated_packages": job.estimated_packages,
+            "estimated_weight_mt": float(job.estimated_weight_mt) if job.estimated_weight_mt else None,
+        },
+    )
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
@@ -399,6 +523,18 @@ async def update_job(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     job = await service.update_job(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="JOB_UPDATED",
+        module="transport",
+        entity_type="Job",
+        entity_id=str(job.id),
+        entity_identifier=job.job_number,
+        office_id=job.issuing_office_id,
+        details=f"Updated Job {job.job_number}",
+        details_json=data.model_dump(exclude_unset=True),
+    )
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
@@ -437,6 +573,19 @@ async def transition_job_status(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     job = await service.transition_job_status(db, id, req.target_status, req.remarks)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="JOB_STATUS_CHANGED",
+        module="transport",
+        entity_type="Job",
+        entity_id=str(job.id),
+        entity_identifier=job.job_number,
+        office_id=job.issuing_office_id,
+        details=f"Transitioned Job {job.job_number} status to {req.target_status}" + (f" ({req.remarks})" if req.remarks else ""),
+        details_json={"target_status": req.target_status, "remarks": req.remarks},
+    )
+
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
@@ -624,6 +773,29 @@ async def create_lr(
 ):
     await check_entitlement_limit(tenant, db, "max_lrs_per_month")
     lr = await service.create_lr(db, data, user_id=current_user.id, office_id=current_office.id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LR_CREATED",
+        module="transport",
+        entity_type="LR",
+        entity_id=str(lr.id),
+        entity_identifier=lr.lr_number,
+        office_id=lr.issuing_office_id or current_office.id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "lr_number": lr.lr_number,
+            "lr_date": str(lr.lr_date) if lr.lr_date else None,
+            "vehicle_number": lr.vehicle_number,
+            "booking_status": lr.booking_status,
+            "consigner_id": lr.consigner_id,
+            "consignee_id": lr.consignee_id,
+            "total_freight_amount": float(lr.total_freight_amount or 0),
+            "package_count": lr.package_count,
+            "chargeable_weight_mt": float(lr.chargeable_weight_mt or 0) if lr.chargeable_weight_mt else None,
+        },
+    )
     return _build_lr_response(lr)
 
 @router.put("/lrs/{id}", response_model=LRResponse)
@@ -634,6 +806,18 @@ async def update_lr(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     lr = await service.update_lr(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LR_UPDATED",
+        module="transport",
+        entity_type="LR",
+        entity_id=str(lr.id),
+        entity_identifier=lr.lr_number,
+        office_id=lr.issuing_office_id,
+        details=f"Updated LR {lr.lr_number}",
+        details_json=data.model_dump(exclude_unset=True),
+    )
     return _build_lr_response(lr)
 
 @router.post("/lrs/{id}/transition", response_model=LRResponse)
@@ -644,7 +828,20 @@ async def transition_lr_status(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     lr = await service.transition_lr_status(db, id, req.target_status, req.remarks)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LR_STATUS_CHANGED",
+        module="transport",
+        entity_type="LR",
+        entity_id=str(lr.id),
+        entity_identifier=lr.lr_number,
+        office_id=lr.issuing_office_id,
+        details=f"Transitioned LR {lr.lr_number} status to {req.target_status}" + (f" ({req.remarks})" if req.remarks else ""),
+        details_json={"target_status": req.target_status, "remarks": req.remarks},
+    )
     return _build_lr_response(lr)
+
 # ==============================================================================
 # 7. Hire Challans
 # ==============================================================================
