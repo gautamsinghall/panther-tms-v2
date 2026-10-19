@@ -35,6 +35,7 @@ import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import {
   CarrierLogo,
   CarrierPhoneBadge,
+  getCarrierBrand,
 } from "@/components/tracking/sim-carrier-badge";
 import { SIMTrackingMap } from "@/components/tracking/sim-tracking-map";
 
@@ -1669,7 +1670,7 @@ export default function SIMTrackingPage() {
                         <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                           <div className="text-slate-500 font-semibold text-[11px]">SIM Service Provider</div>
                           <div className="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
-                            <CarrierLogo carrier={trip.operator_name} className="w-4 h-4" />
+                            <CarrierLogo carrier={trip.operator_name} phone={trip.driver_phone} className="w-4 h-4" />
                             <span>{trip.operator_name || "â€”"}</span>
                           </div>
                         </div>
@@ -1809,13 +1810,22 @@ export default function SIMTrackingPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {/* SIM service provider - resolved by the backend */}
+                {/* SIM service provider */}
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     SIM Service Provider
                   </label>
-                  <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-500 italic">
-                    <span>Detected after submission</span>
+                  <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-800">
+                    {getCarrierBrand(null, addFormData.driver_phone) ? (
+                      <>
+                        <CarrierLogo phone={addFormData.driver_phone} className="w-4 h-4 shrink-0" />
+                        <span>{getCarrierBrand(null, addFormData.driver_phone)}</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-normal italic">
+                        Enter driver phone to detect
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1970,8 +1980,8 @@ export default function SIMTrackingPage() {
                   SIM Service Provider
                 </label>
                 <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-800">
-                  <CarrierLogo carrier={activeModalTrip?.operator_name} className="w-4 h-4 shrink-0" />
-                  <span>{activeModalTrip?.operator_name || "—"}</span>
+                  <CarrierLogo carrier={activeModalTrip?.operator_name} phone={editFormData.driver_phone} className="w-4 h-4 shrink-0" />
+                  <span>{activeModalTrip?.operator_name || getCarrierBrand(activeModalTrip?.operator_name, editFormData.driver_phone) || "—"}</span>
                 </div>
               </div>
 
