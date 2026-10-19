@@ -65,3 +65,30 @@ export function formatDateTime(dateInput: string | Date | null | undefined): str
     return String(dateInput);
   }
 }
+
+/**
+ * Format date and time in 12-hour format with AM/PM (e.g. 19 Oct 2026, 11:55 AM)
+ */
+export function formatDateTime12h(dateInput: string | Date | null | undefined): string {
+  if (!dateInput) return "-";
+  try {
+    const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    if (isNaN(date.getTime())) return String(dateInput);
+
+    const day = date.getDate();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    let hours = date.getHours();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strHours = String(hours).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    return `${day} ${month} ${year}, ${strHours}:${minutes} ${ampm}`;
+  } catch {
+    return String(dateInput);
+  }
+}
+

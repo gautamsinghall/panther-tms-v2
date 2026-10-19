@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Download,
   AlertCircle,
@@ -9,14 +10,11 @@ import {
   Building2,
   MapPin,
   Clock,
-  Shield,
   User,
   CheckCircle2,
   FileText,
   RefreshCw,
   Eye,
-  Copy,
-  Check,
   Globe,
   Activity,
   Layers,
@@ -24,7 +22,6 @@ import {
   Calendar,
   X,
   TrendingUp,
-  Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
@@ -32,7 +29,7 @@ import { ColumnDef } from "@/types/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/ui/kpi-card";
-import { formatDateTime, cn } from "@/lib/utils";
+import { formatDateTime12h, cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormFieldLabel } from "@/components/ui/form-field";
@@ -116,7 +113,22 @@ export default function UserActivityLogPage() {
 
   // Inspector Drawer state
   const [inspectedEvent, setInspectedEvent] = useState<ActivityLog | null>(null);
-  const [isCopied, setIsCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && inspectedEvent) {
+        setInspectedEvent(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [inspectedEvent]);
 
   // Debounce search input
   useEffect(() => {
@@ -369,7 +381,6 @@ export default function UserActivityLogPage() {
       "Event ID",
       "Timestamp (UTC)",
       "Timestamp (IST)",
-      "Issuing Office Code",
       "Issuing Office Name",
       "User Full Name",
       "User Email",
@@ -379,16 +390,14 @@ export default function UserActivityLogPage() {
       "Entity Type",
       "Entity Identifier",
       "Details",
-      "Client IP",
       "Status",
     ];
 
     const rows = data.map((r) => [
       r.id,
       r.created_at,
-      formatDateTime(r.created_at),
-      r.office_code || "ALL",
-      r.office_name || "All Issuing Offices (Consolidated)",
+      formatDateTime12h(r.created_at),
+      r.office_name || (r.office_code ? `${r.office_code} Office` : "Company-Wide"),
       r.user_name || r.user_email,
       r.user_email,
       r.user_role,
@@ -397,7 +406,6 @@ export default function UserActivityLogPage() {
       r.entity_type || "",
       r.entity_identifier || "",
       (r.details || "").replace(/"/g, '""'),
-      r.ip_address || "Internal",
       r.status || "SUCCESS",
     ]);
 
@@ -417,15 +425,6 @@ export default function UserActivityLogPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Copy JSON details helper
-  const handleCopyJSON = () => {
-    if (!inspectedEvent) return;
-    const jsonStr = JSON.stringify(inspectedEvent, null, 2);
-    navigator.clipboard.writeText(jsonStr);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-
   // Table Columns Definition
   const columns: ColumnDef<ActivityLog>[] = [
     {
@@ -433,18 +432,8 @@ export default function UserActivityLogPage() {
       header: "Timestamp (IST)",
       sortable: true,
       cell: (row) => (
-        <div className="space-y-0.5">
-          <div className="font-mono text-xs font-semibold text-slate-800">
-            {formatDateTime(row.created_at)}
-          </div>
-          <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-            <Clock className="w-2.5 h-2.5 text-slate-400" />
-            {new Date(row.created_at).toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })}
-          </div>
+        <div className="font-mono text-xs font-semibold text-slate-800 whitespace-nowrap">
+          {formatDateTime12h(row.created_at)}
         </div>
       ),
     },
@@ -452,24 +441,21 @@ export default function UserActivityLogPage() {
       key: "office_name",
       header: "Issuing Office",
       cell: (row) => {
+        const officeDisplayName = row.office_name || (row.office_code ? `${row.office_code} Office` : "Company-Wide");
         if (!row.office_name && !row.office_code) {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-              <Globe className="w-3 h-3 text-slate-400" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
+              <Globe className="w-3.5 h-3.5 text-slate-400" />
               Company-Wide
             </span>
           );
         }
         return (
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 border border-indigo-200 text-indigo-700">
-                {row.office_code || "HUB"}
-              </span>
-              <span className="text-xs font-medium text-slate-900 truncate max-w-[150px]" title={row.office_name || ""}>
-                {row.office_name}
-              </span>
-            </div>
+          <div className="flex items-center gap-1.5" title={officeDisplayName}>
+            <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <span className="text-xs font-medium text-slate-800 truncate max-w-[170px]">
+              {officeDisplayName}
+            </span>
           </div>
         );
       },
@@ -479,29 +465,33 @@ export default function UserActivityLogPage() {
       header: "Operator / User",
       sortable: true,
       cell: (row) => {
-        const initials = (row.user_name || row.user_email)
+        const displayName = row.user_name || row.user_email.split("@")[0];
+        const initials = displayName
           .split(" ")
-          .map((n) => n[0])
+          .map((n: string) => n[0])
           .slice(0, 2)
           .join("")
           .toUpperCase();
 
+        const roleText = roleLabels[row.user_role] || humanizeCode(row.user_role);
+
         return (
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs shrink-0">
+            <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center text-[10px] font-bold shadow-2xs shrink-0">
               {initials || "U"}
             </div>
-            <div className="min-w-0">
-              <div className="font-semibold text-xs text-slate-900 truncate">
-                {row.user_name || row.user_email}
-              </div>
-              <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                <span>{row.user_email}</span>
-                <span className="text-slate-300">•</span>
-                <span className="text-[10px] text-slate-400">
-                  {roleLabels[row.user_role] || humanizeCode(row.user_role)}
+            <div className="min-w-0 flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-xs text-slate-900 truncate max-w-[140px]" title={displayName}>
+                  {displayName}
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80 shrink-0">
+                  {roleText}
                 </span>
               </div>
+              <span className="text-[11px] text-slate-500 font-mono truncate max-w-[180px]" title={row.user_email}>
+                {row.user_email}
+              </span>
             </div>
           </div>
         );
@@ -511,27 +501,25 @@ export default function UserActivityLogPage() {
       key: "action",
       header: "Action & Entity",
       cell: (row) => (
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span
-              className={cn(
-                "inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border",
-                getActionStyle(row.action)
-              )}
-            >
-              {humanizeCode(row.action)}
-            </span>
-
-            {row.entity_identifier && (
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs"
-                title={`Exact Traceable Identifier: ${row.entity_identifier}`}
-              >
-                <FileText className="w-3 h-3 text-amber-600" />
-                {row.entity_identifier}
-              </span>
+        <div className="flex flex-col items-start gap-1">
+          <span
+            className={cn(
+              "inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border whitespace-nowrap",
+              getActionStyle(row.action)
             )}
-          </div>
+          >
+            {humanizeCode(row.action)}
+          </span>
+
+          {row.entity_identifier ? (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs whitespace-nowrap"
+              title={`Traceable Identifier: ${row.entity_identifier}`}
+            >
+              <FileText className="w-3 h-3 text-amber-600 shrink-0" />
+              {row.entity_identifier}
+            </span>
+          ) : null}
         </div>
       ),
     },
@@ -568,22 +556,6 @@ export default function UserActivityLogPage() {
         >
           {row.module}
         </span>
-      ),
-    },
-    {
-      key: "ip_address",
-      header: "IP & Security",
-      cell: (row) => (
-        <div className="space-y-0.5">
-          <div className="font-mono text-xs text-slate-600 flex items-center gap-1">
-            <Shield className="w-3 h-3 text-slate-400" />
-            {row.ip_address || "Local / System"}
-          </div>
-          <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
-            <CheckCircle2 className="w-2.5 h-2.5" />
-            Verified Action
-          </div>
-        </div>
       ),
     },
     {
@@ -662,47 +634,7 @@ export default function UserActivityLogPage() {
         }
       />
 
-      {/* 2. Active Office Security Attribution Alert */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-slate-50/50 to-white shadow-2xs">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-900">Active Office Visibility Scope:</span>
-              {selectedOfficeId === "all" ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  <Globe className="w-3 h-3 text-emerald-600" />
-                  All Issuing Offices (Consolidated Audit Trail)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-900 border border-indigo-200">
-                  <MapPin className="w-3 h-3 text-indigo-700" />
-                  {filterMeta.offices.find((o) => String(o.id) === selectedOfficeId)?.name ||
-                    `Issuing Office #${selectedOfficeId}`}{" "}
-                  [{filterMeta.offices.find((o) => String(o.id) === selectedOfficeId)?.code || "HUB"}]
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              {isCompanyAdmin
-                ? "Company Administrators have cross-branch visibility. Select any individual issuing office or view the unified company-wide log."
-                : `User access is strictly isolated to your assigned office. Cross-branch records are forbidden.`}
-            </p>
-          </div>
-        </div>
-
-        {/* Total Events Counter */}
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-600 sm:text-right shrink-0">
-          <Activity className="w-4 h-4 text-indigo-600" />
-          <span>
-            Displaying <strong className="font-mono text-slate-900">{totalRecords}</strong> recorded events
-          </span>
-        </div>
-      </div>
-
-      {/* 3. Error Alert */}
+      {/* 2. Error Alert */}
       {error && (
         <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs flex items-center gap-2.5 shadow-2xs">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -968,13 +900,20 @@ export default function UserActivityLogPage() {
       />
 
       {/* 7. Deep Audit Inspection Slide-Over Drawer */}
-      {inspectedEvent && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
+      {mounted && inspectedEvent && createPortal(
+        <div className="fixed inset-0 z-[100] overflow-hidden bg-slate-900/50 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
+          {/* Backdrop Click to close */}
+          <div
+            className="fixed inset-0"
+            onClick={() => setInspectedEvent(null)}
+            aria-hidden="true"
+          />
+
+          <div className="relative w-full max-w-xl bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300 z-10">
             {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
+            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50/90 flex items-center justify-between shrink-0">
+              <div className="space-y-1 min-w-0 pr-4">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={cn(
                       "px-2.5 py-0.5 rounded-md text-xs font-bold border",
@@ -990,7 +929,7 @@ export default function UserActivityLogPage() {
                     VERIFIED SUCCESS
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 className="text-base font-bold text-slate-900 truncate">
                   {inspectedEvent.entity_identifier || inspectedEvent.entity_type
                     ? `${inspectedEvent.entity_type || "Record"}: ${inspectedEvent.entity_identifier || inspectedEvent.entity_id}`
                     : humanizeCode(inspectedEvent.action)}
@@ -1000,7 +939,8 @@ export default function UserActivityLogPage() {
               <button
                 type="button"
                 onClick={() => setInspectedEvent(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 transition-colors cursor-pointer shrink-0"
+                title="Close Audit Sheet"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1019,28 +959,26 @@ export default function UserActivityLogPage() {
               </div>
 
               {/* Attribution Grid */}
-              <div className="grid grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* Issuing Office Details */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-1.5">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono flex items-center gap-1">
                     <Building2 className="w-3.5 h-3.5 text-indigo-600" /> Issuing Office Attribution
                   </span>
                   <div>
                     <div className="text-sm font-bold text-slate-900">
-                      {inspectedEvent.office_name || "Company Wide (Consolidated)"}
+                      {inspectedEvent.office_name || (inspectedEvent.office_code ? `${inspectedEvent.office_code} Office` : "Company-Wide")}
                     </div>
-                    <div className="text-xs text-slate-500 font-mono mt-0.5">
-                      Code:{" "}
-                      <span className="font-bold text-indigo-700">
-                        {inspectedEvent.office_code || "ALL"}
-                      </span>{" "}
-                      {inspectedEvent.office_id && `• ID: #${inspectedEvent.office_id}`}
-                    </div>
+                    {inspectedEvent.office_id && (
+                      <div className="text-xs text-slate-500 font-mono mt-0.5">
+                        Office ID: #{inspectedEvent.office_id}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Operator Details */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-1.5">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono flex items-center gap-1">
                     <User className="w-3.5 h-3.5 text-indigo-600" /> Operator Attribution
                   </span>
@@ -1058,7 +996,7 @@ export default function UserActivityLogPage() {
                 </div>
 
                 {/* Target Entity */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-1.5">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono flex items-center gap-1">
                     <FileText className="w-3.5 h-3.5 text-indigo-600" /> Target Entity Information
                   </span>
@@ -1079,20 +1017,18 @@ export default function UserActivityLogPage() {
                   </div>
                 </div>
 
-                {/* Security & Timestamp */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2">
+                {/* Event Timestamp & Verification */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-1.5">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5 text-indigo-600" /> Security & Network
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" /> Recorded Timestamp
                   </span>
                   <div>
                     <div className="text-xs font-mono font-bold text-slate-800">
-                      IP: {inspectedEvent.ip_address || "Internal System Call"}
+                      {formatDateTime12h(inspectedEvent.created_at)}
                     </div>
-                    <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                      IST: {formatDateTime(inspectedEvent.created_at)}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-mono truncate">
-                      UTC: {inspectedEvent.created_at}
+                    <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium mt-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Verified Action
                     </div>
                   </div>
                 </div>
@@ -1118,31 +1054,11 @@ export default function UserActivityLogPage() {
                   </div>
                 </div>
               )}
-
-              {/* Raw JSON Payload */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono">
-                    Raw JSON Audit Payload
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyJSON}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
-                  >
-                    {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{isCopied ? "Copied to clipboard" : "Copy JSON"}</span>
-                  </button>
-                </div>
-                <pre className="p-4 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] overflow-x-auto leading-relaxed border border-slate-800">
-                  {JSON.stringify(inspectedEvent, null, 2)}
-                </pre>
-              </div>
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500">
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-500">
                 Audited action strictly attributed to user and issuing office.
               </span>
               <Button type="button" variant="secondary" onClick={() => setInspectedEvent(null)}>
@@ -1150,7 +1066,8 @@ export default function UserActivityLogPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
