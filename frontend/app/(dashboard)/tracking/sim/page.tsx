@@ -35,7 +35,6 @@ import { cn, formatDateTime, formatDate } from "@/lib/utils";
 import {
   CarrierLogo,
   CarrierPhoneBadge,
-  detectTelecomOperator,
 } from "@/components/tracking/sim-carrier-badge";
 import { SIMTrackingMap } from "@/components/tracking/sim-tracking-map";
 
@@ -328,12 +327,10 @@ export default function SIMTrackingPage() {
     setIsSubmitting(true);
     setFeedbackMessage(null);
     try {
-      const detectedCarrier = detectTelecomOperator(cleanPhone);
       const payload = {
         ...addFormData,
         vehicle_number: addFormData.vehicle_number.trim().toUpperCase(),
         driver_phone: cleanPhone.slice(-10),
-        operator_name: detectedCarrier, // Always auto-fetched
       };
       await apiClient("/api/v1/transport/tracking/sim/start", {
         method: "POST",
@@ -341,7 +338,7 @@ export default function SIMTrackingPage() {
       });
       setFeedbackMessage({
         type: "success",
-        text: `Trip initialized for ${payload.vehicle_number} (${detectedCarrier}). Driver consent request queued to +91 ${payload.driver_phone}.`,
+        text: `Trip initialized for ${payload.vehicle_number}. Driver consent request queued to +91 ${payload.driver_phone}.`,
       });
       setIsAddTripModalOpen(false);
       resetAddFormData();
@@ -444,20 +441,16 @@ export default function SIMTrackingPage() {
     if (!activeModalTrip) return;
     setIsSubmitting(true);
     try {
-      const cleanPhone = editFormData.driver_phone.replace(/\D/g, "").slice(-10);
-      const autoCarrier = detectTelecomOperator(cleanPhone);
-      const updated = await apiClient<SIMTripRecord>(`/api/v1/transport/tracking/sim/${activeModalTrip.id}`, {
+      const cleanPhone = editFormData.driver_phone.replace(/\D/g, "").slice(-10);      const updated = await apiClient<SIMTripRecord>(`/api/v1/transport/tracking/sim/${activeModalTrip.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           ...editFormData,
-          driver_phone: cleanPhone,
-          operator_name: autoCarrier, // Auto-fetched
-        }),
+          driver_phone: cleanPhone,        }),
       });
       setSimTrips((prev) => prev.map((t) => (t.id === activeModalTrip.id ? updated : t)));
       setFeedbackMessage({
         type: "success",
-        text: `Trip ${activeModalTrip.vehicle_number} updated successfully (${autoCarrier}).`,
+        text: `Trip ${activeModalTrip.vehicle_number} updated successfully.`,
       });
       setIsEditModalOpen(false);
       setActiveModalTrip(null);
@@ -1676,8 +1669,8 @@ export default function SIMTrackingPage() {
                         <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
                           <div className="text-slate-500 font-semibold text-[11px]">SIM Service Provider</div>
                           <div className="font-bold text-slate-900 mt-1 flex items-center gap-1.5">
-                            <CarrierLogo phone={trip.driver_phone} carrier={trip.operator_name} className="w-4 h-4" />
-                            <span>{detectTelecomOperator(trip.driver_phone)}</span>
+                            <CarrierLogo carrier={trip.operator_name} className="w-4 h-4" />
+                            <span>{trip.operator_name || "â€”"}</span>
                           </div>
                         </div>
                         <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
@@ -1816,17 +1809,13 @@ export default function SIMTrackingPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {/* Auto-detected SIM service provider - NO manual selection */}
+                {/* SIM service provider - resolved by the backend */}
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">
                     SIM Service Provider
                   </label>
-                  <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-800">
-                    <CarrierLogo phone={addFormData.driver_phone} className="w-4 h-4 shrink-0" />
-                    <span>{detectTelecomOperator(addFormData.driver_phone)}</span>
-                    <span className="text-[10px] text-slate-500 font-medium ml-auto bg-slate-200/70 px-1.5 py-0.5 rounded">
-                      Auto-detected
-                    </span>
+                  <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-500 italic">
+                    <span>Detected after submission</span>
                   </div>
                 </div>
 
@@ -1975,17 +1964,14 @@ export default function SIMTrackingPage() {
                 />
               </div>
 
-              {/* SIM Service Provider - Auto-fetched */}
+              {/* SIM Service Provider - from API */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   SIM Service Provider
                 </label>
                 <div className="flex items-center gap-2 h-9 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs font-semibold text-slate-800">
-                  <CarrierLogo phone={editFormData.driver_phone} className="w-4 h-4 shrink-0" />
-                  <span>{detectTelecomOperator(editFormData.driver_phone)}</span>
-                  <span className="text-[10px] text-slate-500 font-medium ml-auto bg-slate-200/70 px-1.5 py-0.5 rounded">
-                    Auto-detected
-                  </span>
+                  <CarrierLogo carrier={activeModalTrip?.operator_name} className="w-4 h-4 shrink-0" />
+                  <span>{activeModalTrip?.operator_name || "—"}</span>
                 </div>
               </div>
 
