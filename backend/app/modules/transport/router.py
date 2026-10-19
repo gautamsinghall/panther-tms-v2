@@ -308,7 +308,19 @@ async def update_company_vehicle(
     current_user: User = Depends(require_permission("transport", "company_vehicles", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_company_vehicle(db, id, data)
+    v = await service.update_company_vehicle(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="COMPANY_VEHICLE_UPDATED",
+        module="transport",
+        entity_type="Vehicle",
+        entity_id=str(v.id),
+        entity_identifier=v.registration_number,
+        details=f"Updated company vehicle {v.registration_number}",
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return v
 
 @router.delete("/company-vehicles/{id}", status_code=status.HTTP_200_OK)
 async def delete_company_vehicle(
@@ -316,7 +328,17 @@ async def delete_company_vehicle(
     current_user: User = Depends(require_permission("transport", "company_vehicles", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    await service.delete_company_vehicle(db, id)
+    v = await service.delete_company_vehicle(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="COMPANY_VEHICLE_DEACTIVATED",
+        module="transport",
+        entity_type="Vehicle",
+        entity_id=str(id),
+        entity_identifier=getattr(v, "registration_number", str(id)),
+        details=f"Deactivated company vehicle ID {id}",
+    )
     return {"message": "Company vehicle deactivated."}
 
 # ==============================================================================
@@ -395,7 +417,7 @@ async def import_jobs_excel(
     if not target_office_id and current_office:
         target_office_id = current_office.id
 
-    return await import_jobs_from_excel(
+    res = await import_jobs_from_excel(
         db=db,
         file_bytes=file_bytes,
         filename=file.filename,
@@ -403,6 +425,17 @@ async def import_jobs_excel(
         apply_series_prefix_suffix=should_apply_series,
         office_id=target_office_id,
     )
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="JOBS_EXCEL_IMPORTED",
+        module="transport",
+        entity_type="Job",
+        office_id=target_office_id,
+        details=f"Imported {getattr(res, 'imported_count', 0)} jobs from {file.filename}",
+        details_json={"filename": file.filename, "imported_count": getattr(res, "imported_count", 0)},
+    )
+    return res
 
 @router.get("/jobs", response_model=List[JobResponse])
 async def list_jobs(
@@ -460,10 +493,14 @@ async def list_jobs(
 async def create_job(
     data: JobCreate,
     current_user: User = Depends(require_permission("transport", "jobs", "create")),
-    current_office: Branch = Depends(get_current_office),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    job = await service.create_job(db, data, user_id=current_user.id, office_id=current_office.id)
+    eff_office_id = data.issuing_office_id or (current_office.id if current_office else None)
+    job = await service.create_job(db, data, user_id=current_user.id, office_id=eff_office_id)
+    target_office_id = job.issuing_office_id or eff_office_id
+    office_name = job.issuing_office.name if getattr(job, "issuing_office", None) else (current_office.name if current_office else None)
+    office_code = job.issuing_office.code if getattr(job, "issuing_office", None) else (current_office.code if current_office else None)
     await log_activity(
         db=db,
         user=current_user,
@@ -472,13 +509,15 @@ async def create_job(
         entity_type="Job",
         entity_id=str(job.id),
         entity_identifier=job.job_number,
-        office_id=job.issuing_office_id or current_office.id,
-        office_name=current_office.name if current_office else None,
-        office_code=current_office.code if current_office else None,
+        office_id=target_office_id,
+        office_name=office_name,
+        office_code=office_code,
         details_json={
             "job_number": job.job_number,
             "job_date": str(job.job_date) if job.job_date else None,
             "billing_party": job.billing_party,
+            "consigner_name": job.consigner.name if getattr(job, "consigner", None) else None,
+            "consignee_name": job.consignee.name if getattr(job, "consignee", None) else None,
             "status": job.status,
             "cargo_description": job.cargo_description,
             "estimated_packages": job.estimated_packages,
@@ -767,12 +806,16 @@ async def get_lr(
 async def create_lr(
     data: LRCreate,
     current_user: User = Depends(require_permission("transport", "lr_booking", "create")),
-    current_office: Branch = Depends(get_current_office),
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_lrs_per_month")
-    lr = await service.create_lr(db, data, user_id=current_user.id, office_id=current_office.id)
+    eff_office_id = data.issuing_office_id or (current_office.id if current_office else None)
+    lr = await service.create_lr(db, data, user_id=current_user.id, office_id=eff_office_id)
+    target_office_id = lr.issuing_office_id or eff_office_id
+    office_name = lr.issuing_office.name if getattr(lr, "issuing_office", None) else (current_office.name if current_office else None)
+    office_code = lr.issuing_office.code if getattr(lr, "issuing_office", None) else (current_office.code if current_office else None)
     await log_activity(
         db=db,
         user=current_user,
@@ -781,16 +824,18 @@ async def create_lr(
         entity_type="LR",
         entity_id=str(lr.id),
         entity_identifier=lr.lr_number,
-        office_id=lr.issuing_office_id or current_office.id,
-        office_name=current_office.name if current_office else None,
-        office_code=current_office.code if current_office else None,
+        office_id=target_office_id,
+        office_name=office_name,
+        office_code=office_code,
         details_json={
             "lr_number": lr.lr_number,
             "lr_date": str(lr.lr_date) if lr.lr_date else None,
             "vehicle_number": lr.vehicle_number,
             "booking_status": lr.booking_status,
             "consigner_id": lr.consigner_id,
+            "consigner_name": lr.consigner.name if getattr(lr, "consigner", None) else None,
             "consignee_id": lr.consignee_id,
+            "consignee_name": lr.consignee.name if getattr(lr, "consignee", None) else None,
             "total_freight_amount": float(lr.total_freight_amount or 0),
             "package_count": lr.package_count,
             "chargeable_weight_mt": float(lr.chargeable_weight_mt or 0) if lr.chargeable_weight_mt else None,
@@ -931,12 +976,37 @@ async def get_hire_challan(
 async def create_hire_challan(
     data: HireChallanCreate,
     current_user: User = Depends(require_permission("transport", "hire_challan", "create")),
-    current_office: Branch = Depends(get_current_office),
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await check_entitlement_limit(tenant, db, "max_hire_challans_per_month")
-    hc = await service.create_hire_challan(db, data, office_id=current_office.id)
+    eff_office_id = data.issuing_office_id or (current_office.id if current_office else None)
+    hc = await service.create_hire_challan(db, data, office_id=eff_office_id)
+    target_office_id = hc.issuing_office_id or eff_office_id
+    office_name = hc.issuing_office.name if getattr(hc, "issuing_office", None) else (current_office.name if current_office else None)
+    office_code = hc.issuing_office.code if getattr(hc, "issuing_office", None) else (current_office.code if current_office else None)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="HIRE_CHALLAN_CREATED",
+        module="transport",
+        entity_type="HireChallan",
+        entity_id=str(hc.id),
+        entity_identifier=hc.challan_number,
+        office_id=target_office_id,
+        office_name=office_name,
+        office_code=office_code,
+        details_json={
+            "challan_number": hc.challan_number,
+            "vehicle_number": hc.vehicle_number,
+            "driver_name": hc.driver_name,
+            "hire_rate": float(hc.hire_rate or 0),
+            "advance_amount": float(hc.advance_amount or 0),
+            "balance_amount": float(hc.balance_amount or 0),
+            "status": hc.status,
+        },
+    )
     return _build_hire_challan_response(hc)
 
 @router.put("/hire-challans/{id}", response_model=HireChallanResponse)
@@ -947,6 +1017,18 @@ async def update_hire_challan(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     hc = await service.update_hire_challan(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="HIRE_CHALLAN_UPDATED",
+        module="transport",
+        entity_type="HireChallan",
+        entity_id=str(hc.id),
+        entity_identifier=hc.challan_number,
+        office_id=hc.issuing_office_id,
+        details=f"Updated Hire Challan {hc.challan_number}",
+        details_json=data.model_dump(exclude_unset=True),
+    )
     return _build_hire_challan_response(hc)
 
 @router.post("/hire-challans/{id}/settle", response_model=HireChallanResponse)
@@ -957,6 +1039,18 @@ async def settle_hire_challan(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     hc = await service.settle_hire_challan(db, id, req.settlement_notes)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="HIRE_CHALLAN_SETTLED",
+        module="transport",
+        entity_type="HireChallan",
+        entity_id=str(hc.id),
+        entity_identifier=hc.challan_number,
+        office_id=hc.issuing_office_id,
+        details=f"Settled Hire Challan {hc.challan_number}" + (f" ({req.settlement_notes})" if req.settlement_notes else ""),
+        details_json={"settlement_notes": req.settlement_notes, "status": hc.status},
+    )
     return _build_hire_challan_response(hc)
 
 # ==============================================================================
@@ -1000,6 +1094,24 @@ async def create_arrival_report(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     ar = await service.create_arrival_report(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="ARRIVAL_REPORT_CREATED",
+        module="transport",
+        entity_type="ArrivalReport",
+        entity_id=str(ar.id),
+        entity_identifier=ar.report_number,
+        details=f"Created Arrival Report {ar.report_number}",
+        details_json={
+            "report_number": ar.report_number,
+            "lr_id": ar.lr_id,
+            "packages_received": ar.packages_received,
+            "packages_damaged": ar.packages_damaged,
+            "packages_short": ar.packages_short,
+            "status": ar.status,
+        },
+    )
     return ArrivalReportResponse(
         id=ar.id,
         report_number=ar.report_number,
@@ -1060,6 +1172,17 @@ async def create_pod_record(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     pod = await service.create_pod_record(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="POD_UPLOADED",
+        module="transport",
+        entity_type="POD",
+        entity_id=str(pod.id),
+        entity_identifier=pod.pod_number or f"LR-{pod.lr_id}",
+        details=f"Uploaded POD for LR ID {pod.lr_id}",
+        details_json={"lr_id": pod.lr_id, "packages_delivered": pod.packages_delivered},
+    )
     return PODRecordResponse(
         id=pod.id,
         pod_number=pod.pod_number,
@@ -1087,6 +1210,17 @@ async def verify_pod_record(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     pod = await service.verify_pod_record(db, id, req.verification_status, user_id=current_user.id, notes=req.verification_notes)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="POD_VERIFIED",
+        module="transport",
+        entity_type="POD",
+        entity_id=str(pod.id),
+        entity_identifier=pod.pod_number or f"LR-{pod.lr_id}",
+        details=f"Verified POD for LR ID {pod.lr_id} (Status: {req.verification_status})",
+        details_json={"lr_id": pod.lr_id, "verification_status": req.verification_status, "remarks": req.verification_notes},
+    )
     return PODRecordResponse(
         id=pod.id,
         pod_number=pod.pod_number,
@@ -1125,7 +1259,19 @@ async def create_truck_hiring_note(
     current_user: User = Depends(require_permission("transport", "truck_hiring_note", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_truck_hiring_note(db, data)
+    note = await service.create_truck_hiring_note(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="TRUCK_HIRING_NOTE_CREATED",
+        module="transport",
+        entity_type="TruckHiringNote",
+        entity_id=str(note.id),
+        entity_identifier=note.note_number,
+        details=f"Created Truck Hiring Note {note.note_number}",
+        details_json={"note_number": note.note_number, "vehicle_number": note.vehicle_number},
+    )
+    return note
 
 # ==============================================================================
 # 11. E-Way Bills (Manual Entry & Live Portal Fetch)
@@ -1180,6 +1326,17 @@ async def create_eway_bill(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     b = await service.create_eway_bill(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="EWAY_BILL_CREATED",
+        module="transport",
+        entity_type="EWayBill",
+        entity_id=str(b.id),
+        entity_identifier=b.eway_bill_number,
+        details=f"Generated E-Way Bill {b.eway_bill_number}",
+        details_json={"eway_bill_number": b.eway_bill_number, "vehicle_number": b.vehicle_number},
+    )
     return EWayBillResponse(
         id=b.id,
         eway_bill_number=b.eway_bill_number,
@@ -1307,6 +1464,17 @@ async def start_sim_tracking(
         tenant_id=tenant.tenant_id,
         company_code=tenant.company_code,
     )
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="SIM_TRIP_STARTED",
+        module="transport",
+        entity_type="SIMTrip",
+        entity_id=str(trip.id),
+        entity_identifier=trip.vehicle_number,
+        details=f"Started SIM tracking for {trip.vehicle_number} (Driver: {trip.driver_phone})",
+        details_json={"vehicle_number": trip.vehicle_number, "driver_phone": trip.driver_phone, "ft_trip_id": trip.ft_trip_id},
+    )
     return _format_sim_trip(trip)
 
 
@@ -1354,6 +1522,17 @@ async def close_sim_trip(
     if not trip:
         raise NotFoundException("SIM Trip not found")
     updated_trip = await service.close_sim_trip(db, trip, comment=data.comment)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="SIM_TRIP_CLOSED",
+        module="transport",
+        entity_type="SIMTrip",
+        entity_id=str(trip.id),
+        entity_identifier=trip.vehicle_number,
+        details=f"Closed SIM tracking for {trip.vehicle_number}",
+        details_json={"vehicle_number": trip.vehicle_number, "comment": data.comment},
+    )
     return _format_sim_trip(updated_trip)
 
 
@@ -1513,7 +1692,19 @@ async def create_fastag_trip_endpoint(
     Saves a FASTag trip record with manual From/To waypoints or links to LR.
     Allows tracking vehicles independently from LR consignments.
     """
-    return await service.create_manual_fastag_trip(db, data)
+    trip = await service.create_manual_fastag_trip(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="FASTAG_TRIP_STARTED",
+        module="transport",
+        entity_type="FastagTrip",
+        entity_id=str(trip.id),
+        entity_identifier=trip.vehicle_number,
+        details=f"Started FASTag trip for vehicle {trip.vehicle_number}",
+        details_json={"vehicle_number": trip.vehicle_number, "from_location": trip.from_location, "to_location": trip.to_location},
+    )
+    return trip
 
 
 @router.get("/tracking/fastag/trips", response_model=List[FastagTripResponse])
@@ -1550,7 +1741,19 @@ async def update_fastag_trip_endpoint(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     """Updates a FASTag trip (e.g. mark status as COMPLETED, change notes, etc.)."""
-    return await service.update_fastag_trip(db, trip_id, data)
+    trip = await service.update_fastag_trip(db, trip_id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="FASTAG_TRIP_UPDATED",
+        module="transport",
+        entity_type="FastagTrip",
+        entity_id=str(trip_id),
+        entity_identifier=getattr(trip, "vehicle_number", str(trip_id)),
+        details=f"Updated FASTag trip for vehicle {getattr(trip, 'vehicle_number', trip_id)}",
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return trip
 
 
 @router.delete("/tracking/fastag/trips/{trip_id}")
@@ -1561,6 +1764,15 @@ async def delete_fastag_trip_endpoint(
 ):
     """Deletes a saved FASTag trip record."""
     await service.delete_fastag_trip(db, trip_id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="FASTAG_TRIP_DELETED",
+        module="transport",
+        entity_type="FastagTrip",
+        entity_id=str(trip_id),
+        details=f"Deleted FASTag trip record ID {trip_id}",
+    )
     return {"message": "FASTag trip deleted successfully."}
 
 

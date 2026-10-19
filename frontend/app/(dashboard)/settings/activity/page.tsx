@@ -180,11 +180,13 @@ export default function UserActivityLogPage() {
 
   const fetchStats = async () => {
     try {
+      const effOffice = selectedOfficeId || "all";
       const params = new URLSearchParams();
-      if (selectedOfficeId && selectedOfficeId !== "all") {
-        params.set("office_id", selectedOfficeId);
-      }
-      const st = await apiClient<ActivityStats>(`/api/v1/settings/activity/stats?${params.toString()}`);
+      params.set("office_id", effOffice);
+      const st = await apiClient<ActivityStats>(
+        `/api/v1/settings/activity/stats?${params.toString()}`,
+        { officeId: effOffice }
+      );
       if (st) setStats(st);
     } catch {
       // Non-blocking fallback
@@ -198,11 +200,10 @@ export default function UserActivityLogPage() {
     setError(null);
 
     try {
+      const effOffice = selectedOfficeId || "all";
       const params = new URLSearchParams({ limit: "500" });
+      params.set("office_id", effOffice);
 
-      if (selectedOfficeId && selectedOfficeId !== "all") {
-        params.set("office_id", selectedOfficeId);
-      }
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (moduleFilter) params.set("module", moduleFilter);
       if (userFilter) params.set("user_email", userFilter);
@@ -210,7 +211,10 @@ export default function UserActivityLogPage() {
       if (dateFrom) params.set("date_from", dateFrom);
       if (dateTo) params.set("date_to", dateTo);
 
-      const logs = await apiClient<ActivityLog[]>(`/api/v1/settings/activity?${params.toString()}`);
+      const logs = await apiClient<ActivityLog[]>(
+        `/api/v1/settings/activity?${params.toString()}`,
+        { officeId: effOffice }
+      );
       setData(Array.isArray(logs) ? logs : []);
       setTotalRecords(Array.isArray(logs) ? logs.length : 0);
     } catch (err: any) {

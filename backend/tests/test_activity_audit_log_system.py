@@ -337,4 +337,157 @@ async def test_activity_stats_and_filter_options(audit_db: AsyncSession):
     # Check filter options for Priya (restricted to Mumbai)
     filters_priya = await get_activity_filters(session, current_user=mumbai_user)
     assert len(filters_priya["offices"]) == 1
+    filters_priya = await get_activity_filters(session, current_user=mumbai_user)
+    assert len(filters_priya["offices"]) == 1
     assert filters_priya["offices"][0]["code"] == "BOM"
+
+
+@pytest.mark.asyncio
+async def test_log_activity_sanitizes_zero_and_invalid_offices(audit_db: AsyncSession):
+    session = audit_db
+    admin = (await session.execute(select(User).where(User.id == 1))).scalar_one()
+
+    # office_id = 0 should be sanitized to None (prevents FK violation)
+    act_zero = await log_activity(
+        db=session,
+        user=admin,
+        action="LR_CREATED",
+        module="transport",
+        entity_identifier="LR-SAN-001",
+        office_id=0,
+    )
+    assert act_zero is not None
+    assert act_zero.office_id is None
+
+    # office_id = "0" or "all" string should also be sanitized to None
+    act_str_zero = await log_activity(
+        db=session,
+        user=admin,
+        action="LR_CREATED",
+        module="transport",
+        entity_identifier="LR-SAN-002",
+        office_id="0",
+    )
+    assert act_str_zero.office_id is None
+
+    # office_id = 9999 (non-existent branch in DB) should safely fall back to None
+    act_nonexistent = await log_activity(
+        db=session,
+        user=admin,
+        action="LR_CREATED",
+        module="transport",
+        entity_identifier="LR-SAN-003",
+        office_id=9999,
+    )
+    assert act_nonexistent.office_id is None
+
+
+@pytest.mark.asyncio
+async def test_lr_creation_activity_with_or_without_current_office(audit_db: AsyncSession):
+    session = audit_db
+    admin = (await session.execute(select(User).where(User.id == 1))).scalar_one()
+
+    # Scenario 1: User is operating under "All Issuing Offices" (current_office is None)
+    # but creates LR for Mumbai branch (issuing_office_id = 2)
+    current_office = None
+    input_issuing_office_id = 2
+    eff_office_id = input_issuing_office_id or (current_office.id if current_office else None)
+
+    act = await log_activity(
+        db=session,
+        user=admin,
+        action="LR_CREATED",
+        module="transport",
+        entity_type="LR",
+        entity_id="501",
+        entity_identifier="LR-BOM-999",
+        office_id=eff_office_id,
+        details_json={
+            "lr_number": "LR-BOM-999",
+            "consigner_name": "ABC Logistics",
+            "consignee_name": "XYZ Retail",
+            "origin": "Mumbai",
+            "destination": "Bangalore",
+            "vehicle_number": "MH12AB1234",
+            "total_freight_amount": 55000.0,
+            "status": "Booked",
+        },
+    )
+    assert act is not None
+    assert act.office_id == 2
+    assert act.office_name == "Mumbai Hub Office"
+    assert act.office_code == "BOM"
+    assert "ABC Logistics" in act.details
+    assert "XYZ Retail" in act.details
+
+    # Querying logs as admin under "all" returns this entry
+    logs, cnt = await query_activity_logs(session, current_user=admin, office_id="all")
+    assert any(l.entity_identifier == "LR-BOM-999" for l in logs)
+
+    # Querying logs as admin under office_id 2 returns this entry
+    m_logs, m_cnt = await query_activity_logs(session, current_user=admin, office_id=2)
+    assert any(l.entity_identifier == "LR-BOM-999" for l in m_logs)
+
+
+@pytest.mark.asyncio
+async def test_multi_module_mutation_activity_logging(audit_db: AsyncSession):
+    session = audit_db
+    admin = (await session.execute(select(User).where(User.id == 1))).scalar_one()
+
+    # Test Branch mutation logging
+    b_act = await log_activity(
+        db=session,
+        user=admin,
+        action="BRANCH_CREATED",
+        module="profile",
+        entity_type="branch",
+        entity_id="3",
+        entity_identifier="Pune Branch",
+        office_id=None,
+        details="Created branch Pune Branch (PUN)",
+    )
+    assert b_act.action == "BRANCH_CREATED"
+    assert b_act.module == "profile"
+
+    # Test General master mutation logging
+    c_act = await log_activity(
+        db=session,
+        user=admin,
+        action="CONSIGNEE_CREATED",
+        module="general",
+        entity_type="consignee",
+        entity_id="10",
+        entity_identifier="Reliance Industries",
+        details="Created consignee Reliance Industries",
+    )
+    assert c_act.action == "CONSIGNEE_CREATED"
+    assert c_act.module == "general"
+
+    # Test Settings mutation logging
+    r_act = await log_activity(
+        db=session,
+        user=admin,
+        action="ROLE_CREATED",
+        module="settings",
+        entity_type="role",
+        entity_id="5",
+        entity_identifier="Dispatcher",
+        details="Created role 'Dispatcher'",
+    )
+    assert r_act.action == "ROLE_CREATED"
+    assert r_act.module == "settings"
+
+    # Test Telemetry / Tracking trip mutation logging
+    t_act = await log_activity(
+        db=session,
+        user=admin,
+        action="SIM_TRIP_STARTED",
+        module="transport",
+        entity_type="sim_tracking",
+        entity_id="99",
+        entity_identifier="9876543210",
+        office_id=1,
+        details="Started SIM trip for 9876543210 (Driver: Ramesh)",
+    )
+    assert t_act.action == "SIM_TRIP_STARTED"
+    assert t_act.office_id == 1

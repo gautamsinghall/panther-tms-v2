@@ -207,11 +207,22 @@ async def log_activity(
         if eff_office_id is None:
             eff_office_id = current_request_office_id.get()
 
+        # Sanitize non-positive or special values (0, "0", "all", etc.)
+        if eff_office_id in (0, "0", "all", "consolidated", "", None):
+            eff_office_id = None
+        else:
+            try:
+                eff_office_id = int(eff_office_id)
+                if eff_office_id <= 0:
+                    eff_office_id = None
+            except (ValueError, TypeError):
+                eff_office_id = None
+
         eff_office_name = office_name
         eff_office_code = office_code
 
-        # If office_id is known but name/code missing, fetch from Branch table
-        if eff_office_id is not None and (eff_office_name is None or eff_office_code is None):
+        # If office_id is provided, verify branch exists to satisfy DB foreign key constraint and ensure accurate office_name/code
+        if eff_office_id is not None:
             try:
                 br_stmt = select(Branch).where(Branch.id == eff_office_id)
                 br_res = await db.execute(br_stmt)
@@ -219,6 +230,9 @@ async def log_activity(
                 if branch:
                     eff_office_name = branch.name
                     eff_office_code = branch.code
+                else:
+                    # Branch ID doesn't exist in DB - clear office_id to prevent FK violation
+                    eff_office_id = None
             except Exception:
                 pass
 
@@ -230,6 +244,15 @@ async def log_activity(
                 eff_office_id = def_assignment.office.id
                 eff_office_name = def_assignment.office.name
                 eff_office_code = def_assignment.office.code
+
+        # Sanitize user_id
+        if user_id is not None:
+            try:
+                user_id = int(user_id)
+                if user_id <= 0:
+                    user_id = None
+            except (ValueError, TypeError):
+                user_id = None
 
         # 4. Format Human-Readable Details Summary
         final_details = details
@@ -263,8 +286,13 @@ async def log_activity(
         return activity
 
     except Exception as err:
-        # Non-fatal: Never abort the primary business transaction due to logging failure
-        print(f"Warning: Failed to record user activity log: {err}")
+        # Non-fatal: Rollback and log warning to avoid poisoning outer transaction
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        import traceback
+        print(f"Warning: Failed to record user activity log: {err}\n{traceback.format_exc()}")
         return None
 
 
@@ -295,14 +323,18 @@ async def query_activity_logs(
     raw_target = office_id if office_id is not None else header_office_id
     is_all_requested = False
     target_office_id: Optional[int] = None
+    val_str = ""
 
     if raw_target is not None:
         val_str = str(raw_target).strip().lower()
-        if val_str in ("all", "0", "consolidated"):
+        if val_str in ("all", "0", "consolidated", ""):
             is_all_requested = True
         else:
             try:
                 target_office_id = int(val_str)
+                if target_office_id <= 0:
+                    is_all_requested = True
+                    target_office_id = None
             except ValueError:
                 target_office_id = None
 
@@ -311,7 +343,7 @@ async def query_activity_logs(
 
     # Apply Issuing Office Security Boundaries
     if is_admin:
-        if is_all_requested or raw_target is None or val_str in ("all", "0"):
+        if is_all_requested or raw_target is None or val_str in ("all", "0", ""):
             # Universal consolidated view across all issuing offices and global actions
             pass
         elif target_office_id is not None:
@@ -422,9 +454,11 @@ async def get_activity_stats(
 
     if raw_target is not None:
         val_str = str(raw_target).strip().lower()
-        if val_str not in ("all", "0", "consolidated"):
+        if val_str not in ("all", "0", "consolidated", ""):
             try:
                 target_office_id = int(val_str)
+                if target_office_id <= 0:
+                    target_office_id = None
             except ValueError:
                 target_office_id = None
 

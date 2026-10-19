@@ -84,7 +84,18 @@ async def delete_billing_client(
     current_user: User = Depends(require_permission("general", "billing_client", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_billing_client(db, id)
+    client = await service.delete_billing_client(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CLIENT_DEACTIVATED",
+        module="general",
+        entity_type="BillingClient",
+        entity_id=str(id),
+        entity_identifier=getattr(client, "name", str(id)),
+        details=f"Deactivated billing client {getattr(client, 'name', id)}",
+    )
+    return client
 
 # ==============================================================================
 # 1. Consignee
@@ -109,7 +120,19 @@ async def create_consignee(
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
     office_id = current_office.id if current_office else None
-    return await service.create_consignee(db, data, office_id=office_id)
+    consignee = await service.create_consignee(db, data, office_id=office_id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CONSIGNEE_CREATED",
+        module="general",
+        entity_type="Consignee",
+        entity_id=str(consignee.id),
+        entity_identifier=consignee.name,
+        office_id=office_id,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return consignee
 
 @router.get("/consignees/{id}", response_model=schemas.ConsigneeResponse, summary="Get consignee by ID")
 async def get_consignee(
@@ -126,7 +149,18 @@ async def update_consignee(
     current_user: User = Depends(require_permission("general", "consignee", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_consignee(db, id, data)
+    consignee = await service.update_consignee(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CONSIGNEE_UPDATED",
+        module="general",
+        entity_type="Consignee",
+        entity_id=str(consignee.id),
+        entity_identifier=consignee.name,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return consignee
 
 @router.delete("/consignees/{id}", response_model=schemas.ConsigneeResponse, summary="Deactivate consignee")
 async def delete_consignee(
@@ -134,7 +168,18 @@ async def delete_consignee(
     current_user: User = Depends(require_permission("general", "consignee", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_consignee(db, id)
+    consignee = await service.delete_consignee(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CONSIGNEE_DEACTIVATED",
+        module="general",
+        entity_type="Consignee",
+        entity_id=str(id),
+        entity_identifier=getattr(consignee, "name", str(id)),
+        details=f"Deactivated consignee {getattr(consignee, 'name', id)}",
+    )
+    return consignee
 
 # ==============================================================================
 # 2. Consigner
@@ -159,7 +204,19 @@ async def create_consigner(
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
     office_id = current_office.id if current_office else None
-    return await service.create_consigner(db, data, office_id=office_id)
+    consigner = await service.create_consigner(db, data, office_id=office_id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CONSIGNER_CREATED",
+        module="general",
+        entity_type="Consigner",
+        entity_id=str(consigner.id),
+        entity_identifier=consigner.name,
+        office_id=office_id,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return consigner
 
 @router.get("/consigners/{id}", response_model=schemas.ConsignerResponse, summary="Get consigner by ID")
 async def get_consigner(
@@ -176,7 +233,18 @@ async def update_consigner(
     current_user: User = Depends(require_permission("general", "consigner", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_consigner(db, id, data)
+    consigner = await service.update_consigner(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CONSIGNER_UPDATED",
+        module="general",
+        entity_type="Consigner",
+        entity_id=str(consigner.id),
+        entity_identifier=consigner.name,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return consigner
 
 @router.delete("/consigners/{id}", response_model=schemas.ConsignerResponse, summary="Deactivate consigner")
 async def delete_consigner(
@@ -184,7 +252,18 @@ async def delete_consigner(
     current_user: User = Depends(require_permission("general", "consigner", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_consigner(db, id)
+    consigner = await service.delete_consigner(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="CONSIGNER_DEACTIVATED",
+        module="general",
+        entity_type="Consigner",
+        entity_id=str(id),
+        entity_identifier=getattr(consigner, "name", str(id)),
+        details=f"Deactivated consigner {getattr(consigner, 'name', id)}",
+    )
+    return consigner
 
 # ==============================================================================
 # 3. Location
@@ -209,7 +288,19 @@ async def create_location(
 ):
     await check_entitlement_limit(tenant, db, "max_masters")
     office_id = current_office.id if current_office else None
-    return await service.create_location(db, data, office_id=office_id)
+    loc = await service.create_location(db, data, office_id=office_id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LOCATION_CREATED",
+        module="general",
+        entity_type="Location",
+        entity_id=str(loc.id),
+        entity_identifier=loc.city_name,
+        office_id=office_id,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return loc
 
 @router.get("/locations/{id}", response_model=schemas.LocationResponse, summary="Get location by ID")
 async def get_location(
@@ -226,7 +317,18 @@ async def update_location(
     current_user: User = Depends(require_permission("general", "location", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_location(db, id, data)
+    loc = await service.update_location(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LOCATION_UPDATED",
+        module="general",
+        entity_type="Location",
+        entity_id=str(loc.id),
+        entity_identifier=loc.city_name,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return loc
 
 @router.delete("/locations/{id}", response_model=schemas.LocationResponse, summary="Deactivate location")
 async def delete_location(
@@ -234,7 +336,18 @@ async def delete_location(
     current_user: User = Depends(require_permission("general", "location", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_location(db, id)
+    loc = await service.delete_location(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="LOCATION_DEACTIVATED",
+        module="general",
+        entity_type="Location",
+        entity_id=str(id),
+        entity_identifier=getattr(loc, "city_name", str(id)),
+        details=f"Deactivated location {getattr(loc, 'city_name', id)}",
+    )
+    return loc
 
 # ==============================================================================
 # 4. Industry
@@ -252,7 +365,9 @@ async def create_industry(
     current_user: User = Depends(require_permission("general", "industry", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_industry(db, data)
+    ind = await service.create_industry(db, data)
+    await log_activity(db=db, user=current_user, action="INDUSTRY_CREATED", module="general", entity_type="Industry", entity_id=str(ind.id), entity_identifier=ind.name)
+    return ind
 
 @router.put("/industries/{id}", response_model=schemas.IndustryResponse, summary="Update industry")
 async def update_industry(
@@ -261,7 +376,9 @@ async def update_industry(
     current_user: User = Depends(require_permission("general", "industry", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_industry(db, id, data)
+    ind = await service.update_industry(db, id, data)
+    await log_activity(db=db, user=current_user, action="INDUSTRY_UPDATED", module="general", entity_type="Industry", entity_id=str(ind.id), entity_identifier=ind.name)
+    return ind
 
 @router.delete("/industries/{id}", response_model=schemas.IndustryResponse, summary="Deactivate industry")
 async def delete_industry(
@@ -269,7 +386,9 @@ async def delete_industry(
     current_user: User = Depends(require_permission("general", "industry", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_industry(db, id)
+    ind = await service.delete_industry(db, id)
+    await log_activity(db=db, user=current_user, action="INDUSTRY_DEACTIVATED", module="general", entity_type="Industry", entity_id=str(id), entity_identifier=getattr(ind, "name", str(id)))
+    return ind
 
 # ==============================================================================
 # 5. Designation
@@ -287,7 +406,9 @@ async def create_designation(
     current_user: User = Depends(require_permission("general", "designation", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_designation(db, data)
+    des = await service.create_designation(db, data)
+    await log_activity(db=db, user=current_user, action="DESIGNATION_CREATED", module="general", entity_type="Designation", entity_id=str(des.id), entity_identifier=des.name)
+    return des
 
 @router.put("/designations/{id}", response_model=schemas.DesignationResponse, summary="Update designation")
 async def update_designation(
@@ -296,7 +417,9 @@ async def update_designation(
     current_user: User = Depends(require_permission("general", "designation", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_designation(db, id, data)
+    des = await service.update_designation(db, id, data)
+    await log_activity(db=db, user=current_user, action="DESIGNATION_UPDATED", module="general", entity_type="Designation", entity_id=str(des.id), entity_identifier=des.name)
+    return des
 
 @router.delete("/designations/{id}", response_model=schemas.DesignationResponse, summary="Deactivate designation")
 async def delete_designation(
@@ -304,7 +427,9 @@ async def delete_designation(
     current_user: User = Depends(require_permission("general", "designation", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_designation(db, id)
+    des = await service.delete_designation(db, id)
+    await log_activity(db=db, user=current_user, action="DESIGNATION_DEACTIVATED", module="general", entity_type="Designation", entity_id=str(id), entity_identifier=getattr(des, "name", str(id)))
+    return des
 
 # ==============================================================================
 # 6. Group Company
@@ -322,7 +447,9 @@ async def create_group_company(
     current_user: User = Depends(require_permission("general", "group_company", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_group_company(db, data)
+    gc = await service.create_group_company(db, data)
+    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_CREATED", module="general", entity_type="GroupCompany", entity_id=str(gc.id), entity_identifier=gc.name)
+    return gc
 
 @router.put("/group-companies/{id}", response_model=schemas.GroupCompanyResponse, summary="Update group company")
 async def update_group_company(
@@ -331,7 +458,9 @@ async def update_group_company(
     current_user: User = Depends(require_permission("general", "group_company", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_group_company(db, id, data)
+    gc = await service.update_group_company(db, id, data)
+    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_UPDATED", module="general", entity_type="GroupCompany", entity_id=str(gc.id), entity_identifier=gc.name)
+    return gc
 
 @router.delete("/group-companies/{id}", response_model=schemas.GroupCompanyResponse, summary="Deactivate group company")
 async def delete_group_company(
@@ -339,7 +468,9 @@ async def delete_group_company(
     current_user: User = Depends(require_permission("general", "group_company", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_group_company(db, id)
+    gc = await service.delete_group_company(db, id)
+    await log_activity(db=db, user=current_user, action="GROUP_COMPANY_DEACTIVATED", module="general", entity_type="GroupCompany", entity_id=str(id), entity_identifier=getattr(gc, "name", str(id)))
+    return gc
 
 # ==============================================================================
 # 7. Unit
@@ -357,7 +488,9 @@ async def create_unit(
     current_user: User = Depends(require_permission("general", "unit", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_unit(db, data)
+    u = await service.create_unit(db, data)
+    await log_activity(db=db, user=current_user, action="UNIT_CREATED", module="general", entity_type="Unit", entity_id=str(u.id), entity_identifier=u.name)
+    return u
 
 @router.put("/units/{id}", response_model=schemas.UnitResponse, summary="Update unit")
 async def update_unit(
@@ -366,7 +499,9 @@ async def update_unit(
     current_user: User = Depends(require_permission("general", "unit", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_unit(db, id, data)
+    u = await service.update_unit(db, id, data)
+    await log_activity(db=db, user=current_user, action="UNIT_UPDATED", module="general", entity_type="Unit", entity_id=str(u.id), entity_identifier=u.name)
+    return u
 
 @router.delete("/units/{id}", response_model=schemas.UnitResponse, summary="Deactivate unit")
 async def delete_unit(
@@ -374,7 +509,9 @@ async def delete_unit(
     current_user: User = Depends(require_permission("general", "unit", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_unit(db, id)
+    u = await service.delete_unit(db, id)
+    await log_activity(db=db, user=current_user, action="UNIT_DEACTIVATED", module="general", entity_type="Unit", entity_id=str(id), entity_identifier=getattr(u, "name", str(id)))
+    return u
 
 # ==============================================================================
 # 8. Method of Packing
@@ -392,7 +529,9 @@ async def create_packing_method(
     current_user: User = Depends(require_permission("general", "method_of_packing", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_packing_method(db, data)
+    pm = await service.create_packing_method(db, data)
+    await log_activity(db=db, user=current_user, action="PACKING_METHOD_CREATED", module="general", entity_type="PackingMethod", entity_id=str(pm.id), entity_identifier=pm.name)
+    return pm
 
 @router.put("/packing-methods/{id}", response_model=schemas.MethodOfPackingResponse, summary="Update packing method")
 async def update_packing_method(
@@ -401,7 +540,9 @@ async def update_packing_method(
     current_user: User = Depends(require_permission("general", "method_of_packing", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_packing_method(db, id, data)
+    pm = await service.update_packing_method(db, id, data)
+    await log_activity(db=db, user=current_user, action="PACKING_METHOD_UPDATED", module="general", entity_type="PackingMethod", entity_id=str(pm.id), entity_identifier=pm.name)
+    return pm
 
 @router.delete("/packing-methods/{id}", response_model=schemas.MethodOfPackingResponse, summary="Deactivate packing method")
 async def delete_packing_method(
@@ -409,7 +550,9 @@ async def delete_packing_method(
     current_user: User = Depends(require_permission("general", "method_of_packing", "delete")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_packing_method(db, id)
+    pm = await service.delete_packing_method(db, id)
+    await log_activity(db=db, user=current_user, action="PACKING_METHOD_DEACTIVATED", module="general", entity_type="PackingMethod", entity_id=str(id), entity_identifier=getattr(pm, "name", str(id)))
+    return pm
 
 # ==============================================================================
 # 9. Load Type
@@ -427,7 +570,9 @@ async def create_load_type(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_load_type(db, data)
+    lt = await service.create_load_type(db, data)
+    await log_activity(db=db, user=current_user, action="LOAD_TYPE_CREATED", module="general", entity_type="LoadType", entity_id=str(lt.id), entity_identifier=lt.name)
+    return lt
 
 @router.get("/load-types/{id}", response_model=schemas.LoadTypeResponse, summary="Get load type by ID")
 async def get_load_type(
@@ -444,7 +589,9 @@ async def update_load_type(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_load_type(db, id, data)
+    lt = await service.update_load_type(db, id, data)
+    await log_activity(db=db, user=current_user, action="LOAD_TYPE_UPDATED", module="general", entity_type="LoadType", entity_id=str(lt.id), entity_identifier=lt.name)
+    return lt
 
 @router.delete("/load-types/{id}", response_model=schemas.LoadTypeResponse, summary="Deactivate load type")
 async def delete_load_type(
@@ -452,5 +599,7 @@ async def delete_load_type(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.delete_load_type(db, id)
+    lt = await service.delete_load_type(db, id)
+    await log_activity(db=db, user=current_user, action="LOAD_TYPE_DEACTIVATED", module="general", entity_type="LoadType", entity_id=str(id), entity_identifier=getattr(lt, "name", str(id)))
+    return lt
 

@@ -118,6 +118,11 @@ async def create_role(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     role = await service.create_new_role(db, data)
+    await service.log_user_activity(
+        db, current_user, "ROLE_CREATED", "settings", "role", str(role.id), f"Created role '{role.name}'",
+        entity_identifier=role.name,
+        details_json={"name": role.name, "description": role.description}
+    )
     return RoleResponse(
         id=role.id,
         name=role.name,
@@ -148,6 +153,11 @@ async def update_role(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     role = await service.update_existing_role(db, role_id, data)
+    await service.log_user_activity(
+        db, current_user, "ROLE_UPDATED", "settings", "role", str(role.id), f"Updated role '{role.name}'",
+        entity_identifier=role.name,
+        details_json={"name": role.name}
+    )
     return RoleResponse(
         id=role.id,
         name=role.name,
@@ -177,6 +187,10 @@ async def delete_role(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_existing_role(db, role_id)
+    await service.log_user_activity(
+        db, current_user, "ROLE_DELETED", "settings", "role", str(role_id), f"Deleted role ID {role_id}",
+        entity_identifier=f"Role #{role_id}"
+    )
     return {"message": "Role deleted successfully."}
 
 # --- Users / Employees Management Endpoints ---
@@ -233,6 +247,16 @@ async def update_user(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     user = await service.update_existing_user(db, user_id, data, current_user=current_user)
+    await service.log_user_activity(
+        db=db,
+        user=current_user,
+        action="USER_UPDATED",
+        module="settings",
+        entity_type="user",
+        entity_id=str(user.id),
+        entity_identifier=user.email,
+        details=f"Updated user {user.email} ({user.role})"
+    )
     branches = (await db.execute(select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.name))).scalars().all()
     return map_user_to_list_item(user, all_branches=branches)
 
@@ -276,7 +300,12 @@ async def update_series_category(
     current_user: User = Depends(require_permission("settings", "series_master", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_series_category(db, cat_id, data)
+    cat = await service.update_series_category(db, cat_id, data)
+    await service.log_user_activity(
+        db, current_user, "SERIES_CAT_UPDATED", "settings", "series_category", str(cat.id), f"Updated series category {cat.code}",
+        entity_identifier=cat.code
+    )
+    return cat
 
 @router.delete(
     "/series-categories/{cat_id}",
@@ -289,7 +318,10 @@ async def delete_series_category(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_series_category(db, cat_id)
-
+    await service.log_user_activity(
+        db, current_user, "SERIES_CAT_DELETED", "settings", "series_category", str(cat_id), f"Deleted series category ID {cat_id}",
+        entity_identifier=f"Category #{cat_id}"
+    )
 
 # --- Series Masters Endpoints ---
 
@@ -331,7 +363,15 @@ async def update_series_master(
     current_user: User = Depends(require_permission("settings", "series_master", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_series_master(db, series_id, data)
+    series = await service.update_series_master(db, series_id, data)
+    await service.log_user_activity(
+        db, current_user, "SERIES_UPDATED", "settings", "series_master", str(series["id"]),
+        f"Updated series {series.get('prefix', '')} ({series.get('document_type', '')})",
+        entity_identifier=series.get("series_name") or series.get("prefix"),
+        office_id=series.get("issuing_office_id"),
+        office_name=series.get("issuing_office_name")
+    )
+    return series
 
 @router.delete(
     "/series/{series_id}",
@@ -344,6 +384,10 @@ async def delete_series_master(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_series_master(db, series_id)
+    await service.log_user_activity(
+        db, current_user, "SERIES_DELETED", "settings", "series_master", str(series_id), f"Deleted series ID {series_id}",
+        entity_identifier=f"Series #{series_id}"
+    )
 
 @router.post(
     "/series/initialize",
@@ -413,7 +457,12 @@ async def set_default_series(
     current_user: User = Depends(require_permission("settings", "series_master", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.set_default_series(db, series_id)
+    res = await service.set_default_series(db, series_id)
+    await service.log_user_activity(
+        db, current_user, "SERIES_DEFAULT_SET", "settings", "series_master", str(series_id), f"Set series ID {series_id} as default",
+        entity_identifier=f"Series #{series_id}"
+    )
+    return res
 
 
 # --- Admin Settings Endpoints ---

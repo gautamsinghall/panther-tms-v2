@@ -19,6 +19,7 @@ from app.modules.profile.schemas import (
     SimWalletResponse
 )
 from app.modules.profile import service
+from app.services.activity_logger import log_activity
 
 router = APIRouter(prefix="/profile", tags=["Profile & Branch Operations"])
 
@@ -36,6 +37,16 @@ async def change_user_password(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.change_password(db, current_user, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="USER_PASSWORD_CHANGED",
+        module="profile",
+        entity_type="user",
+        entity_id=str(current_user.id),
+        entity_identifier=current_user.email,
+        details=f"User {current_user.email} changed their password."
+    )
     return {"message": "Password changed successfully."}
 
 
@@ -62,7 +73,18 @@ async def update_user_account(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_user_profile(db, current_user, data)
+    updated = await service.update_user_profile(db, current_user, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="USER_PROFILE_UPDATED",
+        module="profile",
+        entity_type="user",
+        entity_id=str(current_user.id),
+        entity_identifier=current_user.email,
+        details=f"User {current_user.email} updated personal profile details."
+    )
+    return updated
 
 
 # --- Branches Management ---
@@ -90,7 +112,22 @@ async def create_new_branch(
     current_user: User = Depends(require_permission("profile", "branch", "create")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.create_branch(db, data)
+    branch = await service.create_branch(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="BRANCH_CREATED",
+        module="profile",
+        entity_type="branch",
+        entity_id=str(branch.id),
+        entity_identifier=branch.name,
+        office_id=branch.id,
+        office_name=branch.name,
+        office_code=branch.code,
+        details=f"Created branch {branch.name} ({branch.code})",
+        details_json={"name": branch.name, "code": branch.code, "city": branch.city, "state": branch.state}
+    )
+    return branch
 
 
 @router.put(
@@ -104,7 +141,22 @@ async def update_branch_details(
     current_user: User = Depends(require_permission("profile", "branch", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_branch(db, branch_id, data)
+    branch = await service.update_branch(db, branch_id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="BRANCH_UPDATED",
+        module="profile",
+        entity_type="branch",
+        entity_id=str(branch.id),
+        entity_identifier=branch.name,
+        office_id=branch.id,
+        office_name=branch.name,
+        office_code=branch.code,
+        details=f"Updated branch {branch.name} ({branch.code})",
+        details_json={"name": branch.name, "code": branch.code}
+    )
+    return branch
 
 
 @router.delete(
@@ -118,6 +170,16 @@ async def delete_branch_record(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     await service.delete_branch(db, branch_id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="BRANCH_DEACTIVATED",
+        module="profile",
+        entity_type="branch",
+        entity_id=str(branch_id),
+        entity_identifier=f"Branch #{branch_id}",
+        details=f"Deactivated branch ID {branch_id}"
+    )
 
 
 # --- Company Settings (Admin Gated) ---
@@ -144,7 +206,19 @@ async def update_company(
     current_user: User = Depends(require_permission("company", "company_details", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_company_setting(db, data)
+    company = await service.update_company_setting(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="COMPANY_PROFILE_UPDATED",
+        module="company",
+        entity_type="company",
+        entity_id=str(company.id),
+        entity_identifier=company.legal_name or "Company Profile",
+        details=f"Updated company details for {company.legal_name or 'Company'}",
+        details_json={"legal_name": company.legal_name, "trade_name": company.trade_name, "gstin": company.gstin}
+    )
+    return company
 
 
 # --- Email Settings ---
@@ -171,7 +245,18 @@ async def update_email(
     current_user: User = Depends(require_permission("profile", "email", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_email_setting(db, data)
+    email_set = await service.update_email_setting(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="EMAIL_SETTINGS_UPDATED",
+        module="profile",
+        entity_type="email_setting",
+        entity_id=str(email_set.id),
+        entity_identifier=email_set.smtp_host or "Email Settings",
+        details=f"Updated SMTP email dispatch settings ({email_set.smtp_host})"
+    )
+    return email_set
 
 
 # --- Monthly P&L (All Branches / Clubbed Companies) ---
@@ -214,7 +299,18 @@ async def update_api_center(
     current_user: User = Depends(require_permission("api_center", "eway_bill_api", "edit")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.update_api_center_setting(db, data)
+    api_center = await service.update_api_center_setting(db, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="API_CENTER_UPDATED",
+        module="api_center",
+        entity_type="api_center",
+        entity_id=str(api_center.id),
+        entity_identifier="API Center",
+        details="Updated API Center configuration (E-Way bill / GSP)"
+    )
+    return api_center
 
 
 @router.post(
@@ -257,6 +353,16 @@ async def update_fastag_cooldown(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     updated_val = await service.update_fastag_cooldown(db, data.cooldown_minutes)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="FASTAG_COOLDOWN_UPDATED",
+        module="api_center",
+        entity_type="fastag_cooldown",
+        entity_id=str(updated_val),
+        entity_identifier=f"{updated_val} mins",
+        details=f"Updated FASTag cooldown to {updated_val} minutes"
+    )
     return {
         "cooldown_minutes": updated_val,
         "message": f"FASTag rate limit cooldown updated to {updated_val} minutes."
