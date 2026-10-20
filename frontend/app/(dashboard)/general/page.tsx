@@ -10,6 +10,7 @@ import {
   Package,
   Scale,
   ArrowRight,
+  Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,13 @@ export default function GeneralOverviewPage() {
       href: "/general/consignee",
       icon: <Building2 className="w-5 h-5 text-[#4F46E5]" />,
       badge: "Receivers",
+    },
+    {
+      title: "Vendor Master",
+      desc: "Suppliers, transporters, fleet vendors, GST/TDS tax compliance, and multi-address profiles.",
+      href: "/general/vendor",
+      icon: <Users className="w-5 h-5 text-[#4F46E5]" />,
+      badge: "Suppliers & Vendors",
     },
     {
       title: "Location Master",

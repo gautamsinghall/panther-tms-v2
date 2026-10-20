@@ -8,6 +8,7 @@ from app.tenant_db.models import (
     GroupCompany,
     Unit,
     MethodOfPacking,
+    Vendor,
 )
 
 __all__ = [
@@ -20,4 +21,6 @@ __all__ = [
     "GroupCompany",
     "Unit",
     "MethodOfPacking",
+    "Vendor",
 ]
+

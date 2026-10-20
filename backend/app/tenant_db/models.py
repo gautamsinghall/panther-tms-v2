@@ -365,6 +365,64 @@ class LoadType(TenantBase):
     )
 
 
+class Vendor(TenantBase):
+    """Vendor / Supplier / Transporter master"""
+    __tablename__ = "general_vendors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # General Details
+    name = Column(String(255), nullable=False, index=True)
+    incorporation_date = Column(Date, nullable=True)
+    phone = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
+
+    # GST Details
+    pan = Column(String(10), nullable=True, index=True)
+    pan_state = Column(String(100), nullable=True)
+    tan_no = Column(String(20), nullable=True)
+    gstin = Column(String(15), nullable=True, index=True)
+    billing_state = Column(String(100), nullable=True)
+    gst_exempt = Column(String(50), default="No", nullable=True)
+    tds_declaration = Column(String(100), nullable=True)
+
+    # Primary Address
+    address_type = Column(String(100), nullable=True)
+    address = Column(Text, nullable=True)
+    country = Column(String(100), default="India", nullable=True)
+    state = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True)
+    pincode = Column(String(20), nullable=True)
+
+    # Secondary Address
+    secondary_address_type = Column(String(100), nullable=True)
+    secondary_address = Column(Text, nullable=True)
+    secondary_country = Column(String(100), default="India", nullable=True)
+    secondary_state = Column(String(100), nullable=True)
+    secondary_city = Column(String(100), nullable=True)
+    secondary_pincode = Column(String(20), nullable=True)
+
+    # Additional / Legal Details
+    fax = Column(String(50), nullable=True)
+    website = Column(String(255), nullable=True)
+    industry = Column(String(100), nullable=True)
+    legal_status = Column(String(100), nullable=True)
+    group_company = Column(String(150), nullable=True)
+    account_status = Column(String(50), default="Active", nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id])
+
+
+
 # ==============================================================================
 # Phase 2: Transport Module Enums & Entities (PRD §7.3, §7.4 & Architecture §9)
 # ==============================================================================

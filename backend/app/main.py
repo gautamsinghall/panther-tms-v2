@@ -117,6 +117,7 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consignees ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
+                        await t_conn.execute(text("ALTER TABLE general_vendors ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_weight_mt DROP NOT NULL;"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_packages DROP NOT NULL;"))
@@ -264,7 +265,7 @@ async def lifespan(app: FastAPI):
                         for office_col_tbl in [
                             "transport_lrs", "transport_jobs", "transport_hire_challans",
                             "accounts_vouchers", "settings_series_masters",
-                            "general_billing_clients", "general_consignees", "general_consigners", "general_locations"
+                            "general_billing_clients", "general_consignees", "general_consigners", "general_locations", "general_vendors"
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE {office_col_tbl} ADD COLUMN IF NOT EXISTS issuing_office_id INTEGER REFERENCES profile_branches(id);"))
                             await t_conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{office_col_tbl}_issuing_office_id ON {office_col_tbl} (issuing_office_id);"))
@@ -381,7 +382,7 @@ async def lifespan(app: FastAPI):
                             for tbl in [
                                 "transport_lrs", "transport_jobs", "transport_hire_challans",
                                 "accounts_vouchers", "settings_series_masters",
-                                "general_billing_clients", "general_consignees", "general_consigners", "general_locations"
+                                "general_billing_clients", "general_consignees", "general_consigners", "general_locations", "general_vendors"
                             ]:
                                 await t_conn.execute(
                                     text(f"UPDATE {tbl} SET issuing_office_id = :bid WHERE issuing_office_id IS NULL;"),

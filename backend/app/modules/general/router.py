@@ -607,8 +607,96 @@ async def delete_load_type(
 
 
 # ==============================================================================
+# 10. Vendor Master
+# ==============================================================================
+@router.get("/vendors", response_model=List[schemas.VendorResponse], summary="List all vendors")
+async def list_vendors(
+    current_user: User = Depends(require_permission("general", "vendor", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    target_office_id = current_office.id if current_office else None
+    include_unassigned = True
+    return await service.list_vendors(db, office_id=target_office_id, include_unassigned=include_unassigned)
+
+@router.post("/vendors", response_model=schemas.VendorResponse, status_code=status.HTTP_201_CREATED, summary="Create a vendor")
+async def create_vendor(
+    data: schemas.VendorCreate,
+    current_user: User = Depends(require_permission("general", "vendor", "create")),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    await check_entitlement_limit(tenant, db, "max_masters")
+    office_id = current_office.id if current_office else None
+    vendor = await service.create_vendor(db, data, office_id=office_id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="VENDOR_CREATED",
+        module="general",
+        entity_type="Vendor",
+        entity_id=str(vendor.id),
+        entity_identifier=vendor.name,
+        office_id=office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={"name": vendor.name, "city": vendor.city, "gstin": vendor.gstin},
+    )
+    return vendor
+
+@router.get("/vendors/{id}", response_model=schemas.VendorResponse, summary="Get vendor by ID")
+async def get_vendor(
+    id: int,
+    current_user: User = Depends(require_permission("general", "vendor", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_vendor(db, id)
+
+@router.put("/vendors/{id}", response_model=schemas.VendorResponse, summary="Update vendor")
+async def update_vendor(
+    id: int,
+    data: schemas.VendorUpdate,
+    current_user: User = Depends(require_permission("general", "vendor", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    vendor = await service.update_vendor(db, id, data)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="VENDOR_UPDATED",
+        module="general",
+        entity_type="Vendor",
+        entity_id=str(vendor.id),
+        entity_identifier=vendor.name,
+        details_json=data.model_dump(exclude_unset=True),
+    )
+    return vendor
+
+@router.delete("/vendors/{id}", response_model=schemas.VendorResponse, summary="Deactivate vendor")
+async def delete_vendor(
+    id: int,
+    current_user: User = Depends(require_permission("general", "vendor", "delete")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    vendor = await service.delete_vendor(db, id)
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="VENDOR_DEACTIVATED",
+        module="general",
+        entity_type="Vendor",
+        entity_id=str(id),
+        entity_identifier=getattr(vendor, "name", str(id)),
+        details=f"Deactivated vendor {getattr(vendor, 'name', id)}",
+    )
+    return vendor
+
+
+# ==============================================================================
 # 5. Pincode Lookup (India Postal Registry)
 # ==============================================================================
+
 _PINCODE_CACHE: Optional[dict] = None
 
 def _get_pincodes_dict() -> dict:

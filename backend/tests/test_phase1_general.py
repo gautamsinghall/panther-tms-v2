@@ -208,3 +208,50 @@ async def test_general_module_crud_masters():
 
         pin_bad = await ac.get("/api/v1/general/pincode/999999", headers=headers)
         assert pin_bad.status_code == 404
+
+        # 11. Vendor Master CRUD
+        vendor_res = await ac.post(
+            "/api/v1/general/vendors",
+            headers=headers,
+            json={
+                "name": f"Reliance Fuel Services {uid}",
+                "incorporation_date": "2020-04-01",
+                "phone": "9876543210",
+                "email": f"vendor_{uid}@reliance.com",
+                "pan": "AAACR1234F",
+                "pan_state": "Maharashtra",
+                "tan_no": "MUMR12345B",
+                "gstin": "27AAACR1234F1Z5",
+                "billing_state": "Maharashtra",
+                "gst_exempt": "No",
+                "tds_declaration": "Applicable - 194C",
+                "address_type": "Registered Office",
+                "address": "Plot 12, BKC, Bandra East",
+                "city": "Mumbai",
+                "state": "Maharashtra",
+                "pincode": "400051",
+                "country": "India",
+                "secondary_address_type": "Branch Office",
+                "secondary_address": "Plot 88, Vashi",
+                "secondary_city": "Navi Mumbai",
+                "secondary_state": "Maharashtra",
+                "secondary_pincode": "400703",
+                "secondary_country": "India",
+                "fax": "022-12345678",
+                "website": "https://reliance.com",
+                "industry": "Petroleum / Fuel",
+                "legal_status": "Private Limited",
+                "group_company": "Reliance Group",
+                "account_status": "Active",
+            }
+        )
+        assert vendor_res.status_code == 201
+        v_data = vendor_res.json()
+        assert v_data["name"] == f"Reliance Fuel Services {uid}"
+        assert v_data["gstin"] == "27AAACR1234F1Z5"
+        assert v_data["pan"] == "AAACR1234F"
+        assert v_data["pincode"] == "400051"
+
+        v_list = await ac.get("/api/v1/general/vendors", headers=headers)
+        assert v_list.status_code == 200
+        assert any(v["id"] == v_data["id"] for v in v_list.json())

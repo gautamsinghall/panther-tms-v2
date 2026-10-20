@@ -13,6 +13,7 @@ from app.tenant_db.models import (
     Unit,
     MethodOfPacking,
     LoadType,
+    Vendor,
 )
 
 T = TypeVar("T")
@@ -348,4 +349,36 @@ async def update_load_type(db: AsyncSession, lid: int, data) -> LoadType:
 
 async def delete_load_type(db: AsyncSession, lid: int) -> LoadType:
     return await _soft_delete(db, LoadType, lid)
+
+# --- Vendor Service ---
+async def list_vendors(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+) -> List[Vendor]:
+    return await _get_all(db, Vendor, office_id=office_id, include_unassigned=include_unassigned)
+
+async def get_vendor(db: AsyncSession, vid: int) -> Vendor:
+    return await _get_by_id(db, Vendor, vid)
+
+async def create_vendor(db: AsyncSession, data, office_id: Optional[int] = None) -> Vendor:
+    data_dict = data.model_dump()
+    if office_id and not data_dict.get("issuing_office_id"):
+        data_dict["issuing_office_id"] = office_id
+    entity = Vendor(**data_dict)
+    db.add(entity)
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+async def update_vendor(db: AsyncSession, vid: int, data) -> Vendor:
+    entity = await _get_by_id(db, Vendor, vid)
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(entity, k, v)
+    await db.commit()
+    await db.refresh(entity)
+    return entity
+
+async def delete_vendor(db: AsyncSession, vid: int) -> Vendor:
+    return await _soft_delete(db, Vendor, vid)
 

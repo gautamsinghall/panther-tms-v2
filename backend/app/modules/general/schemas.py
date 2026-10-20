@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -371,6 +371,117 @@ class LoadTypeUpdate(BaseModel):
 class LoadTypeResponse(LoadTypeBase):
     id: int
     is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- Vendor ---
+class VendorBase(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+    incorporation_date: Optional[date] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+    pan: Optional[str] = None
+    pan_state: Optional[str] = None
+    tan_no: Optional[str] = None
+    gstin: Optional[str] = None
+    billing_state: Optional[str] = None
+    gst_exempt: Optional[str] = "No"
+    tds_declaration: Optional[str] = None
+
+    address_type: Optional[str] = None
+    address: Optional[str] = None
+    country: Optional[str] = "India"
+    state: Optional[str] = None
+    city: Optional[str] = None
+    pincode: Optional[str] = None
+
+    secondary_address_type: Optional[str] = None
+    secondary_address: Optional[str] = None
+    secondary_country: Optional[str] = "India"
+    secondary_state: Optional[str] = None
+    secondary_city: Optional[str] = None
+    secondary_pincode: Optional[str] = None
+
+    fax: Optional[str] = None
+    website: Optional[str] = None
+    industry: Optional[str] = None
+    legal_status: Optional[str] = None
+    group_company: Optional[str] = None
+    account_status: Optional[str] = "Active"
+    issuing_office_id: Optional[int] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_vendor_defaults(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+            if "secondary_county" in data and "secondary_country" not in data:
+                data["secondary_country"] = data["secondary_county"]
+            if data.get("incorporation_date") == "":
+                data["incorporation_date"] = None
+        return data
+
+class VendorCreate(VendorBase):
+    is_active: bool = True
+
+class VendorUpdate(BaseModel):
+    name: Optional[str] = None
+    incorporation_date: Optional[date] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+    pan: Optional[str] = None
+    pan_state: Optional[str] = None
+    tan_no: Optional[str] = None
+    gstin: Optional[str] = None
+    billing_state: Optional[str] = None
+    gst_exempt: Optional[str] = None
+    tds_declaration: Optional[str] = None
+
+    address_type: Optional[str] = None
+    address: Optional[str] = None
+    country: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    pincode: Optional[str] = None
+
+    secondary_address_type: Optional[str] = None
+    secondary_address: Optional[str] = None
+    secondary_country: Optional[str] = None
+    secondary_state: Optional[str] = None
+    secondary_city: Optional[str] = None
+    secondary_pincode: Optional[str] = None
+
+    fax: Optional[str] = None
+    website: Optional[str] = None
+    industry: Optional[str] = None
+    legal_status: Optional[str] = None
+    group_company: Optional[str] = None
+    account_status: Optional[str] = None
+    issuing_office_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_vendor_defaults(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "county" in data and "country" not in data:
+                data["country"] = data["county"]
+            if "secondary_county" in data and "secondary_country" not in data:
+                data["secondary_country"] = data["secondary_county"]
+            if data.get("incorporation_date") == "":
+                data["incorporation_date"] = None
+        return data
+
+class VendorResponse(VendorBase):
+    id: int
+    is_active: bool
+    issuing_office_id: Optional[int] = None
+    issuing_office_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

@@ -133,6 +133,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "billing_client", title: "Billing Client", href: "/general/billing-client" },
       { feature: "consignee", title: "Consignee", href: "/general/consignee" },
       { feature: "consigner", title: "Consigner", href: "/general/consigner" },
+      { feature: "vendor", title: "Vendor", href: "/general/vendor" },
       { feature: "location", title: "Location", href: "/general/location" },
       { feature: "industry", title: "Industry", href: "/general/industry" },
       { feature: "designation", title: "Designation", href: "/general/designation" },
@@ -325,8 +326,10 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/": LayoutDashboard,
 
   // General
+  "/general/billing-client": Building2,
   "/general/consignee": UserCheck,
   "/general/consigner": Send,
+  "/general/vendor": Users,
   "/general/location": MapPin,
   "/general/industry": Factory,
   "/general/designation": Briefcase,
