@@ -174,12 +174,14 @@ export default function EWayBillsPage() {
         {
           name: "from_pincode",
           label: "Dispatch Pincode",
+          type: "pincode",
           placeholder: "411001",
           required: true,
         },
         {
           name: "to_pincode",
           label: "Destination Pincode",
+          type: "pincode",
           placeholder: "380001",
           required: true,
         },

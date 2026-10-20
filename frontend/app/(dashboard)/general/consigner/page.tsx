@@ -260,10 +260,15 @@ export default function ConsignerPage() {
           placeholder: "e.g. AACJ1234F",
         },
         {
-          name: "country",
-          label: "Country",
-          type: "country",
-          defaultValue: DEFAULT_COUNTRY,
+          name: "pincode",
+          label: "Pincode",
+          type: "pincode",
+          placeholder: "e.g. 496001",
+        },
+        {
+          name: "city",
+          label: "City",
+          placeholder: "e.g. Raigarh",
         },
         {
           name: "state",
@@ -272,14 +277,10 @@ export default function ConsignerPage() {
           placeholder: "Select State / UT",
         },
         {
-          name: "city",
-          label: "City",
-          placeholder: "e.g. Raigarh",
-        },
-        {
-          name: "pincode",
-          label: "Pincode",
-          placeholder: "e.g. 496001",
+          name: "country",
+          label: "Country",
+          type: "country",
+          defaultValue: DEFAULT_COUNTRY,
         },
       ],
     },

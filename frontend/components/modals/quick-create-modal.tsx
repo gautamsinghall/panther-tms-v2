@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { CountrySelect } from "@/components/ui/country-select";
 import { StateSelect } from "@/components/ui/state-select";
+import { PincodeInput } from "@/components/ui/pincode-input";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 
 function QuickModalWrapper({
@@ -153,6 +154,7 @@ export function QuickCreateBillingClientModal({
   const [name, setName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [phone, setPhone] = useState("");
+  const [pincode, setPincode] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -178,6 +180,7 @@ export function QuickCreateBillingClientModal({
           name: name.trim(),
           contact_person: contactPerson.trim() || undefined,
           phone: phone.trim() || undefined,
+          pincode: pincode.trim() || undefined,
           city: city.trim() || undefined,
           state: state.trim() || undefined,
           country: country || DEFAULT_COUNTRY,
@@ -189,6 +192,7 @@ export function QuickCreateBillingClientModal({
       setName("");
       setContactPerson("");
       setPhone("");
+      setPincode("");
       setCity("");
       setState("");
       setCountry(DEFAULT_COUNTRY);
@@ -296,7 +300,21 @@ export function QuickCreateBillingClientModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">PIN Code</label>
+              <PincodeInput
+                size="sm"
+                value={pincode}
+                onChange={setPincode}
+                onFetch={(res) => {
+                  setCity(res.city);
+                  setState(res.state);
+                  setCountry("India");
+                }}
+                placeholder="e.g. 400001"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
               <input
@@ -304,9 +322,12 @@ export function QuickCreateBillingClientModal({
                 placeholder="e.g. Mumbai"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all"
+                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">State / UT</label>
               <StateSelect
@@ -314,13 +335,13 @@ export function QuickCreateBillingClientModal({
                 value={state}
                 onChange={setState}
                 placeholder="Select State / UT"
+                size="sm"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
-            <CountrySelect value={country} onChange={setCountry} />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
+              <CountrySelect value={country} onChange={setCountry} size="sm" />
+            </div>
           </div>
         </div>
 
@@ -352,6 +373,7 @@ export function QuickCreateConsignerModal({
   const [name, setName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [phone, setPhone] = useState("");
+  const [pincode, setPincode] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -377,6 +399,7 @@ export function QuickCreateConsignerModal({
           name: name.trim(),
           contact_person: contactPerson.trim() || undefined,
           phone: phone.trim() || undefined,
+          pincode: pincode.trim() || undefined,
           city: city.trim() || undefined,
           state: state.trim() || undefined,
           country: country || DEFAULT_COUNTRY,
@@ -389,6 +412,7 @@ export function QuickCreateConsignerModal({
       setName("");
       setContactPerson("");
       setPhone("");
+      setPincode("");
       setCity("");
       setState("");
       setCountry(DEFAULT_COUNTRY);
@@ -481,12 +505,26 @@ export function QuickCreateConsignerModal({
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">PIN Code</label>
+              <PincodeInput
+                size="sm"
+                value={pincode}
+                onChange={setPincode}
+                onFetch={(res) => {
+                  setCity(res.city);
+                  setState(res.state);
+                  setCountry("India");
+                }}
+                placeholder="e.g. 496001"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
               <input
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="e.g. Mumbai"
+                placeholder="e.g. Raigarh"
                 className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
               />
             </div>
@@ -508,16 +546,17 @@ export function QuickCreateConsignerModal({
                 size="sm"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">GSTIN</label>
-              <input
-                type="text"
-                value={gstin}
-                onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                placeholder="27AAAC..."
-                className="w-full h-9 px-3 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-              />
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">GSTIN</label>
+            <input
+              type="text"
+              value={gstin}
+              onChange={(e) => setGstin(e.target.value.toUpperCase())}
+              placeholder="27AAAC..."
+              className="w-full h-9 px-3 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+            />
           </div>
 
           <div>
@@ -559,6 +598,7 @@ export function QuickCreateConsigneeModal({
   const [name, setName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [phone, setPhone] = useState("");
+  const [pincode, setPincode] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -584,6 +624,7 @@ export function QuickCreateConsigneeModal({
           name: name.trim(),
           contact_person: contactPerson.trim() || undefined,
           phone: phone.trim() || undefined,
+          pincode: pincode.trim() || undefined,
           city: city.trim() || undefined,
           state: state.trim() || undefined,
           country: country || DEFAULT_COUNTRY,
@@ -595,6 +636,7 @@ export function QuickCreateConsigneeModal({
       setName("");
       setContactPerson("");
       setPhone("");
+      setPincode("");
       setCity("");
       setState("");
       setCountry(DEFAULT_COUNTRY);
@@ -687,6 +729,20 @@ export function QuickCreateConsigneeModal({
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">PIN Code</label>
+              <PincodeInput
+                size="sm"
+                value={pincode}
+                onChange={setPincode}
+                onFetch={(res) => {
+                  setCity(res.city);
+                  setState(res.state);
+                  setCountry("India");
+                }}
+                placeholder="e.g. 410501"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
               <input
                 type="text"
@@ -714,16 +770,17 @@ export function QuickCreateConsigneeModal({
                 size="sm"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">GSTIN</label>
-              <input
-                type="text"
-                value={gstin}
-                onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                placeholder="27AAAC..."
-                className="w-full h-9 px-3 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
-              />
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">GSTIN</label>
+            <input
+              type="text"
+              value={gstin}
+              onChange={(e) => setGstin(e.target.value.toUpperCase())}
+              placeholder="27AAAC..."
+              className="w-full h-9 px-3 text-xs font-mono font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+            />
           </div>
 
           <div>
@@ -764,6 +821,7 @@ export function QuickCreateLocationModal({
   onSuccess,
   defaultTitle = "Quick Add Location / Hub",
 }: QuickCreateLocationProps) {
+  const [pincode, setPincode] = useState("");
   const [cityName, setCityName] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -785,6 +843,7 @@ export function QuickCreateLocationModal({
       const res = await apiClient<{ id: number; city_name: string }>("/api/v1/general/locations", {
         method: "POST",
         body: JSON.stringify({
+          pincode: pincode.trim() || undefined,
           city_name: cityName.trim(),
           state: state.trim(),
           country: country || DEFAULT_COUNTRY,
@@ -794,6 +853,7 @@ export function QuickCreateLocationModal({
           is_active: true,
         }),
       });
+      setPincode("");
       setCityName("");
       setState("");
       setCountry(DEFAULT_COUNTRY);
@@ -837,7 +897,23 @@ export function QuickCreateLocationModal({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                PIN Code
+              </label>
+              <PincodeInput
+                size="sm"
+                value={pincode}
+                onChange={setPincode}
+                onFetch={(res) => {
+                  setCityName(res.city);
+                  setState(res.state);
+                  setCountry("India");
+                }}
+                placeholder="e.g. 411001"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 City / Hub Name <span className="text-rose-500">*</span>
@@ -917,6 +993,7 @@ export function QuickCreateVehicleOwnerModal({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [pan, setPan] = useState("");
+  const [pincode, setPincode] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -948,6 +1025,7 @@ export function QuickCreateVehicleOwnerModal({
       setName("");
       setPhone("");
       setPan("");
+      setPincode("");
       setCity("");
       setState("");
       setCountry(DEFAULT_COUNTRY);
@@ -1033,15 +1111,34 @@ export function QuickCreateVehicleOwnerModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
-              <CountrySelect
-                value={country}
-                onChange={setCountry}
+              <label className="block text-xs font-semibold text-slate-700 mb-1">PIN Code</label>
+              <PincodeInput
                 size="sm"
+                value={pincode}
+                onChange={setPincode}
+                onFetch={(res) => {
+                  setCity(res.city);
+                  setState(res.state);
+                  setCountry("India");
+                }}
+                placeholder="e.g. 440001"
               />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="e.g. Nagpur"
+                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">State / UT</label>
               <StateSelect
@@ -1053,13 +1150,11 @@ export function QuickCreateVehicleOwnerModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="e.g. Nagpur"
-                className="w-full h-9 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Country</label>
+              <CountrySelect
+                value={country}
+                onChange={setCountry}
+                size="sm"
               />
             </div>
           </div>

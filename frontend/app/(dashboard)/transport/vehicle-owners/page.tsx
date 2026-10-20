@@ -178,21 +178,27 @@ export default function VehicleOwnersPage() {
           placeholder: "ABCDE1234F",
         },
         {
+          name: "pincode",
+          label: "Pincode",
+          type: "pincode",
+          placeholder: "e.g. 302001",
+        },
+        {
           name: "city",
           label: "City",
           placeholder: "Jaipur",
-        },
-        {
-          name: "country",
-          label: "Country",
-          type: "country",
-          defaultValue: DEFAULT_COUNTRY,
         },
         {
           name: "state",
           label: "State / UT",
           type: "state",
           placeholder: "Select State / UT",
+        },
+        {
+          name: "country",
+          label: "Country",
+          type: "country",
+          defaultValue: DEFAULT_COUNTRY,
         },
       ],
     },
@@ -224,9 +230,10 @@ export default function VehicleOwnersPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
+      const { pincode, country, ...payload } = values;
       await apiClient("/api/v1/transport/vehicle-owners", {
         method: "POST",
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
       setIsDrawerOpen(false);
       loadData();

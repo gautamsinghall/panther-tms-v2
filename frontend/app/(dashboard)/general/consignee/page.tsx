@@ -247,10 +247,15 @@ export default function ConsigneePage() {
           placeholder: "e.g. AAACT2727Q",
         },
         {
-          name: "country",
-          label: "Country",
-          type: "country",
-          defaultValue: DEFAULT_COUNTRY,
+          name: "pincode",
+          label: "Pincode",
+          type: "pincode",
+          placeholder: "e.g. 410501",
+        },
+        {
+          name: "city",
+          label: "City",
+          placeholder: "e.g. Pune",
         },
         {
           name: "state",
@@ -259,14 +264,10 @@ export default function ConsigneePage() {
           placeholder: "Select State / UT",
         },
         {
-          name: "city",
-          label: "City",
-          placeholder: "e.g. Pune",
-        },
-        {
-          name: "pincode",
-          label: "Pincode",
-          placeholder: "e.g. 410501",
+          name: "country",
+          label: "Country",
+          type: "country",
+          defaultValue: DEFAULT_COUNTRY,
         },
       ],
     },

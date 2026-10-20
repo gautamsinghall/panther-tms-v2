@@ -350,10 +350,15 @@ export default function BillingClientPage() {
           colSpan: 2,
         },
         {
-          name: "country",
-          label: "Country",
-          type: "country",
-          defaultValue: DEFAULT_COUNTRY,
+          name: "pincode",
+          label: "Pincode / Postal Code",
+          type: "pincode",
+          placeholder: "e.g. 400001",
+        },
+        {
+          name: "city",
+          label: "City",
+          placeholder: "e.g. Mumbai",
         },
         {
           name: "state",
@@ -362,14 +367,10 @@ export default function BillingClientPage() {
           placeholder: "Select State / UT",
         },
         {
-          name: "city",
-          label: "City",
-          placeholder: "e.g. Mumbai",
-        },
-        {
-          name: "pincode",
-          label: "Pincode / Postal Code",
-          placeholder: "e.g. 400001",
+          name: "country",
+          label: "Country",
+          type: "country",
+          defaultValue: DEFAULT_COUNTRY,
         },
       ],
     },

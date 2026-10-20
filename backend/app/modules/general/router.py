@@ -1,5 +1,7 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, status
+import json
+import os
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user, get_current_office
@@ -602,4 +604,38 @@ async def delete_load_type(
     lt = await service.delete_load_type(db, id)
     await log_activity(db=db, user=current_user, action="LOAD_TYPE_DEACTIVATED", module="general", entity_type="LoadType", entity_id=str(id), entity_identifier=getattr(lt, "name", str(id)))
     return lt
+
+
+# ==============================================================================
+# 5. Pincode Lookup (India Postal Registry)
+# ==============================================================================
+_PINCODE_CACHE: Optional[dict] = None
+
+def _get_pincodes_dict() -> dict:
+    global _PINCODE_CACHE
+    if _PINCODE_CACHE is None:
+        pincodes_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "pincodes.json")
+        if os.path.exists(pincodes_path):
+            with open(pincodes_path, "r", encoding="utf-8") as f:
+                _PINCODE_CACHE = json.load(f)
+        else:
+            _PINCODE_CACHE = {}
+    return _PINCODE_CACHE
+
+@router.get("/pincode/{pincode}", summary="Lookup City, State & Country by Indian PIN Code")
+async def lookup_pincode(
+    pincode: str,
+    current_user: User = Depends(get_current_user),
+):
+    clean_pin = str(pincode).strip()
+    cache = _get_pincodes_dict()
+    if clean_pin in cache:
+        city, state = cache[clean_pin]
+        return {
+            "pincode": clean_pin,
+            "city": city,
+            "state": state,
+            "country": "India",
+        }
+    raise HTTPException(status_code=404, detail=f"PIN code '{clean_pin}' not found in postal registry.")
 

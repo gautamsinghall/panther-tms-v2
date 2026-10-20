@@ -197,3 +197,14 @@ async def test_general_module_crud_masters():
             }
         )
         assert pack_res.status_code == 201
+
+        # 10. Pincode Lookup (India Postal Registry)
+        pin_res = await ac.get("/api/v1/general/pincode/496001", headers=headers)
+        assert pin_res.status_code == 200
+        assert pin_res.json()["pincode"] == "496001"
+        assert pin_res.json()["city"] == "Raigarh"
+        assert pin_res.json()["state"] == "Chhattisgarh"
+        assert pin_res.json()["country"] == "India"
+
+        pin_bad = await ac.get("/api/v1/general/pincode/999999", headers=headers)
+        assert pin_bad.status_code == 404

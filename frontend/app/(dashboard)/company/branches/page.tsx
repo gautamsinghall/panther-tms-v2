@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { CountrySelect } from "@/components/ui/country-select";
 import { StateSelect } from "@/components/ui/state-select";
+import { PincodeInput } from "@/components/ui/pincode-input";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { apiClient } from "@/lib/api-client";
 
@@ -523,12 +524,31 @@ export default function IssuingOfficesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    Country <span className="text-rose-500">*</span>
+                    PIN Code
                   </label>
-                  <CountrySelect
-                    value={country}
-                    onChange={setCountry}
+                  <PincodeInput
                     size="sm"
+                    value={pincode}
+                    onChange={setPincode}
+                    onFetch={(res) => {
+                      setCity(res.city);
+                      setState(res.state);
+                      setCountry("India");
+                    }}
+                    placeholder="e.g. 201001"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                    City <span className="text-rose-500">*</span>
+                  </label>
+                  <Input
+                    required
+                    placeholder="e.g. Ghaziabad"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="text-xs"
                   />
                 </div>
 
@@ -548,27 +568,12 @@ export default function IssuingOfficesPage() {
 
                 <div>
                   <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    City <span className="text-rose-500">*</span>
+                    Country <span className="text-rose-500">*</span>
                   </label>
-                  <Input
-                    required
-                    placeholder="e.g. Ghaziabad"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                    PIN Code
-                  </label>
-                  <Input
-                    maxLength={10}
-                    placeholder="e.g. 201001"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    className="font-mono text-xs"
+                  <CountrySelect
+                    value={country}
+                    onChange={setCountry}
+                    size="sm"
                   />
                 </div>
               </div>

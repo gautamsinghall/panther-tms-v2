@@ -171,6 +171,13 @@ export default function LocationPage() {
       columns: 2,
       fields: [
         {
+          name: "pincode",
+          label: "Pincode",
+          type: "pincode",
+          cityFieldName: "city_name",
+          placeholder: "370421",
+        },
+        {
           name: "city_name",
           label: "City / Terminal Name",
           placeholder: "e.g. Mundra Port",
@@ -189,11 +196,6 @@ export default function LocationPage() {
           type: "country",
           defaultValue: DEFAULT_COUNTRY,
           required: true,
-        },
-        {
-          name: "pincode",
-          label: "Pincode",
-          placeholder: "370421",
         },
         {
           name: "address",
