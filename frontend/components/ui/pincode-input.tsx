@@ -37,21 +37,21 @@ export function PincodeInput({
 }: PincodeInputProps) {
   const [isFetching, setIsFetching] = useState(false);
   const [justFetched, setJustFetched] = useState(false);
+  const lastFetchedPinRef = React.useRef<string>("");
 
   const stringVal = value !== null && value !== undefined ? String(value) : "";
   const isSixDigits = stringVal.trim().length === 6 && /^\d{6}$/.test(stringVal.trim());
 
-  const handleFetch = async (e?: React.MouseEvent | React.KeyboardEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    const cleanPin = stringVal.trim();
+  const executeFetch = async (pinToFetch: string, isManual = false) => {
+    const cleanPin = pinToFetch.trim();
     if (!cleanPin || cleanPin.length !== 6 || !/^\d{6}$/.test(cleanPin)) {
-      toast.warning("Please enter a 6-digit PIN code (e.g. 496001).");
+      if (isManual) {
+        toast.warning("Please enter a 6-digit PIN code (e.g. 496001).");
+      }
       return;
     }
 
+    lastFetchedPinRef.current = cleanPin;
     setIsFetching(true);
     try {
       const result = await lookupPincode(cleanPin);
@@ -70,6 +70,14 @@ export function PincodeInput({
     } finally {
       setIsFetching(false);
     }
+  };
+
+  const handleFetch = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    executeFetch(stringVal, true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -96,6 +104,9 @@ export function PincodeInput({
           // Allow only numeric characters up to 6 digits
           const cleaned = e.target.value.replace(/\D/g, "").slice(0, 6);
           onChange(cleaned);
+          if (cleaned.length === 6 && cleaned !== lastFetchedPinRef.current) {
+            executeFetch(cleaned, false);
+          }
         }}
         onBlur={onBlur}
         onKeyDown={handleKeyDown}
