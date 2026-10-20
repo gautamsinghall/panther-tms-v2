@@ -53,6 +53,7 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "billing_client", "title": "Billing Client", "href": "/general/billing-client"},
             {"feature": "consignee", "title": "Consignee", "href": "/general/consignee"},
             {"feature": "consigner", "title": "Consigner", "href": "/general/consigner"},
+            {"feature": "vendor", "title": "Vendor", "href": "/general/vendor"},
             {"feature": "location", "title": "Location", "href": "/general/location"},
             {"feature": "industry", "title": "Industry", "href": "/general/industry"},
             {"feature": "designation", "title": "Designation", "href": "/general/designation"},

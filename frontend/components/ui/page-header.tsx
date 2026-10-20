@@ -125,6 +125,7 @@ const SUBROUTE_TITLES: Record<string, string> = {
   "billing-client": "Billing Clients",
   consignee: "Consignees",
   consigner: "Consignors",
+  vendor: "Vendor Master",
   location: "Locations",
   industry: "Industries",
   designation: "Designations",

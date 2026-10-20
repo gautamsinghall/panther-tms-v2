@@ -28,6 +28,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
+import { FetchButton } from "@/components/ui/fetch-button";
 
 export interface VendorRecord {
   id: number;
@@ -251,7 +252,7 @@ export default function VendorMasterPage() {
           colSpan: 2,
           customRender: ({ value, onChange, values, setFieldValue }) => (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-              <div className="relative flex-1">
+              <div className="relative flex-1 flex items-center">
                 <input
                   type="text"
                   value={value || ""}
@@ -261,8 +262,16 @@ export default function VendorMasterPage() {
                     const up = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
                     onChange(up);
                   }}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs uppercase"
+                  className="w-full h-10 px-3.5 pr-20 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs uppercase"
                 />
+                <div className="absolute right-1.5 flex items-center">
+                  <FetchButton
+                    title="Fetch PAN details"
+                    onClick={() => {
+                      toast.info("PAN auto-verification integration will be connected with Income Tax API in API Center.");
+                    }}
+                  />
+                </div>
               </div>
               <div className="w-full sm:w-44">
                 <input
@@ -273,17 +282,6 @@ export default function VendorMasterPage() {
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  toast.info("PAN verification API integration will be enabled in an upcoming release.");
-                }}
-                className="h-10 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-2xs transition-all shrink-0 cursor-pointer active:scale-95"
-                title="Fetch PAN Details (Non-functional)"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Fetch</span>
-              </button>
             </div>
           ),
         },
@@ -299,31 +297,26 @@ export default function VendorMasterPage() {
           type: "custom",
           colSpan: 2,
           customRender: ({ value, onChange }) => (
-            <div className="flex items-center gap-2 w-full">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={value || ""}
-                  maxLength={15}
-                  placeholder="GSTIN (e.g. 27AAACT1234F1Z5)"
-                  onChange={(e) => {
-                    const up = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                    onChange(up);
+            <div className="relative flex items-center w-full">
+              <input
+                type="text"
+                value={value || ""}
+                maxLength={15}
+                placeholder="GSTIN (e.g. 27AAACT1234F1Z5)"
+                onChange={(e) => {
+                  const up = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                  onChange(up);
+                }}
+                className="w-full h-10 px-3.5 pr-20 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs uppercase"
+              />
+              <div className="absolute right-1.5 flex items-center">
+                <FetchButton
+                  title="Fetch GST details"
+                  onClick={() => {
+                    toast.info("GST portal auto-verification integration will be connected in API Center.");
                   }}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs uppercase"
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  toast.info("GST portal auto-verification will be enabled in an upcoming release.");
-                }}
-                className="h-10 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-2xs transition-all shrink-0 cursor-pointer active:scale-95"
-                title="Fetch GST Details (Non-functional)"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Fetch</span>
-              </button>
             </div>
           ),
         },
@@ -851,29 +844,27 @@ export default function VendorMasterPage() {
         title={editingRecord ? `Edit Vendor: ${editingRecord.name}` : "Add New Vendor"}
         description="Configure vendor profile, GST & TDS statutory compliance, primary & secondary branch addresses."
       >
-        <div className="p-4 sm:p-6 lg:p-8">
-          <Form
-            sections={formSections}
-            initialValues={
-              editingRecord
-                ? {
-                    ...defaultInitialValues,
-                    ...editingRecord,
-                    incorporation_date: editingRecord.incorporation_date
-                      ? String(editingRecord.incorporation_date).slice(0, 10)
-                      : "",
-                  }
-                : defaultInitialValues
-            }
-            onSubmit={handleFormSubmit}
-            onCancel={() => {
-              setIsDrawerOpen(false);
-              setEditingRecord(null);
-            }}
-            submitLabel={editingRecord ? "Save Changes" : "Submit"}
-            isSubmitting={isSubmitting}
-          />
-        </div>
+        <Form
+          sections={formSections}
+          initialValues={
+            editingRecord
+              ? {
+                  ...defaultInitialValues,
+                  ...editingRecord,
+                  incorporation_date: editingRecord.incorporation_date
+                    ? String(editingRecord.incorporation_date).slice(0, 10)
+                    : "",
+                }
+              : defaultInitialValues
+          }
+          onSubmit={handleFormSubmit}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Submit"}
+          isSubmitting={isSubmitting}
+        />
       </EntityDrawer>
     </div>
   );

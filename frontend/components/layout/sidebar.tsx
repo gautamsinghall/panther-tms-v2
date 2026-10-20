@@ -449,6 +449,7 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   components_demo: Boxes,
   consignee: UserCheck,
   consigner: Send,
+  vendor: Users,
   location: MapPin,
   industry: Factory,
   designation: Briefcase,

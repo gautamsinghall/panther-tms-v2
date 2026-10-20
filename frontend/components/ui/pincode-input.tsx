@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { lookupPincode, PincodeLookupResult } from "@/lib/pincodes";
 import { toast } from "@/lib/toast";
 import { MapPin, Loader2, Check } from "lucide-react";
+import { FetchButton } from "@/components/ui/fetch-button";
 
 export interface PincodeInputProps {
   id?: string;
@@ -125,38 +126,13 @@ export function PincodeInput({
 
       {/* Fetch Action Button */}
       <div className="absolute right-1.5 flex items-center">
-        <button
-          type="button"
+        <FetchButton
           onClick={handleFetch}
-          disabled={disabled || isFetching || !stringVal.trim()}
+          disabled={disabled || !stringVal.trim()}
+          isLoading={isFetching}
+          isSuccess={justFetched}
           title="Fetch City, State & Country from PIN Code"
-          className={cn(
-            "inline-flex items-center gap-1 font-semibold rounded-lg transition-all focus:outline-none select-none",
-            btnHeightClass,
-            justFetched
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-              : isSixDigits
-              ? "bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200/80 active:scale-95 shadow-2xs cursor-pointer"
-              : "bg-slate-100 text-slate-400 border border-slate-200/60 cursor-not-allowed opacity-75"
-          )}
-        >
-          {isFetching ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span>Fetching...</span>
-            </>
-          ) : justFetched ? (
-            <>
-              <Check className="w-3 h-3 text-emerald-600" />
-              <span>Fetched</span>
-            </>
-          ) : (
-            <>
-              <MapPin className="w-3 h-3 shrink-0" />
-              <span>Fetch</span>
-            </>
-          )}
-        </button>
+        />
       </div>
     </div>
   );
