@@ -342,8 +342,16 @@ async def initialize_tenant_schema_and_admin(
         except Exception as e:
             logger.warning(f"Could not initialize default series for {db_name}: {e}")
 
+        # Seed standard Indian Accounting & Tally Prime Chart of Accounts
+        try:
+            from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+            await seed_indian_accounting_chart_of_accounts(session)
+        except Exception as e:
+            logger.warning(f"Could not initialize default chart of accounts for {db_name}: {e}")
+
         await session.commit()
     await engine.dispose()
+
 
 async def provision_tenant(
     data: TenantProvisionRequest,

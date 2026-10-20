@@ -21,57 +21,12 @@ async def run_migration():
     logger.info("Phase 3 tables created. Now seeding standard Chart of Accounts & Masters...")
     session_factory = get_tenant_session_maker(demo_db)
     async with session_factory() as session:
-        # 1. Primary Groups
-        primary_groups_data = [
-            {"code": "ASSET", "name": "Assets", "nature": "DEBIT", "description": "Economic resources owned by the business"},
-            {"code": "LIABILITY", "name": "Liabilities", "nature": "CREDIT", "description": "Obligations and debts of the business"},
-            {"code": "EQUITY", "name": "Equity & Capital", "nature": "CREDIT", "description": "Owners equity and retained earnings"},
-            {"code": "INCOME", "name": "Income / Revenue", "nature": "CREDIT", "description": "Freight and operational revenue"},
-            {"code": "EXPENSE", "name": "Expenses", "nature": "DEBIT", "description": "Direct and indirect operating expenses"},
-        ]
-        primary_map = {}
-        for pg_data in primary_groups_data:
-            stmt = select(models.PrimaryGroup).where(models.PrimaryGroup.code == pg_data["code"])
-            res = await session.execute(stmt)
-            existing = res.scalar_one_or_none()
-            if not existing:
-                existing = models.PrimaryGroup(**pg_data)
-                session.add(existing)
-                await session.flush()
-            primary_map[pg_data["code"]] = existing.id
-
-        # 2. Groups in Primary
-        groups_data = [
-            {"primary": "ASSET", "code": "CA", "name": "Current Assets", "description": "Short-term operating assets"},
-            {"primary": "ASSET", "code": "DEBTORS", "name": "Sundry Debtors", "description": "Trade receivables from clients"},
-            {"primary": "ASSET", "code": "BANK", "name": "Bank Accounts", "description": "Operating bank balances"},
-            {"primary": "ASSET", "code": "CASH", "name": "Cash-in-hand", "description": "Petty cash and drawer balances"},
-            {"primary": "LIABILITY", "code": "CL", "name": "Current Liabilities", "description": "Short term trade obligations"},
-            {"primary": "LIABILITY", "code": "CREDITORS", "name": "Sundry Creditors", "description": "Trade payables to suppliers and vehicle owners"},
-            {"primary": "LIABILITY", "code": "TAX", "name": "Duties & Taxes", "description": "GST output, input, and TDS payable"},
-            {"primary": "INCOME", "code": "REV_DIRECT", "name": "Direct Income", "description": "Freight charges and transport billing"},
-            {"primary": "INCOME", "code": "REV_INDIRECT", "name": "Indirect Income", "description": "Interest and non-freight revenue"},
-            {"primary": "EQUITY", "code": "CAPITAL_GRP", "name": "Capital & Reserves", "description": "Owners Capital and Retained Reserves"},
-            {"primary": "EXPENSE", "code": "EXP_DIRECT", "name": "Direct Expenses", "description": "Truck hire, diesel, driver allowances, toll, loading"},
-            {"primary": "EXPENSE", "code": "EXP_INDIRECT", "name": "Indirect Expenses", "description": "Office rent, salaries, utilities, marketing"},
-        ]
-        group_map = {}
-        for g_data in groups_data:
-            stmt = select(models.GroupInPrimary).where(models.GroupInPrimary.code == g_data["code"])
-            res = await session.execute(stmt)
-            existing = res.scalar_one_or_none()
-            if not existing:
-                existing = models.GroupInPrimary(
-                    primary_group_id=primary_map[g_data["primary"]],
-                    code=g_data["code"],
-                    name=g_data["name"],
-                    description=g_data["description"]
-                )
-                session.add(existing)
-                await session.flush()
-            group_map[g_data["code"]] = existing.id
+        # 1. Primary Groups, Groups in Primary, and Subgroups in Groups (Tally Prime / Indian Accounting Standards)
+        from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+        await seed_indian_accounting_chart_of_accounts(session)
 
         # 3. Tax Categories
+
         taxes_data = [
             {"code": "GST_5", "name": "GST 5%", "igst_rate": Decimal("5.00"), "cgst_rate": Decimal("2.50"), "sgst_rate": Decimal("2.50"), "is_rcm": False},
             {"code": "GST_12", "name": "GST 12%", "igst_rate": Decimal("12.00"), "cgst_rate": Decimal("6.00"), "sgst_rate": Decimal("6.00"), "is_rcm": False},

@@ -2,7 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, FolderTree, Trash2 } from "lucide-react";
+import { Plus, FolderTree, Trash2, Sparkles } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Form } from "@/components/forms/form";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,22 @@ export default function GroupInPrimaryPage() {
   // Delete dialog state
   const [deleteTarget, setDeleteTarget] = useState<GroupInPrimaryRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleSeedDefaults = async () => {
+    setIsSeeding(true);
+    try {
+      const res: any = await apiClient("/api/v1/misc/seed-default-groups", { method: "POST" });
+      toast.success(
+        `Tally Prime standard accounts synced! (${res.primary_groups_seeded} primary, ${res.groups_seeded} groups, ${res.subgroups_seeded} subgroups added)`
+      );
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync standard Tally Prime groups");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -190,6 +206,14 @@ export default function GroupInPrimaryPage() {
           icon: <Plus className="w-4 h-4" />,
           onClick: () => setIsDrawerOpen(true),
         }}
+        secondaryActions={[
+          {
+            label: isSeeding ? "Syncing..." : "Load Tally Prime Defaults",
+            icon: <Sparkles className="w-4 h-4 text-primary" />,
+            onClick: handleSeedDefaults,
+            disabled: isSeeding || isLoading,
+          },
+        ]}
       />
 
       {errorMessage && (

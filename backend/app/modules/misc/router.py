@@ -435,3 +435,16 @@ async def delete_tax_category(
     _perm: bool = Depends(require_permission("misc", "tax_category", "delete")),
 ):
     await service.delete_tax_category(session, item_id)
+
+
+# ------------------------------------------------------------------------------
+# Tally Prime & Indian Accounting Chart of Accounts Synchronization
+# ------------------------------------------------------------------------------
+@router.post("/seed-default-groups", summary="Seed / Synchronize Indian Accounting & Tally Prime Default Groups")
+async def seed_default_chart_of_accounts_endpoint(
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: bool = Depends(require_permission("misc", "primary_group", "create")),
+):
+    from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+    return await seed_indian_accounting_chart_of_accounts(session)
+

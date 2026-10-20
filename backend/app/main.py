@@ -409,8 +409,19 @@ async def lifespan(app: FastAPI):
                             text("UPDATE users SET is_active = true WHERE lower(email) = lower(:email);"),
                             {"email": settings.DEMO_ADMIN_EMAIL.lower().strip()}
                         )
+
+                    # Seed standard Indian Accounting & Tally Prime Chart of Accounts
+                    try:
+                        from app.core.database import get_tenant_session_maker
+                        t_session_maker = get_tenant_session_maker(t_db)
+                        async with t_session_maker() as t_session:
+                            from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+                            await seed_indian_accounting_chart_of_accounts(t_session)
+                    except Exception as s_err:
+                        print(f"Notice: Tally chart of accounts seeding on {t_db}: {s_err}")
                 except Exception as t_err:
                     print(f"Notice: Tenant {t_db} setup: {t_err}")
+
     except Exception as e:
         print(f"Startup initialization notice: {e}")
 
