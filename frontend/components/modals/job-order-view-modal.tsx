@@ -365,6 +365,7 @@ export function JobOrderViewModal({
   const officePan = company?.pan?.trim() || issuingBranch?.pan?.trim() || "—";
   const officeName = issuingBranch?.name?.trim() || company?.issuing_office?.trim() || `Head Office (${officeCity})`;
   const jurisdictionText = issuingBranch?.document_notes?.trim() || `Subject to ${officeCity} Jurisdiction only`;
+  const issuingOfficeState = issuingBranch?.state?.trim() || issuingBranch?.city?.trim() || company?.state?.trim() || company?.city?.trim() || "Delhi";
 
   // Anomaly checks
   const consignerLooksLikePlate = Boolean(
@@ -504,7 +505,7 @@ export function JobOrderViewModal({
             margin: 0 auto !important;
             padding: 0 !important;
             box-shadow: none !important;
-            border: 1.5px solid black !important;
+            border: 1px solid #94a3b8 !important;
             background: #ffffff !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -865,15 +866,15 @@ export function JobOrderViewModal({
                 <div
                   id="job-order-printable-document"
                   ref={printRef}
-                  className="w-full max-w-[780px] bg-white border-2 border-black text-black font-sans select-text shadow-sm"
+                  className="w-full max-w-[780px] bg-white border border-slate-300 text-black font-sans select-text shadow-sm"
                   style={{
                     fontFamily: "Arial, Helvetica, sans-serif",
                   }}
                 >
-                  {/* 1. Header: Logo (Left), Dynamic Company Info (Center), Issuing Office/Tax (Right) */}
-                  <div className="flex items-center justify-between p-3.5 border-b-2 border-black gap-2">
-                    {/* Left: Dynamic Company Logo with reserved dimensions to prevent layout shifts */}
-                    <div className="w-[28%] min-h-[56px] min-w-[120px] flex flex-col items-center justify-center shrink-0">
+                  {/* 1. Top Header: Logo (Left), Dynamic Company Info (Center), Issuing Office/Tax (Right) */}
+                  <div className="flex items-center justify-between p-3.5 border-b border-slate-300 gap-2">
+                    {/* Left: Dynamic Company Logo */}
+                    <div className="w-[24%] min-h-[56px] flex flex-col items-center justify-center shrink-0">
                       {company?.logo_url ? (
                         <img
                           src={company.logo_url}
@@ -882,206 +883,282 @@ export function JobOrderViewModal({
                           className="max-h-14 max-w-full object-contain mx-auto"
                         />
                       ) : (
-                        <>
+                        <div className="flex flex-col items-center justify-center">
                           <img
                             src="/panther-logo-transparent.png"
                             alt="Panther Logo"
                             crossOrigin="anonymous"
-                            className="h-10 sm:h-12 w-auto object-contain mx-auto"
+                            className="h-9 sm:h-10 w-auto object-contain mx-auto"
                           />
-                          <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-1">
+                          <div className="text-[10px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-0.5">
                             PANTHER
                           </div>
-                          <div className="text-[9px] sm:text-[10px] font-black text-[#0f2147] tracking-wide text-center leading-tight">
+                          <div className="text-[8.5px] font-black text-[#0f2147] tracking-wide text-center leading-tight">
                             DIGITAL SOLUTIONS
                           </div>
-                          <div className="text-[7.5px] sm:text-[8px] font-bold text-[#0f2147] tracking-widest text-center leading-tight">
+                          <div className="text-[7px] font-bold text-[#0f2147] tracking-widest text-center leading-tight">
                             PRIVATE LIMITED
                           </div>
-                        </>
+                        </div>
                       )}
                     </div>
 
-                    {/* Middle: Company Legal Name & Issuing Office Location */}
-                    <div className="w-[44%] text-center px-1">
-                      <div className="text-sm sm:text-base font-black text-red-600 uppercase tracking-wide leading-tight">
+                    {/* Middle: Company Legal Name & Registered Office */}
+                    <div className="w-[52%] text-center px-2">
+                      <div className="text-base sm:text-[17px] font-black text-[#0f2147] uppercase tracking-wide leading-tight">
                         {companyName}
                       </div>
-                      <div className="text-[11px] text-black font-medium leading-tight mt-1">
-                        {officeAddress}
+                      <div className="text-[11px] text-slate-600 font-medium leading-tight mt-1">
+                        {officeAddress} · {officeCity}, {officeState} {officePincode ? `- ${officePincode}` : ""}
                       </div>
-                      <div className="text-[11px] text-black font-medium leading-tight">
-                        {officeCity} {officeState} {officePincode ? `- ${officePincode}` : ""}
-                      </div>
-                      <div className="text-[11px] text-black font-medium leading-tight">
-                        Phone: {officePhone}
-                      </div>
-                      <div className="text-[11px] text-black font-medium leading-tight">
-                        Email: {officeEmail}
+                      <div className="text-[11px] text-slate-600 font-medium leading-tight mt-0.5">
+                        Phone: {officePhone} | Email: {officeEmail}
                       </div>
                     </div>
 
                     {/* Right: Issuing Office, GST No, PAN No */}
-                    <div className="w-[28%] text-right text-[11px] text-black leading-snug space-y-1 pr-1">
+                    <div className="w-[24%] text-right text-[11px] text-slate-800 leading-snug space-y-0.5 pr-1">
                       <div>
-                        <span className="font-normal">Issuing Office: </span>
-                        <span className="font-semibold">{officeName}</span>
+                        <span className="font-semibold text-slate-700">ISSUING OFFICE </span>
+                        <span className="font-medium text-slate-900">{officeName}</span>
                       </div>
                       <div>
-                        <span className="font-normal">GST No: </span>
-                        <span className="font-semibold font-mono">{officeGstin}</span>
+                        <span className="font-semibold text-slate-700">GST NO. </span>
+                        <span className="font-medium font-mono text-slate-900">{officeGstin}</span>
                       </div>
                       <div>
-                        <span className="font-normal">PAN No: </span>
-                        <span className="font-semibold font-mono">{officePan}</span>
+                        <span className="font-semibold text-slate-700">PAN NO. </span>
+                        <span className="font-medium font-mono text-slate-900">{officePan}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* 2. Route corridor and Date Row */}
-                  <div className="flex items-center justify-between px-3 py-1.5 border-b border-black text-[11px]">
-                    <div>
-                      <span className="font-normal">From: </span>
-                      <span className="font-semibold">{job.origin_city || "Ghaziabad"}</span>
+                  {/* 2. Dark Navy Ribbon + 4 KPI blocks */}
+                  <div className="grid grid-cols-12 border-b border-slate-300 divide-x divide-slate-300 text-[11px]">
+                    <div className="col-span-2 bg-[#1a365d] text-white font-bold text-xs sm:text-sm tracking-wider flex items-center justify-center p-2 text-center uppercase">
+                      JOB ORDER
                     </div>
-                    <div>
-                      <span className="font-normal">To: </span>
-                      <span className="font-semibold">{job.destination_city || "Faridabad"}</span>
+                    <div className="col-span-3 bg-[#f1f5f9] p-2 pl-3">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-600 block">
+                        JOB NO.
+                      </span>
+                      <span className="text-xs font-bold font-mono text-slate-900 block mt-0.5">
+                        {job.job_number}
+                      </span>
                     </div>
-                    <div>
-                      <span className="font-normal">Date: </span>
-                      <span className="font-semibold font-mono">
+                    <div className="col-span-2 bg-[#f1f5f9] p-2 pl-3">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-600 block">
+                        ORDER DATE
+                      </span>
+                      <span className="text-xs font-mono font-medium text-slate-900 block mt-0.5">
+                        {formatDateDMY(job.job_date || job.created_at)}
+                      </span>
+                    </div>
+                    <div className="col-span-3 bg-[#f1f5f9] p-2 pl-3">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-600 block">
+                        SCHEDULED DISPATCH
+                      </span>
+                      <span className="text-xs font-mono font-medium text-slate-900 block mt-0.5">
+                        {formatDateDMY(job.expected_dispatch_date || job.job_date)}
+                      </span>
+                    </div>
+                    <div className="col-span-2 bg-[#f1f5f9] p-2 pl-3">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-600 block">
+                        ORDER STATUS
+                      </span>
+                      <span className="text-xs font-bold text-emerald-700 uppercase block mt-0.5">
+                        {job.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 3. Route Corridor & Date Row */}
+                  <div className="grid grid-cols-12 border-b border-slate-300 divide-x divide-slate-300 text-[11px]">
+                    <div className="col-span-5 p-2 pl-3">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-600 block">
+                        FROM
+                      </span>
+                      <span className="text-xs font-semibold text-slate-900 block mt-0.5">
+                        {job.origin_city || "Ghaziabad"}
+                      </span>
+                    </div>
+                    <div className="col-span-5 p-2 pl-3">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-600 block">
+                        TO
+                      </span>
+                      <span className="text-xs font-semibold text-slate-900 block mt-0.5">
+                        {job.destination_city || "Faridabad"}
+                      </span>
+                    </div>
+                    <div className="col-span-2 p-2 pr-3 text-right">
+                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-600 block">
+                        DATE
+                      </span>
+                      <span className="text-xs font-mono font-medium text-slate-900 block mt-0.5">
                         {formatDateDMY(job.job_date || job.created_at)}
                       </span>
                     </div>
                   </div>
 
-                  {/* 3. Consignor and Consignee Row */}
-                  <div className="flex border-b border-black">
-                    {/* Consignor */}
-                    <div className="w-1/2 p-2.5 border-r border-black flex">
-                      <span className="text-[11px] font-medium text-black w-20 shrink-0">Consignor:</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-[12px] text-black font-mono leading-tight">
-                          {job.consigner_name || job.consigner_code || "-"}
-                        </div>
-                        {job.consigner_code && job.consigner_name && (
-                          <div className="text-[11px] font-normal text-gray-700 mt-0.5 leading-tight font-mono">
-                            {job.consigner_code}
-                          </div>
+                  {/* 4. Parties & Dispatch Row */}
+                  <div className="border-b border-slate-300 text-[11px]">
+                    {/* Row 1: Consignor & Consignee */}
+                    <div className="grid grid-cols-2 divide-x divide-slate-300 border-b border-slate-200">
+                      <div className="p-2 pl-3 flex items-center">
+                        <span className="font-bold text-slate-800 w-28 shrink-0">CONSIGNOR</span>
+                        <span className="font-medium text-slate-900 truncate">
+                          {job.consigner_name || job.consigner_code || "—"}
+                        </span>
+                      </div>
+                      <div className="p-2 pl-3 flex items-center">
+                        <span className="font-bold text-slate-800 w-28 shrink-0">CONSIGNEE</span>
+                        <span className="font-medium text-slate-900 truncate">
+                          {job.consignee_name || job.consignee_code || "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Job No & Scheduled Dispatch Date */}
+                    <div className="grid grid-cols-2 divide-x divide-slate-300">
+                      <div className="p-2 pl-3 flex items-center">
+                        <span className="font-bold text-slate-800 w-28 shrink-0">JOB NO.</span>
+                        <span className="font-bold font-mono text-slate-900">
+                          {job.job_number}
+                        </span>
+                      </div>
+                      <div className="p-2 pl-3 flex items-center">
+                        <span className="font-bold text-slate-800 w-52 shrink-0">SCHEDULED DISPATCH DATE</span>
+                        <span className="font-mono font-medium text-slate-900">
+                          {formatDateDMY(job.expected_dispatch_date || job.job_date)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. CARGO / CONSIGNMENT DETAILS Table */}
+                  <div className="border-b border-slate-300">
+                    <div className="bg-slate-50 px-3 py-1 text-[10.5px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300">
+                      CARGO / CONSIGNMENT DETAILS
+                    </div>
+                    <div className="grid grid-cols-12 bg-[#eef4f9] border-b border-slate-300 divide-x divide-slate-300 text-[10px] font-bold text-slate-700 uppercase text-center">
+                      <div className="col-span-3 py-2 px-2">
+                        NO. OF PACKAGES
+                      </div>
+                      <div className="col-span-4 py-2 px-2">
+                        PARTICULARS / CARGO DESCRIPTION
+                      </div>
+                      <div className="col-span-3 py-2 px-2">
+                        ESTIMATED WEIGHT (MT)
+                      </div>
+                      <div className="col-span-2 py-2 px-2">
+                        ORDER STATUS
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-12 divide-x divide-slate-300 min-h-[110px] text-xs">
+                      {/* Packages */}
+                      <div className="col-span-3 p-3 text-center flex flex-col justify-center">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {job.estimated_packages !== null && job.estimated_packages !== undefined
+                            ? `${job.estimated_packages} Pkgs`
+                            : "—"}
+                        </span>
+                        {job.estimated_packages !== null && job.estimated_packages !== undefined && (
+                          <span className="text-[10px] text-slate-500 mt-0.5">
+                            Declared: {job.estimated_packages}
+                          </span>
                         )}
                       </div>
+
+                      {/* Cargo Description */}
+                      <div className="col-span-4 p-3 flex items-center justify-center text-slate-800 break-words text-center">
+                        {job.cargo_description || "—"}
+                      </div>
+
+                      {/* Weight */}
+                      <div className="col-span-3 p-3 flex items-center justify-center font-mono font-bold text-slate-900 text-sm">
+                        {weightDisplay}
+                      </div>
+
+                      {/* Status */}
+                      <div className="col-span-2 p-3 bg-[#f0fdf4] flex items-center justify-center font-bold text-emerald-700 uppercase tracking-wide">
+                        {job.status}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 6. Footer 3-Column Block */}
+                  <div>
+                    {/* Headers */}
+                    <div className="grid grid-cols-12 bg-[#eef4f9] border-b border-slate-300 divide-x divide-slate-300 text-[10px] font-bold text-slate-700 uppercase">
+                      <div className="col-span-5 py-1.5 px-3">
+                        SPECIAL INSTRUCTIONS
+                      </div>
+                      <div className="col-span-3 py-1.5 px-3">
+                        BILLING CUSTOMER
+                      </div>
+                      <div className="col-span-4 py-1.5 px-3 text-right">
+                        AUTHORIZED DISPATCHER
+                      </div>
                     </div>
 
-                    {/* Consignee */}
-                    <div className="w-1/2 p-2.5 flex">
-                      <span className="text-[11px] font-medium text-black w-20 shrink-0">Consignee:</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-bold text-[12px] text-black leading-tight">
-                          {job.consignee_name || job.consignee_code || "-"}
+                    {/* Content */}
+                    <div className="grid grid-cols-12 divide-x divide-slate-300 min-h-[95px] text-[11px]">
+                      {/* Special Instructions */}
+                      <div className="col-span-5 p-3 flex flex-col justify-between">
+                        <div className="text-slate-800 break-words leading-relaxed">
+                          {job.special_instructions || "None"}
                         </div>
-                        {job.consignee_code && (
-                          <div className="text-[11px] font-mono text-gray-700 mt-0.5 leading-tight">
-                            {job.consignee_code}
+                        <div className="text-[9.5px] text-slate-500 mt-3">
+                          {jurisdictionText}
+                        </div>
+                      </div>
+
+                      {/* Billing Customer */}
+                      <div className="col-span-3 p-3 flex flex-col justify-between">
+                        <div className="font-bold text-slate-900 text-xs break-words">
+                          {job.billing_client_name || job.billing_party || "—"}
+                        </div>
+                        <div className="text-center mt-3">
+                          <div className="text-[10px] font-bold tracking-wider text-slate-900 uppercase">
+                            AT OWNER&apos;S RISK
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 4. Job No and Scheduled Dispatch Date Row */}
-                  <div className="flex border-b border-black text-[11px]">
-                    <div className="w-1/2 px-3 py-1.5 border-r border-black flex items-baseline gap-2">
-                      <span className="font-normal text-black">Job No:</span>
-                      <span className="font-bold text-black font-mono">{job.job_number}</span>
-                    </div>
-                    <div className="w-1/2 px-3 py-1.5 flex items-baseline gap-2">
-                      <span className="font-normal text-black">Scheduled Dispatch Date:</span>
-                      <span className="font-bold text-black font-mono">
-                        {formatDateDMY(job.expected_dispatch_date || job.job_date)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 5. Table Header */}
-                  <div className="flex border-b border-black text-[11px] font-bold text-black text-center bg-white">
-                    <div className="w-[20%] py-1.5 px-2 border-r border-black">
-                      No. of Packages
-                    </div>
-                    <div className="w-[42%] py-1.5 px-2 border-r border-black">
-                      Particulars (Cargo Description)
-                    </div>
-                    <div className="w-[20%] py-1.5 px-2 border-r border-black">
-                      Estimated Weight (MT)
-                    </div>
-                    <div className="w-[18%] py-1.5 px-2">
-                      Order Status
-                    </div>
-                  </div>
-
-                  {/* 5b. Table Data Row (Content-driven proportioned height) */}
-                  <div className="flex border-b border-black min-h-[160px]">
-                    <div className="w-[20%] p-3 border-r border-black text-center text-[12px] font-medium text-black">
-                      {packagesDisplay}
-                    </div>
-                    <div className="w-[42%] p-3 border-r border-black text-left text-[12px] font-medium text-black break-words">
-                      {job.cargo_description || "-"}
-                    </div>
-                    <div className="w-[20%] p-3 border-r border-black text-center text-[12px] font-medium text-black font-mono">
-                      {weightDisplay}
-                    </div>
-                    <div className="w-[18%] p-3 text-center text-[11px] font-medium text-black">
-                      {job.status}
-                    </div>
-                  </div>
-
-                  {/* 6. Special Instructions & Billing Party Row */}
-                  <div className="flex border-b border-black min-h-[50px]">
-                    <div className="w-[62%] p-2.5 border-r border-black text-[11px]">
-                      <div className="font-normal text-black">Special Instructions:</div>
-                      <div className="text-[11px] font-normal text-black mt-1 break-words">
-                        {job.special_instructions || "None"}
-                      </div>
-                    </div>
-                    <div className="w-[38%] p-2.5 text-[11px]">
-                      <div className="font-normal text-black">Billing Customer:</div>
-                      <div className="text-[11px] font-bold text-black mt-0.5 break-words">
-                        {job.billing_client_name || job.billing_party || "-"}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 7. Jurisdiction, At Owner's Risk, Company Name */}
-                  <div className="flex items-center justify-between px-3 py-2 text-[11px]">
-                    <div className="w-1/3 text-left text-[10px] text-black font-normal">
-                      {jurisdictionText}
-                    </div>
-                    <div className="w-1/3 text-center">
-                      <div className="text-[10px] font-bold tracking-wider text-black uppercase">
-                        AT OWNER&apos;S RISK
-                      </div>
-                      <div className="text-[11px] font-bold text-black mt-0.5">
-                        Dispatch Copy
-                      </div>
-                    </div>
-                    <div className="w-1/3 text-right">
-                      {company?.signature_url && (
-                        <div className="flex justify-end mb-1">
-                          <img
-                            src={company.signature_url}
-                            alt="Signing Authority"
-                            crossOrigin="anonymous"
-                            className="h-8 max-w-[100px] object-contain"
-                          />
+                          <div className="text-[10.5px] font-bold text-slate-700 uppercase mt-0.5">
+                            DISPATCH COPY
+                          </div>
                         </div>
-                      )}
-                      <div className="text-[9.5px] text-gray-700 font-medium">
-                        {company?.signing_authority_name || "Authorized Dispatcher"}
-                        {company?.signing_authority_designation ? ` (${company.signing_authority_designation})` : ""}
                       </div>
-                      <div className="text-[11px] font-bold text-black uppercase mt-0.5">
-                        {companyName}
+
+                      {/* Authorized Dispatcher */}
+                      <div className="col-span-4 p-3 flex flex-col justify-between text-right">
+                        <div>
+                          <div className="font-bold text-slate-900 uppercase text-xs">
+                            {companyName}
+                          </div>
+                          <div className="text-[10px] text-slate-600 font-medium mt-0.5">
+                            {company?.signing_authority_name || "Authorized Dispatcher"}
+                            {company?.signing_authority_designation ? ` (${company.signing_authority_designation})` : ""}
+                          </div>
+                          {company?.signature_url && (
+                            <div className="flex justify-end mt-1">
+                              <img
+                                src={company.signature_url}
+                                alt="Signing Authority"
+                                crossOrigin="anonymous"
+                                className="h-7 max-w-[100px] object-contain"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-[10.5px] text-slate-700 font-mono mt-3">
+                          Signature: ____________________
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Dynamic Footer Bar */}
+                    <div className="bg-black text-white text-center py-2 px-3 text-[10px] sm:text-[11px] font-medium tracking-wide">
+                      This Trip Job Order is electronically generated from {issuingOfficeState}.
                     </div>
                   </div>
                 </div>

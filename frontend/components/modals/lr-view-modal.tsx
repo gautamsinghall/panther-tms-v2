@@ -193,11 +193,26 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
       const canvas = await html2canvas(element, {
         scale: 2.5,
         useCORS: true,
+        allowTaint: false,
         logging: false,
         backgroundColor: "#ffffff",
         scrollY: 0,
         scrollX: 0,
+        onclone: (clonedDoc) => {
+          const el = clonedDoc.getElementById("lr-printable-document");
+          if (el) {
+            el.style.width = "780px";
+            el.style.maxWidth = "780px";
+            el.style.margin = "0 auto";
+            el.style.boxShadow = "none";
+            el.style.overflow = "visible";
+          }
+        },
       });
+
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Canvas render failed with zero dimensions");
+      }
 
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({
@@ -226,6 +241,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
       pdf.addImage(imgData, "PNG", posX, posY, renderWidth, renderHeight, undefined, "FAST");
       pdf.save(`LR_${lr.lr_number}.pdf`);
+      toast.success(`LR ${lr.lr_number} PDF downloaded.`);
     } catch (err) {
       console.error("Failed to generate LR PDF:", err);
       toast.error("Failed to export LR PDF. You can also use the browser Print dialog.");
@@ -249,6 +265,12 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
     }
   };
 
+  const formatWeight = (val: string | number) => {
+    const num = typeof val === "number" ? val : parseFloat(String(val).replace(/,/g, ""));
+    if (isNaN(num)) return "0.000";
+    return num.toLocaleString("en-IN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  };
+
   const auth = getStoredAuth();
   const companyName = company?.company_name?.trim() || auth?.tenantName || "PANTHER LOGISTICS";
   const officeName = issuingBranch?.name?.trim() || lr.issuing_office_name || "Head Office";
@@ -262,6 +284,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
   const officeGstin = issuingBranch?.gstin?.trim() || company?.gstin?.trim() || "—";
   const officePan = company?.pan?.trim() || issuingBranch?.pan?.trim() || "—";
   const jurisdictionText = issuingBranch?.document_notes?.trim() || `Subject to ${officeCity} Jurisdiction only`;
+  const issuingOfficeState = issuingBranch?.state?.trim() || issuingBranch?.city?.trim() || company?.state?.trim() || company?.city?.trim() || "Delhi";
 
   const modalNode = (
     <div className="lr-modal-portal fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto">
@@ -352,7 +375,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
             margin: 0 auto !important;
             padding: 0 !important;
             box-shadow: none !important;
-            border: 1.5px solid black !important;
+            border: 1px solid #94a3b8 !important;
             background: #ffffff !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
@@ -444,19 +467,20 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
           <div
             id="lr-printable-document"
             ref={printRef}
-            className="w-full max-w-[780px] bg-white border-2 border-black text-black font-sans select-text shadow-sm"
+            className="w-full max-w-[780px] bg-white border border-slate-300 text-slate-900 font-sans select-text shadow-sm"
             style={{
               fontFamily: "Arial, Helvetica, sans-serif",
             }}
           >
             {/* 1. Header: Branding + Company Master + Branch Issuing Office */}
-            <div className="flex items-center justify-between p-3.5 border-b-2 border-black gap-2">
+            <div className="flex items-center justify-between p-3.5 border-b border-slate-300 gap-2">
               {/* Left: Logo */}
               <div className="w-[28%] flex flex-col items-center justify-center shrink-0">
                 {company?.logo_url ? (
                   <img
                     src={company.logo_url}
                     alt={companyName}
+                    crossOrigin="anonymous"
                     className="max-h-14 max-w-full object-contain mx-auto"
                   />
                 ) : (
@@ -478,162 +502,166 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
               {/* Middle: Company Legal Name & Branch Address */}
               <div className="w-[44%] text-center px-1">
-                <div className="text-sm sm:text-base font-black text-red-600 uppercase tracking-wide leading-tight">
+                <div className="text-base sm:text-lg font-bold text-slate-900 uppercase tracking-wide leading-tight">
                   {companyName}
                 </div>
-                <div className="text-[11px] text-black font-medium leading-tight mt-1">
+                <div className="text-[10.5px] text-slate-600 font-normal leading-tight mt-0.5">
                   {officeAddress}
                 </div>
-                <div className="text-[11px] text-black font-medium leading-tight">
+                <div className="text-[10.5px] text-slate-600 font-normal leading-tight">
                   {officeCity}, {officeState} {officePincode ? `- ${officePincode}` : ""}
                 </div>
-                <div className="text-[11px] text-black font-medium leading-tight">
+                <div className="text-[10.5px] text-slate-600 font-normal leading-tight">
                   Phone: {officePhone} | Email: {officeEmail}
                 </div>
-                <div className="text-[10.5px] font-bold text-slate-800 uppercase tracking-wider mt-0.5">
-                  Goods Consignment Note / Lorry Receipt
+                <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wide mt-1">
+                  GOODS CONSIGNMENT NOTE / LORRY RECEIPT
                 </div>
               </div>
 
               {/* Right: Issuing Office details from Branch Master */}
-              <div className="w-[28%] text-right text-[11px] text-black leading-snug space-y-0.5 pr-1">
-                <div className="bg-slate-100 p-1.5 rounded border border-slate-300 mb-1 text-left">
-                  <div className="text-[9.5px] font-semibold text-slate-500 uppercase">Issuing Office:</div>
-                  <div className="font-bold text-xs text-slate-900">{officeName} {officeCode ? `(${officeCode})` : ""}</div>
+              <div className="w-[28%] text-right text-[10.5px] text-slate-800 leading-snug space-y-0.5 pr-1">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">ISSUING OFFICE</div>
+                <div className="font-bold text-xs text-slate-900">{officeName} {officeCode ? `(${officeCode})` : ""}</div>
+                <div className="pt-1">
+                  <span className="font-normal text-slate-500">GST NO. </span>
+                  <span className="font-semibold font-mono text-slate-900">{officeGstin}</span>
                 </div>
                 <div>
-                  <span className="font-normal">GST No: </span>
-                  <span className="font-semibold font-mono">{officeGstin}</span>
-                </div>
-                <div>
-                  <span className="font-normal">PAN No: </span>
-                  <span className="font-semibold font-mono">{officePan}</span>
+                  <span className="font-normal text-slate-500">PAN NO. </span>
+                  <span className="font-semibold font-mono text-slate-900">{officePan}</span>
                 </div>
               </div>
             </div>
 
-            {/* 2. Key Document Identifiers */}
-            <div className="grid grid-cols-4 border-b border-black text-[11px] bg-slate-50 divide-x divide-black">
-              <div className="p-1.5 pl-3">
-                <span className="text-slate-500 block text-[9.5px]">LR / GR NUMBER:</span>
-                <span className="font-mono font-bold text-xs text-black">{lr.lr_number}</span>
+            {/* 2. Key Document Identifiers Ribbon */}
+            <div className="grid grid-cols-4 border-b border-slate-300 text-[11px] bg-[#f1f5f9] divide-x divide-slate-300">
+              <div className="p-2 pl-3">
+                <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">LR / GR NUMBER</span>
+                <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">{lr.lr_number}</span>
               </div>
-              <div className="p-1.5 pl-3">
-                <span className="text-slate-500 block text-[9.5px]">BOOKING DATE:</span>
-                <span className="font-mono font-semibold text-xs text-black">{formatDateDMY(lr.lr_date)}</span>
+              <div className="p-2 pl-3">
+                <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">BOOKING DATE</span>
+                <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{formatDateDMY(lr.lr_date)}</span>
               </div>
-              <div className="p-1.5 pl-3">
-                <span className="text-slate-500 block text-[9.5px]">TRIP JOB ORDER:</span>
-                <span className="font-mono font-semibold text-xs text-black">{lr.job_number || "DIRECT BOOKING"}</span>
+              <div className="p-2 pl-3">
+                <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">TRIP JOB ORDER</span>
+                <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{lr.job_number || "DIRECT BOOKING"}</span>
               </div>
-              <div className="p-1.5 pl-3 bg-amber-50">
-                <span className="text-slate-500 block text-[9.5px]">DOCUMENT COPY:</span>
-                <span className="font-bold text-xs text-amber-900 uppercase">{selectedCopy} Copy</span>
+              <div className="p-2 pl-3 bg-[#fef3c7]/60">
+                <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">DOCUMENT COPY</span>
+                <span className="font-bold text-xs text-amber-900 uppercase block mt-0.5">{selectedCopy} COPY</span>
               </div>
             </div>
 
             {/* 3. Route corridor */}
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-black text-[11px]">
-              <div>
-                <span className="font-normal text-slate-500">Origin Station: </span>
-                <span className="font-bold text-xs">{lr.origin_city || "—"}</span>
+            <div className="grid grid-cols-12 border-b border-slate-300 text-[11px] divide-x divide-slate-300">
+              <div className="col-span-5 p-2 pl-3">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">ORIGIN STATION</span>
+                <div className="flex items-center justify-between mt-0.5 pr-2">
+                  <span className="font-bold text-xs text-slate-900">{lr.origin_city || "—"}</span>
+                  <span className="text-slate-400 font-bold">→</span>
+                </div>
               </div>
-              <div className="font-bold text-slate-400">➔</div>
-              <div>
-                <span className="font-normal text-slate-500">Destination Station: </span>
-                <span className="font-bold text-xs">{lr.destination_city || "—"}</span>
+              <div className="col-span-4 p-2 pl-3">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">DESTINATION STATION</span>
+                <span className="font-bold text-xs text-slate-900 block mt-0.5">{lr.destination_city || "—"}</span>
               </div>
-              <div>
-                <span className="font-normal text-slate-500">E-Way Bill: </span>
-                <span className="font-bold font-mono text-xs">{lr.eway_bill_number || "NOT APPLICABLE"}</span>
+              <div className="col-span-3 p-2 pl-3 text-right pr-3">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">E-WAY BILL</span>
+                <span className="font-bold font-mono text-xs text-slate-900 block mt-0.5">{lr.eway_bill_number || "NOT APPLICABLE"}</span>
               </div>
             </div>
 
             {/* 4. Consignor and Consignee Row */}
-            <div className="flex border-b border-black">
-              {/* Consignor */}
-              <div className="w-1/2 p-2.5 border-r border-black">
-                <span className="text-[10px] font-bold uppercase text-slate-500 block mb-0.5">Consignor (Shipper)</span>
-                <div className="font-bold text-[12px] text-black leading-tight">
+            <div className="grid grid-cols-2 border-b border-slate-300 text-[11px] divide-x divide-slate-300">
+              <div className="bg-[#f8fafc] px-3 py-1 font-bold text-[9px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+                CONSIGNOR (SHIPPER)
+              </div>
+              <div className="bg-[#f8fafc] px-3 py-1 font-bold text-[9px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+                CONSIGNEE (RECEIVER)
+              </div>
+              <div className="p-3">
+                <div className="font-bold text-sm text-slate-900">
                   {lr.consigner_name || "Direct Shipper"}
                 </div>
-                <div className="text-[11px] text-slate-600 mt-1">
+                <div className="text-[11px] text-slate-600 mt-2">
                   Place of Booking: {lr.origin_city || officeCity}
                 </div>
               </div>
-
-              {/* Consignee */}
-              <div className="w-1/2 p-2.5">
-                <span className="text-[10px] font-bold uppercase text-slate-500 block mb-0.5">Consignee (Receiver)</span>
-                <div className="font-bold text-[12px] text-black leading-tight">
+              <div className="p-3">
+                <div className="font-bold text-sm text-slate-900">
                   {lr.consignee_name || "Direct Receiver"}
                 </div>
-                <div className="text-[11px] text-slate-600 mt-1">
+                <div className="text-[11px] text-slate-600 mt-2">
                   Delivery Destination: {lr.destination_city || "As per order"}
                 </div>
               </div>
             </div>
 
             {/* 5. Assigned Vehicle & Driver */}
-            <div className="grid grid-cols-3 border-b border-black text-[11px] divide-x divide-black">
-              <div className="p-2">
-                <span className="text-slate-500 block text-[9.5px]">VEHICLE NUMBER:</span>
-                <span className="font-mono font-bold text-xs text-black">{lr.vehicle_number}</span>
-                <span className="text-[10px] text-slate-500 ml-1.5">({lr.vehicle_source})</span>
+            <div className="grid grid-cols-12 border-b border-slate-300 text-[11px] divide-x divide-slate-300">
+              <div className="col-span-4 p-2 pl-3">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">VEHICLE NUMBER</span>
+                <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">
+                  {lr.vehicle_number} {lr.vehicle_source ? `(${lr.vehicle_source.toUpperCase()})` : ""}
+                </span>
               </div>
-              <div className="p-2">
-                <span className="text-slate-500 block text-[9.5px]">DRIVER NAME:</span>
-                <span className="font-semibold text-xs text-black">{lr.driver_name || "Assigned Driver"}</span>
+              <div className="col-span-4 p-2 pl-3">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">DRIVER NAME</span>
+                <span className="font-bold text-xs text-slate-900 block mt-0.5">{lr.driver_name || "Assigned Driver"}</span>
               </div>
-              <div className="p-2">
-                <span className="text-slate-500 block text-[9.5px]">DRIVER CONTACT:</span>
-                <span className="font-mono font-semibold text-xs text-black">{lr.driver_phone || "—"}</span>
+              <div className="col-span-4 p-2 pl-3">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">DRIVER CONTACT</span>
+                <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{lr.driver_phone || "—"}</span>
               </div>
             </div>
 
             {/* 6. Cargo Particulars & Weight */}
-            <table className="w-full border-b border-black text-[11px] text-left">
+            <table className="w-full border-b border-slate-300 text-[11px] text-left">
               <thead>
-                <tr className="bg-slate-100 border-b border-black">
-                  <th className="p-1.5 pl-3 border-r border-black font-semibold text-center w-16">Packages</th>
-                  <th className="p-1.5 pl-3 border-r border-black font-semibold">Description of Goods</th>
-                  <th className="p-1.5 pl-3 border-r border-black font-semibold text-right w-28">Actual Wt (MT)</th>
-                  <th className="p-1.5 pl-3 font-semibold text-right w-32">Chargeable Wt (MT)</th>
+                <tr className="bg-[#f1f5f9] border-b border-slate-300 text-[9px] font-bold uppercase tracking-wider text-slate-700">
+                  <th className="p-2 pl-3 border-r border-slate-300 text-center w-24">PACKAGES</th>
+                  <th className="p-2 pl-3 border-r border-slate-300">DESCRIPTION OF GOODS</th>
+                  <th className="p-2 pr-3 border-r border-slate-300 text-right w-36">ACTUAL WT (MT)</th>
+                  <th className="p-2 pr-3 text-right w-40">CHARGEABLE WT (MT)</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="min-h-[45px]">
-                  <td className="p-2 border-r border-black text-center font-mono font-bold">
+                <tr className="min-h-[40px]">
+                  <td className="p-2.5 border-r border-slate-300 text-center font-mono font-bold text-xs text-slate-900">
                     {lr.package_count !== undefined && lr.package_count !== null ? lr.package_count : 0}
                   </td>
-                  <td className="p-2 border-r border-black">
+                  <td className="p-2.5 border-r border-slate-300">
                     <span className="font-medium text-slate-900">
                       {lr.particulars || "Commercial Cargo Freight Consignment"}
                     </span>
                     {lr.remarks && <div className="text-[10px] text-slate-500 mt-0.5">Note: {lr.remarks}</div>}
                   </td>
-                  <td className="p-2 border-r border-black text-right font-mono">
-                    {lr.actual_weight_mt !== undefined && lr.actual_weight_mt !== null && String(lr.actual_weight_mt).trim() !== ""
-                      ? lr.actual_weight_mt
-                      : (lr.chargeable_weight_mt || 0)}{" "}
+                  <td className="p-2.5 border-r border-slate-300 text-right font-mono font-bold text-xs text-slate-900 pr-3">
+                    {formatWeight(
+                      lr.actual_weight_mt !== undefined && lr.actual_weight_mt !== null && String(lr.actual_weight_mt).trim() !== ""
+                        ? lr.actual_weight_mt
+                        : lr.chargeable_weight_mt || 0
+                    )}{" "}
                     MT
                   </td>
-                  <td className="p-2 text-right font-mono font-bold">
-                    {lr.chargeable_weight_mt || 0} MT
+                  <td className="p-2.5 text-right font-mono font-bold text-xs text-slate-900 pr-3">
+                    {formatWeight(lr.chargeable_weight_mt || 0)} MT
                   </td>
                 </tr>
               </tbody>
             </table>
 
-            {/* 6b. Invoices & E-Way Bills Compliance Table */}
-            {Boolean((lr.invoice_items && lr.invoice_items.length > 0) || lr.eway_bill_number) && (
-              <div className="border-b border-black">
-                <div className="bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 border-b border-black">
-                  Invoices & E-Way Bills Compliance
+            {/* 6b. Invoices & E-Way Bills Compliance Table (Only if invoice items exist) */}
+            {Boolean(lr.invoice_items && lr.invoice_items.length > 0) && (
+              <div className="border-b border-slate-300">
+                <div className="bg-[#f1f5f9] px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-700 border-b border-slate-300">
+                  INVOICES & E-WAY BILLS COMPLIANCE
                 </div>
                 <table className="w-full text-[10px] text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-black font-semibold text-slate-800 divide-x divide-black bg-slate-50">
+                    <tr className="border-b border-slate-300 font-semibold text-slate-800 divide-x divide-slate-300 bg-slate-50">
                       <th className="p-1 text-center w-8">#</th>
                       <th className="p-1 pl-2">Invoice No & Date</th>
                       <th className="p-1 pl-2 text-right">Invoice Value</th>
@@ -642,47 +670,53 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                       <th className="p-1 pl-2">Particulars / Commodity</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-black">
-                    {lr.invoice_items && lr.invoice_items.length > 0 ? (
-                      lr.invoice_items.map((it: any, i: number) => (
-                        <tr key={i} className="divide-x divide-black">
-                          <td className="p-1 text-center font-mono">{i + 1}</td>
-                          <td className="p-1 pl-2 font-medium">{it.invoice_no || "—"} {it.invoice_date ? `(${it.invoice_date})` : ""}</td>
-                          <td className="p-1 pl-2 text-right font-mono font-medium">{it.invoice_value ? formatCurrency(parseFloat(it.invoice_value)) : "—"}</td>
-                          <td className="p-1 pl-2 font-mono">{it.eway_bill_number || "—"}</td>
-                          <td className="p-1 pl-2">{it.eway_bill_expiry || "—"}</td>
-                          <td className="p-1 pl-2 text-slate-700">{it.particulars || it.remarks || "—"}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr className="divide-x divide-black">
-                        <td className="p-1 text-center font-mono">1</td>
-                        <td className="p-1 pl-2 font-medium">—</td>
-                        <td className="p-1 pl-2 text-right font-mono">—</td>
-                        <td className="p-1 pl-2 font-mono">{lr.eway_bill_number || "—"}</td>
-                        <td className="p-1 pl-2">—</td>
-                        <td className="p-1 pl-2 text-slate-700">—</td>
+                  <tbody className="divide-y divide-slate-200">
+                    {lr.invoice_items!.map((it: any, i: number) => (
+                      <tr key={i} className="divide-x divide-slate-200">
+                        <td className="p-1 text-center font-mono">{i + 1}</td>
+                        <td className="p-1 pl-2 font-medium">
+                          {it.invoice_no || "—"} {it.invoice_date ? `(${it.invoice_date})` : ""}
+                        </td>
+                        <td className="p-1 pl-2 text-right font-mono font-medium">
+                          {it.invoice_value ? formatCurrency(parseFloat(it.invoice_value)) : "—"}
+                        </td>
+                        <td className="p-1 pl-2 font-mono">{it.eway_bill_number || "—"}</td>
+                        <td className="p-1 pl-2">{it.eway_bill_expiry || "—"}</td>
+                        <td className="p-1 pl-2 text-slate-700">{it.particulars || it.remarks || "—"}</td>
                       </tr>
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
             )}
 
             {/* 7. Financial Breakdown & Payment Terms */}
-            <div className="flex border-b border-black text-[11px]">
+            <div className="flex border-b border-slate-300 text-[11px]">
               {/* Left: Bank Details from Issuing Office Master */}
-              <div className="w-[55%] p-2.5 border-r border-black flex flex-col justify-between">
+              <div className="w-[58%] p-3 border-r border-slate-300 flex flex-col justify-between">
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Branch Bank Account Details (For Remittance)
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    BRANCH BANK ACCOUNT DETAILS (FOR REMITTANCE)
                   </div>
                   {issuingBranch?.bank_name ? (
                     <div className="text-[10.5px] space-y-0.5 text-slate-800">
-                      <div><span className="text-slate-500">Bank:</span> <span className="font-semibold">{issuingBranch.bank_name}</span></div>
-                      <div><span className="text-slate-500">A/C No:</span> <span className="font-mono font-bold">{issuingBranch.bank_account_no}</span></div>
-                      <div><span className="text-slate-500">IFSC Code:</span> <span className="font-mono font-bold">{issuingBranch.bank_ifsc}</span></div>
-                      {issuingBranch.bank_branch && <div><span className="text-slate-500">Branch:</span> {issuingBranch.bank_branch}</div>}
+                      <div>
+                        <span className="text-slate-500">Bank:</span>{" "}
+                        <span className="font-semibold">{issuingBranch.bank_name}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">A/C No:</span>{" "}
+                        <span className="font-mono font-bold">{issuingBranch.bank_account_no}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">IFSC Code:</span>{" "}
+                        <span className="font-mono font-bold">{issuingBranch.bank_ifsc}</span>
+                      </div>
+                      {issuingBranch.bank_branch && (
+                        <div>
+                          <span className="text-slate-500">Branch:</span> {issuingBranch.bank_branch}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="text-[10.5px] text-slate-500 italic">
@@ -691,65 +725,91 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                   )}
                 </div>
 
-                <div className="mt-2 pt-2 border-t border-slate-200">
-                  <span className="text-slate-500">Payment Terms: </span>
-                  <span className="font-bold text-xs uppercase px-1.5 py-0.5 bg-slate-200 rounded">
+                <div className="mt-4 pt-2.5 border-t border-slate-200">
+                  <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-700">
+                    PAYMENT TERMS{" "}
+                  </span>
+                  <span className="font-bold text-xs uppercase text-slate-900 ml-1">
                     {lr.payment_terms || "TO_PAY"}
                   </span>
                 </div>
               </div>
 
               {/* Right: Freight Summary */}
-              <div className="w-[45%] p-2.5 text-[11px] space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Basic Freight:</span>
-                  <span className="font-mono font-medium">{formatCurrency(lr.freight_amount || lr.total_freight_amount)}</span>
+              <div className="w-[42%] divide-y divide-slate-200 text-[11px]">
+                <div className="flex justify-between p-2 pl-3 pr-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                    BASIC FREIGHT
+                  </span>
+                  <span className="font-mono font-semibold text-slate-900">
+                    {formatCurrency(lr.freight_amount || lr.total_freight_amount)}
+                  </span>
                 </div>
                 {Number(lr.loading_charges || 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Loading Charges:</span>
+                  <div className="flex justify-between p-2 pl-3 pr-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                      LOADING CHARGES
+                    </span>
                     <span className="font-mono">{formatCurrency(lr.loading_charges)}</span>
                   </div>
                 )}
                 {Number(lr.unloading_charges || 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Unloading Charges:</span>
+                  <div className="flex justify-between p-2 pl-3 pr-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                      UNLOADING CHARGES
+                    </span>
                     <span className="font-mono">{formatCurrency(lr.unloading_charges)}</span>
                   </div>
                 )}
                 {Number(lr.other_charges || 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Other Charges:</span>
+                  <div className="flex justify-between p-2 pl-3 pr-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                      OTHER CHARGES
+                    </span>
                     <span className="font-mono">{formatCurrency(lr.other_charges)}</span>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-black pt-1 font-bold">
-                  <span>Total Freight:</span>
-                  <span className="font-mono text-xs">{formatCurrency(lr.total_freight_amount)}</span>
+                <div className="flex justify-between p-2 pl-3 pr-3 font-bold bg-slate-50/50">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">
+                    TOTAL FREIGHT
+                  </span>
+                  <span className="font-mono text-xs text-slate-900">
+                    {formatCurrency(lr.total_freight_amount)}
+                  </span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Advance Received:</span>
-                  <span className="font-mono">{formatCurrency(lr.advance_amount)}</span>
+                <div className="flex justify-between p-2 pl-3 pr-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                    ADVANCE RECEIVED
+                  </span>
+                  <span className="font-mono font-semibold text-slate-900">
+                    {formatCurrency(lr.advance_amount)}
+                  </span>
                 </div>
-                <div className="flex justify-between border-t border-slate-300 pt-0.5 font-bold text-red-700">
-                  <span>Balance Payable:</span>
-                  <span className="font-mono text-xs">{formatCurrency(lr.balance_amount)}</span>
+                <div className="flex justify-between p-2 pl-3 pr-3 font-bold text-slate-900 bg-slate-50/50">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">
+                    BALANCE PAYABLE
+                  </span>
+                  <span className="font-mono text-xs text-slate-900">
+                    {formatCurrency(lr.balance_amount)}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* 8. Terms, Jurisdiction & Signature */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-black text-[11px]">
-              <div className="w-1/3 text-left text-[10px] text-black font-normal">
+            <div className="flex items-center justify-between p-3 border-b border-slate-300 text-[11px]">
+              <div className="w-1/3 text-left text-[10px] text-slate-700 font-normal leading-relaxed">
                 <div>{jurisdictionText}</div>
-                <div className="text-[9px] text-slate-500 mt-0.5">Goods booked at owner&apos;s risk unless insured.</div>
+                <div className="text-[9.5px] text-slate-500 mt-0.5">
+                  Goods booked at owner&apos;s risk unless insured.
+                </div>
               </div>
               <div className="w-1/3 text-center">
-                <div className="text-[10px] font-bold tracking-wider text-black uppercase">
+                <div className="text-[9.5px] font-bold tracking-wider text-slate-900 uppercase">
                   AT OWNER&apos;S RISK
                 </div>
-                <div className="text-[11px] font-bold text-black mt-0.5">
-                  {selectedCopy} Copy
+                <div className="text-[11px] font-bold text-slate-900 mt-0.5 uppercase">
+                  {selectedCopy} COPY
                 </div>
               </div>
               <div className="w-1/3 text-right">
@@ -758,23 +818,24 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                     <img
                       src={company.signature_url}
                       alt="Signing Authority"
+                      crossOrigin="anonymous"
                       className="h-8 max-w-[110px] object-contain"
                     />
                   </div>
                 )}
-                <div className="text-[9.5px] text-gray-700 font-medium">
+                <div className="text-[9.5px] text-slate-700 font-medium">
                   {company?.signing_authority_name || "Authorized Signatory"}
                   {company?.signing_authority_designation ? ` (${company.signing_authority_designation})` : ""}
                 </div>
-                <div className="text-[10.5px] font-bold text-black uppercase mt-0.5">
-                  For {companyName}
+                <div className="text-[10.5px] font-bold text-slate-900 uppercase mt-0.5">
+                  FOR {companyName}
                 </div>
               </div>
             </div>
 
-            {/* 9. Bottom Footer Bar */}
-            <div className="bg-black text-white text-center py-1.5 px-3 text-[10px] sm:text-[11px] font-medium tracking-wide">
-              This Lorry Receipt / Goods Consignment Note is electronically generated from {officeName}.
+            {/* 9. Bottom Footer Bar with Dynamic Issuing Office State */}
+            <div className="bg-black text-white text-center py-2 px-3 text-[10px] sm:text-[11px] font-medium tracking-wide">
+              This Lorry Receipt / Goods Consignment Note is electronically generated from {issuingOfficeState}.
             </div>
           </div>
         </div>
