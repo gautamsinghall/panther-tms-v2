@@ -29,6 +29,7 @@ import { apiClient } from "@/lib/api-client";
 import { getStoredAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/badge";
+import { toast } from "@/lib/toast";
 
 export interface JobViewRecord {
   id: number;
@@ -259,11 +260,24 @@ export function JobOrderViewModal({
       const canvas = await html2canvas(element, {
         scale: 2.5,
         useCORS: true,
+        allowTaint: false,
         logging: false,
         backgroundColor: "#ffffff",
         scrollY: 0,
         scrollX: 0,
         onclone: (clonedDoc) => {
+          const wrapper = clonedDoc.getElementById("job-order-voucher-wrapper");
+          if (wrapper) {
+            wrapper.style.position = "static";
+            wrapper.style.left = "auto";
+            wrapper.style.top = "auto";
+            wrapper.style.opacity = "1";
+            wrapper.style.display = "flex";
+            wrapper.style.justifyContent = "center";
+            wrapper.style.width = "780px";
+            wrapper.style.height = "auto";
+            wrapper.style.overflow = "visible";
+          }
           const el = clonedDoc.getElementById("job-order-printable-document");
           if (el) {
             el.style.width = "780px";
@@ -275,12 +289,17 @@ export function JobOrderViewModal({
         },
       });
 
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Canvas render failed with zero dimensions");
+      }
+
       const imgData = canvas.toDataURL("image/png");
 
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: "a4",
+        compress: true,
       });
 
       const pdfWidth = 210;
@@ -289,17 +308,23 @@ export function JobOrderViewModal({
       const maxW = pdfWidth - margin * 2;
       const maxH = pdfHeight - margin * 2;
 
-      const scale = Math.min(maxW / canvas.width, maxH / canvas.height);
-      const renderWidth = canvas.width * scale;
-      const renderHeight = canvas.height * scale;
+      let renderWidth = maxW;
+      let renderHeight = (canvas.height * renderWidth) / canvas.width;
+
+      if (renderHeight > maxH) {
+        renderHeight = maxH;
+        renderWidth = (canvas.width * renderHeight) / canvas.height;
+      }
 
       const posX = (pdfWidth - renderWidth) / 2;
       const posY = margin;
 
       pdf.addImage(imgData, "PNG", posX, posY, renderWidth, renderHeight, undefined, "FAST");
       pdf.save(`Job_Order_${job.job_number}.pdf`);
+      toast.success(`Job Order ${job.job_number} PDF downloaded.`);
     } catch (err) {
       console.error("Failed to generate PDF:", err);
+      toast.error("Failed to export Job Order PDF. You can also use the Print button to print or save as PDF.");
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -412,7 +437,9 @@ export function JobOrderViewModal({
           .no-print,
           .no-print *,
           .job-order-modal-backdrop,
-          .job-order-modal-backdrop * {
+          .job-order-modal-backdrop *,
+          .job-order-details-container,
+          .job-order-details-container * {
             display: none !important;
             visibility: hidden !important;
           }
@@ -454,6 +481,19 @@ export function JobOrderViewModal({
             overflow: visible !important;
             background: transparent !important;
           }
+          #job-order-voucher-wrapper {
+            position: static !important;
+            display: flex !important;
+            justify-content: center !important;
+            left: auto !important;
+            top: auto !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            visibility: visible !important;
+          }
           #job-order-printable-document {
             position: static !important;
             display: block !important;
@@ -470,6 +510,7 @@ export function JobOrderViewModal({
             break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            visibility: visible !important;
           }
         }
       `}</style>
@@ -559,8 +600,9 @@ export function JobOrderViewModal({
               type="button"
               variant="outline"
               size="sm"
-              disabled={isDownloadingPdf}
+              disabled={isDownloadingPdf || isLoadingDetails}
               onClick={handleDownloadPdf}
+              title="Download Job Order PDF"
               className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
             >
               {isDownloadingPdf ? (
@@ -617,7 +659,7 @@ export function JobOrderViewModal({
               {/* MODE A: RESPONSIVE JOB DETAILS VIEW (DEFAULT)                             */}
               {/* ========================================================================= */}
               {viewMode === "details" && (
-                <div className="p-5 sm:p-7 space-y-5 max-w-4xl mx-auto">
+                <div className="job-order-details-container p-5 sm:p-7 space-y-5 max-w-4xl mx-auto print:hidden no-print">
                   {/* Hero Corridor Banner */}
                   <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-1.5">
@@ -812,9 +854,13 @@ export function JobOrderViewModal({
               {/* MODE B: 1-PAGE A4 PRINT VOUCHER PREVIEW                                   */}
               {/* ========================================================================= */}
               <div
-                className={`p-4 sm:p-6 justify-center ${
-                  viewMode === "voucher" ? "flex" : "hidden print:flex"
+                id="job-order-voucher-wrapper"
+                className={`justify-center ${
+                  viewMode === "voucher"
+                    ? "flex p-4 sm:p-6"
+                    : "fixed left-0 top-0 pointer-events-none opacity-0 z-[-50] print:static print:opacity-100 print:pointer-events-auto print:flex print:p-0 print:z-auto"
                 }`}
+                style={viewMode === "voucher" ? undefined : { width: "780px", maxWidth: "780px" }}
               >
                 <div
                   id="job-order-printable-document"
@@ -832,6 +878,7 @@ export function JobOrderViewModal({
                         <img
                           src={company.logo_url}
                           alt={companyName}
+                          crossOrigin="anonymous"
                           className="max-h-14 max-w-full object-contain mx-auto"
                         />
                       ) : (
@@ -839,6 +886,7 @@ export function JobOrderViewModal({
                           <img
                             src="/panther-logo-transparent.png"
                             alt="Panther Logo"
+                            crossOrigin="anonymous"
                             className="h-10 sm:h-12 w-auto object-contain mx-auto"
                           />
                           <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-1">
@@ -1022,6 +1070,7 @@ export function JobOrderViewModal({
                           <img
                             src={company.signature_url}
                             alt="Signing Authority"
+                            crossOrigin="anonymous"
                             className="h-8 max-w-[100px] object-contain"
                           />
                         </div>
