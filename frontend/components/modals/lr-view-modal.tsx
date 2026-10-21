@@ -473,7 +473,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         }}
       >
         {/* 1. Header: Branding + Company Master + Branch Issuing Office */}
-        <div className="flex items-center justify-between p-3.5 border-b border-slate-300 gap-2">
+        <div className="flex items-center justify-between p-2.5 sm:p-3 border-b border-slate-300 gap-2">
           {/* Left: Logo */}
           <div className="w-[28%] flex flex-col items-center justify-center shrink-0">
             {company?.logo_url ? (
@@ -481,16 +481,16 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                 src={company.logo_url}
                 alt={companyName}
                 crossOrigin="anonymous"
-                className="max-h-14 max-w-full object-contain mx-auto"
+                className="max-h-12 max-w-full object-contain mx-auto"
               />
             ) : (
               <>
                 <img
                   src="/panther-logo-transparent.png"
                   alt="Panther Logo"
-                  className="h-10 sm:h-12 w-auto object-contain mx-auto"
+                  className="h-8 sm:h-9 w-auto object-contain mx-auto"
                 />
-                <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-1">
+                <div className="text-[10px] sm:text-[11px] font-black text-[#0f2147] tracking-wider leading-tight text-center mt-0.5">
                   PANTHER
                 </div>
                 <div className="text-[9px] sm:text-[10px] font-black text-[#0f2147] tracking-wide text-center leading-tight">
@@ -505,25 +505,25 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
             <div className="text-base sm:text-lg font-bold text-slate-900 uppercase tracking-wide leading-tight">
               {companyName}
             </div>
-            <div className="text-[10.5px] text-slate-600 font-normal leading-tight mt-0.5">
+            <div className="text-[10px] sm:text-[10.5px] text-slate-600 font-normal leading-tight mt-0.5">
               {officeAddress}
             </div>
-            <div className="text-[10.5px] text-slate-600 font-normal leading-tight">
+            <div className="text-[10px] sm:text-[10.5px] text-slate-600 font-normal leading-tight">
               {officeCity}, {officeState} {officePincode ? `- ${officePincode}` : ""}
             </div>
-            <div className="text-[10.5px] text-slate-600 font-normal leading-tight">
+            <div className="text-[10px] sm:text-[10.5px] text-slate-600 font-normal leading-tight">
               Phone: {officePhone} | Email: {officeEmail}
             </div>
-            <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wide mt-1">
+            <div className="text-[10.5px] sm:text-[11px] font-bold text-slate-900 uppercase tracking-wide mt-0.5">
               GOODS CONSIGNMENT NOTE / LORRY RECEIPT
             </div>
           </div>
 
           {/* Right: Issuing Office details from Branch Master */}
-          <div className="w-[28%] text-right text-[10.5px] text-slate-800 leading-snug space-y-0.5 pr-1">
+          <div className="w-[28%] text-right text-[10px] sm:text-[10.5px] text-slate-800 leading-snug space-y-0.5 pr-1">
             <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">ISSUING OFFICE</div>
             <div className="font-bold text-xs text-slate-900">{officeName} {officeCode ? `(${officeCode})` : ""}</div>
-            <div className="pt-1">
+            <div className="pt-0.5">
               <span className="font-normal text-slate-500">GST NO. </span>
               <span className="font-semibold font-mono text-slate-900">{officeGstin}</span>
             </div>
@@ -536,19 +536,19 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
         {/* 2. Key Document Identifiers Ribbon */}
         <div className="grid grid-cols-4 border-b border-slate-300 text-[11px] bg-[#f1f5f9] divide-x divide-slate-300">
-          <div className="p-2 pl-3">
+          <div className="py-1 px-3">
             <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">LR / GR NUMBER</span>
             <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">{lr.lr_number}</span>
           </div>
-          <div className="p-2 pl-3">
+          <div className="py-1 px-3">
             <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">BOOKING DATE</span>
             <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{formatDateDMY(lr.lr_date)}</span>
           </div>
-          <div className="p-2 pl-3">
+          <div className="py-1 px-3">
             <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">TRIP JOB ORDER</span>
             <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{lr.job_number || "DIRECT BOOKING"}</span>
           </div>
-          <div className="p-2 pl-3 bg-[#fef3c7]/60">
+          <div className="py-1 px-3 bg-[#fef3c7]/60">
             <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">DOCUMENT COPY</span>
             <span className="font-bold text-xs text-amber-900 uppercase block mt-0.5">{copyType} COPY</span>
           </div>
@@ -556,18 +556,18 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
         {/* 3. Route corridor */}
         <div className="grid grid-cols-12 border-b border-slate-300 text-[11px] divide-x divide-slate-300">
-          <div className="col-span-5 p-2 pl-3">
+          <div className="col-span-5 py-1 px-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">ORIGIN STATION</span>
             <div className="flex items-center justify-between mt-0.5 pr-2">
               <span className="font-bold text-xs text-slate-900">{lr.origin_city || "—"}</span>
               <span className="text-slate-400 font-bold">→</span>
             </div>
           </div>
-          <div className="col-span-4 p-2 pl-3">
+          <div className="col-span-4 py-1 px-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">DESTINATION STATION</span>
             <span className="font-bold text-xs text-slate-900 block mt-0.5">{lr.destination_city || "—"}</span>
           </div>
-          <div className="col-span-3 p-2 pl-3 text-right pr-3">
+          <div className="col-span-3 py-1 px-3 text-right pr-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">E-WAY BILL</span>
             <span className="font-bold font-mono text-xs text-slate-900 block mt-0.5">{lr.eway_bill_number || "NOT APPLICABLE"}</span>
           </div>
@@ -575,25 +575,25 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
         {/* 4. Consignor and Consignee Row */}
         <div className="grid grid-cols-2 border-b border-slate-300 text-[11px] divide-x divide-slate-300">
-          <div className="bg-[#f8fafc] px-3 py-1 font-bold text-[9px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+          <div className="bg-[#f8fafc] px-3 py-0.5 font-bold text-[9px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
             CONSIGNOR (SHIPPER)
           </div>
-          <div className="bg-[#f8fafc] px-3 py-1 font-bold text-[9px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+          <div className="bg-[#f8fafc] px-3 py-0.5 font-bold text-[9px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
             CONSIGNEE (RECEIVER)
           </div>
-          <div className="p-3">
+          <div className="py-1.5 px-3">
             <div className="font-bold text-sm text-slate-900">
               {lr.consigner_name || "Direct Shipper"}
             </div>
-            <div className="text-[11px] text-slate-600 mt-2">
+            <div className="text-[10.5px] text-slate-600 mt-1">
               Place of Booking: {lr.origin_city || officeCity}
             </div>
           </div>
-          <div className="p-3">
+          <div className="py-1.5 px-3">
             <div className="font-bold text-sm text-slate-900">
               {lr.consignee_name || "Direct Receiver"}
             </div>
-            <div className="text-[11px] text-slate-600 mt-2">
+            <div className="text-[10.5px] text-slate-600 mt-1">
               Delivery Destination: {lr.destination_city || "As per order"}
             </div>
           </div>
@@ -601,17 +601,17 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
         {/* 5. Assigned Vehicle & Driver */}
         <div className="grid grid-cols-12 border-b border-slate-300 text-[11px] divide-x divide-slate-300">
-          <div className="col-span-4 p-2 pl-3">
+          <div className="col-span-4 py-1 px-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">VEHICLE NUMBER</span>
             <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">
               {lr.vehicle_number} {lr.vehicle_source ? `(${lr.vehicle_source.toUpperCase()})` : ""}
             </span>
           </div>
-          <div className="col-span-4 p-2 pl-3">
+          <div className="col-span-4 py-1 px-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">DRIVER NAME</span>
             <span className="font-bold text-xs text-slate-900 block mt-0.5">{lr.driver_name || "Assigned Driver"}</span>
           </div>
-          <div className="col-span-4 p-2 pl-3">
+          <div className="col-span-4 py-1 px-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">DRIVER CONTACT</span>
             <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{lr.driver_phone || "—"}</span>
           </div>
@@ -621,24 +621,24 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         <table className="w-full border-b border-slate-300 text-[11px] text-left">
           <thead>
             <tr className="bg-[#f1f5f9] border-b border-slate-300 text-[9px] font-bold uppercase tracking-wider text-slate-700">
-              <th className="p-2 pl-3 border-r border-slate-300 text-center w-24">PACKAGES</th>
-              <th className="p-2 pl-3 border-r border-slate-300">DESCRIPTION OF GOODS</th>
-              <th className="p-2 pr-3 border-r border-slate-300 text-right w-36">ACTUAL WT (MT)</th>
-              <th className="p-2 pr-3 text-right w-40">CHARGEABLE WT (MT)</th>
+              <th className="p-1.5 pl-3 border-r border-slate-300 text-center w-24">PACKAGES</th>
+              <th className="p-1.5 pl-3 border-r border-slate-300">DESCRIPTION OF GOODS</th>
+              <th className="p-1.5 pr-3 border-r border-slate-300 text-right w-36">ACTUAL WT (MT)</th>
+              <th className="p-1.5 pr-3 text-right w-40">CHARGEABLE WT (MT)</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="min-h-[40px]">
-              <td className="p-2.5 border-r border-slate-300 text-center font-mono font-bold text-xs text-slate-900">
+            <tr className="min-h-[36px]">
+              <td className="py-1.5 px-2.5 border-r border-slate-300 text-center font-mono font-bold text-xs text-slate-900">
                 {lr.package_count !== undefined && lr.package_count !== null ? lr.package_count : 0}
               </td>
-              <td className="p-2.5 border-r border-slate-300">
+              <td className="py-1.5 px-2.5 border-r border-slate-300">
                 <span className="font-medium text-slate-900">
                   {lr.particulars || "Commercial Cargo Freight Consignment"}
                 </span>
                 {lr.remarks && <div className="text-[10px] text-slate-500 mt-0.5">Note: {lr.remarks}</div>}
               </td>
-              <td className="p-2.5 border-r border-slate-300 text-right font-mono font-bold text-xs text-slate-900 pr-3">
+              <td className="py-1.5 px-2.5 border-r border-slate-300 text-right font-mono font-bold text-xs text-slate-900 pr-3">
                 {formatWeight(
                   lr.actual_weight_mt !== undefined && lr.actual_weight_mt !== null && String(lr.actual_weight_mt).trim() !== ""
                     ? lr.actual_weight_mt
@@ -646,7 +646,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                 )}{" "}
                 MT
               </td>
-              <td className="p-2.5 text-right font-mono font-bold text-xs text-slate-900 pr-3">
+              <td className="py-1.5 px-2.5 text-right font-mono font-bold text-xs text-slate-900 pr-3">
                 {formatWeight(lr.chargeable_weight_mt || 0)} MT
               </td>
             </tr>
@@ -656,7 +656,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         {/* 6b. Invoices & E-Way Bills Compliance Table (Only if invoice items exist) */}
         {Boolean(lr.invoice_items && lr.invoice_items.length > 0) && (
           <div className="border-b border-slate-300">
-            <div className="bg-[#f1f5f9] px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-700 border-b border-slate-300">
+            <div className="bg-[#f1f5f9] px-3 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 border-b border-slate-300">
               INVOICES & E-WAY BILLS COMPLIANCE
             </div>
             <table className="w-full text-[10px] text-left border-collapse">
@@ -693,13 +693,13 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         {/* 7. Financial Breakdown & Payment Terms */}
         <div className="flex border-b border-slate-300 text-[11px]">
           {/* Left: Bank Details from Issuing Office Master */}
-          <div className="w-[58%] p-3 border-r border-slate-300 flex flex-col justify-between">
+          <div className="w-[58%] py-1.5 px-3 border-r border-slate-300 flex flex-col justify-between">
             <div>
-              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                 BRANCH BANK ACCOUNT DETAILS (FOR REMITTANCE)
               </div>
               {issuingBranch?.bank_name ? (
-                <div className="text-[10.5px] space-y-0.5 text-slate-800">
+                <div className="text-[10px] sm:text-[10.5px] space-y-0.5 text-slate-800">
                   <div>
                     <span className="text-slate-500">Bank:</span>{" "}
                     <span className="font-semibold">{issuingBranch.bank_name}</span>
@@ -719,13 +719,13 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                   )}
                 </div>
               ) : (
-                <div className="text-[10.5px] text-slate-500 italic">
+                <div className="text-[10px] sm:text-[10.5px] text-slate-500 italic">
                   Remit to Head Office corporate accounts or consult issuing office counter.
                 </div>
               )}
             </div>
 
-            <div className="mt-4 pt-2.5 border-t border-slate-200">
+            <div className="mt-2 pt-1 border-t border-slate-200">
               <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-700">
                 PAYMENT TERMS{" "}
               </span>
@@ -737,7 +737,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
           {/* Right: Freight Summary */}
           <div className="w-[42%] divide-y divide-slate-200 text-[11px]">
-            <div className="flex justify-between p-2 pl-3 pr-3">
+            <div className="flex justify-between py-1 px-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                 BASIC FREIGHT
               </span>
@@ -746,7 +746,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
               </span>
             </div>
             {Number(lr.loading_charges || 0) > 0 && (
-              <div className="flex justify-between p-2 pl-3 pr-3">
+              <div className="flex justify-between py-1 px-3">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                   LOADING CHARGES
                 </span>
@@ -754,7 +754,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
               </div>
             )}
             {Number(lr.unloading_charges || 0) > 0 && (
-              <div className="flex justify-between p-2 pl-3 pr-3">
+              <div className="flex justify-between py-1 px-3">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                   UNLOADING CHARGES
                 </span>
@@ -762,14 +762,14 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
               </div>
             )}
             {Number(lr.other_charges || 0) > 0 && (
-              <div className="flex justify-between p-2 pl-3 pr-3">
+              <div className="flex justify-between py-1 px-3">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                   OTHER CHARGES
                 </span>
                 <span className="font-mono">{formatCurrency(lr.other_charges)}</span>
               </div>
             )}
-            <div className="flex justify-between p-2 pl-3 pr-3 font-bold bg-slate-50/50">
+            <div className="flex justify-between py-1 px-3 font-bold bg-slate-50/50">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">
                 TOTAL FREIGHT
               </span>
@@ -777,7 +777,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                 {formatCurrency(lr.total_freight_amount)}
               </span>
             </div>
-            <div className="flex justify-between p-2 pl-3 pr-3">
+            <div className="flex justify-between py-1 px-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                 ADVANCE RECEIVED
               </span>
@@ -785,7 +785,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                 {formatCurrency(lr.advance_amount)}
               </span>
             </div>
-            <div className="flex justify-between p-2 pl-3 pr-3 font-bold text-slate-900 bg-slate-50/50">
+            <div className="flex justify-between py-1 px-3 font-bold text-slate-900 bg-slate-50/50">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-900">
                 BALANCE PAYABLE
               </span>
@@ -797,7 +797,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         </div>
 
         {/* 8. Terms, Jurisdiction & Signature */}
-        <div className="flex items-center justify-between p-3 border-b border-slate-300 text-[11px]">
+        <div className="flex items-center justify-between py-1.5 px-3 border-b border-slate-300 text-[11px]">
           <div className="w-1/3 text-left text-[10px] text-slate-700 font-normal leading-relaxed">
             <div>{jurisdictionText}</div>
             <div className="text-[9.5px] text-slate-500 mt-0.5">
@@ -814,12 +814,12 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
           </div>
           <div className="w-1/3 text-right">
             {company?.signature_url && (
-              <div className="flex justify-end mb-1">
+              <div className="flex justify-end mb-0.5">
                 <img
                   src={company.signature_url}
                   alt="Signing Authority"
                   crossOrigin="anonymous"
-                  className="h-8 max-w-[110px] object-contain"
+                  className="h-7 max-w-[100px] object-contain"
                 />
               </div>
             )}
@@ -834,7 +834,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         </div>
 
         {/* 9. Bottom Footer Bar with Dynamic Issuing Office State */}
-        <div className="bg-black text-white text-center py-2 px-3 text-[10px] sm:text-[11px] font-medium tracking-wide">
+        <div className="bg-black text-white text-center py-1.5 px-3 text-[10px] sm:text-[11px] font-medium tracking-wide">
           This Lorry Receipt / Goods Consignment Note is electronically generated from {issuingOfficeState}.
         </div>
       </div>
@@ -843,7 +843,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
   const modalNode = (
     <div
-      className={`lr-modal-portal fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto ${
+      className={`lr-modal-portal fixed inset-0 z-[85] flex items-center justify-center p-2 sm:p-3 overflow-y-auto print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto ${
         printMode === "all" ? "print-mode-all" : "print-mode-single"
       }`}
     >
@@ -993,9 +993,9 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="lr-modal-container relative w-full max-w-4xl h-[88vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="lr-modal-container relative w-full max-w-4xl h-auto my-auto bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Hidden in Print) */}
-        <div className="px-4 sm:px-6 py-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
+        <div className="px-4 sm:px-6 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               LR / Consignment Note
@@ -1105,7 +1105,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         </div>
 
         {/* Modal Printable Body - Clean A4 Goods Receipt / Consignment Note */}
-        <div ref={modalBodyRef} className="lr-modal-body p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 flex flex-col items-center">
+        <div ref={modalBodyRef} className="lr-modal-body p-2 sm:p-2.5 bg-slate-100 flex flex-col items-center">
           {/* 1. Single View (Active Copy on screen, and printed when printMode === 'single') */}
           <div
             id="lr-single-print-wrapper"
@@ -1137,7 +1137,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
         </div>
 
         {/* Modal Bottom Bar */}
-        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print">
+        <div className="px-6 py-2 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print">
           <div className="text-xs text-slate-500">
             Issuing Office: <span className="font-semibold text-slate-800">{officeName}</span>
           </div>
