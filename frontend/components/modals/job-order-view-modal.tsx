@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import { getStoredAuth } from "@/lib/auth";
+import { getStoredAuth, getActiveOffice } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/badge";
 import { toast } from "@/lib/toast";
@@ -148,11 +148,45 @@ export function JobOrderViewModal({
 
       const validBranches = Array.isArray(branchList) ? branchList : [];
       if (validBranches.length > 0) {
-        const selected =
-          validBranches.find((b) => b.id === compData?.default_issuing_office_id) ||
-          validBranches.find((b) => b.is_head_office) ||
-          validBranches[0];
-        setIssuingBranch(selected);
+        const activeOffice = getActiveOffice();
+        let selected: BranchData | undefined;
+
+        // 1. First priority: active office from top bar (current issuing office in view)
+        if (activeOffice && activeOffice.id !== 0) {
+          selected = validBranches.find(
+            (b) =>
+              b.id === activeOffice.id ||
+              b.code?.toUpperCase() === activeOffice.code?.toUpperCase() ||
+              b.name?.toLowerCase() === activeOffice.name?.toLowerCase()
+          );
+        }
+
+        // 2. Second priority: job order record's specific issuing office
+        if (!selected && (job as any)?.issuing_office_id) {
+          selected = validBranches.find((b) => b.id === (job as any).issuing_office_id);
+        }
+        if (!selected && (job as any)?.issuing_office_code) {
+          selected = validBranches.find(
+            (b) => b.code?.toUpperCase() === (job as any).issuing_office_code?.toUpperCase()
+          );
+        }
+        if (!selected && job?.issuing_office_name) {
+          selected = validBranches.find(
+            (b) => b.name?.toLowerCase() === job.issuing_office_name?.toLowerCase()
+          );
+        }
+
+        // 3. Fallback to company default issuing office
+        if (!selected && compData?.default_issuing_office_id) {
+          selected = validBranches.find((b) => b.id === compData.default_issuing_office_id);
+        }
+
+        // 4. Fallback to Head Office or first branch
+        if (!selected) {
+          selected = validBranches.find((b) => b.is_head_office) || validBranches[0];
+        }
+
+        setIssuingBranch(selected || null);
       }
     } catch {
       const auth = getStoredAuth();
@@ -163,7 +197,19 @@ export function JobOrderViewModal({
     } finally {
       setIsLoadingDetails(false);
     }
-  }, []);
+  }, [job]);
+
+  // Re-sync whenever the user switches active office in the top bar
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOfficeChange = () => {
+      loadCompanyDetails();
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => {
+      window.removeEventListener("panther_office_changed", handleOfficeChange);
+    };
+  }, [isOpen, loadCompanyDetails]);
 
   // Focus trap, scroll lock, and ESC key listener
   useEffect(() => {
@@ -354,18 +400,20 @@ export function JobOrderViewModal({
   };
 
   const auth = getStoredAuth();
+  const activeOffice = getActiveOffice();
   const companyName = company?.company_name?.trim() || auth?.tenantName || "PANTHER LOGISTICS";
-  const officeAddress = issuingBranch?.address?.trim() || company?.address?.trim() || "Registered Corporate Office";
-  const officeCity = issuingBranch?.city?.trim() || company?.city?.trim() || "DELHI";
-  const officeState = issuingBranch?.state?.trim() || company?.state?.trim() || "DELHI";
+  const officeName = issuingBranch?.name?.trim() || activeOffice?.name?.trim() || company?.issuing_office?.trim() || "Head Office";
+  const officeCode = issuingBranch?.code?.trim() || activeOffice?.code?.trim() || "";
+  const officeCity = issuingBranch?.city?.trim() || activeOffice?.city?.trim() || (officeCode === "MUM" ? "Mumbai" : company?.city?.trim() || "DELHI");
+  const officeState = issuingBranch?.state?.trim() || activeOffice?.state?.trim() || (officeCode === "MUM" ? "Maharashtra" : company?.state?.trim() || "DELHI");
   const officePincode = issuingBranch?.pincode?.trim() || company?.pincode?.trim() || "";
   const officePhone = issuingBranch?.phone?.trim() || company?.phone?.trim() || "—";
   const officeEmail = issuingBranch?.email?.trim() || company?.email?.trim() || "—";
   const officeGstin = issuingBranch?.gstin?.trim() || company?.gstin?.trim() || "—";
   const officePan = company?.pan?.trim() || issuingBranch?.pan?.trim() || "—";
-  const officeName = issuingBranch?.name?.trim() || company?.issuing_office?.trim() || `Head Office (${officeCity})`;
+  const officeAddress = issuingBranch?.address?.trim() || (officeCity.toLowerCase() !== (company?.city || "").toLowerCase() ? `${officeName} Branch Office` : company?.address?.trim()) || "Registered Corporate Office";
   const jurisdictionText = issuingBranch?.document_notes?.trim() || `Subject to ${officeCity} Jurisdiction only`;
-  const issuingOfficeState = issuingBranch?.state?.trim() || issuingBranch?.city?.trim() || company?.state?.trim() || company?.city?.trim() || "Delhi";
+  const issuingOfficeState = issuingBranch?.state?.trim() || issuingBranch?.city?.trim() || activeOffice?.state?.trim() || activeOffice?.city?.trim() || (officeCode === "MUM" ? "Maharashtra" : company?.state?.trim() || "Delhi");
 
   // Anomaly checks
   const consignerLooksLikePlate = Boolean(
@@ -520,7 +568,7 @@ export function JobOrderViewModal({
       <div
         ref={modalRef}
         tabIndex={-1}
-        className="job-order-modal-container relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] focus:outline-none print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
+        className="job-order-modal-container relative w-full max-w-4xl h-[88vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col focus:outline-none print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
       >
         {/* Top Control Bar (Hidden in Print) */}
         <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/90 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">

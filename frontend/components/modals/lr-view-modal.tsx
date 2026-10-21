@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import { getStoredAuth } from "@/lib/auth";
+import { getStoredAuth, getActiveOffice } from "@/lib/auth";
 import { formatCurrency } from "@/lib/utils";
 
 export interface LRViewRecord {
@@ -136,24 +136,37 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
           setCompany(compData);
         }
 
+        const activeOffice = getActiveOffice();
         const validBranches = Array.isArray(branchList) ? branchList : [];
         if (validBranches.length > 0) {
-          // 1. Exact match on LR issuing_office_id
-          let selected = lr.issuing_office_id
-            ? validBranches.find((b) => b.id === lr.issuing_office_id)
-            : undefined;
+          let selected: BranchData | undefined;
 
-          // 2. Match on issuing_office_code
+          // 1. First priority: active office from top bar (current issuing office in view)
+          if (activeOffice && activeOffice.id !== 0) {
+            selected = validBranches.find(
+              (b) =>
+                b.id === activeOffice.id ||
+                b.code?.toUpperCase() === activeOffice.code?.toUpperCase() ||
+                b.name?.toLowerCase() === activeOffice.name?.toLowerCase()
+            );
+          }
+
+          // 2. Exact match on LR issuing_office_id
+          if (!selected && lr.issuing_office_id) {
+            selected = validBranches.find((b) => b.id === lr.issuing_office_id);
+          }
+
+          // 3. Match on issuing_office_code
           if (!selected && lr.issuing_office_code) {
             selected = validBranches.find((b) => b.code?.toUpperCase() === lr.issuing_office_code?.toUpperCase());
           }
 
-          // 3. Match on issuing_office_name
+          // 4. Match on issuing_office_name
           if (!selected && lr.issuing_office_name) {
             selected = validBranches.find((b) => b.name?.toLowerCase() === lr.issuing_office_name?.toLowerCase());
           }
 
-          // 4. Fallback to Head Office or first branch
+          // 5. Fallback to Head Office or first branch
           if (!selected) {
             selected = validBranches.find((b) => b.is_head_office) || validBranches[0];
           }
@@ -170,6 +183,32 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
 
     loadOfficeAndCompanyDetails();
   }, [isOpen, lr]);
+
+  // Re-sync whenever the user switches active office in top bar
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOfficeChange = () => {
+      const activeOffice = getActiveOffice();
+      if (activeOffice && activeOffice.id !== 0) {
+        apiClient<BranchData[]>("/api/v1/profile/branches")
+          .then((branchList) => {
+            const valid = Array.isArray(branchList) ? branchList : [];
+            const selected = valid.find(
+              (b) =>
+                b.id === activeOffice.id ||
+                b.code?.toUpperCase() === activeOffice.code?.toUpperCase() ||
+                b.name?.toLowerCase() === activeOffice.name?.toLowerCase()
+            );
+            if (selected) setIssuingBranch(selected);
+          })
+          .catch(() => {});
+      }
+    };
+    window.addEventListener("panther_office_changed", handleOfficeChange);
+    return () => {
+      window.removeEventListener("panther_office_changed", handleOfficeChange);
+    };
+  }, [isOpen]);
 
   if (!isOpen || !mounted || !lr) return null;
 
@@ -272,19 +311,20 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
   };
 
   const auth = getStoredAuth();
+  const activeOffice = getActiveOffice();
   const companyName = company?.company_name?.trim() || auth?.tenantName || "PANTHER LOGISTICS";
-  const officeName = issuingBranch?.name?.trim() || lr.issuing_office_name || "Head Office";
-  const officeCode = issuingBranch?.code?.trim() || lr.issuing_office_code || "";
-  const officeAddress = issuingBranch?.address?.trim() || company?.address?.trim() || "Corporate Branch Office";
-  const officeCity = issuingBranch?.city?.trim() || company?.city?.trim() || "DELHI";
-  const officeState = issuingBranch?.state?.trim() || company?.state?.trim() || "DELHI";
+  const officeName = issuingBranch?.name?.trim() || activeOffice?.name?.trim() || lr.issuing_office_name || "Head Office";
+  const officeCode = issuingBranch?.code?.trim() || activeOffice?.code?.trim() || lr.issuing_office_code || "";
+  const officeCity = issuingBranch?.city?.trim() || activeOffice?.city?.trim() || (officeCode === "MUM" ? "Mumbai" : company?.city?.trim() || "DELHI");
+  const officeState = issuingBranch?.state?.trim() || activeOffice?.state?.trim() || (officeCode === "MUM" ? "Maharashtra" : company?.state?.trim() || "DELHI");
   const officePincode = issuingBranch?.pincode?.trim() || company?.pincode?.trim() || "";
   const officePhone = issuingBranch?.phone?.trim() || company?.phone?.trim() || "—";
   const officeEmail = issuingBranch?.email?.trim() || company?.email?.trim() || "—";
   const officeGstin = issuingBranch?.gstin?.trim() || company?.gstin?.trim() || "—";
   const officePan = company?.pan?.trim() || issuingBranch?.pan?.trim() || "—";
+  const officeAddress = issuingBranch?.address?.trim() || (officeCity.toLowerCase() !== (company?.city || "").toLowerCase() ? `${officeName} Branch Office` : company?.address?.trim()) || "Corporate Branch Office";
   const jurisdictionText = issuingBranch?.document_notes?.trim() || `Subject to ${officeCity} Jurisdiction only`;
-  const issuingOfficeState = issuingBranch?.state?.trim() || issuingBranch?.city?.trim() || company?.state?.trim() || company?.city?.trim() || "Delhi";
+  const issuingOfficeState = issuingBranch?.state?.trim() || issuingBranch?.city?.trim() || activeOffice?.state?.trim() || activeOffice?.city?.trim() || (officeCode === "MUM" ? "Maharashtra" : company?.state?.trim() || "Delhi");
 
   const modalNode = (
     <div className="lr-modal-portal fixed inset-0 z-[85] flex items-center justify-center p-3 sm:p-6 overflow-y-auto print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto">
@@ -386,7 +426,7 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="lr-modal-container relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="lr-modal-container relative w-full max-w-4xl h-[88vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Hidden in Print) */}
         <div className="px-6 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
           <div className="flex items-center gap-2">
