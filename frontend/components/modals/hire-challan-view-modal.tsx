@@ -217,7 +217,7 @@ export function HireChallanViewModal({
             );
             if (selected) setIssuingBranch(selected);
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     };
     window.addEventListener("panther_office_changed", handleOfficeChange);
@@ -493,22 +493,20 @@ export function HireChallanViewModal({
               <button
                 type="button"
                 onClick={() => setActiveTab("details")}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                  activeTab === "details"
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${activeTab === "details"
                     ? "bg-white text-slate-900 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Details View
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("print")}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                  activeTab === "print"
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${activeTab === "print"
                     ? "bg-white text-slate-900 shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Print Preview
               </button>

@@ -596,22 +596,20 @@ export function JobOrderViewModal({
               <button
                 type="button"
                 onClick={() => setViewMode("details")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                  viewMode === "details"
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${viewMode === "details"
                     ? "bg-white text-indigo-900 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Details View
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode("voucher")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                  viewMode === "voucher"
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${viewMode === "voucher"
                     ? "bg-white text-indigo-900 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Print Preview
               </button>
@@ -904,11 +902,10 @@ export function JobOrderViewModal({
               {/* ========================================================================= */}
               <div
                 id="job-order-voucher-wrapper"
-                className={`justify-center ${
-                  viewMode === "voucher"
+                className={`justify-center ${viewMode === "voucher"
                     ? "flex p-4 sm:p-6"
                     : "fixed left-0 top-0 pointer-events-none opacity-0 z-[-50] print:static print:opacity-100 print:pointer-events-auto print:flex print:p-0 print:z-auto"
-                }`}
+                  }`}
                 style={viewMode === "voucher" ? undefined : { width: "780px", maxWidth: "780px" }}
               >
                 <div
