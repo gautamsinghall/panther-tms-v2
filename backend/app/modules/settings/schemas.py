@@ -169,6 +169,7 @@ class SeriesCheckResponse(BaseModel):
     is_mandatory_manual: bool = False
     is_active: bool = True
     message: Optional[str] = None
+    series_options: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 # --- Admin Settings ---

@@ -1,8 +1,8 @@
 "use client";
 import { toast } from "@/lib/toast";
 
-import React, { useState, useEffect } from "react";
-import { Plus, FileSpreadsheet, Ban, CheckCircle, AlertCircle, Eye } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, FileSpreadsheet, Ban, CheckCircle, AlertCircle, Eye, Lock } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 interface LedgerEntry {
   id: number;
@@ -63,6 +64,7 @@ export default function ProformaInvoicePage() {
   // View Details Drawer state
   const [selectedVoucher, setSelectedVoucher] = useState<VoucherRecord | null>(null);
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
 
   const loadData = async () => {
     setIsLoading(true);
@@ -76,6 +78,9 @@ export default function ProformaInvoicePage() {
       ]);
       setData(res);
       setSeriesInfo(sInfo);
+      if (sInfo?.series_options?.length > 0) {
+        setSelectedSeriesId(String(sInfo.series_options[0].id));
+      }
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load proforma invoices.");
     } finally {
@@ -87,9 +92,38 @@ export default function ProformaInvoicePage() {
     loadData();
   }, []);
 
+  const seriesOptions = useMemo(() => {
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      return seriesInfo.series_options.map((s: any) => ({
+        value: String(s.id),
+        label: s.display_label || `${s.series_name} (${s.next_number_formatted})`,
+      }));
+    }
+    if (seriesInfo?.configured) {
+      return [{
+        value: "default",
+        label: `Default Series (${seriesInfo.next_number_formatted})`,
+      }];
+    }
+    return [{ value: "default", label: "Default Proforma Invoice Sequence" }];
+  }, [seriesInfo]);
+
+  const activeSeries = useMemo(() => {
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      if (selectedSeriesId && selectedSeriesId !== "default") {
+        const found = seriesInfo.series_options.find((s: any) => String(s.id) === String(selectedSeriesId));
+        if (found) return found;
+      }
+      return seriesInfo.series_options[0];
+    }
+    return seriesInfo;
+  }, [seriesInfo, selectedSeriesId]);
+
+  const activeNextNumber = activeSeries?.next_number_formatted || seriesInfo?.next_number_formatted || "";
+
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!seriesInfo?.configured || !seriesInfo?.next_number_formatted) {
+    if (!seriesInfo?.configured && (!seriesInfo?.series_options || seriesInfo.series_options.length === 0)) {
       toast.error("Proforma Invoice cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
@@ -101,6 +135,8 @@ export default function ProformaInvoicePage() {
       return;
     }
 
+    const parsedSeriesId = selectedSeriesId && selectedSeriesId !== "default" ? parseInt(selectedSeriesId, 10) : undefined;
+
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
@@ -108,7 +144,8 @@ export default function ProformaInvoicePage() {
         method: "POST",
         body: JSON.stringify({
           voucher_type: "PROFORMA_INVOICE",
-          voucher_number: seriesInfo.next_number_formatted,
+          voucher_number: activeNextNumber || undefined,
+          series_id: parsedSeriesId,
           party_name: partyName.trim(),
           reference_number: refNumber.trim() || undefined,
           total_amount: tot,
@@ -324,19 +361,68 @@ export default function ProformaInvoicePage() {
           )}
 
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
-            {/* Series Master Info / Voucher Number */}
-            <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex items-center justify-between">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <div className="text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
-                  Proforma Invoice Number (Auto Series)
-                </div>
-                <div className="font-mono font-bold text-sm text-[#0F172A] mt-0.5 min-h-[1.25rem]">
-                  {seriesInfo?.configured ? seriesInfo.next_number_formatted : ""}
-                </div>
+                <label className="block text-xs font-semibold text-text-primary mb-1 flex items-center justify-between">
+                  <span>
+                    Select Series <span className="text-[#DC2626]">*</span>
+                  </span>
+                  {seriesOptions.length <= 1 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <Lock className="w-2.5 h-2.5 text-slate-500" /> Frozen
+                    </span>
+                  )}
+                </label>
+                <select
+                  value={selectedSeriesId || (seriesOptions[0]?.value ?? "default")}
+                  disabled={seriesOptions.length <= 1}
+                  onChange={(e) => setSelectedSeriesId(e.target.value)}
+                  className={cn(
+                    "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer",
+                    seriesOptions.length <= 1 && "bg-slate-100/90 text-slate-600 cursor-not-allowed select-none"
+                  )}
+                >
+                  {seriesOptions.map((opt: any) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  {seriesOptions.length <= 1
+                    ? "Single series configured for this branch (Frozen / Read-only)."
+                    : "Select series to allocate sequence."}
+                </span>
               </div>
-              <span className="px-2 py-0.5 text-[10px] font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] rounded-md">
-                Auto-Assigned &amp; Locked
-              </span>
+
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1 flex items-center justify-between">
+                  <span>
+                    Proforma Number <span className="text-[#DC2626]">*</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                    <Lock className="w-2.5 h-2.5 text-slate-500" /> Auto / Locked
+                  </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={activeNextNumber || ""}
+                    placeholder={activeNextNumber || "Auto-allocated"}
+                    className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <Lock className="w-4 h-4 text-slate-400" />
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  {activeNextNumber
+                    ? `Allocated sequence number: ${activeNextNumber}`
+                    : "Auto-allocated upon creation from active series."}
+                </span>
+              </div>
             </div>
 
             <div>

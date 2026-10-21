@@ -58,6 +58,8 @@ interface SelectOption {
   state?: string;
 }
 
+import { getActiveOffice } from "@/lib/auth";
+
 export default function JobsPage() {
   const router = useRouter();
   const [data, setData] = useState<JobRecord[]>([]);
@@ -78,6 +80,7 @@ export default function JobsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
   const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
 
   // Quick Create Modals state
@@ -98,13 +101,15 @@ export default function JobsPage() {
     setIsError(false);
     setErrorMessage(null);
     try {
+      const activeOffice = getActiveOffice();
+      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
       const [jobsRes, billingClientsRes, consignersRes, consigneesRes, locationsRes, seriesRes] = await Promise.all([
         apiClient<JobRecord[]>("/api/v1/transport/jobs"),
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consigners"),
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
         apiClient<SelectOption[]>("/api/v1/general/locations"),
-        apiClient<any>("/api/v1/settings/series/check/JOB").catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/JOB${officeParam}`).catch(() => null),
       ]);
       setData(Array.isArray(jobsRes) ? jobsRes : []);
       setBillingClients(Array.isArray(billingClientsRes) ? billingClientsRes : []);
@@ -309,6 +314,35 @@ export default function JobsPage() {
     value: String(l.id),
   }));
 
+  const seriesOptions = useMemo(() => {
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      return seriesInfo.series_options.map((s: any) => ({
+        value: String(s.id),
+        label: s.display_label || `${s.series_name} (${s.next_number_formatted})`,
+      }));
+    }
+    if (seriesInfo?.configured) {
+      return [{
+        value: "default",
+        label: `Default Series (${seriesInfo.next_number_formatted})`,
+      }];
+    }
+    return [{ value: "default", label: "Default Job Sequence" }];
+  }, [seriesInfo]);
+
+  const activeSeries = useMemo(() => {
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      if (selectedSeriesId && selectedSeriesId !== "default") {
+        const found = seriesInfo.series_options.find((s: any) => String(s.id) === String(selectedSeriesId));
+        if (found) return found;
+      }
+      return seriesInfo.series_options[0];
+    }
+    return seriesInfo;
+  }, [seriesInfo, selectedSeriesId]);
+
+  const activeNextNumber = editingJob?.job_number || activeSeries?.next_number_formatted || seriesInfo?.next_number_formatted || "";
+
   const formSections: FormSectionDef[] = [
     {
       id: "job_order_specification",
@@ -317,15 +351,35 @@ export default function JobsPage() {
       columns: 2,
       fields: [
         {
+          name: "job_series_id",
+          label: "Select Series",
+          type: "select",
+          options: seriesOptions,
+          disabled: Boolean(editingJob) || seriesOptions.length <= 1,
+          disabledReason: editingJob
+            ? "Cannot modify series of an existing job"
+            : seriesOptions.length <= 1
+            ? "Only one series configured for this branch"
+            : undefined,
+          defaultValue: selectedSeriesId || (seriesOptions[0]?.value ?? "default"),
+          onChange: (newVal: string) => {
+            setSelectedSeriesId(newVal);
+            const matched = seriesInfo?.series_options?.find((s: any) => String(s.id) === String(newVal));
+            const nextNum = matched?.next_number_formatted || seriesInfo?.next_number_formatted || "";
+            if (formSetFieldValueRef.current) {
+              formSetFieldValueRef.current("job_number", nextNum);
+            }
+          },
+          colSpan: 1,
+        },
+        {
           name: "job_number",
-          label: "Job Sequence Number (Optional)",
+          label: "Job Number (Locked)",
           type: "text",
-          disabled: Boolean(editingJob),
-          disabledReason: editingJob ? "Job Number cannot be modified once created" : undefined,
-          placeholder: seriesInfo?.next_number_formatted ? `Next: ${seriesInfo.next_number_formatted}` : "Leave blank for auto-numbering",
-          helperText: seriesInfo?.next_number_formatted
-            ? `Generated format: ${seriesInfo.next_number_formatted}. Enter custom sequence or leave blank for automatic numbering.`
-            : "Enter sequence number or leave blank for automatic generation.",
+          disabled: true,
+          disabledReason: "Sequence number is allocated automatically from the selected series.",
+          placeholder: activeNextNumber || "Auto-allocated",
+          helperText: `Allocated Sequence: ${activeNextNumber || "Auto-allocated upon creation"}`,
           colSpan: 1,
         },
         {
@@ -425,21 +479,12 @@ export default function JobsPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      let finalJobNumber = values.job_number ? String(values.job_number).trim() : "";
-      if (finalJobNumber && seriesInfo && !editingJob) {
-        const prefix = seriesInfo.prefix || "";
-        const suffix = seriesInfo.suffix || "";
-        if (prefix && !finalJobNumber.toLowerCase().startsWith(prefix.toLowerCase())) {
-          finalJobNumber = `${prefix}${finalJobNumber}`;
-        }
-        if (suffix && !finalJobNumber.toLowerCase().endsWith(suffix.toLowerCase())) {
-          finalJobNumber = `${finalJobNumber}${suffix}`;
-        }
-      }
-
+      const rawSeriesId = values.job_series_id || selectedSeriesId;
+      const parsedSeriesId = rawSeriesId && rawSeriesId !== "default" ? parseInt(rawSeriesId, 10) : undefined;
       const selectedBc = billingClients.find((b) => String(b.id) === String(values.billing_client_id));
       const payload = {
-        job_number: finalJobNumber || undefined,
+        job_series_id: parsedSeriesId,
+        job_number: editingJob ? values.job_number : undefined,
         job_date: values.job_date || new Date().toISOString().split("T")[0],
         expected_dispatch_date: values.expected_dispatch_date || undefined,
         billing_client_id: values.billing_client_id ? parseInt(values.billing_client_id, 10) : undefined,
@@ -476,13 +521,18 @@ export default function JobsPage() {
 
   const openCreateJobDrawer = useCallback(() => {
     setEditingJob(null);
+    const initialSeries = seriesInfo?.series_options?.[0];
+    const initialSeriesId = initialSeries ? String(initialSeries.id) : "default";
+    setSelectedSeriesId(initialSeriesId);
+    const initialJobNo = initialSeries?.next_number_formatted || seriesInfo?.next_number_formatted || "";
     setFormInitialValues({
-      job_number: "",
+      job_series_id: initialSeriesId,
+      job_number: initialJobNo,
       job_date: new Date().toISOString().split("T")[0],
       expected_dispatch_date: new Date().toISOString().split("T")[0],
     });
     setIsDrawerOpen(true);
-  }, []);
+  }, [seriesInfo]);
 
   // Auto-open create drawer if URL contains ?add=true
   useEffect(() => {
@@ -497,6 +547,7 @@ export default function JobsPage() {
   const openEditJobDrawer = (row: JobRecord) => {
     setEditingJob(row);
     setFormInitialValues({
+      job_series_id: "default",
       job_number: row.job_number,
       billing_client_id: row.billing_client_id ? String(row.billing_client_id) : "",
       origin_location_id: row.origin_location_id ? String(row.origin_location_id) : "",

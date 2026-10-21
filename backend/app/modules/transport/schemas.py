@@ -274,6 +274,7 @@ class JobBase(BaseModel):
     estimated_weight_mt: Optional[Decimal] = Decimal("0.000")
     estimated_packages: Optional[int] = 0
     special_instructions: Optional[str] = None
+    job_series_id: Optional[int] = None
 
 class JobCreate(JobBase):
     pass

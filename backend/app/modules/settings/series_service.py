@@ -34,7 +34,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Trip / Job Order (Job Creation)",
         "category_code": "TRANSPORT",
         "category_name": "Transport Documents",
-        "prefix": "JOB-2026-",
+        "prefix": "JOB-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -48,7 +48,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Lorry Receipt (GR / LR)",
         "category_code": "TRANSPORT",
         "category_name": "Transport Documents",
-        "prefix": "LR-2026-",
+        "prefix": "LR-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -62,7 +62,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Truck Hire Challan (HC)",
         "category_code": "TRANSPORT",
         "category_name": "Transport Documents",
-        "prefix": "HC-2026-",
+        "prefix": "HC-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -77,7 +77,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Transport / Freight Invoice",
         "category_code": "BILLING",
         "category_name": "Customer Invoicing",
-        "prefix": "TI-2026-",
+        "prefix": "TI-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -91,7 +91,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "General Commercial Invoice",
         "category_code": "BILLING",
         "category_name": "Customer Invoicing",
-        "prefix": "GI-2026-",
+        "prefix": "GI-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -105,7 +105,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Proforma Invoice",
         "category_code": "BILLING",
         "category_name": "Customer Invoicing",
-        "prefix": "PI-2026-",
+        "prefix": "PI-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -120,7 +120,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Purchase Invoice (Operational / Spares)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "NP-2026-",
+        "prefix": "NP-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -134,7 +134,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "General Purchase (Admin / Expense)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "GP-2026-",
+        "prefix": "GP-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -148,7 +148,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Receipt Voucher (Customer / Cash-Bank)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "RV-2026-",
+        "prefix": "RV-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -162,7 +162,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Payment Voucher (Vendor / General)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "PV-2026-",
+        "prefix": "PV-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -176,7 +176,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Advance To Hired (ATH Payment)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "ATH-2026-",
+        "prefix": "ATH-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -190,7 +190,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Balance To Hired (BTH Settlement)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "BTH-2026-",
+        "prefix": "BTH-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -204,7 +204,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Credit Note",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "CN-2026-",
+        "prefix": "CN-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -218,7 +218,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Debit Note",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "DN-2026-",
+        "prefix": "DN-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -232,7 +232,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Journal Voucher (General Journal)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "JV-2026-",
+        "prefix": "JV-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -246,7 +246,7 @@ STANDARD_VOUCHER_METADATA: List[Dict[str, Any]] = [
         "name": "Contra Voucher (Bank-Cash Transfer)",
         "category_code": "ACCOUNTS",
         "category_name": "Accounting Vouchers",
-        "prefix": "CV-2026-",
+        "prefix": "CV-",
         "suffix": "",
         "starting_number": 1,
         "current_number": 0,
@@ -705,10 +705,11 @@ async def allocate_or_validate_voucher_number(
     manual_number: Optional[str] = None,
     financial_year: str = "2026-2027",
     issuing_office_id: Optional[int] = None,
+    series_id: Optional[int] = None,
 ) -> str:
     """
     Allocates the voucher number according to configured SeriesMaster.
-    - If document requires mandatory manual series and none is configured, raises AppException (400).
+    - If series_id is provided, allocates from that specific chosen series.
     - If configured as MANUAL: validates/formats provided manual sequence or auto-picks next number,
       and updates SeriesMaster current_number.
     - If configured as AUTOMATIC: auto-increments current_number and formats number with Prefix and Postfix.
@@ -718,26 +719,33 @@ async def allocate_or_validate_voucher_number(
     norm_type = DOC_TYPE_ALIASES.get(raw_doc, raw_doc)
     is_mandatory_manual = norm_type in MANDATORY_MANUAL_DOC_TYPES
 
-    # Find active series for this document_type (prioritizing office if specified)
-    stmt = select(SeriesMaster).where(
-        SeriesMaster.document_type.in_([norm_type, raw_doc]),
-        SeriesMaster.is_active == True,
-    )
-    if issuing_office_id:
-        stmt = stmt.where(
-            or_(
-                SeriesMaster.issuing_office_id == issuing_office_id,
-                SeriesMaster.issuing_office_id.is_(None),
-            )
-        ).order_by(
-            case((SeriesMaster.issuing_office_id == issuing_office_id, 1), else_=0).desc(),
-            SeriesMaster.is_default.desc(),
-            SeriesMaster.id.desc(),
+    series = None
+    if series_id:
+        series = await db.get(SeriesMaster, series_id)
+        if series and not series.is_active:
+            series = None
+
+    if not series:
+        # Find active series for this document_type (prioritizing office if specified)
+        stmt = select(SeriesMaster).where(
+            SeriesMaster.document_type.in_([norm_type, raw_doc]),
+            SeriesMaster.is_active == True,
         )
-    else:
-        stmt = stmt.order_by(SeriesMaster.id.desc())
-    res = await db.execute(stmt)
-    series = res.scalars().first()
+        if issuing_office_id:
+            stmt = stmt.where(
+                or_(
+                    SeriesMaster.issuing_office_id == issuing_office_id,
+                    SeriesMaster.issuing_office_id.is_(None),
+                )
+            ).order_by(
+                case((SeriesMaster.issuing_office_id == issuing_office_id, 1), else_=0).desc(),
+                SeriesMaster.is_default.desc(),
+                SeriesMaster.id.desc(),
+            )
+        else:
+            stmt = stmt.order_by(SeriesMaster.id.desc())
+        res = await db.execute(stmt)
+        series = res.scalars().first()
 
     # Fallback to active company default series if branch has no office-specific series
     if not series and issuing_office_id:
@@ -910,10 +918,11 @@ async def check_series_status(
     document_type: str,
     issuing_office_id: Optional[int] = None,
     office_id: Optional[int] = None,
+    series_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Returns the series configuration and next available series number for a given document type.
-    Enforces issuing office isolation: if an office is specified, only that office's active series qualifies.
+    Enforces issuing office isolation and returns all series options for the voucher dropdown.
     """
     target_office_id = issuing_office_id or office_id
     raw_doc = document_type.upper().strip()
@@ -933,24 +942,15 @@ async def check_series_status(
         ).order_by(
             case((SeriesMaster.issuing_office_id == target_office_id, 1), else_=0).desc(),
             SeriesMaster.is_default.desc(),
-            SeriesMaster.id.desc(),
+            SeriesMaster.id.asc(),
         )
     else:
-        stmt = stmt.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
+        stmt = stmt.order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.asc())
 
     res = await db.execute(stmt)
-    series = res.scalars().first()
+    all_series = res.scalars().all()
 
-    # If target_office_id was specified, but no office-specific series was matched, fallback to active default series
-    if not series and target_office_id:
-        fallback_stmt = select(SeriesMaster).where(
-            SeriesMaster.document_type.in_([norm_type, raw_doc]),
-            SeriesMaster.is_active == True,
-        ).order_by(SeriesMaster.is_default.desc(), SeriesMaster.id.desc())
-        series = (await db.execute(fallback_stmt)).scalars().first()
-
-    # If target_office_id was specified, but no series was matched
-    if not series:
+    if not all_series:
         return {
             "configured": False,
             "document_type": norm_type,
@@ -959,28 +959,53 @@ async def check_series_status(
             "series_mode": "AUTOMATIC",
             "next_number_formatted": "",
             "message": f"No active series configured for issuing office for {readable_title}. Please setup the series in Settings > Series Master before creating this entry.",
+            "series_options": [],
         }
 
-    real_usage = await get_real_voucher_usage(db, norm_type, prefix=series.prefix)
-    disp = compute_series_display_data(series, real_usage=real_usage)
-    next_fmt = disp["next_number_formatted"]
-    next_num = disp["next_number"]
     all_used = await get_all_used_numbers_for_doc(db, norm_type)
-    while next_fmt in all_used:
-        next_num += 1
-        next_fmt = format_series_number(series.prefix or "", next_num, series.suffix or "")
+    series_options = []
+    chosen_series_data = None
 
-    # For manual series: if range is not set, treat series as not configured
-    if disp["series_mode"] == "MANUAL" and (series.end_number is None or series.end_number < (series.starting_number or 1)):
-        return {
-            "configured": False,
-            "document_type": norm_type,
-            "display_name": readable_title,
-            "is_mandatory_manual": False,
-            "series_mode": "MANUAL",
-            "next_number_formatted": "",
-            "message": f"Manual series batch range is not configured for {readable_title}. Please set up a series range in Settings > Series Master.",
-        }
+    for s in all_series:
+        s_usage = await get_real_voucher_usage(db, norm_type, prefix=s.prefix)
+        s_disp = compute_series_display_data(s, real_usage=s_usage)
+        s_next_fmt = s_disp["next_number_formatted"]
+        s_next_num = s_disp["next_number"]
+        while s_next_fmt in all_used:
+            s_next_num += 1
+            s_next_fmt = format_series_number(s.prefix or "", s_next_num, s.suffix or "")
+
+        opt_label = s.series_name or s.prefix
+        series_options.append({
+            "id": s.id,
+            "series_name": opt_label,
+            "prefix": s.prefix,
+            "suffix": s.suffix or "",
+            "starting_number": s.starting_number,
+            "end_number": s.end_number,
+            "current_number": s_disp["current_number"],
+            "next_number": s_next_num,
+            "next_number_formatted": s_next_fmt,
+            "series_mode": s_disp["series_mode"],
+            "is_default": bool(s.is_default),
+            "issuing_office_id": s.issuing_office_id,
+            "display_label": f"{opt_label} ({s_next_fmt})",
+        })
+
+        if series_id and s.id == series_id:
+            chosen_series_data = (s, s_disp, s_next_num, s_next_fmt)
+
+    if not chosen_series_data:
+        first_s = all_series[0]
+        first_opt = series_options[0]
+        chosen_series_data = (
+            first_s,
+            {"current_number": first_opt["current_number"], "last_used_formatted": None, "series_mode": first_opt["series_mode"]},
+            first_opt["next_number"],
+            first_opt["next_number_formatted"],
+        )
+
+    series, disp, next_num, next_fmt = chosen_series_data
 
     return {
         "configured": True,
@@ -993,7 +1018,7 @@ async def check_series_status(
         "starting_number": series.starting_number,
         "current_number": disp["current_number"],
         "end_number": series.end_number,
-        "last_used_formatted": disp["last_used_formatted"],
+        "last_used_formatted": disp.get("last_used_formatted"),
         "next_number": next_num,
         "next_number_formatted": next_fmt,
         "financial_year": series.financial_year,
@@ -1002,19 +1027,21 @@ async def check_series_status(
         "is_mandatory_manual": False,
         "is_active": series.is_active,
         "issuing_office_id": series.issuing_office_id,
+        "series_options": series_options,
     }
 
 
 async def initialize_all_standard_series(
     db: AsyncSession,
     financial_year: str = "2026-2027",
-    exclude_manual: bool = False,
+    exclude_manual: bool = True,
     office_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Initializes default series templates for all 16 automatic voucher types.
-    Can be targeted to a specific issuing office or all active offices.
+    Initializes default series templates for automatic voucher types.
+    Can be targeted to a specific issuing office, all active offices, or global company default.
     Each issuing office receives its own unique prefix with its branch code and separate sequence.
+    Manual series are excluded so users set them up on their own.
     """
     from app.tenant_db.models import Branch
 
@@ -1046,26 +1073,29 @@ async def initialize_all_standard_series(
     else:
         target_branches = (await db.execute(select(Branch).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()))).scalars().all()
 
+    # If no branches exist yet (e.g. upon fresh tenant onboarding), seed global automatic series
     if not target_branches:
-        any_branch = (await db.execute(select(Branch).order_by(Branch.id.asc()))).scalars().first()
-        if any_branch:
-            target_branches = [any_branch]
-        else:
-            logger.info("No issuing offices found; skipping series initialization until an issuing office is created.")
-            return []
+        target_branches = [None]
 
-    # 3. Seed office-isolated standard series
+    # 3. Seed office-isolated standard series (automatic series only)
     created_list = []
     for branch in target_branches:
-        branch_code = (branch.code or f"OFF{branch.id}").upper().strip()
+        branch_id = branch.id if branch else None
+        branch_name = branch.name if branch else "Company Default"
+        branch_code = (branch.code or f"OFF{branch.id}").upper().strip() if branch else ""
+
         for meta in STANDARD_VOUCHER_METADATA:
+            mode = (meta.get("series_mode") or "AUTOMATIC").upper().strip()
+            if exclude_manual and (mode == "MANUAL" or meta.get("is_mandatory_manual")):
+                continue
+
             doc_type = meta["document_type"]
             doc_tag = meta.get("code") or doc_type[:3]
-            office_prefix = f"{branch_code}-{doc_tag}-2026-"
+            office_prefix = f"{branch_code}-{doc_tag}-" if branch_code else f"{doc_tag}-"
 
             stmt = select(SeriesMaster).where(
                 SeriesMaster.document_type == doc_type,
-                SeriesMaster.issuing_office_id == branch.id,
+                SeriesMaster.issuing_office_id == branch_id,
                 SeriesMaster.financial_year == financial_year,
             )
             existing = (await db.execute(stmt)).scalar_one_or_none()
@@ -1073,9 +1103,9 @@ async def initialize_all_standard_series(
                 cat_id = cat_map.get(meta["category_code"])
                 series_obj = SeriesMaster(
                     category_id=cat_id,
-                    issuing_office_id=branch.id,
+                    issuing_office_id=branch_id,
                     document_type=doc_type,
-                    series_name=None,
+                    series_name=f"{branch_code} {doc_tag}".strip() if branch_code else None,
                     prefix=office_prefix,
                     suffix=meta.get("suffix", ""),
                     starting_number=meta.get("starting_number", 1),
@@ -1087,13 +1117,13 @@ async def initialize_all_standard_series(
                 )
                 db.add(series_obj)
                 await db.flush()
-                real_usage = await get_real_voucher_usage(db, series_obj.document_type)
+                real_usage = await get_real_voucher_usage(db, series_obj.document_type, prefix=series_obj.prefix)
                 disp = compute_series_display_data(series_obj, real_usage=real_usage)
                 created_list.append({
                     "id": series_obj.id,
                     "document_type": series_obj.document_type,
-                    "issuing_office_id": branch.id,
-                    "issuing_office_name": branch.name,
+                    "issuing_office_id": branch_id,
+                    "issuing_office_name": branch_name,
                     "prefix": series_obj.prefix,
                     "suffix": series_obj.suffix,
                     "starting_number": series_obj.starting_number,
@@ -1109,3 +1139,4 @@ async def initialize_all_standard_series(
 
     await db.commit()
     return created_list
+

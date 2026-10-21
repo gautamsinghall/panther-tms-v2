@@ -355,8 +355,9 @@ async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] =
         from app.tenant_db.models import Branch
         br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
         target_office_id = br_res.scalar_one_or_none()
-    job_number = await allocate_or_validate_voucher_number(db, "JOB", manual_number=data.job_number, issuing_office_id=target_office_id)
     job_dict = data.model_dump()
+    series_id = job_dict.pop("job_series_id", None)
+    job_number = await allocate_or_validate_voucher_number(db, "JOB", manual_number=data.job_number, issuing_office_id=target_office_id, series_id=series_id)
     job_dict["job_number"] = job_number
     job_dict["status"] = JobStatus.OPEN.value
     job_dict["created_by_user_id"] = user_id
@@ -503,7 +504,7 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
         from app.tenant_db.models import Branch
         br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
         target_office_id = br_res.scalar_one_or_none()
-    lr_number = await allocate_or_validate_voucher_number(db, "LR", manual_number=data.lr_number, issuing_office_id=target_office_id)
+    lr_number = await allocate_or_validate_voucher_number(db, "LR", manual_number=data.lr_number, issuing_office_id=target_office_id, series_id=data.lr_series_id)
     lr_dict = data.model_dump()
     lr_dict["lr_number"] = lr_number
     lr_dict["created_by_user_id"] = user_id
@@ -710,7 +711,7 @@ async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_
         from app.tenant_db.models import Branch
         br_res = await db.execute(select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1))
         target_office_id = br_res.scalar_one_or_none()
-    challan_number = await allocate_or_validate_voucher_number(db, "HIRE_CHALLAN", manual_number=data.challan_number, issuing_office_id=target_office_id)
+    challan_number = await allocate_or_validate_voucher_number(db, "HIRE_CHALLAN", manual_number=data.challan_number, issuing_office_id=target_office_id, series_id=data.hc_series_id)
     hc_dict = data.model_dump()
     hc_dict["challan_number"] = challan_number
     hc_dict["status"] = HireChallanStatus.ISSUED.value  # Confirmed on creation

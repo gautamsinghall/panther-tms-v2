@@ -228,10 +228,7 @@ export default function HireChallansPage() {
     default_series_id: number | null;
     ranges: SeriesRangeItem[];
   } | null>(null);
-  const [seriesInfo, setSeriesInfo] = useState<{
-    configured: boolean;
-    next_number_formatted?: string;
-  } | null>(null);
+  const [seriesInfo, setSeriesInfo] = useState<any>(null);
 
   // -------------------------------------------------------------
   // FORM FIELDS STATE (Exact fields from reference)
@@ -324,7 +321,11 @@ export default function HireChallansPage() {
         }
 
         // Auto-fill Series and HC No
-        if (manualRangesRes && manualRangesRes.ranges && manualRangesRes.ranges.length > 0) {
+        if (seriesCheckRes && seriesCheckRes.series_options && seriesCheckRes.series_options.length > 0) {
+          const firstSeries = seriesCheckRes.series_options[0];
+          setSelectedSeriesId(String(firstSeries.id));
+          setChallanNumber(firstSeries.next_number_formatted || "");
+        } else if (manualRangesRes && manualRangesRes.ranges && manualRangesRes.ranges.length > 0) {
           const defaultSeries =
             manualRangesRes.ranges.find(
               (r: SeriesRangeItem) => r.id === manualRangesRes.default_series_id
@@ -513,6 +514,14 @@ export default function HireChallansPage() {
     setSelectedSeriesId(newSeriesId);
     if (!newSeriesId) return;
 
+    const matchedOption = seriesInfo?.series_options?.find(
+      (s: any) => String(s.id) === String(newSeriesId)
+    );
+    if (matchedOption && matchedOption.next_number_formatted) {
+      setChallanNumber(matchedOption.next_number_formatted);
+      return;
+    }
+
     const matched = manualSeriesData?.ranges?.find(
       (r) => String(r.id) === String(newSeriesId)
     );
@@ -522,22 +531,23 @@ export default function HireChallansPage() {
   };
 
   const seriesOptions = useMemo(() => {
-    if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) {
-      if (seriesInfo?.next_number_formatted) {
-        return [{ label: `Auto Sequence (${seriesInfo.next_number_formatted})`, value: "auto" }];
-      }
-      return [{ label: "- Select Series -", value: "" }];
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      return seriesInfo.series_options.map((s: any) => ({
+        label: s.display_label || `${s.series_name} (${s.next_number_formatted})`,
+        value: String(s.id),
+      }));
     }
-    return [
-      { label: "- Select Series Booklet -", value: "" },
-      ...manualSeriesData.ranges.map((r) => ({
-        label: `${r.series_name || "HC Series"} · ${r.prefix}[${r.starting_number}–${r.end_number || "..."}] (${r.available_count} available)${
-          r.is_default ? " ★" : ""
-        }`,
+    if (manualSeriesData?.ranges && manualSeriesData.ranges.length > 0) {
+      return manualSeriesData.ranges.map((r) => ({
+        label: `${r.series_name || "HC Series"} · ${r.prefix}[${r.starting_number}–${r.end_number || "..."}] (${r.available_count} available)`,
         value: String(r.id),
-      })),
-    ];
-  }, [manualSeriesData, seriesInfo]);
+      }));
+    }
+    if (seriesInfo?.next_number_formatted) {
+      return [{ label: `Auto Sequence (${seriesInfo.next_number_formatted})`, value: "" }];
+    }
+    return [{ label: "Default HC Series", value: "" }];
+  }, [seriesInfo, manualSeriesData]);
 
   const activeSeriesRange = useMemo(() => {
     if (!manualSeriesData || !manualSeriesData.ranges) return null;
@@ -1449,22 +1459,35 @@ export default function HireChallansPage() {
 
               {/* HC Series */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700">
-                  HC Series <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-slate-700 flex items-center justify-between">
+                  <span>
+                    HC Series <span className="text-rose-500">*</span>
+                  </span>
+                  {seriesOptions.length <= 1 && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <Lock className="w-2.5 h-2.5 text-slate-500" /> Frozen
+                    </span>
+                  )}
                 </label>
                 <select
                   value={selectedSeriesId}
+                  disabled={Boolean(editingId) || seriesOptions.length <= 1}
                   onChange={(e) => handleSeriesChange(e.target.value)}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer"
+                  className={cn(
+                    "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer",
+                    (Boolean(editingId) || seriesOptions.length <= 1) && "bg-slate-100/90 text-slate-600 cursor-not-allowed select-none"
+                  )}
                 >
-                  {seriesOptions.map((opt) => (
+                  {seriesOptions.map((opt: any) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
                 <span className="text-[11px] text-slate-400 block">
-                  Booklet series configured in Series Master.
+                  {seriesOptions.length <= 1
+                    ? "Single series configured for this office (Frozen / Read-only)."
+                    : "Select series to allocate sequence."}
                 </span>
               </div>
 
@@ -1478,37 +1501,22 @@ export default function HireChallansPage() {
                     <Lock className="w-2.5 h-2.5 text-slate-500" /> Auto / Locked
                   </span>
                 </label>
-                {hcNoOptions.length > 0 ? (
-                  <select
-                    value={challanNumber}
-                    onChange={(e) => setChallanNumber(e.target.value)}
-                    required
-                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer"
-                  >
-                    {hcNoOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="relative">
-                    <input
-                      type="text"
-                      readOnly
-                      disabled
-                      value={challanNumber || ""}
-                      placeholder={isSeriesConfigured ? "" : "Not configured (Setup in Series Master)"}
-                      className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <Lock className="w-4 h-4 text-slate-400" />
-                    </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={challanNumber || ""}
+                    placeholder={isSeriesConfigured ? "" : "Not configured (Setup in Series Master)"}
+                    className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <Lock className="w-4 h-4 text-slate-400" />
                   </div>
-                )}
+                </div>
                 <span className="text-[11px] text-slate-400 block">
                   {challanNumber
-                    ? "Unused voucher leaf automatically assigned from Series Master."
+                    ? `Allocated sequence number: ${challanNumber}`
                     : "No series configured for this office. Must be set up in Settings."}
                 </span>
               </div>

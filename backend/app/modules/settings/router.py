@@ -429,11 +429,12 @@ async def import_default_series_template(
 async def check_series(
     document_type: str,
     office_id: Optional[int] = Query(None),
+    series_id: Optional[int] = Query(None),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = office_id or (current_office.id if current_office else None)
-    return await service.check_series_status(db, document_type, office_id=target_office_id)
+    return await service.check_series_status(db, document_type, office_id=target_office_id, series_id=series_id)
 
 @router.get(
     "/series/manual-ranges/{document_type}",

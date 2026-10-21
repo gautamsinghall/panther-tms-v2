@@ -217,13 +217,7 @@ export default function LRBookingPage() {
 
   // Series Master State
   const [isSeriesLoading, setIsSeriesLoading] = useState(true);
-  const [seriesInfo, setSeriesInfo] = useState<{
-    configured: boolean;
-    prefix?: string;
-    suffix?: string;
-    next_number_formatted?: string;
-    series_mode?: string;
-  } | null>(null);
+  const [seriesInfo, setSeriesInfo] = useState<any>(null);
 
   const [manualSeriesData, setManualSeriesData] = useState<{
     document_type: string;
@@ -406,21 +400,27 @@ export default function LRBookingPage() {
   ];
 
   const seriesRangeOptions = useMemo(() => {
-    if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) {
-      return [{
-        label: isSeriesLoading
-          ? "Checking LR series..."
-          : seriesInfo?.configured
-          ? `Automatic Series (${seriesInfo.next_number_formatted})`
-          : "Default LR Sequence",
-        value: "default",
-      }];
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      return seriesInfo.series_options.map((s: any) => ({
+        value: String(s.id),
+        label: s.display_label || `${s.series_name} (${s.next_number_formatted})`,
+      }));
     }
-    return manualSeriesData.ranges.map((r) => ({
-      value: String(r.id),
-      label: `${r.series_name || "LR Series"} · ${r.prefix || ""}${r.starting_number} to ${r.prefix || ""}${r.end_number || "..."}${r.suffix || ""} (${r.available_count} available)`,
-    }));
-  }, [manualSeriesData, seriesInfo, isSeriesLoading]);
+    if (manualSeriesData?.ranges && manualSeriesData.ranges.length > 0) {
+      return manualSeriesData.ranges.map((r) => ({
+        value: String(r.id),
+        label: `${r.series_name || "LR Series"} · ${r.prefix || ""}${r.starting_number} to ${r.prefix || ""}${r.end_number || "..."}${r.suffix || ""} (${r.available_count} available)`,
+      }));
+    }
+    return [{
+      label: isSeriesLoading
+        ? "Checking LR series..."
+        : seriesInfo?.configured
+        ? `Automatic Series (${seriesInfo.next_number_formatted})`
+        : "Default LR Sequence",
+      value: "default",
+    }];
+  }, [seriesInfo, manualSeriesData, isSeriesLoading]);
 
   // Selected series object
   const activeSeriesObj = useMemo(() => {
@@ -637,8 +637,9 @@ export default function LRBookingPage() {
     setEditingLrId(null);
     setEditingLrRecord(null);
 
+    const autoSeries = seriesInfo?.series_options?.[0];
     const defaultSeries = manualSeriesData?.ranges?.find((r) => r.is_default) || manualSeriesData?.ranges?.[0];
-    const initialSeriesId = defaultSeries ? String(defaultSeries.id) : "default";
+    const initialSeriesId = autoSeries ? String(autoSeries.id) : (defaultSeries ? String(defaultSeries.id) : "default");
     setSelectedSeriesId(initialSeriesId);
 
     const matchedJob = initialJobId ? jobs.find((j: any) => String(j.id) === String(initialJobId)) : null;
@@ -649,7 +650,7 @@ export default function LRBookingPage() {
     setSelectedConsignerId(initialConsignerId);
     setSelectedConsigneeId(initialConsigneeId);
 
-    const initialLrNo = (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || (defaultSeries?.available_options?.[0]?.value || "");
+    const initialLrNo = autoSeries?.next_number_formatted || (seriesInfo?.configured ? seriesInfo?.next_number_formatted : "") || (defaultSeries?.available_options?.[0]?.value || "");
 
     const initialInvoiceItem = createEmptyInvoiceItem();
     if (matchedJob?.cargo_description) {
@@ -939,18 +940,23 @@ export default function LRBookingPage() {
         },
         {
           name: "lr_series_id",
-          label: "LR Series",
+          label: "Select Series",
           type: "select",
-          required: Boolean(manualSeriesData?.ranges && manualSeriesData.ranges.length > 0),
-          disabled: !manualSeriesData?.ranges || manualSeriesData.ranges.length === 0,
-          disabledReason: "Using active automatic series from Series Master.",
-          defaultValue: "default",
+          disabled: Boolean(editingLrId) || seriesRangeOptions.length <= 1,
+          disabledReason: editingLrId
+            ? "Cannot modify series of an existing LR"
+            : seriesRangeOptions.length <= 1
+            ? "Only one series configured for this branch"
+            : undefined,
+          defaultValue: selectedSeriesId || (seriesRangeOptions[0]?.value ?? "default"),
           options: seriesRangeOptions,
           onChange: (newSeriesId) => {
             setSelectedSeriesId(newSeriesId);
-            const matched = manualSeriesData?.ranges?.find((r) => String(r.id) === String(newSeriesId));
-            if (matched && matched.available_options?.[0]) {
-              formSetFieldValueRef.current?.("lr_number", matched.available_options[0].value);
+            const matchedOption = seriesInfo?.series_options?.find((s: any) => String(s.id) === String(newSeriesId));
+            const matchedManual = manualSeriesData?.ranges?.find((r) => String(r.id) === String(newSeriesId));
+            const nextVal = matchedOption?.next_number_formatted || matchedManual?.available_options?.[0]?.value || seriesInfo?.next_number_formatted || "";
+            if (nextVal) {
+              formSetFieldValueRef.current?.("lr_number", nextVal);
             }
           },
           onAddNew: () => openInNewTab("/settings/series-master"),
@@ -959,10 +965,10 @@ export default function LRBookingPage() {
         },
         {
           name: "lr_number",
-          label: "LR Number (Auto-Generated)",
+          label: "LR Number (Locked)",
           type: "text",
           disabled: true,
-          disabledReason: "Automatically assigned from Series Master upon saving.",
+          disabledReason: "Automatically assigned from the selected Series upon saving.",
           required: false,
           placeholder: isSeriesLoading
             ? "Checking series..."

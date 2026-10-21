@@ -54,6 +54,7 @@ class VoucherBase(BaseModel):
     lr_id: Optional[int] = None
     hire_challan_id: Optional[int] = None
     issuing_office_id: Optional[int] = None
+    series_id: Optional[int] = None
 
 class VoucherCreate(VoucherBase):
     credit_account_id: Optional[int] = None  # For receipt, payment, contra, general voucher
@@ -66,6 +67,7 @@ class TransportInvoiceCreate(BaseModel):
     voucher_date: Optional[date] = None
     tax_category_id: Optional[int] = None
     party_account_id: Optional[int] = None
+    series_id: Optional[int] = None
     additional_charges: List[VoucherItemCreate] = []
     narration: Optional[str] = None
 

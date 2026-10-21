@@ -145,6 +145,7 @@ async def post_voucher(session: AsyncSession, data: VoucherCreate, office_id: Op
         data.voucher_type,
         manual_number=data.voucher_number,
         issuing_office_id=target_office_id,
+        series_id=getattr(data, "series_id", None),
     )
 
     net_amt = data.net_amount
@@ -508,6 +509,7 @@ async def create_transport_invoice_from_lr(
         account_id=data.party_account_id,
         lr_id=lr.id,
         issuing_office_id=target_office,
+        series_id=data.series_id,
         items=all_items,
     )
 

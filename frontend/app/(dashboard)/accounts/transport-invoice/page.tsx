@@ -2,7 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, X, FileText, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye, IndianRupee } from "lucide-react";
+import { Plus, X, FileText, Ban, CheckCircle, AlertCircle, ArrowUpRight, ShieldCheck, Eye, IndianRupee, Lock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -13,7 +13,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { getActiveOffice } from "@/lib/auth";
 
@@ -104,13 +104,7 @@ export default function TransportInvoicePage() {
   }
 
   // Series Master state
-  const [seriesInfo, setSeriesInfo] = useState<{
-    configured: boolean;
-    prefix?: string;
-    suffix?: string;
-    next_number_formatted?: string;
-    series_mode?: string;
-  } | null>(null);
+  const [seriesInfo, setSeriesInfo] = useState<any>(null);
 
   const [manualSeriesData, setManualSeriesData] = useState<{
     document_type: string;
@@ -173,27 +167,40 @@ export default function TransportInvoicePage() {
     });
   }, [data, statusFilter]);
 
-  const isManualSeries = Boolean(manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0);
-
-  const activeRange = useMemo(() => {
-    if (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) return null;
-    if (selectedRangeId) {
-      const match = manualSeriesData.ranges.find((r) => String(r.id) === selectedRangeId);
-      if (match) return match;
+  const seriesOptions = useMemo(() => {
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      return seriesInfo.series_options.map((s: any) => ({
+        value: String(s.id),
+        label: s.display_label || `${s.series_name} (${s.next_number_formatted})`,
+      }));
     }
-    const def = manualSeriesData.ranges.find((r) => r.id === manualSeriesData.default_series_id);
-    return def || manualSeriesData.ranges[0];
-  }, [manualSeriesData, selectedRangeId]);
+    if (manualSeriesData?.ranges && manualSeriesData.ranges.length > 0) {
+      return manualSeriesData.ranges.map((r) => ({
+        value: String(r.id),
+        label: `${r.display_label}${r.is_default ? " ★ (Active As Of Now)" : ""}`,
+      }));
+    }
+    if (seriesInfo?.configured) {
+      return [{
+        value: "default",
+        label: `Default Series (${seriesInfo.next_number_formatted})`,
+      }];
+    }
+    return [{ value: "default", label: "Default Transport Invoice Sequence" }];
+  }, [seriesInfo, manualSeriesData]);
 
-  const rangeOptions = (manualSeriesData?.ranges || []).map((r) => ({
-    value: String(r.id),
-    label: `${r.display_label}${r.is_default ? " ★ (Active As Of Now)" : ""}`,
-  }));
+  const activeSeries = useMemo(() => {
+    if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
+      if (selectedRangeId && selectedRangeId !== "default") {
+        const found = seriesInfo.series_options.find((s: any) => String(s.id) === String(selectedRangeId));
+        if (found) return found;
+      }
+      return seriesInfo.series_options[0];
+    }
+    return seriesInfo;
+  }, [seriesInfo, selectedRangeId]);
 
-  const leafOptions = (activeRange?.available_options || []).map((opt) => ({
-    value: opt.value,
-    label: opt.label,
-  }));
+  const activeNextNumber = activeSeries?.next_number_formatted || seriesInfo?.next_number_formatted || "";
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,25 +211,16 @@ export default function TransportInvoicePage() {
 
     const isConfigured = Boolean(
       seriesInfo?.configured ||
-      (manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0)
+      (manualSeriesData && manualSeriesData.ranges && manualSeriesData.ranges.length > 0) ||
+      (seriesInfo?.series_options && seriesInfo.series_options.length > 0)
     );
     if (!isConfigured) {
       toast.error("Transport Invoice cannot be generated because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
       return;
     }
 
-    if (isManualSeries && !invoiceNumber) {
-      toast.warning("Please select an available invoice number from the selected series range.");
-      return;
-    }
-
-    const effectiveNumber = isManualSeries
-      ? invoiceNumber.trim()
-      : (seriesInfo?.configured ? seriesInfo.next_number_formatted : "");
-    if (!effectiveNumber) {
-      toast.error("Invoice number is missing. Please ensure a series is configured in Settings > Series Master.");
-      return;
-    }
+    const effectiveNumber = activeNextNumber || invoiceNumber.trim();
+    const parsedSeriesId = selectedRangeId && selectedRangeId !== "default" ? parseInt(selectedRangeId, 10) : undefined;
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -231,8 +229,9 @@ export default function TransportInvoicePage() {
         method: "POST",
         body: JSON.stringify({
           lr_id: parseInt(selectedLrId, 10),
-          invoice_number: effectiveNumber,
-          voucher_number: effectiveNumber,
+          invoice_number: effectiveNumber || undefined,
+          voucher_number: effectiveNumber || undefined,
+          series_id: parsedSeriesId,
           tax_category_id: selectedTaxCatId ? parseInt(selectedTaxCatId, 10) : undefined,
           narration: narration || undefined,
         }),
@@ -412,9 +411,9 @@ export default function TransportInvoicePage() {
   ];
 
   const openCreateDrawer = () => {
-    const rangeToUse = activeRange;
-    const initialRangeId = rangeToUse ? String(rangeToUse.id) : "";
-    const initialNo = rangeToUse?.available_options?.[0]?.value || seriesInfo?.next_number_formatted || "";
+    const firstOption = seriesInfo?.series_options?.[0];
+    const initialRangeId = firstOption ? String(firstOption.id) : (manualSeriesData?.ranges?.[0] ? String(manualSeriesData.ranges[0].id) : "");
+    const initialNo = firstOption?.next_number_formatted || seriesInfo?.next_number_formatted || manualSeriesData?.ranges?.[0]?.available_options?.[0]?.value || "";
     if (initialRangeId) {
       setSelectedRangeId(initialRangeId);
     }
@@ -522,151 +521,89 @@ export default function TransportInvoicePage() {
         description="Select an unbilled Lorry Receipt to calculate freight charges, GST rate, and post double-entry ledger vouchers."
         width="lg"
       >
-        {isManualSeries && activeRange && (
-          <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-700">Selected Series:</span>
-                <span className="font-bold text-indigo-700 font-mono bg-white px-2 py-0.5 rounded border border-indigo-200">
-                  {activeRange.series_name} ({activeRange.prefix})
-                </span>
-                {activeRange.is_default && (
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium text-[10px] border border-emerald-300">
-                    ★ Active As Of Now
-                  </span>
-                )}
-              </div>
-              <div className="font-mono text-slate-600 text-[11px]">
-                Batch: <span className="font-bold text-slate-900">{activeRange.starting_number} – {activeRange.end_number || "..."}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
-              <span>{activeRange.used_count} vouchers already recorded</span>
-              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                {activeRange.available_count} leaves available (used hidden)
-              </span>
-            </div>
-          </div>
-        )}
-        {!isManualSeries && (!seriesInfo || !seriesInfo.configured) && (
-          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-bold text-amber-900">Series Not Configured for this Office</h4>
-                <p className="text-amber-700 mt-0.5">
-                  No Transport Invoice series is configured for the active issuing office. You cannot generate an invoice until a series is configured or imported in Settings.
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => router.push("/settings/series-master")}
-              className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100 shrink-0 font-semibold"
-            >
-              Setup Series in Master
-            </Button>
-          </div>
-        )}
-        {!isManualSeries && seriesInfo && seriesInfo.configured && (
+        {activeSeries && (
           <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
             <div className="font-mono">
               <span className="text-slate-500 font-sans mr-1">Active Series:</span>
-              <strong className="text-indigo-700">Prefix [{seriesInfo.prefix}]</strong>
-              {seriesInfo.suffix ? <strong className="text-indigo-700"> Postfix [{seriesInfo.suffix}]</strong> : null}
+              <strong className="text-indigo-700">{activeSeries.series_name || activeSeries.prefix}</strong>
             </div>
             <div className="font-mono text-[11px] text-indigo-700">
-              Suggested Next: <span className="font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">{seriesInfo.next_number_formatted}</span>
+              Allocated Sequence: <span className="font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">{activeNextNumber || "Auto-allocated"}</span>
             </div>
           </div>
         )}
 
         <form onSubmit={handleCreateInvoice} className="space-y-5 bg-white p-5 rounded-card border border-[#E4E7EC]">
-          {isManualSeries ? (
-            activeRange ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-[#172033]">
-                    Select Series Batch / Range <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <SearchableSelect
-                    value={selectedRangeId || String(activeRange.id)}
-                    onChange={(val) => {
-                      const newId = String(val);
-                      setSelectedRangeId(newId);
-                      const newRange = manualSeriesData?.ranges.find((r) => String(r.id) === newId);
-                      const firstOpt = newRange?.available_options?.[0]?.value || "";
-                      setInvoiceNumber(firstOpt);
-                    }}
-                    options={rangeOptions}
-                    placeholder="Select series range..."
-                    searchPlaceholder="Search booklet / series..."
-                    onAddNew={() => router.push("/settings/series-master")}
-                    addNewLabel="+ Create New Series Range"
-                    addNewTitle="Configure new booklet range in Settings > Series Master"
-                  />
-                  <span className="text-[11px] text-slate-500 block">
-                    {activeRange.is_default
-                      ? "Sticky Active Series: Pre-selected automatically for current billing."
-                      : "Select booklet / batch range."}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-[#172033]">
-                    Select Invoice Number ({leafOptions.length} Unused Available) <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <SearchableSelect
-                    value={invoiceNumber}
-                    onChange={(val) => setInvoiceNumber(String(val))}
-                    options={leafOptions}
-                    placeholder={leafOptions.length > 0 ? "Select unused invoice number..." : "All vouchers in this range are used!"}
-                    searchPlaceholder="Search unused invoice number..."
-                    required
-                  />
-                  <span className="text-[11px] text-slate-500 block">
-                    Used voucher numbers are automatically hidden. Select any available number.
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
-                <div>
-                  <strong className="block font-semibold">No Manual Series Range Configured</strong>
-                  <span className="text-amber-700">Please configure a batch range (e.g. 1001 – 1500) in Series Master to generate Transport Invoices.</span>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => router.push("/settings/series-master")}
-                  className="text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100"
-                >
-                  Configure Series
-                </Button>
-              </div>
-            )
-          ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-[#172033]">
-                Invoice Number (Auto Series) <span className="text-slate-400 font-normal">(Locked)</span>
-              </label>
-              <input
-                type="text"
-                readOnly
-                value={invoiceNumber || (seriesInfo?.configured ? seriesInfo.next_number_formatted : "")}
-                placeholder={seriesInfo?.configured ? seriesInfo.next_number_formatted : ""}
-                className="w-full rounded-control border border-slate-200 bg-slate-50 px-3 py-2 text-xs sm:text-sm text-[#172033] font-mono font-bold cursor-not-allowed select-all focus:outline-none"
-              />
-              {seriesInfo?.configured && (
-                <span className="text-[11px] text-[#667085] block">
-                  Assigned by Series Master: <code className="font-mono text-indigo-600 font-semibold">{seriesInfo.prefix}XXXX{seriesInfo.suffix || ""}</code>
+              <label className="block text-xs font-semibold text-[#172033] flex items-center justify-between">
+                <span>
+                  Select Series <span className="text-[#DC2626]">*</span>
                 </span>
-              )}
+                {seriesOptions.length <= 1 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                    <Lock className="w-2.5 h-2.5 text-slate-500" /> Frozen
+                  </span>
+                )}
+              </label>
+              <select
+                value={selectedRangeId || (seriesOptions[0]?.value ?? "default")}
+                disabled={seriesOptions.length <= 1}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setSelectedRangeId(newId);
+                  const matched = seriesInfo?.series_options?.find((s: any) => String(s.id) === String(newId));
+                  if (matched && matched.next_number_formatted) {
+                    setInvoiceNumber(matched.next_number_formatted);
+                  }
+                }}
+                className={cn(
+                  "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer",
+                  seriesOptions.length <= 1 && "bg-slate-100/90 text-slate-600 cursor-not-allowed select-none"
+                )}
+              >
+                {seriesOptions.map((opt: any) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-slate-500 block">
+                {seriesOptions.length <= 1
+                  ? "Single series configured for this branch (Frozen / Read-only)."
+                  : "Select series to allocate sequence."}
+              </span>
             </div>
-          )}
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#172033] flex items-center justify-between">
+                <span>
+                  Invoice Number <span className="text-[#DC2626]">*</span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                  <Lock className="w-2.5 h-2.5 text-slate-500" /> Auto / Locked
+                </span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  readOnly
+                  disabled
+                  value={activeNextNumber || invoiceNumber || ""}
+                  placeholder={activeNextNumber || "Auto-allocated"}
+                  className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <Lock className="w-4 h-4 text-slate-400" />
+                </div>
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                {activeNextNumber
+                  ? `Allocated sequence number: ${activeNextNumber}`
+                  : "Auto-allocated upon creation from active series."}
+              </span>
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-[#172033]">
@@ -726,9 +663,9 @@ export default function TransportInvoicePage() {
               variant="primary"
               size="sm"
               isLoading={isSubmitting}
-              disabled={isSubmitting || (isManualSeries ? !invoiceNumber : !seriesInfo?.configured)}
+              disabled={isSubmitting || (!seriesInfo?.configured && seriesOptions.length === 0)}
             >
-              {!isManualSeries && (!seriesInfo || !seriesInfo.configured) ? "Series Configuration Required" : "Generate & Post Invoice"}
+              {(!seriesInfo?.configured && seriesOptions.length === 0) ? "Series Configuration Required" : "Generate & Post Invoice"}
             </Button>
           </div>
         </form>
