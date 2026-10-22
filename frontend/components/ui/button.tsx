@@ -1,11 +1,14 @@
 import React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "destructive";
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "default" | "icon";
   isLoading?: boolean;
+  href?: string;
+  icon?: React.ReactNode | React.ComponentType<{ className?: string }>;
 }
 
 /**
@@ -16,8 +19,21 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
  * - Danger / Destructive: Rich rose gradient (from-rose-500 to-rose-600), inner border, micro-elevation.
  * - Ghost: Transparent, smooth slate hover background.
  */
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", isLoading = false, disabled, children, ...props }, ref) => {
+export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
+  (
+    {
+      className,
+      variant = "primary",
+      size = "md",
+      isLoading = false,
+      disabled,
+      href,
+      icon,
+      children,
+      ...props
+    },
+    ref
+  ) => {
     const baseStyles =
       "inline-flex items-center justify-center font-semibold select-none " +
       "transition-all duration-200 ease-out " +
@@ -72,17 +88,48 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const sizeStyles = {
       sm: "h-8 px-3 text-xs rounded-lg gap-1.5",
       md: "h-9 px-4 text-xs sm:text-sm font-semibold rounded-xl gap-2",
+      default: "h-9 px-4 text-xs sm:text-sm font-semibold rounded-xl gap-2",
       lg: "h-10 px-5 text-sm font-semibold rounded-xl gap-2.5",
+      icon: "h-9 w-9 rounded-xl p-0 gap-0",
     };
+
+    const isDisabled = disabled || isLoading;
+    const resolvedSize = sizeStyles[size] || sizeStyles.md;
+
+    let resolvedIconNode: React.ReactNode = null;
+    if (isLoading) {
+      resolvedIconNode = <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />;
+    } else if (icon) {
+      if (React.isValidElement(icon)) {
+        resolvedIconNode = icon;
+      } else if (typeof icon === "function" || typeof icon === "object") {
+        const IconComp = icon as React.ComponentType<{ className?: string }>;
+        resolvedIconNode = <IconComp className="w-3.5 h-3.5 shrink-0" />;
+      }
+    }
+
+    if (href && !isDisabled) {
+      return (
+        <Link
+          href={href}
+          ref={ref as React.Ref<HTMLAnchorElement>}
+          className={cn(baseStyles, variantStyles[variant] || variantStyles.primary, resolvedSize, className)}
+          {...(props as any)}
+        >
+          {resolvedIconNode}
+          {children}
+        </Link>
+      );
+    }
 
     return (
       <button
-        ref={ref}
-        disabled={disabled || isLoading}
-        className={cn(baseStyles, variantStyles[variant] || variantStyles.primary, sizeStyles[size], className)}
+        ref={ref as React.Ref<HTMLButtonElement>}
+        disabled={isDisabled}
+        className={cn(baseStyles, variantStyles[variant] || variantStyles.primary, resolvedSize, className)}
         {...props}
       >
-        {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
+        {resolvedIconNode}
         {children}
       </button>
     );
@@ -90,3 +137,4 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = "Button";
+

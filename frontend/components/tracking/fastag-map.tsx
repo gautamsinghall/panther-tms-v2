@@ -15,6 +15,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
 
 export interface TollCheckpoint {
   id: number;
@@ -939,13 +940,14 @@ export function FastagMap({
                 >
                   Cancel
                 </button>
-                <button
+                <Button
                   type="button"
+                  size="sm"
+                  variant="primary"
                   onClick={handleSaveApiKey}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
                 >
                   Save & Apply
-                </button>
+                </Button>
               </div>
             </div>
           </div>

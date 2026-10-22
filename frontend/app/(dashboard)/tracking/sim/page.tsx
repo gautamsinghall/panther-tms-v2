@@ -2179,7 +2179,7 @@ export default function SIMTrackingPage() {
                 <Button
                   size="sm"
                   onClick={() => setIsDisplayOptionsModalOpen(false)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  variant="primary"
                 >
                   Done
                 </Button>

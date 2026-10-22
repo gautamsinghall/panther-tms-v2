@@ -186,3 +186,40 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #4f46e5 !important;
 }
 
+/* ==========================================================================
+   Global Button UI - Matches Create Trip Order Primary CTA
+   ========================================================================== */
+.btn-primary,
+.btn-gradient-primary,
+.btn-global-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  user-select: none;
+  transition: all 200ms cubic-bezier(0, 0, 0.2, 1);
+  background-image: linear-gradient(to bottom, #6366f1, #4f46e5);
+  border: 1px solid rgba(67, 56, 202, 0.4);
+  color: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.22), 0 0 0 1px rgba(79, 70, 229, 0.10);
+}
+
+.btn-primary:hover,
+.btn-gradient-primary:hover,
+.btn-global-primary:hover {
+  background-image: linear-gradient(to bottom, #818cf8, #6366f1);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28), 0 0 0 1px rgba(79, 70, 229, 0.14);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active,
+.btn-gradient-primary:active,
+.btn-global-primary:active {
+  background-image: linear-gradient(to bottom, #4f46e5, #4338ca);
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.18);
+}
+
+

@@ -708,7 +708,7 @@ export default function SignupPage() {
                     setSelectedPlan("PRO");
                     setStep(2);
                   }}
-                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-[#4F46E5] hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/25 transition-all cursor-pointer"
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 hover:from-indigo-400 hover:to-indigo-500 text-white flex items-center justify-center gap-1.5 shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px transition-all cursor-pointer"
                 >
                   <span>Choose Pro Fleet</span>
                   <ArrowRight className="w-3.5 h-3.5" />

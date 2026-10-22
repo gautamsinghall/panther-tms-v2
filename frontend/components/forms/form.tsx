@@ -598,7 +598,7 @@ export function Form({
             size="md"
             isLoading={loading}
             disabled={loading || submitDisabled}
-            className="rounded-xl h-10 px-6 text-xs font-semibold shadow-xs cursor-pointer"
+            className="rounded-xl h-10 px-6 text-xs font-semibold cursor-pointer"
           >
             {submitLabel}
           </Button>

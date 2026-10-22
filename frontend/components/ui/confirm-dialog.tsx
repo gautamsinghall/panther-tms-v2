@@ -136,7 +136,7 @@ export function ConfirmDialog({
               onClick={onConfirm}
               isLoading={isLoading}
               disabled={disabled || isLoading}
-              className="text-xs font-semibold rounded-xl h-9 px-4 shadow-sm"
+              className="text-xs font-semibold rounded-xl h-9 px-4"
             >
               {cLabel}
             </Button>

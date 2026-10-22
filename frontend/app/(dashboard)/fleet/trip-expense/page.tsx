@@ -213,7 +213,7 @@ export default function TripExpensePage() {
         <button
           onClick={() => setActiveFilter("ALL")}
           className={`px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
-            activeFilter === "ALL" ? "bg-[#4F46E5] text-white" : "text-[#667085] hover:bg-[#F1F3F6]"
+            activeFilter === "ALL" ? "bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-2xs" : "text-[#667085] hover:bg-[#F1F3F6]"
           }`}
         >
           All Expenses ({data.length})
@@ -221,7 +221,7 @@ export default function TripExpensePage() {
         <button
           onClick={() => setActiveFilter("FASTAG")}
           className={`px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
-            activeFilter === "FASTAG" ? "bg-[#4F46E5] text-white" : "text-[#667085] hover:bg-[#F1F3F6]"
+            activeFilter === "FASTAG" ? "bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-2xs" : "text-[#667085] hover:bg-[#F1F3F6]"
           }`}
         >
           FASTag Tolls
@@ -229,7 +229,7 @@ export default function TripExpensePage() {
         <button
           onClick={() => setActiveFilter("PENDING")}
           className={`px-3 py-1.5 rounded-control text-xs font-semibold transition-colors ${
-            activeFilter === "PENDING" ? "bg-[#4F46E5] text-white" : "text-[#667085] hover:bg-[#F1F3F6]"
+            activeFilter === "PENDING" ? "bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-2xs" : "text-[#667085] hover:bg-[#F1F3F6]"
           }`}
         >
           Pending Audit

@@ -74,7 +74,7 @@ export function DataState({ kind, title, description, action, compact = false, c
           variant="primary"
           size="sm"
           onClick={action.onClick}
-          className="rounded-xl shadow-xs"
+          className="rounded-xl"
         >
           {action.label.replace(/^\+\s*/, "").trim()}
         </Button>

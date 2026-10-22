@@ -50,6 +50,7 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
+import { PrimaryActionButton } from "@/components/ui/primary-action-button";
 import { StatusBadge } from "@/components/ui/badge";
 import { VehiclePlate } from "@/components/ui/vehicle-plate";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -660,35 +661,38 @@ export default function DashboardPage() {
 
           {/* Book GR/LR */}
           {canAccessRoute("/transport/lr-booking") && (
-            <Link
+            <Button
+              variant="secondary"
+              size="md"
               href={getWorkspaceUrl("/transport/lr-booking")}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
+              className="text-xs font-semibold h-9 px-3.5 rounded-xl shadow-2xs hover:border-slate-300"
             >
               <FileText className="w-3.5 h-3.5 text-slate-500" />
               <span>Book GR/LR</span>
-            </Link>
+            </Button>
           )}
 
           {/* Create Invoice */}
           {canAccessRoute("/accounts/transport-invoice") && (
-            <Link
+            <Button
+              variant="secondary"
+              size="md"
               href={getWorkspaceUrl("/accounts/transport-invoice")}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors"
+              className="text-xs font-semibold h-9 px-3.5 rounded-xl shadow-2xs hover:border-slate-300"
             >
               <Receipt className="w-3.5 h-3.5 text-slate-500" />
               <span>Create Invoice</span>
-            </Link>
+            </Button>
           )}
 
-          {/* + New Trip Order */}
+          {/* Create Trip Order */}
           {canAccessRoute("/transport/jobs") && (
-            <Link
+            <PrimaryActionButton
               href={getWorkspaceUrl("/transport/jobs")}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] active:bg-[#3730A3] text-white text-xs font-semibold shadow-sm transition-colors"
+              icon={Plus}
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Trip Order</span>
-            </Link>
+              Create Trip Order
+            </PrimaryActionButton>
           )}
         </div>
       </div>
@@ -843,7 +847,7 @@ export default function DashboardPage() {
                         className={cn(
                           "px-2.5 py-1 text-xs rounded-lg transition-all cursor-pointer",
                           chartPeriod === p
-                            ? "bg-[#4F46E5] text-white font-semibold shadow-2xs"
+                            ? "bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white font-semibold shadow-2xs"
                             : "text-slate-600 hover:text-slate-900 font-medium"
                         )}
                       >

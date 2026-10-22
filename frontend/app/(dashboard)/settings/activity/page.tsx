@@ -625,7 +625,7 @@ export default function UserActivityLogPage() {
               variant="primary"
               onClick={handleExportCSV}
               disabled={data.length === 0}
-              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="gap-1.5"
             >
               <Download className="w-4 h-4" />
               <span>Export Audit Trail (CSV)</span>

@@ -1114,7 +1114,6 @@ export default function SeriesMasterPage() {
                   type="submit"
                   variant="primary"
                   disabled={isSavingQuickFormat}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
                 >
                   {isSavingQuickFormat ? (
                     <>
@@ -1478,7 +1477,6 @@ export default function SeriesMasterPage() {
                 type="submit"
                 variant="primary"
                 disabled={submitting}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
               >
                 {submitting ? (
                   <>
