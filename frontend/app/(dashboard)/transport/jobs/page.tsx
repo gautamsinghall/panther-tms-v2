@@ -2,7 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet, Eye, Pencil } from "lucide-react";
+import { Plus, ArrowRight, Truck, FileText, CheckCircle2, Clock, Layers, Sparkles, FileSpreadsheet, Pencil, Printer } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -245,8 +245,8 @@ export default function JobsPage() {
 
   const actions: RowAction<JobRecord>[] = [
     {
-      label: "View",
-      icon: <Eye className="w-4 h-4 text-slate-600" />,
+      label: "Print Preview",
+      icon: <Printer className="w-4 h-4 text-slate-600" />,
       onClick: (row) => {
         setViewingJob(row);
       },

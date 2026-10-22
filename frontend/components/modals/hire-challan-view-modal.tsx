@@ -7,16 +7,7 @@ import {
   X,
   Printer,
   Download,
-  FileText,
   Loader2,
-  Building2,
-  Phone,
-  Mail,
-  Truck,
-  User,
-  CheckCircle2,
-  AlertCircle,
-  IndianRupee,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
@@ -123,7 +114,6 @@ export function HireChallanViewModal({
   onSettle,
 }: HireChallanViewModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"details" | "print">("details");
   const [company, setCompany] = useState<CompanySettingData | null>(null);
   const [issuingBranch, setIssuingBranch] = useState<BranchData | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -488,29 +478,6 @@ export function HireChallanViewModal({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* View Mode Toggle */}
-            <div className="flex bg-slate-200 rounded-lg p-0.5 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setActiveTab("details")}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${activeTab === "details"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Details View
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("print")}
-                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${activeTab === "print"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Print Preview
-              </button>
-            </div>
 
             <Button
               type="button"
@@ -553,197 +520,10 @@ export function HireChallanViewModal({
 
         {/* Modal Body */}
         <div ref={modalBodyRef} className="hc-modal-body p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
-          {/* TAB 1: DETAILS VIEW */}
-          {activeTab === "details" && (
-            <div className="hc-details-container w-full max-w-[780px] space-y-4 print:hidden">
-              {/* 1. Quick KPI Header */}
-              <div className="grid grid-cols-4 gap-2.5">
-                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">
-                    CHALLAN NO.
-                  </span>
-                  <span className="font-mono font-bold text-xs text-blue-700 block mt-1">
-                    {challan.challan_number}
-                  </span>
-                </div>
-                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">
-                    CHALLAN DATE
-                  </span>
-                  <span className="font-mono font-semibold text-xs text-slate-900 block mt-1">
-                    {formatDateDMY(challan.challan_date)}
-                  </span>
-                </div>
-                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">
-                    LINKED LR / JOB
-                  </span>
-                  <span className="font-mono font-semibold text-xs text-slate-900 block mt-1">
-                    {challan.lr_number || "DIRECT BOOKING"}
-                  </span>
-                </div>
-                <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">
-                    STATUS
-                  </span>
-                  <div className="mt-1">
-                    <StatusBadge status={challan.status} />
-                  </div>
-                </div>
-              </div>
-              {/* Route & Vehicle Summary Card */}
-              <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-                    Vehicle Number
-                  </span>
-                  <span className="font-mono font-bold text-slate-900 text-sm mt-0.5 block">
-                    {challan.vehicle_number}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-                    Corridor / Route
-                  </span>
-                  <span className="font-semibold text-slate-800 text-xs mt-0.5 block">
-                    {challan.from_location || "—"} → {challan.to_location || "—"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-                    Driver
-                  </span>
-                  <span className="font-semibold text-slate-800 text-xs mt-0.5 block">
-                    {challan.driver_name || "Unassigned"}
-                  </span>
-                  {challan.driver_phone && (
-                    <span className="text-[10px] text-slate-500 block font-mono">
-                      {challan.driver_phone}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-                    Vendor / Owner
-                  </span>
-                  <span className="font-semibold text-slate-800 text-xs mt-0.5 block">
-                    {challan.owner_name || "Direct Driver"}
-                  </span>
-                  {challan.vendor_ref_no && (
-                    <span className="text-[10px] text-slate-500 block font-mono">
-                      Ref: {challan.vendor_ref_no}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Expenses Breakdown */}
-              {allExpenses.length > 0 && (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 font-bold text-xs text-slate-800">
-                    Loading & Unloading Expenses
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50/60 text-slate-600 border-b border-slate-200">
-                        <tr>
-                          <th className="py-2 px-3">Type</th>
-                          <th className="py-2 px-3">LR No</th>
-                          <th className="py-2 px-3">Packages</th>
-                          <th className="py-2 px-3">Gross Wt (MT)</th>
-                          <th className="py-2 px-3">Head</th>
-                          <th className="py-2 px-3">Narration</th>
-                          <th className="py-2 px-3 text-right">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {allExpenses.map((exp, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 font-semibold text-slate-700">{exp.type}</td>
-                            <td className="py-2 px-3 font-mono font-medium">{exp.lr_no || "—"}</td>
-                            <td className="py-2 px-3">{exp.pkg_count || "—"}</td>
-                            <td className="py-2 px-3 font-mono">{exp.gross_weight || "—"}</td>
-                            <td className="py-2 px-3">{exp.charge_head || "—"}</td>
-                            <td className="py-2 px-3 text-slate-500">{exp.narration || "—"}</td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">
-                              {formatCurrency(exp.inr_amount || 0)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Financial Summary Card */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-2.5 text-xs">
-                <div className="font-bold text-sm text-slate-900 pb-2 border-b border-slate-100">
-                  Financial Settlement Breakdown
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Total Agreed Hire Rate:</span>
-                  <span className="font-mono font-bold text-slate-900 text-sm">
-                    {formatCurrency(challan.hire_rate)}
-                  </span>
-                </div>
-                {Number(challan.detention_charge || 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Detention Charges:</span>
-                    <span className="font-mono font-semibold text-slate-800">
-                      + {formatCurrency(challan.detention_charge)}
-                    </span>
-                  </div>
-                )}
-                {Number(challan.mamul_charges || 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Mamul Charges:</span>
-                    <span className="font-mono font-semibold text-slate-800">
-                      + {formatCurrency(challan.mamul_charges)}
-                    </span>
-                  </div>
-                )}
-                {challan.tds_category && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">
-                      TDS Deducted ({challan.tds_category} @ {challan.tds_rate || "—"}%):
-                    </span>
-                    <span className="font-mono text-rose-600 font-semibold">
-                      - {formatCurrency(challan.tds_amount)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-1 border-t border-slate-100">
-                  <span className="text-slate-700 font-semibold">Net Payable Amount:</span>
-                  <span className="font-mono font-bold text-slate-900">
-                    {formatCurrency(challan.net_payable_amount)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Advance Paid:</span>
-                  <span className="font-mono text-emerald-600 font-semibold">
-                    - {formatCurrency(challan.advance_amount)}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2.5 border-t border-slate-200 text-sm font-bold">
-                  <span className="text-slate-900">Balance Payable to Driver/Owner:</span>
-                  <span className="font-mono text-rose-600 text-base">
-                    {formatCurrency(challan.balance_amount)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2 or PRINTABLE VOUCHER WRAPPER */}
-          {/* Always rendered in DOM so html2canvas and print can capture it without re-renders */}
+          {/* PRINTABLE VOUCHER WRAPPER */}
           <div
             id="hc-voucher-wrapper"
-            className={
-              activeTab === "print"
-                ? "flex justify-center"
-                : "fixed -left-[9999px] -top-[9999px] opacity-0 pointer-events-none w-[780px]"
-            }
+            className="flex justify-center w-full"
           >
             <div
               id="hire-challan-printable-document"

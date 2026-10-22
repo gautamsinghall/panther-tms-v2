@@ -9,20 +9,7 @@ import {
   Pencil,
   Truck,
   Loader2,
-  Building2,
-  MapPin,
-  Calendar,
-  Package,
-  Scale,
   FileText,
-  AlertTriangle,
-  AlertCircle,
-  ArrowRight,
-  Eye,
-  FileSpreadsheet,
-  RefreshCw,
-  Clock,
-  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
@@ -102,9 +89,6 @@ interface JobOrderViewModalProps {
   onBookLR: (jobId: number) => void;
 }
 
-const VEHICLE_REG_REGEX = /^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$/i;
-const STATUS_KEYWORD_REGEX = /^(assigned|open|booked|pending|closed|cancelled|in_transit|in transit)$/i;
-
 export function JobOrderViewModal({
   isOpen,
   job,
@@ -113,7 +97,6 @@ export function JobOrderViewModal({
   onBookLR,
 }: JobOrderViewModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [viewMode, setViewMode] = useState<"details" | "voucher">("details");
   const [isLoadingDetails, setIsLoadingDetails] = useState(true);
   const [loadingError, setLoadingError] = useState<string | null>(null);
 
@@ -415,23 +398,6 @@ export function JobOrderViewModal({
   const jurisdictionText = issuingBranch?.document_notes?.trim() || `Subject to ${officeCity} Jurisdiction only`;
   const issuingOfficeState = issuingBranch?.state?.trim() || issuingBranch?.city?.trim() || activeOffice?.state?.trim() || activeOffice?.city?.trim() || (officeCode === "MUM" ? "Maharashtra" : company?.state?.trim() || "Delhi");
 
-  // Anomaly checks
-  const consignerLooksLikePlate = Boolean(
-    job.consigner_name && VEHICLE_REG_REGEX.test(job.consigner_name.trim())
-  );
-  const consigneeLooksLikeStatus = Boolean(
-    job.consignee_name && STATUS_KEYWORD_REGEX.test(job.consignee_name.trim())
-  );
-  const cargoLooksLikeNumber = Boolean(
-    job.cargo_description && /^\d+$/.test(job.cargo_description.trim())
-  );
-
-  // Packages display
-  const hasPackages = job.estimated_packages !== null && job.estimated_packages !== undefined;
-  const packagesDisplay = hasPackages
-    ? `${job.estimated_packages} Pkgs${job.estimated_packages === 0 ? " (Declared 0)" : ""}`
-    : "— (Not Specified)";
-
   // Weight display
   const hasWeight =
     job.estimated_weight_mt !== null &&
@@ -589,31 +555,8 @@ export function JobOrderViewModal({
             </div>
           </div>
 
-          {/* Action Group: Mode Switcher, Secondary Actions, Primary Action, and Close */}
+          {/* Action Group: Secondary Actions, Primary Action, and Close */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-xs">
-              <button
-                type="button"
-                onClick={() => setViewMode("details")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${viewMode === "details"
-                    ? "bg-white text-indigo-900 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Details View
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("voucher")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${viewMode === "voucher"
-                    ? "bg-white text-indigo-900 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Print Preview
-              </button>
-            </div>
 
             {/* Secondary: Edit */}
             <Button
@@ -692,7 +635,7 @@ export function JobOrderViewModal({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div ref={modalBodyRef} className="job-order-modal-body overflow-y-auto flex-1 bg-slate-50/60">
+        <div ref={modalBodyRef} className="job-order-modal-body overflow-y-auto flex-1 bg-slate-50/60 flex justify-center">
           {isLoadingDetails ? (
             <div className="min-h-[420px] flex flex-col items-center justify-center p-8 space-y-3">
               <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
@@ -701,213 +644,10 @@ export function JobOrderViewModal({
               </p>
             </div>
           ) : (
-            <>
-              {/* ========================================================================= */}
-              {/* MODE A: RESPONSIVE JOB DETAILS VIEW (DEFAULT)                             */}
-              {/* ========================================================================= */}
-              {viewMode === "details" && (
-                <div className="job-order-details-container p-5 sm:p-7 space-y-5 max-w-4xl mx-auto print:hidden no-print">
-                  {/* Hero Corridor Banner */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1.5">
-                      <div className="text-[11px] font-semibold text-indigo-200 uppercase tracking-wider flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-indigo-300" />
-                        <span>Transit Corridor</span>
-                      </div>
-                      <div className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg font-bold flex-wrap">
-                        <span>{job.origin_city || "Ghaziabad"}</span>
-                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-300 shrink-0" />
-                        <span>{job.destination_city || "Faridabad"}</span>
-                      </div>
-                    </div>
-
-                    <div className="sm:text-right space-y-1 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-indigo-700/60">
-                      <div className="text-[11px] text-indigo-200 font-medium">Scheduled Dispatch Date</div>
-                      <div className="text-sm font-mono font-bold text-white flex items-center sm:justify-end gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-indigo-300" />
-                        <span>{job.expected_dispatch_date ? formatDate(job.expected_dispatch_date) : "Immediate / Unscheduled"}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Advisory Notice for Suspicious Data */}
-                  {(consignerLooksLikePlate || consigneeLooksLikeStatus || cargoLooksLikeNumber) && (
-                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1 shadow-2xs">
-                      <div className="flex items-center gap-1.5 font-bold text-amber-950">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Imported Record Data Notice</span>
-                      </div>
-                      <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-800 pl-1">
-                        {consignerLooksLikePlate && (
-                          <li>
-                            Consignor name <strong>&ldquo;{job.consigner_name}&rdquo;</strong> resembles a vehicle registration format. The true recorded value is displayed without silent reinterpretation.
-                          </li>
-                        )}
-                        {consigneeLooksLikeStatus && (
-                          <li>
-                            Consignee name <strong>&ldquo;{job.consignee_name}&rdquo;</strong> resembles an operational status keyword.
-                          </li>
-                        )}
-                        {cargoLooksLikeNumber && (
-                          <li>
-                            Cargo description <strong>&ldquo;{job.cargo_description}&rdquo;</strong> contains purely numeric digits.
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* 2-Column Grouped Details Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Card 1: Commercial Parties */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3.5">
-                      <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                        <Building2 className="w-4 h-4 text-indigo-600" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                          Commercial Parties
-                        </h4>
-                      </div>
-
-                      <div className="space-y-3 text-xs">
-                        <div>
-                          <span className="text-[11px] font-medium text-slate-400 block mb-0.5">Billing Customer:</span>
-                          <span className="font-semibold text-slate-900 text-sm block">
-                            {job.billing_client_name || job.billing_party || "— (Not Specified)"}
-                          </span>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <span className="text-[11px] font-medium text-slate-400 block mb-0.5">Consignor (Sender):</span>
-                            <span className="font-medium text-slate-900 block font-mono">
-                              {job.consigner_name || job.consigner_code || "—"}
-                            </span>
-                            {job.consigner_code && job.consigner_name && (
-                              <span className="text-[10px] text-slate-500 font-mono">Code: {job.consigner_code}</span>
-                            )}
-                          </div>
-                          <div>
-                            <span className="text-[11px] font-medium text-slate-400 block mb-0.5">Consignee (Receiver):</span>
-                            <span className="font-medium text-slate-900 block">
-                              {job.consignee_name || job.consignee_code || "—"}
-                            </span>
-                            {job.consignee_code && (
-                              <span className="text-[10px] text-slate-500 font-mono">Code: {job.consignee_code}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card 2: Cargo & Consignment Specifications */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3.5">
-                      <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                        <Package className="w-4 h-4 text-indigo-600" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                          Cargo & Weight Specifications
-                        </h4>
-                      </div>
-
-                      <div className="space-y-3 text-xs">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1 flex items-center gap-1">
-                              <Package className="w-3 h-3 text-slate-500" />
-                              Total Packages
-                            </span>
-                            <span className="text-sm font-bold text-slate-900 block">
-                              {packagesDisplay}
-                            </span>
-                          </div>
-                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1 flex items-center gap-1">
-                              <Scale className="w-3 h-3 text-slate-500" />
-                              Estimated Weight
-                            </span>
-                            <span className="text-sm font-bold text-slate-900 font-mono block">
-                              {weightDisplay}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-100">
-                          <span className="text-[11px] font-medium text-slate-400 block mb-0.5">Cargo Description:</span>
-                          <span className="text-slate-800 font-medium block break-words">
-                            {job.cargo_description || "— (No description provided)"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card 3: Dispatch & Operations Context */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3.5">
-                      <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                        <Clock className="w-4 h-4 text-indigo-600" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                          Dispatch & Office Authorization
-                        </h4>
-                      </div>
-
-                      <div className="space-y-2.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Issuing Branch:</span>
-                          <span className="font-semibold text-slate-800">
-                            {job.issuing_office_name || officeName}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Job Order Date:</span>
-                          <span className="font-mono font-medium text-slate-800">
-                            {formatDate(job.job_date)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Order Lifecycle Status:</span>
-                          <StatusBadge status={job.status} />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-500">Carrier Document State:</span>
-                          <span className="text-slate-700 font-medium">
-                            {job.status === "BOOKED"
-                              ? "Consignment LR Booked"
-                              : "Pending Vehicle Assignment"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card 4: Special Instructions */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3.5">
-                      <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
-                        <FileText className="w-4 h-4 text-indigo-600" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                          Special Instructions & Remarks
-                        </h4>
-                      </div>
-
-                      <div className="text-xs text-slate-700 min-h-[75px] bg-slate-50/70 p-3 rounded-xl border border-slate-200/70">
-                        {job.special_instructions ? (
-                          <p className="whitespace-pre-line leading-relaxed">{job.special_instructions}</p>
-                        ) : (
-                          <span className="text-slate-400 italic">No special instructions or delivery caveats recorded for this order.</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ========================================================================= */}
-              {/* MODE B: 1-PAGE A4 PRINT VOUCHER PREVIEW                                   */}
-              {/* ========================================================================= */}
-              <div
-                id="job-order-voucher-wrapper"
-                className={`justify-center ${viewMode === "voucher"
-                    ? "flex p-4 sm:p-6"
-                    : "fixed left-0 top-0 pointer-events-none opacity-0 z-[-50] print:static print:opacity-100 print:pointer-events-auto print:flex print:p-0 print:z-auto"
-                  }`}
-                style={viewMode === "voucher" ? undefined : { width: "780px", maxWidth: "780px" }}
-              >
+            <div
+              id="job-order-voucher-wrapper"
+              className="flex justify-center p-4 sm:p-6 w-full"
+            >
                 <div
                   id="job-order-printable-document"
                   ref={printRef}
@@ -1208,7 +948,6 @@ export function JobOrderViewModal({
                   </div>
                 </div>
               </div>
-            </>
           )}
         </div>
 

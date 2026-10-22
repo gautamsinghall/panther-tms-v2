@@ -13,7 +13,6 @@ import {
   User,
   Check,
   AlertCircle,
-  Eye,
   FileText,
   Clock,
   Lock,
@@ -21,6 +20,7 @@ import {
   X,
   CreditCard,
   Edit2,
+  Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -1206,8 +1206,8 @@ export default function HireChallansPage() {
 
   const actions: RowAction<HireChallanRecord>[] = [
     {
-      label: "View Details",
-      icon: <Eye className="w-3.5 h-3.5" />,
+      label: "Print Preview",
+      icon: <Printer className="w-3.5 h-3.5" />,
       onClick: (row) => setSelectedChallanDetail(row),
     },
     {
