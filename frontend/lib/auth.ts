@@ -102,6 +102,7 @@ export function clearStoredAuth(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem("panther_sidebar_entrance_complete");
     document.cookie = "panther_tenant_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "panther_company_code=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "panther_office_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";

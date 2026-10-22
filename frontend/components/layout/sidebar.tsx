@@ -90,6 +90,8 @@ import {
   KeyRound,
   Mail,
 } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { getStoredAuth, getStoredNavigation, updateStoredNavigation } from "@/lib/auth";
@@ -591,8 +593,46 @@ export function Sidebar() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     home: true,
   });
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("panther_sidebar_collapsed");
+      if (stored !== null) return stored === "true";
+      return window.innerWidth < 768;
+    }
+    return false;
+  });
   const [planGate, setPlanGate] = useState<{ featureName: string; requiredPlan: string } | null>(null);
+
+  // Motion accessibility & session-based entrance sequence (runs once per session / login)
+  const shouldReduceMotion = useReducedMotion();
+  const [hasEntered, setHasEntered] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("panther_sidebar_entrance_complete") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (!hasEntered && navGroups.length > 0) {
+      const timer = setTimeout(() => {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("panther_sidebar_entrance_complete", "true");
+          setHasEntered(true);
+        }
+      }, 750);
+      return () => clearTimeout(timer);
+    }
+  }, [hasEntered, navGroups.length]);
+
+  const handleToggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("panther_sidebar_collapsed", next ? "true" : "false");
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const collapseForNarrowViewport = () => {
@@ -669,66 +709,138 @@ export function Sidebar() {
     }));
   };
 
+  const EASE_CUBIC: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+  // Motion variants for cascading stagger sequence
+  const sidebarVariants: Variants = {
+    hidden: { x: shouldReduceMotion ? 0 : -20, opacity: 0 },
+    visible: {
+      x: 0,
+      opacity: 1,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.28,
+        ease: EASE_CUBIC,
+      },
+    },
+  };
+
+  const navListVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: shouldReduceMotion ? 0 : 0.038,
+        delayChildren: shouldReduceMotion ? 0 : 0.08,
+      },
+    },
+  };
+
+  const navItemVariants: Variants = {
+    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: shouldReduceMotion ? 0 : 0.28,
+        ease: EASE_CUBIC,
+      },
+    },
+  };
+
   return (
     <>
-    <aside
+    <motion.aside
+      initial={hasEntered ? false : "hidden"}
+      animate={{
+        x: 0,
+        opacity: 1,
+        width: isCollapsed ? 68 : 288,
+      }}
+      variants={sidebarVariants}
+      transition={{
+        x: { duration: shouldReduceMotion ? 0 : 0.28, ease: EASE_CUBIC },
+        opacity: { duration: shouldReduceMotion ? 0 : 0.28, ease: EASE_CUBIC },
+        width: { duration: shouldReduceMotion ? 0 : 0.24, ease: EASE_CUBIC },
+      }}
       className={cn(
-        "relative flex flex-col border-r border-slate-200/80 bg-white transition-all duration-200 select-none z-30 shrink-0",
-        isCollapsed ? "w-16" : "w-72"
+        "relative flex flex-col border-r border-slate-200/80 bg-white select-none z-30 shrink-0 h-screen overflow-hidden",
+        "will-change-[width]"
       )}
     >
       {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
-      <div className="flex h-16 items-center justify-between px-3.5 border-b border-slate-200/80 bg-white shrink-0">
-        {!isCollapsed && (
-          <Link
-            href={tenantPrefix || "/"}
-            onClick={() => {
-              if (isFormOpen) closeFormTab(true);
-              setActiveTab("list");
-            }}
-            className="flex items-center gap-3 group min-w-0"
-          >
-            <img
-              src="/panther-logo.png"
-              alt="PantherTMS Logo"
-              className="h-9 w-auto max-w-[56px] object-contain shrink-0 drop-shadow-xs"
-            />
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
-                  Panther<span className="text-indigo-600">TMS</span>
-                </span>
-                <span className="text-xs font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">
-                  v2.0
-                </span>
-              </div>
-              <span className="block text-xs text-slate-500 font-medium tracking-tight truncate">
-                Panther Digital Solutions
-              </span>
-            </div>
-          </Link>
-        )}
-        {isCollapsed && (
-          <Link
-            href={tenantPrefix || "/"}
-            onClick={() => {
-              if (isFormOpen) closeFormTab(true);
-              setActiveTab("list");
-            }}
-            className="mx-auto flex items-center justify-center"
-            title="PantherTMS"
-          >
-            <img
-              src="/panther-logo.png"
-              alt="PantherTMS Logo"
-              className="h-8 w-auto max-w-[36px] object-contain drop-shadow-xs"
-            />
-          </Link>
-        )}
+      <div className="flex h-16 items-center justify-between px-3 border-b border-slate-200/80 bg-white shrink-0">
+        <AnimatePresence mode="wait" initial={false}>
+          {!isCollapsed ? (
+            <motion.div
+              key="brand-expanded"
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.16 }}
+              className="flex items-center min-w-0 flex-1 overflow-hidden"
+            >
+              <Link
+                href={tenantPrefix || "/"}
+                onClick={() => {
+                  if (isFormOpen) closeFormTab(true);
+                  setActiveTab("list");
+                }}
+                className="flex items-center gap-2.5 group min-w-0"
+              >
+                <img
+                  src="/panther-logo.png"
+                  alt="PantherTMS Logo"
+                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200 group-hover:scale-105"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                      Panther<span className="text-indigo-600">TMS</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">
+                      v2.0
+                    </span>
+                  </div>
+                  <span className="block text-[11px] text-slate-500 font-medium tracking-tight truncate">
+                    Panther Digital Solutions
+                  </span>
+                </div>
+              </Link>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="brand-collapsed"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ duration: 0.16 }}
+              className="mx-auto flex items-center justify-center"
+            >
+              <Tooltip content="PantherTMS v2.0" side="right">
+                <Link
+                  href={tenantPrefix || "/"}
+                  onClick={() => {
+                    if (isFormOpen) closeFormTab(true);
+                    setActiveTab("list");
+                  }}
+                  className="flex items-center justify-center p-1"
+                  title="PantherTMS"
+                >
+                  <img
+                    src="/panther-logo.png"
+                    alt="PantherTMS Logo"
+                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200 hover:scale-105"
+                  />
+                </Link>
+              </Tooltip>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-md text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+          type="button"
+          onClick={handleToggleCollapse}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer shrink-0 ml-1"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -741,14 +853,19 @@ export function Sidebar() {
       </div>
 
       {/* Navigation List — Linear-style Inset Item Hierarchy */}
-      <div className="flex-1 overflow-y-auto py-3 px-2.5 space-y-1.5">
+      <motion.div
+        variants={navListVariants}
+        initial={hasEntered ? false : "hidden"}
+        animate="visible"
+        className="flex-1 overflow-y-auto py-3 px-2 space-y-1 custom-sidebar-scroll"
+      >
         {isLoadingNav && navGroups.length === 0 ? (
           <div className="py-2 px-1 space-y-2 animate-pulse">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg bg-slate-50 border border-slate-100",
+                  "flex items-center gap-2.5 rounded-xl bg-slate-50 border border-slate-100",
                   isCollapsed ? "justify-center p-2.5" : "px-2.5 py-2.5"
                 )}
               >
@@ -763,131 +880,201 @@ export function Sidebar() {
           </div>
         ) : (
           navGroups.map((group) => {
-          const isExpanded = expandedGroups[group.id] ?? false;
-          const hasActiveChild = group.items?.some((item) => item.href === normalizedPathname);
-          const icon = MODULE_ICONS[group.id] || <Layers className="w-4 h-4" />;
+            const isExpanded = expandedGroups[group.id] ?? false;
+            const hasActiveChild = group.items?.some((item) => item.href === normalizedPathname);
+            const icon = MODULE_ICONS[group.id] || <Layers className="w-5 h-5" />;
 
-          return (
-            <div key={group.id} className="space-y-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isCollapsed) setIsCollapsed(false);
-                  toggleGroup(group.id);
-                }}
-                className={cn(
-                  "flex w-full items-center rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer select-none",
-                  isCollapsed ? "justify-center p-2.5" : "justify-between px-2.5 py-2",
-                  hasActiveChild
-                    ? "text-slate-900 font-semibold bg-slate-100/80 border border-slate-200/80 shadow-2xs"
-                    : "text-slate-700 hover:bg-slate-100/70 hover:text-slate-900"
-                )}
-                title={group.title}
-                aria-label={group.title}
+            return (
+              <motion.div
+                key={group.id}
+                variants={navItemVariants}
+                className="space-y-0.5"
               >
-                <div className={cn("flex items-center gap-2.5 min-w-0", isCollapsed ? "justify-center" : "flex-1 mr-1")}>
-                  <span className={cn("shrink-0", hasActiveChild ? "text-indigo-600" : "text-slate-500")}>
-                    {icon}
-                  </span>
-                  {!isCollapsed && (
-                    <span className="text-xs font-semibold text-slate-800 truncate" title={group.title}>
-                      {group.title}
-                    </span>
-                  )}
-                </div>
-                {!isCollapsed && (
-                  <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                    {group.is_locked && (
-                      <span
-                        className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-50 border border-amber-200/80 text-amber-700 shadow-2xs shrink-0"
-                        title={`Requires ${formatPlanName(group.required_plan)} plan`}
-                      >
-                        <Lock className="w-2.5 h-2.5 shrink-0" />
-                      </span>
-                    )}
-                    <span className="text-slate-400 shrink-0">
-                      {isExpanded ? (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronRight className="w-3.5 h-3.5" />
+                {isCollapsed ? (
+                  <Tooltip content={group.title} side="right">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCollapsed(false);
+                        toggleGroup(group.id);
+                      }}
+                      className={cn(
+                        "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
+                        hasActiveChild
+                          ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
+                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 active:bg-slate-200/50"
                       )}
-                    </span>
-                  </div>
-                )}
-              </button>
-
-              {/* Sub items — Linear Inset Pill Active State */}
-              {!isCollapsed && isExpanded && (
-                <div className="pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 ml-4 my-0.5">
-                  {group.items?.map((sub) => {
-                    const isActive = normalizedPathname === sub.href;
-                    const SubIcon = getSubItemIcon(sub);
-
-                    return (
-                      <Link
-                        key={sub.href}
-                        href={sub.is_locked ? "#" : `${tenantPrefix}${sub.href}`}
-                        onClick={(e) => {
-                          if (sub.is_locked) {
-                            e.preventDefault();
-                            setPlanGate({
-                              featureName: sub.title,
-                              requiredPlan: sub.required_plan || group.required_plan || "BUSINESS",
-                            });
-                            return;
-                          }
-                          if (isFormOpen) {
-                            closeFormTab(true);
-                          }
-                          if (normalizedPathname === sub.href) {
-                            setActiveTab("list");
-                          }
-                        }}
-                        className={cn(
-                          "group flex items-center justify-between px-2 py-1.5 rounded-md text-xs sm:text-[13px] transition-all duration-150 select-none",
-                          sub.is_locked
-                            ? "text-slate-400 opacity-80 cursor-not-allowed hover:bg-slate-50"
-                            : isActive
-                            ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
-                        )}
+                      title={group.title}
+                      aria-label={group.title}
+                    >
+                      <span className={cn(
+                        "transition-transform duration-150 group-hover:scale-110",
+                        hasActiveChild ? "text-indigo-600" : "text-slate-500 group-hover:text-slate-800"
+                      )}>
+                        {icon}
+                      </span>
+                      {hasActiveChild && (
+                        <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
+                      )}
+                    </button>
+                  </Tooltip>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.id)}
+                    className={cn(
+                      "group flex w-full items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer select-none",
+                      hasActiveChild
+                        ? "text-slate-900 font-semibold bg-slate-100/90 border border-slate-200/80 shadow-2xs"
+                        : "text-slate-700 hover:bg-slate-100/70 hover:text-slate-900 active:bg-slate-200/50"
+                    )}
+                    title={group.title}
+                    aria-label={group.title}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1">
+                      <span className={cn(
+                        "shrink-0 transition-all duration-150 group-hover:scale-105 group-hover:translate-x-0.5",
+                        hasActiveChild ? "text-indigo-600" : "text-slate-500 group-hover:text-slate-800"
+                      )}>
+                        {icon}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-800 truncate" title={group.title}>
+                        {group.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      {group.is_locked && (
+                        <span
+                          className="inline-flex items-center justify-center w-5 h-5 rounded bg-amber-50 border border-amber-200/80 text-amber-700 shadow-2xs shrink-0"
+                          title={`Requires ${formatPlanName(group.required_plan)} plan`}
+                        >
+                          <Lock className="w-2.5 h-2.5 shrink-0" />
+                        </span>
+                      )}
+                      <motion.span
+                        className="text-slate-400 shrink-0 inline-flex items-center justify-center"
+                        animate={{ rotate: isExpanded ? 90 : 0 }}
+                        transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
                       >
-                        <span className="truncate flex items-center gap-2 min-w-0">
-                          <span
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </motion.span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Sub items — Accordion with Staggered Linear Inset Pill Active State */}
+                <AnimatePresence initial={false}>
+                  {!isCollapsed && isExpanded && (
+                    <motion.div
+                      key={`submenu-${group.id}`}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{
+                        height: "auto",
+                        opacity: 1,
+                        transition: {
+                          height: { duration: shouldReduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] },
+                          opacity: { duration: shouldReduceMotion ? 0 : 0.18, delay: 0.04 },
+                        },
+                      }}
+                      exit={{
+                        height: 0,
+                        opacity: 0,
+                        transition: {
+                          height: { duration: shouldReduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] },
+                          opacity: { duration: shouldReduceMotion ? 0 : 0.12 },
+                        },
+                      }}
+                      className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 ml-4 my-0.5 relative"
+                    >
+                      {group.items?.map((sub) => {
+                        const isActive = normalizedPathname === sub.href;
+                        const SubIcon = getSubItemIcon(sub);
+
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.is_locked ? "#" : `${tenantPrefix}${sub.href}`}
+                            onClick={(e) => {
+                              if (sub.is_locked) {
+                                e.preventDefault();
+                                setPlanGate({
+                                  featureName: sub.title,
+                                  requiredPlan: sub.required_plan || group.required_plan || "BUSINESS",
+                                });
+                                return;
+                              }
+                              if (isFormOpen) {
+                                closeFormTab(true);
+                              }
+                              if (normalizedPathname === sub.href) {
+                                setActiveTab("list");
+                              }
+                            }}
                             className={cn(
-                              "shrink-0 transition-colors",
+                              "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-all duration-150 select-none",
                               sub.is_locked
-                                ? "text-slate-300"
+                                ? "text-slate-400 opacity-80 cursor-not-allowed hover:bg-slate-50"
                                 : isActive
-                                ? "text-indigo-600"
-                                : "text-slate-400 group-hover:text-slate-600"
+                                ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
+                                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
                             )}
                           >
-                            <SubIcon className="w-3.5 h-3.5" />
-                          </span>
-                          <span className="truncate">{sub.title}</span>
-                          {sub.is_locked && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
-                              <Lock className="w-2 h-2" />
-                              {formatPlanName(sub.required_plan || group.required_plan)}
+                            {/* Slim Animated Vertical Accent Indicator (Linear style) */}
+                            {isActive && !sub.is_locked && (
+                              <motion.span
+                                layoutId="sidebarActiveIndicator"
+                                className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.35)]"
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 400,
+                                  damping: 35,
+                                }}
+                              />
+                            )}
+
+                            <span className="truncate flex items-center gap-2 min-w-0">
+                              <span
+                                className={cn(
+                                  "shrink-0 transition-all duration-150 group-hover:translate-x-0.5",
+                                  sub.is_locked
+                                    ? "text-slate-300"
+                                    : isActive
+                                    ? "text-indigo-600 scale-105"
+                                    : "text-slate-400 group-hover:text-slate-600"
+                                )}
+                              >
+                                <SubIcon className="w-3.5 h-3.5" />
+                              </span>
+                              <span className="truncate">{sub.title}</span>
+                              {sub.is_locked && (
+                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase animate-in fade-in-0 duration-150">
+                                  <Lock className="w-2 h-2" />
+                                  {formatPlanName(sub.required_plan || group.required_plan)}
+                                </span>
+                              )}
                             </span>
-                          )}
-                        </span>
-                        {isActive && !sub.is_locked && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs" />
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        }))}
-      </div>
+                            {isActive && !sub.is_locked && (
+                              <motion.span
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs"
+                              />
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })
+        )}
+      </motion.div>
 
       {/* RBAC Active Footer — Linear/Stripe Enterprise Status */}
-      {!isCollapsed && (
+      {!isCollapsed ? (
         <div className="p-3 border-t border-slate-200/80 bg-slate-50/50">
           <div className="rounded-lg bg-white border border-slate-200/80 p-2.5 flex items-center justify-between shadow-2xs">
             <div className="flex items-center gap-2 min-w-0">
@@ -907,8 +1094,17 @@ export function Sidebar() {
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
           </div>
         </div>
+      ) : (
+        <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 flex justify-center">
+          <Tooltip content="Tenant RBAC Active (Multi-tenant isolated)" side="right">
+            <div className="relative flex h-4 w-4 items-center justify-center cursor-default">
+              <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </div>
+          </Tooltip>
+        </div>
       )}
-    </aside>
+    </motion.aside>
     <PlanGateDialog
       isOpen={Boolean(planGate)}
       onClose={() => setPlanGate(null)}
