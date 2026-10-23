@@ -8,48 +8,48 @@ from pydantic import BaseModel
 # ==============================================================================
 
 class MonthlyTrendPoint(BaseModel):
-    period: str  # e.g. "Apr 2026", "May 2026"
-    revenue: Decimal
-    trips: int
-    invoices: int
+    period: Optional[str] = "N/A"  # e.g. "Apr 2026", "May 2026"
+    revenue: Decimal = Decimal("0.00")
+    trips: int = 0
+    invoices: int = 0
 
 
 class CorridorVolume(BaseModel):
-    origin: str
-    destination: str
-    trip_count: int
-    total_freight: Decimal
+    origin: Optional[str] = "Not specified"
+    destination: Optional[str] = "Not specified"
+    trip_count: int = 0
+    total_freight: Decimal = Decimal("0.00")
 
 
 class PipelineStageCount(BaseModel):
-    stage: str
-    count: int
-    percentage: float
+    stage: str = "Unknown"
+    count: int = 0
+    percentage: float = 0.0
 
 
 class RecentOperationItem(BaseModel):
     id: int
     lr_number: str
-    lr_date: date
+    lr_date: Optional[date] = None
     consigner_name: Optional[str] = None
     consignee_name: Optional[str] = None
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None
-    vehicle_number: str
-    freight_amount: Decimal
-    status: str
+    vehicle_number: Optional[str] = None
+    freight_amount: Decimal = Decimal("0.00")
+    status: Optional[str] = "DRAFT"
 
 
 class BusinessOverviewData(BaseModel):
-    total_movements: int
-    in_transit_count: int
-    delivered_count: int
-    net_billed_revenue: Decimal
-    total_vouchers_reconciled: int
-    monthly_trends: List[MonthlyTrendPoint]
-    pipeline_stages: List[PipelineStageCount]
-    top_corridors: List[CorridorVolume]
-    recent_operations: List[RecentOperationItem]
+    total_movements: int = 0
+    in_transit_count: int = 0
+    delivered_count: int = 0
+    net_billed_revenue: Decimal = Decimal("0.00")
+    total_vouchers_reconciled: int = 0
+    monthly_trends: List[MonthlyTrendPoint] = []
+    pipeline_stages: List[PipelineStageCount] = []
+    top_corridors: List[CorridorVolume] = []
+    recent_operations: List[RecentOperationItem] = []
 
 
 # ==============================================================================

@@ -27,7 +27,7 @@ async def get_business_overview(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = bool(getattr(current_office, "is_head_office", False)) if current_office else True
     return await home_service.get_business_overview(
         session=db,
         office_id=target_office_id,

@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional
@@ -23,6 +24,8 @@ from app.modules.home.schemas import (
     OwnVehicleMatrixItem,
     NotificationItemSchema,
 )
+
+logger = logging.getLogger(__name__)
 
 # One canonical movement definition is shared by dashboard KPIs, funnel stages,
 # fleet fallbacks, and active-movement lists. BOOKED is scheduled freight, not
@@ -50,204 +53,227 @@ async def get_business_overview(
     office_id: Optional[int] = None,
     include_unassigned: bool = True,
 ) -> BusinessOverviewData:
-    # Build reusable office filter clause
-    def office_filter(col):
-        if office_id is None:
-            return []
-        if include_unassigned:
-            return [or_(col == office_id, col == None)]
-        return [col == office_id]
+    try:
+        # Build reusable office filter clause
+        def office_filter(col):
+            if office_id is None:
+                return []
+            if include_unassigned:
+                return [or_(col == office_id, col.is_(None))]
+            return [col == office_id]
 
-    # 1. Aggregate LR counts by status using SQL (no full-table scan)
-    lr_status_stmt = (
-        select(models.LR.status, func.count(models.LR.id).label("cnt"))
-        .where(*office_filter(models.LR.issuing_office_id))
-        .group_by(models.LR.status)
-    )
-    lr_status_res = await session.execute(lr_status_stmt)
-    status_counts_raw = {row.status: row.cnt for row in lr_status_res}
-    total_movements = sum(status_counts_raw.values())
-
-    in_transit_statuses = set(IN_TRANSIT_LR_STATUSES)
-    delivered_statuses = set(DELIVERED_LR_STATUSES)
-    status_counts = {
-        "DRAFT": status_counts_raw.get("DRAFT", 0),
-        "BOOKED": status_counts_raw.get("BOOKED", 0),
-        "IN_TRANSIT": sum(v for k, v in status_counts_raw.items() if k in in_transit_statuses),
-        "DELIVERED": status_counts_raw.get("DELIVERED", 0),
-        "POD_VERIFIED": sum(v for k, v in status_counts_raw.items() if k in ("POD_RECEIVED", "POD_VERIFIED")),
-    }
-    in_transit_count = status_counts["IN_TRANSIT"]
-    delivered_count = sum(v for k, v in status_counts_raw.items() if k in delivered_statuses)
-
-    # 2. Revenue from vouchers (SQL SUM)
-    v_stmt = (
-        select(func.sum(func.coalesce(models.Voucher.net_amount, models.Voucher.total_amount)))
-        .where(
-            models.Voucher.is_void == False,
-            models.Voucher.voucher_type.in_([
-                models.VoucherType.TRANSPORT_INVOICE.value,
-                models.VoucherType.GENERAL_INVOICE.value,
-            ]),
-            *office_filter(models.Voucher.issuing_office_id),
-        )
-    )
-    v_res = await session.execute(v_stmt)
-    billed_revenue = Decimal(str(v_res.scalar() or "0.00"))
-
-    v_cnt_stmt = (
-        select(func.count(models.Voucher.id))
-        .where(
-            models.Voucher.is_void == False,
-            *office_filter(models.Voucher.issuing_office_id),
-        )
-    )
-    v_cnt_res = await session.execute(v_cnt_stmt)
-    total_vouchers = v_cnt_res.scalar() or 0
-
-    if billed_revenue == Decimal("0.00"):
-        lr_rev_stmt = (
-            select(func.sum(models.LR.total_freight_amount))
+        # 1. Aggregate LR counts by status using SQL (no full-table scan)
+        lr_status_stmt = (
+            select(models.LR.status, func.count(models.LR.id).label("cnt"))
             .where(*office_filter(models.LR.issuing_office_id))
+            .group_by(models.LR.status)
         )
-        lr_rev_res = await session.execute(lr_rev_stmt)
-        billed_revenue = Decimal(str(lr_rev_res.scalar() or "0.00"))
+        lr_status_res = await session.execute(lr_status_stmt)
+        status_counts_raw = {row.status: row.cnt for row in lr_status_res}
+        total_movements = sum(status_counts_raw.values())
 
-    # 3. Monthly trends — aggregate by YYYY-MM using SQL
-    lr_monthly_stmt = (
-        select(
-            func.to_char(models.LR.lr_date, "Mon YYYY").label("period"),
-            func.count(models.LR.id).label("trips"),
-            func.coalesce(func.sum(models.LR.total_freight_amount), 0).label("revenue"),
-        )
-        .where(*office_filter(models.LR.issuing_office_id))
-        .group_by(func.to_char(models.LR.lr_date, "Mon YYYY"))
-        .order_by(func.min(models.LR.lr_date).desc())
-        .limit(6)
-    )
-    lr_monthly_res = await session.execute(lr_monthly_stmt)
-    monthly_rows = list(reversed(lr_monthly_res.fetchall()))
-    monthly_trends = [
-        MonthlyTrendPoint(
-            period=row.period,
-            revenue=Decimal(str(row.revenue)),
-            trips=row.trips,
-            invoices=0,
-        )
-        for row in monthly_rows
-    ]
-    if not monthly_trends:
-        monthly_trends.append(
-            MonthlyTrendPoint(
-                period=date.today().strftime("%b %Y"),
-                revenue=billed_revenue,
-                trips=total_movements,
-                invoices=0,
+        in_transit_statuses = set(IN_TRANSIT_LR_STATUSES)
+        delivered_statuses = set(DELIVERED_LR_STATUSES)
+        status_counts = {
+            "DRAFT": status_counts_raw.get("DRAFT", 0),
+            "BOOKED": status_counts_raw.get("BOOKED", 0),
+            "IN_TRANSIT": sum(v for k, v in status_counts_raw.items() if k in in_transit_statuses),
+            "DELIVERED": status_counts_raw.get("DELIVERED", 0),
+            "POD_VERIFIED": sum(v for k, v in status_counts_raw.items() if k in ("POD_RECEIVED", "POD_VERIFIED")),
+        }
+        in_transit_count = status_counts["IN_TRANSIT"]
+        delivered_count = sum(v for k, v in status_counts_raw.items() if k in delivered_statuses)
+
+        # 2. Revenue from vouchers (SQL SUM)
+        v_stmt = (
+            select(func.sum(func.coalesce(models.Voucher.net_amount, models.Voucher.total_amount)))
+            .where(
+                models.Voucher.is_void == False,
+                models.Voucher.voucher_type.in_([
+                    models.VoucherType.TRANSPORT_INVOICE.value,
+                    models.VoucherType.GENERAL_INVOICE.value,
+                ]),
+                *office_filter(models.Voucher.issuing_office_id),
             )
         )
+        v_res = await session.execute(v_stmt)
+        billed_revenue = Decimal(str(v_res.scalar() or "0.00"))
 
-    # 4. Pipeline Stages
-    tot_stg = max(1, total_movements)
-    pipeline_stages = [
-        PipelineStageCount(
-            stage=stg.replace("_", " "),
-            count=cnt,
-            percentage=round(cnt / tot_stg * 100, 1),
+        v_cnt_stmt = (
+            select(func.count(models.Voucher.id))
+            .where(
+                models.Voucher.is_void == False,
+                *office_filter(models.Voucher.issuing_office_id),
+            )
         )
-        for stg, cnt in status_counts.items()
-    ]
+        v_cnt_res = await session.execute(v_cnt_stmt)
+        total_vouchers = v_cnt_res.scalar() or 0
 
-    # 5. Top Corridors — SQL group-by instead of Python loop
-    corridor_stmt = (
-        select(
-            models.Location.city_name.label("origin"),
-            models.Location.city_name.label("dest_city"),
-            func.count(models.LR.id).label("cnt"),
-            func.sum(func.coalesce(models.LR.total_freight_amount, 0)).label("freight"),
-        )
-        .join(models.Location, models.LR.origin_location_id == models.Location.id, isouter=True)
-        .where(*office_filter(models.LR.issuing_office_id))
-        .group_by(models.LR.origin_location_id, models.LR.destination_location_id, models.Location.city_name)
-        .order_by(func.count(models.LR.id).desc())
-        .limit(4)
-    )
-    # Simpler corridor fetch with selectinload on recent LRs only
-    corr_lr_stmt = (
-        select(models.LR)
-        .options(
-            selectinload(models.LR.origin_location),
-            selectinload(models.LR.destination_location),
-        )
-        .where(*office_filter(models.LR.issuing_office_id))
-        .order_by(models.LR.lr_date.desc(), models.LR.id.desc())
-        .limit(200)
-    )
-    corr_res = await session.execute(corr_lr_stmt)
-    recent_lrs = corr_res.scalars().all()
+        if billed_revenue == Decimal("0.00"):
+            lr_rev_stmt = (
+                select(func.sum(models.LR.total_freight_amount))
+                .where(*office_filter(models.LR.issuing_office_id))
+            )
+            lr_rev_res = await session.execute(lr_rev_stmt)
+            billed_revenue = Decimal(str(lr_rev_res.scalar() or "0.00"))
 
-    corridors_map: Dict[str, Dict] = {}
-    for l in recent_lrs:
-        orig = l.origin_location.city_name if l.origin_location else "Not specified"
-        dest = l.destination_location.city_name if l.destination_location else "Not specified"
-        corr_key = f"{orig} → {dest}"
-        if corr_key not in corridors_map:
-            corridors_map[corr_key] = {"origin": orig, "destination": dest, "count": 0, "freight": Decimal("0.00")}
-        corridors_map[corr_key]["count"] += 1
-        corridors_map[corr_key]["freight"] += Decimal(str(l.total_freight_amount or l.freight_amount or "0.00"))
+        # 3. Monthly trends — aggregate by YYYY-MM using SQL date_trunc
+        monthly_trends: List[MonthlyTrendPoint] = []
+        try:
+            month_trunc = func.date_trunc("month", models.LR.lr_date)
+            lr_monthly_stmt = (
+                select(
+                    month_trunc.label("month_dt"),
+                    func.count(models.LR.id).label("trips"),
+                    func.coalesce(func.sum(models.LR.total_freight_amount), 0).label("revenue"),
+                )
+                .where(
+                    models.LR.lr_date.isnot(None),
+                    *office_filter(models.LR.issuing_office_id),
+                )
+                .group_by(month_trunc)
+                .order_by(month_trunc.desc())
+                .limit(6)
+            )
+            lr_monthly_res = await session.execute(lr_monthly_stmt)
+            monthly_rows = list(reversed(lr_monthly_res.fetchall()))
+            for row in monthly_rows:
+                if not row.month_dt:
+                    continue
+                period_str = (
+                    row.month_dt.strftime("%b %Y")
+                    if hasattr(row.month_dt, "strftime")
+                    else str(row.month_dt)[:7]
+                )
+                monthly_trends.append(
+                    MonthlyTrendPoint(
+                        period=period_str,
+                        revenue=Decimal(str(row.revenue or "0.00")),
+                        trips=row.trips or 0,
+                        invoices=0,
+                    )
+                )
+        except Exception as m_err:
+            logger.warning("Error fetching monthly trends via SQL date_trunc: %s", m_err)
 
-    sorted_corridors = sorted(corridors_map.values(), key=lambda x: x["count"], reverse=True)[:4]
-    top_corridors = [
-        CorridorVolume(
-            origin=c["origin"],
-            destination=c["destination"],
-            trip_count=c["count"],
-            total_freight=c["freight"],
-        )
-        for c in sorted_corridors
-    ]
+        if not monthly_trends:
+            monthly_trends.append(
+                MonthlyTrendPoint(
+                    period=date.today().strftime("%b %Y"),
+                    revenue=billed_revenue,
+                    trips=total_movements,
+                    invoices=0,
+                )
+            )
 
-    # 6. Recent Operations (latest 6 LRs only)
-    recent_ops_stmt = (
-        select(models.LR)
-        .options(
-            selectinload(models.LR.consigner),
-            selectinload(models.LR.consignee),
-            selectinload(models.LR.origin_location),
-            selectinload(models.LR.destination_location),
-        )
-        .where(*office_filter(models.LR.issuing_office_id))
-        .order_by(models.LR.lr_date.desc(), models.LR.id.desc())
-        .limit(6)
-    )
-    recent_ops_res = await session.execute(recent_ops_stmt)
-    recent_lrs_top = recent_ops_res.scalars().all()
-    recent_ops = [
-        RecentOperationItem(
-            id=l.id,
-            lr_number=l.lr_number,
-            lr_date=l.lr_date,
-            consigner_name=l.consigner.name if l.consigner else None,
-            consignee_name=l.consignee.name if l.consignee else None,
-            origin_city=l.origin_location.city_name if l.origin_location else None,
-            destination_city=l.destination_location.city_name if l.destination_location else None,
-            vehicle_number=l.vehicle_number,
-            freight_amount=Decimal(str(l.total_freight_amount or l.freight_amount or "0.00")),
-            status=l.status,
-        )
-        for l in recent_lrs_top
-    ]
+        # 4. Pipeline Stages
+        tot_stg = max(1, total_movements)
+        pipeline_stages = [
+            PipelineStageCount(
+                stage=stg.replace("_", " "),
+                count=cnt,
+                percentage=round(cnt / tot_stg * 100, 1),
+            )
+            for stg, cnt in status_counts.items()
+        ]
 
-    return BusinessOverviewData(
-        total_movements=total_movements,
-        in_transit_count=in_transit_count,
-        delivered_count=delivered_count,
-        net_billed_revenue=billed_revenue,
-        total_vouchers_reconciled=total_vouchers,
-        monthly_trends=monthly_trends,
-        pipeline_stages=pipeline_stages,
-        top_corridors=top_corridors,
-        recent_operations=recent_ops,
-    )
+        # 5. Top Corridors — selectinload on recent LRs only
+        corr_lr_stmt = (
+            select(models.LR)
+            .options(
+                selectinload(models.LR.origin_location),
+                selectinload(models.LR.destination_location),
+            )
+            .where(*office_filter(models.LR.issuing_office_id))
+            .order_by(models.LR.lr_date.desc().nullslast(), models.LR.id.desc())
+            .limit(200)
+        )
+        corr_res = await session.execute(corr_lr_stmt)
+        recent_lrs = corr_res.scalars().all()
+
+        corridors_map: Dict[str, Dict] = {}
+        for l in recent_lrs:
+            orig = l.origin_location.city_name if l.origin_location and l.origin_location.city_name else "Not specified"
+            dest = l.destination_location.city_name if l.destination_location and l.destination_location.city_name else "Not specified"
+            corr_key = f"{orig} → {dest}"
+            if corr_key not in corridors_map:
+                corridors_map[corr_key] = {"origin": orig, "destination": dest, "count": 0, "freight": Decimal("0.00")}
+            corridors_map[corr_key]["count"] += 1
+            corridors_map[corr_key]["freight"] += Decimal(str(l.total_freight_amount or l.freight_amount or "0.00"))
+
+        sorted_corridors = sorted(corridors_map.values(), key=lambda x: x["count"], reverse=True)[:4]
+        top_corridors = [
+            CorridorVolume(
+                origin=c["origin"],
+                destination=c["destination"],
+                trip_count=c["count"],
+                total_freight=c["freight"],
+            )
+            for c in sorted_corridors
+        ]
+
+        # 6. Recent Operations (latest 6 LRs only)
+        recent_ops_stmt = (
+            select(models.LR)
+            .options(
+                selectinload(models.LR.consigner),
+                selectinload(models.LR.consignee),
+                selectinload(models.LR.origin_location),
+                selectinload(models.LR.destination_location),
+            )
+            .where(*office_filter(models.LR.issuing_office_id))
+            .order_by(models.LR.lr_date.desc().nullslast(), models.LR.id.desc())
+            .limit(6)
+        )
+        recent_ops_res = await session.execute(recent_ops_stmt)
+        recent_lrs_top = recent_ops_res.scalars().all()
+        recent_ops = [
+            RecentOperationItem(
+                id=l.id,
+                lr_number=l.lr_number or f"LR-{l.id}",
+                lr_date=l.lr_date,
+                consigner_name=l.consigner.name if l.consigner else None,
+                consignee_name=l.consignee.name if l.consignee else None,
+                origin_city=l.origin_location.city_name if l.origin_location else None,
+                destination_city=l.destination_location.city_name if l.destination_location else None,
+                vehicle_number=l.vehicle_number or "",
+                freight_amount=Decimal(str(l.total_freight_amount or l.freight_amount or "0.00")),
+                status=l.status or "DRAFT",
+            )
+            for l in recent_lrs_top
+        ]
+
+        return BusinessOverviewData(
+            total_movements=total_movements,
+            in_transit_count=in_transit_count,
+            delivered_count=delivered_count,
+            net_billed_revenue=billed_revenue,
+            total_vouchers_reconciled=total_vouchers,
+            monthly_trends=monthly_trends,
+            pipeline_stages=pipeline_stages,
+            top_corridors=top_corridors,
+            recent_operations=recent_ops,
+        )
+    except Exception as exc:
+        logger.error("Error computing business overview metrics: %s", exc, exc_info=True)
+        return BusinessOverviewData(
+            total_movements=0,
+            in_transit_count=0,
+            delivered_count=0,
+            net_billed_revenue=Decimal("0.00"),
+            total_vouchers_reconciled=0,
+            monthly_trends=[
+                MonthlyTrendPoint(
+                    period=date.today().strftime("%b %Y"),
+                    revenue=Decimal("0.00"),
+                    trips=0,
+                    invoices=0,
+                )
+            ],
+            pipeline_stages=[],
+            top_corridors=[],
+            recent_operations=[],
+        )
 
 
 
