@@ -102,7 +102,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen xl:h-screen w-full flex flex-col justify-between bg-transparent text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative overflow-x-hidden xl:overflow-hidden">
-      {/* Full-screen fixed video backdrop with poster frame, dark scrim, and pause/play control */}
+      {/* Full-screen fixed video backdrop with poster frame and dark gradient scrim */}
       <VideoBackdrop />
 
       {/* ========================================================================= */}
