@@ -70,7 +70,7 @@ export function VideoBackdrop({
       aria-hidden="true"
     >
       {/* Fallback dark gradient backdrop (visible when video fails to load or before load) */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
 
       {/* Background Video */}
       {!hasError && (
