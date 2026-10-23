@@ -32,7 +32,7 @@ export function VideoBackdrop({
       {/* Fallback neutral backdrop (visible only when video fails to load or before load) */}
       <div className="absolute inset-0 bg-[#0f1115]" />
 
-      {/* Background Video */}
+      {/* Background Video - Hardware-accelerated native resolution playback */}
       {!hasError && (
         <video
           ref={videoRef}
@@ -41,15 +41,32 @@ export function VideoBackdrop({
           muted
           loop
           playsInline
+          preload="auto"
           controls={false}
+          disablePictureInPicture
           aria-hidden="true"
           poster={posterSrc}
           onError={() => setHasError(true)}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transform-gpu will-change-transform"
+          style={{
+            transform: "translate3d(0, 0, 0)",
+            backfaceVisibility: "hidden",
+            WebkitBackfaceVisibility: "hidden",
+          }}
         >
           <source src={videoSrc} type="video/mp4" />
         </video>
       )}
+
+      {/* Transparent Black Tinted Background Overlays for Peak Contrast & SaaS Visibility */}
+      {/* 1. Base Dark Tint - softens daytime glare while keeping 4K motion crisp */}
+      <div className="absolute inset-0 bg-black/55 z-10 pointer-events-none" />
+
+      {/* 2. Horizontal Scrim - gently deepens left hero content and right login card areas */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-black/75 z-10 pointer-events-none" />
+
+      {/* 3. Top & Bottom Subtle Vignette - frames top navigation and footer status bar */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/80 z-10 pointer-events-none" />
     </div>
   );
 }

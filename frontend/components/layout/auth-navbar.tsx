@@ -46,7 +46,7 @@ export function AuthNavbar({
           />
           <div className="flex items-center gap-1.5 ml-1">
             <span className="text-base sm:text-lg font-bold tracking-tight text-white">
-              Panther<span className="text-indigo-400">TMS</span>
+              PantherTMS
             </span>
             <span className="liquid-glass-pill px-2 py-0.5 rounded-full text-[11px] font-mono font-bold text-white/90 border border-white/20 ml-1">
               v2.0

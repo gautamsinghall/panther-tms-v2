@@ -143,8 +143,8 @@ export default function LoginPage() {
             </div>
 
             {/* 2. Headline - Crisp white text without text shadows */}
-            <div className="animate-liquid-fade-2 space-y-1">
-              <h1 className="text-3xl sm:text-4xl xl:text-[42px] font-extrabold tracking-tight text-white leading-[1.18]">
+            <div className="animate-liquid-fade-2 space-y-1.5">
+              <h1 className="text-3xl sm:text-4xl xl:text-[44px] font-extrabold tracking-tight text-white leading-[1.15]">
                 Enterprise transport operations,
                 <span className="text-white/90 block mt-1">
                   dependably handled.
@@ -152,20 +152,18 @@ export default function LoginPage() {
               </h1>
             </div>
 
-            {/* 3. Supporting Copy - Transparent Apple Glass Container */}
+            {/* 3. Supporting Copy */}
             <div className="animate-liquid-fade-2">
-              <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 max-w-[530px]">
-                <p className="text-xs sm:text-sm text-white/80 leading-relaxed font-normal">
-                  Unified consignment management, Lorry Receipts (GR/LR), double-entry transport accounting, and statutory GST compliance tailored for Indian logistics businesses.
-                </p>
-              </div>
+              <p className="text-sm sm:text-base text-white/85 leading-relaxed font-normal max-w-[540px]">
+                Unified consignment management, Lorry Receipts (GR/LR), double-entry transport accounting, and statutory GST compliance tailored for Indian logistics businesses.
+              </p>
             </div>
 
-            {/* 4. 4 Feature Highlights Row - Sleek visionOS glass cards */}
+            {/* 4. 4 Feature Highlights Row - Sleek SaaS glass cards */}
             <div className="animate-liquid-fade-3 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
               {/* Consignments */}
-              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
-                <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
+              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-2 group cursor-default">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 transition-colors duration-200">
                   <Truck className="w-4 h-4" />
                 </div>
                 <div>
@@ -175,8 +173,8 @@ export default function LoginPage() {
               </div>
 
               {/* Accounting */}
-              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
-                <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
+              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-2 group cursor-default">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 transition-colors duration-200">
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
@@ -186,8 +184,8 @@ export default function LoginPage() {
               </div>
 
               {/* Multi-Branch */}
-              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
-                <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
+              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-2 group cursor-default">
+                <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 transition-colors duration-200">
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div>
@@ -197,8 +195,8 @@ export default function LoginPage() {
               </div>
 
               {/* Compliance */}
-              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
-                <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
+              <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-2 group cursor-default">
+                <div className="w-8 h-8 rounded-xl bg-violet-500/20 border border-violet-400/30 flex items-center justify-center text-violet-300 transition-colors duration-200">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
@@ -260,7 +258,7 @@ export default function LoginPage() {
                     Sign in to your workspace
                   </h2>
                   <p className="text-xs sm:text-[13px] text-white/70 leading-normal">
-                    Enter your Company Code and credentials to continue to PantherTMS.
+                    Enter your Company Code and credentials to continue to <span className="text-white font-semibold">PantherTMS</span>.
                   </p>
                 </div>
 
@@ -414,15 +412,15 @@ export default function LoginPage() {
                   </span>
                 </div>
 
-                {/* 6. Demo Workspace Card - Clean visionOS glass inset */}
-                <div className="liquid-glass-inset rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3">
+                {/* 6. Demo Workspace Card - Clean SaaS glass inset */}
+                <div className="liquid-glass-inset rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
-                      <Sparkles className="w-4 h-4 text-white" />
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
+                      <Sparkles className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-xs font-bold text-white leading-snug truncate">
-                        Try the demo workspace
+                      <h3 className="text-xs font-bold text-white leading-snug">
+                        Try demo workspace
                       </h3>
                       <p className="text-[11px] text-white/60 leading-tight">
                         Pre-configured sandbox for evaluation.
@@ -433,7 +431,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={fillDemo}
-                    className="liquid-glass-pill hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-white/25 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap shrink-0 group/demo"
+                    className="liquid-glass-pill hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-white/25 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap shrink-0 group/demo"
                   >
                     <span>Use demo credentials</span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover/demo:translate-x-0.5 transition-transform" />
