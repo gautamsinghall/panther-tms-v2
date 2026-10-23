@@ -142,11 +142,11 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* 2. Headline - Crisp white text without text shadows */}
-            <div className="animate-liquid-fade-2 space-y-1.5">
+            {/* 2. Headline - High-contrast text with subtle drop-shadow */}
+            <div className="animate-liquid-fade-2 space-y-1.5 drop-shadow-[0_2px_10px_rgba(0,0,0,0.7)]">
               <h1 className="text-3xl sm:text-4xl xl:text-[44px] font-extrabold tracking-tight text-white leading-[1.15]">
                 Enterprise transport operations,
-                <span className="text-white/90 block mt-1">
+                <span className="text-white/95 block mt-1">
                   dependably handled.
                 </span>
               </h1>
@@ -154,7 +154,7 @@ export default function LoginPage() {
 
             {/* 3. Supporting Copy */}
             <div className="animate-liquid-fade-2">
-              <p className="text-sm sm:text-base text-white/85 leading-relaxed font-normal max-w-[540px]">
+              <p className="text-sm sm:text-base text-white/90 leading-relaxed font-normal max-w-[540px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
                 Unified consignment management, Lorry Receipts (GR/LR), double-entry transport accounting, and statutory GST compliance tailored for Indian logistics businesses.
               </p>
             </div>

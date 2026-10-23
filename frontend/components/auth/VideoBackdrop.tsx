@@ -11,7 +11,7 @@ export interface VideoBackdropProps {
 export function VideoBackdrop({
   className = "",
   videoSrc = "/panther-tms-loop-4k-clean.mp4",
-  posterSrc = "/panther-truck-poster.jpg",
+  posterSrc,
 }: VideoBackdropProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasError, setHasError] = useState(false);
@@ -58,15 +58,15 @@ export function VideoBackdrop({
         </video>
       )}
 
-      {/* Transparent Black Tinted Background Overlays for Peak Contrast & SaaS Visibility */}
-      {/* 1. Base Dark Tint - softens daytime glare while keeping 4K motion crisp */}
-      <div className="absolute inset-0 bg-black/55 z-10 pointer-events-none" />
+      {/* Transparent Black Tinted Background Overlays - Balanced for bright daytime video visibility & text legibility */}
+      {/* 1. Light Base Tint - keeps 4K daytime sky, truck & scenery bright and vibrant */}
+      <div className="absolute inset-0 bg-black/20 z-10 pointer-events-none" />
 
-      {/* 2. Horizontal Scrim - gently deepens left hero content and right login card areas */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/40 to-black/75 z-10 pointer-events-none" />
+      {/* 2. Soft Horizontal Gradient - gentle localized contrast for left hero copy while leaving center video clear */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-black/30 z-10 pointer-events-none" />
 
-      {/* 3. Top & Bottom Subtle Vignette - frames top navigation and footer status bar */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/80 z-10 pointer-events-none" />
+      {/* 3. Subtle Header & Footer Vignette - frames top navigation and footer status bar */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/40 z-10 pointer-events-none" />
     </div>
   );
 }
