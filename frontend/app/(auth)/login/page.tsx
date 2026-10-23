@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { login, getStoredAuth } from "@/lib/auth";
 import { AuthNavbar } from "@/components/layout/auth-navbar";
+import { VideoBackdrop } from "@/components/auth/VideoBackdrop";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -100,10 +101,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen xl:h-screen w-full flex flex-col justify-between bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative overflow-x-hidden xl:overflow-hidden">
-      {/* Ambient background soft glow for visual depth */}
-      <div className="absolute -top-32 left-1/4 w-[650px] h-[400px] bg-gradient-to-b from-indigo-100/35 via-blue-50/20 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute -bottom-24 right-1/4 w-[550px] h-[350px] bg-gradient-to-t from-sky-100/25 via-indigo-50/15 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+    <div className="min-h-screen xl:h-screen w-full flex flex-col justify-between bg-transparent text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative overflow-x-hidden xl:overflow-hidden">
+      {/* Full-screen fixed video backdrop with poster frame, dark scrim, and pause/play control */}
+      <VideoBackdrop />
 
       {/* ========================================================================= */}
       {/* TOP HEADER BAR                                                            */}
@@ -114,34 +114,6 @@ export default function LoginPage() {
       {/* MAIN CONTAINER: Split Layout (~64% Left / ~36% Right)                     */}
       {/* ========================================================================= */}
       <main className="flex-1 w-full max-w-[1580px] mx-auto px-6 sm:px-10 lg:px-14 py-1 xl:py-2 relative flex flex-col lg:flex-row items-stretch justify-between min-h-0">
-        {/* Full-Hero Seamless Environmental Background Scene */}
-        <div className="hidden lg:block absolute inset-0 pointer-events-none select-none z-0 overflow-hidden">
-          <div
-            className="w-full h-full relative"
-            style={{
-              maskImage:
-                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.06) 12%, rgba(0,0,0,0.4) 28%, black 48%, black 86%, rgba(0,0,0,0.3) 96%, transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.06) 12%, rgba(0,0,0,0.4) 28%, black 48%, black 86%, rgba(0,0,0,0.3) 96%, transparent 100%)",
-            }}
-          >
-            <img
-              src="/logistics-truck-bg.jpg"
-              alt="PantherTMS Freight Operations"
-              className="w-full h-full object-cover object-[62%_center]"
-            />
-            {/* Multi-Directional Atmospheric Blends - eliminates all entity seams */}
-            {/* Left: Soft atmospheric fade into white text space */}
-            <div className="absolute inset-y-0 left-0 w-[54%] bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/92 via-[#F8FAFC]/55 to-transparent" />
-            {/* Right: Soft atmospheric fade behind and right of workspace card */}
-            <div className="absolute inset-y-0 right-0 w-[34%] bg-gradient-to-l from-[#F8FAFC]/95 via-[#F8FAFC]/55 to-transparent" />
-            {/* Top: Seamless melt into header */}
-            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/60 to-transparent" />
-            {/* Bottom: Seamless melt into footer */}
-            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#F8FAFC] via-[#F8FAFC]/75 to-transparent" />
-          </div>
-        </div>
-
         {/* ======================================================================= */}
         {/* LEFT PRODUCT AREA: Brand Hero, Visual Scene, Telemetry Cards           */}
         {/* ======================================================================= */}
