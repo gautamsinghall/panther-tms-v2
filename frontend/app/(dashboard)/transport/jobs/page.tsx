@@ -95,16 +95,20 @@ export default function JobsPage() {
   // View & Edit Modal states
   const [viewingJob, setViewingJob] = useState<JobRecord | null>(null);
   const [editingJob, setEditingJob] = useState<JobRecord | null>(null);
+  const [activeOffice, setActiveOfficeState] = useState<any>(() => getActiveOffice());
+  const editingJobRef = useRef<JobRecord | null>(null);
+  editingJobRef.current = editingJob;
 
-  const loadData = async () => {
+  const loadData = useCallback(async (targetOffice?: any) => {
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
     try {
-      const activeOffice = getActiveOffice();
-      const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
+      const office = targetOffice !== undefined ? targetOffice : getActiveOffice();
+      setActiveOfficeState(office);
+      const officeParam = office?.id ? `?office_id=${office.id}` : "";
       const [jobsRes, billingClientsRes, consignersRes, consigneesRes, locationsRes, seriesRes] = await Promise.all([
-        apiClient<JobRecord[]>("/api/v1/transport/jobs"),
+        apiClient<JobRecord[]>(`/api/v1/transport/jobs${officeParam}`),
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consigners"),
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
@@ -117,23 +121,44 @@ export default function JobsPage() {
       setConsignees(Array.isArray(consigneesRes) ? consigneesRes : []);
       setLocations(Array.isArray(locationsRes) ? locationsRes : []);
       setSeriesInfo(seriesRes);
+
+      // If create drawer is open, auto-refresh form with new office's series and next number
+      const initialSeries = seriesRes?.series_options?.[0];
+      const initialSeriesId = initialSeries ? String(initialSeries.id) : "default";
+      setSelectedSeriesId(initialSeriesId);
+      const initialJobNo = initialSeries?.next_number_formatted || seriesRes?.next_number_formatted || "";
+
+      if (!editingJobRef.current) {
+        setFormInitialValues((prev) => ({
+          ...prev,
+          job_series_id: initialSeriesId,
+          job_number: initialJobNo,
+          issuing_office_id: office?.id,
+        }));
+        if (formSetFieldValueRef.current) {
+          formSetFieldValueRef.current("job_series_id", initialSeriesId);
+          formSetFieldValueRef.current("job_number", initialJobNo);
+        }
+      }
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load jobs.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
 
-    const handleOfficeChange = () => {
-      loadData();
+    const handleOfficeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<any>;
+      const newOffice = customEvent.detail || getActiveOffice();
+      loadData(newOffice);
     };
     window.addEventListener("panther_office_changed", handleOfficeChange);
     return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
-  }, []);
+  }, [loadData]);
 
   const stats = useMemo(() => {
     const total = data.length;
@@ -521,11 +546,14 @@ export default function JobsPage() {
 
   const openCreateJobDrawer = useCallback(() => {
     setEditingJob(null);
+    const currentOffice = getActiveOffice();
+    setActiveOfficeState(currentOffice);
     const initialSeries = seriesInfo?.series_options?.[0];
     const initialSeriesId = initialSeries ? String(initialSeries.id) : "default";
     setSelectedSeriesId(initialSeriesId);
     const initialJobNo = initialSeries?.next_number_formatted || seriesInfo?.next_number_formatted || "";
     setFormInitialValues({
+      issuing_office_id: currentOffice?.id,
       job_series_id: initialSeriesId,
       job_number: initialJobNo,
       job_date: new Date().toISOString().split("T")[0],
@@ -662,7 +690,11 @@ export default function JobsPage() {
           setIsDrawerOpen(false);
           setEditingJob(null);
         }}
-        title={editingJob ? `Edit Trip Order: ${editingJob.job_number}` : "Create Trip / Job Order"}
+        title={
+          editingJob
+            ? `Edit Trip Order: ${editingJob.job_number}`
+            : `Create Trip / Job Order${activeOffice?.name ? ` • ${activeOffice.name}` : ""}`
+        }
         description={
           editingJob
             ? "Update cargo specifications, contracting parties, or scheduled dispatch timing."
@@ -670,6 +702,7 @@ export default function JobsPage() {
         }
       >
         <Form
+          key={editingJob ? `edit-${editingJob.id}` : `create-${activeOffice?.id ?? "all"}`}
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}

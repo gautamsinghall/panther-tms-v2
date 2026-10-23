@@ -375,7 +375,7 @@ export default function HireChallansPage() {
   // -------------------------------------------------------------
   // Data Fetching: Challans List (Independent from Drawer Master Data)
   // -------------------------------------------------------------
-  const fetchChallans = useCallback(async (isBackground = false) => {
+  const fetchChallans = useCallback(async (isBackground = false, targetOffice?: OfficeSummary | null) => {
     if (isBackground) {
       setIsRefreshing(true);
     } else {
@@ -385,7 +385,9 @@ export default function HireChallansPage() {
     setErrorMessage(null);
 
     try {
-      const res = await apiClient<HireChallanRecord[]>("/api/v1/transport/hire-challans");
+      const activeOfficeData = targetOffice !== undefined ? targetOffice : getActiveOffice();
+      const officeParam = activeOfficeData?.id ? `?office_id=${activeOfficeData.id}` : "";
+      const res = await apiClient<HireChallanRecord[]>(`/api/v1/transport/hire-challans${officeParam}`);
       setData(Array.isArray(res) ? res : []);
       setIsError(false);
       setErrorMessage(null);
@@ -404,12 +406,13 @@ export default function HireChallansPage() {
   // -------------------------------------------------------------
   // Data Fetching: Drawer Master Data (Branches, Drivers, Vehicles, etc.)
   // -------------------------------------------------------------
-  const fetchMasterData = useCallback(async () => {
+  const fetchMasterData = useCallback(async (targetOffice?: OfficeSummary | null) => {
     try {
-      const activeOfficeData = getActiveOffice();
+      const activeOfficeData = targetOffice !== undefined ? targetOffice : getActiveOffice();
       if (activeOfficeData) {
         setActiveOfficeState(activeOfficeData);
       }
+      const officeParam = activeOfficeData?.id ? `?office_id=${activeOfficeData.id}` : "";
 
       const [
         branchesRes,
@@ -427,7 +430,7 @@ export default function HireChallansPage() {
         apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<DriverOption[]>("/api/v1/transport/drivers").catch(() => []),
         apiClient<OwnerOption[]>("/api/v1/transport/vehicle-owners").catch(() => []),
-        apiClient<LROption[]>("/api/v1/transport/lrs").catch(() => []),
+        apiClient<LROption[]>(`/api/v1/transport/lrs${officeParam}`).catch(() => []),
         apiClient<ChargeHeadOption[]>("/api/v1/misc/charge-heads").catch(() => []),
       ]);
 
@@ -494,15 +497,21 @@ export default function HireChallansPage() {
 
     const handleOfficeChanged = (e: Event) => {
       const customEvent = e as CustomEvent<OfficeSummary>;
-      if (customEvent.detail) {
-        setActiveOfficeState(customEvent.detail);
-        if (customEvent.detail.id && customEvent.detail.id > 0 && !editingIdRef.current) {
-          const newOfficeId = String(customEvent.detail.id);
-          setIssuingOfficeId(newOfficeId);
-          autoFillSeriesAndHCNo(newOfficeId, branchesRef.current);
+      const office = customEvent.detail || getActiveOffice();
+      if (office) {
+        setActiveOfficeState(office);
+        if (!editingIdRef.current) {
+          const newOfficeId =
+            office.id && office.id > 0
+              ? String(office.id)
+              : String(branchesRef.current.find((b) => b.is_head_office)?.id || branchesRef.current[0]?.id || "");
+          if (newOfficeId) {
+            setIssuingOfficeId(newOfficeId);
+            autoFillSeriesAndHCNo(newOfficeId, branchesRef.current);
+          }
         }
-        // Background refresh challans when office changes
-        fetchChallans(true);
+        fetchChallans(true, office);
+        fetchMasterData(office);
       }
     };
 

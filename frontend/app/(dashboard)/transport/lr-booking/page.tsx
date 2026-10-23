@@ -186,6 +186,8 @@ export default function LRBookingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingLrId, setEditingLrId] = useState<number | null>(null);
   const [editingLrRecord, setEditingLrRecord] = useState<LRRecord | null>(null);
+  const editingLrIdRef = useRef<number | null>(null);
+  editingLrIdRef.current = editingLrId;
   const [formInitialValues, setFormInitialValues] = useState<Record<string, any>>({});
   const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
 
@@ -226,14 +228,15 @@ export default function LRBookingPage() {
     ranges: SeriesRangeItem[];
   } | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (targetOffice?: OfficeSummary | null) => {
     setIsLoading(true);
     setIsSeriesLoading(true);
     setIsError(false);
     setErrorMessage(null);
     try {
-      const office = getActiveOffice();
+      const office = targetOffice !== undefined ? targetOffice : getActiveOffice();
       setActiveOfficeState(office);
+      const officeParam = office?.id ? `?office_id=${office.id}` : "";
 
       const [
         lrsRes,
@@ -247,16 +250,16 @@ export default function LRBookingPage() {
         seriesRes,
         manualRangesRes,
       ] = await Promise.all([
-        apiClient<LRRecord[]>("/api/v1/transport/lrs").catch(() => []),
+        apiClient<LRRecord[]>(`/api/v1/transport/lrs${officeParam}`).catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consigners").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consignees").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/locations").catch(() => []),
-        apiClient<LinkedJobData[]>("/api/v1/transport/jobs").catch(() => []),
+        apiClient<LinkedJobData[]>(`/api/v1/transport/jobs${officeParam}`).catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/packing-methods").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/load-types").catch(() => []),
-        apiClient<any>(`/api/v1/settings/series/check/LR${office?.id ? `?office_id=${office.id}` : ""}`).catch(() => null),
-        apiClient<any>(`/api/v1/settings/series/manual-ranges/LR${office?.id ? `?office_id=${office.id}` : ""}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/check/LR${officeParam}`).catch(() => null),
+        apiClient<any>(`/api/v1/settings/series/manual-ranges/LR${officeParam}`).catch(() => null),
       ]);
 
       setData(Array.isArray(lrsRes) ? lrsRes : []);
@@ -269,6 +272,31 @@ export default function LRBookingPage() {
       setLoadTypes(Array.isArray(loadTypesRes) ? loadTypesRes : []);
       setSeriesInfo(seriesRes);
       setManualSeriesData(manualRangesRes);
+
+      // Auto-sync open create drawer with the new office's series, number and display name
+      if (!editingLrIdRef.current) {
+        const autoSeries = seriesRes?.series_options?.[0];
+        const defaultSeries = manualRangesRes?.ranges?.find((r: any) => r.is_default) || manualRangesRes?.ranges?.[0];
+        const newSeriesId = autoSeries ? String(autoSeries.id) : (defaultSeries ? String(defaultSeries.id) : "default");
+        const newLrNo = autoSeries?.next_number_formatted || (seriesRes?.configured ? seriesRes?.next_number_formatted : "") || (defaultSeries?.available_options?.[0]?.value || "");
+        const officeNameStr = office ? `${office.name} (${office.code || "HO"})` : "Head Office (HO)";
+
+        setSelectedSeriesId(newSeriesId);
+        setFormInitialValues((prev) => ({
+          ...prev,
+          issuing_office_display: officeNameStr,
+          issuing_office_id: office?.id,
+          lr_series_id: newSeriesId,
+          lr_number: newLrNo,
+        }));
+
+        if (formSetFieldValueRef.current) {
+          formSetFieldValueRef.current("issuing_office_display", officeNameStr);
+          formSetFieldValueRef.current("issuing_office_id", office?.id);
+          formSetFieldValueRef.current("lr_series_id", newSeriesId);
+          formSetFieldValueRef.current("lr_number", newLrNo);
+        }
+      }
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load LRs.");
@@ -320,8 +348,10 @@ export default function LRBookingPage() {
   useEffect(() => {
     loadData();
 
-    const handleOfficeChange = () => {
-      loadData();
+    const handleOfficeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<OfficeSummary>;
+      const newOffice = customEvent.detail || getActiveOffice();
+      loadData(newOffice);
     };
 
     const handleFocus = () => {
@@ -657,11 +687,15 @@ export default function LRBookingPage() {
       initialInvoiceItem.particulars = matchedJob.cargo_description;
     }
 
+    const currentOffice = getActiveOffice();
+    if (currentOffice) setActiveOfficeState(currentOffice);
+    const officeNameStr = currentOffice ? `${currentOffice.name} (${currentOffice.code || "HO"})` : activeOfficeDisplay;
+
     setFormInitialValues({
       job_id: matchedJob ? String(matchedJob.id) : "",
       booking_status: "Booked",
-      issuing_office_display: activeOfficeDisplay,
-      issuing_office_id: activeOffice?.id,
+      issuing_office_display: officeNameStr,
+      issuing_office_id: currentOffice?.id,
       lr_series_id: initialSeriesId,
       lr_number: initialLrNo,
       dispatch_date: matchedJob?.expected_dispatch_date || new Date().toISOString().split("T")[0],
@@ -1642,6 +1676,7 @@ export default function LRBookingPage() {
         )}
 
         <Form
+          key={editingLrId ? `edit-${editingLrId}` : `create-${activeOffice?.id ?? "all"}`}
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
