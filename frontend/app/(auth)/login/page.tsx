@@ -286,7 +286,7 @@ export default function LoginPage() {
                 )}
 
                 {/* 4. Form - Integrated transparent inputs, NO opaque white boxes */}
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4" style={{ colorScheme: "dark" }}>
                   {/* Field 1: Company Code */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -310,6 +310,7 @@ export default function LoginPage() {
                         placeholder="e.g. BHARATROADWAYS"
                         autoComplete="organization"
                         required
+                        style={{ colorScheme: "dark" }}
                         className="w-full pl-10 pr-3.5 py-2.5 text-sm font-semibold tracking-wider text-white placeholder:text-white/35 bg-transparent focus:outline-none uppercase font-mono"
                       />
                     </div>
@@ -335,6 +336,7 @@ export default function LoginPage() {
                         placeholder="name@company.com"
                         autoComplete="email"
                         required
+                        style={{ colorScheme: "dark" }}
                         className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium text-white placeholder:text-white/35 bg-transparent focus:outline-none"
                       />
                     </div>
@@ -367,6 +369,7 @@ export default function LoginPage() {
                         placeholder="Enter your password"
                         autoComplete="current-password"
                         required
+                        style={{ colorScheme: "dark" }}
                         className="w-full pl-10 pr-11 py-2.5 text-sm font-medium text-white placeholder:text-white/35 bg-transparent focus:outline-none"
                       />
                       <button

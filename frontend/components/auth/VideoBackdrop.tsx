@@ -69,10 +69,10 @@ export function VideoBackdrop({
       className={`fixed inset-0 pointer-events-none select-none overflow-hidden z-0 ${className}`}
       aria-hidden="true"
     >
-      {/* Fallback dark gradient backdrop (visible when video fails to load or before load) */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+      {/* Fallback neutral backdrop (visible only when video fails to load or before load) */}
+      <div className="absolute inset-0 bg-[#0f1115]" />
 
-      {/* Background Video */}
+      {/* Background Video - Rendered purely without dark or blue tint */}
       {!hasError && (
         <video
           ref={videoRef}
@@ -90,15 +90,6 @@ export function VideoBackdrop({
           <source src={videoSrc} type="video/mp4" />
         </video>
       )}
-
-      {/* Dark gradient scrim over the video to preserve readability while highlighting truck & logo */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.22) 28%, rgba(15,23,42,0.18) 55%, rgba(15,23,42,0.72) 100%), linear-gradient(90deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.22) 34%, rgba(15,23,42,0.1) 50%, rgba(15,23,42,0.48) 100%)",
-        }}
-      />
     </div>
   );
 }
