@@ -101,7 +101,8 @@ ALLOWED_LR_TRANSITIONS = {
 }
 
 ALLOWED_HC_TRANSITIONS = {
-    HireChallanStatus.DRAFT: {HireChallanStatus.ISSUED, HireChallanStatus.CANCELLED},
+    HireChallanStatus.DRAFT: {HireChallanStatus.ISSUED, HireChallanStatus.CONFIRMED, HireChallanStatus.CANCELLED},
+    HireChallanStatus.CONFIRMED: {HireChallanStatus.TRANSIT, HireChallanStatus.SETTLED, HireChallanStatus.CANCELLED},
     HireChallanStatus.ISSUED: {HireChallanStatus.TRANSIT, HireChallanStatus.SETTLED, HireChallanStatus.CANCELLED},
     HireChallanStatus.TRANSIT: {HireChallanStatus.SETTLED},
     HireChallanStatus.SETTLED: set(),
@@ -671,8 +672,8 @@ async def transition_lr_status(db: AsyncSession, lr_id: int, target_status: LRSt
             job = await db.get(Job, lr.job_id)
             if job and job.status == JobStatus.BOOKED.value:
                 job.status = JobStatus.DISPATCHED.value
-        # If linked Hire Challan is ISSUED, advance Hire Challan to TRANSIT
-        if lr.hire_challan and lr.hire_challan.status == HireChallanStatus.ISSUED.value:
+        # If linked Hire Challan is ISSUED or CONFIRMED, advance Hire Challan to TRANSIT
+        if lr.hire_challan and lr.hire_challan.status in (HireChallanStatus.ISSUED.value, HireChallanStatus.CONFIRMED.value):
             lr.hire_challan.status = HireChallanStatus.TRANSIT.value
 
     elif target_status in (LRStatus.ARRIVED, LRStatus.DELIVERED):

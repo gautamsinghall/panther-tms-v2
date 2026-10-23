@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.tenant_db.models import (
     JobStatus,
@@ -603,7 +603,7 @@ class HireChallanSettleRequest(BaseModel):
 class HireChallanResponse(HireChallanBase):
     id: int
     challan_number: str
-    status: HireChallanStatus
+    status: Union[HireChallanStatus, str]
     lr_number: Optional[str] = None
     owner_name: Optional[str] = None
     issuing_office_name: Optional[str] = None

@@ -450,6 +450,7 @@ class LRStatus(str, enum.Enum):
 
 class HireChallanStatus(str, enum.Enum):
     DRAFT = "DRAFT"
+    CONFIRMED = "CONFIRMED"
     ISSUED = "ISSUED"
     TRANSIT = "TRANSIT"
     SETTLED = "SETTLED"
