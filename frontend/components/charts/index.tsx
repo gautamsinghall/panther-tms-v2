@@ -56,15 +56,15 @@ export function AreaTrendChart({
               </linearGradient>
             ))}
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F1F3F6" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle, #F1F3F6)" vertical={false} />
           <XAxis
             dataKey="period"
-            tick={{ fontSize: 12, fill: "#667085" }}
-            axisLine={{ stroke: "#E4E7EC" }}
+            tick={{ fontSize: 12, fill: "var(--color-text-muted, #667085)" }}
+            axisLine={{ stroke: "var(--color-border, #E4E7EC)" }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: "#667085" }}
+            tick={{ fontSize: 11, fill: "var(--color-text-muted, #667085)" }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(val) => {
@@ -76,12 +76,15 @@ export function AreaTrendChart({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #E4E7EC",
-              borderRadius: "8px",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+              backgroundColor: "var(--color-surface, #FFFFFF)",
+              borderColor: "var(--color-border, #E4E7EC)",
+              borderRadius: "12px",
+              color: "var(--color-text-primary, #101828)",
+              boxShadow: "0 10px 25px -4px rgba(0, 0, 0, 0.25)",
               fontSize: "12px",
             }}
+            itemStyle={{ color: "var(--color-text-primary, #101828)" }}
+            labelStyle={{ color: "var(--color-text-secondary, #667085)", fontWeight: 600 }}
             formatter={(value: any) => [valueFormatter(Number(value)), ""]}
           />
           {series.map((s) => (
@@ -129,15 +132,15 @@ export function BarMetricChart({
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#F1F3F6" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle, #F1F3F6)" vertical={false} />
           <XAxis
             dataKey={xAxisKey}
-            tick={{ fontSize: 11, fill: "#667085" }}
-            axisLine={{ stroke: "#E4E7EC" }}
+            tick={{ fontSize: 11, fill: "var(--color-text-muted, #667085)" }}
+            axisLine={{ stroke: "var(--color-border, #E4E7EC)" }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: "#667085" }}
+            tick={{ fontSize: 11, fill: "var(--color-text-muted, #667085)" }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(val) => {
@@ -148,13 +151,17 @@ export function BarMetricChart({
             }}
           />
           <Tooltip
+            cursor={false}
             contentStyle={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid #E4E7EC",
-              borderRadius: "8px",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+              backgroundColor: "var(--color-surface, #FFFFFF)",
+              borderColor: "var(--color-border, #E4E7EC)",
+              borderRadius: "12px",
+              color: "var(--color-text-primary, #101828)",
+              boxShadow: "0 10px 25px -4px rgba(0, 0, 0, 0.25)",
               fontSize: "12px",
             }}
+            itemStyle={{ color: "var(--color-text-primary, #101828)" }}
+            labelStyle={{ color: "var(--color-text-secondary, #667085)", fontWeight: 600 }}
             formatter={(value: any) => [valueFormatter(Number(value)), ""]}
           />
           {bars.length > 1 && <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />}
@@ -192,7 +199,7 @@ export function DonutDistributionChart({
 }: DonutDistributionChartProps) {
   const isAllZero = !data || data.length === 0 || data.every((d) => Number(d.value || 0) === 0);
   const displayData = isAllZero
-    ? [{ name: "No Active Deployments", value: 1, color: "#E2E8F0" }]
+    ? [{ name: "No Active Deployments", value: 1, color: "var(--color-border, #E2E8F0)" }]
     : data.filter((d) => Number(d.value || 0) > 0);
 
   return (
@@ -215,12 +222,15 @@ export function DonutDistributionChart({
           {!isAllZero && (
             <Tooltip
               contentStyle={{
-                backgroundColor: "#FFFFFF",
-                border: "1px solid #E4E7EC",
-                borderRadius: "8px",
-                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+                backgroundColor: "var(--color-surface, #FFFFFF)",
+                borderColor: "var(--color-border, #E4E7EC)",
+                borderRadius: "12px",
+                color: "var(--color-text-primary, #101828)",
+                boxShadow: "0 10px 25px -4px rgba(0, 0, 0, 0.25)",
                 fontSize: "12px",
               }}
+              itemStyle={{ color: "var(--color-text-primary, #101828)" }}
+              labelStyle={{ color: "var(--color-text-secondary, #667085)", fontWeight: 600 }}
               formatter={(value: any, name: any) => [valueFormatter(Number(value)), name]}
             />
           )}

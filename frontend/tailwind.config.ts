@@ -62,7 +62,7 @@ const config: Config = {
         // Surface & Background aliases
         background: "var(--gray-25)",
         surface: {
-          DEFAULT: "#FFFFFF",
+          DEFAULT: "var(--color-surface, #FFFFFF)",
           subtle: "var(--gray-50)",
           muted: "var(--gray-100)",
         },

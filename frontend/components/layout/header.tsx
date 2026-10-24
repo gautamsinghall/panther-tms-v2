@@ -2,16 +2,19 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, ShieldCheck, User, Building2, Search, ChevronDown } from "lucide-react";
+import { LogOut, ShieldCheck, User, Building2, Search, ChevronDown, Sun, Moon } from "lucide-react";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/ui/badge";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { NotificationsPopover } from "@/components/layout/notifications-popover";
 import { OfficeSwitcher } from "@/components/layout/office-switcher";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useTheme } from "@/lib/theme-context";
 import { getStoredAuth, clearStoredAuth } from "@/lib/auth";
 
 export function Header() {
   const router = useRouter();
+  const { isDark, toggleTheme } = useTheme();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [authData, setAuthData] = useState<{
     userName: string;
@@ -117,7 +120,10 @@ export function Header() {
         {/* Interactive Notification Bell Popover */}
         <NotificationsPopover />
 
-        <div className="h-4 w-[1px] bg-slate-200" />
+        {/* Premium Light/Dark Theme Switch */}
+        <ThemeToggle />
+
+        <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10" />
 
         {/* User Profile Menu */}
         <DropdownMenu
@@ -128,7 +134,7 @@ export function Header() {
               aria-label={`User account: ${authData?.userName || "User"}, role: ${
                 authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "Admin"
               }`}
-              className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer select-none"
+              className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
             >
               <div
                 aria-hidden="true"
@@ -158,6 +164,11 @@ export function Header() {
               label: "Company Settings",
               icon: <Building2 className="w-4 h-4" />,
               onClick: () => router.push("/company/details"),
+            },
+            {
+              label: isDark ? "Switch to Light Mode" : "Switch to Dark Mode",
+              icon: isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />,
+              onClick: toggleTheme,
             },
             {
               label: "Sign Out",

@@ -1169,18 +1169,21 @@ export default function DashboardPage() {
                         key={action.id}
                         href={getWorkspaceUrl(action.href)}
                         className={cn(
-                          "rounded-xl border p-3 flex items-center justify-between group transition-all shadow-2xs",
+                          "rounded-xl border p-3 flex items-center justify-between group transition-all duration-150 select-none shadow-2xs",
                           action.colorTheme.border,
                           action.colorTheme.bg,
                           action.colorTheme.hoverBg,
-                          action.colorTheme.text
+                          action.colorTheme.text,
+                          "dark:!bg-[#131317] dark:hover:!bg-[#202025] dark:!border-[#303036] dark:hover:!border-[#42424A] dark:shadow-none"
                         )}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <IconComp className={cn("w-4 h-4 shrink-0", action.colorTheme.iconColor)} />
-                          <span className="text-xs font-bold text-slate-800 truncate">{action.title}</span>
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/60 dark:bg-white/[0.04] border border-white/80 dark:border-white/[0.06] shrink-0 transition-colors">
+                            <IconComp className={cn("w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-105", action.colorTheme.iconColor)} />
+                          </div>
+                          <span className="text-xs font-semibold text-slate-800 dark:!text-[#F5F5F7] truncate tracking-tight">{action.title}</span>
                         </div>
-                        <ArrowRight className={cn("w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform shrink-0", action.colorTheme.iconColor)} />
+                        <ArrowRight className={cn("w-3.5 h-3.5 group-hover:translate-x-1 transition-all shrink-0 opacity-70 group-hover:opacity-100", action.colorTheme.iconColor)} />
                       </Link>
                     );
                   })}

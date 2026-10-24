@@ -125,8 +125,8 @@ export default function DaybookReportPage() {
       align: "right",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono text-xs font-medium text-[#172033]">
-          {Number(row.debit_amount) > 0 ? formatCurrency(Number(row.debit_amount)) : "-"}
+        <span className="font-mono text-xs font-medium text-slate-900 dark:text-[#F5F5F7]">
+          {Number(row.debit_amount) > 0 ? formatCurrency(Number(row.debit_amount)) : <span className="text-slate-400 dark:text-slate-600 font-normal">-</span>}
         </span>
       ),
     },
@@ -137,7 +137,7 @@ export default function DaybookReportPage() {
       isNumeric: true,
       cell: (row) => (
         <span className="font-mono text-xs font-medium text-emerald-600">
-          {Number(row.credit_amount) > 0 ? formatCurrency(Number(row.credit_amount)) : "-"}
+          {Number(row.credit_amount) > 0 ? formatCurrency(Number(row.credit_amount)) : <span className="text-slate-400 dark:text-slate-600 font-normal">-</span>}
         </span>
       ),
     },

@@ -790,11 +790,11 @@ export function Sidebar() {
                 <img
                   src="/panther-logo.png"
                   alt="PantherTMS Logo"
-                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200 group-hover:scale-105"
+                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200"
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                    <span className="text-sm font-bold tracking-tight text-slate-900 transition-colors truncate">
                       Panther<span className="text-indigo-600">TMS</span>
                     </span>
                     <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">
@@ -829,7 +829,7 @@ export function Sidebar() {
                   <img
                     src="/panther-logo.png"
                     alt="PantherTMS Logo"
-                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200 hover:scale-105"
+                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200"
                   />
                 </Link>
               </Tooltip>
@@ -840,7 +840,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={handleToggleCollapse}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer shrink-0 ml-1"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-[#F5F5F7] hover:bg-slate-100 dark:hover:bg-[#1C1C22] transition-colors cursor-pointer shrink-0 ml-1"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
@@ -902,14 +902,14 @@ export function Sidebar() {
                         "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
                         hasActiveChild
                           ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 active:bg-slate-200/50"
+                          : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
                       )}
                       title={group.title}
                       aria-label={group.title}
                     >
                       <span className={cn(
-                        "transition-transform duration-150 group-hover:scale-110",
-                        hasActiveChild ? "text-indigo-600" : "text-slate-500 group-hover:text-slate-800"
+                        "transition-transform duration-150",
+                        hasActiveChild ? "text-indigo-600" : "text-slate-500"
                       )}>
                         {icon}
                       </span>
@@ -925,20 +925,19 @@ export function Sidebar() {
                     className={cn(
                       "group flex w-full items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer select-none",
                       hasActiveChild
-                        ? "text-slate-900 font-semibold bg-slate-100/90 border border-slate-200/80 shadow-2xs"
-                        : "text-slate-700 hover:bg-slate-100/70 hover:text-slate-900 active:bg-slate-200/50"
+                        ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
+                        : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
                     )}
-                    title={group.title}
                     aria-label={group.title}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1">
                       <span className={cn(
-                        "shrink-0 transition-all duration-150 group-hover:scale-105 group-hover:translate-x-0.5",
-                        hasActiveChild ? "text-indigo-600" : "text-slate-500 group-hover:text-slate-800"
+                        "shrink-0 transition-all duration-150",
+                        hasActiveChild ? "text-indigo-600" : "text-slate-500"
                       )}>
                         {icon}
                       </span>
-                      <span className="text-xs font-semibold text-slate-800 truncate" title={group.title}>
+                      <span className="text-xs font-semibold text-slate-800 truncate">
                         {group.title}
                       </span>
                     </div>
@@ -1013,10 +1012,10 @@ export function Sidebar() {
                             className={cn(
                               "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-all duration-150 select-none",
                               sub.is_locked
-                                ? "text-slate-400 opacity-80 cursor-not-allowed hover:bg-slate-50"
+                                ? "text-slate-400 opacity-80 cursor-not-allowed"
                                 : isActive
                                 ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
-                                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                                : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100/80 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7]"
                             )}
                           >
                             {/* Slim Animated Vertical Accent Indicator (Linear style) */}
@@ -1035,12 +1034,12 @@ export function Sidebar() {
                             <span className="truncate flex items-center gap-2 min-w-0">
                               <span
                                 className={cn(
-                                  "shrink-0 transition-all duration-150 group-hover:translate-x-0.5",
+                                  "shrink-0 transition-all duration-150",
                                   sub.is_locked
                                     ? "text-slate-300"
                                     : isActive
                                     ? "text-indigo-600 scale-105"
-                                    : "text-slate-400 group-hover:text-slate-600"
+                                    : "text-slate-400"
                                 )}
                               >
                                 <SubIcon className="w-3.5 h-3.5" />
@@ -1075,27 +1074,27 @@ export function Sidebar() {
 
       {/* RBAC Active Footer — Linear/Stripe Enterprise Status */}
       {!isCollapsed ? (
-        <div className="p-3 border-t border-slate-200/80 bg-slate-50/50">
-          <div className="rounded-lg bg-white border border-slate-200/80 p-2.5 flex items-center justify-between shadow-2xs">
+        <div className="p-3 border-t border-slate-200/80 dark:border-[#303036] bg-slate-50/50 dark:bg-[#101013]">
+          <div className="rounded-lg bg-white dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] p-2.5 flex items-center justify-between shadow-2xs">
             <div className="flex items-center gap-2 min-w-0">
               <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
               <div className="leading-tight truncate">
-                <span className="text-xs font-semibold text-slate-800 block truncate">
+                <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] block truncate">
                   Tenant RBAC Active
                 </span>
-                <span className="text-xs text-slate-500 block truncate">
+                <span className="text-xs text-slate-500 dark:text-[#898991] block truncate">
                   Multi-tenant isolated
                 </span>
               </div>
             </div>
-            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           </div>
         </div>
       ) : (
-        <div className="p-3 border-t border-slate-200/80 bg-slate-50/50 flex justify-center">
+        <div className="p-3 border-t border-slate-200/80 dark:border-[#303036] bg-slate-50/50 dark:bg-[#101013] flex justify-center">
           <Tooltip content="Tenant RBAC Active (Multi-tenant isolated)" side="right">
             <div className="relative flex h-4 w-4 items-center justify-center cursor-default">
               <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75" />

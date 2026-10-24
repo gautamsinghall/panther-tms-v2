@@ -63,6 +63,76 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+/* ==========================================================================
+   PANTHER TMS DARK THEME TOKENS — Soft Light-Dark Theme
+   Based directly on lightened rgba(12, 15, 22, 0.82) for a softer, premium
+   charcoal-slate finish (not pitch black) with translucent grey hover washes.
+   ========================================================================== */
+.dark {
+  /* ========================================================================
+     PREMIUM OBSIDIAN BLACK & GRAPHITE THEME
+     True Black and Graphite palette with Royal Violet (#7C6FF7) accents.
+     Inspired by Linear, Vercel, and Apple professional dark interfaces.
+     ======================================================================== */
+
+  /* Neutral Graphite Scale */
+  --gray-25:  #0B0B0D;   /* Primary application background */
+  --gray-50:  #101013;   /* Sidebar & deepest container surface */
+  --gray-100: #17171B;   /* Card, container, and surface backgrounds */
+  --gray-200: #303036;   /* Subtle graphite hairline borders & dividers */
+  --gray-300: #42424A;   /* Distinct borders & structural frames */
+  --gray-400: #898991;   /* Muted labels, secondary icons, descriptions */
+  --gray-500: #898991;   /* Table column headers, sub-labels */
+  --gray-600: #CACAD0;   /* Secondary text, metadata */
+  --gray-700: #E1E1E6;   /* High-readability body copy */
+  --gray-800: #F5F5F7;   /* Primary text */
+  --gray-900: #FFFFFF;   /* Headings, crisp pure white titles */
+
+  /* Surfaces & Structural Layers */
+  --color-bg: #0B0B0D;
+  --color-surface: #17171B;
+  --color-surface-subtle: #111114;
+  --color-surface-muted: #131317;
+  --color-surface-elevated: #202025;
+  --color-surface-hover: #26262D;
+  --color-border: #303036;
+  --border-subtle: #303036;
+  --color-border-strong: #42424A;
+
+  /* Typography */
+  --color-text-primary: #F5F5F7;
+  --color-text-secondary: #CACAD0;
+  --color-text-muted: #898991;
+  --color-text-inverse: #0B0B0D;
+
+  /* Royal Violet Primary Accent (#7C6FF7) */
+  --primary-50:  rgba(124, 111, 247, 0.12);
+  --primary-100: rgba(124, 111, 247, 0.20);
+  --primary-500: #7C6FF7;
+  --primary-600: #7C6FF7;
+  --primary-700: #6045E8;
+
+  --color-primary: #7C6FF7;
+  --color-primary-hover: #8F84FF;
+
+  /* Semantic Status Colors (Muted, sophisticated enterprise status) */
+  --success-600: #34D5A0;
+  --success-text: #34D5A0;
+  --success-bg: rgba(52, 213, 160, 0.12);
+
+  --warning-600: #F5BB45;
+  --warning-text: #F5BB45;
+  --warning-bg: rgba(245, 187, 69, 0.12);
+
+  --danger-600: #F07575;
+  --danger-text: #F07575;
+  --danger-bg: rgba(240, 117, 117, 0.12);
+
+  --info-600: #C5A5FF;
+  --info-text: #C5A5FF;
+  --info-bg: rgba(197, 165, 255, 0.12);
+}
+
 html,
 body {
   height: 100%;
@@ -425,6 +495,733 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
     transform: none !important;
   }
 }
+
+/* ==========================================================================
+   PANTHER TMS PREMIUM OBSIDIAN BLACK THEME
+   True Black and Graphite palette with Royal Violet (#7C6FF7) accents.
+   Inspired by Linear, Vercel, and Apple professional dark interfaces:
+   - Primary application background: #0B0B0D
+   - Sidebar background: #101013
+   - Top navigation background: #111114
+   - Card and container backgrounds: #17171B
+   - Elevated surfaces (modals, drawers, popovers): #202025
+   - Hover surfaces: #26262D
+   - Subtle borders: #303036
+   - Primary text: #F5F5F7, Secondary: #CACAD0, Muted: #898991
+   - Royal Violet accent: #7C6FF7, refined gradient: #7C6FF7 to #6045E8
+   - Active sidebar gradient: #312261 to #261D40
+   - Semantic status: #34D5A0 (success), #F5BB45 (warn), #C5A5FF (info), #F07575 (error)
+   ========================================================================== */
+
+/* 1. App Canvas & Workspace Containers */
+html.dark,
+html.dark body {
+  background-color: #0B0B0D !important;
+  color: #F5F5F7 !important;
+  color-scheme: dark;
+}
+
+html.dark #workspace-main-canvas,
+html.dark #workspace-form-canvas,
+html.dark .bg-\[\#F8FAFC\] {
+  background-color: #0B0B0D !important;
+}
+
+/* 2. Surfaces, Cards, and Containers */
+html.dark .card-elevation,
+html.dark .bg-white:not([class*="liquid-glass"]):not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not(input):not(textarea):not(button):not(select):not(aside):not(aside *) {
+  background-color: #17171B !important;
+  border-color: #303036 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.40), inset 0 1px 0 0 rgba(255, 255, 255, 0.03) !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Card Hover Elevation — Soft Graphite transition to #26262D with subtle border lift (tables & sidebars excluded) */
+html.dark .card-elevation:not(:has(table)):not(aside *):hover,
+html.dark .bg-white:not([class*="liquid-glass"]):not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not(input):not(textarea):not(button):not(select):not(:has(table)):not(aside):not(aside *):hover,
+html.dark .hover\:border-slate-300:not(:has(table)):not(aside):not(aside *):hover {
+  background-color: #26262D !important;
+  border-color: #42424A !important;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 3. Inset Containers & Wells */
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/50,
+html.dark .bg-slate-50\/60,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/90,
+html.dark .bg-\[\#F8F9FB\],
+html.dark .bg-\[\#F8F9FA\] {
+  background-color: #131317 !important;
+  border-color: #303036 !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Inset Containers on Hover */
+html.dark .bg-slate-50:not(aside *):hover,
+html.dark .bg-slate-50\/50:not(aside *):hover,
+html.dark .bg-slate-50\/80:not(aside *):hover {
+  background-color: #26262D !important;
+  border-color: #42424A !important;
+}
+
+html.dark .bg-slate-100,
+html.dark .bg-slate-100\/60,
+html.dark .bg-slate-100\/70,
+html.dark .bg-slate-100\/80,
+html.dark .bg-slate-100\/90,
+html.dark .bg-slate-200\/50,
+html.dark .bg-slate-200\/60,
+html.dark .bg-slate-200\/80 {
+  background-color: #17171B !important;
+  border-color: #303036 !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 4. Top Header & Sidebar Navigation */
+html.dark header {
+  background-color: #111114 !important;
+  border-color: #303036 !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+html.dark aside,
+html.dark aside:hover {
+  background-color: #101013 !important;
+  background: #101013 !important;
+  border-color: #303036 !important;
+}
+
+html.dark aside > div:first-child,
+html.dark aside > div:first-child:hover {
+  background-color: #101013 !important;
+  background: #101013 !important;
+  border-color: #303036 !important;
+}
+
+html.dark aside .border-t {
+  border-color: #303036 !important;
+}
+
+/* Active Sidebar Navigation Items: Dark-purple gradient from #312261 to #261D40 with restrained violet highlight */
+html.dark aside a.bg-indigo-50\/90,
+html.dark aside .bg-indigo-50\/90 {
+  background: linear-gradient(135deg, #312261 0%, #261D40 100%) !important;
+  border: 1px solid rgba(124, 111, 247, 0.45) !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 2px 8px rgba(49, 34, 97, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark aside a.bg-indigo-50\/90 svg,
+html.dark aside .bg-indigo-50\/90 svg {
+  color: #C5A5FF !important;
+}
+
+html.dark aside button.bg-slate-100\/90 {
+  background-color: #17171B !important;
+  border-color: #303036 !important;
+  color: #F5F5F7 !important;
+}
+
+/* Sidebar Navigation Items: Scoped hover highlight per item (Dark Mode) */
+html.dark aside button:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover,
+html.dark aside a:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover {
+  background-color: #1E1E26 !important;
+  background: #1E1E26 !important;
+  border-color: #383842 !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark aside button:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover svg,
+html.dark aside a:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover svg {
+  color: #C5A5FF !important;
+}
+
+html.dark aside button:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover span,
+html.dark aside a:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover span {
+  color: #F5F5F7 !important;
+}
+
+/* Active Sidebar Navigation Items retain their signature Royal Violet gradient */
+html.dark aside a[class*="bg-indigo"],
+html.dark aside .bg-indigo-50\/90 {
+  background: linear-gradient(135deg, #312261 0%, #261D40 100%) !important;
+  border: 1px solid rgba(124, 111, 247, 0.45) !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 2px 8px rgba(49, 34, 97, 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark aside a[class*="bg-indigo"]:hover,
+html.dark aside .bg-indigo-50\/90:hover {
+  background: linear-gradient(135deg, #3A2A70 0%, #2B2148 100%) !important;
+  border-color: rgba(124, 111, 247, 0.65) !important;
+}
+
+/* In-App Workspace Tab Bar */
+html.dark div.bg-\[\#F1F5F9\]\/80 {
+  background-color: #101013 !important;
+  border-color: #303036 !important;
+}
+
+html.dark div.bg-\[\#F1F5F9\]\/80 button.bg-\[\#F8FAFC\] {
+  background-color: #17171B !important;
+  border-color: #303036 !important;
+  color: #F5F5F7 !important;
+}
+
+html.dark div.bg-\[\#F1F5F9\]\/80 div.bg-\[\#F8FAFC\] {
+  background-color: #17171B !important;
+  border-color: #303036 !important;
+  color: #C5A5FF !important;
+}
+
+/* 5. Typography — High Contrast & Flawless Visual Hierarchy */
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6,
+html.dark .text-slate-900,
+html.dark .text-slate-950,
+html.dark .text-gray-900,
+html.dark .text-gray-950,
+html.dark .text-zinc-900,
+html.dark .text-zinc-950,
+html.dark .text-neutral-900,
+html.dark .text-\[\#172033\],
+html.dark .text-\[\#101828\],
+html.dark .text-\[\#0F172A\],
+html.dark .text-\[\#111827\],
+html.dark .text-\[\#020617\],
+html.dark .text-\[\#1D2939\] {
+  color: #F5F5F7 !important;
+}
+
+html.dark .text-slate-800,
+html.dark .text-slate-700,
+html.dark .text-gray-800,
+html.dark .text-gray-700,
+html.dark .text-\[\#344054\],
+html.dark .text-\[\#475467\],
+html.dark .text-\[\#1E293B\] {
+  color: #CACAD0 !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-gray-600,
+html.dark .text-gray-500,
+html.dark .text-\[\#667085\],
+html.dark .text-\[\#64748B\],
+html.dark .text-\[\#475569\],
+html.dark .text-\[\#98A2B3\],
+html.dark .text-slate-400 {
+  color: #898991 !important;
+}
+
+/* Blue & Indigo text that would be dark/invisible in dark mode converted to readable Royal Violet / Lavender */
+html.dark .text-\[\#175CD3\],
+html.dark .text-\[\#4338CA\],
+html.dark .text-\[\#4F46E5\],
+html.dark .text-indigo-950,
+html.dark .text-indigo-900,
+html.dark .text-indigo-800,
+html.dark .text-blue-950,
+html.dark .text-blue-900,
+html.dark .text-blue-800 {
+  color: #C5A5FF !important;
+}
+
+/* Neutralize chalky/dark badge backgrounds */
+html.dark .bg-\[\#F2F4F7\],
+html.dark .bg-\[\#F1F3F6\],
+html.dark .bg-\[\#EAECF0\] {
+  background-color: #202025 !important;
+  border-color: #303036 !important;
+  color: #F5F5F7 !important;
+}
+
+/* 6. Hairline Borders & Dividers */
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-200\/60,
+html.dark .border-slate-200\/70,
+html.dark .border-slate-200\/80,
+html.dark .border-slate-200\/90,
+html.dark .border-\[\#E4E7EC\],
+html.dark .border-\[\#E2E8F0\],
+html.dark .border-\[\#F1F3F6\],
+html.dark .border-\[\#F2F4F7\] {
+  border-color: #303036 !important;
+}
+
+html.dark .border-slate-300,
+html.dark .border-\[\#CBD5E1\],
+html.dark .border-\[\#D0D5DD\] {
+  border-color: #42424A !important;
+}
+
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-\[\#F2F4F7\] > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-\[\#E4E7EC\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #303036 !important;
+}
+
+/* 7. Forms, Inputs, Textareas, and Dropdowns */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]),
+html.dark textarea,
+html.dark select,
+html.dark label[for]:has(input[type="file"]) {
+  background-color: #141418 !important;
+  border: 1px solid #303036 !important;
+  color: #F5F5F7 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35) !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Input Hover: Gentle charcoal highlight #26262D with subtle border lift */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):hover,
+html.dark textarea:hover,
+html.dark select:hover,
+html.dark label[for]:has(input[type="file"]):hover {
+  background-color: #26262D !important;
+  border-color: #42424A !important;
+}
+
+/* Focus Indicator: Royal Violet #7C6FF7 with restrained ring */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="file"]):focus,
+html.dark textarea:focus,
+html.dark select:focus {
+  background-color: #17171B !important;
+  border-color: #7C6FF7 !important;
+  box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.20), inset 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.dark input:disabled,
+html.dark textarea:disabled,
+html.dark select:disabled {
+  background-color: #0E0E11 !important;
+  color: #55555C !important;
+  border-color: #24242A !important;
+  cursor: not-allowed !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder,
+html.dark .placeholder\:text-slate-400::placeholder,
+html.dark .placeholder\:text-\[\#667085\]::placeholder,
+html.dark .placeholder\:text-\[\#98A2B3\]::placeholder {
+  color: #898991 !important;
+}
+
+/* Date Pickers in Dark Mode */
+html.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) hue-rotate(180deg) opacity(0.8);
+  cursor: pointer;
+}
+
+/* Checkboxes & Radios */
+html.dark input[type="checkbox"],
+html.dark input[type="radio"] {
+  background-color: #17171B;
+  border-color: #42424A;
+  color-scheme: dark;
+}
+
+/* SearchableSelect Trigger Button */
+html.dark [role="combobox"] {
+  background-color: #141418 !important;
+  border: 1px solid #303036 !important;
+  color: #F5F5F7 !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Combobox Hover */
+html.dark [role="combobox"]:hover {
+  background-color: #26262D !important;
+  border-color: #42424A !important;
+}
+
+html.dark [role="combobox"]:focus-visible {
+  border-color: #7C6FF7 !important;
+  box-shadow: 0 0 0 3px rgba(124, 111, 247, 0.20) !important;
+}
+
+/* 8. Elevated Surfaces: Modals, Popovers, Drawers, Dropdown Menus */
+html.dark [role="dialog"],
+html.dark [role="listbox"],
+html.dark .shadow-floating,
+html.dark .shadow-2xl,
+html.dark .shadow-xl {
+  background-color: #202025 !important;
+  border: 1px solid #303036 !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.80), inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Options / Menu items */
+html.dark [role="option"]:hover,
+html.dark [role="menuitem"]:hover,
+html.dark [role="option"][data-highlighted],
+html.dark [role="menuitem"][data-highlighted] {
+  background-color: #26262D !important;
+  color: #F5F5F7 !important;
+}
+
+/* Modal Backdrops */
+html.dark .bg-slate-900\/40,
+html.dark .bg-slate-900\/50,
+html.dark .bg-\[\#101828\]\/50 {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* 9. Data Tables */
+html.dark div:has(> table),
+html.dark div:has(> div > table) {
+  background-color: #17171B !important;
+  border-color: #303036 !important;
+}
+
+html.dark table thead th {
+  background-color: #131317 !important;
+  border-color: #303036 !important;
+  color: #898991 !important;
+}
+
+html.dark table tbody tr {
+  background-color: #17171B !important;
+  transition: background-color 0.15s ease !important;
+}
+
+/* Highlight ONLY the specific hovered row, not the entire table */
+html.dark table tbody tr:hover {
+  background-color: #222228 !important;
+}
+
+html.dark table tbody tr.bg-indigo-50\/70 {
+  background-color: rgba(49, 34, 97, 0.40) !important;
+}
+
+html.dark table tbody tr.bg-indigo-50\/70:hover {
+  background-color: rgba(49, 34, 97, 0.55) !important;
+}
+
+html.dark table tbody td {
+  color: #F5F5F7 !important;
+  border-color: #303036 !important;
+}
+
+/* 10. Status Badges & Pill Tints (Semantic Muted Status System) */
+html.dark [class*="bg-emerald-50"],
+html.dark [class*="bg-emerald-100"] {
+  background-color: rgba(52, 213, 160, 0.12) !important;
+  border-color: rgba(52, 213, 160, 0.25) !important;
+}
+html.dark .text-emerald-800,
+html.dark .text-emerald-700,
+html.dark .text-emerald-600 {
+  color: #34D5A0 !important;
+}
+
+html.dark [class*="bg-amber-50"],
+html.dark [class*="bg-amber-100"] {
+  background-color: rgba(245, 187, 69, 0.12) !important;
+  border-color: rgba(245, 187, 69, 0.25) !important;
+}
+html.dark .text-amber-800,
+html.dark .text-amber-700,
+html.dark .text-amber-600 {
+  color: #F5BB45 !important;
+}
+
+html.dark [class*="bg-rose-50"],
+html.dark [class*="bg-rose-100"] {
+  background-color: rgba(240, 117, 117, 0.12) !important;
+  border-color: rgba(240, 117, 117, 0.25) !important;
+}
+html.dark .text-rose-800,
+html.dark .text-rose-700,
+html.dark .text-rose-600 {
+  color: #F07575 !important;
+}
+
+html.dark [class*="bg-blue-50"],
+html.dark [class*="bg-blue-100"],
+html.dark [class*="bg-sky-50"],
+html.dark [class*="bg-sky-100"] {
+  background-color: rgba(197, 165, 255, 0.12) !important;
+  border-color: rgba(197, 165, 255, 0.25) !important;
+}
+html.dark .text-blue-800,
+html.dark .text-blue-700,
+html.dark .text-blue-600 {
+  color: #C5A5FF !important;
+}
+
+html.dark [class*="bg-indigo-50"]:not(aside *),
+html.dark [class*="bg-indigo-100"]:not(aside *) {
+  background-color: rgba(124, 111, 247, 0.12) !important;
+  border-color: rgba(124, 111, 247, 0.25) !important;
+}
+
+/* Neutralize chalky pastel borders across the app in dark mode */
+html.dark [class*="border-indigo-100"],
+html.dark [class*="border-emerald-100"],
+html.dark [class*="border-amber-100"],
+html.dark [class*="border-blue-100"],
+html.dark [class*="border-rose-100"],
+html.dark [class*="border-purple-100"],
+html.dark [class*="border-violet-100"],
+html.dark [class*="border-teal-100"],
+html.dark [class*="border-cyan-100"],
+html.dark [class*="border-sky-100"] {
+  border-color: #303036 !important;
+}
+html.dark .text-indigo-800,
+html.dark .text-indigo-700 {
+  color: #C5A5FF !important;
+}
+html.dark .text-indigo-600,
+html.dark .text-indigo-500 {
+  color: #7C6FF7 !important;
+}
+
+/* 11. Buttons & Action Bars */
+html.dark button.bg-white:not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]),
+html.dark .hover\:bg-slate-50,
+html.dark .hover\:bg-slate-100,
+html.dark .hover\:bg-slate-100\/70,
+html.dark .hover\:bg-slate-100\/80 {
+  transition: all 0.16s ease !important;
+}
+
+html.dark button.bg-white:not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]) {
+  background-color: #17171B !important;
+  border: 1px solid #303036 !important;
+  color: #F5F5F7 !important;
+}
+
+/* Gentle Graphite Hover on Buttons & Nav Items (Excluding Side Menu) */
+html.dark button.bg-white:not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not(aside *):hover,
+html.dark .hover\:bg-slate-50:not(aside *):hover,
+html.dark .hover\:bg-slate-100:not(aside *):hover,
+html.dark .hover\:bg-slate-100\/70:not(aside *):hover,
+html.dark .hover\:bg-slate-100\/80:not(aside *):hover {
+  background-color: #26262D !important;
+  border-color: #42424A !important;
+  color: #FFFFFF !important;
+}
+
+/* Primary Action Buttons: Refined Royal Violet Gradient (#7C6FF7 to #6045E8) */
+html.dark button[class*="from-indigo-500"],
+html.dark a[class*="from-indigo-500"],
+html.dark .btn-primary,
+html.dark .btn-gradient-primary,
+html.dark .btn-global-primary {
+  background-image: linear-gradient(135deg, #7C6FF7 0%, #6045E8 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 2px 8px rgba(124, 111, 247, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+  color: #FFFFFF !important;
+}
+
+html.dark button[class*="from-indigo-500"]:hover,
+html.dark a[class*="from-indigo-500"]:hover,
+html.dark .btn-primary:hover,
+html.dark .btn-gradient-primary:hover,
+html.dark .btn-global-primary:hover {
+  background-image: linear-gradient(135deg, #8B7FF8 0%, #6C52EE 100%) !important;
+  box-shadow: 0 4px 12px rgba(124, 111, 247, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+/* 12. Interactive Hovers & Transitions */
+html.dark .hover\:text-slate-900:hover,
+html.dark .hover\:text-slate-800:hover {
+  color: #FFFFFF !important;
+}
+
+html.dark .hover\:text-slate-700:hover,
+html.dark .hover\:text-slate-600:hover {
+  color: #CACAD0 !important;
+}
+
+/* 13. Recharts Dark Mode Charts Styling */
+html.dark .recharts-cartesian-grid line {
+  stroke: #303036 !important;
+}
+
+html.dark .recharts-text {
+  fill: #898991 !important;
+}
+
+html.dark .recharts-default-tooltip {
+  background-color: #202025 !important;
+  border: 1px solid #303036 !important;
+  border-radius: 12px !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* Eliminate white / light-grey hover overlay on chart cursor */
+.recharts-tooltip-cursor,
+html.dark .recharts-tooltip-cursor,
+html.dark rect.recharts-tooltip-cursor,
+html.dark .recharts-rectangle.recharts-tooltip-cursor {
+  fill: transparent !important;
+  fill-opacity: 0 !important;
+  opacity: 0 !important;
+}
+
+html.dark line.recharts-tooltip-cursor {
+  stroke: #42424A !important;
+  stroke-dasharray: 3 3 !important;
+  opacity: 1 !important;
+}
+
+/* 14. Scrollbars in Dark Mode */
+html.dark .show-scrollbar,
+html.dark div.show-scrollbar {
+  scrollbar-color: #303036 #0B0B0D !important;
+}
+
+html.dark .show-scrollbar::-webkit-scrollbar-track,
+html.dark div.show-scrollbar::-webkit-scrollbar-track {
+  background: #0B0B0D !important;
+  border-color: #303036 !important;
+}
+
+html.dark .show-scrollbar::-webkit-scrollbar-thumb,
+html.dark div.show-scrollbar::-webkit-scrollbar-thumb {
+  background: #303036 !important;
+  border-color: #0B0B0D !important;
+  border-radius: 9999px;
+}
+
+html.dark .custom-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #26262D !important;
+}
+
+html.dark .custom-sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: #42424A !important;
+}
+
+/* ==========================================================================
+   SIDEBAR HOVER HIGHLIGHT & FOOTER STATUS CARD OVERRIDES
+   Highlights only the specific hovered section in both Dark and Light modes.
+   Excludes sidebar canvas and background from unwanted hover flashing.
+   ========================================================================== */
+
+/* Dark Mode: Individual navigation button / link hover highlight */
+html.dark .custom-sidebar-scroll button:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover,
+html.dark .custom-sidebar-scroll a:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover,
+html.dark aside button[title*="sidebar"]:hover,
+html.dark aside button[aria-label*="sidebar"]:hover {
+  background-color: #1E1E26 !important;
+  background: #1E1E26 !important;
+  border-color: #383842 !important;
+  color: #F5F5F7 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.40) !important;
+}
+
+html.dark .custom-sidebar-scroll button:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover svg,
+html.dark .custom-sidebar-scroll a:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover svg {
+  color: #C5A5FF !important;
+}
+
+html.dark .custom-sidebar-scroll button:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover span,
+html.dark .custom-sidebar-scroll a:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover span {
+  color: #F5F5F7 !important;
+}
+
+/* Light Mode: Individual navigation button / link hover highlight */
+.custom-sidebar-scroll button:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover,
+.custom-sidebar-scroll a:not([class*="bg-indigo"]):not([class*="bg-slate-100/90"]):hover,
+aside button[title*="sidebar"]:hover,
+aside button[aria-label*="sidebar"]:hover {
+  background-color: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+/* Active navigation items keep their Royal Violet gradient */
+aside a[class*="bg-indigo"],
+aside .bg-indigo-50\/90,
+html.dark aside a[class*="bg-indigo"],
+html.dark aside .bg-indigo-50\/90 {
+  background: linear-gradient(135deg, #312261 0%, #261D40 100%) !important;
+  border: 1px solid rgba(124, 111, 247, 0.45) !important;
+  color: #F5F5F7 !important;
+}
+
+aside a[class*="bg-indigo"]:hover,
+aside .bg-indigo-50\/90:hover,
+html.dark aside a[class*="bg-indigo"]:hover,
+html.dark aside .bg-indigo-50\/90:hover {
+  background: linear-gradient(135deg, #3A2A70 0%, #2B2148 100%) !important;
+  border-color: rgba(124, 111, 247, 0.65) !important;
+}
+
+aside button.bg-slate-100\/90,
+html.dark aside button.bg-slate-100\/90 {
+  background-color: #17171B !important;
+  border-color: #303036 !important;
+  color: #F5F5F7 !important;
+}
+
+aside button.bg-slate-100\/90:hover,
+html.dark aside button.bg-slate-100\/90:hover {
+  background-color: #202028 !important;
+  border-color: #42424A !important;
+}
+
+/* Sidebar Canvas & Containers: Locked so only individual items highlight */
+html.dark aside,
+html.dark aside:hover,
+html.dark aside .custom-sidebar-scroll,
+html.dark aside .custom-sidebar-scroll:hover {
+  background-color: #101013 !important;
+  background: #101013 !important;
+}
+
+/* Sidebar RBAC / Footer Status Card: Seamless Obsidian Black integration */
+html.dark aside .border-t {
+  background-color: #101013 !important;
+  border-color: #303036 !important;
+}
+
+html.dark aside .border-t > div,
+html.dark aside .border-t .bg-white {
+  background-color: #17171B !important;
+  background: #17171B !important;
+  border-color: #303036 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.40) !important;
+}
+
+html.dark aside .border-t .bg-white:hover {
+  background-color: #1E1E24 !important;
+  border-color: #383842 !important;
+}
+
+html.dark aside .border-t .text-slate-800,
+html.dark aside .border-t span.text-slate-800 {
+  color: #F5F5F7 !important;
+}
+
+html.dark aside .border-t .text-slate-500,
+html.dark aside .border-t span.text-slate-500 {
+  color: #898991 !important;
+}
+
+html.dark aside .border-t .text-emerald-600 {
+  color: #34D399 !important;
+}
+
 
 
 

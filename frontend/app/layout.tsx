@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { ThemeProvider } from "@/lib/theme-context";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,30 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
+        {/* Anti-flicker theme initialization script */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var p = window.location.pathname;
+                if (!p.startsWith('/login') && !p.startsWith('/signup')) {
+                  var t = localStorage.getItem('panther_theme');
+                  if (t === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    document.documentElement.style.colorScheme = 'dark';
+                  }
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
       </head>
       <body className="h-full overflow-hidden bg-[var(--color-bg)] text-slate-900 antialiased font-sans" suppressHydrationWarning>
-        <ToastProvider />
-        {children}
+        <ThemeProvider>
+          <ToastProvider />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
