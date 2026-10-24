@@ -37,6 +37,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Add temporary transitioning class for buttery-smooth switch
+    root.classList.add("theme-transitioning");
+
     if (currentTheme === "dark") {
       root.classList.add("dark");
       root.setAttribute("data-theme", "dark");
@@ -46,6 +49,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.setAttribute("data-theme", "light");
       root.style.colorScheme = "light";
     }
+
+    const timer = setTimeout(() => {
+      root.classList.remove("theme-transitioning");
+    }, 400);
   }, []);
 
   // On initial mount: read stored preference

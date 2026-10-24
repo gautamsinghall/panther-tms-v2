@@ -152,10 +152,10 @@ function FunnelRow({
   pct: number;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-xs group cursor-pointer hover:bg-slate-50/70 p-2 rounded-xl transition-colors">
+    <div className="flex items-center justify-between gap-3 text-xs group cursor-pointer hover:bg-slate-50/70 dark:hover:bg-[#222228] p-2 rounded-xl transition-colors">
       <div className="flex items-center gap-2.5 w-28 shrink-0">
         <span className="shrink-0">{icon}</span>
-        <span className="font-semibold text-slate-800">{label}</span>
+        <span className="font-semibold text-slate-800 dark:text-[#F5F5F7]">{label}</span>
       </div>
 
       <div className={cn("flex-1 h-2 rounded-full overflow-hidden mx-2", barBg)}>
@@ -165,9 +165,9 @@ function FunnelRow({
         />
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0 font-mono text-slate-600 font-medium">
+      <div className="flex items-center gap-1.5 shrink-0 font-mono text-slate-600 dark:text-[#CACAD0] font-medium">
         <span>{count} ({pct}%)</span>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-transform" />
+        <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 group-hover:translate-x-0.5 transition-transform" />
       </div>
     </div>
   );
@@ -951,40 +951,40 @@ export default function DashboardPage() {
                 <FunnelRow
                   icon={<FileText className="w-3.5 h-3.5 text-slate-400" />}
                   label="Draft"
-                  barBg="bg-slate-100"
-                  fillBg="bg-slate-300"
+                  barBg="bg-slate-100 dark:bg-slate-800/80"
+                  fillBg="bg-slate-300 dark:bg-slate-600"
                   count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DRAFT")?.count || 0}
                   pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DRAFT")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<BookOpen className="w-3.5 h-3.5 text-blue-500" />}
                   label="Booked"
-                  barBg="bg-blue-50"
-                  fillBg="bg-blue-400"
+                  barBg="bg-blue-50 dark:bg-blue-950/40"
+                  fillBg="bg-blue-400 dark:bg-blue-500"
                   count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "BOOKED")?.count || 0}
                   pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "BOOKED")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<Truck className="w-3.5 h-3.5 text-amber-500" />}
                   label="In Transit"
-                  barBg="bg-amber-50"
-                  fillBg="bg-amber-400"
+                  barBg="bg-amber-50 dark:bg-amber-950/40"
+                  fillBg="bg-amber-400 dark:bg-amber-500"
                   count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "IN TRANSIT")?.count ?? inTransitCount}
                   pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "IN TRANSIT")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
                   label="Delivered"
-                  barBg="bg-emerald-50"
-                  fillBg="bg-emerald-400"
+                  barBg="bg-emerald-50 dark:bg-emerald-950/40"
+                  fillBg="bg-emerald-400 dark:bg-emerald-500"
                   count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DELIVERED")?.count || 0}
                   pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "DELIVERED")?.percentage || 0}
                 />
                 <FunnelRow
                   icon={<ShieldCheck className="w-3.5 h-3.5 text-purple-500" />}
                   label="POD Verified"
-                  barBg="bg-purple-50"
-                  fillBg="bg-purple-400"
+                  barBg="bg-purple-50 dark:bg-purple-950/40"
+                  fillBg="bg-purple-400 dark:bg-purple-500"
                   count={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "POD VERIFIED")?.count || 0}
                   pct={businessData?.pipeline_stages?.find((s: any) => s.stage?.toUpperCase() === "POD VERIFIED")?.percentage || 0}
                 />

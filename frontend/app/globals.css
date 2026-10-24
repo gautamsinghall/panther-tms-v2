@@ -513,6 +513,37 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
    - Semantic status: #34D5A0 (success), #F5BB45 (warn), #C5A5FF (info), #F07575 (error)
    ========================================================================== */
 
+/* ==========================================================================
+   SMOOTH THEME TRANSITION (Dark <-> Light)
+   Ensures seamless, silky-smooth color transitions when switching themes.
+   ========================================================================== */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition-delay: 0s !important;
+}
+
+body,
+aside,
+header,
+main,
+nav,
+section,
+.card-elevation,
+table,
+tr,
+th,
+td {
+  transition: background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* 1. App Canvas & Workspace Containers */
 html.dark,
 html.dark body {
@@ -971,6 +1002,24 @@ html.dark [class*="bg-indigo-100"]:not(aside *) {
   border-color: rgba(124, 111, 247, 0.25) !important;
 }
 
+html.dark [class*="bg-purple-50"],
+html.dark [class*="bg-purple-100"],
+html.dark [class*="bg-violet-50"],
+html.dark [class*="bg-violet-100"] {
+  background-color: rgba(168, 85, 247, 0.14) !important;
+  border-color: rgba(168, 85, 247, 0.25) !important;
+}
+html.dark .text-purple-800,
+html.dark .text-purple-700,
+html.dark .text-purple-600,
+html.dark .text-purple-500 {
+  color: #C5A5FF !important;
+}
+html.dark .bg-purple-400,
+html.dark .bg-purple-500 {
+  background-color: #A855F7 !important;
+}
+
 /* Neutralize chalky pastel borders across the app in dark mode */
 html.dark [class*="border-indigo-100"],
 html.dark [class*="border-emerald-100"],
@@ -996,6 +1045,10 @@ html.dark .text-indigo-500 {
 /* 11. Buttons & Action Bars */
 html.dark button.bg-white:not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]),
 html.dark .hover\:bg-slate-50,
+html.dark .hover\:bg-slate-50\/50,
+html.dark .hover\:bg-slate-50\/60,
+html.dark .hover\:bg-slate-50\/70,
+html.dark .hover\:bg-slate-50\/80,
 html.dark .hover\:bg-slate-100,
 html.dark .hover\:bg-slate-100\/70,
 html.dark .hover\:bg-slate-100\/80 {
@@ -1011,6 +1064,10 @@ html.dark button.bg-white:not([class*="bg-indigo"]):not([class*="bg-emerald"]):n
 /* Gentle Graphite Hover on Buttons & Nav Items (Excluding Side Menu) */
 html.dark button.bg-white:not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not(aside *):hover,
 html.dark .hover\:bg-slate-50:not(aside *):hover,
+html.dark .hover\:bg-slate-50\/50:not(aside *):hover,
+html.dark .hover\:bg-slate-50\/60:not(aside *):hover,
+html.dark .hover\:bg-slate-50\/70:not(aside *):hover,
+html.dark .hover\:bg-slate-50\/80:not(aside *):hover,
 html.dark .hover\:bg-slate-100:not(aside *):hover,
 html.dark .hover\:bg-slate-100\/70:not(aside *):hover,
 html.dark .hover\:bg-slate-100\/80:not(aside *):hover {
@@ -1149,9 +1206,7 @@ aside button[aria-label*="sidebar"]:hover {
   color: #0F172A !important;
 }
 
-/* Active navigation items keep their Royal Violet gradient */
-aside a[class*="bg-indigo"],
-aside .bg-indigo-50\/90,
+/* Active navigation items keep their Royal Violet gradient (DARK MODE ONLY) */
 html.dark aside a[class*="bg-indigo"],
 html.dark aside .bg-indigo-50\/90 {
   background: linear-gradient(135deg, #312261 0%, #261D40 100%) !important;
@@ -1159,25 +1214,40 @@ html.dark aside .bg-indigo-50\/90 {
   color: #F5F5F7 !important;
 }
 
-aside a[class*="bg-indigo"]:hover,
-aside .bg-indigo-50\/90:hover,
 html.dark aside a[class*="bg-indigo"]:hover,
 html.dark aside .bg-indigo-50\/90:hover {
   background: linear-gradient(135deg, #3A2A70 0%, #2B2148 100%) !important;
   border-color: rgba(124, 111, 247, 0.65) !important;
 }
 
-aside button.bg-slate-100\/90,
 html.dark aside button.bg-slate-100\/90 {
   background-color: #17171B !important;
   border-color: #303036 !important;
   color: #F5F5F7 !important;
 }
 
-aside button.bg-slate-100\/90:hover,
 html.dark aside button.bg-slate-100\/90:hover {
   background-color: #202028 !important;
   border-color: #42424A !important;
+}
+
+/* Light Mode: Keep active sidebar navigation items crisp and light */
+html:not(.dark) aside a.bg-indigo-50\/90,
+html:not(.dark) aside a[class*="bg-indigo-50"] {
+  background: rgba(238, 242, 255, 0.95) !important;
+  border: 1px solid rgba(199, 210, 254, 0.8) !important;
+  color: #4338CA !important;
+}
+
+html:not(.dark) aside a.bg-indigo-50\/90 svg,
+html:not(.dark) aside a[class*="bg-indigo-50"] svg {
+  color: #4F46E5 !important;
+}
+
+html:not(.dark) aside button.bg-slate-100\/90 {
+  background-color: rgba(241, 245, 249, 0.95) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  color: #0F172A !important;
 }
 
 /* Sidebar Canvas & Containers: Locked so only individual items highlight */
