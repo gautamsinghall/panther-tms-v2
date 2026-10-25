@@ -514,17 +514,49 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
    ========================================================================== */
 
 /* ==========================================================================
-   SMOOTH THEME TRANSITION (Dark <-> Light)
-   Ensures seamless, silky-smooth color transitions when switching themes.
+   CIRCULAR THEME REVEAL ANIMATION (View Transitions API)
+   Expanding circular transition originating from theme toggle button
+   ========================================================================== */
+::view-transition-group(root) {
+  animation-duration: 0.5s;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  display: block;
+  will-change: clip-path, opacity;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   SMOOTH THEME TRANSITION FALLBACK
+   Ensures seamless color interpolation on older browsers
    ========================================================================== */
 html.theme-transitioning,
 html.theme-transitioning *,
 html.theme-transitioning *::before,
 html.theme-transitioning *::after {
-  transition: background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1) !important;
   transition-delay: 0s !important;
 }
 
@@ -539,9 +571,13 @@ table,
 tr,
 th,
 td {
-  transition: background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ease-apple {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* 1. App Canvas & Workspace Containers */
@@ -564,7 +600,7 @@ html.dark .bg-white:not([class*="liquid-glass"]):not([class*="bg-indigo"]):not([
   background-color: #17171B !important;
   border-color: #303036 !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.40), inset 0 1px 0 0 rgba(255, 255, 255, 0.03) !important;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* Card Hover Elevation — Soft Graphite transition to #26262D with subtle border lift (tables & sidebars excluded) */
@@ -587,7 +623,7 @@ html.dark .bg-\[\#F8F9FB\],
 html.dark .bg-\[\#F8F9FA\] {
   background-color: #131317 !important;
   border-color: #303036 !important;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* Inset Containers on Hover */
@@ -608,7 +644,7 @@ html.dark .bg-slate-200\/60,
 html.dark .bg-slate-200\/80 {
   background-color: #17171B !important;
   border-color: #303036 !important;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* 4. Top Header & Sidebar Navigation */
@@ -1070,7 +1106,9 @@ html.dark .hover\:bg-slate-50\/70:not(aside *):hover,
 html.dark .hover\:bg-slate-50\/80:not(aside *):hover,
 html.dark .hover\:bg-slate-100:not(aside *):hover,
 html.dark .hover\:bg-slate-100\/70:not(aside *):hover,
-html.dark .hover\:bg-slate-100\/80:not(aside *):hover {
+html.dark .hover\:bg-slate-100\/80:not(aside *):hover,
+html.dark .hover\:bg-\[\#F8F9FB\]:hover,
+html.dark .hover\:bg-\[\#F8FAFC\]:hover {
   background-color: #26262D !important;
   border-color: #42424A !important;
   color: #FFFFFF !important;

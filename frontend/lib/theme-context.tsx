@@ -1,15 +1,27 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 
 export type Theme = "light" | "dark";
 
+export interface ThemeToggleOrigin {
+  clientX?: number;
+  clientY?: number;
+  currentTarget?: HTMLElement | null;
+}
+
+export type ThemeToggleEvent =
+  | React.MouseEvent
+  | MouseEvent
+  | ThemeToggleOrigin
+  | undefined;
+
 interface ThemeContextType {
   theme: Theme;
   isDark: boolean;
-  toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
+  toggleTheme: (event?: ThemeToggleEvent) => void;
+  setTheme: (theme: Theme, event?: ThemeToggleEvent) => void;
 }
 
 const THEME_STORAGE_KEY = "panther_theme";
@@ -20,42 +32,79 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
 
-  // Initialize theme state from localStorage if available, defaulting to light
   const [theme, setThemeState] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
+  const [switchingTheme, setSwitchingTheme] = useState<Theme | null>(null);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+  const isSwitchingRef = useRef(false);
+  const switchTimerRef = useRef<{ fade?: NodeJS.Timeout; finish?: NodeJS.Timeout }>({});
 
-  // Apply theme class to documentElement
-  const applyThemeToDOM = useCallback((currentTheme: Theme, isAuth: boolean) => {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
+  // Apply theme with a clean loading overlay so background DOM repaints are hidden
+  const applyThemeWithTransition = useCallback(
+    (nextTheme: Theme) => {
+      if (typeof document === "undefined") return;
+      const root = document.documentElement;
 
-    // Under NO circumstances should dark mode styling touch login or signup pages
-    if (isAuth) {
-      root.classList.remove("dark");
-      root.removeAttribute("data-theme");
-      root.style.colorScheme = "light";
-      return;
-    }
+      // Under NO circumstances should dark mode styling touch login or signup pages
+      if (isAuthPage) {
+        root.classList.remove("dark");
+        root.removeAttribute("data-theme");
+        root.style.colorScheme = "light";
+        setThemeState("light");
+        isSwitchingRef.current = false;
+        return;
+      }
 
-    // Add temporary transitioning class for buttery-smooth switch
-    root.classList.add("theme-transitioning");
+      isSwitchingRef.current = true;
+      if (switchTimerRef.current.fade) clearTimeout(switchTimerRef.current.fade);
+      if (switchTimerRef.current.finish) clearTimeout(switchTimerRef.current.finish);
 
-    if (currentTheme === "dark") {
-      root.classList.add("dark");
-      root.setAttribute("data-theme", "dark");
-      root.style.colorScheme = "dark";
-    } else {
-      root.classList.remove("dark");
-      root.setAttribute("data-theme", "light");
-      root.style.colorScheme = "light";
-    }
+      // 1. Show the solid loading screen overlay FIRST
+      setSwitchingTheme(nextTheme);
+      setIsFadingOut(false);
 
-    const timer = setTimeout(() => {
-      root.classList.remove("theme-transitioning");
-    }, 400);
+      // 2. Allow browser to paint the overlay over the entire screen, then swap theme classes
+      setTimeout(() => {
+        if (nextTheme === "dark") {
+          root.classList.add("dark");
+          root.setAttribute("data-theme", "dark");
+          root.style.colorScheme = "dark";
+        } else {
+          root.classList.remove("dark");
+          root.setAttribute("data-theme", "light");
+          root.style.colorScheme = "light";
+        }
+
+        setThemeState(nextTheme);
+        try {
+          localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+        } catch {}
+      }, 50);
+
+      // 3. Fade out loading screen smoothly after backing has rendered
+      switchTimerRef.current.fade = setTimeout(() => {
+        setIsFadingOut(true);
+      }, 350);
+
+      // 4. Remove loading overlay and allow next toggle
+      switchTimerRef.current.finish = setTimeout(() => {
+        setSwitchingTheme(null);
+        setIsFadingOut(false);
+        isSwitchingRef.current = false;
+      }, 550);
+    },
+    [isAuthPage]
+  );
+
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      if (switchTimerRef.current.fade) clearTimeout(switchTimerRef.current.fade);
+      if (switchTimerRef.current.finish) clearTimeout(switchTimerRef.current.finish);
+    };
   }, []);
 
-  // On initial mount: read stored preference
+  // On initial mount: read stored preference and set state directly without animation
   useEffect(() => {
     setMounted(true);
     let initialTheme: Theme = "light";
@@ -64,74 +113,76 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (stored === "dark" || stored === "light") {
         initialTheme = stored;
       }
-    } catch {
-      // ignore storage access errors
-    }
+    } catch {}
     setThemeState(initialTheme);
-    applyThemeToDOM(initialTheme, isAuthPage);
-  }, [applyThemeToDOM, isAuthPage]);
+
+    const root = document.documentElement;
+    if (isAuthPage) {
+      root.classList.remove("dark");
+      root.removeAttribute("data-theme");
+      root.style.colorScheme = "light";
+    } else if (initialTheme === "dark") {
+      root.classList.add("dark");
+      root.setAttribute("data-theme", "dark");
+      root.style.colorScheme = "dark";
+    } else {
+      root.classList.remove("dark");
+      root.setAttribute("data-theme", "light");
+      root.style.colorScheme = "light";
+    }
+  }, [isAuthPage]);
 
   // When pathname changes: re-check if we entered or left auth pages
   useEffect(() => {
     if (!mounted) return;
-    applyThemeToDOM(theme, isAuthPage);
-  }, [pathname, theme, isAuthPage, mounted, applyThemeToDOM]);
+    const root = document.documentElement;
+    if (isAuthPage) {
+      root.classList.remove("dark");
+      root.removeAttribute("data-theme");
+      root.style.colorScheme = "light";
+    }
+  }, [pathname, isAuthPage, mounted]);
 
-  // Synchronize with other tabs or windows
+  const setTheme = useCallback(
+    (newTheme: Theme) => {
+      if (isSwitchingRef.current || newTheme === theme) return;
+      applyThemeWithTransition(newTheme);
+    },
+    [theme, applyThemeWithTransition]
+  );
+
+  const toggleTheme = useCallback(() => {
+    if (isSwitchingRef.current) return;
+    const nextTheme: Theme = theme === "dark" ? "light" : "dark";
+    applyThemeWithTransition(nextTheme);
+  }, [theme, applyThemeWithTransition]);
+
+  // Synchronize across tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === THEME_STORAGE_KEY && (e.newValue === "light" || e.newValue === "dark")) {
         const nextTheme = e.newValue as Theme;
-        setThemeState(nextTheme);
-        applyThemeToDOM(nextTheme, isAuthPage);
+        if (nextTheme !== theme) {
+          applyThemeWithTransition(nextTheme);
+        }
       }
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [isAuthPage, applyThemeToDOM]);
+  }, [theme, applyThemeWithTransition]);
 
   // Keyboard shortcut listener: Ctrl+Shift+D or Cmd+Shift+D to toggle theme
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "d") {
-        // Prevent toggle if on auth page
-        if (isAuthPage) return;
+        if (isAuthPage || isSwitchingRef.current) return;
         e.preventDefault();
-        setThemeState((prev) => {
-          const next = prev === "dark" ? "light" : "dark";
-          try {
-            localStorage.setItem(THEME_STORAGE_KEY, next);
-          } catch {}
-          applyThemeToDOM(next, isAuthPage);
-          return next;
-        });
+        toggleTheme();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAuthPage, applyThemeToDOM]);
-
-  const setTheme = useCallback(
-    (newTheme: Theme) => {
-      setThemeState(newTheme);
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-      } catch {}
-      applyThemeToDOM(newTheme, isAuthPage);
-    },
-    [isAuthPage, applyThemeToDOM]
-  );
-
-  const toggleTheme = useCallback(() => {
-    setThemeState((prev) => {
-      const next = prev === "dark" ? "light" : "dark";
-      try {
-        localStorage.setItem(THEME_STORAGE_KEY, next);
-      } catch {}
-      applyThemeToDOM(next, isAuthPage);
-      return next;
-    });
-  }, [isAuthPage, applyThemeToDOM]);
+  }, [isAuthPage, toggleTheme]);
 
   const value: ThemeContextType = {
     theme: isAuthPage ? "light" : theme,
@@ -140,7 +191,41 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme,
   };
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>
+      {children}
+      {switchingTheme && (
+        <div
+          className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center transition-opacity duration-200 pointer-events-auto select-none ${
+            isFadingOut ? "opacity-0" : "opacity-100"
+          }`}
+          style={{
+            backgroundColor: switchingTheme === "dark" ? "#0B0B0D" : "#F8FAFC",
+            color: switchingTheme === "dark" ? "#F5F5F7" : "#0F172A",
+          }}
+          aria-live="polite"
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+              style={{
+                borderColor: switchingTheme === "dark" ? "#7C6FF7" : "#4F46E5",
+                borderTopColor: "transparent",
+              }}
+            />
+            <span
+              className="text-xs font-medium font-mono"
+              style={{
+                color: switchingTheme === "dark" ? "#CACAD0" : "#475569",
+              }}
+            >
+              {switchingTheme === "dark" ? "Switching to dark mode..." : "Switching to light mode..."}
+            </span>
+          </div>
+        </div>
+      )}
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeContextType {
