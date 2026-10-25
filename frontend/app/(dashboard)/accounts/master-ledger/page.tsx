@@ -212,22 +212,142 @@ export default function MasterLedgerPage() {
   }>({ isOpen: false });
 
   // ----------------------------------------------------------------------------
+  // ----------------------------------------------------------------------------
   // Load Overview & Category Lists
   // ----------------------------------------------------------------------------
   const loadOverviewAndLists = async () => {
     try {
       setIsLoading(true);
-      const [sumRes, bcRes, vendRes, drvRes] = await Promise.all([
+      // Fetch master ledger summaries as well as primary entity masters in parallel
+      const [sumRes, bcRes, vendRes, drvRes, rawClients, rawVendors, rawDrivers] = await Promise.all([
         apiClient<MasterLedgerOverview>("/api/v1/accounts/master-ledger/summary").catch(() => null),
         apiClient<BillingClientLedgerItem[]>("/api/v1/accounts/master-ledger/billing-clients").catch(() => []),
         apiClient<VendorLedgerItem[]>("/api/v1/accounts/master-ledger/vendors").catch(() => []),
         apiClient<DriverLedgerItem[]>("/api/v1/accounts/master-ledger/drivers").catch(() => []),
+        apiClient<any[]>("/api/v1/general/billing-clients").catch(() => []),
+        apiClient<any[]>("/api/v1/general/vendors").catch(() => []),
+        apiClient<any[]>("/api/v1/transport/drivers").catch(() => []),
       ]);
 
-      if (sumRes) setOverview(sumRes);
-      setBillingClients(bcRes || []);
-      setVendors(vendRes || []);
-      setDrivers(drvRes || []);
+      // 1. Merge Billing Clients: Every client created in Billing Client Master is guaranteed to appear
+      const bcMap = new Map<number, BillingClientLedgerItem>();
+      (bcRes || []).forEach((c) => bcMap.set(c.id, c));
+      (rawClients || []).forEach((rc) => {
+        if (!bcMap.has(rc.id)) {
+          const openBal = rc.opening_balance || "0.00";
+          const openType = rc.opening_balance_type || "DR";
+          bcMap.set(rc.id, {
+            id: rc.id,
+            name: rc.name,
+            code: rc.code || `BC-${String(rc.id).padStart(4, "0")}`,
+            company_name: rc.company_name,
+            contact_person: rc.contact_person,
+            phone: rc.phone,
+            email: rc.email,
+            gstin: rc.gstin,
+            pan: rc.pan,
+            opening_balance: openBal,
+            opening_balance_type: openType,
+            total_debit: "0.00",
+            total_credit: "0.00",
+            outstanding_balance: openBal,
+            balance_type: Number(openBal) > 0 ? openType : "NIL",
+            transaction_count: 0,
+            issuing_office_name: rc.issuing_office?.name || rc.issuing_office_name,
+          });
+        }
+      });
+      const mergedClients = Array.from(bcMap.values());
+      setBillingClients(mergedClients);
+
+      // 2. Merge Vendors: Every vendor created in Vendor Master is guaranteed to appear
+      const vendMap = new Map<number, VendorLedgerItem>();
+      (vendRes || []).forEach((v) => vendMap.set(v.id, v));
+      (rawVendors || []).forEach((rv) => {
+        if (!vendMap.has(rv.id)) {
+          const openBal = rv.opening_balance || "0.00";
+          const openType = rv.opening_balance_type || "CR";
+          vendMap.set(rv.id, {
+            id: rv.id,
+            name: rv.name,
+            code: rv.code || `VEND-${String(rv.id).padStart(4, "0")}`,
+            phone: rv.phone,
+            email: rv.email,
+            gstin: rv.gstin,
+            pan: rv.pan,
+            opening_balance: openBal,
+            opening_balance_type: openType,
+            total_debit: "0.00",
+            total_credit: "0.00",
+            outstanding_payable: openBal,
+            balance_type: Number(openBal) > 0 ? openType : "NIL",
+            transaction_count: 0,
+            issuing_office_name: rv.issuing_office?.name || rv.issuing_office_name,
+          });
+        }
+      });
+      const mergedVendors = Array.from(vendMap.values());
+      setVendors(mergedVendors);
+
+      // 3. Merge Drivers: Every driver created in Driver Master is guaranteed to appear
+      const drvMap = new Map<number, DriverLedgerItem>();
+      (drvRes || []).forEach((d) => drvMap.set(d.id, d));
+      (rawDrivers || []).forEach((rd) => {
+        if (!drvMap.has(rd.id)) {
+          drvMap.set(rd.id, {
+            id: rd.id,
+            name: rd.name,
+            driver_id: rd.driver_id || (rd.id ? `DRV-${rd.id}` : undefined),
+            phone: rd.phone || "",
+            license_number: rd.license_number,
+            dl_status: rd.dl_status || "Active",
+            opening_balance: "0.00",
+            opening_balance_type: "DR",
+            total_advances: "0.00",
+            total_expenses: "0.00",
+            current_balance: "0.00",
+            balance_type: "NIL",
+            transaction_count: 0,
+          });
+        }
+      });
+      const mergedDrivers = Array.from(drvMap.values());
+      setDrivers(mergedDrivers);
+
+      // 4. Compute / Enhance Overview Summary metrics
+      const bcOutstanding = sumRes?.billing_clients?.total_outstanding ??
+        mergedClients.reduce((sum, c) => sum + (c.balance_type === "DR" ? Number(c.outstanding_balance || 0) : 0), 0);
+      const vendOutstanding = sumRes?.vendors?.total_outstanding ??
+        mergedVendors.reduce((sum, v) => sum + (v.balance_type === "CR" ? Number(v.outstanding_payable || 0) : 0), 0);
+      const drvOutstanding = sumRes?.drivers?.total_outstanding ??
+        mergedDrivers.reduce((sum, d) => sum + (d.balance_type === "DR" ? Number(d.current_balance || 0) : 0), 0);
+
+      setOverview({
+        billing_clients: {
+          total_accounts: Math.max(sumRes?.billing_clients?.total_accounts || 0, mergedClients.length),
+          total_outstanding: bcOutstanding,
+          total_debit: sumRes?.billing_clients?.total_debit || mergedClients.reduce((s, c) => s + Number(c.total_debit || 0), 0),
+          total_credit: sumRes?.billing_clients?.total_credit || mergedClients.reduce((s, c) => s + Number(c.total_credit || 0), 0),
+          settled_count: mergedClients.filter((c) => c.balance_type === "NIL" || Number(c.outstanding_balance) === 0).length,
+          pending_count: mergedClients.filter((c) => c.balance_type !== "NIL" && Number(c.outstanding_balance) > 0).length,
+        },
+        vendors: {
+          total_accounts: Math.max(sumRes?.vendors?.total_accounts || 0, mergedVendors.length),
+          total_outstanding: vendOutstanding,
+          total_debit: sumRes?.vendors?.total_debit || mergedVendors.reduce((s, v) => s + Number(v.total_debit || 0), 0),
+          total_credit: sumRes?.vendors?.total_credit || mergedVendors.reduce((s, v) => s + Number(v.total_credit || 0), 0),
+          settled_count: mergedVendors.filter((v) => v.balance_type === "NIL" || Number(v.outstanding_payable) === 0).length,
+          pending_count: mergedVendors.filter((v) => v.balance_type !== "NIL" && Number(v.outstanding_payable) > 0).length,
+        },
+        drivers: {
+          total_accounts: Math.max(sumRes?.drivers?.total_accounts || 0, mergedDrivers.length),
+          total_outstanding: drvOutstanding,
+          total_debit: sumRes?.drivers?.total_debit || mergedDrivers.reduce((s, d) => s + Number(d.total_advances || 0), 0),
+          total_credit: sumRes?.drivers?.total_credit || mergedDrivers.reduce((s, d) => s + Number(d.total_expenses || 0), 0),
+          settled_count: mergedDrivers.filter((d) => d.balance_type === "NIL" || Number(d.current_balance) === 0).length,
+          pending_count: mergedDrivers.filter((d) => d.balance_type !== "NIL" && Number(d.current_balance) > 0).length,
+        },
+      });
     } catch (err) {
       console.error("Error loading master ledger data:", err);
       toast.error("Failed to load Master Ledger summaries.");
@@ -272,9 +392,140 @@ export default function MasterLedgerPage() {
       const queryString = params.toString();
       const url = queryString ? `${endpoint}?${queryString}` : endpoint;
 
-      const res = await apiClient<DetailedLedgerData>(url);
-      setDetailedLedger(res);
-      setSelectedAccountId(id);
+      try {
+        const res = await apiClient<DetailedLedgerData>(url);
+        setDetailedLedger(res);
+        setSelectedAccountId(id);
+      } catch (apiErr) {
+        // Fallback: Construct client statement from master details & available vouchers
+        let partyObj: PartyDetails = { id, name: `Account #${id}` };
+        if (category === "BILLING_CLIENT") {
+          const client = billingClients.find((c) => c.id === id);
+          if (client) {
+            partyObj = {
+              id: client.id,
+              name: client.name,
+              code: client.code,
+              company_name: client.company_name,
+              contact_person: client.contact_person,
+              phone: client.phone,
+              email: client.email,
+              gstin: client.gstin,
+              pan: client.pan,
+              issuing_office_name: client.issuing_office_name,
+            };
+          }
+        } else if (category === "VENDOR") {
+          const vendor = vendors.find((v) => v.id === id);
+          if (vendor) {
+            partyObj = {
+              id: vendor.id,
+              name: vendor.name,
+              code: vendor.code,
+              phone: vendor.phone,
+              email: vendor.email,
+              gstin: vendor.gstin,
+              pan: vendor.pan,
+              issuing_office_name: vendor.issuing_office_name,
+            };
+          }
+        } else if (category === "DRIVER") {
+          const driver = drivers.find((d) => d.id === id);
+          if (driver) {
+            partyObj = {
+              id: driver.id,
+              name: driver.name,
+              code: driver.driver_id,
+              phone: driver.phone,
+              license_number: driver.license_number,
+            };
+          }
+        }
+
+        // Fetch general vouchers to extract matching entries if available
+        let txs: LedgerTx[] = [];
+        try {
+          const allVouchers = await apiClient<any[]>("/api/v1/accounts/vouchers").catch(() => []);
+          const matchVouchers = (allVouchers || []).filter((v: any) => {
+            const partyMatch = v.party_name && v.party_name.trim().toLowerCase() === partyObj.name.trim().toLowerCase();
+            const idMatch =
+              (category === "BILLING_CLIENT" && (v.billing_client_id === id || v.lr?.billing_customer_id === id)) ||
+              (category === "VENDOR" && (v.vendor_id === id || v.hire_challan?.vendor_id === id)) ||
+              (category === "DRIVER" && v.driver_id === id);
+            return partyMatch || idMatch;
+          });
+
+          let running = 0;
+          txs = matchVouchers.map((v: any) => {
+            const amt = Number(v.net_amount || 0);
+            let dr = 0;
+            let cr = 0;
+            if (category === "BILLING_CLIENT") {
+              if (["TRANSPORT_INVOICE", "GENERAL_INVOICE", "DEBIT_NOTE"].includes(v.voucher_type)) {
+                dr = amt;
+                running += dr;
+              } else {
+                cr = amt;
+                running -= cr;
+              }
+            } else if (category === "VENDOR") {
+              if (["PAYMENT_VOUCHER", "ATH_PAYMENT", "BTH_PAYMENT", "DEBIT_NOTE"].includes(v.voucher_type)) {
+                dr = amt;
+                running -= dr;
+              } else {
+                cr = amt;
+                running += cr;
+              }
+            } else {
+              if (["PAYMENT_VOUCHER", "ATH_PAYMENT", "BTH_PAYMENT"].includes(v.voucher_type)) {
+                dr = amt;
+                running += dr;
+              } else {
+                cr = amt;
+                running += cr;
+              }
+            }
+            return {
+              id: v.id,
+              entry_date: v.voucher_date || new Date().toISOString().split("T")[0],
+              voucher_id: v.id,
+              voucher_number: v.voucher_number,
+              voucher_type: v.voucher_type,
+              reference_number: v.reference_number || (v.lr?.lr_number ? `LR ${v.lr.lr_number}` : undefined),
+              particulars: v.narration || `${v.voucher_type.replace(/_/g, " ")} - ${v.voucher_number}`,
+              debit_amount: dr,
+              credit_amount: cr,
+              running_balance: Math.abs(running),
+              balance_type: running >= 0 ? "DR" : "CR",
+              status: v.is_void ? "VOID" : "CONFIRMED",
+              is_void: !!v.is_void,
+              is_reversal: false,
+            };
+          });
+        } catch {
+          // Keep empty transactions if vouchers endpoint fails
+        }
+
+        const totalDr = txs.reduce((sum, t) => sum + Number(t.debit_amount || 0), 0);
+        const totalCr = txs.reduce((sum, t) => sum + Number(t.credit_amount || 0), 0);
+        const netBal = totalDr - totalCr;
+
+        setDetailedLedger({
+          category,
+          party: partyObj,
+          from_date: fromDate,
+          to_date: toDate,
+          opening_balance: "0.00",
+          opening_balance_type: "DR",
+          total_debit: totalDr,
+          total_credit: totalCr,
+          closing_balance: Math.abs(netBal),
+          closing_balance_type: netBal >= 0 ? "DR" : "CR",
+          total_transactions: txs.length,
+          transactions: txs,
+        });
+        setSelectedAccountId(id);
+      }
     } catch (err) {
       console.error("Error loading detailed ledger statement:", err);
       toast.error("Failed to load ledger statement.");

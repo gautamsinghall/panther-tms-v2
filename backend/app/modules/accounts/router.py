@@ -15,7 +15,7 @@ from app.services.activity_logger import log_activity
 router = APIRouter(
     prefix="/accounts",
     tags=["Accounts"],
-    dependencies=[Depends(require_permission("accounts", "general", "view"))],
+    dependencies=[Depends(require_permission("accounts", "*", "view"))],
 )
 
 
@@ -319,7 +319,7 @@ async def get_master_ledger_summary(
     Overview financial metrics for Billing Clients, Vendors, and Drivers categories.
     """
     office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await master_ledger_service.get_master_ledger_summary(
         session, office_id=office_id, include_unassigned=include_unassigned
     )
@@ -337,7 +337,7 @@ async def list_billing_client_ledgers(
     and current outstanding receivables.
     """
     office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await master_ledger_service.list_billing_client_ledgers(
         session, office_id=office_id, include_unassigned=include_unassigned, search=search
     )
@@ -358,7 +358,7 @@ async def get_billing_client_ledger_detail(
     Detailed chronological ledger statement for an individual billing client.
     """
     office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await master_ledger_service.get_billing_client_ledger_detail(
         session,
         client_id=client_id,
@@ -383,7 +383,7 @@ async def list_vendor_ledgers(
     and outstanding payables.
     """
     office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await master_ledger_service.list_vendor_ledgers(
         session, office_id=office_id, include_unassigned=include_unassigned, search=search
     )
@@ -404,7 +404,7 @@ async def get_vendor_ledger_detail(
     Detailed chronological ledger statement for an individual vendor.
     """
     office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await master_ledger_service.get_vendor_ledger_detail(
         session,
         vendor_id=vendor_id,
@@ -429,7 +429,7 @@ async def list_driver_ledgers(
     and current recoverable / payable balance.
     """
     office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await master_ledger_service.list_driver_ledgers(
         session, office_id=office_id, include_unassigned=include_unassigned, search=search
     )
@@ -450,7 +450,7 @@ async def get_driver_ledger_detail(
     Detailed chronological ledger statement for an individual driver.
     """
     office_id = current_office.id if current_office else None
-    include_unassigned = current_office.is_head_office if current_office else True
+    include_unassigned = True
     return await master_ledger_service.get_driver_ledger_detail(
         session,
         driver_id=driver_id,

@@ -235,7 +235,7 @@ async def list_billing_client_ledgers(
     stmt = (
         select(BillingClient)
         .options(selectinload(BillingClient.issuing_office))
-        .where(BillingClient.is_active == True)
+        .where(or_(BillingClient.is_active == True, BillingClient.is_active.is_(None)))
         .order_by(BillingClient.name.asc())
     )
 
@@ -598,7 +598,7 @@ async def list_vendor_ledgers(
     stmt = (
         select(Vendor)
         .options(selectinload(Vendor.issuing_office))
-        .where(Vendor.is_active == True)
+        .where(or_(Vendor.is_active == True, Vendor.is_active.is_(None)))
         .order_by(Vendor.name.asc())
     )
 
@@ -1015,7 +1015,7 @@ async def list_driver_ledgers(
     """
     stmt = (
         select(Driver)
-        .where(Driver.is_active == True)
+        .where(or_(Driver.is_active == True, Driver.is_active.is_(None)))
         .order_by(Driver.name.asc())
     )
 
