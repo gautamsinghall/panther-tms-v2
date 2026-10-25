@@ -38,6 +38,7 @@ import {
   ListOrdered,
   LayoutDashboard,
   LucideIcon,
+  BookOpen,
 } from "lucide-react";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { cn } from "@/lib/utils";
@@ -103,6 +104,7 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/accounts/payment-voucher": { title: "Payment Voucher", icon: Calculator },
   "/accounts/contra-voucher": { title: "Contra Voucher", icon: Calculator },
   "/accounts/credit-debit-notes": { title: "Credit / Debit Note", icon: Coins },
+  "/accounts/master-ledger": { title: "Master Ledger", icon: BookOpen },
 
   // Misc Masters
   "/misc/primary-group": { title: "Primary Group", icon: Layers },

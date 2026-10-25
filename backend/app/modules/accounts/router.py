@@ -1,3 +1,4 @@
+from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +9,7 @@ from app.auth.dependencies import (
 from app.core.errors import ForbiddenException
 from app.control.models import Tenant
 from app.tenant_db.models import User, Branch
-from app.modules.accounts import schemas, service
+from app.modules.accounts import schemas, service, master_ledger_service
 from app.services.activity_logger import log_activity
 
 router = APIRouter(
@@ -66,6 +67,9 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.irn_status = v.einvoice.status if v.einvoice else None
     resp.issuing_office_id = v.issuing_office_id
     resp.issuing_office_name = v.issuing_office.name if getattr(v, "issuing_office", None) else None
+    resp.billing_client_name = v.billing_client.name if getattr(v, "billing_client", None) else None
+    resp.vendor_name = v.vendor.name if getattr(v, "vendor", None) else None
+    resp.driver_name = v.driver.name if getattr(v, "driver", None) else None
 
     # Map item details
     for idx, itm in enumerate(v.items):
@@ -299,4 +303,163 @@ async def void_voucher_endpoint(
         details_json={"reason": data.reason},
     )
     return map_voucher_response(voucher)
+
+
+# ==============================================================================
+# Master Ledger Endpoints (Accounts -> Master Ledger)
+# ==============================================================================
+
+@router.get("/master-ledger/summary", response_model=schemas.MasterLedgerOverviewResponse)
+async def get_master_ledger_summary(
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Overview financial metrics for Billing Clients, Vendors, and Drivers categories.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await master_ledger_service.get_master_ledger_summary(
+        session, office_id=office_id, include_unassigned=include_unassigned
+    )
+
+
+@router.get("/master-ledger/billing-clients", response_model=List[schemas.BillingClientLedgerListItem])
+async def list_billing_client_ledgers(
+    search: Optional[str] = Query(None, description="Search client name, code, phone, gstin"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    List all billing clients with opening balance, total debits, total credits,
+    and current outstanding receivables.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await master_ledger_service.list_billing_client_ledgers(
+        session, office_id=office_id, include_unassigned=include_unassigned, search=search
+    )
+
+
+@router.get("/master-ledger/billing-clients/{client_id}", response_model=schemas.DetailedLedgerResponse)
+async def get_billing_client_ledger_detail(
+    client_id: int,
+    from_date: Optional[date] = Query(None, description="Start date of statement"),
+    to_date: Optional[date] = Query(None, description="End date of statement"),
+    search: Optional[str] = Query(None, description="Search voucher or reference number"),
+    tx_type: Optional[str] = Query(None, description="Filter voucher type"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Detailed chronological ledger statement for an individual billing client.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await master_ledger_service.get_billing_client_ledger_detail(
+        session,
+        client_id=client_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        tx_type=tx_type,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+    )
+
+
+@router.get("/master-ledger/vendors", response_model=List[schemas.VendorLedgerListItem])
+async def list_vendor_ledgers(
+    search: Optional[str] = Query(None, description="Search vendor name, phone, gstin, pan"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    List all vendors with opening balance, total debits, total credits,
+    and outstanding payables.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await master_ledger_service.list_vendor_ledgers(
+        session, office_id=office_id, include_unassigned=include_unassigned, search=search
+    )
+
+
+@router.get("/master-ledger/vendors/{vendor_id}", response_model=schemas.DetailedLedgerResponse)
+async def get_vendor_ledger_detail(
+    vendor_id: int,
+    from_date: Optional[date] = Query(None, description="Start date of statement"),
+    to_date: Optional[date] = Query(None, description="End date of statement"),
+    search: Optional[str] = Query(None, description="Search voucher or reference number"),
+    tx_type: Optional[str] = Query(None, description="Filter transaction type"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Detailed chronological ledger statement for an individual vendor.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await master_ledger_service.get_vendor_ledger_detail(
+        session,
+        vendor_id=vendor_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        tx_type=tx_type,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+    )
+
+
+@router.get("/master-ledger/drivers", response_model=List[schemas.DriverLedgerListItem])
+async def list_driver_ledgers(
+    search: Optional[str] = Query(None, description="Search driver name, phone, license"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    List all drivers with opening balance, total advances, total settled expenses,
+    and current recoverable / payable balance.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await master_ledger_service.list_driver_ledgers(
+        session, office_id=office_id, include_unassigned=include_unassigned, search=search
+    )
+
+
+@router.get("/master-ledger/drivers/{driver_id}", response_model=schemas.DetailedLedgerResponse)
+async def get_driver_ledger_detail(
+    driver_id: int,
+    from_date: Optional[date] = Query(None, description="Start date of statement"),
+    to_date: Optional[date] = Query(None, description="End date of statement"),
+    search: Optional[str] = Query(None, description="Search reference or particulars"),
+    tx_type: Optional[str] = Query(None, description="Filter transaction type"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Detailed chronological ledger statement for an individual driver.
+    """
+    office_id = current_office.id if current_office else None
+    include_unassigned = current_office.is_head_office if current_office else True
+    return await master_ledger_service.get_driver_ledger_detail(
+        session,
+        driver_id=driver_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        tx_type=tx_type,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+    )
+
 

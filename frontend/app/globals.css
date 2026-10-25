@@ -4,17 +4,28 @@
 
 :root {
   /* Linear & Stripe Neutral Scale - Cool Slate Tinted */
-  --gray-25:  #F8FAFC;   /* App canvas background */
-  --gray-50:  #F1F5F9;   /* Subtle container bg, table header */
-  --gray-100: #E2E8F0;   /* Muted fills, active hover states */
-  --gray-200: #CBD5E1;   /* Primary card and divider borders */
-  --gray-300: #94A3B8;   /* Strong borders, disabled fills */
-  --gray-400: #64748B;   /* Secondary icons, muted text */
-  --gray-500: #475569;   /* Sub-labels, table meta headers */
-  --gray-600: #334155;   /* Body secondary text */
-  --gray-700: #1E293B;   /* Body primary text */
-  --gray-800: #0F172A;   /* Dark accents */
-  --gray-900: #020617;   /* Headings, high-contrast titles */
+  --gray-25: #F8FAFC;
+  /* App canvas background */
+  --gray-50: #F1F5F9;
+  /* Subtle container bg, table header */
+  --gray-100: #E2E8F0;
+  /* Muted fills, active hover states */
+  --gray-200: #CBD5E1;
+  /* Primary card and divider borders */
+  --gray-300: #94A3B8;
+  /* Strong borders, disabled fills */
+  --gray-400: #64748B;
+  /* Secondary icons, muted text */
+  --gray-500: #475569;
+  /* Sub-labels, table meta headers */
+  --gray-600: #334155;
+  /* Body secondary text */
+  --gray-700: #1E293B;
+  /* Body primary text */
+  --gray-800: #0F172A;
+  /* Dark accents */
+  --gray-900: #020617;
+  /* Headings, high-contrast titles */
 
   /* Surface & borders */
   --color-bg: var(--gray-25);
@@ -32,11 +43,16 @@
   --color-text-inverse: #FFFFFF;
 
   /* Brand / Primary (Linear/Stripe Indigo) */
-  --primary-50:  #EEF2FF;   /* active nav pill, subtle chip */
-  --primary-100: #E0E7FF;   /* hover pill */
-  --primary-500: #6366F1;   /* accent indicator */
-  --primary-600: #4F46E5;   /* primary buttons, links */
-  --primary-700: #4338CA;   /* hover/pressed */
+  --primary-50: #EEF2FF;
+  /* active nav pill, subtle chip */
+  --primary-100: #E0E7FF;
+  /* hover pill */
+  --primary-500: #6366F1;
+  /* accent indicator */
+  --primary-600: #4F46E5;
+  /* primary buttons, links */
+  --primary-700: #4338CA;
+  /* hover/pressed */
 
   --color-primary: var(--primary-600);
   --color-primary-hover: var(--primary-700);
@@ -76,17 +92,28 @@
      ======================================================================== */
 
   /* Neutral Graphite Scale */
-  --gray-25:  #0B0B0D;   /* Primary application background */
-  --gray-50:  #101013;   /* Sidebar & deepest container surface */
-  --gray-100: #17171B;   /* Card, container, and surface backgrounds */
-  --gray-200: #303036;   /* Subtle graphite hairline borders & dividers */
-  --gray-300: #42424A;   /* Distinct borders & structural frames */
-  --gray-400: #898991;   /* Muted labels, secondary icons, descriptions */
-  --gray-500: #898991;   /* Table column headers, sub-labels */
-  --gray-600: #CACAD0;   /* Secondary text, metadata */
-  --gray-700: #E1E1E6;   /* High-readability body copy */
-  --gray-800: #F5F5F7;   /* Primary text */
-  --gray-900: #FFFFFF;   /* Headings, crisp pure white titles */
+  --gray-25: #0B0B0D;
+  /* Primary application background */
+  --gray-50: #101013;
+  /* Sidebar & deepest container surface */
+  --gray-100: #17171B;
+  /* Card, container, and surface backgrounds */
+  --gray-200: #303036;
+  /* Subtle graphite hairline borders & dividers */
+  --gray-300: #42424A;
+  /* Distinct borders & structural frames */
+  --gray-400: #898991;
+  /* Muted labels, secondary icons, descriptions */
+  --gray-500: #898991;
+  /* Table column headers, sub-labels */
+  --gray-600: #CACAD0;
+  /* Secondary text, metadata */
+  --gray-700: #E1E1E6;
+  /* High-readability body copy */
+  --gray-800: #F5F5F7;
+  /* Primary text */
+  --gray-900: #FFFFFF;
+  /* Headings, crisp pure white titles */
 
   /* Surfaces & Structural Layers */
   --color-bg: #0B0B0D;
@@ -106,7 +133,7 @@
   --color-text-inverse: #0B0B0D;
 
   /* Royal Violet Primary Accent (#7C6FF7) */
-  --primary-50:  rgba(124, 111, 247, 0.12);
+  --primary-50: rgba(124, 111, 247, 0.12);
   --primary-100: rgba(124, 111, 247, 0.20);
   --primary-500: #7C6FF7;
   --primary-600: #7C6FF7;
@@ -155,7 +182,10 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-heading);
   letter-spacing: -0.02em;
   color: var(--gray-900);
@@ -215,12 +245,15 @@ input:autofill:focus {
 
 /* Hide all scrollbars globally across all browsers while maintaining smooth scrolling (except for .show-scrollbar) */
 *:not(.show-scrollbar):not(.show-scrollbar *) {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
 }
 
 *:not(.show-scrollbar):not(.show-scrollbar *)::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+  /* Chrome, Safari, Opera */
   width: 0;
   height: 0;
 }
@@ -328,17 +361,21 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
 }
+
 .custom-sidebar-scroll::-webkit-scrollbar {
   width: 4px;
 }
+
 .custom-sidebar-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-sidebar-scroll::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.25);
   border-radius: 9999px;
   transition: background 0.15s ease;
 }
+
 .custom-sidebar-scroll:hover::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.45);
 }
@@ -451,6 +488,7 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
 
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
+
   .liquid-glass-card:hover,
   .liquid-glass-btn-primary:hover {
     transform: none;
@@ -463,6 +501,7 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
     opacity: 0;
     transform: translateY(14px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -486,6 +525,7 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .animate-liquid-fade-1,
   .animate-liquid-fade-2,
   .animate-liquid-fade-3,
@@ -538,6 +578,7 @@ div.show-scrollbar::-webkit-scrollbar-thumb:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   ::view-transition-group(root),
   ::view-transition-old(root),
   ::view-transition-new(root) {
@@ -554,9 +595,9 @@ html.theme-transitioning *,
 html.theme-transitioning *::before,
 html.theme-transitioning *::after {
   transition: background-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-              border-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-              color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    border-color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1) !important;
   transition-delay: 0s !important;
 }
 
@@ -572,8 +613,8 @@ tr,
 th,
 td {
   transition: background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .ease-apple {
@@ -662,8 +703,8 @@ html.dark aside:hover {
   border-color: #303036 !important;
 }
 
-html.dark aside > div:first-child,
-html.dark aside > div:first-child:hover {
+html.dark aside>div:first-child,
+html.dark aside>div:first-child:hover {
   background-color: #101013 !important;
   background: #101013 !important;
   border-color: #303036 !important;
@@ -833,10 +874,10 @@ html.dark .border-\[\#D0D5DD\] {
   border-color: #42424A !important;
 }
 
-html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
-html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
-html.dark .divide-\[\#F2F4F7\] > :not([hidden]) ~ :not([hidden]),
-html.dark .divide-\[\#E4E7EC\] > :not([hidden]) ~ :not([hidden]) {
+html.dark .divide-slate-100> :not([hidden])~ :not([hidden]),
+html.dark .divide-slate-200> :not([hidden])~ :not([hidden]),
+html.dark .divide-\[\#F2F4F7\]> :not([hidden])~ :not([hidden]),
+html.dark .divide-\[\#E4E7EC\]> :not([hidden])~ :not([hidden]) {
   border-color: #303036 !important;
 }
 
@@ -991,6 +1032,7 @@ html.dark [class*="bg-emerald-100"] {
   background-color: rgba(52, 213, 160, 0.12) !important;
   border-color: rgba(52, 213, 160, 0.25) !important;
 }
+
 html.dark .text-emerald-800,
 html.dark .text-emerald-700,
 html.dark .text-emerald-600 {
@@ -1002,6 +1044,7 @@ html.dark [class*="bg-amber-100"] {
   background-color: rgba(245, 187, 69, 0.12) !important;
   border-color: rgba(245, 187, 69, 0.25) !important;
 }
+
 html.dark .text-amber-800,
 html.dark .text-amber-700,
 html.dark .text-amber-600 {
@@ -1013,6 +1056,7 @@ html.dark [class*="bg-rose-100"] {
   background-color: rgba(240, 117, 117, 0.12) !important;
   border-color: rgba(240, 117, 117, 0.25) !important;
 }
+
 html.dark .text-rose-800,
 html.dark .text-rose-700,
 html.dark .text-rose-600 {
@@ -1026,6 +1070,7 @@ html.dark [class*="bg-sky-100"] {
   background-color: rgba(197, 165, 255, 0.12) !important;
   border-color: rgba(197, 165, 255, 0.25) !important;
 }
+
 html.dark .text-blue-800,
 html.dark .text-blue-700,
 html.dark .text-blue-600 {
@@ -1045,12 +1090,14 @@ html.dark [class*="bg-violet-100"] {
   background-color: rgba(168, 85, 247, 0.14) !important;
   border-color: rgba(168, 85, 247, 0.25) !important;
 }
+
 html.dark .text-purple-800,
 html.dark .text-purple-700,
 html.dark .text-purple-600,
 html.dark .text-purple-500 {
   color: #C5A5FF !important;
 }
+
 html.dark .bg-purple-400,
 html.dark .bg-purple-500 {
   background-color: #A855F7 !important;
@@ -1069,10 +1116,12 @@ html.dark [class*="border-cyan-100"],
 html.dark [class*="border-sky-100"] {
   border-color: #303036 !important;
 }
+
 html.dark .text-indigo-800,
 html.dark .text-indigo-700 {
   color: #C5A5FF !important;
 }
+
 html.dark .text-indigo-600,
 html.dark .text-indigo-500 {
   color: #7C6FF7 !important;
@@ -1303,7 +1352,7 @@ html.dark aside .border-t {
   border-color: #303036 !important;
 }
 
-html.dark aside .border-t > div,
+html.dark aside .border-t>div,
 html.dark aside .border-t .bg-white {
   background-color: #17171B !important;
   background: #17171B !important;
@@ -1329,7 +1378,3 @@ html.dark aside .border-t span.text-slate-500 {
 html.dark aside .border-t .text-emerald-600 {
   color: #34D399 !important;
 }
-
-
-
-

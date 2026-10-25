@@ -45,7 +45,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
         key={officeKey}
         id="workspace-main-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-7 bg-[#F8FAFC] relative",
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-7 bg-[#F3F5FC] relative",
           activeTab === "form" ? "hidden" : "block"
         )}
       >
@@ -101,7 +101,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
       <div
         id="workspace-form-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-7 bg-[#F8FAFC] relative",
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-4 sm:p-6 lg:p-7 bg-[#F3F5FC] relative",
           activeTab === "form" ? "block" : "hidden"
         )}
       />
@@ -130,7 +130,7 @@ export default function DashboardLayout({
   // While verifying authentication or if unauthenticated, do NOT render Sidebar, Header, or Dashboard content
   if (!isAuthenticated) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#F8FAFC]">
+      <div className="flex h-screen w-full items-center justify-center bg-[#F3F5FC]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-medium text-slate-500 font-mono">
@@ -143,7 +143,7 @@ export default function DashboardLayout({
 
   return (
     <WorkspaceTabsProvider>
-      <div className="flex h-screen h-[100dvh] max-h-screen w-full overflow-hidden bg-[#F8FAFC]">
+      <div className="flex h-screen h-[100dvh] max-h-screen w-full overflow-hidden bg-[#F3F5FC]">
         {/* Sidebar Navigation - Always accessible & unblocked */}
         <Sidebar />
 

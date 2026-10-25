@@ -78,7 +78,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setThemeState(nextTheme);
         try {
           localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-        } catch {}
+        } catch { }
       }, 50);
 
       // 3. Fade out loading screen smoothly after backing has rendered
@@ -113,7 +113,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (stored === "dark" || stored === "light") {
         initialTheme = stored;
       }
-    } catch {}
+    } catch { }
     setThemeState(initialTheme);
 
     const root = document.documentElement;
@@ -196,9 +196,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
       {switchingTheme && (
         <div
-          className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center transition-opacity duration-200 pointer-events-auto select-none ${
-            isFadingOut ? "opacity-0" : "opacity-100"
-          }`}
+          className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center transition-opacity duration-200 pointer-events-auto select-none ${isFadingOut ? "opacity-0" : "opacity-100"
+            }`}
           style={{
             backgroundColor: switchingTheme === "dark" ? "#0B0B0D" : "#F8FAFC",
             color: switchingTheme === "dark" ? "#F5F5F7" : "#0F172A",

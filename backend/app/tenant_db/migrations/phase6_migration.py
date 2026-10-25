@@ -70,6 +70,13 @@ async def run_migration():
             ]:
                 await conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col};"))
             await conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+            # Master Ledger Party Reference Columns
+            await conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
+            await conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS vendor_id INTEGER REFERENCES general_vendors(id);"))
+            await conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS driver_id INTEGER REFERENCES transport_drivers(id);"))
+            await conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
+            await conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS vendor_id INTEGER REFERENCES general_vendors(id);"))
+            await conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS driver_id INTEGER REFERENCES transport_drivers(id);"))
 
         if target_db != demo_db:
             from app.modules.settings.series_service import initialize_all_standard_series

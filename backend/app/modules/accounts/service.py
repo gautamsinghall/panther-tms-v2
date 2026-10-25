@@ -91,6 +91,9 @@ async def get_vouchers(
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
         selectinload(Voucher.issuing_office),
+        selectinload(Voucher.billing_client),
+        selectinload(Voucher.vendor),
+        selectinload(Voucher.driver),
     ).order_by(Voucher.id.desc())
 
     if voucher_type:
@@ -123,6 +126,9 @@ async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
         selectinload(Voucher.issuing_office),
+        selectinload(Voucher.billing_client),
+        selectinload(Voucher.vendor),
+        selectinload(Voucher.driver),
     ).where(Voucher.id == voucher_id)
     res = await session.execute(stmt)
     voucher = res.scalar_one_or_none()
@@ -156,6 +162,24 @@ async def post_voucher(session: AsyncSession, data: VoucherCreate, office_id: Op
     if net_amt == Decimal("0.00") and tot_amt > Decimal("0.00"):
         net_amt = tot_amt + tax_amt
 
+    # Auto-resolve party account if party link is provided but account_id is not
+    party_acc_id = data.account_id
+    b_client_id = getattr(data, "billing_client_id", None)
+    v_vendor_id = getattr(data, "vendor_id", None)
+    d_driver_id = getattr(data, "driver_id", None)
+
+    if not party_acc_id:
+        from app.modules.accounts.master_ledger_service import get_or_create_party_account
+        if b_client_id:
+            c_acc = await get_or_create_party_account(session, "BILLING_CLIENT", b_client_id, data.party_name or "Billing Client")
+            party_acc_id = c_acc.id
+        elif v_vendor_id:
+            vend_acc = await get_or_create_party_account(session, "VENDOR", v_vendor_id, data.party_name or "Vendor")
+            party_acc_id = vend_acc.id
+        elif d_driver_id:
+            drv_acc = await get_or_create_party_account(session, "DRIVER", d_driver_id, data.party_name or "Driver")
+            party_acc_id = drv_acc.id
+
     voucher = Voucher(
         voucher_number=v_num,
         voucher_type=data.voucher_type,
@@ -168,10 +192,13 @@ async def post_voucher(session: AsyncSession, data: VoucherCreate, office_id: Op
         tax_amount=tax_amt,
         net_amount=net_amt,
         narration=data.narration,
-        account_id=data.account_id,
+        account_id=party_acc_id,
         lr_id=data.lr_id,
         hire_challan_id=data.hire_challan_id,
         issuing_office_id=target_office_id,
+        billing_client_id=b_client_id,
+        vendor_id=v_vendor_id,
+        driver_id=d_driver_id,
     )
     session.add(voucher)
     await session.flush()
@@ -191,7 +218,7 @@ async def post_voucher(session: AsyncSession, data: VoucherCreate, office_id: Op
         session.add(v_item)
 
     # Double-entry ledger entries posting
-    debit_acc_id = data.account_id
+    debit_acc_id = party_acc_id
     credit_acc_id = data.credit_account_id
 
     if data.voucher_type == VoucherType.TRANSPORT_INVOICE.value:
@@ -493,6 +520,7 @@ async def create_transport_invoice_from_lr(
 
     party_name = lr.consigner.name if lr.consigner else (lr.consignee.name if lr.consignee else "Transport Client")
     target_office = office_id or lr.issuing_office_id
+    billing_client_id = data.billing_client_id or lr.billing_customer_id or (lr.job.billing_client_id if getattr(lr, "job", None) else None)
 
     voucher_create = VoucherCreate(
         voucher_number=data.voucher_number or data.invoice_number,
@@ -510,6 +538,7 @@ async def create_transport_invoice_from_lr(
         lr_id=lr.id,
         issuing_office_id=target_office,
         series_id=data.series_id,
+        billing_client_id=billing_client_id,
         items=all_items,
     )
 
@@ -543,6 +572,8 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate, offi
         credit_account_id=bank_id,
         hire_challan_id=hc.id,
         lr_id=hc.lr_id,
+        driver_id=hc.driver_id,
+        vendor_id=hc.owner_id,
         issuing_office_id=target_office,
         items=[],
     )
@@ -582,6 +613,8 @@ async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate, offi
         credit_account_id=bank_id,
         hire_challan_id=hc.id,
         lr_id=hc.lr_id,
+        driver_id=hc.driver_id,
+        vendor_id=hc.owner_id,
         issuing_office_id=target_office,
         items=[],
     )

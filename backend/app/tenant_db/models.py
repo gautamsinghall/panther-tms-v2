@@ -1244,6 +1244,9 @@ class Account(TenantBase):
     consignee_id = Column(Integer, ForeignKey("general_consignees.id"), nullable=True)
     consigner_id = Column(Integer, ForeignKey("general_consigners.id"), nullable=True)
     vehicle_owner_id = Column(Integer, ForeignKey("transport_vehicle_owners.id"), nullable=True)
+    billing_client_id = Column(Integer, ForeignKey("general_billing_clients.id"), nullable=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True, index=True)
+    driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -1256,6 +1259,9 @@ class Account(TenantBase):
     group = relationship("GroupInPrimary", back_populates="accounts")
     subgroup = relationship("SubgroupInGroup", back_populates="accounts")
     ledger_entries = relationship("LedgerEntry", back_populates="account")
+    billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
+    vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")
+    driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
 
 
 class EmployeeMaster(TenantBase):
@@ -1386,6 +1392,9 @@ class Voucher(TenantBase):
     hire_challan_id = Column(Integer, ForeignKey("transport_hire_challans.id"), nullable=True)
     account_id = Column(Integer, ForeignKey("misc_accounts.id"), nullable=True)  # Primary party ledger account
     issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
+    billing_client_id = Column(Integer, ForeignKey("general_billing_clients.id"), nullable=True, index=True)
+    vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True, index=True)
+    driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -1401,6 +1410,9 @@ class Voucher(TenantBase):
     hire_challan = relationship("HireChallan", lazy="selectin")
     einvoice = relationship("EInvoiceRecord", back_populates="voucher", uselist=False, lazy="selectin")
     issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
+    billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
+    vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")
+    driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
 
 
 class VoucherItem(TenantBase):

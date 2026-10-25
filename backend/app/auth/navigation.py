@@ -124,6 +124,7 @@ ALL_NAVIGATION_MODULES = [
             {"feature": "payment_voucher", "title": "Payment Voucher", "href": "/accounts/payment-voucher"},
             {"feature": "contra_voucher", "title": "Contra Voucher", "href": "/accounts/contra-voucher"},
             {"feature": "credit_debit_notes", "title": "Credit / Debit Note", "href": "/accounts/credit-debit-notes"},
+            {"feature": "master_ledger", "title": "Master Ledger", "href": "/accounts/master-ledger"},
         ],
     },
     {

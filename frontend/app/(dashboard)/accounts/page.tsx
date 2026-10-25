@@ -14,6 +14,7 @@ import {
   Split,
   ArrowRight,
   Plus,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,13 @@ export default function AccountsOverviewPage() {
     .reduce((sum, v) => sum + Number(v.net_amount || 0), 0);
 
   const modules = [
+    {
+      title: "Master Ledger",
+      desc: "Complete financial ledgers and statements for Billing Clients, Vendors, and Drivers.",
+      href: "/accounts/master-ledger",
+      icon: <BookOpen className="w-5 h-5 text-[#4F46E5]" />,
+      badge: "Core Ledgers",
+    },
     {
       title: "Transport Invoice",
       desc: "Convert operational LR bookings to freight invoices with automated double-entry postings.",

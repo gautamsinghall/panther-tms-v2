@@ -206,6 +206,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "payment_voucher", title: "Payment Voucher", href: "/accounts/payment-voucher" },
       { feature: "contra_voucher", title: "Contra Voucher", href: "/accounts/contra-voucher" },
       { feature: "credit_debit_notes", title: "Credit / Debit Note", href: "/accounts/credit-debit-notes" },
+      { feature: "master_ledger", title: "Master Ledger", href: "/accounts/master-ledger" },
     ],
   },
   {
@@ -380,6 +381,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/accounts/payment-voucher": ArrowUpRight,
   "/accounts/contra-voucher": ArrowLeftRight,
   "/accounts/credit-debit-notes": Coins,
+  "/accounts/master-ledger": BookOpen,
 
   // Misc
   "/misc/primary-group": Folder,
@@ -492,6 +494,7 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   payment_voucher: ArrowUpRight,
   contra_voucher: ArrowLeftRight,
   credit_debit_notes: Coins,
+  master_ledger: BookOpen,
   primary_group: Folder,
   group_in_primary: FolderTree,
   subgroup: GitBranch,
@@ -552,6 +555,30 @@ function getSubItemIcon(sub: NavSubItem): React.ComponentType<{ className?: stri
   return CircleDot;
 }
 
+function normalizeNavGroups(groups: NavGroup[]): NavGroup[] {
+  return groups.map((g) => {
+    let items = g.items?.map((it) => {
+      if (it.href === "/tracking/sim" || it.href === "/transport/tracking" || it.feature === "tracking") {
+        return { ...it, title: "Sim Based Tracking" };
+      }
+      if (it.href === "/tracking/fastag" || it.href === "/transport/tracking/fastag" || it.feature === "fastag_tracking") {
+        return { ...it, title: "FASTag Tracking" };
+      }
+      return it;
+    }) || [];
+
+    // Ensure Master Ledger is always present under Accounts module
+    if (g.id === "accounts" && !items.some((it) => it.href === "/accounts/master-ledger" || it.feature === "master_ledger")) {
+      items = [
+        ...items,
+        { feature: "master_ledger", title: "Master Ledger", href: "/accounts/master-ledger" },
+      ];
+    }
+
+    return { ...g, items };
+  });
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { isFormOpen, closeFormTab, setActiveTab } = useWorkspaceTabs();
@@ -559,10 +586,10 @@ export function Sidebar() {
     if (typeof window !== "undefined") {
       const cached = getStoredNavigation();
       if (cached && Array.isArray(cached) && cached.length > 0) {
-        return cached;
+        return normalizeNavGroups(cached);
       }
     }
-    return [];
+    return normalizeNavGroups(ALL_NAVIGATION_MODULES);
   });
   const [isLoadingNav, setIsLoadingNav] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -649,18 +676,7 @@ export function Sidebar() {
       try {
         const data = await apiClient<NavGroup[]>("/api/v1/auth/navigation");
         if (isMounted && Array.isArray(data)) {
-          const normalized = data.map((g) => ({
-            ...g,
-            items: g.items?.map((it) => {
-              if (it.href === "/tracking/sim" || it.href === "/transport/tracking" || it.feature === "tracking") {
-                return { ...it, title: "Sim Based Tracking" };
-              }
-              if (it.href === "/tracking/fastag" || it.href === "/transport/tracking/fastag" || it.feature === "fastag_tracking") {
-                return { ...it, title: "FASTag Tracking" };
-              }
-              return it;
-            }),
-          }));
+          const normalized = normalizeNavGroups(data);
           setNavGroups(normalized);
           updateStoredNavigation(normalized);
           const expanded: Record<string, boolean> = {};
@@ -678,7 +694,9 @@ export function Sidebar() {
           // Auth error: handled by apiClient / auth guard redirecting to /login
           return;
         }
-        // Fallback retained for non-auth errors (e.g. temporary network glitch)
+        if (isMounted) {
+          setNavGroups((prev) => (prev.length > 0 ? prev : normalizeNavGroups(ALL_NAVIGATION_MODULES)));
+        }
       } finally {
         if (isMounted) {
           setIsLoadingNav(false);

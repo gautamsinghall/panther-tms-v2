@@ -22,6 +22,7 @@ import {
   Percent,
   Layers,
   Loader2,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -156,6 +157,15 @@ const COMMAND_ITEMS: CommandItem[] = [
     href: "/accounts/purchases",
     icon: <Receipt className="w-4 h-4 text-[#027A48]" />,
     keywords: ["purchase", "bill", "vendor", "supplier"],
+  },
+  {
+    id: "master-ledger",
+    title: "Master Ledger",
+    description: "Automated ledgers for Billing Clients, Vendors, and Drivers",
+    category: "Accounts",
+    href: "/accounts/master-ledger",
+    icon: <BookOpen className="w-4 h-4 text-[#4F46E5]" />,
+    keywords: ["master ledger", "ledger", "client ledger", "vendor ledger", "driver ledger", "statement", "receivable", "payable"],
   },
 
   // General & Masters

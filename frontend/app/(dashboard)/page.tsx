@@ -88,7 +88,7 @@ function MetricKpiCard({
   barHeights,
 }: MetricKpiProps) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] hover:shadow-[0_4px_20px_rgba(15,23,42,0.06)] transition-all flex flex-col justify-between">
+    <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] hover:shadow-[0_4px_20px_rgba(23,36,67,0.06)] transition-all flex flex-col justify-between">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3.5">
           <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs", iconBg)}>
@@ -819,7 +819,7 @@ export default function DashboardPage() {
           {/* Row 2: Revenue Trend Chart & Dispatch Funnel Pipeline */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: Revenue & Booking Trajectory (~63% width) */}
-            <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+            <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3">
                 <div className="flex items-center gap-3">
@@ -867,7 +867,7 @@ export default function DashboardPage() {
               {/* Chart Canvas with Callout Tooltip */}
               <div className="relative pt-4 pb-1 w-full h-[250px]">
                 {/* Floating Tooltip Callout on Sep 2026 matching reference */}
-                <div className="absolute right-8 top-12 bg-white rounded-xl border border-slate-200 px-3.5 py-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.08)] pointer-events-none z-10 hidden sm:block">
+                <div className="absolute right-8 top-12 bg-white rounded-xl border border-slate-200 px-3.5 py-1.5 shadow-[0_4px_16px_rgba(23,36,67,0.08)] pointer-events-none z-10 hidden sm:block">
                   <div className="text-[10px] text-slate-400 font-medium">Sep 2026</div>
                   <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 mt-0.5 font-mono">
                     <span className="w-2 h-2 rounded-full bg-indigo-600" />
@@ -919,7 +919,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Right: Dispatch Funnel Pipeline (~37% width) */}
-            <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+            <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
               {/* Header */}
               <div className="flex items-center justify-between pb-3">
                 <div className="flex items-center gap-3">
@@ -995,7 +995,7 @@ export default function DashboardPage() {
           {/* Row 3: Top Freight Corridors, Recent Movements & Quick Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: Top Freight Corridors (~36% width / 4.2 cols) */}
-            <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+            <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
               <div className="flex items-center justify-between pb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center shrink-0">
@@ -1057,7 +1057,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Center: Recent Consignment Movements (~42% width / 5 cols) */}
-            <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+            <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
               <div className="flex items-center justify-between pb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
@@ -1144,7 +1144,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Right: Quick Actions (~25% width / 3 cols) */}
-            <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+            <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
               <div className="pb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
