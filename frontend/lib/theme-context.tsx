@@ -173,18 +173,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [theme, applyThemeWithTransition]);
 
-  // Keyboard shortcut listener: Ctrl+Shift+D or Cmd+Shift+D to toggle theme
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "d") {
-        if (isAuthPage || isSwitchingRef.current) return;
-        e.preventDefault();
-        toggleTheme();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAuthPage, toggleTheme]);
 
   const value: ThemeContextType = {
     theme: isAuthPage ? "light" : theme,

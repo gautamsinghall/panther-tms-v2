@@ -4,7 +4,6 @@ import React from "react";
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
 import { cn } from "@/lib/utils";
-import { Tooltip } from "@/components/ui/tooltip";
 
 export interface ThemeToggleProps {
   className?: string;
@@ -39,9 +38,6 @@ export function ThemeToggle({
           )}
           <span>{isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}</span>
         </div>
-        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#131317] text-slate-500 dark:text-[#898991] border border-slate-200 dark:border-[#303036]">
-          Ctrl+Shift+D
-        </kbd>
       </button>
     );
   }
@@ -76,51 +72,39 @@ export function ThemeToggle({
 
   // Default: Icon button for Top Header
   return (
-    <Tooltip
-      content={
-        <div className="flex items-center gap-2 text-xs">
-          <span>{isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}</span>
-          <kbd className="text-[10px] font-mono bg-white/20 dark:bg-[#26262D] px-1 py-0.2 rounded text-white/90 dark:text-[#F5F5F7]">
-            Ctrl+Shift+D
-          </kbd>
-        </div>
-      }
-      side="bottom"
+    <button
+      type="button"
+      onClick={(e) => toggleTheme(e)}
+      aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      className={cn(
+        "relative w-9 h-9 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer select-none group focus:outline-none active:scale-95",
+        isDark
+          ? "bg-[#17171B] hover:bg-[#26262D] border-[#303036] hover:border-[#42424A] text-[#F5BB45]"
+          : "bg-slate-50 hover:bg-white border-slate-200/90 hover:border-slate-300 text-slate-600 hover:text-indigo-600 shadow-2xs",
+        className
+      )}
     >
-      <button
-        type="button"
-        onClick={(e) => toggleTheme(e)}
-        aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        className={cn(
-          "relative p-2 rounded-xl border transition-all duration-200 cursor-pointer select-none group focus:outline-none active:scale-95",
-          isDark
-            ? "bg-[#17171B] hover:bg-[#26262D] border-[#303036] hover:border-[#42424A] text-[#F5BB45]"
-            : "bg-slate-50 hover:bg-white border-slate-200/90 hover:border-slate-300 text-slate-600 hover:text-indigo-600 shadow-2xs",
-          className
-        )}
-      >
-        <div className="relative w-4 h-4 flex items-center justify-center overflow-hidden">
-          {/* Sun Icon (rotates and scales out when switching to light mode, active in dark) */}
-          <Sun
-            className={cn(
-              "w-4 h-4 transition-all duration-350 ease-apple absolute transform",
-              isDark
-                ? "rotate-0 scale-100 opacity-100 text-[#F5BB45]"
-                : "rotate-45 scale-50 opacity-0 text-slate-400"
-            )}
-          />
+      <div className="relative w-4 h-4 flex items-center justify-center overflow-hidden">
+        {/* Sun Icon (rotates and scales out when switching to light mode, active in dark) */}
+        <Sun
+          className={cn(
+            "w-4 h-4 transition-all duration-350 ease-apple absolute transform",
+            isDark
+              ? "rotate-0 scale-100 opacity-100 text-[#F5BB45]"
+              : "rotate-45 scale-50 opacity-0 text-slate-400"
+          )}
+        />
 
-          {/* Moon Icon (rotates and scales in when in light mode, active in light) */}
-          <Moon
-            className={cn(
-              "w-4 h-4 transition-all duration-350 ease-apple absolute transform",
-              isDark
-                ? "-rotate-45 scale-50 opacity-0 text-slate-400"
-                : "rotate-0 scale-100 opacity-100 text-slate-600 group-hover:text-indigo-600"
-            )}
-          />
-        </div>
-      </button>
-    </Tooltip>
+        {/* Moon Icon (rotates and scales in when in light mode, active in light) */}
+        <Moon
+          className={cn(
+            "w-4 h-4 transition-all duration-350 ease-apple absolute transform",
+            isDark
+              ? "-rotate-45 scale-50 opacity-0 text-slate-400"
+              : "rotate-0 scale-100 opacity-100 text-slate-600 group-hover:text-indigo-600"
+          )}
+        />
+      </div>
+    </button>
   );
 }

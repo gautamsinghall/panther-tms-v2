@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
-import { Tooltip } from "@/components/ui/tooltip";
 
 interface NotificationItem {
   id: string;
@@ -137,32 +136,30 @@ export function NotificationsPopover() {
   };
 
   return (
-    <div className="relative inline-block" ref={popoverRef}>
+    <div className="relative flex items-center" ref={popoverRef}>
       {/* Bell Trigger Button */}
-      <Tooltip content="Notifications" side="bottom">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            "relative p-2 rounded-xl border transition-all duration-200 cursor-pointer select-none group focus:outline-none",
-            "bg-slate-50 hover:bg-white border-slate-200/90 hover:border-slate-300 text-slate-600 hover:text-indigo-600 shadow-2xs",
-            "dark:bg-[#17171B] dark:hover:bg-[#26262D] dark:border-[#303036] dark:hover:border-[#42424A] dark:text-[#CACAD0] dark:hover:text-[#F5F5F7]",
-            isOpen && "bg-white border-slate-300 text-indigo-600 dark:bg-[#26262D] dark:border-[#42424A] dark:text-[#F5F5F7]"
-          )}
-          aria-label="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#4F46E5] dark:bg-[#7C6FF7] text-white text-[10px] font-bold font-mono flex items-center justify-center absolute -top-1 -right-1 shadow-xs ring-2 ring-white dark:ring-[#111114]">
-              {unreadCount}
-            </span>
-          )}
-        </button>
-      </Tooltip>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "relative w-9 h-9 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer select-none group focus:outline-none active:scale-95",
+          "bg-slate-50 hover:bg-white border-slate-200/90 hover:border-slate-300 text-slate-600 hover:text-indigo-600 shadow-2xs",
+          "dark:bg-[#17171B] dark:hover:bg-[#26262D] dark:border-[#303036] dark:hover:border-[#42424A] dark:text-[#CACAD0] dark:hover:text-[#F5F5F7]",
+          isOpen && "bg-white border-slate-300 text-indigo-600 dark:bg-[#26262D] dark:border-[#42424A] dark:text-[#F5F5F7]"
+        )}
+        aria-label="Notifications"
+      >
+        <Bell className="w-4 h-4" />
+        {unreadCount > 0 && (
+          <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#4F46E5] dark:bg-[#7C6FF7] text-white text-[10px] font-bold font-mono flex items-center justify-center absolute -top-1 -right-1 shadow-xs ring-2 ring-white dark:ring-[#111114]">
+            {unreadCount}
+          </span>
+        )}
+      </button>
 
       {/* Popover Card */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] shadow-floating z-50 animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] shadow-floating z-50 animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] flex items-center justify-between">
             <div className="flex items-center gap-2">

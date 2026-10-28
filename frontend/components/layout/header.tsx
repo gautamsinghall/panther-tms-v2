@@ -93,7 +93,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-72 lg:w-[420px] transition-all text-left cursor-pointer group select-none ring-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+          className="hidden md:flex items-center gap-2.5 px-3 h-9 rounded-xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-72 lg:w-[420px] transition-all text-left cursor-pointer group select-none ring-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none"
           style={{ outline: "none" }}
           title="Search records (Ctrl + K)"
         >
@@ -110,20 +110,20 @@ export function Header() {
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="md:hidden p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+          className="md:hidden w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
           title="Search records"
           aria-label="Search records"
         >
           <Search className="w-4 h-4" />
         </button>
 
-        {/* Interactive Notification Bell Popover */}
-        <NotificationsPopover />
+        {/* Action Controls: Notifications & Theme Switch */}
+        <div className="flex items-center gap-2">
+          <NotificationsPopover />
+          <ThemeToggle />
+        </div>
 
-        {/* Premium Light/Dark Theme Switch */}
-        <ThemeToggle />
-
-        <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10" />
+        <div className="h-5 w-[1px] bg-slate-200 dark:bg-white/10" />
 
         {/* User Profile Menu */}
         <DropdownMenu
