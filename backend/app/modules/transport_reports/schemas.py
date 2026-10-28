@@ -6,18 +6,33 @@ from pydantic import BaseModel, ConfigDict
 class LRRegisterRow(BaseModel):
     id: int
     lr_number: str
-    lr_date: date
+    lr_date: Optional[date] = None
     consigner_name: Optional[str] = None
     consignee_name: Optional[str] = None
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None
-    vehicle_number: str
-    package_count: int
-    actual_weight_mt: Decimal
-    total_freight_amount: Decimal
-    advance_amount: Decimal
-    balance_amount: Decimal
-    status: str
+    vehicle_number: Optional[str] = None
+    package_count: Optional[int] = 0
+    actual_weight_mt: Optional[Decimal] = Decimal("0.000")
+    chargeable_weight_mt: Optional[Decimal] = Decimal("0.000")
+    freight_rate: Optional[Decimal] = Decimal("0.00")
+    freight_amount: Optional[Decimal] = Decimal("0.00")
+    total_freight_amount: Optional[Decimal] = Decimal("0.00")
+    advance_amount: Optional[Decimal] = Decimal("0.00")
+    balance_amount: Optional[Decimal] = Decimal("0.00")
+    status: Optional[str] = None
+    issuing_office_name: Optional[str] = None
+    booking_status: Optional[str] = None
+    client_name: Optional[str] = None
+    party_invoice_no: Optional[str] = None
+    site_from: Optional[str] = None
+    site_to: Optional[str] = None
+    eway_bill_number: Optional[str] = None
+    payment_terms: Optional[str] = None
+    payment_type: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

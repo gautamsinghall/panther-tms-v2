@@ -1,5 +1,6 @@
+from datetime import date
 from typing import List, Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db
 from app.auth.dependencies import require_permission, get_current_office
@@ -15,13 +16,23 @@ router = APIRouter(prefix="/transport-reports", tags=["Transport Reports"])
 
 @router.get("/lr-register", response_model=List[LRRegisterRow], summary="LR Booking Register")
 async def get_lr_booking_register(
+    from_date: Optional[date] = Query(None, description="Start date for LR filter"),
+    to_date: Optional[date] = Query(None, description="End date for LR filter"),
+    customer_id: Optional[int] = Query(None, description="Filter by customer / billing client ID"),
     current_user: User = Depends(require_permission("transport_reports", "lr_register", "view")),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
-    return await service.get_lr_booking_register(db, office_id=office_id, include_unassigned=include_unassigned)
+    return await service.get_lr_booking_register(
+        db,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+        from_date=from_date,
+        to_date=to_date,
+        customer_id=customer_id,
+    )
 
 @router.get("/lr-client-wise", response_model=List[LRClientWiseRow], summary="LR Client-Wise Summary")
 async def get_lr_client_wise(

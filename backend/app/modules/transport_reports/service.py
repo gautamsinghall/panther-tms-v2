@@ -18,35 +18,95 @@ async def get_lr_booking_register(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    customer_id: Optional[int] = None,
 ) -> List[LRRegisterRow]:
-    stmt = select(LR).order_by(desc(LR.created_at))
+    stmt = select(LR).order_by(desc(LR.lr_date), desc(LR.id))
     if office_id:
         if include_unassigned:
             stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
         else:
             stmt = stmt.where(LR.issuing_office_id == office_id)
+
+    if from_date:
+        stmt = stmt.where(LR.lr_date >= from_date)
+    if to_date:
+        stmt = stmt.where(LR.lr_date <= to_date)
+    if customer_id:
+        stmt = stmt.where(or_(LR.billing_customer_id == customer_id, LR.consigner_id == customer_id))
+
     result = await db.execute(stmt)
     lrs = result.scalars().all()
-    
-    return [
-        LRRegisterRow(
-            id=lr.id,
-            lr_number=lr.lr_number,
-            lr_date=lr.lr_date,
-            consigner_name=lr.consigner.name if lr.consigner else None,
-            consignee_name=lr.consignee.name if lr.consignee else None,
-            origin_city=lr.origin_location.city_name if lr.origin_location else None,
-            destination_city=lr.destination_location.city_name if lr.destination_location else None,
-            vehicle_number=lr.vehicle_number,
-            package_count=lr.package_count,
-            actual_weight_mt=lr.actual_weight_mt,
-            total_freight_amount=lr.total_freight_amount,
-            advance_amount=lr.advance_amount,
-            balance_amount=lr.balance_amount,
-            status=lr.status,
+
+    rows: List[LRRegisterRow] = []
+    for lr in lrs:
+        # Issuing Office
+        office_name = lr.issuing_office.name if getattr(lr, "issuing_office", None) else "HEAD OFFICE-DELHI"
+
+        # Client Name (Billing Client or Consigner)
+        client_name = "N/A"
+        if getattr(lr, "billing_customer", None) and lr.billing_customer.name:
+            client_name = lr.billing_customer.name
+        elif getattr(lr, "consigner", None) and lr.consigner.name:
+            client_name = lr.consigner.name
+
+        # Site From: "City(State)"
+        site_from = None
+        if getattr(lr, "origin_location", None):
+            city = lr.origin_location.city_name or ""
+            st = lr.origin_location.state or ""
+            site_from = f"{city}({st})" if st else city
+        elif lr.origin_city if hasattr(lr, "origin_city") else None:
+            site_from = lr.origin_city
+
+        # Site To: "City(State)"
+        site_to = None
+        if getattr(lr, "destination_location", None):
+            city = lr.destination_location.city_name or ""
+            st = lr.destination_location.state or ""
+            site_to = f"{city}({st})" if st else city
+        elif lr.destination_city if hasattr(lr, "destination_city") else None:
+            site_to = lr.destination_city
+
+        # GR Status
+        gr_status = lr.booking_status or (lr.status.replace("_", " ").title() if lr.status else "Booked")
+
+        rows.append(
+            LRRegisterRow(
+                id=lr.id,
+                lr_number=lr.lr_number,
+                lr_date=lr.lr_date,
+                consigner_name=lr.consigner.name if getattr(lr, "consigner", None) else None,
+                consignee_name=lr.consignee.name if getattr(lr, "consignee", None) else None,
+                origin_city=lr.origin_location.city_name if getattr(lr, "origin_location", None) else None,
+                destination_city=lr.destination_location.city_name if getattr(lr, "destination_location", None) else None,
+                vehicle_number=lr.vehicle_number or "",
+                package_count=lr.package_count or 0,
+                actual_weight_mt=lr.actual_weight_mt or Decimal("0.000"),
+                chargeable_weight_mt=lr.chargeable_weight_mt or Decimal("0.000"),
+                freight_rate=lr.freight_rate or Decimal("0.00"),
+                freight_amount=lr.freight_amount or Decimal("0.00"),
+                total_freight_amount=lr.total_freight_amount or Decimal("0.00"),
+                advance_amount=lr.advance_amount or Decimal("0.00"),
+                balance_amount=lr.balance_amount or Decimal("0.00"),
+                status=lr.status or "BOOKED",
+                issuing_office_name=office_name,
+                booking_status=gr_status,
+                client_name=client_name,
+                party_invoice_no=lr.invoice_no or "",
+                site_from=site_from,
+                site_to=site_to,
+                eway_bill_number=lr.eway_bill_number or "",
+                payment_terms=lr.payment_terms or "",
+                payment_type=lr.payment_type or lr.payment_terms or "",
+                vehicle_type=lr.vehicle_type or "",
+                driver_name=lr.driver_name or "",
+                driver_phone=lr.driver_phone or "",
+            )
         )
-        for lr in lrs
-    ]
+
+    return rows
 
 # 2. LR Client-Wise (Consigner & Consignee aggregation)
 async def get_lr_client_wise(
