@@ -108,6 +108,7 @@ class VoucherResponse(VoucherBase):
     billing_client_name: Optional[str] = None
     vendor_name: Optional[str] = None
     driver_name: Optional[str] = None
+    party_gstin: Optional[str] = None
     irn: Optional[str] = None
     irn_status: Optional[str] = None
     items: List[VoucherItemResponse] = []

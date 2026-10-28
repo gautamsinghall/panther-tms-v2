@@ -14,6 +14,7 @@ router = APIRouter(
 
 def map_einvoice_response(rec) -> schemas.EInvoiceResponse:
     resp = schemas.EInvoiceResponse.model_validate(rec)
+    resp.ack_no = rec.ack_number
     if rec.voucher:
         resp.voucher_number = rec.voucher.voucher_number
         resp.party_name = rec.voucher.party_name

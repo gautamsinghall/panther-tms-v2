@@ -70,6 +70,10 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.billing_client_name = v.billing_client.name if getattr(v, "billing_client", None) else None
     resp.vendor_name = v.vendor.name if getattr(v, "vendor", None) else None
     resp.driver_name = v.driver.name if getattr(v, "driver", None) else None
+    resp.party_gstin = (
+        v.billing_client.gstin if getattr(v, "billing_client", None) and v.billing_client.gstin
+        else (v.vendor.gstin if getattr(v, "vendor", None) and v.vendor.gstin else None)
+    )
 
     # Map item details
     for idx, itm in enumerate(v.items):

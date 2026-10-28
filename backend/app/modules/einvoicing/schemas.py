@@ -24,6 +24,7 @@ class EInvoiceResponse(BaseModel):
     net_amount: Optional[Decimal] = None
     irn: str
     ack_number: str
+    ack_no: Optional[str] = None
     ack_date: datetime
     signed_qr_code: Optional[str] = None
     status: str

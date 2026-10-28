@@ -688,6 +688,31 @@ html.dark .bg-slate-200\/80 {
   transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
+/* Inset Containers & Wells - Light Mode Reset */
+html:not(.dark) .bg-slate-50,
+html:not(.dark) .bg-slate-50\/50,
+html:not(.dark) .bg-slate-50\/60,
+html:not(.dark) .bg-slate-50\/70,
+html:not(.dark) .bg-slate-50\/80,
+html:not(.dark) .bg-slate-50\/90,
+html:not(.dark) .bg-\[\#F8F9FB\],
+html:not(.dark) .bg-\[\#F8F9FA\] {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+html:not(.dark) .bg-slate-100,
+html:not(.dark) .bg-slate-100\/60,
+html:not(.dark) .bg-slate-100\/70,
+html:not(.dark) .bg-slate-100\/80,
+html:not(.dark) .bg-slate-100\/90,
+html:not(.dark) .bg-slate-200\/50,
+html:not(.dark) .bg-slate-200\/60,
+html:not(.dark) .bg-slate-200\/80 {
+  background-color: #F1F5F9 !important;
+  border-color: #E2E8F0 !important;
+}
+
 /* 4. Top Header & Sidebar Navigation */
 html.dark header {
   background-color: #111114 !important;
@@ -1024,6 +1049,34 @@ html.dark table tbody tr.bg-indigo-50\/70:hover {
 html.dark table tbody td {
   color: #F5F5F7 !important;
   border-color: #303036 !important;
+}
+
+/* Light Mode Data Tables: Guaranteed crisp reset when switching from Dark to Light */
+html:not(.dark) table thead,
+html:not(.dark) table thead tr,
+html:not(.dark) table thead th {
+  background-color: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  color: #64748B !important;
+}
+
+html:not(.dark) table tbody tr {
+  background-color: #FFFFFF !important;
+}
+
+html:not(.dark) table tbody tr:hover {
+  background-color: rgba(248, 250, 252, 0.8) !important;
+}
+
+html:not(.dark) table tbody td {
+  color: #0F172A !important;
+  border-color: #F1F5F9 !important;
+}
+
+html:not(.dark) div:has(> table),
+html:not(.dark) div:has(> div > table) {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
 }
 
 /* 10. Status Badges & Pill Tints (Semantic Muted Status System) */

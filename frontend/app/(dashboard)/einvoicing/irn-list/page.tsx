@@ -19,7 +19,8 @@ interface EInvoiceRecord {
   party_name?: string;
   net_amount?: string | number;
   irn: string;
-  ack_no: string;
+  ack_no?: string;
+  ack_number?: string;
   ack_date: string;
   status: string;
   cancel_reason?: string;
@@ -107,7 +108,7 @@ export default function IRNListPage() {
       cell: (row) => (
         <div>
           <span className="font-mono text-xs text-text-primary font-medium block">
-            #{row.ack_no}
+            #{row.ack_no || row.ack_number}
           </span>
           <span className="text-xs text-text-muted mt-0.5 block">
             {row.party_name || "Direct Customer"}

@@ -28,7 +28,8 @@ interface EInvoiceResponse {
   voucher_id: number;
   voucher_number?: string;
   irn: string;
-  ack_no: string;
+  ack_no?: string;
+  ack_number?: string;
   ack_date: string;
   status: string;
   signed_invoice?: string;
@@ -150,7 +151,7 @@ export default function GenerateIRNPage() {
               <div className="flex gap-4 pt-1">
                 <div>
                   <span className="text-text-muted font-medium block">Ack No:</span>
-                  <span className="font-mono font-semibold text-text-primary">{generatedRecord.ack_no}</span>
+                  <span className="font-mono font-semibold text-text-primary">{generatedRecord.ack_no || generatedRecord.ack_number}</span>
                 </div>
                 <div>
                   <span className="text-text-muted font-medium block">Ack Date:</span>

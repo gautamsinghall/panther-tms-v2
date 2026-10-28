@@ -163,7 +163,7 @@ export function StatusBadge({ status, variant, className, ...props }: StatusBadg
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[6px] text-xs font-medium tracking-[0.01em] border select-none transition-all shadow-xs",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[6px] text-xs font-medium tracking-[0.01em] border select-none transition-all shadow-xs whitespace-nowrap",
         bgClass,
         textClass,
         className

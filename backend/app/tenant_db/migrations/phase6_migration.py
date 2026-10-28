@@ -74,9 +74,40 @@ async def run_migration():
             await conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
             await conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS vendor_id INTEGER REFERENCES general_vendors(id);"))
             await conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS driver_id INTEGER REFERENCES transport_drivers(id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_billing_client_id ON misc_accounts (billing_client_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_vendor_id ON misc_accounts (vendor_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_driver_id ON misc_accounts (driver_id);"))
+
             await conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
             await conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS vendor_id INTEGER REFERENCES general_vendors(id);"))
             await conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS driver_id INTEGER REFERENCES transport_drivers(id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_billing_client_id ON accounts_vouchers (billing_client_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_vendor_id ON accounts_vouchers (vendor_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_driver_id ON accounts_vouchers (driver_id);"))
+
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS einvoicing_records (
+                    id SERIAL PRIMARY KEY,
+                    voucher_id INTEGER UNIQUE NOT NULL REFERENCES accounts_vouchers(id),
+                    irn VARCHAR(64) UNIQUE NOT NULL,
+                    ack_number VARCHAR(50) NOT NULL,
+                    ack_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    signed_invoice TEXT,
+                    signed_qr_code TEXT,
+                    status VARCHAR(20) NOT NULL DEFAULT 'GENERATED',
+                    cancel_reason VARCHAR(100),
+                    cancel_remarks TEXT,
+                    cancelled_at TIMESTAMPTZ,
+                    taxpayer_gstin VARCHAR(15),
+                    legal_name VARCHAR(255),
+                    trade_name VARCHAR(255),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_einvoicing_records_voucher_id ON einvoicing_records (voucher_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_einvoicing_records_irn ON einvoicing_records (irn);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_einvoicing_records_status ON einvoicing_records (status);"))
 
         if target_db != demo_db:
             from app.modules.settings.series_service import initialize_all_standard_series

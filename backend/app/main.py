@@ -8,6 +8,7 @@ from app.core.database import control_engine, close_all_connections, ControlSess
 from app.core.errors import register_error_handlers
 from app.control.models import ControlBase
 from app.tenant_db.base import TenantBase
+import app.tenant_db.models as models
 from app.control.service import seed_plans_and_entitlements
 from app.control.router import router as control_router
 from app.auth.router import router as auth_router
@@ -340,6 +341,74 @@ async def lifespan(app: FastAPI):
                             "last_repair_bill_doc TEXT",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_market_vehicles ADD COLUMN IF NOT EXISTS {mv_col};"))
+
+                        # Master Ledger, Accounts Party Reference & Voucher Schema Evolution
+                        for acc_col in [
+                            "billing_client_id INTEGER REFERENCES general_billing_clients(id)",
+                            "vendor_id INTEGER REFERENCES general_vendors(id)",
+                            "driver_id INTEGER REFERENCES transport_drivers(id)",
+                            "consignee_id INTEGER REFERENCES general_consignees(id)",
+                            "consigner_id INTEGER REFERENCES general_consigners(id)",
+                            "vehicle_owner_id INTEGER REFERENCES transport_vehicle_owners(id)",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS {acc_col};"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_billing_client_id ON misc_accounts (billing_client_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_vendor_id ON misc_accounts (vendor_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_driver_id ON misc_accounts (driver_id);"))
+
+                        for vch_col in [
+                            "billing_client_id INTEGER REFERENCES general_billing_clients(id)",
+                            "vendor_id INTEGER REFERENCES general_vendors(id)",
+                            "driver_id INTEGER REFERENCES transport_drivers(id)",
+                            "is_void BOOLEAN DEFAULT FALSE",
+                            "void_reason TEXT",
+                            "voided_at TIMESTAMPTZ",
+                            "voided_by INTEGER REFERENCES users(id)",
+                            "lr_id INTEGER REFERENCES transport_lrs(id)",
+                            "hire_challan_id INTEGER REFERENCES transport_hire_challans(id)",
+                            "account_id INTEGER REFERENCES misc_accounts(id)",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS {vch_col};"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_billing_client_id ON accounts_vouchers (billing_client_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_vendor_id ON accounts_vouchers (vendor_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_driver_id ON accounts_vouchers (driver_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_is_void ON accounts_vouchers (is_void);"))
+
+                        # E-Invoicing Records Schema Evolution
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS einvoicing_records (
+                                id SERIAL PRIMARY KEY,
+                                voucher_id INTEGER UNIQUE NOT NULL REFERENCES accounts_vouchers(id),
+                                irn VARCHAR(64) UNIQUE NOT NULL,
+                                ack_number VARCHAR(50) NOT NULL,
+                                ack_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                signed_invoice TEXT,
+                                signed_qr_code TEXT,
+                                status VARCHAR(20) NOT NULL DEFAULT 'GENERATED',
+                                cancel_reason VARCHAR(100),
+                                cancel_remarks TEXT,
+                                cancelled_at TIMESTAMPTZ,
+                                taxpayer_gstin VARCHAR(15),
+                                legal_name VARCHAR(255),
+                                trade_name VARCHAR(255),
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_einvoicing_records_voucher_id ON einvoicing_records (voucher_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_einvoicing_records_irn ON einvoicing_records (irn);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_einvoicing_records_status ON einvoicing_records (status);"))
+                        for einv_col in [
+                            "taxpayer_gstin VARCHAR(15)",
+                            "legal_name VARCHAR(255)",
+                            "trade_name VARCHAR(255)",
+                            "cancel_reason VARCHAR(100)",
+                            "cancel_remarks TEXT",
+                            "cancelled_at TIMESTAMPTZ",
+                            "signed_invoice TEXT",
+                            "signed_qr_code TEXT",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE einvoicing_records ADD COLUMN IF NOT EXISTS {einv_col};"))
 
                         # Seed default Load Types if empty
                         lt_check = await t_conn.execute(text("SELECT COUNT(*) FROM general_load_types;"))
