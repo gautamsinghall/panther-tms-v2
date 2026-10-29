@@ -25,6 +25,7 @@ import { apiClient } from "@/lib/api-client";
 
 interface ApiCenterData {
   wheelseye_base_url?: string;
+  wheelseye_api_token?: string | null;
   has_wheelseye_token?: boolean;
   is_wheelseye_active?: boolean;
 }
@@ -55,8 +56,9 @@ export default function GPSTrackingApiPage() {
       setIsLoading(true);
       const data = await apiClient.get<ApiCenterData>("/api/v1/profile/api-center");
       if (data) {
-        setHasSavedToken(Boolean(data.has_wheelseye_token));
-        setWheelseyeToken(data.has_wheelseye_token ? "••••••••••••" : "");
+        const token = data.wheelseye_api_token || "";
+        setWheelseyeToken(token);
+        setHasSavedToken(Boolean(token || data.has_wheelseye_token));
         setWheelseyeBaseUrl(data.wheelseye_base_url || "https://api.wheelseye.com");
         setIsWheelseyeActive(data.is_wheelseye_active !== undefined ? data.is_wheelseye_active : true);
       }
@@ -79,25 +81,22 @@ export default function GPSTrackingApiPage() {
       setIsSaving(true);
       setFeedback(null);
 
+      const trimmedToken = wheelseyeToken.trim();
       const payload: any = {
         wheelseye_base_url: wheelseyeBaseUrl.trim() || "https://api.wheelseye.com",
         is_wheelseye_active: isWheelseyeActive,
+        wheelseye_api_token: trimmedToken, // Empty string clears saved token in database
       };
-
-      if (wheelseyeToken && !wheelseyeToken.startsWith("••")) {
-        payload.wheelseye_api_token = wheelseyeToken.trim();
-      }
 
       await apiClient.put("/api/v1/profile/api-center", payload);
 
-      if (wheelseyeToken && !wheelseyeToken.startsWith("••")) {
-        setHasSavedToken(true);
-        setWheelseyeToken("••••••••••••");
-      }
+      setHasSavedToken(Boolean(trimmedToken));
 
       setFeedback({
         type: "success",
-        message: "WheelsEye GPS Tracking settings saved securely! Live vehicle telemetry will use these credentials.",
+        message: trimmedToken
+          ? "WheelsEye GPS Tracking settings saved securely! Live vehicle telemetry will use these credentials."
+          : "WheelsEye API Access Token removed successfully.",
       });
     } catch (err: any) {
       setFeedback({
@@ -114,13 +113,11 @@ export default function GPSTrackingApiPage() {
       setIsTesting(true);
       setTestResult(null);
 
+      const trimmedToken = wheelseyeToken.trim();
       const payload: any = {
         wheelseye_base_url: wheelseyeBaseUrl.trim() || undefined,
+        wheelseye_api_token: trimmedToken || undefined,
       };
-
-      if (wheelseyeToken && !wheelseyeToken.startsWith("••")) {
-        payload.wheelseye_api_token = wheelseyeToken.trim();
-      }
 
       const res = await apiClient.post<any>("/api/v1/profile/api-center/test-wheelseye", payload);
       setTestResult({
@@ -295,21 +292,37 @@ export default function GPSTrackingApiPage() {
           {/* WheelsEye API Token */}
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-              <span>WheelsEye API Access Token</span>
-              <span className="text-[10px] text-slate-400 font-normal">
-                {hasSavedToken ? "Encrypted & Saved" : "Unique Tenant Access Token"}
+              <span className="flex items-center gap-2">
+                <span>WheelsEye API Access Token</span>
+                {hasSavedToken ? (
+                  <Badge variant="success" className="text-[10px] py-0 px-1.5 font-normal">
+                    Configured & Saved
+                  </Badge>
+                ) : (
+                  <Badge variant="neutral" className="text-[10px] py-0 px-1.5 font-normal">
+                    Not Configured
+                  </Badge>
+                )}
               </span>
+              {wheelseyeToken ? (
+                <button
+                  type="button"
+                  onClick={() => setWheelseyeToken("")}
+                  className="text-[11px] text-rose-600 hover:text-rose-700 hover:underline cursor-pointer font-medium"
+                >
+                  Clear / Remove Token
+                </button>
+              ) : (
+                <span className="text-[10px] text-slate-400 font-normal">
+                  Unique Tenant Access Token
+                </span>
+              )}
             </label>
             <div className="relative">
               <Input
                 type={showToken ? "text" : "password"}
                 value={wheelseyeToken}
                 placeholder=""
-                onFocus={() => {
-                  if (hasSavedToken && wheelseyeToken.startsWith("••")) {
-                    setWheelseyeToken("");
-                  }
-                }}
                 onChange={(e) => setWheelseyeToken(e.target.value)}
                 className="h-10 text-xs pr-10 font-mono font-medium bg-white"
               />
@@ -317,12 +330,13 @@ export default function GPSTrackingApiPage() {
                 type="button"
                 onClick={() => setShowToken(!showToken)}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                title={showToken ? "Hide token" : "Show token"}
               >
                 {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
             <p className="text-[11px] text-slate-400">
-              Obtained from your WheelsEye Account Representative or Developer Portal.
+              Obtained from your WheelsEye Account Representative or Developer Portal. Token is hidden by default; click the eye icon to view or edit.
             </p>
           </div>
 

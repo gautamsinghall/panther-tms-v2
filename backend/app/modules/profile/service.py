@@ -558,6 +558,7 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         fastag_rate_per_fetch=1.50,
         fastag_cooldown_minutes=company.fastag_cooldown_minutes if company.fastag_cooldown_minutes is not None else 10,
         wheelseye_base_url=company.wheelseye_base_url or "https://api.wheelseye.com",
+        wheelseye_api_token=company.wheelseye_api_token,
         has_wheelseye_token=bool(company.wheelseye_api_token),
         is_wheelseye_active=company.is_wheelseye_active if company.is_wheelseye_active is not None else True,
     )

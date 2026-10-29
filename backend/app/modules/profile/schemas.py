@@ -230,6 +230,7 @@ class ApiCenterSettingResponse(BaseModel):
     is_ft_active: bool = True
     # WheelsEye GPS Tracking Integration
     wheelseye_base_url: Optional[str] = "https://api.wheelseye.com"
+    wheelseye_api_token: Optional[str] = None
     has_wheelseye_token: bool = False
     is_wheelseye_active: bool = True
     # Telemetry Gateways Status (Dokploy & panther_control)

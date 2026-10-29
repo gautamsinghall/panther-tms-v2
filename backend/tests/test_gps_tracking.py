@@ -122,3 +122,10 @@ def test_api_center_wheelseye_schema():
         is_wheelseye_active=True,
     )
     assert update.wheelseye_api_token == "new-token-9999"
+
+    resp = ApiCenterSettingResponse(
+        wheelseye_api_token="saved-token-5555",
+        has_wheelseye_token=True,
+    )
+    assert resp.wheelseye_api_token == "saved-token-5555"
+    assert resp.has_wheelseye_token is True
