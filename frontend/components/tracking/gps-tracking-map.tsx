@@ -203,8 +203,9 @@ export function GPSTrackingMap({
     onMetricsComputedRef.current = onMetricsComputed;
   }, [onMetricsComputed]);
 
-  // Keep track of which vehicle was initial-centered
-  const lastCenteredVehicleNumRef = useRef<string | null>(null);
+  // Keep track of which vehicle was initial-centered per engine
+  const lastCenteredForLeafletRef = useRef<string | null>(null);
+  const lastCenteredForGoogleRef = useRef<string | null>(null);
   // Keep track of last routed truck coordinates to prevent unnecessary OSRM re-fetches
   const lastRoutedCoordsRef = useRef<[number, number] | null>(null);
   const lastRoutedTripKeyRef = useRef<string>("");
@@ -398,7 +399,6 @@ export function GPSTrackingMap({
     if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
 
     const markerHtml = buildTruckMarkerHtml(vehicle);
-    const isNewVehicleSelected = lastCenteredVehicleNumRef.current !== vehicle.vehicleNumber;
 
     // -------------------------------------------------------------------------
     // 1. LEAFLET ENGINE: Smooth Position Transition
@@ -439,9 +439,9 @@ export function GPSTrackingMap({
           </div>
         `);
 
-        // Viewport: Center once when vehicle changes. On subsequent ticks, only pan if out of view!
-        if (isNewVehicleSelected) {
-          lastCenteredVehicleNumRef.current = vehicle.vehicleNumber;
+        // Viewport: Center once when vehicle changes for Leaflet. On subsequent ticks, only pan if out of view!
+        if (lastCenteredForLeafletRef.current !== vehicle.vehicleNumber) {
+          lastCenteredForLeafletRef.current = vehicle.vehicleNumber;
           lMap.setView([lat, lng], 14, { animate: true });
         } else {
           try {
@@ -521,9 +521,9 @@ export function GPSTrackingMap({
           googleOverlayRef.current.setHtml(markerHtml);
         }
 
-        // Viewport: Center once when vehicle changes. On subsequent ticks, only pan if out of view!
-        if (isNewVehicleSelected) {
-          lastCenteredVehicleNumRef.current = vehicle.vehicleNumber;
+        // Viewport: Center once when vehicle changes for Google Maps. On subsequent ticks, only pan if out of view!
+        if (lastCenteredForGoogleRef.current !== vehicle.vehicleNumber) {
+          lastCenteredForGoogleRef.current = vehicle.vehicleNumber;
           gMap.panTo({ lat, lng });
           if (gMap.getZoom() < 12) gMap.setZoom(14);
         } else {

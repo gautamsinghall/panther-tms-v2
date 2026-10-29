@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Search,
   RefreshCw,
@@ -72,6 +72,7 @@ export default function GPSTrackingPage() {
 
   // Selected vehicle & telemetry state
   const [selectedVehicleNum, setSelectedVehicleNum] = useState<string | null>(null);
+  const selectedVehicleNumRef = useRef<string | null>(null);
   const [selectedVehicleData, setSelectedVehicleData] = useState<GPSVehicleData | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<GPSTripData | null>(null);
 
@@ -124,14 +125,19 @@ export default function GPSTrackingPage() {
         setVehicles(res.vehicles || []);
         if (res.counts) setCounts(res.counts);
 
-        // Auto select first vehicle if none selected
-        if (!selectedVehicleNum && res.vehicles && res.vehicles.length > 0) {
+        // Auto select first vehicle ONLY if nothing is currently selected
+        if (!selectedVehicleNumRef.current && res.vehicles && res.vehicles.length > 0) {
           const firstTarget = res.companyVehicles && res.companyVehicles.length > 0
             ? res.companyVehicles[0].vehicleNumber
             : res.vehicles[0].vehicleNumber;
           selectVehicle(firstTarget, res.vehicles);
-        } else if (selectedVehicleNum && res.vehicles) {
-          const current = res.vehicles.find((v: any) => v.vehicleNumber === selectedVehicleNum);
+        } else if (selectedVehicleNumRef.current && res.vehicles) {
+          // Keep current vehicle selected and smoothly update its telemetry data
+          const current = res.vehicles.find(
+            (v: any) =>
+              v.vehicleNumber === selectedVehicleNumRef.current ||
+              v.vehicleNumber.replace(/[^A-Z0-9]/gi, "") === selectedVehicleNumRef.current?.replace(/[^A-Z0-9]/gi, "")
+          );
           if (current) setSelectedVehicleData(current);
         }
       }
@@ -145,24 +151,55 @@ export default function GPSTrackingPage() {
   };
 
   const selectVehicle = async (vNum: string, currentList?: GPSVehicleData[]) => {
-    setSelectedVehicleNum(vNum);
+    const cleanNum = vNum.trim();
+    if (!cleanNum) return;
+    selectedVehicleNumRef.current = cleanNum;
+    setSelectedVehicleNum(cleanNum);
+
     const list = currentList || vehicles;
-    const found = list.find((v) => v.vehicleNumber === vNum);
+    const found = list.find(
+      (v) =>
+        v.vehicleNumber === cleanNum ||
+        v.vehicleNumber.replace(/[^A-Z0-9]/gi, "") === cleanNum.replace(/[^A-Z0-9]/gi, "")
+    );
     if (found) {
       setSelectedVehicleData(found);
     }
 
     try {
-      const trackRes = await apiClient<any>(`/api/v1/transport/tracking/gps/track?vehicle=${encodeURIComponent(vNum)}`);
+      const trackRes = await apiClient<any>(`/api/v1/transport/tracking/gps/track?vehicle=${encodeURIComponent(cleanNum)}`);
       if (trackRes && trackRes.success && trackRes.truck_data) {
-        setSelectedVehicleData(trackRes.truck_data);
-        setSelectedTrip(trackRes.trip || null);
+        if (selectedVehicleNumRef.current === cleanNum) {
+          setSelectedVehicleData(trackRes.truck_data);
+          setSelectedTrip(trackRes.trip || null);
+        }
       }
     } catch (e) {
       console.warn("Failed tracking vehicle:", e);
     }
 
-    loadVehicleHistory(vNum, historyDate);
+    loadVehicleHistory(cleanNum, historyDate);
+  };
+
+  const handleTrackAction = () => {
+    const query = searchKeyword.trim();
+    if (query) {
+      const cleanQ = query.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+      const match = vehicles.find((v) => {
+        const vClean = v.vehicleNumber.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+        return vClean === cleanQ || vClean.includes(cleanQ);
+      });
+
+      if (match) {
+        selectVehicle(match.vehicleNumber);
+      } else {
+        selectVehicle(query);
+      }
+    } else if (selectedVehicleNumRef.current) {
+      selectVehicle(selectedVehicleNumRef.current);
+    } else if (filteredVehicles.length > 0) {
+      selectVehicle(filteredVehicles[0].vehicleNumber);
+    }
   };
 
   const loadVehicleHistory = async (vNum: string, date: string) => {
@@ -412,8 +449,8 @@ export default function GPSTrackingPage() {
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value.toUpperCase())}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && filteredVehicles.length > 0) {
-                  selectVehicle(filteredVehicles[0].vehicleNumber);
+                if (e.key === "Enter") {
+                  handleTrackAction();
                 }
               }}
               placeholder="ENTER TRUCK NO..."
@@ -424,12 +461,8 @@ export default function GPSTrackingPage() {
           <Button
             variant="primary"
             size="sm"
-            onClick={() => {
-              if (filteredVehicles.length > 0) {
-                selectVehicle(filteredVehicles[0].vehicleNumber);
-              }
-            }}
-            className="text-xs h-8 px-3 shrink-0"
+            onClick={handleTrackAction}
+            className="text-xs h-8 px-3 shrink-0 cursor-pointer"
           >
             Track
           </Button>
