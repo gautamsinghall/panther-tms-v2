@@ -586,6 +586,19 @@ function normalizeNavGroups(groups: NavGroup[]): NavGroup[] {
   });
 }
 
+function isGroupActive(group: NavGroup, pathname: string): boolean {
+  if (!pathname || pathname === "/") return false;
+  return (
+    Boolean(
+      group.items?.some(
+        (it) => it.href === pathname || pathname.startsWith(`${it.href}/`)
+      )
+    ) ||
+    pathname === `/${group.id}` ||
+    pathname.startsWith(`/${group.id}/`)
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { isFormOpen, closeFormTab, setActiveTab } = useWorkspaceTabs();
@@ -688,7 +701,7 @@ export function Sidebar() {
           updateStoredNavigation(normalized);
           const expanded: Record<string, boolean> = {};
           normalized.forEach((g) => {
-            if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
+            if (isGroupActive(g, normalizedPathname)) {
               expanded[g.id] = true;
             }
           });
@@ -720,8 +733,8 @@ export function Sidebar() {
   useEffect(() => {
     if (normalizedPathname && navGroups.length > 0) {
       navGroups.forEach((g) => {
-        if (g.items?.some((it) => it.href === normalizedPathname || normalizedPathname.startsWith(`/${g.id}`))) {
-          setExpandedGroups((prev) => ({ ...prev, [g.id]: true }));
+        if (isGroupActive(g, normalizedPathname)) {
+          setExpandedGroups({ [g.id]: true });
         }
       });
     }
@@ -906,7 +919,7 @@ export function Sidebar() {
         ) : (
           navGroups.map((group) => {
             const isExpanded = expandedGroups[group.id] ?? false;
-            const hasActiveChild = group.items?.some((item) => item.href === normalizedPathname);
+            const hasActiveChild = isGroupActive(group, normalizedPathname);
             const icon = MODULE_ICONS[group.id] || <Layers className="w-5 h-5" />;
 
             return (
