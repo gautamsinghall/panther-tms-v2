@@ -469,11 +469,13 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
         key={copyType}
         id={docId}
         ref={docRef}
-        className={`w-full max-w-[780px] bg-white border border-slate-300 text-slate-900 font-sans select-text shadow-sm ${
+        className={`w-full max-w-[780px] bg-white border border-slate-300 text-slate-900 font-sans select-text shadow-sm printable-paper-sheet printable-document-sheet ${
           isAllPage ? "lr-print-all-page mb-6 print:mb-0" : ""
         }`}
         style={{
           fontFamily: "Arial, Helvetica, sans-serif",
+          backgroundColor: "#ffffff",
+          color: "#0f172a",
         }}
       >
         {/* 1. Header: Branding + Company Master + Branch Issuing Office */}
@@ -997,53 +999,66 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="lr-modal-container relative w-full max-w-4xl h-auto my-auto bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
-        {/* Top Control Bar (Hidden in Print) */}
-        <div className="px-4 sm:px-6 py-2 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
+      <div className="lr-modal-container relative w-full max-w-4xl max-h-[92vh] my-auto bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+        {/* Top Header Bar: Document Title & Close Button */}
+        <div className="px-4 sm:px-6 py-2.5 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
               LR / Consignment Note
             </span>
-            <span className="text-slate-300">•</span>
-            <span className="font-mono text-sm font-bold text-blue-700">
+            <span className="text-slate-300 dark:text-slate-600">•</span>
+            <span className="font-mono text-sm font-bold text-blue-700 dark:text-blue-400">
               {lr.lr_number}
             </span>
             {officeCode && (
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold border border-blue-200">
+              <span className="text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800">
                 {officeCode} - {officeName}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            {/* Copy Selector */}
-            <div className="flex bg-slate-200 rounded-lg p-0.5 text-xs font-semibold">
-              {ALL_COPIES.map((copy) => (
-                <button
-                  key={copy}
-                  type="button"
-                  onClick={() => setSelectedCopy(copy)}
-                  className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
-                    selectedCopy === copy
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {copy}
-                </button>
-              ))}
-            </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+            title="Close modal"
+            aria-label="Close modal"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
+        {/* Top Control Toolbar: Copy Selector & Actions */}
+        <div className="px-4 sm:px-6 py-2 border-b border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A] flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
+          {/* Copy Selector */}
+          <div className="flex bg-slate-100 dark:bg-[#1E1F2B] border border-slate-200 dark:border-[#2B2D3D] rounded-lg p-0.5 text-xs font-semibold">
+            {ALL_COPIES.map((copy) => (
+              <button
+                key={copy}
+                type="button"
+                onClick={() => setSelectedCopy(copy)}
+                className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                  selectedCopy === copy
+                    ? "bg-white dark:bg-[#2B2D3D] text-slate-900 dark:text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                {copy}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             {/* Print Current Copy */}
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handlePrint}
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
               title={`Print current ${selectedCopy} copy (1 page)`}
             >
-              <Printer className="w-3.5 h-3.5 text-slate-600" />
+              <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
               <span>Print</span>
             </Button>
 
@@ -1053,10 +1068,10 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
               variant="outline"
               size="sm"
               onClick={handlePrintAll}
-              className="text-xs font-semibold h-8 gap-1.5 bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-2xs cursor-pointer"
+              className="text-xs font-semibold h-8 gap-1.5 bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-900/60 shadow-2xs cursor-pointer"
               title="Print all 4 copies (Consignor, Consignee, Driver, Office) in one 4-page print job"
             >
-              <Printer className="w-3.5 h-3.5 text-indigo-600" />
+              <Printer className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>Print All</span>
             </Button>
 
@@ -1067,13 +1082,13 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
               size="sm"
               disabled={isDownloadingPdf || isDownloadingAllPdf}
               onClick={handleDownloadPdf}
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
               title={`Download current ${selectedCopy} copy as single-page PDF`}
             >
               {isDownloadingPdf ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600 dark:text-slate-300" />
               ) : (
-                <Download className="w-3.5 h-3.5 text-slate-600" />
+                <Download className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
               )}
               <span>Download PDF</span>
             </Button>
@@ -1085,13 +1100,13 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
               size="sm"
               disabled={isDownloadingPdf || isDownloadingAllPdf}
               onClick={handleDownloadAllPdf}
-              className="text-xs font-semibold h-8 gap-1.5 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 shadow-2xs cursor-pointer"
+              className="text-xs font-semibold h-8 gap-1.5 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/60 shadow-2xs cursor-pointer"
               title="Download single PDF containing all 4 copies across 4 pages"
             >
               {isDownloadingAllPdf ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
               ) : (
-                <Download className="w-3.5 h-3.5 text-blue-600" />
+                <Download className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               )}
               <span>{isDownloadingAllPdf ? "Downloading..." : "Download All"}</span>
             </Button>
@@ -1109,27 +1124,17 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
                 }
                 onClose();
               }}
-              className="text-xs font-semibold h-8 gap-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 shadow-2xs cursor-pointer ml-0.5"
+              className="text-xs font-semibold h-8 gap-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-900/60 shadow-2xs cursor-pointer ml-0.5"
               title="Edit this LR booking"
             >
               <Edit className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
               <span>Edit LR</span>
             </Button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors ml-1 cursor-pointer"
-              title="Close modal"
-              aria-label="Close modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
         {/* Modal Printable Body - Clean A4 Goods Receipt / Consignment Note */}
-        <div ref={modalBodyRef} className="lr-modal-body p-2 sm:p-2.5 bg-slate-100 flex flex-col items-center">
+        <div ref={modalBodyRef} className="lr-modal-body p-2 sm:p-2.5 bg-slate-100 dark:bg-[#0B0B0E] flex flex-col items-center">
           {/* 1. Single View (Active Copy on screen, and printed when printMode === 'single') */}
           <div
             id="lr-single-print-wrapper"
@@ -1161,9 +1166,9 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
         </div>
 
         {/* Modal Bottom Bar */}
-        <div className="px-6 py-2 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print">
-          <div className="text-xs text-slate-500">
-            Issuing Office: <span className="font-semibold text-slate-800">{officeName}</span>
+        <div className="px-6 py-2 border-t border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Issuing Office: <span className="font-semibold text-slate-800 dark:text-slate-200">{officeName}</span>
           </div>
 
           <Button
@@ -1171,7 +1176,7 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
             variant="outline"
             size="sm"
             onClick={onClose}
-            className="text-xs cursor-pointer"
+            className="text-xs cursor-pointer dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837]"
           >
             Close
           </Button>

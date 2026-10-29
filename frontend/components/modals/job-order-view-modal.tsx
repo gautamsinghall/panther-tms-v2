@@ -534,22 +534,22 @@ export function JobOrderViewModal({
       <div
         ref={modalRef}
         tabIndex={-1}
-        className="job-order-modal-container relative w-full max-w-4xl h-[88vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col focus:outline-none print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
+        className="job-order-modal-container relative w-full max-w-4xl h-[88vh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col focus:outline-none print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
       >
         {/* Top Control Bar (Hidden in Print) */}
-        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50/90 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
+        <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#22232E] bg-slate-50/90 dark:bg-[#161722] flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600/10 border border-indigo-600/20 flex items-center justify-center text-indigo-700 shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600/10 dark:bg-indigo-950/40 border border-indigo-600/20 dark:border-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-400 shrink-0">
               <FileText className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 id="job-order-dialog-title" className="font-mono text-sm font-bold text-slate-900 truncate">
+                <h3 id="job-order-dialog-title" className="font-mono text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
                   Job Order: {job.job_number}
                 </h3>
                 <StatusBadge status={job.status} />
               </div>
-              <p id="job-order-dialog-description" className="text-[11px] text-slate-500 truncate">
+              <p id="job-order-dialog-description" className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                 Trip Indent #{job.id} · Created {formatDate(job.job_date || job.created_at)}
               </p>
             </div>
@@ -567,9 +567,9 @@ export function JobOrderViewModal({
                 onClose();
                 onEdit(job);
               }}
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
             >
-              <Pencil className="w-3.5 h-3.5 text-blue-600" />
+              <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>Edit</span>
             </Button>
 
@@ -579,9 +579,9 @@ export function JobOrderViewModal({
               variant="outline"
               size="sm"
               onClick={handlePrint}
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-600" />
+              <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
               <span>Print</span>
             </Button>
 
@@ -593,12 +593,12 @@ export function JobOrderViewModal({
               disabled={isDownloadingPdf || isLoadingDetails}
               onClick={handleDownloadPdf}
               title="Download Job Order PDF"
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
             >
               {isDownloadingPdf ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600 dark:text-slate-300" />
               ) : (
-                <Download className="w-3.5 h-3.5 text-slate-600" />
+                <Download className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
               )}
               <span>PDF</span>
             </Button>
@@ -625,7 +625,7 @@ export function JobOrderViewModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors ml-1 cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/10 rounded-lg transition-colors ml-1 cursor-pointer"
               title="Close Job Order dialog (Esc)"
               aria-label="Close dialog"
             >
@@ -635,7 +635,7 @@ export function JobOrderViewModal({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div ref={modalBodyRef} className="job-order-modal-body overflow-y-auto flex-1 bg-slate-50/60 flex justify-center">
+        <div ref={modalBodyRef} className="job-order-modal-body overflow-y-auto flex-1 bg-slate-50/60 dark:bg-[#0B0B0E] flex justify-center">
           {isLoadingDetails ? (
             <div className="min-h-[420px] flex flex-col items-center justify-center p-8 space-y-3">
               <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
@@ -651,9 +651,11 @@ export function JobOrderViewModal({
                 <div
                   id="job-order-printable-document"
                   ref={printRef}
-                  className="w-full max-w-[780px] bg-white border border-slate-300 text-black font-sans select-text shadow-sm"
+                  className="w-full max-w-[780px] bg-white border border-slate-300 text-black font-sans select-text shadow-sm printable-paper-sheet printable-document-sheet"
                   style={{
                     fontFamily: "Arial, Helvetica, sans-serif",
+                    backgroundColor: "#ffffff",
+                    color: "#0f172a",
                   }}
                 >
                   {/* 1. Top Header: Logo (Left), Dynamic Company Info (Center), Issuing Office/Tax (Right) */}
@@ -952,10 +954,10 @@ export function JobOrderViewModal({
         </div>
 
         {/* Modal Bottom Bar (Hidden in Print) */}
-        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+        <div className="px-6 py-3 border-t border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span>Trip Order:</span>
-            <span className="font-mono font-semibold text-slate-800">{job.job_number}</span>
+            <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{job.job_number}</span>
             <span>·</span>
             <span>Status:</span>
             <StatusBadge status={job.status} />
@@ -967,7 +969,7 @@ export function JobOrderViewModal({
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="text-xs font-semibold px-4 cursor-pointer"
+              className="text-xs font-semibold px-4 cursor-pointer dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837]"
             >
               Close
             </Button>

@@ -1503,3 +1503,189 @@ html.dark aside .border-t span.text-slate-500 {
 html.dark aside .border-t .text-emerald-600 {
   color: #34D399 !important;
 }
+
+
+/* ==========================================================================
+   Physical Paper Document Protection (LRs, Invoices, Hire Challans, Job Orders)
+   Printable sheets must remain authentic white paper with dark ink in all themes.
+   ========================================================================== */
+html.dark .lr-modal-container,
+html.dark .hc-modal-container,
+html.dark .job-order-modal-container {
+  background-color: #12131A !important;
+  border-color: #22232E !important;
+}
+
+html.dark .lr-modal-body,
+html.dark .hc-modal-body,
+html.dark .job-order-modal-body {
+  background-color: #0B0B0E !important;
+}
+
+html.dark #lr-printable-document,
+html.dark [id^="lr-printable-document"],
+html.dark #hire-challan-printable-document,
+html.dark #job-order-printable-document,
+html.dark .printable-document-sheet,
+html.dark .printable-paper-sheet {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.dark #lr-printable-document *,
+html.dark [id^="lr-printable-document"] *,
+html.dark #hire-challan-printable-document *,
+html.dark #job-order-printable-document *,
+html.dark .printable-document-sheet *,
+html.dark .printable-paper-sheet * {
+  border-color: #cbd5e1 !important;
+}
+
+html.dark #lr-printable-document .bg-white,
+html.dark [id^="lr-printable-document"] .bg-white,
+html.dark #hire-challan-printable-document .bg-white,
+html.dark #job-order-printable-document .bg-white {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.dark #lr-printable-document [class*="bg-slate-50"],
+html.dark [id^="lr-printable-document"] [class*="bg-slate-50"],
+html.dark #hire-challan-printable-document [class*="bg-slate-50"],
+html.dark #job-order-printable-document [class*="bg-slate-50"] {
+  background-color: #f8fafc !important;
+  background: #f8fafc !important;
+}
+
+html.dark #lr-printable-document [class*="bg-slate-100"],
+html.dark [id^="lr-printable-document"] [class*="bg-slate-100"],
+html.dark #hire-challan-printable-document [class*="bg-slate-100"],
+html.dark #job-order-printable-document [class*="bg-slate-100"] {
+  background-color: #f1f5f9 !important;
+  background: #f1f5f9 !important;
+}
+
+html.dark #lr-printable-document [class*="bg-[#f1f5f9]"],
+html.dark [id^="lr-printable-document"] [class*="bg-[#f1f5f9]"],
+html.dark #hire-challan-printable-document [class*="bg-[#f1f5f9]"],
+html.dark #job-order-printable-document [class*="bg-[#f1f5f9]"] {
+  background-color: #f1f5f9 !important;
+  background: #f1f5f9 !important;
+}
+
+html.dark #lr-printable-document [class*="bg-[#f8fafc]"],
+html.dark [id^="lr-printable-document"] [class*="bg-[#f8fafc]"],
+html.dark #hire-challan-printable-document [class*="bg-[#f8fafc]"],
+html.dark #job-order-printable-document [class*="bg-[#f8fafc]"] {
+  background-color: #f8fafc !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
+}
+
+html.dark #lr-printable-document [class*="bg-[#fef3c7]"],
+html.dark [id^="lr-printable-document"] [class*="bg-[#fef3c7]"],
+html.dark #hire-challan-printable-document [class*="bg-[#fef3c7]"] {
+  background-color: #fef3c7 !important;
+  background: #fef3c7 !important;
+}
+
+html.dark #lr-printable-document .bg-black,
+html.dark [id^="lr-printable-document"] .bg-black,
+html.dark #hire-challan-printable-document .bg-black,
+html.dark #job-order-printable-document .bg-black {
+  background-color: #000000 !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Explicitly enforce dark ink typography inside paper documents */
+html.dark #lr-printable-document .text-slate-900,
+html.dark [id^="lr-printable-document"] .text-slate-900,
+html.dark #hire-challan-printable-document .text-slate-900,
+html.dark #job-order-printable-document .text-slate-900,
+html.dark #lr-printable-document .text-slate-950,
+html.dark [id^="lr-printable-document"] .text-slate-950,
+html.dark #hire-challan-printable-document .text-slate-950,
+html.dark #job-order-printable-document .text-slate-950 {
+  color: #0f172a !important;
+}
+
+html.dark #lr-printable-document .text-slate-800,
+html.dark [id^="lr-printable-document"] .text-slate-800,
+html.dark #hire-challan-printable-document .text-slate-800,
+html.dark #job-order-printable-document .text-slate-800 {
+  color: #1e293b !important;
+}
+
+html.dark #lr-printable-document .text-slate-700,
+html.dark [id^="lr-printable-document"] .text-slate-700,
+html.dark #hire-challan-printable-document .text-slate-700,
+html.dark #job-order-printable-document .text-slate-700 {
+  color: #334155 !important;
+}
+
+html.dark #lr-printable-document .text-slate-600,
+html.dark [id^="lr-printable-document"] .text-slate-600,
+html.dark #hire-challan-printable-document .text-slate-600,
+html.dark #job-order-printable-document .text-slate-600 {
+  color: #475569 !important;
+}
+
+html.dark #lr-printable-document .text-slate-500,
+html.dark [id^="lr-printable-document"] .text-slate-500,
+html.dark #hire-challan-printable-document .text-slate-500,
+html.dark #job-order-printable-document .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.dark #lr-printable-document .text-slate-400,
+html.dark [id^="lr-printable-document"] .text-slate-400,
+html.dark #hire-challan-printable-document .text-slate-400,
+html.dark #job-order-printable-document .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html.dark #lr-printable-document .text-amber-900,
+html.dark [id^="lr-printable-document"] .text-amber-900,
+html.dark #hire-challan-printable-document .text-amber-900 {
+  color: #78350f !important;
+}
+
+html.dark #lr-printable-document .text-\[\#0f2147\],
+html.dark [id^="lr-printable-document"] .text-\[\#0f2147\] {
+  color: #0f2147 !important;
+}
+
+/* Tables inside printable document */
+html.dark #lr-printable-document table,
+html.dark [id^="lr-printable-document"] table,
+html.dark #hire-challan-printable-document table,
+html.dark #job-order-printable-document table {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: #0f172a !important;
+}
+
+html.dark #lr-printable-document table thead th,
+html.dark [id^="lr-printable-document"] table thead th,
+html.dark #hire-challan-printable-document table thead th,
+html.dark #job-order-printable-document table thead th {
+  background-color: #f1f5f9 !important;
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.dark #lr-printable-document table tbody td,
+html.dark [id^="lr-printable-document"] table tbody td,
+html.dark #hire-challan-printable-document table tbody td,
+html.dark #job-order-printable-document table tbody td {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}

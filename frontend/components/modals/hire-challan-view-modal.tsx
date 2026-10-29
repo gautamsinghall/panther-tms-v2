@@ -458,20 +458,20 @@ export function HireChallanViewModal({
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="hc-modal-container relative w-full max-w-4xl h-[88vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="hc-modal-container relative w-full max-w-4xl h-[88vh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Hidden in Print) */}
-        <div className="px-6 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
+        <div className="px-6 py-3 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
               Hire Challan
             </span>
-            <span className="text-slate-300">•</span>
-            <span className="font-mono text-sm font-bold text-blue-700">
+            <span className="text-slate-300 dark:text-slate-600">•</span>
+            <span className="font-mono text-sm font-bold text-blue-700 dark:text-blue-400">
               {challan.challan_number}
             </span>
             <StatusBadge status={challan.status} />
             {officeCode && (
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold border border-blue-200 hidden sm:inline-block">
+              <span className="text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800 hidden sm:inline-block">
                 {officeCode} - {officeName}
               </span>
             )}
@@ -484,9 +484,9 @@ export function HireChallanViewModal({
               variant="outline"
               size="sm"
               onClick={handlePrint}
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-600" />
+              <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
               <span>Print</span>
             </Button>
 
@@ -496,12 +496,12 @@ export function HireChallanViewModal({
               size="sm"
               disabled={isDownloadingPdf}
               onClick={handleDownloadPdf}
-              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-2xs cursor-pointer"
+              className="text-xs font-medium h-8 gap-1.5 bg-white border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837] shadow-2xs cursor-pointer"
             >
               {isDownloadingPdf ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600 dark:text-slate-300" />
               ) : (
-                <Download className="w-3.5 h-3.5 text-slate-600" />
+                <Download className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
               )}
               <span>Download PDF</span>
             </Button>
@@ -509,7 +509,7 @@ export function HireChallanViewModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors ml-1 cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/10 rounded-lg transition-colors ml-1 cursor-pointer"
               title="Close modal"
               aria-label="Close modal"
             >
@@ -519,7 +519,7 @@ export function HireChallanViewModal({
         </div>
 
         {/* Modal Body */}
-        <div ref={modalBodyRef} className="hc-modal-body p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 flex justify-center">
+        <div ref={modalBodyRef} className="hc-modal-body p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center">
           {/* PRINTABLE VOUCHER WRAPPER */}
           <div
             id="hc-voucher-wrapper"
@@ -528,9 +528,11 @@ export function HireChallanViewModal({
             <div
               id="hire-challan-printable-document"
               ref={printRef}
-              className="w-full max-w-[780px] bg-white border border-slate-300 text-slate-900 font-sans select-text shadow-sm"
+              className="w-full max-w-[780px] bg-white border border-slate-300 text-slate-900 font-sans select-text shadow-sm printable-paper-sheet printable-document-sheet"
               style={{
                 fontFamily: "Arial, Helvetica, sans-serif",
+                backgroundColor: "#ffffff",
+                color: "#0f172a",
               }}
             >
               {/* 1. Top Header: Branding + Company Master + Branch Issuing Office */}
@@ -907,9 +909,9 @@ export function HireChallanViewModal({
         </div>
 
         {/* Modal Bottom Bar (Hidden in Print) */}
-        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
-          <div className="text-xs text-slate-500">
-            Issuing Office: <span className="font-semibold text-slate-800">{officeName}</span>
+        <div className="px-6 py-3 border-t border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            Issuing Office: <span className="font-semibold text-slate-800 dark:text-slate-200">{officeName}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -918,7 +920,7 @@ export function HireChallanViewModal({
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="text-xs cursor-pointer"
+              className="text-xs cursor-pointer dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837]"
             >
               Close
             </Button>
