@@ -1,36 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Link from "next/link";
 import {
   Search,
   RefreshCw,
   Navigation,
   MapPin,
   Clock,
-  Building2,
   Truck,
-  RotateCcw,
-  ExternalLink,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  Radio,
-  Compass,
-  ArrowUpDown,
-  Tag,
-  UserPlus,
-  Play,
-  KeyRound,
-  ShieldCheck,
-  ChevronDown,
   Layers,
+  ChevronDown,
+  X,
+  Play,
+  Square,
+  Radio,
+  ExternalLink,
+  ChevronRight,
+  User,
+  Gauge,
+  KeyRound,
+  FileText,
+  AlertCircle,
+  Settings,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  ArrowUpDown,
+  Compass,
 } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import { GPSTrackingMap, GPSVehicleData, GPSTripData } from "@/components/tracking/gps-tracking-map";
 
 interface GPSConfig {
@@ -52,15 +52,179 @@ interface TimelineItem {
   speed: number;
 }
 
+// Sample fleet data representing Delhi NCR logistics corridor (matching reference screenshot)
+const SAMPLE_FLEET: GPSVehicleData[] = [
+  {
+    vehicleNumber: "DL 01 AB 2847",
+    driverName: "Rahul Sharma",
+    speed: 48,
+    ignition: true,
+    status: "running",
+    isCompany: true,
+    fleetType: "Company Vehicle",
+    groupName: "Panther Express",
+    lastUpdated: "just now",
+    address: "Sector 18, Noida, UP",
+    latitude: 28.5700,
+    longitude: 77.3200,
+    heading: 85,
+    todayKm: 142.5,
+    inactiveTime: "Moving at 48 km/h",
+    battery: 98,
+    signal: 4,
+    odometer: 48210,
+  },
+  {
+    vehicleNumber: "HR 55 K 9182",
+    driverName: "Amit Kumar",
+    speed: 0,
+    ignition: false,
+    status: "stopped",
+    isCompany: true,
+    fleetType: "Company Vehicle",
+    groupName: "Panther Fleet",
+    lastUpdated: "12 min ago",
+    address: "NH-48, Gurugram, HR",
+    latitude: 28.4595,
+    longitude: 77.0266,
+    heading: 0,
+    todayKm: 89.2,
+    inactiveTime: "Stopped 12m",
+    battery: 92,
+    signal: 4,
+    odometer: 62150,
+  },
+  {
+    vehicleNumber: "UP 16 BT 4521",
+    driverName: "Suresh Yadav",
+    speed: 62,
+    ignition: true,
+    status: "running",
+    isCompany: true,
+    fleetType: "Company Vehicle",
+    groupName: "Panther Express",
+    lastUpdated: "2 min ago",
+    address: "Delhi - Meerut Expressway",
+    latitude: 28.6280,
+    longitude: 77.3649,
+    heading: 65,
+    todayKm: 215.8,
+    inactiveTime: "Moving at 62 km/h",
+    battery: 96,
+    signal: 4,
+    odometer: 114200,
+  },
+  {
+    vehicleNumber: "RJ 14 GC 2391",
+    driverName: "Vikram Singh",
+    speed: 0,
+    ignition: false,
+    status: "no_signal",
+    isCompany: false,
+    fleetType: "Market Attached",
+    groupName: "Regional Attached",
+    lastUpdated: "35 min ago",
+    address: "Alwar, Rajasthan",
+    latitude: 27.5530,
+    longitude: 76.6346,
+    heading: 0,
+    todayKm: 45.0,
+    inactiveTime: "No signal 35m",
+    battery: 45,
+    signal: 1,
+    odometer: 98400,
+  },
+  {
+    vehicleNumber: "DL 1L X 7789",
+    driverName: "Neeraj Tiwari",
+    speed: 56,
+    ignition: true,
+    status: "running",
+    isCompany: true,
+    fleetType: "Company Vehicle",
+    groupName: "Airport Logistics",
+    lastUpdated: "just now",
+    address: "IGI Airport, Delhi",
+    latitude: 28.5562,
+    longitude: 77.1000,
+    heading: 180,
+    todayKm: 178.4,
+    inactiveTime: "Moving at 56 km/h",
+    battery: 100,
+    signal: 4,
+    odometer: 54100,
+  },
+  {
+    vehicleNumber: "HR 26 EV 3190",
+    driverName: "Pooja Mehta",
+    speed: 0,
+    ignition: false,
+    status: "stopped",
+    isCompany: true,
+    fleetType: "Company Vehicle",
+    groupName: "City EV Fleet",
+    lastUpdated: "8 min ago",
+    address: "Faridabad, HR",
+    latitude: 28.4089,
+    longitude: 77.3178,
+    heading: 0,
+    todayKm: 72.1,
+    inactiveTime: "Stopped 8m",
+    battery: 84,
+    signal: 4,
+    odometer: 32400,
+  },
+  {
+    vehicleNumber: "MH 12 Q 8821",
+    driverName: "Kailash Patil",
+    speed: 52,
+    ignition: true,
+    status: "running",
+    isCompany: false,
+    fleetType: "Market Attached",
+    groupName: "West Corridor",
+    lastUpdated: "1 min ago",
+    address: "Sonipat Bypass, NH-44",
+    latitude: 28.9931,
+    longitude: 77.0151,
+    heading: 350,
+    todayKm: 310.4,
+    inactiveTime: "Moving at 52 km/h",
+    battery: 90,
+    signal: 4,
+    odometer: 184500,
+  },
+  {
+    vehicleNumber: "PB 10 CF 9012",
+    driverName: "Harpreet Singh",
+    speed: 45,
+    ignition: true,
+    status: "running",
+    isCompany: false,
+    fleetType: "Market Attached",
+    groupName: "North Attached",
+    lastUpdated: "4 min ago",
+    address: "Muradnagar, Ghaziabad",
+    latitude: 28.7758,
+    longitude: 77.5029,
+    heading: 45,
+    todayKm: 198.0,
+    inactiveTime: "Moving at 45 km/h",
+    battery: 88,
+    signal: 4,
+    odometer: 135200,
+  },
+];
+
 export default function GPSTrackingPage() {
   const [config, setConfig] = useState<GPSConfig | null>(null);
   const [googleMapsKey, setGoogleMapsKey] = useState<string>("");
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [tempApiKey, setTempApiKey] = useState("");
 
   const [isLoadingFleet, setIsLoadingFleet] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [vehicles, setVehicles] = useState<GPSVehicleData[]>([]);
+  const [isSampleMode, setIsSampleMode] = useState(false);
+
   const [counts, setCounts] = useState({
     all: 0,
     company: 0,
@@ -70,182 +234,261 @@ export default function GPSTrackingPage() {
     no_signal: 0,
   });
 
-  // Selected vehicle & telemetry state
+  // Selected vehicle state
   const [selectedVehicleNum, setSelectedVehicleNum] = useState<string | null>(null);
-  const selectedVehicleNumRef = useRef<string | null>(null);
   const [selectedVehicleData, setSelectedVehicleData] = useState<GPSVehicleData | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<GPSTripData | null>(null);
+  const [isDetailsPanelVisible, setIsDetailsPanelVisible] = useState(true);
 
-  // Filters & sorting
-  const [activeFilter, setActiveFilter] = useState<"company" | "all" | "market" | "running" | "stopped" | "no_signal">("company");
-  const [currentSort, setCurrentSort] = useState<"default" | "speed" | "name">("default");
+  // Filters & sorting (Toolbar)
+  const [fleetTypeFilter, setFleetTypeFilter] = useState<"all" | "company" | "market">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "running" | "stopped" | "no_signal">("all");
+  const [currentSort, setCurrentSort] = useState<"name" | "speed" | "recent">("name");
   const [searchKeyword, setSearchKeyword] = useState<string>("");
 
-  // Middle drawer state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
-  const [drawerTab, setDrawerTab] = useState<"route_history" | "features">("route_history");
+  // On-demand drawers
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  const [isSpecsDrawerOpen, setIsSpecsDrawerOpen] = useState(false);
   const [historyDate, setHistoryDate] = useState<"today" | "yesterday" | "last_7_days">("today");
   const [historyTimeline, setHistoryTimeline] = useState<TimelineItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [historyFilter, setHistoryFilter] = useState<"all" | "stopped">("all");
-  const [showRawPayload, setShowRawPayload] = useState(false);
-
-  // Road distance metrics
   const [routeMetrics, setRouteMetrics] = useState<{ coveredKm: number; remainingKm: number; totalKm: number } | null>(null);
-  const [lastUpdatedTime, setLastUpdatedTime] = useState<string>("Just now");
 
-  // Load config & initial fleet
+  // Sync timing
+  const [lastSyncSec, setLastSyncSec] = useState<number>(0);
+  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Responsive left panel collapse on smaller screens
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+
+  // Track seconds since last sync
   useEffect(() => {
-    const savedKey = typeof window !== "undefined" ? localStorage.getItem("TMS_GOOGLE_MAPS_API_KEY") : null;
+    syncTimerRef.current = setInterval(() => {
+      setLastSyncSec((prev) => prev + 1);
+    }, 1000);
+    return () => {
+      if (syncTimerRef.current) clearInterval(syncTimerRef.current);
+    };
+  }, []);
 
+  // 1. Load GPS configuration
+  useEffect(() => {
     apiClient<GPSConfig>("/api/v1/transport/tracking/gps/config")
       .then((cfg) => {
         setConfig(cfg);
-        const resolvedKey = savedKey || cfg.google_maps_api_key || "";
-        setGoogleMapsKey(resolvedKey);
+        if (cfg.google_maps_api_key) {
+          setGoogleMapsKey(cfg.google_maps_api_key);
+        }
       })
       .catch(() => {});
-
-    loadFleet();
-
-    const interval = setInterval(() => {
-      loadFleet(true);
-    }, 12000);
-
-    return () => clearInterval(interval);
   }, []);
 
-  const loadFleet = async (silent = false) => {
+  // 2. Load Fleet from Backend API
+  const loadFleet = useCallback(async (silent = false) => {
     if (!silent) setIsLoadingFleet(true);
     else setIsRefreshing(true);
 
     try {
       const res = await apiClient<any>("/api/v1/transport/tracking/gps/vehicles");
-      if (res && res.success) {
-        setVehicles(res.vehicles || []);
+      if (res && res.success && Array.isArray(res.vehicles) && res.vehicles.length > 0) {
+        setVehicles(res.vehicles);
         if (res.counts) setCounts(res.counts);
+        setIsSampleMode(false);
 
-        // Auto select first vehicle ONLY if nothing is currently selected
-        if (!selectedVehicleNumRef.current && res.vehicles && res.vehicles.length > 0) {
-          const firstTarget = res.companyVehicles && res.companyVehicles.length > 0
-            ? res.companyVehicles[0].vehicleNumber
-            : res.vehicles[0].vehicleNumber;
-          selectVehicle(firstTarget, res.vehicles);
-        } else if (selectedVehicleNumRef.current && res.vehicles) {
-          // Keep current vehicle selected and smoothly update its telemetry data
-          const current = res.vehicles.find(
-            (v: any) =>
-              v.vehicleNumber === selectedVehicleNumRef.current ||
-              v.vehicleNumber.replace(/[^A-Z0-9]/gi, "") === selectedVehicleNumRef.current?.replace(/[^A-Z0-9]/gi, "")
-          );
-          if (current) setSelectedVehicleData(current);
+        // Keep current selected vehicle or default to first
+        setSelectedVehicleNum((prev) => {
+          if (prev && res.vehicles.some((v: any) => v.vehicleNumber === prev)) {
+            const found = res.vehicles.find((v: any) => v.vehicleNumber === prev);
+            if (found) setSelectedVehicleData(found);
+            return prev;
+          }
+          const firstNum = res.vehicles[0].vehicleNumber;
+          setSelectedVehicleData(res.vehicles[0]);
+          return firstNum;
+        });
+      } else {
+        // If WheelsEye is not configured or returned 0 vehicles, prepare sample fallback toggle
+        // while preserving true empty state if user wants live data only
+        if (isSampleMode) {
+          setVehicles(SAMPLE_FLEET);
+          setCounts({
+            all: 24,
+            company: 18,
+            market: 6,
+            running: 15,
+            stopped: 6,
+            no_signal: 3,
+          });
+        } else {
+          setVehicles([]);
+          setCounts({
+            all: 0,
+            company: 0,
+            market: 0,
+            running: 0,
+            stopped: 0,
+            no_signal: 0,
+          });
         }
       }
-      setLastUpdatedTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      setLastSyncSec(0);
     } catch (err) {
-      console.warn("Error loading fleet list:", err);
+      console.warn("GPS Fleet fetch notice:", err);
+      if (isSampleMode) {
+        setVehicles(SAMPLE_FLEET);
+      }
     } finally {
       setIsLoadingFleet(false);
       setIsRefreshing(false);
     }
+  }, [isSampleMode]);
+
+  useEffect(() => {
+    loadFleet();
+    const pollInterval = setInterval(() => {
+      loadFleet(true);
+    }, 15000); // 15-second polling interval
+    return () => clearInterval(pollInterval);
+  }, [loadFleet]);
+
+  // Handle switching sample mode
+  const handleToggleSampleMode = (enableSample: boolean) => {
+    setIsSampleMode(enableSample);
+    if (enableSample) {
+      setVehicles(SAMPLE_FLEET);
+      setCounts({
+        all: 24,
+        company: 18,
+        market: 6,
+        running: 15,
+        stopped: 6,
+        no_signal: 3,
+      });
+      setSelectedVehicleNum(SAMPLE_FLEET[0].vehicleNumber);
+      setSelectedVehicleData(SAMPLE_FLEET[0]);
+      setIsDetailsPanelVisible(true);
+    } else {
+      loadFleet();
+    }
   };
 
-  const selectVehicle = async (vNum: string, currentList?: GPSVehicleData[]) => {
+  // Select a vehicle
+  const handleSelectVehicle = (vNum: string) => {
     const cleanNum = vNum.trim();
     if (!cleanNum) return;
-    selectedVehicleNumRef.current = cleanNum;
     setSelectedVehicleNum(cleanNum);
+    setIsDetailsPanelVisible(true);
 
-    const list = currentList || vehicles;
-    const found = list.find(
-      (v) =>
-        v.vehicleNumber === cleanNum ||
-        v.vehicleNumber.replace(/[^A-Z0-9]/gi, "") === cleanNum.replace(/[^A-Z0-9]/gi, "")
-    );
+    const found = vehicles.find((v) => v.vehicleNumber === cleanNum);
     if (found) {
       setSelectedVehicleData(found);
     }
 
-    try {
-      const trackRes = await apiClient<any>(`/api/v1/transport/tracking/gps/track?vehicle=${encodeURIComponent(cleanNum)}`);
-      if (trackRes && trackRes.success && trackRes.truck_data) {
-        if (selectedVehicleNumRef.current === cleanNum) {
-          setSelectedVehicleData(trackRes.truck_data);
-          setSelectedTrip(trackRes.trip || null);
-        }
-      }
-    } catch (e) {
-      console.warn("Failed tracking vehicle:", e);
-    }
-
-    loadVehicleHistory(cleanNum, historyDate);
-  };
-
-  const handleTrackAction = () => {
-    const query = searchKeyword.trim();
-    if (query) {
-      const cleanQ = query.replace(/[^A-Z0-9]/gi, "").toUpperCase();
-      const match = vehicles.find((v) => {
-        const vClean = v.vehicleNumber.replace(/[^A-Z0-9]/gi, "").toUpperCase();
-        return vClean === cleanQ || vClean.includes(cleanQ);
-      });
-
-      if (match) {
-        selectVehicle(match.vehicleNumber);
-      } else {
-        selectVehicle(query);
-      }
-    } else if (selectedVehicleNumRef.current) {
-      selectVehicle(selectedVehicleNumRef.current);
-    } else if (filteredVehicles.length > 0) {
-      selectVehicle(filteredVehicles[0].vehicleNumber);
+    // Load active trip LR details if not in sample mode
+    if (!isSampleMode) {
+      apiClient<any>(`/api/v1/transport/tracking/gps/track?vehicle=${encodeURIComponent(cleanNum)}`)
+        .then((trackRes) => {
+          if (trackRes?.success && trackRes?.truck_data) {
+            setSelectedVehicleData(trackRes.truck_data);
+            setSelectedTrip(trackRes.trip || null);
+          }
+        })
+        .catch(() => {});
     }
   };
 
-  const loadVehicleHistory = async (vNum: string, date: string) => {
-    if (!vNum) return;
+  // Load Route History on-demand
+  const handleOpenRouteHistory = (vNum?: string) => {
+    const target = vNum || selectedVehicleNum;
+    if (!target) return;
+    setIsHistoryDrawerOpen(true);
     setIsLoadingHistory(true);
-    try {
-      const res = await apiClient<any>(`/api/v1/transport/tracking/gps/history?vehicle=${encodeURIComponent(vNum)}&date=${date}`);
-      if (res && res.success) {
-        setHistoryTimeline(res.timeline || []);
-      }
-    } catch (e) {
-      console.warn("Failed loading history:", e);
-    } finally {
-      setIsLoadingHistory(false);
+
+    if (isSampleMode) {
+      // Mocked realistic history for sample preview
+      setTimeout(() => {
+        setHistoryTimeline([
+          {
+            type: "movement",
+            title: "Moving (48 km/h)",
+            duration: "2h 15m",
+            address: "Sector 18, Noida towards DND Flyway",
+            time_range: "08:30 PM - Current",
+            latitude: 28.5700,
+            longitude: 77.3200,
+            speed: 48,
+          },
+          {
+            type: "stoppage",
+            title: "Halt at Warehouse",
+            duration: "45m",
+            address: "Industrial Area Phase 2, Noida",
+            time_range: "07:45 PM - 08:30 PM",
+            latitude: 28.5600,
+            longitude: 77.3300,
+            speed: 0,
+          },
+          {
+            type: "movement",
+            title: "Moving (55 km/h)",
+            duration: "1h 40m",
+            address: "NH-9 Ghaziabad to Noida",
+            time_range: "06:05 PM - 07:45 PM",
+            latitude: 28.6300,
+            longitude: 77.3800,
+            speed: 55,
+          },
+        ]);
+        setIsLoadingHistory(false);
+      }, 400);
+      return;
     }
+
+    apiClient<any>(`/api/v1/transport/tracking/gps/history?vehicle=${encodeURIComponent(target)}&date=${historyDate}`)
+      .then((res) => {
+        if (res?.success) {
+          setHistoryTimeline(res.timeline || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoadingHistory(false);
+      });
   };
 
   // Filtered & sorted vehicle list
   const filteredVehicles = useMemo(() => {
     let list = vehicles;
 
-    // Filter by type or status
-    if (activeFilter === "company") {
+    // Fleet Type filter
+    if (fleetTypeFilter === "company") {
       list = list.filter((v) => v.isCompany);
-    } else if (activeFilter === "market") {
+    } else if (fleetTypeFilter === "market") {
       list = list.filter((v) => !v.isCompany);
-    } else if (activeFilter === "running") {
+    }
+
+    // Status filter
+    if (statusFilter === "running") {
       list = list.filter((v) => v.status === "running");
-    } else if (activeFilter === "stopped") {
+    } else if (statusFilter === "stopped") {
       list = list.filter((v) => v.status === "stopped");
-    } else if (activeFilter === "no_signal") {
+    } else if (statusFilter === "no_signal") {
       list = list.filter((v) => v.status === "no_signal");
     }
 
-    // Keyword search
+    // Search query
     if (searchKeyword.trim()) {
       const q = searchKeyword.trim().toUpperCase();
       list = list.filter(
         (v) =>
           v.vehicleNumber.toUpperCase().includes(q) ||
+          (v.driverName && v.driverName.toUpperCase().includes(q)) ||
           (v.address && v.address.toUpperCase().includes(q)) ||
           (v.groupName && v.groupName.toUpperCase().includes(q))
       );
     }
 
-    // Sorting
+    // Sort order
     if (currentSort === "speed") {
       list = [...list].sort((a, b) => (b.speed || 0) - (a.speed || 0));
     } else if (currentSort === "name") {
@@ -253,662 +496,792 @@ export default function GPSTrackingPage() {
     }
 
     return list;
-  }, [vehicles, activeFilter, searchKeyword, currentSort]);
+  }, [vehicles, fleetTypeFilter, statusFilter, searchKeyword, currentSort]);
 
-  const toggleSort = () => {
-    if (currentSort === "default") setCurrentSort("speed");
-    else if (currentSort === "speed") setCurrentSort("name");
-    else setCurrentSort("default");
-  };
-
-  const handleSaveModalApiKey = () => {
-    if (tempApiKey.trim()) {
-      localStorage.setItem("TMS_GOOGLE_MAPS_API_KEY", tempApiKey.trim());
-      setGoogleMapsKey(tempApiKey.trim());
+  // Quick track vehicle action from header button
+  const handleQuickTrackAction = () => {
+    if (filteredVehicles.length > 0) {
+      handleSelectVehicle(filteredVehicles[0].vehicleNumber);
+    } else if (searchKeyword.trim()) {
+      handleSelectVehicle(searchKeyword.trim().toUpperCase());
     }
-    setIsKeyModalOpen(false);
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] -m-6 overflow-hidden bg-slate-100">
-      {/* ===================================================================== */}
-      {/* 🔑 GOOGLE MAPS API KEY MODAL */}
-      {/* ===================================================================== */}
-      {isKeyModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                <span className="p-2 rounded-xl bg-blue-100 text-blue-600">
-                  <MapPin className="w-4 h-4" />
+    <div className="flex flex-col gap-3 font-sans pb-4">
+      {/* ---------------------------------------------------------------------- */}
+      {/* 1. Header Section (Matching reference UI)                              */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="flex flex-col gap-2">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
+          <Link href="/" className="hover:text-slate-200 transition-colors">
+            Tracking
+          </Link>
+          <span className="text-slate-600">/</span>
+          <span className="text-slate-200 font-semibold">GPS Tracking</span>
+        </nav>
+
+        {/* Title, Subtitle, and Right Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#251E3E] border border-[#3D325E] flex items-center justify-center text-[#7965E9] shrink-0 shadow-sm">
+              <Navigation className="w-5 h-5 fill-[#7965E9]/20" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-white leading-tight">
+                GPS Tracking
+              </h1>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Live fleet monitoring and real-time location tracking
+              </p>
+            </div>
+          </div>
+
+          {/* Right Header Actions */}
+          <div className="flex items-center gap-3 self-end sm:self-center">
+            {/* Live Connection / Sync Status */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#171922] border border-[#2B303C] text-xs text-slate-300 font-medium">
+              <span className="w-2 h-2 rounded-full bg-[#20B889] animate-pulse" />
+              <span>
+                Last sync: {lastSyncSec < 5 ? "just now" : `${lastSyncSec} sec ago`}
+              </span>
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={() => loadFleet()}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 h-9 px-3.5 rounded-xl border border-[#2B303C] bg-[#171922] hover:bg-[#202330] text-slate-200 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 text-slate-300", isRefreshing && "animate-spin")} />
+              <span>Refresh</span>
+            </button>
+
+            {/* Primary Track Vehicle Button */}
+            <button
+              type="button"
+              onClick={handleQuickTrackAction}
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#7965E9] hover:bg-[#6854D8] active:bg-[#5844C6] text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <Navigation className="w-3.5 h-3.5 fill-white" />
+              <span>Track Vehicle</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* 2. Fleet Overview Cards (4 Compact Cards)                              */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {/* Card 1: Total Vehicles */}
+        <div
+          onClick={() => {
+            setFleetTypeFilter("all");
+            setStatusFilter("all");
+          }}
+          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+        >
+          <div className="w-11 h-11 rounded-xl bg-[#1B273A] border border-[#233550] flex items-center justify-center text-[#3B82F6] shrink-0 group-hover:scale-105 transition-transform">
+            <Truck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 font-medium">Total Vehicles</div>
+            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+              {counts.all}
+            </div>
+            <div className="text-[11px] text-slate-500 font-normal">All fleet vehicles</div>
+          </div>
+        </div>
+
+        {/* Card 2: Moving */}
+        <div
+          onClick={() => setStatusFilter("running")}
+          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+        >
+          <div className="w-11 h-11 rounded-xl bg-[#162D24] border border-[#1E4334] flex items-center justify-center text-[#20B889] shrink-0 group-hover:scale-105 transition-transform">
+            <Play className="w-5 h-5 fill-current" />
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 font-medium">Moving</div>
+            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+              {counts.running}
+            </div>
+            <div className="text-[11px] text-slate-500 font-normal">Vehicles on move</div>
+          </div>
+        </div>
+
+        {/* Card 3: Stopped */}
+        <div
+          onClick={() => setStatusFilter("stopped")}
+          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+        >
+          <div className="w-11 h-11 rounded-xl bg-[#321E23] border border-[#48252C] flex items-center justify-center text-[#E66D7C] shrink-0 group-hover:scale-105 transition-transform">
+            <Square className="w-4 h-4 fill-current rounded-xs" />
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 font-medium">Stopped</div>
+            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+              {counts.stopped}
+            </div>
+            <div className="text-[11px] text-slate-500 font-normal">Vehicles stationary</div>
+          </div>
+        </div>
+
+        {/* Card 4: No Signal */}
+        <div
+          onClick={() => setStatusFilter("no_signal")}
+          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+        >
+          <div className="w-11 h-11 rounded-xl bg-[#222530] border border-[#313646] flex items-center justify-center text-slate-400 shrink-0 group-hover:scale-105 transition-transform">
+            <Radio className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 font-medium">No Signal</div>
+            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+              {counts.no_signal}
+            </div>
+            <div className="text-[11px] text-slate-500 font-normal">No recent updates</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* 3. Unified Toolbar (Fleet Tabs, Search, Status Filter, Sort)          */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="bg-[#171922] border border-[#2B303C] rounded-xl p-2 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+        {/* Left: Segmented Tabs */}
+        <div className="inline-flex items-center bg-[#11131A] p-1 rounded-lg border border-[#252936]">
+          <button
+            type="button"
+            onClick={() => setFleetTypeFilter("all")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
+              fleetTypeFilter === "all"
+                ? "bg-[#7965E9] text-white shadow-xs"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            All Fleet
+          </button>
+          <button
+            type="button"
+            onClick={() => setFleetTypeFilter("company")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
+              fleetTypeFilter === "company"
+                ? "bg-[#7965E9] text-white shadow-xs"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            Company
+          </button>
+          <button
+            type="button"
+            onClick={() => setFleetTypeFilter("market")}
+            className={cn(
+              "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
+              fleetTypeFilter === "market"
+                ? "bg-[#7965E9] text-white shadow-xs"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            Market / Attached
+          </button>
+        </div>
+
+        {/* Center: Search Input */}
+        <div className="relative flex items-center flex-1 min-w-[220px] max-w-md">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 pointer-events-none" />
+          <input
+            type="text"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            placeholder="Search registration, driver or device ID..."
+            className="h-9 w-full pl-9 pr-8 text-xs bg-[#11131A] border border-[#2B303C] rounded-lg text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#7965E9] focus:border-[#7965E9] transition-colors"
+          />
+          {searchKeyword && (
+            <button
+              type="button"
+              onClick={() => setSearchKeyword("")}
+              className="absolute right-2.5 text-slate-500 hover:text-slate-200"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Right: Dropdowns & Controls */}
+        <div className="flex items-center gap-2">
+          {/* Status Filter */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e: any) => setStatusFilter(e.target.value)}
+              className="h-9 pl-3 pr-8 text-xs font-medium text-slate-300 bg-[#11131A] border border-[#2B303C] rounded-lg appearance-none cursor-pointer hover:border-slate-500 focus:outline-none focus:border-[#7965E9]"
+            >
+              <option value="all">🟢 All Status</option>
+              <option value="running">🟢 Moving</option>
+              <option value="stopped">🔴 Stopped</option>
+              <option value="no_signal">⚪ No Signal</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          {/* Sort Selector */}
+          <div className="relative">
+            <select
+              value={currentSort}
+              onChange={(e: any) => setCurrentSort(e.target.value)}
+              className="h-9 pl-3 pr-8 text-xs font-medium text-slate-300 bg-[#11131A] border border-[#2B303C] rounded-lg appearance-none cursor-pointer hover:border-slate-500 focus:outline-none focus:border-[#7965E9]"
+            >
+              <option value="name">Sort: Registration</option>
+              <option value="speed">Sort: Speed</option>
+              <option value="recent">Sort: Recent Update</option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          {/* Sample / Live Preview Toggle (matches screenshot demo fleet) */}
+          <button
+            type="button"
+            onClick={() => handleToggleSampleMode(!isSampleMode)}
+            className={cn(
+              "h-9 px-3 text-xs font-medium rounded-lg border transition-all cursor-pointer flex items-center gap-1.5",
+              isSampleMode
+                ? "bg-[#7965E9]/20 border-[#7965E9] text-[#7965E9]"
+                : "bg-[#11131A] border-[#2B303C] text-slate-400 hover:text-slate-200"
+            )}
+            title="Toggle between live connected GPS devices and sample fleet overview"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>{isSampleMode ? "Sample Fleet ON" : "Live Fleet"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* 4. Main Two-Panel Tracking Workspace                                   */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="flex flex-col lg:flex-row gap-3.5 h-[calc(100vh-270px)] min-h-[580px] relative">
+        {/* =================================================================== */}
+        {/* LEFT PANEL: Vehicle List                                            */}
+        {/* =================================================================== */}
+        <aside
+          className={cn(
+            "w-full lg:w-[360px] xl:w-[380px] bg-[#171922] border border-[#2B303C] rounded-xl flex flex-col shrink-0 overflow-hidden transition-all duration-300 shadow-sm",
+            isLeftPanelCollapsed && "lg:w-16"
+          )}
+        >
+          {/* Header */}
+          <div className="p-3.5 border-b border-[#2B303C] flex items-center justify-between shrink-0">
+            {!isLeftPanelCollapsed ? (
+              <>
+                <h2 className="text-sm font-bold text-white tracking-tight">Vehicles</h2>
+                <span className="text-xs text-slate-400 font-medium">
+                  {filteredVehicles.length} vehicles
                 </span>
-                <span>Google Maps Configuration</span>
-              </div>
-              <button
-                onClick={() => setIsKeyModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
-              Google Maps API key is automatically loaded from the project environment. You can also paste a custom key below to activate Google Maps vector roads, satellite, and traffic layers.
-            </p>
-            <div className="mb-4">
-              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                API Key
-              </label>
-              <input
-                type="text"
-                value={tempApiKey}
-                onChange={(e) => setTempApiKey(e.target.value)}
-                placeholder="AIzaSy..."
-                className="w-full px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsKeyModalOpen(false)}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleSaveModalApiKey}
-                className="text-xs"
-              >
-                Save &amp; Reload Map
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================== */}
-      {/* TOP FILTER & ACTION BAR */}
-      {/* ===================================================================== */}
-      <header className="bg-white border-b border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between gap-3 shadow-2xs z-30 shrink-0">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto py-0.5">
-          {/* Company Vehicles */}
-          <button
-            onClick={() => setActiveFilter("company")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-              activeFilter === "company"
-                ? "bg-indigo-50 border-indigo-500 text-indigo-700 shadow-2xs"
-                : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            <Building2 className="w-3 h-3 text-indigo-600" />
-            <span>Company Vehicles</span>
-            <span className="font-extrabold text-indigo-800">({counts.company})</span>
-          </button>
-
-          {/* All Filter */}
-          <button
-            onClick={() => setActiveFilter("all")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-              activeFilter === "all"
-                ? "bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-2xs"
-                : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            <span>All</span>
-            <span className="font-bold text-slate-500">({counts.all})</span>
-          </button>
-
-          {/* Market / Attached */}
-          <button
-            onClick={() => setActiveFilter("market")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-              activeFilter === "market"
-                ? "bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-2xs"
-                : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            <Truck className="w-3 h-3 text-slate-400" />
-            <span>Market / Attached</span>
-            <span className="font-bold text-slate-500">({counts.market})</span>
-          </button>
-
-          {/* Running Filter */}
-          <button
-            onClick={() => setActiveFilter("running")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-              activeFilter === "running"
-                ? "bg-emerald-50 border-emerald-500 text-emerald-700 font-bold shadow-2xs"
-                : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Running</span>
-            <span className="font-bold text-slate-500">({counts.running})</span>
-          </button>
-
-          {/* Stopped Filter */}
-          <button
-            onClick={() => setActiveFilter("stopped")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-              activeFilter === "stopped"
-                ? "bg-rose-50 border-rose-500 text-rose-700 font-bold shadow-2xs"
-                : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
-            <span>Stopped</span>
-            <span className="font-bold text-slate-500">({counts.stopped})</span>
-          </button>
-
-          {/* No Signal Filter */}
-          <button
-            onClick={() => setActiveFilter("no_signal")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-              activeFilter === "no_signal"
-                ? "bg-slate-100 border-slate-400 text-slate-800 font-bold shadow-2xs"
-                : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-slate-400" />
-            <span>No Signal</span>
-            <span className="font-bold text-slate-500">({counts.no_signal})</span>
-          </button>
-
-          {/* Sort Button */}
-          <button
-            onClick={toggleSort}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-600 transition-all ml-1 cursor-pointer"
-          >
-            <ArrowUpDown className="w-3 h-3 text-slate-400" />
-            <span className="capitalize">Sort: {currentSort}</span>
-          </button>
-        </div>
-
-        {/* Right Search & Controls */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          {/* Map Engine Config Button */}
-          <button
-            onClick={() => {
-              setTempApiKey(googleMapsKey);
-              setIsKeyModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold transition shadow-2xs cursor-pointer"
-          >
-            <MapPin className="w-3.5 h-3.5 text-blue-600" />
-            <span>{googleMapsKey ? "Google Maps" : "Leaflet Map"}</span>
-          </button>
-
-          {/* Search Input */}
-          <div className="relative flex-1 md:w-56">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleTrackAction();
-                }
-              }}
-              placeholder="ENTER TRUCK NO..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs font-mono uppercase bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition text-slate-800"
-            />
+              </>
+            ) : (
+              <span className="mx-auto text-xs font-bold text-slate-400">
+                {filteredVehicles.length}
+              </span>
+            )}
           </div>
 
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleTrackAction}
-            className="text-xs h-8 px-3 shrink-0 cursor-pointer"
-          >
-            Track
-          </Button>
-
-          <button
-            onClick={() => loadFleet()}
-            disabled={isRefreshing}
-            title="Refresh live positions"
-            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg border border-slate-200 transition cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-blue-600" : ""}`} />
-          </button>
-
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-[11px] text-slate-600 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Live (10s)</span>
-          </div>
-        </div>
-      </header>
-
-      {/* ===================================================================== */}
-      {/* MAIN 3-PANEL APPLICATION LAYOUT */}
-      {/* ===================================================================== */}
-      <div className="flex-1 flex overflow-hidden relative w-full h-full">
-        {/* PANEL 1: LEFT VEHICLE LIST */}
-        <aside className="w-full md:w-[330px] lg:w-[350px] bg-white border-r border-slate-200 flex flex-col shrink-0 z-10 h-full">
-          {/* Section switch pills */}
-          <div className="px-3 pt-2 pb-1.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-1 text-[11px]">
-            <button
-              onClick={() => setActiveFilter("company")}
-              className={`flex-1 py-1 px-2 rounded-md font-semibold text-center transition cursor-pointer ${
-                activeFilter === "company"
-                  ? "bg-indigo-50 border border-indigo-200 text-indigo-700 shadow-2xs font-bold"
-                  : "text-slate-600 hover:bg-white"
-              }`}
-            >
-              🏢 Company
-            </button>
-            <button
-              onClick={() => setActiveFilter("all")}
-              className={`flex-1 py-1 px-2 rounded-md font-semibold text-center transition cursor-pointer ${
-                activeFilter === "all"
-                  ? "bg-indigo-50 border border-indigo-200 text-indigo-700 shadow-2xs font-bold"
-                  : "text-slate-600 hover:bg-white"
-              }`}
-            >
-              All Fleet
-            </button>
-            <button
-              onClick={() => setActiveFilter("market")}
-              className={`flex-1 py-1 px-2 rounded-md font-semibold text-center transition cursor-pointer ${
-                activeFilter === "market"
-                  ? "bg-indigo-50 border border-indigo-200 text-indigo-700 shadow-2xs font-bold"
-                  : "text-slate-600 hover:bg-white"
-              }`}
-            >
-              🚛 Market
-            </button>
-          </div>
-
-          {/* Cards List */}
+          {/* Scrollable Cards List */}
           <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {isLoadingFleet ? (
-              <div className="p-8 text-center text-slate-400 text-xs">
-                <RefreshCw className="w-5 h-5 text-blue-500 animate-spin mx-auto mb-2" />
-                <p className="font-medium">Connecting to WheelsEye GPS...</p>
+              <div className="py-16 text-center text-slate-400 text-xs">
+                <RefreshCw className="w-5 h-5 text-[#7965E9] animate-spin mx-auto mb-2" />
+                <p className="font-medium">Connecting to GPS Telemetry...</p>
               </div>
             ) : filteredVehicles.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-xs">
-                <Truck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="font-medium">No vehicles found in this filter.</p>
+              // Empty State
+              <div className="py-12 px-4 text-center text-slate-400 text-xs flex flex-col items-center">
+                <div className="w-12 h-12 rounded-2xl bg-[#1B202D] border border-[#2B303C] flex items-center justify-center text-slate-500 mb-3">
+                  <Truck className="w-6 h-6" />
+                </div>
+                <div className="text-sm font-bold text-white mb-1">
+                  No vehicles found
+                </div>
+                <p className="text-slate-400 leading-relaxed mb-4 max-w-xs">
+                  {searchKeyword
+                    ? `No registered vehicle matches "${searchKeyword}".`
+                    : config?.is_configured === false
+                    ? "Your WheelsEye GPS account is not yet connected in API Center."
+                    : "No fleet vehicles found for this filter."}
+                </p>
+
+                {config?.is_configured === false && (
+                  <Link
+                    href="/api-center/gps"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#7965E9] text-white text-xs font-semibold hover:bg-[#6854D8] transition-colors mb-2"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Connect in API Center</span>
+                  </Link>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleSampleMode(true)}
+                  className="text-xs text-[#7965E9] hover:underline font-medium cursor-pointer"
+                >
+                  Or preview sample fleet demo →
+                </button>
               </div>
             ) : (
               filteredVehicles.map((v) => {
                 const isSelected = v.vehicleNumber === selectedVehicleNum;
-                const speed = v.speed || 0;
+                const isRunning = v.speed > 0;
+                const isStopped = v.status === "stopped";
+
                 return (
                   <div
                     key={v.vehicleNumber}
-                    onClick={() => selectVehicle(v.vehicleNumber)}
-                    className={`rounded-xl p-3 cursor-pointer transition-all duration-200 flex flex-col gap-2 relative ${
+                    onClick={() => handleSelectVehicle(v.vehicleNumber)}
+                    className={cn(
+                      "rounded-xl p-3 cursor-pointer transition-all duration-200 flex items-center gap-3 relative select-none",
                       isSelected
-                        ? "border-2 border-indigo-600 bg-indigo-50/20 shadow-md ring-2 ring-indigo-500/10"
-                        : "border border-slate-200 bg-white hover:border-slate-300 shadow-2xs hover:shadow-xs"
-                    }`}
+                        ? "bg-[#181A25] border-2 border-[#7965E9] shadow-[0_0_15px_rgba(121,101,233,0.18)] ring-1 ring-[#7965E9]/50"
+                        : "bg-[#13151D] border border-[#262B37] hover:border-slate-500 shadow-2xs hover:bg-[#161822]"
+                    )}
                   >
-                    {/* Top Row: Speed Badge + Truck Number & Meta */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        {speed > 0 ? (
-                          <div className="flex flex-col items-center justify-center bg-emerald-50 text-emerald-600 rounded-lg p-2 border border-emerald-200 min-w-[50px]">
-                            <span className="text-sm font-black leading-tight">{speed}</span>
-                            <span className="text-[8px] font-bold uppercase tracking-wider">Kmph</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center bg-slate-100 text-slate-600 rounded-lg p-2 border border-slate-200 min-w-[50px]">
-                            <span className="text-sm font-black leading-tight">0</span>
-                            <span className="text-[8px] font-bold uppercase tracking-wider">Kmph</span>
-                          </div>
-                        )}
+                    {/* Truck Thumbnail Avatar */}
+                    <div className="w-12 h-12 rounded-lg bg-[#1B1E29] border border-[#2B303C] flex items-center justify-center shrink-0 overflow-hidden">
+                      <Truck className="w-6 h-6 text-slate-300" />
+                    </div>
 
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="text-xs font-bold font-mono tracking-tight text-slate-900">
-                              {v.vehicleNumber}
-                            </h3>
-                            {speed > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
-                            {v.isCompany ? (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                Company
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 text-slate-600">
-                                Market
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[9px] text-slate-400 font-medium">Last updated on {v.lastUpdated}</p>
-                        </div>
+                    {/* Middle Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold font-mono text-white text-xs sm:text-sm tracking-tight truncate">
+                        {v.vehicleNumber}
                       </div>
-
-                      {/* Status Indicators */}
-                      <div className="flex items-center gap-1.5 text-slate-400">
-                        {v.ignition ? (
-                          <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-200">
-                            IGN ON
-                          </span>
-                        ) : (
-                          <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">
-                            OFF
-                          </span>
-                        )}
+                      <div className="text-xs text-slate-400 truncate mt-0.5">
+                        {v.driverName || "Driver Unassigned"}
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {v.address || "Fetching location..."}
                       </div>
                     </div>
 
-                    {/* Address Text */}
-                    <p className="text-[11px] text-slate-700 font-medium leading-relaxed">
-                      {v.address || "Fetching location..."}
-                    </p>
-
-                    {/* Bottom Metadata */}
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-100">
-                      <span className="truncate pr-2">
-                        {v.todayKm || 0} km today | {v.inactiveTime || "Live"}
-                      </span>
-                      <span className="text-slate-500 font-mono text-[9px]">{v.groupName || "Main"}</span>
+                    {/* Right Info: Status, Speed & Time */}
+                    <div className="shrink-0 text-right">
+                      <div className="flex items-center justify-end gap-1.5 text-[11px] font-semibold">
+                        <span
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            isRunning
+                              ? "bg-[#20B889]"
+                              : isStopped
+                              ? "bg-[#E66D7C]"
+                              : "bg-slate-400"
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            isRunning
+                              ? "text-[#20B889]"
+                              : isStopped
+                              ? "text-[#E66D7C]"
+                              : "text-slate-400"
+                          )}
+                        >
+                          {isRunning ? "Moving" : isStopped ? "Stopped" : "No Signal"}
+                        </span>
+                      </div>
+                      <div className="font-bold font-mono text-white text-xs mt-1">
+                        {v.speed || 0} km/h
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {v.lastUpdated || "live"}
+                      </div>
                     </div>
                   </div>
                 );
               })
             )}
           </div>
-
-          {/* Footer */}
-          <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
-            <span>
-              Total Tracked: <strong className="text-slate-800 font-bold">{vehicles.length}</strong>
-            </span>
-            <span>Updated: {lastUpdatedTime}</span>
-          </div>
         </aside>
 
-        {/* PANEL 2: MIDDLE DRAWER (ROUTE HISTORY & FEATURES) */}
-        {isDrawerOpen && (
-          <aside className="w-full md:w-[340px] lg:w-[360px] bg-white border-r border-slate-200 flex flex-col shrink-0 shadow-lg z-10 transition-all duration-300 relative h-full">
-            {/* Drawer Tabs */}
-            <div className="border-b border-slate-200 px-4 pt-3 flex items-center justify-between bg-slate-50/50 shrink-0">
-              <div className="flex items-center gap-6">
-                <button
-                  onClick={() => setDrawerTab("route_history")}
-                  className={`pb-2.5 text-xs font-bold transition-all cursor-pointer ${
-                    drawerTab === "route_history"
-                      ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
-                  }`}
-                >
-                  Route History
-                </button>
-                <button
-                  onClick={() => setDrawerTab("features")}
-                  className={`pb-2.5 text-xs font-bold transition-all cursor-pointer ${
-                    drawerTab === "features"
-                      ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
-                  }`}
-                >
-                  Features &amp; Diag
-                </button>
-              </div>
-              <button
-                onClick={() => setIsDrawerOpen(false)}
-                title="Collapse Panel"
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded hover:bg-slate-200/60 transition cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* TAB 1: ROUTE HISTORY */}
-            {drawerTab === "route_history" && (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Period selector */}
-                <div className="p-3 border-b border-slate-100 flex items-center justify-between gap-2 bg-white shrink-0">
-                  <select
-                    value={historyDate}
-                    onChange={(e: any) => {
-                      setHistoryDate(e.target.value);
-                      if (selectedVehicleNum) loadVehicleHistory(selectedVehicleNum, e.target.value);
-                    }}
-                    className="text-xs font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer"
-                  >
-                    <option value="today">Today</option>
-                    <option value="yesterday">Yesterday</option>
-                    <option value="last_7_days">Last 7 Days</option>
-                  </select>
-
-                  <div className="flex items-center gap-1.5 text-slate-600">
-                    <button
-                      onClick={() => selectedVehicleNum && loadVehicleHistory(selectedVehicleNum, historyDate)}
-                      title="Refresh Live Data"
-                      className="p-1.5 hover:bg-slate-100 rounded-lg transition text-xs cursor-pointer"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingHistory ? "animate-spin" : ""}`} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Active Trip LR Box */}
-                {selectedTrip && selectedTrip.lr_no && (
-                  <div className="mx-3 my-2 p-3 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50/40 border border-blue-100 text-xs shrink-0 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-bold text-blue-600 tracking-wider">Active Trip LR</span>
-                      <span className="font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-blue-200">
-                        LR #{selectedTrip.lr_no}
-                      </span>
-                    </div>
-
-                    {routeMetrics && (
-                      <div className="flex items-center justify-between py-1 px-2 rounded-lg bg-white border border-blue-100 text-[10px]">
-                        <span className="text-red-600 font-bold">Traveled: {routeMetrics.coveredKm.toFixed(0)} km</span>
-                        <span className="text-slate-300">|</span>
-                        <span className="text-blue-600 font-bold">Remaining: {routeMetrics.remainingKm.toFixed(0)} km</span>
-                        <span className="text-slate-300">|</span>
-                        <span className="text-indigo-700 font-bold">Total: {routeMetrics.totalKm.toFixed(0)} km</span>
-                      </div>
-                    )}
-
-                    {selectedTrip.waypoints && (
-                      <div className="space-y-1 text-slate-700 font-medium text-[11px]">
-                        {selectedTrip.waypoints.map((wp, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <span className="text-[9px] uppercase font-bold text-blue-500">
-                              {idx === 0 ? "Origin:" : idx === (selectedTrip.waypoints?.length || 1) - 1 ? "Dest:" : `Stop ${idx}:`}
-                            </span>
-                            <span className="truncate">{wp}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Timeline items */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {isLoadingHistory ? (
-                    <div className="py-8 text-center text-slate-400 text-xs">
-                      <RefreshCw className="w-4 h-4 text-blue-500 animate-spin mx-auto mb-1.5" />
-                      <p>Loading telemetry logs...</p>
-                    </div>
-                  ) : historyTimeline.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-8">
-                      No historical telemetry logs available for this period.
-                    </p>
-                  ) : (
-                    historyTimeline.map((item, index) => {
-                      const isStop = item.type === "stoppage";
-                      return (
-                        <div key={index} className="flex items-start gap-3 relative group">
-                          <div className="relative flex items-center justify-center shrink-0 mt-1">
-                            <span
-                              className={`w-3.5 h-3.5 rounded-full border-2 ${
-                                isStop ? "bg-slate-400 border-slate-200" : "bg-emerald-500 border-emerald-200"
-                              }`}
-                            />
-                          </div>
-                          <div className="flex-1 bg-slate-50 group-hover:bg-blue-50/50 border border-slate-200 rounded-xl p-3 transition text-xs">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-bold text-slate-800">{item.title}</span>
-                              <span className="font-semibold px-2 py-0.5 rounded text-[10px] bg-slate-200 text-slate-700 font-mono">
-                                {item.duration}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-700 leading-snug mb-1 font-medium">
-                              {item.address || "Location unavailable"}
-                            </p>
-                            <div className="text-[10px] text-slate-400 font-medium">({item.time_range})</div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: FEATURES & DIAGNOSTICS */}
-            {drawerTab === "features" && selectedVehicleData && (
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                <div className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                    <h4 className="text-xs font-bold uppercase text-indigo-900 tracking-wider">
-                      Vehicle Specifications
-                    </h4>
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between border-b border-indigo-100 pb-1.5">
-                      <span className="text-slate-500">Fleet Type:</span>
-                      <span className="font-bold text-indigo-700">
-                        {selectedVehicleData.isCompany ? "Company Owned" : "Market Attached"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-b border-indigo-100 pb-1.5">
-                      <span className="text-slate-500">Group / Division:</span>
-                      <span className="font-semibold text-slate-800">
-                        {selectedVehicleData.groupName || "Panther Fleet"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-b border-indigo-100 pb-1.5">
-                      <span className="text-slate-500">GPS Telemetry Provider:</span>
-                      <span className="font-semibold text-slate-800">WheelsEye Telematics</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <h4 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">
-                    Live Diagnostics
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-slate-400 block text-[10px] uppercase">Engine Status</span>
-                      <span className="font-bold text-slate-800">
-                        {selectedVehicleData.ignition ? "RUNNING (ON)" : "STOPPED (OFF)"}
-                      </span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-slate-400 block text-[10px] uppercase">Battery</span>
-                      <span className="font-bold text-emerald-600">{selectedVehicleData.battery || 100}%</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-slate-400 block text-[10px] uppercase">Odometer</span>
-                      <span className="font-bold text-slate-800">
-                        {selectedVehicleData.odometer ? `${selectedVehicleData.odometer} KM` : `${selectedVehicleData.todayKm || 0} KM`}
-                      </span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-slate-400 block text-[10px] uppercase">Live Speed</span>
-                      <span className="font-bold text-blue-600">{selectedVehicleData.speed || 0} km/h</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <button
-                    onClick={() => setShowRawPayload(!showRawPayload)}
-                    className="w-full text-left flex justify-between items-center text-[11px] font-bold text-slate-500 hover:text-slate-800 uppercase tracking-wider py-2 cursor-pointer"
-                  >
-                    <span>Raw Telemetry Payload</span>
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showRawPayload ? "rotate-180" : ""}`} />
-                  </button>
-                  {showRawPayload && (
-                    <div className="mt-1 p-3 rounded-lg bg-slate-900 text-emerald-400 font-mono text-[10px] max-h-48 overflow-y-auto break-all">
-                      {JSON.stringify(selectedVehicleData.raw || selectedVehicleData, null, 2)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </aside>
-        )}
-
-        {/* Closed Drawer Re-Open Button */}
-        {!isDrawerOpen && (
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="absolute top-4 left-4 z-20 bg-white hover:bg-slate-50 text-slate-700 p-2.5 rounded-xl shadow-md border border-slate-200 transition cursor-pointer"
-            title="Expand History Drawer"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* PANEL 3: RIGHT MAIN MAP AREA */}
-        <section className="flex-1 relative h-full w-full bg-slate-100 overflow-hidden">
-          {/* Distance Summary Overlay (Top Center) */}
-          {routeMetrics && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-xl shadow-lg border border-slate-200 text-xs flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-1 rounded bg-red-500" />
-                <span className="text-slate-600 font-medium">Traveled:</span>
-                <span className="font-bold text-red-600 font-mono">{routeMetrics.coveredKm.toFixed(0)} km</span>
-              </div>
-              <div className="h-3 w-[1px] bg-slate-200" />
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-1 rounded bg-blue-500 border-t border-dashed border-blue-500" />
-                <span className="text-slate-600 font-medium">Remaining:</span>
-                <span className="font-bold text-blue-600 font-mono">{routeMetrics.remainingKm.toFixed(0)} km</span>
-              </div>
-              <div className="h-3 w-[1px] bg-slate-200" />
-              <div className="flex items-center gap-1.5">
-                <Compass className="w-3 h-3 text-indigo-500" />
-                <span className="text-slate-600 font-medium">Total:</span>
-                <span className="font-bold text-indigo-700 font-mono">{routeMetrics.totalKm.toFixed(0)} km</span>
-              </div>
-            </div>
-          )}
-
-          {/* Map Component */}
+        {/* =================================================================== */}
+        {/* RIGHT PANEL: Dominant GPS Map Workspace                             */}
+        {/* =================================================================== */}
+        <section className="flex-1 bg-[#171922] border border-[#2B303C] rounded-xl overflow-hidden relative flex flex-col shadow-sm">
+          {/* Real Map Component */}
           <GPSTrackingMap
             vehicle={selectedVehicleData}
+            vehicles={filteredVehicles}
             trip={selectedTrip}
             apiKey={googleMapsKey}
+            onSelectVehicle={handleSelectVehicle}
             onMetricsComputed={(m) => setRouteMetrics(m)}
+            isSampleData={isSampleMode}
+            className="w-full h-full"
           />
 
-          {/* Selected Vehicle Info Pill (Bottom Floating) */}
-          {selectedVehicleData && (
-            <div className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 z-20 bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-slate-200 text-xs flex items-center gap-3">
-              <div className="flex items-center gap-2 font-bold text-slate-800">
-                <Truck className="w-4 h-4 text-blue-600" />
-                <span>{selectedVehicleData.vehicleNumber}</span>
+          {/* ----------------------------------------------------------------- */}
+          {/* Floating Vehicle Details Card (Bottom Right - Matching Reference) */}
+          {/* ----------------------------------------------------------------- */}
+          {selectedVehicleData && isDetailsPanelVisible && (
+            <div className="absolute bottom-5 right-5 z-20 w-80 sm:w-96 bg-[#171922]/95 backdrop-blur-md border border-[#2B303C] rounded-2xl p-4 shadow-2xl animate-in fade-in duration-200">
+              {/* Header: Thumbnail + Number + Status Badge + Close X */}
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#2B303C]">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-[#1B1E29] border border-[#2B303C] flex items-center justify-center shrink-0">
+                    <Truck className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold font-mono text-white text-sm tracking-tight">
+                      {selectedVehicleData.vehicleNumber}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-xs">
+                      <span
+                        className={cn(
+                          "w-2 h-2 rounded-full",
+                          selectedVehicleData.speed > 0
+                            ? "bg-[#20B889]"
+                            : selectedVehicleData.status === "stopped"
+                            ? "bg-[#E66D7C]"
+                            : "bg-slate-400"
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "font-semibold text-[11px]",
+                          selectedVehicleData.speed > 0
+                            ? "text-[#20B889]"
+                            : selectedVehicleData.status === "stopped"
+                            ? "text-[#E66D7C]"
+                            : "text-slate-400"
+                        )}
+                      >
+                        {selectedVehicleData.speed > 0
+                          ? "Moving"
+                          : selectedVehicleData.status === "stopped"
+                          ? "Stopped"
+                          : "No Signal"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDetailsPanelVisible(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                  title="Close Card"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <div className="h-3 w-[1px] bg-slate-200" />
-              <div className="text-emerald-600 font-bold font-mono">
-                {selectedVehicleData.speed || 0} km/h
+
+              {/* Grid: Driver, Location, Speed, Last Update */}
+              <div className="grid grid-cols-2 gap-3 py-3 text-xs border-b border-[#2B303C]">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                    Driver
+                  </span>
+                  <span className="font-medium text-slate-200 truncate block mt-0.5">
+                    {selectedVehicleData.driverName || "Rahul Sharma"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                    Location
+                  </span>
+                  <span className="font-medium text-slate-200 truncate block mt-0.5">
+                    {selectedVehicleData.address || "Sector 18, Noida, UP"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                    Speed
+                  </span>
+                  <span className="font-bold font-mono text-white block mt-0.5">
+                    {selectedVehicleData.speed || 0} km/h
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                    Last Update
+                  </span>
+                  <span className="font-medium text-slate-200 block mt-0.5">
+                    {selectedVehicleData.lastUpdated || "Just now"}
+                  </span>
+                </div>
               </div>
-              <div className="h-3 w-[1px] bg-slate-200" />
-              <div className="text-slate-500 truncate max-w-xs md:max-w-md">
-                {selectedVehicleData.address || "Fetching location..."}
+
+              {/* Actions: Route History & Details */}
+              <div className="flex items-center gap-2.5 pt-3">
+                <button
+                  type="button"
+                  onClick={() => handleOpenRouteHistory()}
+                  className="flex-1 h-9 px-3 text-xs font-semibold text-slate-200 bg-[#11131A] hover:bg-[#1E212D] border border-[#2B303C] rounded-xl inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Route History</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSpecsDrawerOpen(true)}
+                  className="flex-1 h-9 px-3 text-xs font-semibold text-white bg-[#7965E9] hover:bg-[#6854D8] rounded-xl inline-flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Details</span>
+                </button>
               </div>
             </div>
           )}
         </section>
       </div>
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* 5. On-Demand Route History Drawer Modal                                */}
+      {/* ---------------------------------------------------------------------- */}
+      {isHistoryDrawerOpen && selectedVehicleData && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#171922] h-full shadow-2xl flex flex-col justify-between border-l border-[#2B303C]">
+            {/* Header */}
+            <div className="p-4 border-b border-[#2B303C] flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Route History — {selectedVehicleData.vehicleNumber}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Telemetry history, travel duration &amp; stoppages
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHistoryDrawerOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Date filter selector */}
+            <div className="p-3 border-b border-[#2B303C] flex items-center justify-between gap-2 bg-[#12141C]">
+              <select
+                value={historyDate}
+                onChange={(e: any) => {
+                  setHistoryDate(e.target.value);
+                  handleOpenRouteHistory(selectedVehicleData.vehicleNumber);
+                }}
+                className="h-8 px-2.5 bg-[#171922] border border-[#2B303C] rounded-lg text-xs font-semibold text-slate-200 focus:outline-none"
+              >
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last_7_days">Last 7 Days</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => handleOpenRouteHistory(selectedVehicleData.vehicleNumber)}
+                className="p-1.5 text-slate-400 hover:text-white transition-colors"
+                title="Refresh History"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingHistory && "animate-spin")} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-3 overflow-y-auto flex-1 text-xs">
+              {/* Distance Metrics Strip */}
+              {routeMetrics && (
+                <div className="p-3 rounded-xl bg-[#12141C] border border-[#2B303C] flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Traveled</span>
+                    <span className="font-bold text-[#20B889] font-mono">
+                      {routeMetrics.coveredKm.toFixed(0)} km
+                    </span>
+                  </div>
+                  <div className="h-6 w-[1px] bg-[#2B303C]" />
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Remaining</span>
+                    <span className="font-bold text-[#7965E9] font-mono">
+                      {routeMetrics.remainingKm.toFixed(0)} km
+                    </span>
+                  </div>
+                  <div className="h-6 w-[1px] bg-[#2B303C]" />
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Total Trip</span>
+                    <span className="font-bold text-white font-mono">
+                      {routeMetrics.totalKm.toFixed(0)} km
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Items */}
+              {isLoadingHistory ? (
+                <div className="py-12 text-center text-slate-400 text-xs">
+                  <RefreshCw className="w-5 h-5 text-[#7965E9] animate-spin mx-auto mb-2" />
+                  <p>Loading historical GPS coordinates...</p>
+                </div>
+              ) : historyTimeline.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <Clock className="w-6 h-6 text-slate-500 mx-auto mb-2" />
+                  <p>No historical telemetry logs available for this period.</p>
+                </div>
+              ) : (
+                historyTimeline.map((item, idx) => {
+                  const isStop = item.type === "stoppage";
+                  return (
+                    <div key={idx} className="flex items-start gap-3 relative">
+                      <div className="relative flex items-center justify-center shrink-0 mt-1">
+                        <span
+                          className={cn(
+                            "w-3 h-3 rounded-full border-2",
+                            isStop
+                              ? "bg-[#E66D7C] border-[#E66D7C]/40"
+                              : "bg-[#20B889] border-[#20B889]/40"
+                          )}
+                        />
+                      </div>
+                      <div className="flex-1 bg-[#12141C] border border-[#2B303C] rounded-xl p-3 text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-white">{item.title}</span>
+                          <span className="font-mono text-[10px] text-slate-400 bg-[#171922] px-2 py-0.5 rounded border border-[#2B303C]">
+                            {item.duration}
+                          </span>
+                        </div>
+                        <p className="text-slate-400 leading-relaxed mb-1">
+                          {item.address || "Location unavailable"}
+                        </p>
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          {item.time_range}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[#2B303C] flex items-center justify-end bg-[#12141C]">
+              <button
+                type="button"
+                onClick={() => setIsHistoryDrawerOpen(false)}
+                className="h-9 px-4 text-xs font-semibold text-slate-300 bg-[#171922] hover:bg-[#202330] border border-[#2B303C] rounded-xl transition-colors cursor-pointer"
+              >
+                Close History
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------------------- */}
+      {/* 6. On-Demand Vehicle Details & Diagnostics Drawer                      */}
+      {/* ---------------------------------------------------------------------- */}
+      {isSpecsDrawerOpen && selectedVehicleData && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#171922] h-full shadow-2xl flex flex-col justify-between border-l border-[#2B303C]">
+            {/* Header */}
+            <div className="p-4 border-b border-[#2B303C] flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Vehicle Details — {selectedVehicleData.vehicleNumber}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Specifications, engine diagnostics &amp; telematics info
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSpecsDrawerOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
+              {/* Vehicle Specifications */}
+              <div className="bg-[#12141C] p-3.5 rounded-xl border border-[#2B303C] space-y-2">
+                <div className="text-[11px] font-bold text-[#7965E9] uppercase tracking-wide">
+                  Fleet Specifications
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Fleet Type</span>
+                    <span className="font-semibold text-white">
+                      {selectedVehicleData.isCompany ? "Company Owned" : "Market Attached"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Group / Division</span>
+                    <span className="font-semibold text-white">
+                      {selectedVehicleData.groupName || "Panther Logistics"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">Driver</span>
+                    <span className="font-medium text-slate-300">
+                      {selectedVehicleData.driverName || "Unassigned"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[10px]">GPS Provider</span>
+                    <span className="font-medium text-slate-300">WheelsEye Telematics</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Diagnostics */}
+              <div className="bg-[#12141C] p-3.5 rounded-xl border border-[#2B303C] space-y-2">
+                <div className="text-[11px] font-bold text-[#20B889] uppercase tracking-wide">
+                  Live Engine Diagnostics
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                    <span className="text-slate-500 block text-[10px]">Engine Ignition</span>
+                    <span className="font-bold text-white">
+                      {selectedVehicleData.ignition ? "RUNNING (ON)" : "STOPPED (OFF)"}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                    <span className="text-slate-500 block text-[10px]">Device Battery</span>
+                    <span className="font-bold text-[#20B889]">
+                      {selectedVehicleData.battery || 100}%
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                    <span className="text-slate-500 block text-[10px]">Odometer Reading</span>
+                    <span className="font-bold text-white font-mono">
+                      {selectedVehicleData.odometer ? `${selectedVehicleData.odometer} km` : "N/A"}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                    <span className="text-slate-500 block text-[10px]">Today Distance</span>
+                    <span className="font-bold text-white font-mono">
+                      {selectedVehicleData.todayKm || 0} km
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[#2B303C] flex items-center justify-end gap-2 bg-[#12141C]">
+              <button
+                type="button"
+                onClick={() => setIsSpecsDrawerOpen(false)}
+                className="h-9 px-4 text-xs font-semibold text-slate-300 bg-[#171922] hover:bg-[#202330] border border-[#2B303C] rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

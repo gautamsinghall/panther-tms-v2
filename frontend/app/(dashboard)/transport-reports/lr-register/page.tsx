@@ -3,31 +3,28 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   RefreshCw,
-  FileSpreadsheet,
   Download,
   Printer,
   Search,
   SlidersHorizontal,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
-  ChevronsUpDown,
+  ArrowUpDown,
   Calendar,
-  Check,
   X,
   ExternalLink,
   Eye,
   AlertCircle,
   FileText,
-  DollarSign,
   Truck,
-  Hash,
+  Wallet,
   Scale,
+  Filter,
+  FileSpreadsheet,
 } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -82,43 +79,76 @@ interface ColumnConfig {
 }
 
 const AVAILABLE_COLUMNS: ColumnConfig[] = [
-  { key: "lr_number", label: "Gr No", defaultVisible: true, minWidth: "100px" },
-  { key: "lr_date", label: "GR/LR Date", defaultVisible: true, minWidth: "110px" },
-  { key: "issuing_office_name", label: "Issuing Office", defaultVisible: true, minWidth: "140px" },
-  { key: "booking_status", label: "GR Status", defaultVisible: true, minWidth: "100px" },
-  { key: "client_name", label: "Client Name", defaultVisible: true, minWidth: "220px" },
-  { key: "party_invoice_no", label: "Party Invoice No.", defaultVisible: true, minWidth: "140px" },
-  { key: "vehicle_number", label: "Vehicle No", defaultVisible: true, minWidth: "120px" },
-  { key: "site_from", label: "Site From", defaultVisible: true, minWidth: "180px" },
-  { key: "site_to", label: "Site To", defaultVisible: true, minWidth: "180px" },
-  { key: "consigner_name", label: "Consigner Name", defaultVisible: true, minWidth: "200px" },
-  { key: "consignee_name", label: "Consignee Name", defaultVisible: true, minWidth: "200px" },
+  { key: "lr_number", label: "GR / LR No.", defaultVisible: true, minWidth: "130px" },
+  { key: "lr_date", label: "Date", defaultVisible: true, minWidth: "110px" },
+  { key: "issuing_office_name", label: "Issuing Office", defaultVisible: true, minWidth: "120px" },
+  { key: "booking_status", label: "Status", defaultVisible: true, minWidth: "100px" },
+  { key: "client_name", label: "Customer", defaultVisible: true, minWidth: "200px" },
+  { key: "vehicle_number", label: "Vehicle No.", defaultVisible: true, minWidth: "120px" },
+  { key: "site_from", label: "Origin", defaultVisible: true, minWidth: "140px" },
+  { key: "site_to", label: "Destination", defaultVisible: true, minWidth: "140px" },
+  { key: "balance_amount", label: "Balance", defaultVisible: true, align: "right", minWidth: "100px" },
+  // Preserved additional report columns (toggleable via Columns dropdown)
+  { key: "consigner_name", label: "Consigner", defaultVisible: false, minWidth: "180px" },
+  { key: "consignee_name", label: "Consignee", defaultVisible: false, minWidth: "180px" },
+  { key: "party_invoice_no", label: "Party Invoice No.", defaultVisible: false, minWidth: "140px" },
   { key: "package_count", label: "Pkgs", defaultVisible: false, align: "right", minWidth: "80px" },
   { key: "actual_weight_mt", label: "Weight (MT)", defaultVisible: false, align: "right", minWidth: "110px" },
   { key: "total_freight_amount", label: "Freight Amount", defaultVisible: false, align: "right", minWidth: "120px" },
   { key: "advance_amount", label: "Advance", defaultVisible: false, align: "right", minWidth: "110px" },
-  { key: "balance_amount", label: "Balance", defaultVisible: false, align: "right", minWidth: "110px" },
   { key: "eway_bill_number", label: "E-Way Bill No", defaultVisible: false, minWidth: "130px" },
   { key: "payment_terms", label: "Payment Terms", defaultVisible: false, minWidth: "110px" },
 ];
 
-// Helper: Format YYYY-MM-DD to DD-MM-YYYY
-function formatDisplayDate(dateStr?: string | null): string {
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Helper: Format YYYY-MM-DD or DD-MM-YYYY to DD MMM YYYY (e.g. 06 Oct 2026)
+function formatDateDisplay(dateStr?: string | null): string {
   if (!dateStr) return "-";
-  const trimmed = dateStr.trim();
-  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) return trimmed;
-  const parts = trimmed.split("T")[0].split("-");
-  if (parts.length === 3 && parts[0].length === 4) {
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  const trimmed = String(dateStr).trim();
+  const isoParts = trimmed.split("T")[0].split("-");
+  if (isoParts.length === 3 && isoParts[0].length === 4) {
+    const year = isoParts[0];
+    const monthIdx = parseInt(isoParts[1], 10) - 1;
+    const day = isoParts[2].padStart(2, "0");
+    const month = MONTH_NAMES[monthIdx] || isoParts[1];
+    return `${day} ${month} ${year}`;
+  }
+  const parts = trimmed.split("-");
+  if (parts.length === 3 && parts[2].length === 4) {
+    const day = parts[0].padStart(2, "0");
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const year = parts[2];
+    const month = MONTH_NAMES[monthIdx] || parts[1];
+    return `${day} ${month} ${year}`;
   }
   return dateStr;
 }
 
-// Compute initial default dates (Indian Financial Year: 01-04-YYYY to current date)
+// Helper: Format location string "City(State)" to "City, State"
+function formatLocation(loc?: string | null): string {
+  if (!loc) return "-";
+  const str = String(loc).trim();
+  const match = str.match(/^(.*?)\((.*?)\)$/);
+  if (match) {
+    return `${match[1].trim()}, ${match[2].trim()}`;
+  }
+  return str;
+}
+
+// Helper: Format office name (e.g. "HEAD OFFICE-DELHI" -> "Delhi")
+function formatOfficeName(name?: string | null): string {
+  if (!name) return "Delhi";
+  const cleaned = name.replace(/^HEAD OFFICE[\s\-_:]*/i, "").trim();
+  if (!cleaned) return name;
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+}
+
+// Compute Indian Financial Year: 01-04-YYYY to current date
 function getDefaultFinancialYearDates() {
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed (3 = April)
+  const currentMonth = now.getMonth();
   const fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
 
   const fromDate = `${fyStartYear}-04-01`;
@@ -133,6 +163,9 @@ export default function LRRegisterPage() {
   const defaultDates = useMemo(() => getDefaultFinancialYearDates(), []);
   const [fromDate, setFromDate] = useState<string>(defaultDates.fromDate);
   const [toDate, setToDate] = useState<string>(defaultDates.toDate);
+  const [appliedFromDate, setAppliedFromDate] = useState<string>(defaultDates.fromDate);
+  const [appliedToDate, setAppliedToDate] = useState<string>(defaultDates.toDate);
+
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
 
@@ -149,7 +182,7 @@ export default function LRRegisterPage() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize, setPageSize] = useState<number>(25);
 
   // Column Visibility
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
@@ -189,7 +222,7 @@ export default function LRRegisterPage() {
           setCustomers(list);
         }
       } catch {
-        // Fallback silently if clients endpoint is restricted
+        // Fallback silently if restricted
       }
     };
     loadCustomers();
@@ -197,9 +230,8 @@ export default function LRRegisterPage() {
 
   // 2. Fetch LR Register Data from Backend
   const loadData = async (fDate = fromDate, tDate = toDate, custId = selectedCustomer) => {
-    // Validation
     if (fDate && tDate && fDate > tDate) {
-      setDateValidationError("From date cannot be later than To date.");
+      setDateValidationError("From Date cannot be later than To Date.");
       return;
     }
     setDateValidationError(null);
@@ -216,6 +248,8 @@ export default function LRRegisterPage() {
       const endpoint = `/api/v1/transport-reports/lr-register${qs ? `?${qs}` : ""}`;
       const res = await apiClient<LRRegisterRow[]>(endpoint);
       setData(Array.isArray(res) ? res : []);
+      setAppliedFromDate(fDate);
+      setAppliedToDate(tDate);
       setCurrentPage(1);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load LR register from server.");
@@ -227,7 +261,7 @@ export default function LRRegisterPage() {
 
   // Initial load
   useEffect(() => {
-    loadData();
+    loadData(defaultDates.fromDate, defaultDates.toDate, "");
   }, []);
 
   // Handle Filter Submit Button
@@ -235,6 +269,18 @@ export default function LRRegisterPage() {
     e.preventDefault();
     setIsSubmitting(true);
     loadData(fromDate, toDate, selectedCustomer);
+  };
+
+  // Reset all filters to default financial year
+  const handleResetFilters = () => {
+    setFromDate(defaultDates.fromDate);
+    setToDate(defaultDates.toDate);
+    setSelectedCustomer("");
+    setDateValidationError(null);
+    setSearchTerm("");
+    setCurrentPage(1);
+    loadData(defaultDates.fromDate, defaultDates.toDate, "");
+    toast.success("Filters reset to default reporting period");
   };
 
   // Toggle Column Visibility
@@ -316,7 +362,7 @@ export default function LRRegisterPage() {
     });
   }, [filteredData, sortKey, sortOrder]);
 
-  // Calculations & Totals for filtered records
+  // Totals calculated from actual filtered report data
   const totals = useMemo(() => {
     let weight = 0;
     let pkgs = 0;
@@ -344,7 +390,7 @@ export default function LRRegisterPage() {
 
   // Pagination
   const totalEntries = sortedData.length;
-  const isShowAll = pageSize >= totalEntries || pageSize === -1;
+  const isShowAll = pageSize === -1 || pageSize >= totalEntries;
   const totalPages = isShowAll ? 1 : Math.ceil(totalEntries / pageSize) || 1;
   const currentPageSafe = Math.min(Math.max(1, currentPage), totalPages);
 
@@ -354,10 +400,10 @@ export default function LRRegisterPage() {
     return sortedData.slice(startIndex, startIndex + pageSize);
   }, [sortedData, currentPageSafe, pageSize, isShowAll]);
 
-  const startIndexDisplay = totalEntries === 0 ? 0 : (currentPageSafe - 1) * pageSize + 1;
+  const startIndexDisplay = totalEntries === 0 ? 0 : (currentPageSafe - 1) * (pageSize === -1 ? totalEntries : pageSize) + 1;
   const endIndexDisplay = isShowAll ? totalEntries : Math.min(currentPageSafe * pageSize, totalEntries);
 
-  // 3. Export to Excel / CSV with UTF-8 BOM
+  // Export to Excel / CSV with UTF-8 BOM
   const handleExportExcel = () => {
     if (sortedData.length === 0) {
       toast.error("No records to export.");
@@ -371,224 +417,370 @@ export default function LRRegisterPage() {
       return activeCols
         .map((c) => {
           let val = row[c.key];
-          if (c.key === "lr_date") val = formatDisplayDate(val as string);
+          if (c.key === "lr_date") val = formatDateDisplay(val as string);
+          if (c.key === "site_from" || c.key === "site_to") val = formatLocation(val as string);
+          if (c.key === "issuing_office_name") val = formatOfficeName(val as string);
           if (val === null || val === undefined) val = "";
           return `"${String(val).replace(/"/g, '""')}"`;
         })
         .join(",");
     });
 
-    // \uFEFF ensures Excel recognizes UTF-8 properly (currency symbols, regional text)
     const csvContent = "\uFEFF" + [headers, ...rows].join("\r\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    const fromFmt = formatDisplayDate(fromDate).replace(/-/g, "");
-    const toFmt = formatDisplayDate(toDate).replace(/-/g, "");
-    link.setAttribute("download", `LR_Booking_Register_${fromFmt}_to_${toFmt}.csv`);
+    link.setAttribute("download", `LR_Booking_Register_${appliedFromDate}_to_${appliedToDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${sortedData.length} entries to Excel/CSV`);
+    toast.success(`Exported ${sortedData.length} records to Excel/CSV`);
   };
 
-  // 4. Print Handler
+  // Print Handler
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <div className="space-y-4 print:p-0 print:m-0">
-      {/* Page Header (Screen only) */}
-      <div className="print:hidden">
-        <PageHeader
-          breadcrumbs={[
-            { label: "Dashboard", href: "/" },
-            { label: "Transport Reports", href: "/transport-reports" },
-            { label: "LR Booking Register" },
-          ]}
-          title={`LR BOOKING REGISTER From ${formatDisplayDate(fromDate)} To ${formatDisplayDate(toDate)}`}
-          description="Operational register of all booked consignments, routes, vehicles, party references, and freight balances."
-          primaryAction={{
-            label: "Refresh Register",
-            icon: RefreshCw,
-            onClick: () => loadData(fromDate, toDate, selectedCustomer),
-          }}
-        />
+    <div className="space-y-4 print:p-0 print:m-0 font-sans">
+      {/* ---------------------------------------------------------------------- */}
+      {/* 1. Header Section (Matching reference UI)                              */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="flex flex-col gap-2.5 print:hidden">
+        {/* Breadcrumb Bar */}
+        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
+          <Link href="/" className="hover:text-slate-200 transition-colors">
+            Dashboard
+          </Link>
+          <span className="text-slate-600">›</span>
+          <Link href="/transport-reports" className="hover:text-slate-200 transition-colors">
+            Transport Reports
+          </Link>
+          <span className="text-slate-600">›</span>
+          <span className="text-slate-200 font-semibold">LR Booking Register</span>
+        </nav>
+
+        {/* Title, Date Pill, Description, and Refresh Action */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mt-1">
+          <div>
+            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
+              LR Booking Register
+            </h1>
+
+            {/* Reporting Period Badge */}
+            <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F1F3F6] dark:bg-[#15161D] border border-slate-200 dark:border-[#272835] text-xs font-medium text-slate-700 dark:text-slate-300">
+              <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+              <span>
+                {formatDateDisplay(appliedFromDate)} – {formatDateDisplay(appliedToDate)}
+              </span>
+            </div>
+
+            {/* Muted Subtitle */}
+            <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-2">
+              Manage and review LR bookings, freight and balances.
+            </p>
+          </div>
+
+          {/* Top-Right Secondary Action: Refresh Register */}
+          <div className="shrink-0 pt-0.5">
+            <button
+              type="button"
+              onClick={() => loadData(fromDate, toDate, selectedCustomer)}
+              disabled={isLoading}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-[#14151C] hover:bg-slate-50 dark:hover:bg-[#1C1D26] border border-slate-200 dark:border-[#272835] rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 text-slate-500 dark:text-slate-300", isLoading && "animate-spin")} />
+              <span>Refresh Register</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Printable Title (Print only) */}
       <div className="hidden print:block mb-4 pb-2 border-b border-black">
         <h1 className="text-xl font-bold uppercase tracking-wide">
-          LR BOOKING REGISTER From {formatDisplayDate(fromDate)} To {formatDisplayDate(toDate)}
+          LR BOOKING REGISTER
         </h1>
-        <p className="text-xs text-gray-600 mt-1">
-          Generated on: {new Date().toLocaleString("en-IN")} | Total Entries: {totalEntries}
+        <p className="text-xs text-gray-700 mt-1">
+          Period: {formatDateDisplay(appliedFromDate)} – {formatDateDisplay(appliedToDate)} | Total Bookings: {totalEntries}
         </p>
       </div>
 
-      {/* Date Validation Banner */}
+      {/* Date Validation Alert Banner */}
       {dateValidationError && (
-        <div className="p-3 bg-[#FEF3F2] dark:bg-rose-950/40 border border-[#FECDCA] dark:border-rose-900 text-[#B42318] dark:text-rose-300 text-xs rounded-xl font-medium flex items-center gap-2 print:hidden">
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs rounded-xl font-medium flex items-center gap-2 print:hidden">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{dateValidationError}</span>
         </div>
       )}
 
-      {/* Error Banner */}
+      {/* Error Alert Banner */}
       {errorMessage && (
-        <div className="p-3 bg-[#FEF3F2] dark:bg-rose-950/40 border border-[#FECDCA] dark:border-rose-900 text-[#B42318] dark:text-rose-300 text-xs rounded-xl font-medium flex items-center justify-between gap-2 print:hidden">
+        <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs rounded-xl font-medium flex items-center justify-between gap-2 print:hidden">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
             onClick={() => loadData(fromDate, toDate, selectedCustomer)}
-            className="h-7 text-xs bg-white dark:bg-slate-900"
+            className="px-2.5 py-1 text-xs font-semibold bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-lg hover:bg-rose-50"
           >
             Retry
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* Top Filter Bar (Directly matching Reference Image) */}
-      <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-4 shadow-sm print:hidden">
+      {/* ---------------------------------------------------------------------- */}
+      {/* 2. Unified Filter Section (Matching Reference Image)                   */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-4 shadow-sm print:hidden">
         <form onSubmit={handleFilterSubmit} className="flex flex-wrap items-end gap-3 sm:gap-4">
-          {/* From Date */}
-          <div className="flex flex-col space-y-1">
-            <label className="text-xs font-semibold text-[#344054] dark:text-slate-300">
-              From
+          {/* From Date Filter */}
+          <div className="flex flex-col space-y-1.5">
+            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              From Date
             </label>
-            <div className="relative">
+            <div className="relative flex items-center h-10 w-44 sm:w-48 bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-xl px-3 hover:border-slate-300 dark:hover:border-[#3D3E4E] transition-colors focus-within:border-[#635BFF] focus-within:ring-1 focus-within:ring-[#635BFF]">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0 mr-2.5 pointer-events-none" />
+              <span className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium select-none truncate">
+                {formatDateDisplay(fromDate) || "Select Date"}
+              </span>
               <input
                 type="date"
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-40 sm:w-44 px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-[#D0D5DD] dark:border-slate-700 rounded-lg text-[#101828] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-transparent transition-all"
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setDateValidationError(null);
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               />
             </div>
           </div>
 
-          {/* To Date */}
-          <div className="flex flex-col space-y-1">
-            <label className="text-xs font-semibold text-[#344054] dark:text-slate-300">
-              To
+          {/* To Date Filter */}
+          <div className="flex flex-col space-y-1.5">
+            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              To Date
             </label>
-            <div className="relative">
+            <div className="relative flex items-center h-10 w-44 sm:w-48 bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-xl px-3 hover:border-slate-300 dark:hover:border-[#3D3E4E] transition-colors focus-within:border-[#635BFF] focus-within:ring-1 focus-within:ring-[#635BFF]">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0 mr-2.5 pointer-events-none" />
+              <span className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium select-none truncate">
+                {formatDateDisplay(toDate) || "Select Date"}
+              </span>
               <input
                 type="date"
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-40 sm:w-44 px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-[#D0D5DD] dark:border-slate-700 rounded-lg text-[#101828] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-transparent transition-all"
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setDateValidationError(null);
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               />
             </div>
           </div>
 
-          {/* Select Customer */}
-          <div className="flex flex-col space-y-1 flex-1 min-w-[200px] max-w-sm">
-            <label className="text-xs font-semibold text-[#344054] dark:text-slate-300">
-              Select Customer
+          {/* Customer Selection */}
+          <div className="flex flex-col space-y-1.5 flex-1 min-w-[200px] max-w-sm">
+            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              Customer
             </label>
-            <select
-              value={selectedCustomer}
-              onChange={(e) => setSelectedCustomer(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-[#D0D5DD] dark:border-slate-700 rounded-lg text-[#101828] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7F56D9] focus:border-transparent transition-all"
-            >
-              <option value="">All Customers</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={selectedCustomer}
+                onChange={(e) => setSelectedCustomer(e.target.value)}
+                className="w-full h-10 appearance-none px-3.5 pr-8 text-xs sm:text-sm bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-xl text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-[#3D3E4E] focus:outline-none focus:border-[#635BFF] focus:ring-1 focus:ring-[#635BFF] transition-colors cursor-pointer"
+              >
+                <option value="">All Customers</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={String(c.id)} className="bg-white dark:bg-[#121319] text-slate-900 dark:text-white">
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
-          {/* Submit Button (Purple, reference image style) */}
-          <button
-            type="submit"
-            disabled={isSubmitting || isLoading}
-            className="px-5 py-2 text-xs font-semibold text-white bg-[#7F56D9] hover:bg-[#6941C6] active:bg-[#53389E] rounded-lg transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer h-[34px]"
-          >
-            {isSubmitting ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : null}
-            <span>Submit</span>
-          </button>
+          {/* Action Buttons: Reset & Apply Filters */}
+          <div className="flex items-center gap-2.5 ml-auto">
+            {/* Neutral Outlined Reset Button */}
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              disabled={isLoading || isSubmitting}
+              className="h-10 px-4 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Reset
+            </button>
+
+            {/* Primary Violet Apply Filters Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting || isLoading}
+              className="h-10 px-5 text-xs sm:text-sm font-semibold text-white bg-[#635BFF] hover:bg-[#5249E6] active:bg-[#4338CA] rounded-xl transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <Filter className="w-4 h-4 text-white" />
+              )}
+              <span>Apply Filters</span>
+            </button>
+          </div>
         </form>
       </div>
 
-      {/* KPI Summary Strip (Live calculations) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 print:grid-cols-5 print:gap-2">
-        <div className="bg-white dark:bg-[#111827] p-3 rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">Total Bookings</div>
-          <div className="text-lg font-bold text-[#101828] dark:text-white mt-0.5">
-            {totals.count.toLocaleString("en-IN")} <span className="text-xs font-normal text-[#667085]">LRs</span>
+      {/* ---------------------------------------------------------------------- */}
+      {/* 3. Summary KPI Cards (Matching Reference Dimensions & Icons)           */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 print:grid-cols-5 print:gap-2">
+        {/* 1. Total Bookings */}
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
+          <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-[#241A3A] border border-purple-200 dark:border-[#3B2B5F] flex items-center justify-center shrink-0 text-[#7F56D9] dark:text-[#9D7CF7]">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Bookings</div>
+            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight flex items-baseline">
+              <span>{totals.count.toLocaleString("en-IN")}</span>
+              <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1.5">LRs</span>
+            </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-[#111827] p-3 rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">Total Weight (MT)</div>
-          <div className="text-lg font-bold text-[#101828] dark:text-white mt-0.5 font-mono">
-            {totals.weight.toFixed(3)} <span className="text-xs font-normal text-[#667085]">MT</span>
+
+        {/* 2. Total Weight */}
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
+          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+            {/* Metric Weight Icon */}
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 10h10l2 10H5l2-10z" />
+              <path d="M12 4a3 3 0 0 0-3 3v3h6V7a3 3 0 0 0-3-3z" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Weight</div>
+            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight flex items-baseline">
+              <span>{totals.weight.toLocaleString("en-IN", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</span>
+              <span className="text-xs font-normal text-slate-500 dark:text-slate-400 font-sans ml-1.5">MT</span>
+            </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-[#111827] p-3 rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">Total Freight</div>
-          <div className="text-lg font-bold text-[#101828] dark:text-white mt-0.5 font-mono">
-            {formatCurrency(totals.freight)}
+
+        {/* 3. Total Freight */}
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
+          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+            <Truck className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Freight</div>
+            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight">
+              {formatCurrency(totals.freight)}
+            </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-[#111827] p-3 rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">Total Advance</div>
-          <div className="text-lg font-bold text-[#027A48] dark:text-emerald-400 mt-0.5 font-mono">
-            {formatCurrency(totals.advance)}
+
+        {/* 4. Total Advance */}
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
+          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+            <Wallet className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Advance</div>
+            <div className="text-xl sm:text-[22px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono tracking-tight">
+              {formatCurrency(totals.advance)}
+            </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-[#111827] p-3 rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-2xs col-span-2 sm:col-span-1">
-          <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">Total Balance</div>
-          <div className="text-lg font-bold text-[#B54708] dark:text-amber-400 mt-0.5 font-mono">
-            {formatCurrency(totals.balance)}
+
+        {/* 5. Total Balance */}
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm sm:col-span-2 lg:col-span-1">
+          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+            <Scale className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Balance</div>
+            <div className="text-xl sm:text-[22px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono tracking-tight">
+              {formatCurrency(totals.balance)}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Register Table Card */}
-      <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-sm overflow-hidden">
-        {/* Actions Toolbar (Directly matching Reference Image: Column Visibility, Excel, Print, Search) */}
-        <div className="p-3 border-b border-[#E4E7EC] dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-[#FCFCFD] dark:bg-slate-900/50 print:hidden">
-          {/* Left Buttons: Column Visibility, Excel, Print */}
-          <div className="flex items-center gap-2">
+      {/* ---------------------------------------------------------------------- */}
+      {/* 4. Booking Records Table Card                                          */}
+      {/* ---------------------------------------------------------------------- */}
+      <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] shadow-sm overflow-hidden">
+        {/* Table Toolbar Header */}
+        <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#121319] print:hidden">
+          {/* Left: Heading + Total records indicator badge */}
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+              Booking Records
+            </h2>
+            <span className="px-2 py-0.5 text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#1C1D26] border border-slate-200 dark:border-[#2D2E3A] rounded-md font-medium">
+              {totalEntries} records
+            </span>
+          </div>
+
+          {/* Right Toolbar Controls: Search, Columns, Export Excel, Print */}
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
+            {/* Integrated Search Input */}
+            <div className="relative flex items-center">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search GR, customer, vehicle..."
+                className="h-9 w-52 sm:w-64 pl-9 pr-7 text-xs bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#635BFF] focus:border-[#635BFF] transition-colors"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             {/* Column Visibility Dropdown */}
             <div className="relative" ref={colMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsColMenuOpen(!isColMenuOpen)}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-[#344054] hover:bg-[#1D2939] active:bg-[#101828] rounded-md transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                className="h-9 px-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
               >
-                <span>Column Visibility</span>
-                <ChevronDown className="w-3.5 h-3.5" />
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                <span>Columns</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               </button>
 
               {isColMenuOpen && (
-                <div className="absolute left-0 mt-1 w-64 bg-white dark:bg-[#1F2A37] border border-[#D0D5DD] dark:border-slate-700 rounded-xl shadow-lg p-2.5 z-50 text-xs">
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#F2F4F7] dark:border-slate-700 font-semibold text-[#344054] dark:text-slate-200">
-                    <span>Toggle Columns</span>
-                    <div className="flex items-center gap-2 text-[10px]">
+                <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-xl p-3 z-50 text-xs">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-[#272835] font-semibold text-slate-900 dark:text-slate-200">
+                    <span>Columns Visibility</span>
+                    <div className="flex items-center gap-2 text-[11px]">
                       <button
                         type="button"
                         onClick={handleSelectAllColumns}
-                        className="text-[#7F56D9] hover:underline"
+                        className="text-[#635BFF] hover:underline"
                       >
                         All
                       </button>
-                      <span>·</span>
+                      <span className="text-slate-500">·</span>
                       <button
                         type="button"
                         onClick={handleResetColumns}
-                        className="text-[#667085] hover:underline"
+                        className="text-slate-400 hover:underline"
                       >
                         Reset
                       </button>
@@ -598,15 +790,15 @@ export default function LRRegisterPage() {
                     {AVAILABLE_COLUMNS.map((col) => (
                       <label
                         key={col.key}
-                        className="flex items-center gap-2 px-1.5 py-1 hover:bg-[#F9FAFB] dark:hover:bg-slate-800 rounded cursor-pointer text-[#344054] dark:text-slate-300"
+                        className="flex items-center gap-2 px-2 py-1 hover:bg-slate-100 dark:hover:bg-[#20222E] rounded-md cursor-pointer text-slate-700 dark:text-slate-300 transition-colors"
                       >
                         <input
                           type="checkbox"
                           checked={Boolean(visibleColumns[col.key])}
                           onChange={() => toggleColumn(col.key)}
-                          className="rounded border-[#D0D5DD] text-[#7F56D9] focus:ring-[#7F56D9] w-3.5 h-3.5"
+                          className="rounded border-slate-300 dark:border-[#3D3E4E] text-[#635BFF] focus:ring-[#635BFF] w-3.5 h-3.5 cursor-pointer accent-[#635BFF]"
                         />
-                        <span>{col.label}</span>
+                        <span className="select-none">{col.label}</span>
                       </label>
                     ))}
                   </div>
@@ -614,60 +806,35 @@ export default function LRRegisterPage() {
               )}
             </div>
 
-            {/* Excel Button */}
+            {/* Neutral Outlined Export Excel Button */}
             <button
               type="button"
               onClick={handleExportExcel}
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[#0E7490] hover:bg-[#155E75] active:bg-[#164E63] rounded-md transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Excel</span>
+              <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+              <span>Export Excel</span>
             </button>
 
-            {/* Print Button */}
+            {/* Neutral Outlined Print Button */}
             <button
               type="button"
               onClick={handlePrint}
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[#D97706] hover:bg-[#B45309] active:bg-[#92400E] rounded-md transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5" />
+              <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span>Print</span>
             </button>
           </div>
-
-          {/* Right Search Input (matching reference image: "Search: [      ]") */}
-          <div className="flex items-center gap-1.5 ml-auto">
-            <label className="text-xs font-medium text-[#475467] dark:text-slate-400">
-              Search:
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-44 sm:w-56 px-2.5 py-1 text-xs bg-white dark:bg-slate-900 border border-[#D0D5DD] dark:border-slate-700 rounded-md text-[#101828] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#7F56D9] focus:border-[#7F56D9]"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
         </div>
 
-        {/* Responsive Table Scroll Area */}
+        {/* -------------------------------------------------------------------- */}
+        {/* Table Container with Horizontal Scroll                               */}
+        {/* -------------------------------------------------------------------- */}
         <div className="overflow-x-auto min-w-full">
           <table className="w-full text-xs text-left border-collapse">
-            {/* Table Header with Amber/Golden styling matching Reference Image */}
-            <thead className="bg-[#F7B928] dark:bg-amber-600 text-[#101828] font-bold select-none border-b border-[#E0A015]">
+            {/* Table Header: Dark Graphite Header matching Redesign Target */}
+            <thead className="bg-slate-100 dark:bg-[#101116] text-slate-600 dark:text-slate-400 select-none border-b border-slate-200 dark:border-[#22232E]">
               <tr>
                 {AVAILABLE_COLUMNS.map((col) => {
                   if (!visibleColumns[col.key]) return null;
@@ -678,7 +845,7 @@ export default function LRRegisterPage() {
                       onClick={() => handleSort(col.key)}
                       style={{ minWidth: col.minWidth }}
                       className={cn(
-                        "py-2.5 px-3 uppercase text-[11px] font-bold tracking-tight cursor-pointer hover:bg-black/10 transition-colors whitespace-nowrap",
+                        "py-3 px-3.5 font-medium tracking-normal cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap",
                         col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
                       )}
                     >
@@ -686,212 +853,257 @@ export default function LRRegisterPage() {
                         <span>{col.label}</span>
                         {isSorted ? (
                           sortOrder === "asc" ? (
-                            <ChevronUp className="w-3.5 h-3.5 text-black font-extrabold" />
+                            <ChevronUp className="w-3.5 h-3.5 text-slate-900 dark:text-white font-bold" />
                           ) : (
-                            <ChevronDown className="w-3.5 h-3.5 text-black font-extrabold" />
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-900 dark:text-white font-bold" />
                           )
                         ) : (
-                          <span className="opacity-40 text-[10px]">▲</span>
+                          <ArrowUpDown className="w-3 h-3 text-slate-400 dark:text-slate-600 opacity-70" />
                         )}
                       </div>
                     </th>
                   );
                 })}
-                <th className="py-2.5 px-3 uppercase text-[11px] font-bold tracking-tight text-center w-16 print:hidden">
+                <th className="py-3 px-3.5 font-medium text-center w-16 print:hidden">
                   Action
                 </th>
               </tr>
             </thead>
 
             {/* Table Body */}
-            <tbody className="divide-y divide-[#EAECF0] dark:divide-slate-800">
+            <tbody className="divide-y divide-slate-200 dark:divide-[#1C1D26]">
               {isLoading ? (
-                // Loading Skeleton Rows
-                Array.from({ length: 10 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse bg-white dark:bg-[#111827]">
+                // Skeleton loading state
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse bg-white dark:bg-[#121319]">
                     {AVAILABLE_COLUMNS.map((col) => {
                       if (!visibleColumns[col.key]) return null;
                       return (
-                        <td key={col.key} className="py-2.5 px-3">
+                        <td key={col.key} className="py-3 px-3.5">
                           <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-20" />
                         </td>
                       );
                     })}
-                    <td className="py-2.5 px-3 print:hidden">
+                    <td className="py-3 px-3.5 print:hidden">
                       <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-8 mx-auto" />
                     </td>
                   </tr>
                 ))
               ) : paginatedData.length === 0 ? (
-                // Empty State
+                // Clean Empty State
                 <tr>
                   <td
                     colSpan={AVAILABLE_COLUMNS.filter((c) => visibleColumns[c.key]).length + 1}
-                    className="py-12 text-center text-[#667085] dark:text-slate-400 bg-white dark:bg-[#111827]"
+                    className="py-12 text-center text-slate-500 dark:text-slate-400 bg-white dark:bg-[#121319]"
                   >
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      <FileSpreadsheet className="w-8 h-8 text-[#98A2B3]" />
-                      <div className="text-sm font-semibold text-[#101828] dark:text-white">
-                        No LR entries found
+                    <div className="flex flex-col items-center justify-center space-y-2.5">
+                      <FileSpreadsheet className="w-9 h-9 text-slate-400 dark:text-slate-600" />
+                      <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                        No LR booking records found
                       </div>
-                      <p className="text-xs text-[#667085] max-w-sm">
-                        No lorry receipts booked for the selected date range and customer. Try widening your dates or searching another term.
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        No lorry receipts booked for the selected reporting period and customer filter.
                       </p>
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        className="mt-2 text-xs font-medium text-[#635BFF] hover:underline cursor-pointer"
+                      >
+                        Reset filters to view all entries
+                      </button>
                     </div>
                   </td>
                 </tr>
               ) : (
-                // Data Rows
+                // Populated Data Rows
                 paginatedData.map((row, idx) => (
                   <tr
                     key={row.id || idx}
-                    className={cn(
-                      "hover:bg-[#F9FAFB] dark:hover:bg-slate-800/50 transition-colors",
-                      idx % 2 === 0 ? "bg-white dark:bg-[#111827]" : "bg-[#FAFAFA] dark:bg-[#161F2E]/60"
-                    )}
+                    className="hover:bg-slate-50/80 dark:hover:bg-[#161720]/80 transition-colors group"
                   >
+                    {/* 1. GR / LR No. (Purple link with underline) */}
                     {visibleColumns["lr_number"] && (
-                      <td className="py-2 px-3 whitespace-nowrap">
+                      <td className="py-3 px-3.5 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => setSelectedRowForDrawer(row)}
-                          className="font-mono font-bold text-[#101828] dark:text-white hover:text-[#7F56D9] dark:hover:text-indigo-400 cursor-pointer underline decoration-dotted decoration-slate-300"
+                          className="font-mono font-medium text-[#7F56D9] dark:text-[#9370DB] hover:text-[#5249E6] dark:hover:text-[#A78BFA] underline underline-offset-2 decoration-[#7F56D9]/40 hover:decoration-[#A78BFA] cursor-pointer transition-colors"
                         >
                           {row.lr_number}
                         </button>
                       </td>
                     )}
 
+                    {/* 2. Date */}
                     {visibleColumns["lr_date"] && (
-                      <td className="py-2 px-3 whitespace-nowrap font-mono text-[#344054] dark:text-slate-300">
-                        {formatDisplayDate(row.lr_date)}
+                      <td className="py-3 px-3.5 whitespace-nowrap font-mono text-slate-700 dark:text-slate-300">
+                        {formatDateDisplay(row.lr_date)}
                       </td>
                     )}
 
+                    {/* 3. Issuing Office */}
                     {visibleColumns["issuing_office_name"] && (
-                      <td className="py-2 px-3 whitespace-nowrap text-[#344054] dark:text-slate-300 uppercase font-medium">
-                        {row.issuing_office_name || "HEAD OFFICE-DELHI"}
+                      <td className="py-3 px-3.5 whitespace-nowrap text-slate-700 dark:text-slate-300">
+                        {formatOfficeName(row.issuing_office_name)}
                       </td>
                     )}
 
+                    {/* 4. Status Badge */}
                     {visibleColumns["booking_status"] && (
-                      <td className="py-2 px-3 whitespace-nowrap">
-                        <span
-                          className={cn(
-                            "px-2 py-0.5 rounded text-[11px] font-semibold tracking-tight",
-                            row.booking_status?.toLowerCase() === "delivered"
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                              : row.booking_status?.toLowerCase() === "in transit"
-                              ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                              : row.booking_status?.toLowerCase() === "cancelled"
-                              ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                              : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                          )}
-                        >
-                          {row.booking_status || "Booked"}
-                        </span>
+                      <td className="py-3 px-3.5 whitespace-nowrap">
+                        {(() => {
+                          const statusStr = (row.booking_status || "Booked").trim();
+                          const lower = statusStr.toLowerCase();
+
+                          if (lower === "reserved") {
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 dark:bg-[#271E11] text-amber-700 dark:text-[#F59E0B] border border-amber-200 dark:border-[#453316]">
+                                Reserved
+                              </span>
+                            );
+                          }
+                          if (lower === "booked") {
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 dark:bg-[#0E2417] text-emerald-700 dark:text-[#34D399] border border-emerald-200 dark:border-[#1B432B]">
+                                Booked
+                              </span>
+                            );
+                          }
+                          if (lower === "delivered") {
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 dark:bg-[#0E2417] text-emerald-700 dark:text-[#34D399] border border-emerald-200 dark:border-[#1B432B]">
+                                Delivered
+                              </span>
+                            );
+                          }
+                          if (lower === "in transit" || lower === "in_transit") {
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 dark:bg-[#121D33] text-blue-700 dark:text-[#60A5FA] border border-blue-200 dark:border-[#1E2E4E]">
+                                In Transit
+                              </span>
+                            );
+                          }
+                          if (lower === "cancelled") {
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-rose-50 dark:bg-[#2B1417] text-rose-700 dark:text-[#F87171] border border-rose-200 dark:border-[#482025]">
+                                Cancelled
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                              {statusStr}
+                            </span>
+                          );
+                        })()}
                       </td>
                     )}
 
+                    {/* 5. Customer */}
                     {visibleColumns["client_name"] && (
-                      <td className="py-2 px-3 text-[#101828] dark:text-slate-200 font-medium max-w-[240px] truncate" title={row.client_name || ""}>
+                      <td className="py-3 px-3.5 text-slate-800 dark:text-slate-200 font-medium max-w-[220px] truncate" title={row.client_name || ""}>
                         {row.client_name || "N/A"}
                       </td>
                     )}
 
-                    {visibleColumns["party_invoice_no"] && (
-                      <td className="py-2 px-3 whitespace-nowrap font-mono text-[#475467] dark:text-slate-400">
-                        {row.party_invoice_no || "-"}
-                      </td>
-                    )}
-
+                    {/* 6. Vehicle No. */}
                     {visibleColumns["vehicle_number"] && (
-                      <td className="py-2 px-3 whitespace-nowrap font-mono font-semibold uppercase text-[#101828] dark:text-white">
-                        {row.vehicle_number}
+                      <td className="py-3 px-3.5 whitespace-nowrap font-mono font-medium uppercase text-slate-700 dark:text-slate-300">
+                        {row.vehicle_number || "-"}
                       </td>
                     )}
 
+                    {/* 7. Origin */}
                     {visibleColumns["site_from"] && (
-                      <td className="py-2 px-3 text-[#344054] dark:text-slate-300 whitespace-nowrap" title={row.site_from || ""}>
-                        {row.site_from || "-"}
+                      <td className="py-3 px-3.5 text-slate-700 dark:text-slate-300 whitespace-nowrap" title={row.site_from || ""}>
+                        {formatLocation(row.site_from)}
                       </td>
                     )}
 
+                    {/* 8. Destination */}
                     {visibleColumns["site_to"] && (
-                      <td className="py-2 px-3 text-[#344054] dark:text-slate-300 whitespace-nowrap" title={row.site_to || ""}>
-                        {row.site_to || "-"}
+                      <td className="py-3 px-3.5 text-slate-700 dark:text-slate-300 whitespace-nowrap" title={row.site_to || ""}>
+                        {formatLocation(row.site_to)}
                       </td>
                     )}
 
+                    {/* 9. Balance Amount (in emerald green) */}
+                    {visibleColumns["balance_amount"] && (
+                      <td className="py-3 px-3.5 text-right tabular-nums font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(row.balance_amount)}
+                      </td>
+                    )}
+
+                    {/* Preserved Additional Columns */}
                     {visibleColumns["consigner_name"] && (
-                      <td className="py-2 px-3 text-[#344054] dark:text-slate-300 max-w-[200px] truncate" title={row.consigner_name || ""}>
+                      <td className="py-3 px-3.5 text-slate-700 dark:text-slate-300 max-w-[200px] truncate" title={row.consigner_name || ""}>
                         {row.consigner_name || "-"}
                       </td>
                     )}
 
                     {visibleColumns["consignee_name"] && (
-                      <td className="py-2 px-3 text-[#344054] dark:text-slate-300 max-w-[200px] truncate" title={row.consignee_name || ""}>
+                      <td className="py-3 px-3.5 text-slate-700 dark:text-slate-300 max-w-[200px] truncate" title={row.consignee_name || ""}>
                         {row.consignee_name || "-"}
                       </td>
                     )}
 
+                    {visibleColumns["party_invoice_no"] && (
+                      <td className="py-3 px-3.5 whitespace-nowrap font-mono text-slate-600 dark:text-slate-400">
+                        {row.party_invoice_no || "-"}
+                      </td>
+                    )}
+
                     {visibleColumns["package_count"] && (
-                      <td className="py-2 px-3 text-right tabular-nums font-mono text-[#344054] dark:text-slate-300">
+                      <td className="py-3 px-3.5 text-right tabular-nums font-mono text-slate-700 dark:text-slate-300">
                         {row.package_count || 0}
                       </td>
                     )}
 
                     {visibleColumns["actual_weight_mt"] && (
-                      <td className="py-2 px-3 text-right tabular-nums font-mono text-[#344054] dark:text-slate-300">
+                      <td className="py-3 px-3.5 text-right tabular-nums font-mono text-slate-700 dark:text-slate-300">
                         {Number(row.actual_weight_mt || 0).toFixed(3)}
                       </td>
                     )}
 
                     {visibleColumns["total_freight_amount"] && (
-                      <td className="py-2 px-3 text-right tabular-nums font-mono font-semibold text-[#101828] dark:text-white">
+                      <td className="py-3 px-3.5 text-right tabular-nums font-mono font-semibold text-slate-900 dark:text-white">
                         {formatCurrency(row.total_freight_amount)}
                       </td>
                     )}
 
                     {visibleColumns["advance_amount"] && (
-                      <td className="py-2 px-3 text-right tabular-nums font-mono text-[#027A48] dark:text-emerald-400">
+                      <td className="py-3 px-3.5 text-right tabular-nums font-mono text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(row.advance_amount)}
                       </td>
                     )}
 
-                    {visibleColumns["balance_amount"] && (
-                      <td className="py-2 px-3 text-right tabular-nums font-mono font-semibold text-[#B54708] dark:text-amber-400">
-                        {formatCurrency(row.balance_amount)}
-                      </td>
-                    )}
-
                     {visibleColumns["eway_bill_number"] && (
-                      <td className="py-2 px-3 whitespace-nowrap font-mono text-[#475467] dark:text-slate-400">
+                      <td className="py-3 px-3.5 whitespace-nowrap font-mono text-slate-600 dark:text-slate-400">
                         {row.eway_bill_number || "-"}
                       </td>
                     )}
 
                     {visibleColumns["payment_terms"] && (
-                      <td className="py-2 px-3 whitespace-nowrap text-[#475467] dark:text-slate-400">
+                      <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400">
                         {row.payment_terms || "-"}
                       </td>
                     )}
 
                     {/* Action Column */}
-                    <td className="py-2 px-3 text-center whitespace-nowrap print:hidden">
+                    <td className="py-3 px-3.5 text-center whitespace-nowrap print:hidden">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => setSelectedRowForDrawer(row)}
-                          title="View LR Details"
-                          className="p-1 rounded text-slate-500 hover:text-[#7F56D9] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          title="View Details"
+                          className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <Link
                           href={`/transport/lr-booking?id=${row.id}`}
-                          title="Edit in LR Booking"
-                          className="p-1 rounded text-slate-500 hover:text-[#7F56D9] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          title="Open in LR Booking"
+                          className="p-1 rounded text-slate-400 hover:text-[#635BFF] transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                         </Link>
@@ -901,179 +1113,125 @@ export default function LRRegisterPage() {
                 ))
               )}
             </tbody>
-
-            {/* Totals Summary Footer Row (visible if items exist) */}
-            {paginatedData.length > 0 && (
-              <tfoot className="bg-[#F8F9FA] dark:bg-slate-900 border-t-2 border-[#D0D5DD] dark:border-slate-700 font-bold text-[#101828] dark:text-white">
-                <tr>
-                  <td colSpan={2} className="py-2.5 px-3 uppercase text-[11px]">
-                    Filtered Total ({totals.count} LRs)
-                  </td>
-                  {AVAILABLE_COLUMNS.slice(2).map((col) => {
-                    if (!visibleColumns[col.key]) return null;
-                    if (col.key === "actual_weight_mt") {
-                      return (
-                        <td key={col.key} className="py-2.5 px-3 text-right font-mono tabular-nums">
-                          {totals.weight.toFixed(3)} MT
-                        </td>
-                      );
-                    }
-                    if (col.key === "package_count") {
-                      return (
-                        <td key={col.key} className="py-2.5 px-3 text-right font-mono tabular-nums">
-                          {totals.pkgs.toLocaleString("en-IN")}
-                        </td>
-                      );
-                    }
-                    if (col.key === "total_freight_amount") {
-                      return (
-                        <td key={col.key} className="py-2.5 px-3 text-right font-mono tabular-nums">
-                          {formatCurrency(totals.freight)}
-                        </td>
-                      );
-                    }
-                    if (col.key === "advance_amount") {
-                      return (
-                        <td key={col.key} className="py-2.5 px-3 text-right font-mono tabular-nums text-[#027A48]">
-                          {formatCurrency(totals.advance)}
-                        </td>
-                      );
-                    }
-                    if (col.key === "balance_amount") {
-                      return (
-                        <td key={col.key} className="py-2.5 px-3 text-right font-mono tabular-nums text-[#B54708]">
-                          {formatCurrency(totals.balance)}
-                        </td>
-                      );
-                    }
-                    return <td key={col.key} className="py-2.5 px-3"></td>;
-                  })}
-                  <td className="py-2.5 px-3 print:hidden"></td>
-                </tr>
-              </tfoot>
-            )}
           </table>
         </div>
 
-        {/* Table Footer with exact entry count format: "Showing 1 to 403 of 403 entries" */}
-        <div className="p-3 border-t border-[#E4E7EC] dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#475467] dark:text-slate-400 bg-white dark:bg-[#111827] print:hidden">
-          {/* Exact Entry Count Display */}
+        {/* -------------------------------------------------------------------- */}
+        {/* Table Footer with Exact Pagination Format                            */}
+        {/* -------------------------------------------------------------------- */}
+        <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-[#121319] print:hidden">
+          {/* Exact Entry Count Display: "Showing 1–3 of 3 bookings" */}
           <div>
-            Showing <span className="font-semibold text-[#101828] dark:text-white">{startIndexDisplay}</span> to{" "}
-            <span className="font-semibold text-[#101828] dark:text-white">{endIndexDisplay}</span> of{" "}
-            <span className="font-semibold text-[#101828] dark:text-white">{totalEntries}</span> entries
+            Showing <span className="font-semibold text-slate-900 dark:text-white">{startIndexDisplay}–{endIndexDisplay}</span> of{" "}
+            <span className="font-semibold text-slate-900 dark:text-white">{totalEntries}</span> bookings
           </div>
 
-          {/* Pagination and Rows Per Page */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span>Rows:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="px-2 py-1 bg-white dark:bg-slate-900 border border-[#D0D5DD] dark:border-slate-700 rounded text-xs text-[#344054] dark:text-slate-300"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={403}>403</option>
-                <option value={500}>500</option>
-                <option value={-1}>All</option>
-              </select>
+          {/* Rows per page & Page Navigation Chevrons */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span>Rows per page</span>
+              <div className="relative">
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="appearance-none h-8 pl-2.5 pr-6 bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-md text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#635BFF] transition-colors cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={250}>250</option>
+                  <option value={-1}>All</option>
+                </select>
+                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
 
-            {!isShowAll && totalPages > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={currentPageSafe <= 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="px-2.5 py-1 border border-[#D0D5DD] dark:border-slate-700 rounded hover:bg-[#F9FAFB] dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium cursor-pointer"
-                >
-                  Previous
-                </button>
-                <span className="px-2 py-1 font-medium text-[#101828] dark:text-white">
-                  {currentPageSafe} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={currentPageSafe >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-2.5 py-1 border border-[#D0D5DD] dark:border-slate-700 rounded hover:bg-[#F9FAFB] dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium cursor-pointer"
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            {/* Previous and Next Navigation */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPageSafe <= 1 || isShowAll}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                aria-label="Previous Page"
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-[#2B2C37] bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={currentPageSafe >= totalPages || isShowAll}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                aria-label="Next Page"
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-[#2B2C37] bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Quick View Details Drawer Modal */}
+      {/* ---------------------------------------------------------------------- */}
+      {/* 5. Quick View LR Details Drawer Modal                                  */}
+      {/* ---------------------------------------------------------------------- */}
       {selectedRowForDrawer && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-white dark:bg-[#111827] h-full shadow-2xl flex flex-col justify-between border-l border-[#E4E7EC] dark:border-slate-800">
-            {/* Header */}
-            <div className="p-4 border-b border-[#E4E7EC] dark:border-slate-800 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-end animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white dark:bg-[#121319] h-full shadow-2xl flex flex-col justify-between border-l border-slate-200 dark:border-[#22232E]">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-[#22232E] flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-[#101828] dark:text-white flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span>GR / LR #{selectedRowForDrawer.lr_number}</span>
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded text-[11px] font-semibold",
-                      selectedRowForDrawer.booking_status?.toLowerCase() === "delivered"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-amber-100 text-amber-800"
-                    )}
-                  >
+                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-[#0E2417] text-emerald-700 dark:text-[#34D399] border border-emerald-200 dark:border-[#1B432B]">
                     {selectedRowForDrawer.booking_status || "Booked"}
                   </span>
                 </h3>
-                <p className="text-xs text-[#667085] dark:text-slate-400 mt-0.5">
-                  Booked on {formatDisplayDate(selectedRowForDrawer.lr_date)} · {selectedRowForDrawer.issuing_office_name}
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Booked on {formatDateDisplay(selectedRowForDrawer.lr_date)} · {formatOfficeName(selectedRowForDrawer.issuing_office_name)}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedRowForDrawer(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Body */}
+            {/* Drawer Body */}
             <div className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
               {/* Client & Parties */}
-              <div className="bg-[#F8F9FB] dark:bg-slate-900 p-3.5 rounded-xl border border-[#E4E7EC] dark:border-slate-800 space-y-2">
-                <div className="text-[11px] font-bold text-[#344054] dark:text-slate-300 uppercase tracking-wide">
+              <div className="bg-slate-50 dark:bg-[#171821] p-3.5 rounded-xl border border-slate-200 dark:border-[#272835] space-y-2">
+                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                   Client & Parties
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Client / Billing</span>
-                    <span className="font-semibold text-[#101828] dark:text-white">
+                    <span className="text-slate-400 block text-[10px]">Client / Billing</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {selectedRowForDrawer.client_name || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Party Invoice No.</span>
-                    <span className="font-mono font-semibold text-[#101828] dark:text-white">
+                    <span className="text-slate-400 block text-[10px]">Party Invoice No.</span>
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
                       {selectedRowForDrawer.party_invoice_no || "-"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Consigner</span>
-                    <span className="text-[#344054] dark:text-slate-300">
+                    <span className="text-slate-400 block text-[10px]">Consigner</span>
+                    <span className="text-slate-700 dark:text-slate-300">
                       {selectedRowForDrawer.consigner_name || "-"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Consignee</span>
-                    <span className="text-[#344054] dark:text-slate-300">
+                    <span className="text-slate-400 block text-[10px]">Consignee</span>
+                    <span className="text-slate-700 dark:text-slate-300">
                       {selectedRowForDrawer.consignee_name || "-"}
                     </span>
                   </div>
@@ -1081,39 +1239,39 @@ export default function LRRegisterPage() {
               </div>
 
               {/* Transit & Route */}
-              <div className="bg-[#F8F9FB] dark:bg-slate-900 p-3.5 rounded-xl border border-[#E4E7EC] dark:border-slate-800 space-y-2">
-                <div className="text-[11px] font-bold text-[#344054] dark:text-slate-300 uppercase tracking-wide">
+              <div className="bg-slate-50 dark:bg-[#171821] p-3.5 rounded-xl border border-slate-200 dark:border-[#272835] space-y-2">
+                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                   Route & Vehicle
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Site From</span>
-                    <span className="font-medium text-[#101828] dark:text-white">
-                      {selectedRowForDrawer.site_from || "-"}
+                    <span className="text-slate-400 block text-[10px]">Origin</span>
+                    <span className="font-medium text-slate-900 dark:text-white">
+                      {formatLocation(selectedRowForDrawer.site_from)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Site To</span>
-                    <span className="font-medium text-[#101828] dark:text-white">
-                      {selectedRowForDrawer.site_to || "-"}
+                    <span className="text-slate-400 block text-[10px]">Destination</span>
+                    <span className="font-medium text-slate-900 dark:text-white">
+                      {formatLocation(selectedRowForDrawer.site_to)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Vehicle Number</span>
-                    <span className="font-mono font-bold uppercase text-[#101828] dark:text-white">
+                    <span className="text-slate-400 block text-[10px]">Vehicle Number</span>
+                    <span className="font-mono font-bold uppercase text-slate-900 dark:text-white">
                       {selectedRowForDrawer.vehicle_number}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">E-Way Bill</span>
-                    <span className="font-mono text-[#101828] dark:text-white">
+                    <span className="text-slate-400 block text-[10px]">E-Way Bill</span>
+                    <span className="font-mono text-slate-900 dark:text-white">
                       {selectedRowForDrawer.eway_bill_number || "-"}
                     </span>
                   </div>
                   {selectedRowForDrawer.driver_name && (
                     <div className="col-span-2">
-                      <span className="text-[#667085] block text-[10px]">Driver</span>
-                      <span className="text-[#344054] dark:text-slate-300">
+                      <span className="text-slate-400 block text-[10px]">Driver</span>
+                      <span className="text-slate-700 dark:text-slate-300">
                         {selectedRowForDrawer.driver_name} {selectedRowForDrawer.driver_phone ? `(${selectedRowForDrawer.driver_phone})` : ""}
                       </span>
                     </div>
@@ -1122,38 +1280,38 @@ export default function LRRegisterPage() {
               </div>
 
               {/* Cargo & Financials */}
-              <div className="bg-[#F8F9FB] dark:bg-slate-900 p-3.5 rounded-xl border border-[#E4E7EC] dark:border-slate-800 space-y-2">
-                <div className="text-[11px] font-bold text-[#344054] dark:text-slate-300 uppercase tracking-wide">
+              <div className="bg-slate-50 dark:bg-[#171821] p-3.5 rounded-xl border border-slate-200 dark:border-[#272835] space-y-2">
+                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                   Cargo & Financial Breakdown
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Package Count</span>
-                    <span className="font-mono font-semibold text-[#101828] dark:text-white">
+                    <span className="text-slate-400 block text-[10px]">Package Count</span>
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
                       {selectedRowForDrawer.package_count || 0} pkgs
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Actual Weight</span>
-                    <span className="font-mono font-semibold text-[#101828] dark:text-white">
+                    <span className="text-slate-400 block text-[10px]">Actual Weight</span>
+                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
                       {Number(selectedRowForDrawer.actual_weight_mt || 0).toFixed(3)} MT
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Total Freight</span>
-                    <span className="font-mono font-bold text-[#101828] dark:text-white">
+                    <span className="text-slate-400 block text-[10px]">Total Freight</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
                       {formatCurrency(selectedRowForDrawer.total_freight_amount)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#667085] block text-[10px]">Advance Paid</span>
-                    <span className="font-mono font-bold text-[#027A48]">
+                    <span className="text-slate-400 block text-[10px]">Advance Paid</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
                       {formatCurrency(selectedRowForDrawer.advance_amount)}
                     </span>
                   </div>
-                  <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                    <span className="font-semibold text-[#344054] dark:text-slate-300">Balance Payable / Due</span>
-                    <span className="font-mono text-sm font-extrabold text-[#B54708]">
+                  <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-[#272835] flex items-center justify-between">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">Balance Amount</span>
+                    <span className="font-mono text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
                       {formatCurrency(selectedRowForDrawer.balance_amount)}
                     </span>
                   </div>
@@ -1161,20 +1319,23 @@ export default function LRRegisterPage() {
               </div>
             </div>
 
-            {/* Footer Buttons */}
-            <div className="p-4 border-t border-[#E4E7EC] dark:border-slate-800 flex items-center justify-end gap-2 bg-[#FCFCFD] dark:bg-slate-900">
-              <Button
-                variant="outline"
-                size="sm"
+            {/* Drawer Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-[#22232E] flex items-center justify-end gap-2 bg-slate-50 dark:bg-[#171821]">
+              <button
+                type="button"
                 onClick={() => setSelectedRowForDrawer(null)}
+                className="h-9 px-4 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-[#121319] border border-slate-200 dark:border-[#2B2C37] rounded-xl transition-colors cursor-pointer"
               >
                 Close
-              </Button>
+              </button>
               <Link href={`/transport/lr-booking?id=${selectedRowForDrawer.id}`}>
-                <Button size="sm" className="bg-[#7F56D9] hover:bg-[#6941C6] text-white gap-1.5">
+                <button
+                  type="button"
+                  className="h-9 px-4 text-xs font-semibold text-white bg-[#635BFF] hover:bg-[#5249E6] rounded-xl transition-all shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
+                >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Open in LR Booking</span>
-                </Button>
+                </button>
               </Link>
             </div>
           </div>

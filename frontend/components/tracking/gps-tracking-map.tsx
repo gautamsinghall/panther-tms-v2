@@ -7,11 +7,16 @@ import {
   RefreshCw,
   Crosshair,
   Truck,
+  Layers,
+  ZoomIn,
+  ZoomOut,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface GPSVehicleData {
   vehicleNumber: string;
+  driverName?: string | null;
   speed: number;
   ignition: boolean;
   status: string;
@@ -40,10 +45,13 @@ export interface GPSTripData {
 
 interface GPSTrackingMapProps {
   vehicle: GPSVehicleData | null;
+  vehicles?: GPSVehicleData[];
   trip: GPSTripData | null;
   apiKey?: string;
   onMetricsComputed?: (metrics: { coveredKm: number; remainingKm: number; totalKm: number }) => void;
+  onSelectVehicle?: (vehicleNumber: string) => void;
   className?: string;
+  isSampleData?: boolean;
 }
 
 // In-memory geocode and road route caches
@@ -141,55 +149,66 @@ async function geocodeWaypoint(locationName: string): Promise<[number, number] |
   return null;
 }
 
-function buildTruckMarkerHtml(vehicle: GPSVehicleData): string {
+// Marker HTML for the selected / active vehicle
+function buildSelectedTruckMarkerHtml(vehicle: GPSVehicleData): string {
   const isRunning = vehicle.speed > 0;
   const isIdle = vehicle.speed === 0 && Boolean(vehicle.ignition);
-  const pinColor = isRunning ? "#10b981" : isIdle ? "#f59e0b" : "#ef4444";
+  const pinColor = isRunning ? "#20B889" : isIdle ? "#E7AE52" : "#E66D7C";
   const heading = Number(vehicle.heading) || 0;
 
   return `
-    <div class="custom-truck-wrapper" style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;transform:translate(-50%, -100%);">
+    <div class="custom-selected-truck-wrapper" style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;transform:translate(-50%, -100%);">
+      <!-- Radar Pulse Rings -->
+      <div style="position:absolute;top:32px;left:50%;transform:translate(-50%, -50%);width:70px;height:70px;border-radius:50%;background:rgba(121, 101, 233, 0.25);border:1.5px solid rgba(121, 101, 233, 0.5);animation:truckPulse 2s infinite ease-out;pointer-events:none;"></div>
+      <div style="position:absolute;top:32px;left:50%;transform:translate(-50%, -50%);width:46px;height:46px;border-radius:50%;background:rgba(121, 101, 233, 0.35);pointer-events:none;"></div>
+
       <!-- Top Number & Speed Pill -->
-      <div style="background:#0f172a;color:#ffffff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,0.35);border:1.5px solid rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;margin-bottom:4px;">
-        <span style="letter-spacing:0.5px;font-family:monospace;">${vehicle.vehicleNumber}</span>
-        <span style="color:${pinColor};font-size:9.5px;font-weight:800;">• ${vehicle.speed || 0} km/h</span>
+      <div style="background:#171922;color:#ffffff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.5);border:1.5px solid #7965E9;display:flex;align-items:center;gap:6px;margin-bottom:6px;z-index:10;">
+        <span style="letter-spacing:0.5px;font-family:monospace;font-weight:800;">${vehicle.vehicleNumber}</span>
+        <span style="color:${pinColor};font-size:10px;font-weight:800;">• ${vehicle.speed || 0} km/h</span>
       </div>
 
-      <!-- Icon Container with Pulse -->
-      <div style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
-        ${isRunning ? `
-          <div style="position:absolute;width:40px;height:40px;border-radius:50%;background:${pinColor};opacity:0.4;animation:truckPulse 1.8s infinite ease-out;"></div>
-        ` : ''}
-
-        <!-- Main Circular Truck Badge -->
-        <div style="width:38px;height:38px;border-radius:50%;background:${pinColor};border:2.5px solid #ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.35);color:#ffffff;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${heading}deg);transition:transform 0.4s ease;">
-            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
-            <path d="M15 18H9"/>
-            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14v10"/>
-            <circle cx="17" cy="18.5" r="2.5" fill="currentColor"/>
-            <circle cx="7" cy="18.5" r="2.5" fill="currentColor"/>
-          </svg>
-        </div>
-
-        <!-- Direction Arrow Triangle Pointer if moving -->
-        ${isRunning && heading ? `
-          <div style="position:absolute;top:-5px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid #ffffff;transform:rotate(${heading}deg);transform-origin:50% 25px;"></div>
-        ` : ''}
+      <!-- Icon Container -->
+      <div style="position:relative;width:38px;height:38px;border-radius:50%;background:#7965E9;border:2.5px solid #ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(121, 101, 233, 0.6);color:#ffffff;z-index:10;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${heading}deg);transition:transform 0.4s ease;">
+          <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+          <path d="M15 18H9"/>
+          <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14v10"/>
+          <circle cx="17" cy="18.5" r="2.5" fill="currentColor"/>
+          <circle cx="7" cy="18.5" r="2.5" fill="currentColor"/>
+        </svg>
       </div>
 
       <!-- Ground Pointer Pin -->
-      <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid ${pinColor};margin-top:-1px;"></div>
+      <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #7965E9;margin-top:-1px;z-index:10;"></div>
+    </div>
+  `;
+}
+
+// Marker HTML for background / other fleet vehicles
+function buildFleetVehicleMarkerHtml(vehicle: GPSVehicleData): string {
+  const isRunning = vehicle.speed > 0;
+  const isStopped = vehicle.status === "stopped";
+  const pinColor = isRunning ? "#20B889" : isStopped ? "#E66D7C" : "#94A3B8";
+
+  return `
+    <div class="custom-fleet-marker" style="display:flex;align-items:center;justify-content:center;cursor:pointer;transform:translate(-50%, -50%);">
+      <div style="width:26px;height:26px;border-radius:50%;background:#171922;border:2.5px solid ${pinColor};box-shadow:0 2px 8px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${pinColor};"></div>
+      </div>
     </div>
   `;
 }
 
 export function GPSTrackingMap({
   vehicle,
+  vehicles = [],
   trip,
   apiKey = "",
   onMetricsComputed,
+  onSelectVehicle,
   className = "",
+  isSampleData = false,
 }: GPSTrackingMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapEngine, setMapEngine] = useState<"google" | "leaflet">("leaflet");
@@ -197,79 +216,78 @@ export function GPSTrackingMap({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
 
-  // Keep latest onMetricsComputed callback ref to avoid effect recreation
   const onMetricsComputedRef = useRef(onMetricsComputed);
   useEffect(() => {
     onMetricsComputedRef.current = onMetricsComputed;
   }, [onMetricsComputed]);
 
-  // Keep track of which vehicle was initial-centered per engine
-  const lastCenteredForLeafletRef = useRef<string | null>(null);
-  const lastCenteredForGoogleRef = useRef<string | null>(null);
-  // Keep track of last routed truck coordinates to prevent unnecessary OSRM re-fetches
+  const onSelectVehicleRef = useRef(onSelectVehicle);
+  useEffect(() => {
+    onSelectVehicleRef.current = onSelectVehicle;
+  }, [onSelectVehicle]);
+
+  const lastCenteredVehicleRef = useRef<string | null>(null);
   const lastRoutedCoordsRef = useRef<[number, number] | null>(null);
   const lastRoutedTripKeyRef = useRef<string>("");
 
   // Map References
   const googleMapRef = useRef<any>(null);
-  const googleOverlayRef = useRef<any>(null);
+  const googleSelectedMarkerRef = useRef<any>(null);
+  const googleFleetMarkersRef = useRef<any[]>([]);
   const googleRouteMarkersRef = useRef<any[]>([]);
   const googleTraveledLineRef = useRef<any>(null);
   const googleRemainingLineRef = useRef<any>(null);
 
   const leafletMapRef = useRef<any>(null);
-  const leafletMarkerRef = useRef<any>(null);
+  const leafletSelectedMarkerRef = useRef<any>(null);
+  const leafletFleetMarkersRef = useRef<any[]>([]);
   const leafletRouteMarkersRef = useRef<any[]>([]);
   const leafletTraveledLineRef = useRef<any>(null);
   const leafletRemainingLineRef = useRef<any>(null);
 
-  // Keep a reference to current vehicle so map initialization doesn't depend on it
   const vehicleRef = useRef(vehicle);
   useEffect(() => {
     vehicleRef.current = vehicle;
   }, [vehicle]);
 
-  // ---------------------------------------------------------------------------
+  const vehiclesRef = useRef(vehicles);
+  useEffect(() => {
+    vehiclesRef.current = vehicles;
+  }, [vehicles]);
+
   // Clean up on component unmount
-  // ---------------------------------------------------------------------------
   useEffect(() => {
     return () => {
       if (leafletMapRef.current) {
         try { leafletMapRef.current.remove(); } catch {}
         leafletMapRef.current = null;
       }
-      if (googleOverlayRef.current) {
-        try { googleOverlayRef.current.setMap(null); } catch {}
-        googleOverlayRef.current = null;
+      if (googleSelectedMarkerRef.current) {
+        try { googleSelectedMarkerRef.current.setMap(null); } catch {}
+        googleSelectedMarkerRef.current = null;
       }
-      if (googleMapRef.current) {
-        googleMapRef.current = null;
-      }
+      googleMapRef.current = null;
     };
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Initialize Leaflet Map (Created once, never destroyed on position ticks)
-  // ---------------------------------------------------------------------------
+  // Initialize Leaflet Map
   const initLeaflet = useCallback(() => {
     if (typeof window === "undefined" || !mapContainerRef.current) return;
     const L = (window as any).L;
     if (!L) return;
 
     if (leafletMapRef.current) {
-      return; // Already initialized, keep existing map instance
+      return;
     }
 
     const initialCenter: [number, number] = vehicleRef.current?.latitude && vehicleRef.current?.longitude
       ? [vehicleRef.current.latitude, vehicleRef.current.longitude]
-      : [22.9074, 79.073];
+      : [28.6139, 77.2090]; // Delhi NCR default
 
     const map = L.map(mapContainerRef.current, {
       zoomControl: false,
       attributionControl: false,
-    }).setView(initialCenter, vehicleRef.current?.latitude ? 14 : 5);
-
-    L.control.zoom({ position: "bottomright" }).addTo(map);
+    }).setView(initialCenter, vehicleRef.current?.latitude ? 13 : 11);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -281,36 +299,28 @@ export function GPSTrackingMap({
     setIsMapReady(true);
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Initialize Google Maps (Created once, never destroyed on position ticks)
-  // ---------------------------------------------------------------------------
+  // Initialize Google Maps
   const initGoogleMaps = useCallback(() => {
     if (typeof window === "undefined" || !mapContainerRef.current) return;
     const gmaps = (window as any).google?.maps;
     if (!gmaps) return;
 
     if (googleMapRef.current) {
-      return; // Already initialized, keep existing map instance
+      return;
     }
 
     const initialCenter = vehicleRef.current?.latitude && vehicleRef.current?.longitude
       ? { lat: vehicleRef.current.latitude, lng: vehicleRef.current.longitude }
-      : { lat: 22.9074, lng: 79.073 };
+      : { lat: 28.6139, lng: 77.2090 };
 
     const map = new gmaps.Map(mapContainerRef.current, {
       center: initialCenter,
-      zoom: vehicleRef.current?.latitude ? 14 : 5,
+      zoom: vehicleRef.current?.latitude ? 13 : 11,
       mapTypeId: gmaps.MapTypeId.ROADMAP,
-      mapTypeControl: true,
-      mapTypeControlOptions: {
-        position: gmaps.ControlPosition.BOTTOM_LEFT,
-      },
+      mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
-      zoomControl: true,
-      zoomControlOptions: {
-        position: gmaps.ControlPosition.RIGHT_BOTTOM,
-      },
+      zoomControl: false,
     });
 
     googleMapRef.current = map;
@@ -318,13 +328,10 @@ export function GPSTrackingMap({
     setIsMapReady(true);
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // Map Engine Loading (Mount once)
-  // ---------------------------------------------------------------------------
+  // Map Engine Loading
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Inject styles for transparent divIcons and smooth CSS transforms
     if (!document.getElementById("gps-tracking-map-style")) {
       const style = document.createElement("style");
       style.id = "gps-tracking-map-style";
@@ -333,15 +340,15 @@ export function GPSTrackingMap({
           background: transparent !important;
           border: none !important;
         }
-        .custom-truck-div-icon {
+        .custom-selected-truck-wrapper {
           background: transparent !important;
           border: none !important;
-          transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) !important;
+          transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
         }
         @keyframes truckPulse {
-          0% { transform: scale(0.9); opacity: 0.7; }
-          70% { transform: scale(1.6); opacity: 0; }
-          100% { transform: scale(1.6); opacity: 0; }
+          0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.8; }
+          70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+          100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
         }
       `;
       document.head.appendChild(style);
@@ -388,80 +395,159 @@ export function GPSTrackingMap({
     }
   }, [apiKey, initGoogleMaps, initLeaflet]);
 
-  // ---------------------------------------------------------------------------
-  // Smooth Truck Marker Update & Route Rendering
-  // ---------------------------------------------------------------------------
+  // Render Fleet Markers (all other vehicles)
   useEffect(() => {
-    if (!isMapReady || !vehicle || !vehicle.latitude || !vehicle.longitude) return;
+    if (!isMapReady) return;
+
+    const currentVehicles = vehicles || [];
+    const selectedNum = vehicle?.vehicleNumber;
+
+    // 1. Leaflet Fleet Markers
+    if (mapEngine === "leaflet" && leafletMapRef.current) {
+      const lMap = leafletMapRef.current;
+      const L = (window as any).L;
+      if (!L) return;
+
+      // Clear previous fleet markers
+      leafletFleetMarkersRef.current.forEach((m) => {
+        try { lMap.removeLayer(m); } catch {}
+      });
+      leafletFleetMarkersRef.current = [];
+
+      currentVehicles.forEach((v) => {
+        if (v.vehicleNumber === selectedNum) return; // Selected vehicle is rendered with prominent radar marker
+        const lat = Number(v.latitude);
+        const lng = Number(v.longitude);
+        if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
+
+        const icon = L.divIcon({
+          className: "leaflet-div-icon",
+          html: buildFleetVehicleMarkerHtml(v),
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+        });
+
+        const m = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(lMap);
+        m.on("click", () => {
+          if (onSelectVehicleRef.current) {
+            onSelectVehicleRef.current(v.vehicleNumber);
+          }
+        });
+
+        m.bindTooltip(`<b>${v.vehicleNumber}</b><br/>${v.speed > 0 ? `Moving: ${v.speed} km/h` : 'Stopped'}`, {
+          direction: "top",
+          offset: [0, -10],
+          className: "gps-marker-tooltip",
+        });
+
+        leafletFleetMarkersRef.current.push(m);
+      });
+    }
+
+    // 2. Google Maps Fleet Markers
+    if (mapEngine === "google" && googleMapRef.current) {
+      const gMap = googleMapRef.current;
+      const gmaps = (window as any).google?.maps;
+      if (!gmaps) return;
+
+      googleFleetMarkersRef.current.forEach((m) => {
+        try { m.setMap(null); } catch {}
+      });
+      googleFleetMarkersRef.current = [];
+
+      currentVehicles.forEach((v) => {
+        if (v.vehicleNumber === selectedNum) return;
+        const lat = Number(v.latitude);
+        const lng = Number(v.longitude);
+        if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
+
+        const pinColor = v.speed > 0 ? "#20B889" : v.status === "stopped" ? "#E66D7C" : "#94A3B8";
+
+        const m = new gmaps.Marker({
+          position: { lat, lng },
+          map: gMap,
+          icon: {
+            path: gmaps.SymbolPath.CIRCLE,
+            fillColor: pinColor,
+            fillOpacity: 1,
+            strokeColor: "#171922",
+            strokeWeight: 2,
+            scale: 6,
+          },
+          title: `${v.vehicleNumber} (${v.speed || 0} km/h)`,
+          zIndex: 1000,
+        });
+
+        m.addListener("click", () => {
+          if (onSelectVehicleRef.current) {
+            onSelectVehicleRef.current(v.vehicleNumber);
+          }
+        });
+
+        googleFleetMarkersRef.current.push(m);
+      });
+    }
+  }, [isMapReady, vehicles, vehicle?.vehicleNumber, mapEngine]);
+
+  // Render Selected Vehicle Marker & Route
+  useEffect(() => {
+    if (!isMapReady) return;
+
+    if (!vehicle || !vehicle.latitude || !vehicle.longitude) {
+      // Clear selected marker if none
+      if (leafletSelectedMarkerRef.current && leafletMapRef.current) {
+        leafletMapRef.current.removeLayer(leafletSelectedMarkerRef.current);
+        leafletSelectedMarkerRef.current = null;
+      }
+      if (googleSelectedMarkerRef.current) {
+        googleSelectedMarkerRef.current.setMap(null);
+        googleSelectedMarkerRef.current = null;
+      }
+      return;
+    }
 
     const lat = Number(vehicle.latitude);
     const lng = Number(vehicle.longitude);
     if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
 
-    const markerHtml = buildTruckMarkerHtml(vehicle);
+    const markerHtml = buildSelectedTruckMarkerHtml(vehicle);
 
-    // -------------------------------------------------------------------------
-    // 1. LEAFLET ENGINE: Smooth Position Transition
-    // -------------------------------------------------------------------------
+    // 1. LEAFLET ENGINE: Selected Truck Marker
     if (mapEngine === "leaflet" && leafletMapRef.current) {
       const lMap = leafletMapRef.current;
       const L = (window as any).L;
       if (L) {
         const customIcon = L.divIcon({
-          className: "custom-truck-div-icon",
+          className: "leaflet-div-icon",
           html: markerHtml,
           iconSize: [0, 0],
           iconAnchor: [0, 0],
         });
 
-        if (leafletMarkerRef.current) {
-          // Smoothly glide marker to new coordinates using CSS transform
-          leafletMarkerRef.current.setLatLng([lat, lng]);
-          leafletMarkerRef.current.setIcon(customIcon);
+        if (leafletSelectedMarkerRef.current) {
+          leafletSelectedMarkerRef.current.setLatLng([lat, lng]);
+          leafletSelectedMarkerRef.current.setIcon(customIcon);
         } else {
-          // Create marker once
-          leafletMarkerRef.current = L.marker([lat, lng], {
+          leafletSelectedMarkerRef.current = L.marker([lat, lng], {
             icon: customIcon,
-            zIndexOffset: 2000,
+            zIndexOffset: 3000,
           }).addTo(lMap);
         }
 
-        // Popup details on click
-        leafletMarkerRef.current.bindPopup(`
-          <div style="font-family:sans-serif;font-size:12px;min-width:180px;line-height:1.5;">
-            <div style="font-weight:700;font-size:13px;color:#0f172a;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:4px;">
-              🚛 ${vehicle.vehicleNumber}
-            </div>
-            <div><b>Status:</b> ${vehicle.speed > 0 ? "Running" : "Stopped"} (${vehicle.speed || 0} km/h)</div>
-            <div><b>Ignition:</b> ${vehicle.ignition ? "ON" : "OFF"}</div>
-            ${vehicle.address ? `<div style="color:#64748b;font-size:11px;margin-top:4px;">${vehicle.address}</div>` : ""}
-            <div style="color:#94a3b8;font-size:10px;margin-top:4px;">Updated: ${vehicle.lastUpdated}</div>
-          </div>
-        `);
-
-        // Viewport: Center once when vehicle changes for Leaflet. On subsequent ticks, only pan if out of view!
-        if (lastCenteredForLeafletRef.current !== vehicle.vehicleNumber) {
-          lastCenteredForLeafletRef.current = vehicle.vehicleNumber;
+        // Center on vehicle when vehicle registration changes
+        if (lastCenteredVehicleRef.current !== vehicle.vehicleNumber) {
+          lastCenteredVehicleRef.current = vehicle.vehicleNumber;
           lMap.setView([lat, lng], 14, { animate: true });
-        } else {
-          try {
-            const bounds = lMap.getBounds();
-            if (bounds && !bounds.contains([lat, lng])) {
-              lMap.panTo([lat, lng], { animate: true, duration: 0.8 });
-            }
-          } catch {}
         }
       }
     }
 
-    // -------------------------------------------------------------------------
-    // 2. GOOGLE MAPS ENGINE: Custom HTML Overlay View with Smooth Transition
-    // -------------------------------------------------------------------------
+    // 2. GOOGLE MAPS ENGINE: Selected Truck Marker
     if (mapEngine === "google" && googleMapRef.current) {
       const gMap = googleMapRef.current;
       const gmaps = (window as any).google?.maps;
       if (gmaps) {
-        if (!googleOverlayRef.current) {
+        if (!googleSelectedMarkerRef.current) {
           class TruckOverlay extends gmaps.OverlayView {
             private latLng: any;
             private html: string;
@@ -476,8 +562,7 @@ export function GPSTrackingMap({
             onAdd() {
               this.div = document.createElement("div");
               this.div.style.position = "absolute";
-              this.div.style.zIndex = "2000";
-              this.div.style.transition = "left 0.8s cubic-bezier(0.25, 1, 0.5, 1), top 0.8s cubic-bezier(0.25, 1, 0.5, 1)";
+              this.div.style.zIndex = "3000";
               this.div.innerHTML = this.html;
               const panes = this.getPanes();
               panes?.overlayMouseTarget?.appendChild(this.div);
@@ -514,32 +599,21 @@ export function GPSTrackingMap({
 
           const overlay = new TruckOverlay(new gmaps.LatLng(lat, lng), markerHtml);
           overlay.setMap(gMap);
-          googleOverlayRef.current = overlay;
+          googleSelectedMarkerRef.current = overlay;
         } else {
-          // Update existing overlay position and html without recreating
-          googleOverlayRef.current.setPosition(new gmaps.LatLng(lat, lng));
-          googleOverlayRef.current.setHtml(markerHtml);
+          googleSelectedMarkerRef.current.setPosition(new gmaps.LatLng(lat, lng));
+          googleSelectedMarkerRef.current.setHtml(markerHtml);
         }
 
-        // Viewport: Center once when vehicle changes for Google Maps. On subsequent ticks, only pan if out of view!
-        if (lastCenteredForGoogleRef.current !== vehicle.vehicleNumber) {
-          lastCenteredForGoogleRef.current = vehicle.vehicleNumber;
+        if (lastCenteredVehicleRef.current !== vehicle.vehicleNumber) {
+          lastCenteredVehicleRef.current = vehicle.vehicleNumber;
           gMap.panTo({ lat, lng });
           if (gMap.getZoom() < 12) gMap.setZoom(14);
-        } else {
-          try {
-            const bounds = gMap.getBounds();
-            if (bounds && !bounds.contains({ lat, lng })) {
-              gMap.panTo({ lat, lng });
-            }
-          } catch {}
         }
       }
     }
 
-    // -------------------------------------------------------------------------
-    // 3. LR TRIP HIGHWAY ROUTING (Only recomputed when vehicle moved > 100m or trip changes)
-    // -------------------------------------------------------------------------
+    // 3. TRIP ROUTE RENDERING
     if (trip && trip.waypoints && trip.waypoints.length > 0) {
       const tripKey = `${vehicle.vehicleNumber}_${trip.waypoints.join(",")}`;
       const lastCoords = lastRoutedCoordsRef.current;
@@ -585,18 +659,26 @@ export function GPSTrackingMap({
                 const lMap = leafletMapRef.current;
                 const L = (window as any).L;
                 if (L) {
-                  leafletRouteMarkersRef.current.forEach((m) => lMap.removeLayer(m));
+                  leafletRouteMarkersRef.current.forEach((m) => {
+                    try { lMap.removeLayer(m); } catch {}
+                  });
                   leafletRouteMarkersRef.current = [];
-                  if (leafletTraveledLineRef.current) { lMap.removeLayer(leafletTraveledLineRef.current); leafletTraveledLineRef.current = null; }
-                  if (leafletRemainingLineRef.current) { lMap.removeLayer(leafletRemainingLineRef.current); leafletRemainingLineRef.current = null; }
+                  if (leafletTraveledLineRef.current) {
+                    try { lMap.removeLayer(leafletTraveledLineRef.current); } catch {}
+                    leafletTraveledLineRef.current = null;
+                  }
+                  if (leafletRemainingLineRef.current) {
+                    try { lMap.removeLayer(leafletRemainingLineRef.current); } catch {}
+                    leafletRemainingLineRef.current = null;
+                  }
 
                   waypointCoords.forEach((wp) => {
                     const isOrigin = wp.role === "Origin";
-                    const bg = isOrigin ? "#16a34a" : "#dc2626";
+                    const bg = isOrigin ? "#20B889" : "#7965E9";
                     const label = isOrigin ? `📍 ${wp.name}` : `🏁 ${wp.name}`;
                     const icon = L.divIcon({
                       className: "leaflet-div-icon",
-                      html: `<div style="padding:4px 8px;border-radius:6px;background:${bg};color:#fff;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,0.3);border:2px solid #fff;">${label}</div>`,
+                      html: `<div style="padding:4px 8px;border-radius:6px;background:${bg};color:#fff;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,0.4);border:1.5px solid #fff;">${label}</div>`,
                       iconAnchor: [0, 0],
                     });
                     const m = L.marker(wp.coords, { icon, zIndexOffset: 900 }).addTo(lMap);
@@ -604,70 +686,17 @@ export function GPSTrackingMap({
                   });
 
                   leafletTraveledLineRef.current = L.polyline(traveledRoute.coords, {
-                    color: "#ef4444",
-                    weight: 5,
+                    color: "#20B889",
+                    weight: 4,
                     opacity: 0.85,
                   }).addTo(lMap);
 
                   leafletRemainingLineRef.current = L.polyline(remainingRoute.coords, {
-                    color: "#3b82f6",
+                    color: "#7965E9",
                     weight: 4,
                     opacity: 0.75,
-                    dashArray: "8, 8",
+                    dashArray: "6, 6",
                   }).addTo(lMap);
-                }
-              }
-
-              // Draw on Google Maps
-              if (mapEngine === "google" && googleMapRef.current) {
-                const gMap = googleMapRef.current;
-                const gmaps = (window as any).google?.maps;
-                if (gmaps) {
-                  googleRouteMarkersRef.current.forEach((m) => m.setMap(null));
-                  googleRouteMarkersRef.current = [];
-                  if (googleTraveledLineRef.current) { googleTraveledLineRef.current.setMap(null); googleTraveledLineRef.current = null; }
-                  if (googleRemainingLineRef.current) { googleRemainingLineRef.current.setMap(null); googleRemainingLineRef.current = null; }
-
-                  waypointCoords.forEach((wp) => {
-                    const isOrigin = wp.role === "Origin";
-                    const bg = isOrigin ? "#16a34a" : "#dc2626";
-                    const m = new gmaps.Marker({
-                      position: { lat: wp.coords[0], lng: wp.coords[1] },
-                      map: gMap,
-                      label: { text: isOrigin ? `📍 ${wp.name}` : `🏁 ${wp.name}`, color: "#fff", fontSize: "11px", fontWeight: "700" },
-                      icon: {
-                        path: gmaps.SymbolPath.CIRCLE,
-                        fillColor: bg,
-                        fillOpacity: 1,
-                        strokeColor: "#fff",
-                        strokeWeight: 2,
-                        scale: 10,
-                      },
-                      zIndex: 900,
-                    });
-                    googleRouteMarkersRef.current.push(m);
-                  });
-
-                  googleTraveledLineRef.current = new gmaps.Polyline({
-                    path: traveledRoute.coords.map((c) => ({ lat: c[0], lng: c[1] })),
-                    strokeColor: "#ef4444",
-                    strokeOpacity: 0.85,
-                    strokeWeight: 5,
-                    map: gMap,
-                  });
-
-                  googleRemainingLineRef.current = new gmaps.Polyline({
-                    path: remainingRoute.coords.map((c) => ({ lat: c[0], lng: c[1] })),
-                    strokeColor: "#3b82f6",
-                    strokeOpacity: 0.75,
-                    strokeWeight: 4,
-                    icons: [{
-                      icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 },
-                      offset: "0",
-                      repeat: "14px",
-                    }],
-                    map: gMap,
-                  });
                 }
               }
             }
@@ -696,6 +725,48 @@ export function GPSTrackingMap({
     }
   };
 
+  // Fit All Fleet Vehicles
+  const handleFitFleet = () => {
+    const activeVehicles = (vehicles && vehicles.length > 0) ? vehicles : (vehicle ? [vehicle] : []);
+    const validCoords = activeVehicles
+      .filter((v) => v.latitude && v.longitude && Number(v.latitude) !== 0)
+      .map((v) => [Number(v.latitude), Number(v.longitude)] as [number, number]);
+
+    if (validCoords.length === 0) return;
+
+    if (mapEngine === "leaflet" && leafletMapRef.current) {
+      const L = (window as any).L;
+      if (L) {
+        const bounds = L.latLngBounds(validCoords);
+        leafletMapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      }
+    } else if (mapEngine === "google" && googleMapRef.current) {
+      const gmaps = (window as any).google?.maps;
+      if (gmaps) {
+        const bounds = new gmaps.LatLngBounds();
+        validCoords.forEach(([lat, lng]) => bounds.extend({ lat, lng }));
+        googleMapRef.current.fitBounds(bounds);
+      }
+    }
+  };
+
+  // Zoom controls
+  const handleZoomIn = () => {
+    if (mapEngine === "leaflet" && leafletMapRef.current) {
+      leafletMapRef.current.zoomIn();
+    } else if (mapEngine === "google" && googleMapRef.current) {
+      googleMapRef.current.setZoom(googleMapRef.current.getZoom() + 1);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapEngine === "leaflet" && leafletMapRef.current) {
+      leafletMapRef.current.zoomOut();
+    } else if (mapEngine === "google" && googleMapRef.current) {
+      googleMapRef.current.setZoom(googleMapRef.current.getZoom() - 1);
+    }
+  };
+
   const toggleFullscreen = () => {
     if (!mapContainerRef.current) return;
     if (!document.fullscreenElement) {
@@ -708,60 +779,73 @@ export function GPSTrackingMap({
   };
 
   return (
-    <div className={`relative w-full h-full min-h-[450px] bg-slate-100 overflow-hidden ${className}`}>
+    <div className={`relative w-full h-full min-h-[450px] bg-[#171922] overflow-hidden ${className}`}>
       {/* Map DOM Container */}
-      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full z-0" />
 
-      {/* Floating Action Controls */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleCenterOnVehicle}
-          className="bg-white/95 backdrop-blur-md hover:bg-white text-slate-800 text-xs font-semibold gap-1.5 shadow-md border-slate-200 cursor-pointer"
-        >
-          <Crosshair className="w-3.5 h-3.5 text-blue-600" />
-          <span>Focus on Truck</span>
-        </Button>
-
-        {isCalculatingRoute && (
-          <div className="px-3 py-1.5 rounded-lg bg-white/95 backdrop-blur-md shadow-md border border-slate-200 text-[11px] font-medium text-slate-600 flex items-center gap-1.5">
-            <RefreshCw className="w-3 h-3 text-indigo-600 animate-spin" />
-            <span>Calculating highway routes...</span>
-          </div>
-        )}
-      </div>
-
+      {/* Floating Map Controls (Top Right - Matching Reference Screenshot) */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
-        <Button
+        {/* Layers Button */}
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleCenterOnVehicle}
-          title="Center on Vehicle"
-          className="w-9 h-9 p-0 bg-white/95 backdrop-blur-md hover:bg-white text-slate-700 shadow-md border-slate-200 cursor-pointer flex items-center justify-center rounded-xl"
+          onClick={() => {
+            // Toggle map layer / engine
+            setMapEngine((prev) => (prev === "leaflet" ? "google" : "leaflet"));
+          }}
+          title="Switch Map Engine"
+          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-all cursor-pointer"
         >
-          <Crosshair className="w-4 h-4 text-blue-600" />
-        </Button>
-        <Button
+          <Layers className="w-4 h-4 text-[#7965E9]" />
+          <span>Layers</span>
+        </button>
+
+        {/* Fit Fleet Button */}
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          onClick={toggleFullscreen}
-          title="Toggle Fullscreen"
-          className="w-9 h-9 p-0 bg-white/95 backdrop-blur-md hover:bg-white text-slate-700 shadow-md border-slate-200 cursor-pointer flex items-center justify-center rounded-xl"
+          onClick={handleFitFleet}
+          title="Fit All Vehicles"
+          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-all cursor-pointer"
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4 text-slate-600" /> : <Maximize2 className="w-4 h-4 text-slate-600" />}
-        </Button>
+          <Crosshair className="w-4 h-4 text-emerald-400" />
+          <span>Fit Fleet</span>
+        </button>
+
+        {/* Zoom In */}
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          title="Zoom In"
+          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex items-center justify-center transition-all cursor-pointer text-lg font-bold"
+        >
+          <ZoomIn className="w-4 h-4 text-slate-300" />
+        </button>
+
+        {/* Zoom Out */}
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          title="Zoom Out"
+          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex items-center justify-center transition-all cursor-pointer text-lg font-bold"
+        >
+          <ZoomOut className="w-4 h-4 text-slate-300" />
+        </button>
       </div>
 
-      {/* Engine Badge Overlay */}
+      {/* Floating Status Pill (Bottom Left - Matching Reference Screenshot) */}
       <div className="absolute bottom-4 left-4 z-20">
-        <span className="px-2.5 py-1 rounded-lg bg-white/90 backdrop-blur-md text-[10px] font-mono font-semibold text-slate-600 shadow-sm border border-slate-200 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Engine: {mapEngine === "google" ? "Google Maps" : "OpenStreetMap (Leaflet)"}</span>
-        </span>
+        <div className="px-3 py-1.5 rounded-lg bg-[#171922]/95 backdrop-blur-md text-xs font-medium text-slate-300 border border-[#2B303C] shadow-lg flex items-center gap-2">
+          {isSampleData ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-blue-400" />
+              <span>Displaying sample fleet data</span>
+            </>
+          ) : (
+            <>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live fleet tracking active</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
