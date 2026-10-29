@@ -2,17 +2,11 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Layers,
-  Map as MapIcon,
-  Navigation,
-  Key,
   Maximize2,
   Minimize2,
   RefreshCw,
-  Compass,
-  AlertTriangle,
-  Play,
   Crosshair,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -147,6 +141,49 @@ async function geocodeWaypoint(locationName: string): Promise<[number, number] |
   return null;
 }
 
+function buildTruckMarkerHtml(vehicle: GPSVehicleData): string {
+  const isRunning = vehicle.speed > 0;
+  const isIdle = vehicle.speed === 0 && Boolean(vehicle.ignition);
+  const pinColor = isRunning ? "#10b981" : isIdle ? "#f59e0b" : "#ef4444";
+  const heading = Number(vehicle.heading) || 0;
+
+  return `
+    <div class="custom-truck-wrapper" style="position:relative;display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;transform:translate(-50%, -100%);">
+      <!-- Top Number & Speed Pill -->
+      <div style="background:#0f172a;color:#ffffff;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,0.35);border:1.5px solid rgba(255,255,255,0.4);display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+        <span style="letter-spacing:0.5px;font-family:monospace;">${vehicle.vehicleNumber}</span>
+        <span style="color:${pinColor};font-size:9.5px;font-weight:800;">• ${vehicle.speed || 0} km/h</span>
+      </div>
+
+      <!-- Icon Container with Pulse -->
+      <div style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+        ${isRunning ? `
+          <div style="position:absolute;width:40px;height:40px;border-radius:50%;background:${pinColor};opacity:0.4;animation:truckPulse 1.8s infinite ease-out;"></div>
+        ` : ''}
+
+        <!-- Main Circular Truck Badge -->
+        <div style="width:38px;height:38px;border-radius:50%;background:${pinColor};border:2.5px solid #ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.35);color:#ffffff;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${heading}deg);transition:transform 0.4s ease;">
+            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/>
+            <path d="M15 18H9"/>
+            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14v10"/>
+            <circle cx="17" cy="18.5" r="2.5" fill="currentColor"/>
+            <circle cx="7" cy="18.5" r="2.5" fill="currentColor"/>
+          </svg>
+        </div>
+
+        <!-- Direction Arrow Triangle Pointer if moving -->
+        ${isRunning && heading ? `
+          <div style="position:absolute;top:-5px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid #ffffff;transform:rotate(${heading}deg);transform-origin:50% 25px;"></div>
+        ` : ''}
+      </div>
+
+      <!-- Ground Pointer Pin -->
+      <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid ${pinColor};margin-top:-1px;"></div>
+    </div>
+  `;
+}
+
 export function GPSTrackingMap({
   vehicle,
   trip,
@@ -160,9 +197,21 @@ export function GPSTrackingMap({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
 
-  // References
+  // Keep latest onMetricsComputed callback ref to avoid effect recreation
+  const onMetricsComputedRef = useRef(onMetricsComputed);
+  useEffect(() => {
+    onMetricsComputedRef.current = onMetricsComputed;
+  }, [onMetricsComputed]);
+
+  // Keep track of which vehicle was initial-centered
+  const lastCenteredVehicleNumRef = useRef<string | null>(null);
+  // Keep track of last routed truck coordinates to prevent unnecessary OSRM re-fetches
+  const lastRoutedCoordsRef = useRef<[number, number] | null>(null);
+  const lastRoutedTripKeyRef = useRef<string>("");
+
+  // Map References
   const googleMapRef = useRef<any>(null);
-  const googleMarkerRef = useRef<any>(null);
+  const googleOverlayRef = useRef<any>(null);
   const googleRouteMarkersRef = useRef<any[]>([]);
   const googleTraveledLineRef = useRef<any>(null);
   const googleRemainingLineRef = useRef<any>(null);
@@ -173,12 +222,24 @@ export function GPSTrackingMap({
   const leafletTraveledLineRef = useRef<any>(null);
   const leafletRemainingLineRef = useRef<any>(null);
 
-  // Cleanup map instances on unmount
+  // Keep a reference to current vehicle so map initialization doesn't depend on it
+  const vehicleRef = useRef(vehicle);
+  useEffect(() => {
+    vehicleRef.current = vehicle;
+  }, [vehicle]);
+
+  // ---------------------------------------------------------------------------
+  // Clean up on component unmount
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     return () => {
       if (leafletMapRef.current) {
         try { leafletMapRef.current.remove(); } catch {}
         leafletMapRef.current = null;
+      }
+      if (googleOverlayRef.current) {
+        try { googleOverlayRef.current.setMap(null); } catch {}
+        googleOverlayRef.current = null;
       }
       if (googleMapRef.current) {
         googleMapRef.current = null;
@@ -187,7 +248,7 @@ export function GPSTrackingMap({
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Initialize Leaflet
+  // Initialize Leaflet Map (Created once, never destroyed on position ticks)
   // ---------------------------------------------------------------------------
   const initLeaflet = useCallback(() => {
     if (typeof window === "undefined" || !mapContainerRef.current) return;
@@ -195,18 +256,17 @@ export function GPSTrackingMap({
     if (!L) return;
 
     if (leafletMapRef.current) {
-      leafletMapRef.current.remove();
-      leafletMapRef.current = null;
+      return; // Already initialized, keep existing map instance
     }
 
-    const defaultCenter: [number, number] = vehicle?.latitude && vehicle?.longitude
-      ? [vehicle.latitude, vehicle.longitude]
+    const initialCenter: [number, number] = vehicleRef.current?.latitude && vehicleRef.current?.longitude
+      ? [vehicleRef.current.latitude, vehicleRef.current.longitude]
       : [22.9074, 79.073];
 
     const map = L.map(mapContainerRef.current, {
       zoomControl: false,
       attributionControl: false,
-    }).setView(defaultCenter, vehicle?.latitude ? 14 : 5);
+    }).setView(initialCenter, vehicleRef.current?.latitude ? 14 : 5);
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
@@ -218,23 +278,27 @@ export function GPSTrackingMap({
     leafletMapRef.current = map;
     setMapEngine("leaflet");
     setIsMapReady(true);
-  }, [vehicle]);
+  }, []);
 
   // ---------------------------------------------------------------------------
-  // Initialize Google Maps
+  // Initialize Google Maps (Created once, never destroyed on position ticks)
   // ---------------------------------------------------------------------------
   const initGoogleMaps = useCallback(() => {
     if (typeof window === "undefined" || !mapContainerRef.current) return;
     const gmaps = (window as any).google?.maps;
     if (!gmaps) return;
 
-    const defaultCenter = vehicle?.latitude && vehicle?.longitude
-      ? { lat: vehicle.latitude, lng: vehicle.longitude }
+    if (googleMapRef.current) {
+      return; // Already initialized, keep existing map instance
+    }
+
+    const initialCenter = vehicleRef.current?.latitude && vehicleRef.current?.longitude
+      ? { lat: vehicleRef.current.latitude, lng: vehicleRef.current.longitude }
       : { lat: 22.9074, lng: 79.073 };
 
     const map = new gmaps.Map(mapContainerRef.current, {
-      center: defaultCenter,
-      zoom: vehicle?.latitude ? 14 : 5,
+      center: initialCenter,
+      zoom: vehicleRef.current?.latitude ? 14 : 5,
       mapTypeId: gmaps.MapTypeId.ROADMAP,
       mapTypeControl: true,
       mapTypeControlOptions: {
@@ -251,13 +315,36 @@ export function GPSTrackingMap({
     googleMapRef.current = map;
     setMapEngine("google");
     setIsMapReady(true);
-  }, [vehicle]);
+  }, []);
 
   // ---------------------------------------------------------------------------
-  // Map Engine Setup
+  // Map Engine Loading (Mount once)
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // Inject styles for transparent divIcons and smooth CSS transforms
+    if (!document.getElementById("gps-tracking-map-style")) {
+      const style = document.createElement("style");
+      style.id = "gps-tracking-map-style";
+      style.innerHTML = `
+        .leaflet-div-icon {
+          background: transparent !important;
+          border: none !important;
+        }
+        .custom-truck-div-icon {
+          background: transparent !important;
+          border: none !important;
+          transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) !important;
+        }
+        @keyframes truckPulse {
+          0% { transform: scale(0.9); opacity: 0.7; }
+          70% { transform: scale(1.6); opacity: 0; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link");
@@ -301,223 +388,311 @@ export function GPSTrackingMap({
   }, [apiKey, initGoogleMaps, initLeaflet]);
 
   // ---------------------------------------------------------------------------
-  // Render Live Truck Marker & Road Routes
+  // Smooth Truck Marker Update & Route Rendering
   // ---------------------------------------------------------------------------
-  const renderMapLayers = useCallback(async () => {
-    if (!isMapReady) return;
-    if (!vehicle || !vehicle.latitude || !vehicle.longitude) return;
+  useEffect(() => {
+    if (!isMapReady || !vehicle || !vehicle.latitude || !vehicle.longitude) return;
 
-    const lat = vehicle.latitude;
-    const lng = vehicle.longitude;
-    const isRunning = vehicle.speed > 0;
-    const pinColor = isRunning ? "#10b981" : "#ef4444";
+    const lat = Number(vehicle.latitude);
+    const lng = Number(vehicle.longitude);
+    if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
 
-    // 1. Google Maps Engine
-    if (mapEngine === "google" && googleMapRef.current) {
-      const gMap = googleMapRef.current;
-      const gmaps = (window as any).google?.maps;
-      if (!gmaps) return;
+    const markerHtml = buildTruckMarkerHtml(vehicle);
+    const isNewVehicleSelected = lastCenteredVehicleNumRef.current !== vehicle.vehicleNumber;
 
-      const pos = new gmaps.LatLng(lat, lng);
-
-      // Marker
-      if (googleMarkerRef.current) {
-        googleMarkerRef.current.setPosition(pos);
-        googleMarkerRef.current.setTitle(`${vehicle.vehicleNumber} (${vehicle.speed} km/h)`);
-      } else {
-        googleMarkerRef.current = new gmaps.Marker({
-          position: pos,
-          map: gMap,
-          title: `${vehicle.vehicleNumber} (${vehicle.speed} km/h)`,
-          label: { text: "🚛", fontSize: "20px" },
-          icon: {
-            path: gmaps.SymbolPath.CIRCLE,
-            fillColor: pinColor,
-            fillOpacity: 0.95,
-            strokeColor: "#ffffff",
-            strokeWeight: 3,
-            scale: 16,
-          },
-          zIndex: 2000,
-        });
-      }
-      gMap.panTo(pos);
-    }
-
-    // 2. Leaflet Engine
+    // -------------------------------------------------------------------------
+    // 1. LEAFLET ENGINE: Smooth Position Transition
+    // -------------------------------------------------------------------------
     if (mapEngine === "leaflet" && leafletMapRef.current) {
       const lMap = leafletMapRef.current;
       const L = (window as any).L;
-      if (!L) return;
+      if (L) {
+        const customIcon = L.divIcon({
+          className: "custom-truck-div-icon",
+          html: markerHtml,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
 
-      const markerHtml = `
-        <div style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background-color:${pinColor};border:3px solid #fff;color:#fff;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,0.35);">
-          🚛
-        </div>
-      `;
-      const customIcon = L.divIcon({
-        className: "leaflet-div-icon",
-        html: markerHtml,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19],
-      });
+        if (leafletMarkerRef.current) {
+          // Smoothly glide marker to new coordinates using CSS transform
+          leafletMarkerRef.current.setLatLng([lat, lng]);
+          leafletMarkerRef.current.setIcon(customIcon);
+        } else {
+          // Create marker once
+          leafletMarkerRef.current = L.marker([lat, lng], {
+            icon: customIcon,
+            zIndexOffset: 2000,
+          }).addTo(lMap);
+        }
 
-      if (leafletMarkerRef.current) {
-        leafletMarkerRef.current.setLatLng([lat, lng]);
-        leafletMarkerRef.current.setIcon(customIcon);
-      } else {
-        leafletMarkerRef.current = L.marker([lat, lng], { icon: customIcon, zIndexOffset: 2000 }).addTo(lMap);
+        // Popup details on click
+        leafletMarkerRef.current.bindPopup(`
+          <div style="font-family:sans-serif;font-size:12px;min-width:180px;line-height:1.5;">
+            <div style="font-weight:700;font-size:13px;color:#0f172a;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:4px;">
+              🚛 ${vehicle.vehicleNumber}
+            </div>
+            <div><b>Status:</b> ${vehicle.speed > 0 ? "Running" : "Stopped"} (${vehicle.speed || 0} km/h)</div>
+            <div><b>Ignition:</b> ${vehicle.ignition ? "ON" : "OFF"}</div>
+            ${vehicle.address ? `<div style="color:#64748b;font-size:11px;margin-top:4px;">${vehicle.address}</div>` : ""}
+            <div style="color:#94a3b8;font-size:10px;margin-top:4px;">Updated: ${vehicle.lastUpdated}</div>
+          </div>
+        `);
+
+        // Viewport: Center once when vehicle changes. On subsequent ticks, only pan if out of view!
+        if (isNewVehicleSelected) {
+          lastCenteredVehicleNumRef.current = vehicle.vehicleNumber;
+          lMap.setView([lat, lng], 14, { animate: true });
+        } else {
+          try {
+            const bounds = lMap.getBounds();
+            if (bounds && !bounds.contains([lat, lng])) {
+              lMap.panTo([lat, lng], { animate: true, duration: 0.8 });
+            }
+          } catch {}
+        }
       }
-      lMap.panTo([lat, lng]);
     }
 
-    // 3. Draw LR Road Routes (Origin -> Truck -> Destination)
+    // -------------------------------------------------------------------------
+    // 2. GOOGLE MAPS ENGINE: Custom HTML Overlay View with Smooth Transition
+    // -------------------------------------------------------------------------
+    if (mapEngine === "google" && googleMapRef.current) {
+      const gMap = googleMapRef.current;
+      const gmaps = (window as any).google?.maps;
+      if (gmaps) {
+        if (!googleOverlayRef.current) {
+          class TruckOverlay extends gmaps.OverlayView {
+            private latLng: any;
+            private html: string;
+            public div: HTMLDivElement | null = null;
+
+            constructor(latLng: any, html: string) {
+              super();
+              this.latLng = latLng;
+              this.html = html;
+            }
+
+            onAdd() {
+              this.div = document.createElement("div");
+              this.div.style.position = "absolute";
+              this.div.style.zIndex = "2000";
+              this.div.style.transition = "left 0.8s cubic-bezier(0.25, 1, 0.5, 1), top 0.8s cubic-bezier(0.25, 1, 0.5, 1)";
+              this.div.innerHTML = this.html;
+              const panes = this.getPanes();
+              panes?.overlayMouseTarget?.appendChild(this.div);
+            }
+
+            draw() {
+              if (!this.div) return;
+              const overlayProjection = this.getProjection();
+              if (!overlayProjection) return;
+              const pos = overlayProjection.fromLatLngToDivPixel(this.latLng);
+              if (pos) {
+                this.div.style.left = `${pos.x}px`;
+                this.div.style.top = `${pos.y}px`;
+              }
+            }
+
+            setPosition(newLatLng: any) {
+              this.latLng = newLatLng;
+              this.draw();
+            }
+
+            setHtml(newHtml: string) {
+              this.html = newHtml;
+              if (this.div) this.div.innerHTML = newHtml;
+            }
+
+            onRemove() {
+              if (this.div && this.div.parentNode) {
+                this.div.parentNode.removeChild(this.div);
+                this.div = null;
+              }
+            }
+          }
+
+          const overlay = new TruckOverlay(new gmaps.LatLng(lat, lng), markerHtml);
+          overlay.setMap(gMap);
+          googleOverlayRef.current = overlay;
+        } else {
+          // Update existing overlay position and html without recreating
+          googleOverlayRef.current.setPosition(new gmaps.LatLng(lat, lng));
+          googleOverlayRef.current.setHtml(markerHtml);
+        }
+
+        // Viewport: Center once when vehicle changes. On subsequent ticks, only pan if out of view!
+        if (isNewVehicleSelected) {
+          lastCenteredVehicleNumRef.current = vehicle.vehicleNumber;
+          gMap.panTo({ lat, lng });
+          if (gMap.getZoom() < 12) gMap.setZoom(14);
+        } else {
+          try {
+            const bounds = gMap.getBounds();
+            if (bounds && !bounds.contains({ lat, lng })) {
+              gMap.panTo({ lat, lng });
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. LR TRIP HIGHWAY ROUTING (Only recomputed when vehicle moved > 100m or trip changes)
+    // -------------------------------------------------------------------------
     if (trip && trip.waypoints && trip.waypoints.length > 0) {
-      setIsCalculatingRoute(true);
-      try {
-        const waypointCoords: { name: string; coords: [number, number]; role: string }[] = [];
-        for (let i = 0; i < trip.waypoints.length; i++) {
-          const wpName = trip.waypoints[i];
-          const coords = await geocodeWaypoint(wpName);
-          if (coords) {
-            const role = i === 0 ? "Origin" : (i === trip.waypoints.length - 1 ? "Destination" : `Stop ${i}`);
-            waypointCoords.push({ name: wpName, coords, role });
-          }
-        }
+      const tripKey = `${vehicle.vehicleNumber}_${trip.waypoints.join(",")}`;
+      const lastCoords = lastRoutedCoordsRef.current;
+      const movedDistKm = lastCoords ? haversineDistanceKm(lastCoords[0], lastCoords[1], lat, lng) : 999;
 
-        if (waypointCoords.length > 0) {
-          const originCoord = waypointCoords[0].coords;
-          const destCoord = waypointCoords[waypointCoords.length - 1].coords;
-          const truckCoord: [number, number] = [lat, lng];
+      if (lastRoutedTripKeyRef.current !== tripKey || movedDistKm > 0.1) {
+        lastRoutedCoordsRef.current = [lat, lng];
+        lastRoutedTripKeyRef.current = tripKey;
+        setIsCalculatingRoute(true);
 
-          const [traveledRoute, remainingRoute] = await Promise.all([
-            fetchOSRMRoute(originCoord, truckCoord),
-            fetchOSRMRoute(truckCoord, destCoord),
-          ]);
-
-          const traveledKm = traveledRoute.distanceKm;
-          const remainingKm = remainingRoute.distanceKm;
-          const totalKm = traveledKm + remainingKm;
-
-          if (onMetricsComputed) {
-            onMetricsComputed({ coveredKm: traveledKm, remainingKm, totalKm });
-          }
-
-          // Draw on Leaflet
-          if (mapEngine === "leaflet" && leafletMapRef.current) {
-            const lMap = leafletMapRef.current;
-            const L = (window as any).L;
-            if (L) {
-              // Clear previous
-              leafletRouteMarkersRef.current.forEach((m) => lMap.removeLayer(m));
-              leafletRouteMarkersRef.current = [];
-              if (leafletTraveledLineRef.current) { lMap.removeLayer(leafletTraveledLineRef.current); leafletTraveledLineRef.current = null; }
-              if (leafletRemainingLineRef.current) { lMap.removeLayer(leafletRemainingLineRef.current); leafletRemainingLineRef.current = null; }
-
-              // Waypoint markers
-              waypointCoords.forEach((wp) => {
-                const isOrigin = wp.role === "Origin";
-                const bg = isOrigin ? "#16a34a" : "#dc2626";
-                const label = isOrigin ? `📍 ${wp.name}` : `🏁 ${wp.name}`;
-                const icon = L.divIcon({
-                  className: "leaflet-div-icon",
-                  html: `<div style="padding:4px 8px;border-radius:6px;background:${bg};color:#fff;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,0.3);border:2px solid #fff;">${label}</div>`,
-                  iconAnchor: [0, 0],
-                });
-                const m = L.marker(wp.coords, { icon, zIndexOffset: 900 }).addTo(lMap);
-                leafletRouteMarkersRef.current.push(m);
-              });
-
-              // Red solid traveled polyline
-              leafletTraveledLineRef.current = L.polyline(traveledRoute.coords, {
-                color: "#ef4444",
-                weight: 5,
-                opacity: 0.85,
-              }).addTo(lMap);
-
-              // Blue dashed remaining polyline
-              leafletRemainingLineRef.current = L.polyline(remainingRoute.coords, {
-                color: "#3b82f6",
-                weight: 4,
-                opacity: 0.75,
-                dashArray: "8, 8",
-              }).addTo(lMap);
+        (async () => {
+          try {
+            const waypointCoords: { name: string; coords: [number, number]; role: string }[] = [];
+            for (let i = 0; i < trip.waypoints!.length; i++) {
+              const wpName = trip.waypoints![i];
+              const coords = await geocodeWaypoint(wpName);
+              if (coords) {
+                const role = i === 0 ? "Origin" : (i === trip.waypoints!.length - 1 ? "Destination" : `Stop ${i}`);
+                waypointCoords.push({ name: wpName, coords, role });
+              }
             }
-          }
 
-          // Draw on Google Maps
-          if (mapEngine === "google" && googleMapRef.current) {
-            const gMap = googleMapRef.current;
-            const gmaps = (window as any).google?.maps;
-            if (gmaps) {
-              googleRouteMarkersRef.current.forEach((m) => m.setMap(null));
-              googleRouteMarkersRef.current = [];
-              if (googleTraveledLineRef.current) { googleTraveledLineRef.current.setMap(null); googleTraveledLineRef.current = null; }
-              if (googleRemainingLineRef.current) { googleRemainingLineRef.current.setMap(null); googleRemainingLineRef.current = null; }
+            if (waypointCoords.length > 0) {
+              const originCoord = waypointCoords[0].coords;
+              const destCoord = waypointCoords[waypointCoords.length - 1].coords;
+              const truckCoord: [number, number] = [lat, lng];
 
-              waypointCoords.forEach((wp) => {
-                const isOrigin = wp.role === "Origin";
-                const bg = isOrigin ? "#16a34a" : "#dc2626";
-                const m = new gmaps.Marker({
-                  position: { lat: wp.coords[0], lng: wp.coords[1] },
-                  map: gMap,
-                  label: { text: isOrigin ? `📍 ${wp.name}` : `🏁 ${wp.name}`, color: "#fff", fontSize: "11px", fontWeight: "700" },
-                  icon: {
-                    path: gmaps.SymbolPath.CIRCLE,
-                    fillColor: bg,
-                    fillOpacity: 1,
-                    strokeColor: "#fff",
-                    strokeWeight: 2,
-                    scale: 10,
-                  },
-                  zIndex: 900,
-                });
-                googleRouteMarkersRef.current.push(m);
-              });
+              const [traveledRoute, remainingRoute] = await Promise.all([
+                fetchOSRMRoute(originCoord, truckCoord),
+                fetchOSRMRoute(truckCoord, destCoord),
+              ]);
 
-              googleTraveledLineRef.current = new gmaps.Polyline({
-                path: traveledRoute.coords.map((c) => ({ lat: c[0], lng: c[1] })),
-                strokeColor: "#ef4444",
-                strokeOpacity: 0.85,
-                strokeWeight: 5,
-                map: gMap,
-              });
+              const traveledKm = traveledRoute.distanceKm;
+              const remainingKm = remainingRoute.distanceKm;
+              const totalKm = traveledKm + remainingKm;
 
-              googleRemainingLineRef.current = new gmaps.Polyline({
-                path: remainingRoute.coords.map((c) => ({ lat: c[0], lng: c[1] })),
-                strokeColor: "#3b82f6",
-                strokeOpacity: 0.75,
-                strokeWeight: 4,
-                icons: [{
-                  icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 },
-                  offset: "0",
-                  repeat: "14px",
-                }],
-                map: gMap,
-              });
+              if (onMetricsComputedRef.current) {
+                onMetricsComputedRef.current({ coveredKm: traveledKm, remainingKm, totalKm });
+              }
+
+              // Draw on Leaflet
+              if (mapEngine === "leaflet" && leafletMapRef.current) {
+                const lMap = leafletMapRef.current;
+                const L = (window as any).L;
+                if (L) {
+                  leafletRouteMarkersRef.current.forEach((m) => lMap.removeLayer(m));
+                  leafletRouteMarkersRef.current = [];
+                  if (leafletTraveledLineRef.current) { lMap.removeLayer(leafletTraveledLineRef.current); leafletTraveledLineRef.current = null; }
+                  if (leafletRemainingLineRef.current) { lMap.removeLayer(leafletRemainingLineRef.current); leafletRemainingLineRef.current = null; }
+
+                  waypointCoords.forEach((wp) => {
+                    const isOrigin = wp.role === "Origin";
+                    const bg = isOrigin ? "#16a34a" : "#dc2626";
+                    const label = isOrigin ? `📍 ${wp.name}` : `🏁 ${wp.name}`;
+                    const icon = L.divIcon({
+                      className: "leaflet-div-icon",
+                      html: `<div style="padding:4px 8px;border-radius:6px;background:${bg};color:#fff;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,0.3);border:2px solid #fff;">${label}</div>`,
+                      iconAnchor: [0, 0],
+                    });
+                    const m = L.marker(wp.coords, { icon, zIndexOffset: 900 }).addTo(lMap);
+                    leafletRouteMarkersRef.current.push(m);
+                  });
+
+                  leafletTraveledLineRef.current = L.polyline(traveledRoute.coords, {
+                    color: "#ef4444",
+                    weight: 5,
+                    opacity: 0.85,
+                  }).addTo(lMap);
+
+                  leafletRemainingLineRef.current = L.polyline(remainingRoute.coords, {
+                    color: "#3b82f6",
+                    weight: 4,
+                    opacity: 0.75,
+                    dashArray: "8, 8",
+                  }).addTo(lMap);
+                }
+              }
+
+              // Draw on Google Maps
+              if (mapEngine === "google" && googleMapRef.current) {
+                const gMap = googleMapRef.current;
+                const gmaps = (window as any).google?.maps;
+                if (gmaps) {
+                  googleRouteMarkersRef.current.forEach((m) => m.setMap(null));
+                  googleRouteMarkersRef.current = [];
+                  if (googleTraveledLineRef.current) { googleTraveledLineRef.current.setMap(null); googleTraveledLineRef.current = null; }
+                  if (googleRemainingLineRef.current) { googleRemainingLineRef.current.setMap(null); googleRemainingLineRef.current = null; }
+
+                  waypointCoords.forEach((wp) => {
+                    const isOrigin = wp.role === "Origin";
+                    const bg = isOrigin ? "#16a34a" : "#dc2626";
+                    const m = new gmaps.Marker({
+                      position: { lat: wp.coords[0], lng: wp.coords[1] },
+                      map: gMap,
+                      label: { text: isOrigin ? `📍 ${wp.name}` : `🏁 ${wp.name}`, color: "#fff", fontSize: "11px", fontWeight: "700" },
+                      icon: {
+                        path: gmaps.SymbolPath.CIRCLE,
+                        fillColor: bg,
+                        fillOpacity: 1,
+                        strokeColor: "#fff",
+                        strokeWeight: 2,
+                        scale: 10,
+                      },
+                      zIndex: 900,
+                    });
+                    googleRouteMarkersRef.current.push(m);
+                  });
+
+                  googleTraveledLineRef.current = new gmaps.Polyline({
+                    path: traveledRoute.coords.map((c) => ({ lat: c[0], lng: c[1] })),
+                    strokeColor: "#ef4444",
+                    strokeOpacity: 0.85,
+                    strokeWeight: 5,
+                    map: gMap,
+                  });
+
+                  googleRemainingLineRef.current = new gmaps.Polyline({
+                    path: remainingRoute.coords.map((c) => ({ lat: c[0], lng: c[1] })),
+                    strokeColor: "#3b82f6",
+                    strokeOpacity: 0.75,
+                    strokeWeight: 4,
+                    icons: [{
+                      icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 },
+                      offset: "0",
+                      repeat: "14px",
+                    }],
+                    map: gMap,
+                  });
+                }
+              }
             }
+          } catch (err) {
+            console.warn("Failed rendering LR route polylines:", err);
+          } finally {
+            setIsCalculatingRoute(false);
           }
-        }
-      } catch (err) {
-        console.warn("Failed rendering LR route polylines:", err);
-      } finally {
-        setIsCalculatingRoute(false);
+        })();
       }
     }
-  }, [isMapReady, vehicle, trip, mapEngine, onMetricsComputed]);
-
-  useEffect(() => {
-    renderMapLayers();
-  }, [renderMapLayers]);
+  }, [isMapReady, vehicle, trip, mapEngine]);
 
   // Center on Vehicle action
   const handleCenterOnVehicle = () => {
     if (!vehicle || !vehicle.latitude || !vehicle.longitude) return;
+    const lat = Number(vehicle.latitude);
+    const lng = Number(vehicle.longitude);
+    if (isNaN(lat) || isNaN(lng)) return;
+
     if (mapEngine === "google" && googleMapRef.current) {
-      googleMapRef.current.panTo({ lat: vehicle.latitude, lng: vehicle.longitude });
+      googleMapRef.current.panTo({ lat, lng });
       googleMapRef.current.setZoom(15);
     } else if (mapEngine === "leaflet" && leafletMapRef.current) {
-      leafletMapRef.current.setView([vehicle.latitude, vehicle.longitude], 15);
+      leafletMapRef.current.setView([lat, lng], 15, { animate: true });
     }
   };
 
@@ -577,7 +752,7 @@ export function GPSTrackingMap({
           title="Toggle Fullscreen"
           className="w-9 h-9 p-0 bg-white/95 backdrop-blur-md hover:bg-white text-slate-700 shadow-md border-slate-200 cursor-pointer flex items-center justify-center rounded-xl"
         >
-          <Maximize2 className="w-4 h-4 text-slate-600" />
+          {isFullscreen ? <Minimize2 className="w-4 h-4 text-slate-600" /> : <Maximize2 className="w-4 h-4 text-slate-600" />}
         </Button>
       </div>
 
@@ -591,4 +766,3 @@ export function GPSTrackingMap({
     </div>
   );
 }
-
