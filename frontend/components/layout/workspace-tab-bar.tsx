@@ -18,6 +18,7 @@ import {
   QrCode,
   Navigation,
   Radio,
+  Compass,
   Building2,
   MapPin,
   Factory,
@@ -78,6 +79,7 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   // Tracking
   "/tracking/fastag": { title: "FASTag Tracking", icon: Navigation },
   "/tracking/sim": { title: "Sim Based Tracking", icon: Radio },
+  "/tracking/gps": { title: "GPS Tracking", icon: Compass },
 
   // Transport Reports
   "/transport-reports/lr-register": { title: "LR Booking Register", icon: FileSpreadsheet },
@@ -144,6 +146,7 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
   "/api-center/eway-bill": { title: "E-Way Bill API", icon: FileSpreadsheet },
   "/api-center/fastag": { title: "FASTag Tracking API", icon: Navigation },
   "/api-center/sim": { title: "SIM Tracking API", icon: Radio },
+  "/api-center/gps": { title: "GPS Tracking API", icon: Compass },
 
   // Settings
   "/settings/users": { title: "User Management", icon: UserCog },
