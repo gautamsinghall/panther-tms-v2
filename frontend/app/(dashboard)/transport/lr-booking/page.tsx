@@ -1516,7 +1516,7 @@ export default function LRBookingPage() {
       />
 
       {!isSeriesLoading && seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
-        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>
             <span>Manual series must be configured in Series Master before LRs can be booked.</span>
@@ -1526,7 +1526,7 @@ export default function LRBookingPage() {
             size="sm"
             variant="outline"
             onClick={() => router.push("/settings/series-master")}
-            className="text-xs bg-white text-amber-800 border-amber-300 hover:bg-amber-100 shrink-0"
+            className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
           >
             Configure LR Series
           </Button>
@@ -1617,31 +1617,31 @@ export default function LRBookingPage() {
         width="xl"
       >
         {/* Office & Series Context Banner */}
-        <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
+        <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 dark:from-[#171928] dark:to-[#1B1728] border border-indigo-200/80 dark:border-[#2E3150] text-indigo-950 dark:text-indigo-200 text-xs shadow-2xs space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-700 flex items-center gap-1">
+              <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                 <Lock className="w-3 h-3 text-slate-500" />
                 Issuing Office:
               </span>
-              <span className="font-bold text-indigo-800 bg-white px-2 py-0.5 rounded border border-indigo-200">
+              <span className="font-bold text-indigo-800 dark:text-indigo-300 bg-white dark:bg-[#10121D] px-2 py-0.5 rounded border border-indigo-200 dark:border-[#383C66]">
                 {activeOfficeDisplay}
               </span>
             </div>
             {activeSeriesObj ? (
-              <div className="font-mono text-slate-600 text-[11px]">
-                Series Batch: <span className="font-bold text-slate-900">{activeSeriesObj.starting_number} – {activeSeriesObj.end_number || "..."}</span>
+              <div className="font-mono text-slate-600 dark:text-slate-400 text-[11px]">
+                Series Batch: <span className="font-bold text-slate-900 dark:text-white">{activeSeriesObj.starting_number} – {activeSeriesObj.end_number || "..."}</span>
               </div>
             ) : seriesInfo?.configured ? (
-              <div className="font-mono text-slate-600 text-[11px] flex items-center gap-1.5">
-                Next LR No: <span className="font-bold text-indigo-900 bg-white px-2 py-0.5 rounded border border-indigo-200">{seriesInfo.next_number_formatted}</span>
+              <div className="font-mono text-slate-600 dark:text-slate-400 text-[11px] flex items-center gap-1.5">
+                Next LR No: <span className="font-bold text-indigo-900 dark:text-indigo-200 bg-white dark:bg-[#10121D] px-2 py-0.5 rounded border border-indigo-200 dark:border-[#383C66]">{seriesInfo.next_number_formatted}</span>
               </div>
             ) : null}
           </div>
           {activeSeriesObj && (
-            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 dark:border-[#272A42] text-slate-600 dark:text-slate-400">
               <span>{activeSeriesObj.used_count} vouchers recorded</span>
-              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/60">
                 {activeSeriesObj.available_count} leaves available
               </span>
             </div>
@@ -1650,12 +1650,12 @@ export default function LRBookingPage() {
 
         {/* Unconfigured Series Warning Alert */}
         {!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
-          <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="mb-4 p-4 rounded-xl bg-rose-50 dark:bg-[#201418] border border-rose-200 dark:border-[#4E232B] text-rose-900 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-sm font-bold text-rose-950">LR Series Not Configured</h4>
-                <p className="text-xs text-rose-700 mt-0.5">
+                <h4 className="text-sm font-bold text-rose-950 dark:text-rose-100">LR Series Not Configured</h4>
+                <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
                   No active series configured for Lorry Receipt in this issuing office ({activeOfficeDisplay}). LR numbers cannot be generated and this entry cannot be saved until you setup or import the default series template.
                 </p>
               </div>
@@ -1665,7 +1665,7 @@ export default function LRBookingPage() {
               size="sm"
               variant="outline"
               onClick={() => openInNewTab("/settings/series-master")}
-              className="bg-white text-rose-700 border-rose-300 hover:bg-rose-50 text-xs shrink-0 font-semibold"
+              className="bg-white dark:bg-[#161218] text-rose-700 dark:text-rose-300 border-rose-300 dark:border-[#5C2731] hover:bg-rose-50 dark:hover:bg-[#26161D] text-xs shrink-0 font-semibold"
             >
               Setup Series in Settings
             </Button>
@@ -1676,14 +1676,14 @@ export default function LRBookingPage() {
         {drawerError && (
           <div
             role="alert"
-            className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start justify-between gap-3 shadow-2xs animate-in fade-in slide-in-from-top-2 duration-200"
+            className="mb-4 p-4 rounded-xl bg-rose-50 dark:bg-[#201418] border border-rose-300 dark:border-[#4E232B] text-rose-900 dark:text-rose-200 flex items-start justify-between gap-3 shadow-2xs animate-in fade-in slide-in-from-top-2 duration-200"
           >
             <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-xs font-bold text-rose-950">Unable to Save Lorry Receipt</h4>
-                <p className="text-xs text-rose-800 mt-0.5">{drawerError}</p>
-                <p className="text-[11px] text-rose-600 mt-1">
+                <h4 className="text-xs font-bold text-rose-950 dark:text-rose-100">Unable to Save Lorry Receipt</h4>
+                <p className="text-xs text-rose-800 dark:text-rose-300 mt-0.5">{drawerError}</p>
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1">
                   All entered details have been preserved. Please resolve the highlighted issue and submit again.
                 </p>
               </div>
@@ -1691,7 +1691,7 @@ export default function LRBookingPage() {
             <button
               type="button"
               onClick={() => setDrawerError(null)}
-              className="text-rose-500 hover:text-rose-800 text-xs font-semibold px-2 py-1 rounded cursor-pointer"
+              className="text-rose-500 hover:text-rose-800 dark:hover:text-rose-300 text-xs font-semibold px-2 py-1 rounded cursor-pointer"
             >
               Dismiss
             </button>

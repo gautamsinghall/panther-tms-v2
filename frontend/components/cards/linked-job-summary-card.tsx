@@ -61,23 +61,23 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
   );
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/50 border border-indigo-200/90 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/50 dark:from-[#171928] dark:via-[#141622] dark:to-[#171A2E] border border-indigo-200/90 dark:border-[#2E3150] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
       {/* Card Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-indigo-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-indigo-100 dark:border-[#272A42]">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600/10 border border-indigo-600/20 flex items-center justify-center text-indigo-700 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20 border border-indigo-600/20 dark:border-indigo-500/30 flex items-center justify-center text-indigo-700 dark:text-indigo-400 shrink-0">
             <Truck className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-indigo-950 font-mono">
+              <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 font-mono">
                 Linked Job Order: {job.job_number}
               </span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 {job.status || "OPEN"}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
               Source Indent #{job.id} · Details imported into LR Booking below
             </p>
           </div>
@@ -86,7 +86,7 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
         <button
           type="button"
           onClick={onUnlink}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-slate-600 text-xs font-medium transition-colors cursor-pointer shadow-2xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#1A1D2B] hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300 hover:border-rose-200 dark:hover:border-rose-900 text-slate-600 dark:text-slate-300 text-xs font-medium transition-colors cursor-pointer shadow-2xs"
           title="Disconnect this Job Order and switch back to Direct Booking"
         >
           <X className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-600" />
@@ -97,7 +97,7 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
       {/* 3-Column Specifications Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
         {/* Column 1: Corridor & Dates */}
-        <div className="p-3 bg-white/90 rounded-xl border border-indigo-100/80 space-y-2 shadow-2xs">
+        <div className="p-3 bg-white/90 dark:bg-[#12141F] rounded-xl border border-indigo-100/80 dark:border-[#272A42] space-y-2 shadow-2xs">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
             <MapPin className="w-3 h-3 text-indigo-500" />
             Transit Corridor
@@ -117,7 +117,7 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
         </div>
 
         {/* Column 2: Parties */}
-        <div className="p-3 bg-white/90 rounded-xl border border-indigo-100/80 space-y-1.5 shadow-2xs">
+        <div className="p-3 bg-white/90 dark:bg-[#12141F] rounded-xl border border-indigo-100/80 dark:border-[#272A42] space-y-1.5 shadow-2xs">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
             <Building2 className="w-3 h-3 text-indigo-500" />
             Commercial Parties
@@ -137,7 +137,7 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
         </div>
 
         {/* Column 3: Cargo Specifications */}
-        <div className="p-3 bg-white/90 rounded-xl border border-indigo-100/80 space-y-2 shadow-2xs">
+        <div className="p-3 bg-white/90 dark:bg-[#12141F] rounded-xl border border-indigo-100/80 dark:border-[#272A42] space-y-2 shadow-2xs">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
             <Package className="w-3 h-3 text-indigo-500" />
             Cargo Specifications
@@ -164,25 +164,25 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
       </div>
 
       {/* Import Status Checklist & Missing Field Banner */}
-      <div className="p-3 bg-indigo-50/70 border border-indigo-200/80 rounded-xl space-y-2 text-xs">
-        <div className="font-semibold text-indigo-950 flex items-center gap-1.5 text-[11px]">
+      <div className="p-3 bg-indigo-50/70 dark:bg-[#151726] border border-indigo-200/80 dark:border-[#2E3150] rounded-xl space-y-2 text-xs">
+        <div className="font-semibold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5 text-[11px]">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
           <span>Job Order Source Mapping Status:</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[11px]">
-          <div className="flex items-center gap-1.5 text-emerald-700 bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-100">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-[#1B1E2E] px-2.5 py-1 rounded-lg border border-emerald-100 dark:border-emerald-900/60">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             <span>Route & Corridor: Imported</span>
           </div>
-          <div className="flex items-center gap-1.5 text-emerald-700 bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-100">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-[#1B1E2E] px-2.5 py-1 rounded-lg border border-emerald-100 dark:border-emerald-900/60">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             <span>Parties & Client: Imported</span>
           </div>
-          <div className="flex items-center gap-1.5 text-emerald-700 bg-white/80 px-2.5 py-1 rounded-lg border border-emerald-100">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 bg-white/80 dark:bg-[#1B1E2E] px-2.5 py-1 rounded-lg border border-emerald-100 dark:border-emerald-900/60">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
             <span>Packages & Weight: Imported</span>
           </div>
-          <div className="flex items-center gap-1.5 text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-300 font-medium">
+          <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-300 dark:border-amber-800/80 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             <span>Truck & Driver: Required Below</span>
           </div>
@@ -191,7 +191,7 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
 
       {/* Advisory Warnings for Suspicious Party Records */}
       {consignerLooksLikePlate && (
-        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-start gap-2.5 shadow-2xs">
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-start gap-2.5 shadow-2xs">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <span className="font-semibold block">
@@ -205,7 +205,7 @@ export const LinkedJobSummaryCard: React.FC<LinkedJobSummaryCardProps> = ({
       )}
 
       {consigneeLooksLikeStatus && (
-        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-start gap-2.5 shadow-2xs">
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-start gap-2.5 shadow-2xs">
           <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <span className="font-semibold block">

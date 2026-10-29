@@ -94,8 +94,8 @@ export function FilterBar({
                 buttonClassName={cn(
                   "h-9 rounded-xl pr-2.5",
                   isActive
-                    ? "border-indigo-300 font-semibold bg-indigo-50/80 text-indigo-700"
-                    : "border-slate-200 hover:border-slate-300 text-slate-600"
+                    ? "border-indigo-300 dark:border-[#2E3150] font-semibold bg-indigo-50/80 dark:bg-[#171928] text-indigo-700 dark:text-indigo-300"
+                    : "border-slate-200 dark:border-[#2A2B3D] hover:border-slate-300 dark:hover:border-[#383A52] text-slate-600 dark:text-slate-300"
                 )}
               />
             </div>
@@ -107,12 +107,12 @@ export function FilterBar({
           <button
             type="button"
             onClick={onClear}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shadow-2xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171824] hover:bg-slate-100 dark:hover:bg-[#1F2133] border border-slate-200 dark:border-[#2A2B3D] rounded-xl transition-all shadow-2xs cursor-pointer"
           >
             <RotateCcw className="w-3 h-3" />
             <span>Reset</span>
             {activeCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold font-mono">
+              <span className="w-4 h-4 rounded-full bg-slate-200 dark:bg-[#25283D] text-slate-700 dark:text-slate-200 flex items-center justify-center text-[10px] font-bold font-mono">
                 {activeCount}
               </span>
             )}

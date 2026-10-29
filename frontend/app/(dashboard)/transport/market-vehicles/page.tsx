@@ -1458,15 +1458,15 @@ export default function MarketVehiclesPage() {
 
                   {/* Tarpaulin / Rassi — Display ONLY when Open Body */}
                   {isOpenBody && (
-                    <div className="flex items-center justify-between p-3.5 rounded-xl border-2 border-amber-300 bg-amber-50/60 sm:col-span-2 lg:col-span-4 animate-in fade-in">
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border-2 border-amber-300 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/30 sm:col-span-2 lg:col-span-4 animate-in fade-in">
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-900">Tarpaulin / Rassi</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">
+                          <span className="text-xs font-bold text-slate-900 dark:text-slate-100">Tarpaulin / Rassi</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 dark:bg-amber-900/50 text-amber-900 dark:text-amber-200">
                             Required for Open Body
                           </span>
                         </div>
-                        <span className="text-[11px] text-slate-600 block mt-0.5">
+                        <span className="text-[11px] text-slate-600 dark:text-slate-400 block mt-0.5">
                           Waterproof canvas tarp covering and heavy securement tie-down ropes.
                         </span>
                       </div>

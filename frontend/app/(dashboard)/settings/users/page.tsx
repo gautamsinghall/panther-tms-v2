@@ -566,7 +566,7 @@ export default function UsersPage() {
             </div>
 
             {formRoleSelection === "admin" && (
-              <div className="p-3 rounded-lg bg-indigo-50/70 border border-indigo-200/70 text-indigo-800 text-xs flex items-start gap-2">
+              <div className="p-3 rounded-lg bg-indigo-50/70 dark:bg-[#171928] border border-indigo-200/70 dark:border-[#2E3150] text-indigo-800 dark:text-indigo-200 text-xs flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold">Company Admin Access:</span> Company Administrators have all rights and all issuing offices selected by default. You can designate their preferred primary default office below.

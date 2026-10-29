@@ -343,11 +343,11 @@ export default function PurchasesPage() {
       >
         <form onSubmit={handleCreatePurchase} className="space-y-6">
           {!activeSeries?.configured && (
-            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-start gap-2.5">
+            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-900/60 rounded-xl text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <span className="font-bold">Series Not Configured</span>
-                <p className="mt-0.5 text-amber-700">
+                <p className="mt-0.5 text-amber-700 dark:text-amber-300/90">
                   No series is configured for {purchaseType === "NORMAL_PURCHASE" ? "Normal Purchase" : "General Purchase"} in the active issuing office. Bills cannot be created until a series is configured or imported.
                 </p>
                 <a

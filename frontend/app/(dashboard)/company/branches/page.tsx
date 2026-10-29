@@ -696,7 +696,7 @@ export default function IssuingOfficesPage() {
             </div>
 
             {/* Section 6: Primary Office Designation Checkbox */}
-            <div className="p-4 bg-indigo-50/70 border border-indigo-200/80 rounded-xl space-y-3">
+            <div className="p-4 bg-indigo-50/70 dark:bg-[#171928] border border-indigo-200/80 dark:border-[#2E3150] rounded-xl space-y-3">
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"
@@ -705,10 +705,10 @@ export default function IssuingOfficesPage() {
                   className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
                 <div>
-                  <span className="text-xs font-bold text-indigo-950 block">
+                  <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200 block">
                     Set as Corporate Head Office / Primary Issuing Office
                   </span>
-                  <span className="text-[11px] text-indigo-700 leading-relaxed block mt-0.5">
+                  <span className="text-[11px] text-indigo-700 dark:text-indigo-300 leading-relaxed block mt-0.5">
                     When checked, this issuing office automatically becomes the Head Office in the Default Issuing Office section across all voucher prints and LR documents.
                   </span>
                 </div>

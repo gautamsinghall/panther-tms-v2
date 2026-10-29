@@ -1371,27 +1371,27 @@ export default function HireChallansPage() {
         width="full"
       >
         {/* Office & Series Context Banner */}
-        <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 border border-indigo-200/80 text-indigo-950 text-xs shadow-2xs space-y-2">
+        <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-indigo-50/90 to-purple-50/70 dark:from-[#171928] dark:to-[#1B1728] border border-indigo-200/80 dark:border-[#2E3150] text-indigo-950 dark:text-indigo-200 text-xs shadow-2xs space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-700 flex items-center gap-1">
+              <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                 <Lock className="w-3.5 h-3.5 text-slate-500" />
                 Selected Branch:
               </span>
-              <span className="font-bold text-indigo-800 bg-white px-2 py-0.5 rounded border border-indigo-200">
+              <span className="font-bold text-indigo-800 dark:text-indigo-300 bg-white dark:bg-[#10121D] px-2 py-0.5 rounded border border-indigo-200 dark:border-[#383C66]">
                 {currentOfficeDisplay}
               </span>
             </div>
             {activeSeriesRange && (
-              <div className="font-mono text-slate-600 text-[11px]">
-                Active Booklet: <span className="font-bold text-slate-900">{activeSeriesRange.prefix}[{activeSeriesRange.starting_number} – {activeSeriesRange.end_number || "..."}]</span>
+              <div className="font-mono text-slate-600 dark:text-slate-400 text-[11px]">
+                Active Booklet: <span className="font-bold text-slate-900 dark:text-white">{activeSeriesRange.prefix}[{activeSeriesRange.starting_number} – {activeSeriesRange.end_number || "..."}]</span>
               </div>
             )}
           </div>
           {activeSeriesRange && (
-            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 text-slate-600">
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 dark:border-[#272A42] text-slate-600 dark:text-slate-400">
               <span>{activeSeriesRange.used_count} vouchers recorded</span>
-              <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/60">
                 {activeSeriesRange.available_count} leaves available
               </span>
             </div>
@@ -1399,12 +1399,12 @@ export default function HireChallansPage() {
         </div>
 
         {!editingId && !isSeriesConfigured && (
-          <div className="mb-4 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="mb-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-bold text-amber-900">Series Not Configured for this Office</h4>
-                <p className="text-amber-700 mt-0.5">
+                <h4 className="font-bold text-amber-900 dark:text-amber-100">Series Not Configured for this Office</h4>
+                <p className="text-amber-700 dark:text-amber-300 mt-0.5">
                   No Hire Challan series is configured for <span className="font-semibold">{currentOfficeDisplay}</span>. You cannot issue a hire challan until a series is configured or imported in Settings.
                 </p>
               </div>
@@ -1413,7 +1413,7 @@ export default function HireChallansPage() {
               type="button"
               size="sm"
               variant="outline"
-              className="bg-white border-amber-300 text-amber-900 hover:bg-amber-100 shrink-0 font-semibold"
+              className="bg-white dark:bg-[#1A1823] border-amber-300 dark:border-amber-800/80 text-amber-900 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0 font-semibold"
               onClick={() => router.push("/settings/series-master")}
             >
               Setup Series in Master

@@ -423,12 +423,12 @@ export default function EWayBillApiPage() {
 
           {showAdvanced && (
             <div className="p-4 border-t border-slate-200 bg-white space-y-4">
-              <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-lg text-xs space-y-1">
-                <span className="font-semibold text-indigo-950 flex items-center gap-1.5">
+              <div className="p-3 bg-indigo-50/60 dark:bg-[#171928] border border-indigo-100 dark:border-[#2E3150] rounded-lg text-xs space-y-1">
+                <span className="font-semibold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4 text-indigo-600" />
                   <span>Platform GSP Default Routing</span>
                 </span>
-                <p className="text-indigo-800/80 text-[11px] leading-relaxed">
+                <p className="text-indigo-800/80 dark:text-indigo-300/80 text-[11px] leading-relaxed">
                   By default, PANTHER uses managed platform GSP pipes (Adaequare / NIC Gateway).
                   You only need to customize these if your company has dedicated GSP client IDs or enterprise gateway contracts.
                 </p>

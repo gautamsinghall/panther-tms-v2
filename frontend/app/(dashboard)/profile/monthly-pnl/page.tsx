@@ -101,12 +101,12 @@ export default function MonthlyPnLPage() {
       />
 
       {/* Report Scope & Basis Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-indigo-50/70 border border-indigo-200/80 rounded-xl text-xs text-indigo-950 shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-indigo-50/70 dark:bg-[#171928] border border-indigo-200/80 dark:border-[#2E3150] rounded-xl text-xs text-indigo-950 dark:text-indigo-200 shadow-2xs">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-100 dark:bg-[#10121D] text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-[#383C66]">
             Scope: Operational Vouchers (All Branches)
           </span>
-          <span className="text-slate-700">
+          <span className="text-slate-700 dark:text-slate-300">
             Aggregates Transport & General Invoices and En-Route Trip Expense Vouchers (Cash & Operational Billing Basis).
           </span>
         </div>
@@ -115,7 +115,7 @@ export default function MonthlyPnLPage() {
 
       {/* Role Notice */}
       {!isAdmin && (
-        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-3">
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200 rounded-xl text-xs flex items-center gap-3">
           <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
           <div>
             <span className="font-semibold block">Restricted Employee View Active:</span>
@@ -161,7 +161,7 @@ export default function MonthlyPnLPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2">
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-200 rounded-xl text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
           <span>{error}</span>
         </div>

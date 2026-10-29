@@ -1171,6 +1171,77 @@ html.dark [class*="border-sky-100"] {
   border-color: #303036 !important;
 }
 
+/* Neutralize 200 & 300 pastel borders */
+html.dark [class*="border-indigo-200"],
+html.dark [class*="border-indigo-300"],
+html.dark [class*="border-emerald-200"],
+html.dark [class*="border-emerald-300"],
+html.dark [class*="border-amber-200"],
+html.dark [class*="border-amber-300"],
+html.dark [class*="border-blue-200"],
+html.dark [class*="border-blue-300"],
+html.dark [class*="border-rose-200"],
+html.dark [class*="border-rose-300"],
+html.dark [class*="border-purple-200"] {
+  border-color: #383842 !important;
+}
+
+/* Dark theme reset for all light-gradient containers and contextual banners */
+html.dark [class*="bg-gradient-to-"][class*="from-indigo-50"],
+html.dark [class*="bg-gradient-to-"][class*="from-purple-50"],
+html.dark [class*="bg-gradient-to-"][class*="from-blue-50"],
+html.dark [class*="bg-gradient-to-"][class*="from-slate-50"] {
+  background-image: linear-gradient(135deg, rgba(30, 27, 58, 0.75) 0%, rgba(23, 25, 42, 0.85) 100%) !important;
+  background-color: #171824 !important;
+  border-color: rgba(124, 111, 247, 0.25) !important;
+  color: #E2E8F0 !important;
+}
+
+html.dark [class*="bg-gradient-to-"][class*="from-amber-50"] {
+  background-image: linear-gradient(135deg, rgba(46, 32, 16, 0.75) 0%, rgba(30, 24, 18, 0.85) 100%) !important;
+  background-color: #1D1815 !important;
+  border-color: rgba(245, 187, 69, 0.25) !important;
+  color: #FEF3C7 !important;
+}
+
+html.dark [class*="bg-gradient-to-"][class*="from-rose-50"] {
+  background-image: linear-gradient(135deg, rgba(48, 20, 25, 0.75) 0%, rgba(32, 18, 22, 0.85) 100%) !important;
+  background-color: #1E1418 !important;
+  border-color: rgba(240, 117, 117, 0.25) !important;
+  color: #FFE4E6 !important;
+}
+
+html.dark [class*="bg-gradient-to-"][class*="from-emerald-50"] {
+  background-image: linear-gradient(135deg, rgba(18, 42, 32, 0.75) 0%, rgba(14, 30, 24, 0.85) 100%) !important;
+  background-color: #121E19 !important;
+  border-color: rgba(52, 213, 160, 0.25) !important;
+  color: #D1FAE5 !important;
+}
+
+/* Ensure badges and inset pills inside banners stay properly dark-themed */
+html.dark [class*="bg-gradient-to-"] .bg-white,
+html.dark [class*="bg-gradient-to-"] .bg-white\/80,
+html.dark [class*="bg-gradient-to-"] .bg-white\/90 {
+  background-color: #12141F !important;
+  border-color: #2E3150 !important;
+  color: #F8FAFC !important;
+}
+
+html.dark .text-amber-950,
+html.dark .text-amber-900 {
+  color: #F5BB45 !important;
+}
+
+html.dark .text-rose-950,
+html.dark .text-rose-900 {
+  color: #F07575 !important;
+}
+
+html.dark .text-emerald-950,
+html.dark .text-emerald-900 {
+  color: #34D5A0 !important;
+}
+
 html.dark .text-indigo-800,
 html.dark .text-indigo-700 {
   color: #C5A5FF !important;

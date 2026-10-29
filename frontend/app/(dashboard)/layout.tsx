@@ -52,23 +52,23 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
         <div className="max-w-[1440px] mx-auto space-y-6">
           {/* Draft Notification Banner when viewing list while keeping an active form open in background */}
           {isFormOpen && activeTab === "list" && (
-            <div className="bg-gradient-to-r from-indigo-50 via-white to-indigo-50/70 border border-indigo-200/90 rounded-2xl p-4 flex items-center justify-between shadow-2xs mb-6 animate-in slide-in-from-top-2 duration-200">
+            <div className="bg-gradient-to-r from-indigo-50 via-white to-indigo-50/70 dark:from-[#171928] dark:via-[#141622] dark:to-[#171928] border border-indigo-200/90 dark:border-[#2E3150] rounded-2xl p-4 flex items-center justify-between shadow-2xs mb-6 animate-in slide-in-from-top-2 duration-200">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-indigo-600/10 border border-indigo-600/20 flex items-center justify-center text-indigo-600 shrink-0">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20 border border-indigo-600/20 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                   <FileEdit className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
                       Form Draft in Progress
                     </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/60">
                       Background Tab
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                     You are browsing records while keeping{" "}
-                    <strong className="text-indigo-900 font-semibold">&ldquo;{formTabInfo?.title || "New Entry"}&rdquo;</strong>{" "}
+                    <strong className="text-indigo-900 dark:text-indigo-300 font-semibold">&ldquo;{formTabInfo?.title || "New Entry"}&rdquo;</strong>{" "}
                     open in the form tab.
                   </p>
                 </div>
@@ -85,7 +85,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => closeFormTab(true)}
-                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-rose-600 text-xs font-semibold rounded-xl border border-slate-300 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:-translate-y-px active:translate-y-0 transition-all cursor-pointer"
+                  className="px-3 py-2 bg-white dark:bg-[#1A1D2B] hover:bg-slate-50 dark:hover:bg-[#23273A] text-slate-700 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-semibold rounded-xl border border-slate-300 dark:border-[#2D3145] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:-translate-y-px active:translate-y-0 transition-all cursor-pointer"
                 >
                   Discard Draft
                 </button>

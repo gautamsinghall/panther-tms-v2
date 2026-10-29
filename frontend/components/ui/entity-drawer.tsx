@@ -101,20 +101,20 @@ export function EntityDrawer({
       )}
     >
       {/* Top Form Header with Breadcrumbs & Action Buttons */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs">
+      <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200/60 text-indigo-700 text-[11px] font-semibold">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
                 {contextLabel}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               {title}
             </h1>
             {(description || subtitle) && (
-              <p className="text-xs sm:text-sm text-slate-500 leading-normal max-w-3xl">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-normal max-w-3xl">
                 {description || subtitle}
               </p>
             )}
@@ -124,7 +124,7 @@ export function EntityDrawer({
             <button
               type="button"
               onClick={() => setActiveTab("list")}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/70 rounded-xl transition-colors cursor-pointer border border-slate-200/60 shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-[#1A1D2B] hover:bg-slate-200/70 dark:hover:bg-[#23273A] rounded-xl transition-colors cursor-pointer border border-slate-200/60 dark:border-[#2B2E42] shadow-2xs"
               title="Switch to records table without closing form"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
@@ -133,7 +133,7 @@ export function EntityDrawer({
             <button
               type="button"
               onClick={() => onCloseRef.current?.()}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/60 rounded-xl transition-colors cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100/80 dark:hover:bg-rose-900/50 border border-rose-200/60 dark:border-rose-900/60 rounded-xl transition-colors cursor-pointer shadow-2xs"
               title="Discard changes and close form"
             >
               <X className="w-3.5 h-3.5" />
@@ -150,7 +150,7 @@ export function EntityDrawer({
 
       {/* Optional Custom Footer - Solid card positioned at the very end of the form */}
       {footer && (
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-2xs mt-8">
+        <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 shadow-2xs mt-8">
           {footer}
         </div>
       )}

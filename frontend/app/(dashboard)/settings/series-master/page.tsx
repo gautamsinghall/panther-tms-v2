@@ -976,7 +976,7 @@ export default function SeriesMasterPage() {
 
       {/* Unconfigured Office Warning Banner */}
       {!isLoading && filteredSeries.length === 0 && (
-        <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
             <div>
@@ -1054,11 +1054,11 @@ export default function SeriesMasterPage() {
 
             <form onSubmit={handleSaveQuickFormat} className="mt-4 space-y-4">
               {/* Real-time Voucher Number Preview */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100/60 border border-indigo-200 flex flex-col gap-1">
+              <div className="p-3.5 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100/60 dark:from-[#171928] dark:to-[#1B1728] border border-indigo-200 dark:border-[#2E3150] flex flex-col gap-1">
                 <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-indigo-600">
                   Live Resulting Number Preview
                 </span>
-                <span className="text-xl font-mono font-extrabold text-indigo-900 tracking-wide">
+                <span className="text-xl font-mono font-extrabold text-indigo-900 dark:text-indigo-200 tracking-wide">
                   {quickPrefix}
                   {String(
                     quickFormatSeries.next_number || quickFormatSeries.starting_number || 1
@@ -1441,7 +1441,7 @@ export default function SeriesMasterPage() {
             </div>
 
             {/* Section 5: Default & Status Configuration */}
-            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-start gap-3 shadow-2xs">
+            <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-[#171928] border border-indigo-200 dark:border-[#2E3150] flex items-start gap-3 shadow-2xs">
               <input
                 type="checkbox"
                 id="isDefaultSeries"
@@ -1452,7 +1452,7 @@ export default function SeriesMasterPage() {
               <div className="flex-1">
                 <label
                   htmlFor="isDefaultSeries"
-                  className="text-xs font-bold text-indigo-950 block cursor-pointer"
+                  className="text-xs font-bold text-indigo-950 dark:text-indigo-200 block cursor-pointer"
                 >
                   Set as Active Default Series for {livePreviewDoc?.name || docType}
                 </label>

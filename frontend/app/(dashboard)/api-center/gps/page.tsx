@@ -357,12 +357,12 @@ export default function GPSTrackingApiPage() {
         </div>
 
         {/* Informational Card */}
-        <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-xl text-xs space-y-2">
-          <div className="flex items-center gap-2 text-indigo-950 font-semibold">
+        <div className="p-4 bg-indigo-50/60 dark:bg-[#171928] border border-indigo-100 dark:border-[#2E3150] rounded-xl text-xs space-y-2">
+          <div className="flex items-center gap-2 text-indigo-950 dark:text-indigo-200 font-semibold">
             <ShieldCheck className="w-4 h-4 text-indigo-600" />
             <span>Multi-Tenant GPS Isolation & Automatic Vehicle Linking</span>
           </div>
-          <p className="text-indigo-800/80 text-[11px] leading-relaxed">
+          <p className="text-indigo-800/80 dark:text-indigo-300/80 text-[11px] leading-relaxed">
             Your WheelsEye credentials are stored encrypted in your private tenant database. When vehicles are queried in the <strong>Tracking &gt; GPS Tracking</strong> screen, they are cross-referenced with your company-owned and market vehicle records and correlated with active LR booking consignments.
           </p>
         </div>

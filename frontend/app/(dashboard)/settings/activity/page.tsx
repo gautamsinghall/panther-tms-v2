@@ -949,11 +949,11 @@ export default function UserActivityLogPage() {
             {/* Drawer Body */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
               {/* Context Summary Narrative */}
-              <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 space-y-1.5">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-700 font-mono">
+              <div className="p-4 rounded-xl border border-indigo-100 dark:border-[#2E3150] bg-indigo-50/50 dark:bg-[#171928] space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-700 dark:text-indigo-300 font-mono">
                   Activity Summary & Trace Narrative
                 </span>
-                <p className="text-sm font-medium text-slate-800 leading-relaxed">
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
                   {inspectedEvent.details || "No narrative details recorded."}
                 </p>
               </div>

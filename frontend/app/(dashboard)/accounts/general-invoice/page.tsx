@@ -394,7 +394,7 @@ export default function GeneralInvoicePage() {
       />
 
       {seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
-        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
+        <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>
             <span>Manual series must be configured in Series Master before General Invoices can be created.</span>
@@ -404,7 +404,7 @@ export default function GeneralInvoicePage() {
             size="sm"
             variant="outline"
             onClick={() => window.location.href = "/settings/series-master"}
-            className="text-xs bg-white text-amber-800 border-amber-300 hover:bg-amber-100 shrink-0"
+            className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
           >
             Configure GI Series
           </Button>
@@ -476,13 +476,13 @@ export default function GeneralInvoicePage() {
         }
       >
         {activeSeries && (
-          <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-900 text-xs flex items-center justify-between">
+          <div className="mb-4 p-3 rounded-xl bg-indigo-50/70 dark:bg-[#171928] border border-indigo-100 dark:border-[#2E3150] text-indigo-900 dark:text-indigo-200 text-xs flex items-center justify-between">
             <div className="font-mono">
               <span className="text-slate-500 font-sans mr-1">Active Series:</span>
               <strong className="text-indigo-700">{activeSeries.series_name || activeSeries.prefix}</strong>
             </div>
             <div className="font-mono text-[11px] text-indigo-700">
-              Allocated Sequence: <span className="font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">{activeNextNumber || "Auto-allocated"}</span>
+              Allocated Sequence: <span className="font-bold bg-white dark:bg-[#10121D] px-2 py-0.5 rounded border border-indigo-200 dark:border-[#383C66] dark:text-indigo-200">{activeNextNumber || "Auto-allocated"}</span>
             </div>
           </div>
         )}

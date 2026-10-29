@@ -242,13 +242,13 @@ export default function EWayBillsPage() {
       />
 
       {isPlanLocked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 flex items-start gap-3 shadow-xs">
-          <div className="p-2 rounded-lg bg-amber-100 text-amber-800 shrink-0">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/30 p-4 flex items-start gap-3 shadow-xs">
+          <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 shrink-0">
             <Lock className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-amber-900">E-Way Bill Feature Locked</h4>
-            <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">E-Way Bill Feature Locked</h4>
+            <p className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5 leading-relaxed">
               Automated and manual GST E-Way Bill updation is disabled on the <strong>Free Plan</strong>. Upgrade your subscription to <strong>Pro Fleet</strong> or <strong>Business Scale</strong> to activate government e-way compliance and Part-B updates.
             </p>
           </div>

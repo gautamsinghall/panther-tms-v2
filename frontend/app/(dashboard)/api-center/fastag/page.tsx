@@ -370,7 +370,7 @@ export default function FastagApiPage() {
             </div>
           </div>
 
-          <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-xl text-xs text-amber-900 flex items-start gap-2 max-w-md">
+          <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/60 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2 max-w-md">
             <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <p className="leading-relaxed text-[11px]">{walletData.pricing_notice}</p>
           </div>

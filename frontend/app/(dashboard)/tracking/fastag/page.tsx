@@ -732,8 +732,8 @@ export default function FastagTrackingPage() {
 
             {/* In-line Custom Route Editor */}
             {isCustomRouteOpen && (
-              <div className="bg-indigo-50/70 p-3 rounded-lg border border-indigo-200/80 space-y-2 text-xs">
-                <span className="text-[10px] font-bold uppercase text-indigo-900 block">
+              <div className="bg-indigo-50/70 dark:bg-[#171928] p-3 rounded-lg border border-indigo-200/80 dark:border-[#2E3150] space-y-2 text-xs">
+                <span className="text-[10px] font-bold uppercase text-indigo-900 dark:text-indigo-300 block">
                   Manual Origin & Destination
                 </span>
                 <div>
