@@ -937,3 +937,99 @@ class FastagConfigResponse(BaseModel):
     cooldown_minutes: int = 10
     pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
 
+
+# ==============================================================================
+# WheelsEye GPS Tracking Telemetry Schemas
+# ==============================================================================
+
+class GPSConfigResponse(BaseModel):
+    is_configured: bool
+    wheelseye_active: bool
+    google_maps_configured: bool
+    default_map_engine: str
+    google_maps_api_key: Optional[str] = None
+
+
+class GPSVehicleItem(BaseModel):
+    vehicleNumber: str
+    speed: int = 0
+    ignition: bool = False
+    status: str = "stopped"
+    isCompany: bool = False
+    fleetType: str = "Company Vehicle"
+    groupName: Optional[str] = "Panther Logistics"
+    lastUpdated: str = "Recent"
+    rawTimestamp: Optional[Any] = None
+    address: Optional[str] = None
+    latitude: float = 0.0
+    longitude: float = 0.0
+    heading: float = 0.0
+    todayKm: float = 0.0
+    inactiveTime: str = "Live"
+    battery: int = 100
+    signal: int = 4
+    camera: bool = True
+    expired: bool = False
+    odometer: Optional[Any] = None
+    raw: Optional[Dict[str, Any]] = None
+
+
+class GPSFleetCounts(BaseModel):
+    all: int = 0
+    company: int = 0
+    market: int = 0
+    running: int = 0
+    stopped: int = 0
+    no_signal: int = 0
+
+
+class GPSFleetResponse(BaseModel):
+    success: bool
+    totalCount: int
+    counts: GPSFleetCounts
+    companyVehicles: List[GPSVehicleItem] = Field(default_factory=list)
+    marketVehicles: List[GPSVehicleItem] = Field(default_factory=list)
+    vehicles: List[GPSVehicleItem] = Field(default_factory=list)
+    timestamp: str
+
+
+class GPSTripInfo(BaseModel):
+    lr_no: Optional[str] = None
+    waypoints: List[str] = Field(default_factory=list)
+    origin: Optional[str] = ""
+    destination: Optional[str] = ""
+
+
+class GPSTrackResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    timestamp: str
+    trip: Optional[GPSTripInfo] = None
+    truck_data: Optional[GPSVehicleItem] = None
+
+
+class GPSTimelineItem(BaseModel):
+    type: str
+    title: str
+    duration: str
+    address: Optional[str] = None
+    time_range: str
+    latitude: float
+    longitude: float
+    speed: int
+
+
+class GPSHistorySummary(BaseModel):
+    total_distance_km: float = 0.0
+    speed: int = 0
+
+
+class GPSHistoryResponse(BaseModel):
+    success: bool
+    vehicle: str
+    trip: Optional[GPSTripInfo] = None
+    timeline: List[GPSTimelineItem] = Field(default_factory=list)
+    route_coordinates: List[List[Any]] = Field(default_factory=list)
+    summary: GPSHistorySummary
+    pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
+

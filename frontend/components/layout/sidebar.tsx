@@ -88,6 +88,7 @@ import {
   History,
   Network,
   KeyRound,
+  Compass,
   Mail,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
@@ -166,6 +167,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     id: "tracking",
     title: "Tracking",
     items: [
+      { feature: "gps_tracking", title: "GPS Tracking", href: "/tracking/gps" },
       { feature: "fastag_tracking", title: "FASTag Tracking", href: "/tracking/fastag" },
       { feature: "tracking", title: "Sim Based Tracking", href: "/tracking/sim" },
     ],
@@ -268,6 +270,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     title: "API Center",
     items: [
       { feature: "eway_bill_api", title: "E-Way Bill API", href: "/api-center/eway-bill" },
+      { feature: "gps_tracking_api", title: "GPS Tracking API", href: "/api-center/gps" },
       { feature: "fastag_tracking_api", title: "FASTag Tracking API", href: "/api-center/fastag" },
       { feature: "sim_tracking_api", title: "SIM Based Tracking API", href: "/api-center/sim" },
     ],
@@ -353,6 +356,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/transport/pod-records": CheckSquare,
   "/transport/truck-hiring-note": FileSignature,
   "/transport/eway-bill": QrCode,
+  "/tracking/gps": Compass,
   "/tracking/fastag": Navigation,
   "/tracking/sim": Radio,
 
@@ -429,6 +433,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
 
   // API Center
   "/api-center/eway-bill": FileSpreadsheet,
+  "/api-center/gps": Compass,
   "/api-center/fastag": Navigation,
   "/api-center/sim": Radio,
 
@@ -536,6 +541,8 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   eway_bill_api: FileSpreadsheet,
   fastag_api: Navigation,
   fastag_tracking_api: Navigation,
+  gps_tracking: Compass,
+  gps_tracking_api: Compass,
   sim_tracking: Radio,
   sim_tracking_api: Radio,
   account: UserCircle,

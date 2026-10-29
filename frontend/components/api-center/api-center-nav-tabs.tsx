@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileSpreadsheet, Navigation, Radio } from "lucide-react";
+import { FileSpreadsheet, Navigation, Radio, Compass } from "lucide-react";
 import { getStoredAuth } from "@/lib/auth";
 
 export function ApiCenterNavTabs() {
@@ -28,6 +28,12 @@ export function ApiCenterNavTabs() {
       href: "/api-center/eway-bill",
       icon: FileSpreadsheet,
       active: pathname?.includes("/api-center/eway-bill"),
+    },
+    {
+      label: "GPS Tracking API",
+      href: "/api-center/gps",
+      icon: Compass,
+      active: pathname?.includes("/api-center/gps"),
     },
     {
       label: "FASTag Tracking API",

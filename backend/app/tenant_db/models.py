@@ -116,6 +116,11 @@ class CompanySetting(TenantBase):
     ft_auth_token = Column(Text, nullable=True)
     is_ft_active = Column(Boolean, default=True, nullable=False)
 
+    # WheelsEye GPS Tracking Integration
+    wheelseye_api_token = Column(String(255), nullable=True)
+    wheelseye_base_url = Column(String(255), default="https://api.wheelseye.com", nullable=True)
+    is_wheelseye_active = Column(Boolean, default=True, nullable=False)
+
     # FASTag Telemetry Rate Limit Cooldown (in minutes, default 10 min)
     fastag_cooldown_minutes = Column(Integer, default=10, nullable=False)
 

@@ -227,6 +227,10 @@ class ApiCenterSettingResponse(BaseModel):
     ft_base_url: Optional[str] = "https://api.freighttiger.com/api/tether"
     has_ft_auth_token: bool = False
     is_ft_active: bool = True
+    # WheelsEye GPS Tracking Integration
+    wheelseye_base_url: Optional[str] = "https://api.wheelseye.com"
+    has_wheelseye_token: bool = False
+    is_wheelseye_active: bool = True
     # Telemetry Gateways Status (Dokploy & panther_control)
     fastag_configured: bool = False
     google_maps_configured: bool = False
@@ -247,6 +251,22 @@ class ApiCenterSettingUpdate(BaseModel):
     ft_auth_token: Optional[str] = None
     is_ft_active: Optional[bool] = None
     fastag_cooldown_minutes: Optional[int] = None
+    # WheelsEye GPS Tracking
+    wheelseye_api_token: Optional[str] = None
+    wheelseye_base_url: Optional[str] = None
+    is_wheelseye_active: Optional[bool] = None
+
+
+class WheelsEyeTestRequest(BaseModel):
+    wheelseye_api_token: Optional[str] = None
+    wheelseye_base_url: Optional[str] = None
+
+
+class WheelsEyeTestResponse(BaseModel):
+    success: bool
+    message: str
+    total_vehicles_detected: Optional[int] = None
+    details: Optional[Dict[str, Any]] = None
 
 
 class ApiCenterTestRequest(BaseModel):

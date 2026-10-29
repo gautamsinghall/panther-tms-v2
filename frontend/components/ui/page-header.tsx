@@ -67,6 +67,7 @@ const SUBROUTE_TITLES: Record<string, string> = {
   "truck-hiring-note": "Truck Hiring Note",
   "eway-bill": "E-Way Bills",
   tracking: "Sim Based Tracking",
+  gps: "GPS Tracking",
   sim: "SIM Based Tracking",
   fastag: "FASTag Tracking",
   "transport-invoice": "Transport Invoices",

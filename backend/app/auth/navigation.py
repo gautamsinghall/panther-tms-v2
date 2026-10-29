@@ -85,7 +85,9 @@ ALL_NAVIGATION_MODULES = [
         "title": "Tracking",
         "items": [
             {"feature": "fastag_tracking", "title": "FASTag Tracking", "href": "/tracking/fastag"},
+
             {"feature": "tracking", "title": "Sim Based Tracking", "href": "/tracking/sim"},
+            {"feature": "gps_tracking", "title": "GPS Tracking", "href": "/tracking/gps"},
         ],
     },
     {
@@ -186,6 +188,7 @@ ALL_NAVIGATION_MODULES = [
         "title": "API Center",
         "items": [
             {"feature": "eway_bill_api", "title": "E-Way Bill API", "href": "/api-center/eway-bill"},
+            {"feature": "gps_tracking_api", "title": "GPS Tracking API", "href": "/api-center/gps"},
             {"feature": "fastag_tracking_api", "title": "FASTag Tracking API", "href": "/api-center/fastag"},
             {"feature": "sim_tracking_api", "title": "SIM Based Tracking API", "href": "/api-center/sim"},
         ],
@@ -336,6 +339,9 @@ def build_user_navigation(current_user: Any, tenant: Any) -> list:
                     elif feat_norm in ("fastag_tracking_api", "fastag_tracking", "fastag"):
                         allowed_features.add(("api_center", "fastag_tracking_api"))
                         allowed_features.add(("api-center", "fastag_tracking_api"))
+                    elif feat_norm in ("gps_tracking_api", "gps_tracking", "gps"):
+                        allowed_features.add(("api_center", "gps_tracking_api"))
+                        allowed_features.add(("api-center", "gps_tracking_api"))
                     elif feat_norm in ("sim_tracking_api", "sim_tracking", "sim"):
                         allowed_features.add(("api_center", "sim_tracking_api"))
                         allowed_features.add(("api-center", "sim_tracking_api"))
@@ -408,6 +414,7 @@ def build_user_navigation(current_user: Any, tenant: Any) -> list:
                     or ("tracking", it["feature"]) in allowed_features
                     or (it["feature"] in ("sim_tracking", "tracking") and (("tracking", "sim_tracking") in allowed_features or ("tracking", "tracking") in allowed_features or ("transport", "tracking") in allowed_features))
                     or (it["feature"] in ("fastag_tracking", "fastag") and (("tracking", "fastag_tracking") in allowed_features or ("tracking", "fastag") in allowed_features or ("transport", "fastag_tracking") in allowed_features))
+                    or (it["feature"] in ("gps_tracking", "gps") and (("tracking", "gps_tracking") in allowed_features or ("tracking", "gps") in allowed_features or ("transport", "gps_tracking") in allowed_features or is_admin))
                 ]
                 if allowed_items:
                     result.append({"id": mod["id"], "title": mod["title"], "is_locked": False, "items": allowed_items})

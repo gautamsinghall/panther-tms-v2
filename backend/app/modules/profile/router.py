@@ -15,6 +15,7 @@ from app.modules.profile.schemas import (
     MonthlyPnLResponse,
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
     ApiCenterTestRequest, ApiCenterTestResponse,
+    WheelsEyeTestRequest, WheelsEyeTestResponse,
     FastagWalletResponse, FastagCooldownUpdate,
     SimWalletResponse
 )
@@ -324,6 +325,19 @@ async def test_ewb(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.test_ewb_connection(db, req)
+
+
+@router.post(
+    "/api-center/test-wheelseye",
+    response_model=WheelsEyeTestResponse,
+    summary="Test WheelsEye GPS Tracking API authentication & credentials"
+)
+async def test_wheelseye(
+    req: WheelsEyeTestRequest,
+    current_user: User = Depends(require_permission("api_center", "gps_tracking_api", "edit")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.test_wheelseye_connection(db, req)
 
 
 @router.get(

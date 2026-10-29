@@ -65,6 +65,15 @@ from app.modules.transport.schemas import (
     FastagTrackResponse,
     TollLogResponse,
     FastagTrackingMetrics,
+    GPSConfigResponse,
+    GPSVehicleItem,
+    GPSFleetCounts,
+    GPSFleetResponse,
+    GPSTripInfo,
+    GPSTrackResponse,
+    GPSTimelineItem,
+    GPSHistorySummary,
+    GPSHistoryResponse,
 )
 from app.integrations.freight_tiger import freight_tiger_client, FreightTigerClient, detect_telecom_operator
 from app.integrations.fastag_provider import (
@@ -2453,3 +2462,468 @@ async def auto_sync_all_in_transit_fastag(
     }
 
 
+
+
+# ==============================================================================
+# WheelsEye GPS Tracking Telemetry Service Implementation
+# ==============================================================================
+
+_WHEELSEYE_FLEET_CACHE: Dict[str, Tuple[float, List[dict]]] = {}
+_GEOCODE_CACHE: Dict[str, str] = {}
+
+
+async def get_gps_config(db: AsyncSession) -> GPSConfigResponse:
+    """Returns configuration for GPS tracking, Google Maps API key, and status."""
+    setting = (await db.execute(select(CompanySetting).limit(1))).scalars().first()
+    has_token = bool(setting and setting.wheelseye_api_token)
+    is_active = bool(setting.is_wheelseye_active if setting and setting.is_wheelseye_active is not None else True)
+    has_google_maps = bool(settings.GOOGLE_MAPS_API_KEY and len(settings.GOOGLE_MAPS_API_KEY) > 10)
+
+    return GPSConfigResponse(
+        is_configured=has_token,
+        wheelseye_active=is_active,
+        google_maps_configured=has_google_maps,
+        default_map_engine="google" if has_google_maps else "leaflet",
+        google_maps_api_key=settings.GOOGLE_MAPS_API_KEY or "",
+    )
+
+
+def extract_location_text(v: dict) -> Optional[str]:
+    """Port of legacy extractLocationText to preserve detailed landmark text from WheelsEye."""
+    if not isinstance(v, dict):
+        return None
+
+    str_fields = [
+        "location", "address", "loc", "place", "placeName", "currentLocation",
+        "lastLocation", "formattedAddress", "locationAddress", "nearBy", "nearby",
+        "landmark", "poi", "cityName", "locationName", "lastUpdateLocation",
+        "currentLoc", "addressDetail", "geoAddress", "addr"
+    ]
+
+    for key in str_fields:
+        val = v.get(key)
+        if isinstance(val, str):
+            trimmed = val.strip()
+            if len(trimmed) > 3 and "null" not in trimmed.lower() and not trimmed.replace(".", "", 1).isdigit() and "coordinates" not in trimmed.lower():
+                return trimmed
+        elif isinstance(val, dict):
+            parts = [
+                val.get(k, "") for k in ["address", "landmark", "name", "location", "place", "road", "suburb", "city", "district", "state", "pincode"]
+                if val.get(k) and isinstance(val.get(k), str)
+            ]
+            sub_name = ", ".join(parts).strip()
+            if len(sub_name) > 3:
+                return sub_name
+
+    for sub_key in ["position", "lastData", "data"]:
+        if isinstance(v.get(sub_key), dict):
+            sub = extract_location_text(v[sub_key])
+            if sub:
+                return sub
+
+    return None
+
+
+async def reverse_geocode_point(lat: float, lng: float) -> Optional[str]:
+    """Reverse geocoding with in-memory caching."""
+    if not lat or not lng or (lat == 0 and lng == 0):
+        return None
+
+    cache_key = f"{round(lat, 4)}_{round(lng, 4)}"
+    if cache_key in _GEOCODE_CACHE:
+        return _GEOCODE_CACHE[cache_key]
+
+    url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&zoom=18&addressdetails=1&accept-language=en"
+    try:
+        async with httpx.AsyncClient(timeout=4.0, verify=False) as client:
+            resp = await client.get(
+                url,
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "Panther-TMS-GPS/2.0 (telemetry@panther.com)"
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                display_name = data.get("display_name")
+                if display_name:
+                    _GEOCODE_CACHE[cache_key] = display_name
+                    return display_name
+    except Exception as e:
+        logger.debug(f"Reverse geocode lookup error for ({lat}, {lng}): {e}")
+
+    return None
+
+
+async def fetch_all_wheelseye_vehicles(base_url: str, token: str) -> List[dict]:
+    """Fetches all vehicles across all pages from WheelsEye API with batching and 12s cache."""
+    cache_key = f"{base_url}_{token}"
+    now = time.time()
+    if cache_key in _WHEELSEYE_FLEET_CACHE:
+        cached_time, cached_data = _WHEELSEYE_FLEET_CACHE[cache_key]
+        if now - cached_time < 12.0:
+            return cached_data
+
+    clean_base = base_url.rstrip("/")
+    first_url = f"{clean_base}/currentLoc?accessToken={token}&pageNo=1"
+
+    all_raw: List[dict] = []
+    total_pages = 1
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+            r1 = await client.get(first_url, headers={"Accept": "application/json", "User-Agent": "Panther-TMS/2.0"})
+            if r1.status_code == 200:
+                data1 = r1.json()
+                d_obj = data1.get("data")
+                if isinstance(d_obj, dict):
+                    total_pages = int(d_obj.get("totalPages", 1) or 1)
+                    first_list = d_obj.get("list") or d_obj.get("vehicles") or []
+                    if isinstance(first_list, list):
+                        all_raw.extend([x for x in first_list if isinstance(x, dict)])
+                elif isinstance(d_obj, list):
+                    all_raw.extend([x for x in d_obj if isinstance(x, dict)])
+
+            if total_pages > 1:
+                max_pages = min(total_pages, 40)
+                tasks = []
+                for p in range(2, max_pages + 1):
+                    p_url = f"{clean_base}/currentLoc?accessToken={token}&pageNo={p}"
+                    tasks.append(client.get(p_url, headers={"Accept": "application/json", "User-Agent": "Panther-TMS/2.0"}))
+
+                import asyncio
+                responses = await asyncio.gather(*tasks, return_exceptions=True)
+                for resp in responses:
+                    if isinstance(resp, httpx.Response) and resp.status_code == 200:
+                        try:
+                            p_json = resp.json()
+                            p_data = p_json.get("data")
+                            if isinstance(p_data, dict):
+                                items = p_data.get("list") or p_data.get("vehicles") or []
+                                if isinstance(items, list):
+                                    all_raw.extend([x for x in items if isinstance(x, dict)])
+                        except Exception:
+                            pass
+    except Exception as exc:
+        logger.warning(f"Error fetching WheelsEye fleet from {clean_base}: {exc}")
+
+    _WHEELSEYE_FLEET_CACHE[cache_key] = (now, all_raw)
+    return all_raw
+
+
+async def get_company_vehicles_set(db: AsyncSession) -> set:
+    """Returns set of cleaned company vehicle registration numbers."""
+    company_set = set()
+    try:
+        res = await db.execute(select(CompanyVehicle.vehicle_number))
+        for v in res.scalars().all():
+            if v:
+                company_set.add(clean_vehicle_number(v))
+    except Exception:
+        pass
+    return company_set
+
+
+async def get_trip_details_from_db(db: AsyncSession, vehicle_num: str) -> GPSTripInfo:
+    """Finds active or most recent LR consignment trip for this vehicle."""
+    clean_v = clean_vehicle_number(vehicle_num)
+    trip = GPSTripInfo()
+    if not clean_v:
+        return trip
+
+    try:
+        from app.tenant_db.models import Location
+        stmt = (
+            select(LR)
+            .where(func.replace(LR.vehicle_number, ' ', '').ilike(f"%{clean_v}%"))
+            .order_by(LR.id.desc())
+            .limit(1)
+        )
+        res = await db.execute(stmt)
+        lr = res.scalar_one_or_none()
+
+        if lr:
+            trip.lr_no = lr.lr_number
+            waypoints = []
+            if lr.origin_location_id:
+                loc_res = await db.execute(select(Location.name).where(Location.id == lr.origin_location_id))
+                origin_name = loc_res.scalar_one_or_none()
+                if origin_name:
+                    trip.origin = origin_name
+                    waypoints.append(origin_name)
+            if lr.destination_location_id:
+                loc_res = await db.execute(select(Location.name).where(Location.id == lr.destination_location_id))
+                dest_name = loc_res.scalar_one_or_none()
+                if dest_name:
+                    trip.destination = dest_name
+                    waypoints.append(dest_name)
+            trip.waypoints = waypoints
+    except Exception as e:
+        logger.debug(f"Failed to lookup LR trip for {vehicle_num}: {e}")
+
+    return trip
+
+
+def format_wheelseye_vehicle(v: dict, company_set: set) -> Optional[GPSVehicleItem]:
+    """Transforms raw WheelsEye vehicle payload into standard GPSVehicleItem."""
+    if not isinstance(v, dict):
+        return None
+
+    raw_vnum = (
+        v.get("vehicleNumber") or v.get("vehicle_number") or
+        v.get("truckNumber") or v.get("regNo") or v.get("vehicleNo") or ""
+    )
+    v_num = str(raw_vnum).strip().upper()
+    if not v_num:
+        return None
+
+    speed = int(v.get("speed") or v.get("currentSpeed") or v.get("spd") or 0)
+    ignition = bool(v.get("ignition") or v.get("ignitionStatus") or v.get("acc"))
+    gps_time = v.get("gpsTime") or v.get("lastLocationUpdate") or v.get("timestamp") or v.get("lastUpdate") or ""
+
+    time_diff_sec = 0
+    formatted_time = "Recent"
+    inactive_text = "Live"
+
+    if gps_time:
+        ts = None
+        if isinstance(gps_time, (int, float)):
+            ts = int(gps_time / 1000) if gps_time > 9999999999 else int(gps_time)
+        elif isinstance(gps_time, str):
+            try:
+                if gps_time.isdigit():
+                    val = int(gps_time)
+                    ts = int(val / 1000) if val > 9999999999 else val
+                else:
+                    parsed = datetime.fromisoformat(gps_time.replace("Z", "+00:00"))
+                    ts = int(parsed.timestamp())
+            except Exception:
+                ts = None
+
+        if ts:
+            time_diff_sec = max(0, int(time.time() - ts))
+            dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+            formatted_time = dt.strftime("%d %b %y, %I:%M %p")
+
+            days = time_diff_sec // 86400
+            hours = (time_diff_sec % 86400) // 3600
+            mins = (time_diff_sec % 3600) // 60
+
+            if days > 0:
+                inactive_text = f"No info: {days}d {hours}h"
+            elif hours > 0:
+                inactive_text = f"Stopped: {hours}h {mins}m"
+            else:
+                inactive_text = f"Updated {mins}m ago"
+
+    if time_diff_sec > 86400 * 2:
+        status_cat = "no_signal"
+    elif speed > 0:
+        status_cat = "running"
+        inactive_text = f"Moving at {speed} km/h"
+    else:
+        status_cat = "stopped"
+
+    clean_v = clean_vehicle_number(v_num)
+    is_company = False
+    if clean_v in company_set:
+        is_company = True
+    elif "OWN" in str(v.get("ownership", "")).upper() or "COMPANY" in str(v.get("ownership", "")).upper():
+        is_company = True
+    elif v.get("isOwn") or v.get("isCompany"):
+        is_company = True
+    elif "PANTHER" in str(v.get("groupName", "")).upper():
+        is_company = True
+    elif not company_set:
+        is_company = True
+
+    try:
+        lat = float(v.get("latitude") or v.get("lat") or 0.0)
+        lng = float(v.get("longitude") or v.get("lng") or v.get("lon") or 0.0)
+    except (ValueError, TypeError):
+        lat, lng = 0.0, 0.0
+
+    loc_name = extract_location_text(v)
+    if not loc_name:
+        loc_name = f"Near Lat: {round(lat, 4)}, Lng: {round(lng, 4)}" if (lat != 0 and lng != 0) else "Location unavailable"
+
+    today_dist = 0.0
+    raw_dist = v.get("todayDistance") or v.get("todayKm")
+    if raw_dist is not None:
+        try:
+            d_val = float(raw_dist)
+            today_dist = round(d_val / 1000, 1) if d_val > 1000 else round(d_val, 1)
+        except (ValueError, TypeError):
+            pass
+
+    return GPSVehicleItem(
+        vehicleNumber=v_num,
+        speed=speed,
+        ignition=ignition,
+        status=status_cat,
+        isCompany=is_company,
+        fleetType="Company Vehicle" if is_company else "Market Vehicle",
+        groupName=v.get("groupName") or v.get("branchName") or "Panther Logistics",
+        lastUpdated=formatted_time,
+        rawTimestamp=gps_time,
+        address=loc_name,
+        latitude=lat,
+        longitude=lng,
+        heading=float(v.get("angle") or v.get("heading") or v.get("bearing") or 0.0),
+        todayKm=today_dist,
+        inactiveTime=inactive_text,
+        battery=int(v.get("battery") or 100),
+        signal=1 if status_cat == "no_signal" else 4,
+        camera=True,
+        expired=False,
+        odometer=v.get("odometer") or v.get("totalDistance"),
+        raw=v,
+    )
+
+
+async def get_gps_fleet(db: AsyncSession) -> GPSFleetResponse:
+    """Fetches full vehicle list for the tenant from WheelsEye and computes metrics."""
+    setting = (await db.execute(select(CompanySetting).limit(1))).scalars().first()
+    token = setting.wheelseye_api_token if setting else None
+    base_url = (setting.wheelseye_base_url if setting and setting.wheelseye_base_url else "https://api.wheelseye.com")
+
+    if not token or not setting or not setting.is_wheelseye_active:
+        return GPSFleetResponse(
+            success=False,
+            totalCount=0,
+            counts=GPSFleetCounts(),
+            companyVehicles=[],
+            marketVehicles=[],
+            vehicles=[],
+            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+    company_set = await get_company_vehicles_set(db)
+    raw_list = await fetch_all_wheelseye_vehicles(base_url, token)
+
+    vehicles_dict: Dict[str, GPSVehicleItem] = {}
+    company_vehicles: List[GPSVehicleItem] = []
+    market_vehicles: List[GPSVehicleItem] = []
+
+    for item in raw_list:
+        formatted = format_wheelseye_vehicle(item, company_set)
+        if formatted and formatted.vehicleNumber not in vehicles_dict:
+            vehicles_dict[formatted.vehicleNumber] = formatted
+            if formatted.isCompany:
+                company_vehicles.append(formatted)
+            else:
+                market_vehicles.append(formatted)
+
+    v_list = list(vehicles_dict.values())
+    counts = GPSFleetCounts(
+        all=len(v_list),
+        company=len(company_vehicles),
+        market=len(market_vehicles),
+        running=sum(1 for v in v_list if v.status == "running"),
+        stopped=sum(1 for v in v_list if v.status == "stopped"),
+        no_signal=sum(1 for v in v_list if v.status == "no_signal"),
+    )
+
+    return GPSFleetResponse(
+        success=True,
+        totalCount=len(v_list),
+        counts=counts,
+        companyVehicles=company_vehicles,
+        marketVehicles=market_vehicles,
+        vehicles=v_list,
+        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+async def track_gps_single_vehicle(db: AsyncSession, vehicle_number: str) -> GPSTrackResponse:
+    """Tracks a single vehicle by vehicle registration number."""
+    clean_v = clean_vehicle_number(vehicle_number)
+    if not clean_v:
+        return GPSTrackResponse(
+            success=False,
+            message="Vehicle number is required.",
+            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+    setting = (await db.execute(select(CompanySetting).limit(1))).scalars().first()
+    token = setting.wheelseye_api_token if setting else None
+    base_url = (setting.wheelseye_base_url if setting and setting.wheelseye_base_url else "https://api.wheelseye.com")
+
+    trip_info = await get_trip_details_from_db(db, vehicle_number)
+
+    if not token or not setting or not setting.is_wheelseye_active:
+        return GPSTrackResponse(
+            success=False,
+            message="WheelsEye API is not configured or is disabled for this tenant.",
+            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            trip=trip_info,
+        )
+
+    company_set = await get_company_vehicles_set(db)
+    raw_list = await fetch_all_wheelseye_vehicles(base_url, token)
+
+    found_item: Optional[GPSVehicleItem] = None
+    for r in raw_list:
+        r_num = clean_vehicle_number(
+            r.get("vehicleNumber") or r.get("vehicle_number") or r.get("truckNumber") or ""
+        )
+        if r_num and (clean_v in r_num or r_num in clean_v):
+            found_item = format_wheelseye_vehicle(r, company_set)
+            break
+
+    if found_item:
+        if found_item.address and found_item.address.startswith("Near Lat:") and found_item.latitude and found_item.longitude:
+            geo_name = await reverse_geocode_point(found_item.latitude, found_item.longitude)
+            if geo_name:
+                found_item.address = geo_name
+
+        return GPSTrackResponse(
+            success=True,
+            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            trip=trip_info,
+            truck_data=found_item,
+        )
+
+    return GPSTrackResponse(
+        success=False,
+        message=f"Vehicle {vehicle_number} not found on the live GPS network.",
+        timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        trip=trip_info,
+        truck_data=None,
+    )
+
+
+async def get_gps_history(db: AsyncSession, vehicle_number: str, date_filter: str = "today") -> GPSHistoryResponse:
+    """Retrieves movement vs stoppage timeline and coordinates trail for vehicle."""
+    track_res = await track_gps_single_vehicle(db, vehicle_number)
+    truck = track_res.truck_data
+
+    timeline: List[GPSTimelineItem] = []
+    route_coords: List[List[Any]] = []
+
+    if truck and truck.latitude and truck.longitude:
+        route_coords.append([truck.latitude, truck.longitude, truck.lastUpdated, truck.speed])
+        timeline.append(
+            GPSTimelineItem(
+                type="running" if truck.speed > 0 else "stoppage",
+                title=f"Current Movement ({truck.speed} km/h)" if truck.speed > 0 else "Current Stoppage Location",
+                duration="In transit" if truck.speed > 0 else "Stopped",
+                address=truck.address,
+                time_range=truck.lastUpdated,
+                latitude=truck.latitude,
+                longitude=truck.longitude,
+                speed=truck.speed,
+            )
+        )
+
+    return GPSHistoryResponse(
+        success=True,
+        vehicle=vehicle_number,
+        trip=track_res.trip,
+        timeline=timeline,
+        route_coordinates=route_coords,
+        summary=GPSHistorySummary(
+            total_distance_km=truck.todayKm if truck else 0.0,
+            speed=truck.speed if truck else 0,
+        ),
+    )

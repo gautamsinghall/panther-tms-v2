@@ -19,6 +19,7 @@ from app.modules.profile.schemas import (
     MonthlyPnLResponse, MonthlyPnLItem,
     ApiCenterSettingResponse, ApiCenterSettingUpdate,
     ApiCenterTestRequest, ApiCenterTestResponse,
+    WheelsEyeTestRequest, WheelsEyeTestResponse,
     FastagWalletResponse, FastagWalletTransactionItem,
     SimWalletResponse, SimWalletTransactionItem
 )
@@ -533,6 +534,9 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         fastag_credits_left=credits_left,
         fastag_rate_per_fetch=1.50,
         fastag_cooldown_minutes=company.fastag_cooldown_minutes if company.fastag_cooldown_minutes is not None else 10,
+        wheelseye_base_url=company.wheelseye_base_url or "https://api.wheelseye.com",
+        has_wheelseye_token=bool(company.wheelseye_api_token),
+        is_wheelseye_active=company.is_wheelseye_active if company.is_wheelseye_active is not None else True,
     )
 
 
@@ -570,6 +574,16 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
         company.is_ft_active = data.is_ft_active
     if data.fastag_cooldown_minutes is not None:
         company.fastag_cooldown_minutes = max(1, data.fastag_cooldown_minutes)
+    if data.wheelseye_api_token is not None:
+        w_token = data.wheelseye_api_token.strip()
+        if w_token and not w_token.startswith("••"):
+            company.wheelseye_api_token = w_token
+        elif not w_token:
+            company.wheelseye_api_token = None
+    if data.wheelseye_base_url is not None:
+        company.wheelseye_base_url = data.wheelseye_base_url.strip() if data.wheelseye_base_url else "https://api.wheelseye.com"
+    if data.is_wheelseye_active is not None:
+        company.is_wheelseye_active = data.is_wheelseye_active
 
     company.updated_at = datetime.now(timezone.utc)
     await db.commit()
@@ -639,6 +653,50 @@ async def test_ewb_connection(db: AsyncSession, req: ApiCenterTestRequest) -> Ap
         return ApiCenterTestResponse(
             success=False,
             message=f"Unexpected error during connection test: {str(e)}"
+        )
+
+
+async def test_wheelseye_connection(db: AsyncSession, req: WheelsEyeTestRequest) -> WheelsEyeTestResponse:
+    company = await get_company_setting(db)
+    token = (req.wheelseye_api_token or company.wheelseye_api_token or "").strip()
+    if token.startswith("••"):
+        token = (company.wheelseye_api_token or "").strip()
+    base_url = (req.wheelseye_base_url or company.wheelseye_base_url or "https://api.wheelseye.com").rstrip("/")
+
+    if not token:
+        return WheelsEyeTestResponse(
+            success=False,
+            message="WheelsEye Access Token / API Key is missing. Please enter your API token."
+        )
+
+    test_url = f"{base_url}/currentLoc?accessToken={token}&pageNo=1"
+    try:
+        async with httpx.AsyncClient(timeout=8.0, verify=False) as client:
+            resp = await client.get(
+                test_url,
+                headers={"Accept": "application/json", "User-Agent": "Panther-TMS/2.0"}
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                total_pages = data.get("data", {}).get("totalPages", 1) if isinstance(data.get("data"), dict) else 1
+                vehicle_list = data.get("data", {}).get("list", []) if isinstance(data.get("data"), dict) else []
+                total_detected = len(vehicle_list)
+                return WheelsEyeTestResponse(
+                    success=True,
+                    message="Authentication successful! Connected to WheelsEye API.",
+                    total_vehicles_detected=total_detected,
+                    details={"total_pages": total_pages, "sample_count": total_detected}
+                )
+            else:
+                return WheelsEyeTestResponse(
+                    success=False,
+                    message=f"WheelsEye API returned HTTP {resp.status_code}: {resp.text[:200]}"
+                )
+    except Exception as exc:
+        logger.warning(f"WheelsEye connection test failed: {exc}")
+        return WheelsEyeTestResponse(
+            success=False,
+            message=f"Connection test failed: {str(exc)}"
         )
 
 

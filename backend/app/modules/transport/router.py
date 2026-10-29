@@ -26,6 +26,7 @@ from app.modules.transport.schemas import (
     SIMTripCreate, SIMTripUpdate, SIMTripCommentCreate, SIMTripClose, SIMConsentSimulate, SIMTripResponse, SIMTrackingSyncResponse,
     FastagTripCreate, FastagTripUpdate, FastagTripResponse,
     FastagTrackResponse, FastagConfigResponse, TollLogResponse,
+    GPSConfigResponse, GPSFleetResponse, GPSTrackResponse, GPSHistoryResponse,
 )
 
 router = APIRouter(prefix="/transport", tags=["Transport"])
@@ -1786,4 +1787,66 @@ async def auto_sync_fastag_endpoint(
     Equivalent to legacy action=auto_sync.
     """
     return await service.auto_sync_all_in_transit_fastag(db)
+
+
+# ==============================================================================
+# 15. WheelsEye GPS Tracking Endpoints
+# ==============================================================================
+
+@router.get("/tracking/gps/config", response_model=GPSConfigResponse)
+async def get_gps_config_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Returns GPS tracking configuration and Google Maps API key from project env."""
+    return await service.get_gps_config(db)
+
+
+@router.get("/tracking/gps/vehicles", response_model=GPSFleetResponse)
+async def get_gps_vehicles_endpoint(
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Fetches full vehicle list for the tenant from WheelsEye and computes metrics."""
+    return await service.get_gps_fleet(db)
+
+
+@router.get("/tracking/gps/track", response_model=GPSTrackResponse)
+async def track_gps_vehicle_endpoint(
+    vehicle: str = Query(..., description="Vehicle registration number to track"),
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Live GPS tracking for a single vehicle with active LR trip details."""
+    return await service.track_gps_single_vehicle(db, vehicle)
+
+
+@router.get("/tracking/gps/history", response_model=GPSHistoryResponse)
+async def get_gps_history_endpoint(
+    vehicle: str = Query(..., description="Vehicle registration number"),
+    date: str = Query("today", description="History period (today, yesterday, last_7_days)"),
+    current_user: User = Depends(require_permission("transport", "tracking", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """Retrieves movement vs stoppage timeline and coordinates trail for vehicle."""
+    return await service.get_gps_history(db, vehicle, date)
+
+
+@router.get("/tracking/gps/geocode")
+async def geocode_gps_endpoint(
+    lat: float = Query(..., description="Latitude"),
+    lng: float = Query(..., description="Longitude"),
+    current_user: User = Depends(get_current_user),
+):
+    """Server-side reverse geocoding lookup."""
+    addr = await service.reverse_geocode_point(lat, lng)
+    if addr:
+        return {"success": True, "address": addr, "latitude": lat, "longitude": lng}
+    return {
+        "success": False,
+        "address": f"Near Lat: {round(lat, 4)}, Lng: {round(lng, 4)}",
+        "latitude": lat,
+        "longitude": lng,
+    }
+
 
