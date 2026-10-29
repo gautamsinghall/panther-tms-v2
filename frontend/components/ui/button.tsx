@@ -51,20 +51,20 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
         "active:from-indigo-600 active:to-indigo-700 active:translate-y-0 active:shadow-[0_1px_2px_rgba(79,70,229,0.18)] " +
         "focus-visible:ring-indigo-500",
       secondary:
-        "bg-white border border-slate-300/90 text-slate-700 " +
+        "bg-white dark:bg-[#17171B] border border-slate-300/90 dark:border-[#303036] text-slate-700 dark:text-[#CACAD0] " +
         "shadow-[0_1px_2px_rgba(0,0,0,0.05)] " +
-        "hover:bg-slate-50 hover:text-slate-900 hover:border-slate-400 " +
+        "hover:bg-slate-50 dark:hover:bg-[#202028] hover:text-slate-900 dark:hover:text-white hover:border-slate-400 dark:hover:border-[#42424A] " +
         "hover:shadow-[0_2px_6px_rgba(0,0,0,0.06)] hover:-translate-y-px " +
-        "active:bg-slate-100 active:translate-y-0 active:shadow-[0_1px_2px_rgba(0,0,0,0.04)] " +
+        "active:bg-slate-100 dark:active:bg-[#262630] active:translate-y-0 active:shadow-[0_1px_2px_rgba(0,0,0,0.04)] " +
         "focus-visible:ring-slate-400",
       outline:
-        "bg-white border border-slate-200/90 text-slate-700 " +
+        "bg-white dark:bg-[#17171B] border border-slate-200/90 dark:border-[#303036] text-slate-700 dark:text-[#CACAD0] " +
         "shadow-[0_1px_2px_rgba(0,0,0,0.04)] " +
-        "hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 hover:-translate-y-px " +
-        "active:bg-slate-100 active:translate-y-0 " +
+        "hover:bg-slate-50 dark:hover:bg-[#202028] hover:border-slate-300 dark:hover:border-[#42424A] hover:text-slate-900 dark:hover:text-white hover:-translate-y-px " +
+        "active:bg-slate-100 dark:active:bg-[#262630] active:translate-y-0 " +
         "focus-visible:ring-slate-300",
       ghost:
-        "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200/70 focus-visible:ring-slate-300 rounded-xl",
+        "bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#202028] hover:text-slate-900 dark:hover:text-white active:bg-slate-200/70 dark:active:bg-[#262630] focus-visible:ring-slate-300 rounded-xl",
       danger:
         "bg-gradient-to-b from-rose-500 to-rose-600 " +
         "border border-rose-700/40 text-white " +

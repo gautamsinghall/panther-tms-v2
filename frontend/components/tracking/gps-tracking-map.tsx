@@ -850,7 +850,7 @@ export function GPSTrackingMap({
           title="Switch Map Engine"
           className="w-10 h-10 rounded-xl bg-white/95 dark:bg-[#171922]/95 hover:bg-slate-100 dark:hover:bg-[#202330] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#2B303C] shadow-md flex flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-all cursor-pointer"
         >
-          <Layers className="w-4 h-4 text-[#7965E9]" />
+          <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           <span>Layers</span>
         </button>
 

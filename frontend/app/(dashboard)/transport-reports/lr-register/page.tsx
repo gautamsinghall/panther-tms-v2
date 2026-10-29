@@ -28,6 +28,7 @@ import { apiClient } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
+import { Button } from "@/components/ui/button";
 
 // ------------------------------------------------------------------------------
 // Types & Column Definitions
@@ -563,15 +564,16 @@ export default function LRRegisterPage() {
 
           {/* Top-Right Secondary Action: Refresh Register */}
           <div className="shrink-0 pt-0.5">
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="md"
               onClick={() => loadData(fromDate, toDate, selectedCustomer)}
               disabled={isLoading}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-[#14151C] hover:bg-slate-50 dark:hover:bg-[#1C1D26] border border-slate-200 dark:border-[#272835] rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              isLoading={isLoading}
+              icon={<RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />}
             >
-              <RefreshCw className={cn("w-3.5 h-3.5 text-slate-500 dark:text-slate-300", isLoading && "animate-spin")} />
-              <span>Refresh Register</span>
-            </button>
+              Refresh Register
+            </Button>
           </div>
         </div>
       </div>
@@ -601,13 +603,14 @@ export default function LRRegisterPage() {
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => loadData(fromDate, toDate, selectedCustomer)}
-            className="px-2.5 py-1 text-xs font-semibold bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-lg hover:bg-rose-50"
+            className="border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300"
           >
             Retry
-          </button>
+          </Button>
         </div>
       )}
 
@@ -685,28 +688,27 @@ export default function LRRegisterPage() {
           {/* Action Buttons: Reset & Apply Filters */}
           <div className="flex items-center gap-2.5 ml-auto">
             {/* Neutral Outlined Reset Button */}
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="lg"
               onClick={handleResetFilters}
               disabled={isLoading || isSubmitting}
-              className="h-10 px-4 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-xl transition-colors cursor-pointer disabled:opacity-50"
             >
               Reset
-            </button>
+            </Button>
 
             {/* Primary Violet Apply Filters Button */}
-            <button
+            <Button
               type="submit"
+              variant="primary"
+              size="lg"
               disabled={isSubmitting || isLoading}
-              className="h-10 px-5 text-xs sm:text-sm font-semibold text-white bg-[#635BFF] hover:bg-[#5249E6] active:bg-[#4338CA] rounded-xl transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+              isLoading={isSubmitting}
+              icon={isSubmitting ? undefined : <Filter className="w-4 h-4 text-white" />}
             >
-              {isSubmitting ? (
-                <RefreshCw className="w-4 h-4 animate-spin text-white" />
-              ) : (
-                <Filter className="w-4 h-4 text-white" />
-              )}
-              <span>Apply Filters</span>
-            </button>
+              Apply Filters
+            </Button>
           </div>
         </form>
       </div>
@@ -831,15 +833,15 @@ export default function LRRegisterPage() {
 
             {/* Column Visibility Dropdown */}
             <div className="relative" ref={colMenuRef}>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setIsColMenuOpen(!isColMenuOpen)}
-                className="h-9 px-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                icon={<SlidersHorizontal className="w-3.5 h-3.5" />}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                 <span>Columns</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              </button>
+                <ChevronDown className="w-3.5 h-3.5" />
+              </Button>
 
               {isColMenuOpen && (
                 <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-xl p-3 z-50 text-xs">
@@ -884,24 +886,24 @@ export default function LRRegisterPage() {
             </div>
 
             {/* Neutral Outlined Export Excel Button */}
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleExportExcel}
-              className="h-9 px-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              icon={<Download className="w-3.5 h-3.5" />}
             >
-              <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              <span>Export Excel</span>
-            </button>
+              Export Excel
+            </Button>
 
             {/* Neutral Outlined Print Button */}
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handlePrint}
-              className="h-9 px-3 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              icon={<Printer className="w-3.5 h-3.5" />}
             >
-              <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              <span>Print</span>
-            </button>
+              Print
+            </Button>
           </div>
         </div>
 
