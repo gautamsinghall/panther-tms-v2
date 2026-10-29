@@ -304,7 +304,7 @@ export default function GPSTrackingApiPage() {
               <Input
                 type={showToken ? "text" : "password"}
                 value={wheelseyeToken}
-                placeholder={hasSavedToken ? "••••••••••••" : "e.g. 5fbb8832-5bfe-40f7-b342-4d6f8316ee21"}
+                placeholder=""
                 onFocus={() => {
                   if (hasSavedToken && wheelseyeToken.startsWith("••")) {
                     setWheelseyeToken("");

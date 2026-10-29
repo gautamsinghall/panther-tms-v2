@@ -307,7 +307,7 @@ async def update_api_center(
         action="API_CENTER_UPDATED",
         module="api_center",
         entity_type="api_center",
-        entity_id=str(api_center.id),
+        entity_id=str(getattr(api_center, "id", "1")),
         entity_identifier="API Center",
         details="Updated API Center configuration (E-Way bill / GSP)"
     )

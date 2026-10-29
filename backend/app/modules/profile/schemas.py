@@ -213,6 +213,7 @@ class MonthlyPnLResponse(BaseModel):
 
 # API Center & E-Way Bill Schemas
 class ApiCenterSettingResponse(BaseModel):
+    id: Optional[int] = 1
     ewb_username: Optional[str] = None
     ewb_password: Optional[str] = None  # Retained as None to prevent credential leakage
     has_ewb_password: bool = False

@@ -538,6 +538,7 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
             pass
 
     return ApiCenterSettingResponse(
+        id=company.id if company else 1,
         ewb_username=company.ewb_username,
         ewb_password=None,  # Never leak password to the frontend or browser console
         has_ewb_password=bool(company.ewb_password),
