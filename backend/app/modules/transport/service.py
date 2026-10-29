@@ -41,6 +41,8 @@ from app.tenant_db.models import (
 
 logger = logging.getLogger(__name__)
 
+from app.modules.profile.service import get_company_setting
+
 from app.modules.transport.schemas import (
     VehicleOwnerCreate, VehicleOwnerUpdate,
     DriverCreate, DriverUpdate,
@@ -1071,8 +1073,7 @@ async def fetch_live_eway_bill(db: AsyncSession, ewb_no: str) -> Dict[str, Any]:
         raise AppException(status_code=400, error_code="INVALID_EWB", message="E-Way Bill number is required.")
 
     # Retrieve company settings from tenant DB
-    stmt = select(CompanySetting).limit(1)
-    company = (await db.execute(stmt)).scalar_one_or_none()
+    company = await get_company_setting(db)
 
     client_id = (company.gsp_client_id_override if company and company.gsp_client_id_override else None) or settings.GSP_CLIENT_ID
     client_secret = (company.gsp_client_secret_override if company and company.gsp_client_secret_override else None) or settings.GSP_CLIENT_SECRET
@@ -1459,9 +1460,7 @@ async def create_sim_trip(
                 ewb_expiry = datetime.combine(lr_obj.eway_bill_expiry, datetime.min.time(), tzinfo=timezone.utc)
 
     # 3. Check for company setting credentials override
-    cs_stmt = select(CompanySetting).limit(1)
-    cs_res = await db.execute(cs_stmt)
-    comp_setting = cs_res.scalars().first()
+    comp_setting = await get_company_setting(db)
 
     ft_client = FreightTigerClient(
         base_url=comp_setting.ft_base_url if comp_setting else None,
@@ -1630,9 +1629,7 @@ async def sync_sim_trip(
                 trip.last_billed_at = billed_anchor + timedelta(seconds=cycles_exceeded * 86400)
                 await db.commit()
 
-    cs_stmt = select(CompanySetting).limit(1)
-    cs_res = await db.execute(cs_stmt)
-    comp_setting = cs_res.scalars().first()
+    comp_setting = await get_company_setting(db)
 
     ft_client = FreightTigerClient(
         base_url=comp_setting.ft_base_url if comp_setting else None,
@@ -1746,9 +1743,7 @@ async def close_sim_trip(db: AsyncSession, trip: SIMTripRecord, comment: Optiona
     """
     Closes the SIM trip in Freight Tiger and marks status Closed in PantherTMS.
     """
-    cs_stmt = select(CompanySetting).limit(1)
-    cs_res = await db.execute(cs_stmt)
-    comp_setting = cs_res.scalars().first()
+    comp_setting = await get_company_setting(db)
 
     ft_client = FreightTigerClient(
         base_url=comp_setting.ft_base_url if comp_setting else None,
@@ -1917,9 +1912,7 @@ async def track_fastag_vehicle(
         raise AppException("Invalid vehicle number provided.", status_code=status.HTTP_400_BAD_REQUEST)
 
     # 1. Cooldown Check (Default 10 minutes = 600s, configurable in API Center)
-    company_stmt = select(CompanySetting).limit(1)
-    company_res = await db.execute(company_stmt)
-    company_rec = company_res.scalars().first()
+    company_rec = await get_company_setting(db)
     cooldown_minutes = (
         company_rec.fastag_cooldown_minutes
         if company_rec and company_rec.fastag_cooldown_minutes is not None
@@ -2474,7 +2467,7 @@ _GEOCODE_CACHE: Dict[str, str] = {}
 
 async def get_gps_config(db: AsyncSession) -> GPSConfigResponse:
     """Returns configuration for GPS tracking, Google Maps API key, and status."""
-    setting = (await db.execute(select(CompanySetting).limit(1))).scalars().first()
+    setting = await get_company_setting(db)
     has_token = bool(setting and setting.wheelseye_api_token)
     is_active = bool(setting.is_wheelseye_active if setting and setting.is_wheelseye_active is not None else True)
     has_google_maps = bool(settings.GOOGLE_MAPS_API_KEY and len(settings.GOOGLE_MAPS_API_KEY) > 10)
@@ -2783,7 +2776,7 @@ def format_wheelseye_vehicle(v: dict, company_set: set) -> Optional[GPSVehicleIt
 
 async def get_gps_fleet(db: AsyncSession) -> GPSFleetResponse:
     """Fetches full vehicle list for the tenant from WheelsEye and computes metrics."""
-    setting = (await db.execute(select(CompanySetting).limit(1))).scalars().first()
+    setting = await get_company_setting(db)
     token = setting.wheelseye_api_token if setting else None
     base_url = (setting.wheelseye_base_url if setting and setting.wheelseye_base_url else "https://api.wheelseye.com")
 
@@ -2845,7 +2838,7 @@ async def track_gps_single_vehicle(db: AsyncSession, vehicle_number: str) -> GPS
             timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
         )
 
-    setting = (await db.execute(select(CompanySetting).limit(1))).scalars().first()
+    setting = await get_company_setting(db)
     token = setting.wheelseye_api_token if setting else None
     base_url = (setting.wheelseye_base_url if setting and setting.wheelseye_base_url else "https://api.wheelseye.com")
 

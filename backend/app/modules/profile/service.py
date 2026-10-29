@@ -3,7 +3,7 @@ import httpx
 from typing import List, Optional
 from datetime import datetime, timezone, date
 from decimal import Decimal
-from sqlalchemy import select, func, extract
+from sqlalchemy import select, func, extract, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings, sanitize_ft_base_url, resolve_freight_tiger_token
 from app.core.errors import AppException
@@ -243,8 +243,30 @@ async def delete_branch(db: AsyncSession, branch_id: int) -> None:
 # --- Company Settings ---
 
 async def get_company_setting(db: AsyncSession) -> CompanySetting:
-    stmt = select(CompanySetting).limit(1)
-    setting = (await db.execute(stmt)).scalar_one_or_none()
+    try:
+        stmt = select(CompanySetting).limit(1)
+        setting = (await db.execute(stmt)).scalar_one_or_none()
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "wheelseye" in err_msg or "column" in err_msg or "does not exist" in err_msg:
+            logger.warning(f"company_settings table missing columns ({exc}), auto-migrating...")
+            await db.rollback()
+            for col_def in [
+                "wheelseye_api_token VARCHAR(255)",
+                "wheelseye_base_url VARCHAR(255) DEFAULT 'https://api.wheelseye.com'",
+                "is_wheelseye_active BOOLEAN DEFAULT TRUE",
+            ]:
+                try:
+                    await db.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col_def};"))
+                    await db.commit()
+                except Exception as col_err:
+                    await db.rollback()
+                    logger.debug(f"Auto-migration note for {col_def}: {col_err}")
+            stmt = select(CompanySetting).limit(1)
+            setting = (await db.execute(stmt)).scalar_one_or_none()
+        else:
+            raise
+
     if not setting:
         setting = CompanySetting(company_name="PantherTMS Company", email="admin@demo.com")
         db.add(setting)

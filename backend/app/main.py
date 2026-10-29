@@ -146,6 +146,9 @@ async def lifespan(app: FastAPI):
                             "gsp_client_id_override VARCHAR(255)", "gsp_client_secret_override VARCHAR(255)", "gsp_base_url_override VARCHAR(255)",
                             "ft_base_url VARCHAR(255) DEFAULT 'https://api.freighttiger.com/api/tether'",
                             "ft_auth_token TEXT", "is_ft_active BOOLEAN DEFAULT TRUE",
+                            "wheelseye_api_token VARCHAR(255)",
+                            "wheelseye_base_url VARCHAR(255) DEFAULT 'https://api.wheelseye.com'",
+                            "is_wheelseye_active BOOLEAN DEFAULT TRUE",
                             "fastag_cooldown_minutes INTEGER DEFAULT 10"
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {cs_col};"))
