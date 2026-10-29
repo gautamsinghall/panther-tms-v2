@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   RefreshCw,
@@ -194,6 +194,12 @@ export default function LRRegisterPage() {
   });
   const [isColMenuOpen, setIsColMenuOpen] = useState(false);
   const colMenuRef = useRef<HTMLDivElement>(null);
+
+  // Table Horizontal Scroll & Column Slider State
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollHorizontally, setCanScrollHorizontally] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [maxScrollLeft, setMaxScrollLeft] = useState(0);
 
   // Quick View Drawer Modal
   const [selectedRowForDrawer, setSelectedRowForDrawer] = useState<LRRegisterRow | null>(null);
@@ -402,6 +408,56 @@ export default function LRRegisterPage() {
 
   const startIndexDisplay = totalEntries === 0 ? 0 : (currentPageSafe - 1) * (pageSize === -1 ? totalEntries : pageSize) + 1;
   const endIndexDisplay = isShowAll ? totalEntries : Math.min(currentPageSafe * pageSize, totalEntries);
+
+  // Horizontal Scroll calculation & sync for Column Slider
+  const checkScrollable = useCallback(() => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 4;
+    setCanScrollHorizontally(hasOverflow);
+    setMaxScrollLeft(Math.max(0, el.scrollWidth - el.clientWidth));
+    setScrollPosition(el.scrollLeft);
+  }, []);
+
+  useEffect(() => {
+    checkScrollable();
+    const el = tableContainerRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      setScrollPosition(el.scrollLeft);
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", checkScrollable);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        checkScrollable();
+      });
+      resizeObserver.observe(el);
+    }
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", checkScrollable);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
+  }, [checkScrollable, visibleColumns, paginatedData, data]);
+
+  const handleScrollBy = (offset: number) => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollBy({ left: offset, behavior: "smooth" });
+    }
+  };
+
+  const handleSliderChange = (newVal: number) => {
+    setScrollPosition(newVal);
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollLeft = newVal;
+    }
+  };
 
   // Export to Excel / CSV with UTF-8 BOM
   const handleExportExcel = () => {
@@ -829,9 +885,63 @@ export default function LRRegisterPage() {
         </div>
 
         {/* -------------------------------------------------------------------- */}
+        {/* Column Slider (Visible ONLY when columns overflow container width)   */}
+        {/* -------------------------------------------------------------------- */}
+        {canScrollHorizontally && (
+          <div className="px-4 py-2 bg-slate-50 dark:bg-[#0F1015] border-b border-slate-200 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 print:hidden animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#635BFF]" />
+                <span>Columns Slider</span>
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                (Slide to view all columns)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleScrollBy(-240)}
+                disabled={scrollPosition <= 0}
+                aria-label="Slide Left"
+                className="w-7 h-7 rounded-md bg-white dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="relative flex items-center">
+                <input
+                  type="range"
+                  min={0}
+                  max={maxScrollLeft}
+                  value={scrollPosition}
+                  onChange={(e) => handleSliderChange(Number(e.target.value))}
+                  className="w-36 sm:w-64 h-2 bg-slate-200 dark:bg-[#1A1B24] border border-slate-300 dark:border-[#2B2C37] rounded-lg appearance-none cursor-pointer accent-[#635BFF] transition-all"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleScrollBy(240)}
+                disabled={scrollPosition >= maxScrollLeft - 2}
+                aria-label="Slide Right"
+                className="w-7 h-7 rounded-md bg-white dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+              <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 w-10 text-right tabular-nums">
+                {maxScrollLeft > 0 ? `${Math.round((scrollPosition / maxScrollLeft) * 100)}%` : "0%"}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* -------------------------------------------------------------------- */}
         {/* Table Container with Horizontal Scroll                               */}
         {/* -------------------------------------------------------------------- */}
-        <div className="overflow-x-auto min-w-full">
+        <div ref={tableContainerRef} className="overflow-x-auto min-w-full scroll-smooth">
           <table className="w-full text-xs text-left border-collapse">
             {/* Table Header: Dark Graphite Header matching Redesign Target */}
             <thead className="bg-slate-100 dark:bg-[#101116] text-slate-600 dark:text-slate-400 select-none border-b border-slate-200 dark:border-[#22232E]">
@@ -839,6 +949,7 @@ export default function LRRegisterPage() {
                 {AVAILABLE_COLUMNS.map((col) => {
                   if (!visibleColumns[col.key]) return null;
                   const isSorted = sortKey === col.key;
+                  const isFirstSticky = col.key === "lr_number";
                   return (
                     <th
                       key={col.key}
@@ -846,7 +957,9 @@ export default function LRRegisterPage() {
                       style={{ minWidth: col.minWidth }}
                       className={cn(
                         "py-3 px-3.5 font-medium tracking-normal cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap",
-                        col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
+                        col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
+                        isFirstSticky && "sticky left-0 z-20 bg-slate-100 dark:bg-[#101116]",
+                        isFirstSticky && canScrollHorizontally && scrollPosition > 10 && "shadow-[3px_0_6px_-2px_rgba(0,0,0,0.35)]"
                       )}
                     >
                       <div className={cn("inline-flex items-center gap-1", col.align === "right" && "justify-end")}>
@@ -923,7 +1036,12 @@ export default function LRRegisterPage() {
                   >
                     {/* 1. GR / LR No. (Purple link with underline) */}
                     {visibleColumns["lr_number"] && (
-                      <td className="py-3 px-3.5 whitespace-nowrap">
+                      <td
+                        className={cn(
+                          "py-3 px-3.5 whitespace-nowrap sticky left-0 z-10 transition-colors bg-white dark:bg-[#121319] group-hover:bg-slate-50/90 dark:group-hover:bg-[#161720]",
+                          canScrollHorizontally && scrollPosition > 10 && "shadow-[3px_0_6px_-2px_rgba(0,0,0,0.35)]"
+                        )}
+                      >
                         <button
                           type="button"
                           onClick={() => setSelectedRowForDrawer(row)}
