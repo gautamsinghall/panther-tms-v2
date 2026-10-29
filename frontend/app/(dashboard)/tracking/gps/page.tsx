@@ -498,6 +498,24 @@ export default function GPSTrackingPage() {
     return list;
   }, [vehicles, fleetTypeFilter, statusFilter, searchKeyword, currentSort]);
 
+  // Progressive rendering limit to prevent lag when fleet has thousands of vehicles (e.g. 3,900+ vehicles)
+  const [renderLimit, setRenderLimit] = useState(60);
+
+  useEffect(() => {
+    setRenderLimit(60);
+  }, [searchKeyword, statusFilter, fleetTypeFilter, currentSort]);
+
+  const visibleVehicles = useMemo(() => {
+    return filteredVehicles.slice(0, renderLimit);
+  }, [filteredVehicles, renderLimit]);
+
+  const handleSidebarScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 280) {
+      setRenderLimit((prev) => Math.min(prev + 50, filteredVehicles.length));
+    }
+  };
+
   // Quick track vehicle action from header button
   const handleQuickTrackAction = () => {
     if (filteredVehicles.length > 0) {
@@ -514,25 +532,25 @@ export default function GPSTrackingPage() {
       {/* ---------------------------------------------------------------------- */}
       <div className="flex flex-col gap-2">
         {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
-          <Link href="/" className="hover:text-slate-200 transition-colors">
+        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+          <Link href="/" className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
             Tracking
           </Link>
-          <span className="text-slate-600">/</span>
-          <span className="text-slate-200 font-semibold">GPS Tracking</span>
+          <span className="text-slate-400 dark:text-slate-600">/</span>
+          <span className="text-slate-800 dark:text-slate-200 font-semibold">GPS Tracking</span>
         </nav>
 
         {/* Title, Subtitle, and Right Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#251E3E] border border-[#3D325E] flex items-center justify-center text-[#7965E9] shrink-0 shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-[#251E3E] border border-indigo-200 dark:border-[#3D325E] flex items-center justify-center text-[#7965E9] shrink-0 shadow-xs">
               <Navigation className="w-5 h-5 fill-[#7965E9]/20" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-white leading-tight">
+              <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
                 GPS Tracking
               </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Live fleet monitoring and real-time location tracking
               </p>
             </div>
@@ -541,7 +559,7 @@ export default function GPSTrackingPage() {
           {/* Right Header Actions */}
           <div className="flex items-center gap-3 self-end sm:self-center">
             {/* Live Connection / Sync Status */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#171922] border border-[#2B303C] text-xs text-slate-300 font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] text-xs text-slate-700 dark:text-slate-300 font-medium shadow-xs">
               <span className="w-2 h-2 rounded-full bg-[#20B889] animate-pulse" />
               <span>
                 Last sync: {lastSyncSec < 5 ? "just now" : `${lastSyncSec} sec ago`}
@@ -553,9 +571,9 @@ export default function GPSTrackingPage() {
               type="button"
               onClick={() => loadFleet()}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-2 h-9 px-3.5 rounded-xl border border-[#2B303C] bg-[#171922] hover:bg-[#202330] text-slate-200 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 h-9 px-3.5 rounded-xl border border-slate-200 dark:border-[#2B303C] bg-white dark:bg-[#171922] hover:bg-slate-50 dark:hover:bg-[#202330] text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className={cn("w-3.5 h-3.5 text-slate-300", isRefreshing && "animate-spin")} />
+              <RefreshCw className={cn("w-3.5 h-3.5 text-slate-500 dark:text-slate-300", isRefreshing && "animate-spin")} />
               <span>Refresh</span>
             </button>
 
@@ -563,7 +581,7 @@ export default function GPSTrackingPage() {
             <button
               type="button"
               onClick={handleQuickTrackAction}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#7965E9] hover:bg-[#6854D8] active:bg-[#5844C6] text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#7965E9] hover:bg-[#6854D8] active:bg-[#5844C6] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               <Navigation className="w-3.5 h-3.5 fill-white" />
               <span>Track Vehicle</span>
@@ -582,68 +600,68 @@ export default function GPSTrackingPage() {
             setFleetTypeFilter("all");
             setStatusFilter("all");
           }}
-          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+          className="bg-white dark:bg-[#171922] hover:bg-slate-50/80 dark:hover:bg-[#1D202B] border border-slate-200 dark:border-[#2B303C] hover:border-slate-300 dark:hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-xs group"
         >
-          <div className="w-11 h-11 rounded-xl bg-[#1B273A] border border-[#233550] flex items-center justify-center text-[#3B82F6] shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-[#1B273A] border border-blue-100 dark:border-[#233550] flex items-center justify-center text-blue-600 dark:text-[#3B82F6] shrink-0 group-hover:scale-105 transition-transform">
             <Truck className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs text-slate-400 font-medium">Total Vehicles</div>
-            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Vehicles</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight font-mono mt-0.5">
               {counts.all}
             </div>
-            <div className="text-[11px] text-slate-500 font-normal">All fleet vehicles</div>
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 font-normal">All fleet vehicles</div>
           </div>
         </div>
 
         {/* Card 2: Moving */}
         <div
           onClick={() => setStatusFilter("running")}
-          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+          className="bg-white dark:bg-[#171922] hover:bg-slate-50/80 dark:hover:bg-[#1D202B] border border-slate-200 dark:border-[#2B303C] hover:border-slate-300 dark:hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-xs group"
         >
-          <div className="w-11 h-11 rounded-xl bg-[#162D24] border border-[#1E4334] flex items-center justify-center text-[#20B889] shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-[#162D24] border border-emerald-100 dark:border-[#1E4334] flex items-center justify-center text-emerald-600 dark:text-[#20B889] shrink-0 group-hover:scale-105 transition-transform">
             <Play className="w-5 h-5 fill-current" />
           </div>
           <div>
-            <div className="text-xs text-slate-400 font-medium">Moving</div>
-            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Moving</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight font-mono mt-0.5">
               {counts.running}
             </div>
-            <div className="text-[11px] text-slate-500 font-normal">Vehicles on move</div>
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 font-normal">Vehicles on move</div>
           </div>
         </div>
 
         {/* Card 3: Stopped */}
         <div
           onClick={() => setStatusFilter("stopped")}
-          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+          className="bg-white dark:bg-[#171922] hover:bg-slate-50/80 dark:hover:bg-[#1D202B] border border-slate-200 dark:border-[#2B303C] hover:border-slate-300 dark:hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-xs group"
         >
-          <div className="w-11 h-11 rounded-xl bg-[#321E23] border border-[#48252C] flex items-center justify-center text-[#E66D7C] shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-11 h-11 rounded-xl bg-rose-50 dark:bg-[#321E23] border border-rose-100 dark:border-[#48252C] flex items-center justify-center text-rose-600 dark:text-[#E66D7C] shrink-0 group-hover:scale-105 transition-transform">
             <Square className="w-4 h-4 fill-current rounded-xs" />
           </div>
           <div>
-            <div className="text-xs text-slate-400 font-medium">Stopped</div>
-            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Stopped</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight font-mono mt-0.5">
               {counts.stopped}
             </div>
-            <div className="text-[11px] text-slate-500 font-normal">Vehicles stationary</div>
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 font-normal">Vehicles stationary</div>
           </div>
         </div>
 
         {/* Card 4: No Signal */}
         <div
           onClick={() => setStatusFilter("no_signal")}
-          className="bg-[#171922] hover:bg-[#1D202B] border border-[#2B303C] hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-sm group"
+          className="bg-white dark:bg-[#171922] hover:bg-slate-50/80 dark:hover:bg-[#1D202B] border border-slate-200 dark:border-[#2B303C] hover:border-slate-300 dark:hover:border-slate-500 rounded-xl p-3.5 sm:p-4 flex items-center gap-3.5 transition-all cursor-pointer shadow-xs group"
         >
-          <div className="w-11 h-11 rounded-xl bg-[#222530] border border-[#313646] flex items-center justify-center text-slate-400 shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-[#222530] border border-slate-200 dark:border-[#313646] flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0 group-hover:scale-105 transition-transform">
             <Radio className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs text-slate-400 font-medium">No Signal</div>
-            <div className="text-2xl font-bold text-white tracking-tight font-mono mt-0.5">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">No Signal</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight font-mono mt-0.5">
               {counts.no_signal}
             </div>
-            <div className="text-[11px] text-slate-500 font-normal">No recent updates</div>
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 font-normal">No recent updates</div>
           </div>
         </div>
       </div>
@@ -651,9 +669,9 @@ export default function GPSTrackingPage() {
       {/* ---------------------------------------------------------------------- */}
       {/* 3. Unified Toolbar (Fleet Tabs, Search, Status Filter, Sort)          */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="bg-[#171922] border border-[#2B303C] rounded-xl p-2 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+      <div className="bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl p-2 flex flex-wrap items-center justify-between gap-3 shadow-xs">
         {/* Left: Segmented Tabs */}
-        <div className="inline-flex items-center bg-[#11131A] p-1 rounded-lg border border-[#252936]">
+        <div className="inline-flex items-center bg-slate-100 dark:bg-[#11131A] p-1 rounded-lg border border-slate-200/80 dark:border-[#252936]">
           <button
             type="button"
             onClick={() => setFleetTypeFilter("all")}
@@ -661,7 +679,7 @@ export default function GPSTrackingPage() {
               "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
               fleetTypeFilter === "all"
                 ? "bg-[#7965E9] text-white shadow-xs"
-                : "text-slate-400 hover:text-slate-200"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             )}
           >
             All Fleet
@@ -673,7 +691,7 @@ export default function GPSTrackingPage() {
               "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
               fleetTypeFilter === "company"
                 ? "bg-[#7965E9] text-white shadow-xs"
-                : "text-slate-400 hover:text-slate-200"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             )}
           >
             Company
@@ -685,7 +703,7 @@ export default function GPSTrackingPage() {
               "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer",
               fleetTypeFilter === "market"
                 ? "bg-[#7965E9] text-white shadow-xs"
-                : "text-slate-400 hover:text-slate-200"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             )}
           >
             Market / Attached
@@ -694,19 +712,19 @@ export default function GPSTrackingPage() {
 
         {/* Center: Search Input */}
         <div className="relative flex items-center flex-1 min-w-[220px] max-w-md">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 pointer-events-none" />
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 pointer-events-none" />
           <input
             type="text"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             placeholder="Search registration, driver or device ID..."
-            className="h-9 w-full pl-9 pr-8 text-xs bg-[#11131A] border border-[#2B303C] rounded-lg text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#7965E9] focus:border-[#7965E9] transition-colors"
+            className="h-9 w-full pl-9 pr-8 text-xs bg-slate-50 dark:bg-[#11131A] border border-slate-200 dark:border-[#2B303C] rounded-lg text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#7965E9] focus:border-[#7965E9] focus:bg-white dark:focus:bg-[#11131A] transition-colors"
           />
           {searchKeyword && (
             <button
               type="button"
               onClick={() => setSearchKeyword("")}
-              className="absolute right-2.5 text-slate-500 hover:text-slate-200"
+              className="absolute right-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -720,7 +738,7 @@ export default function GPSTrackingPage() {
             <select
               value={statusFilter}
               onChange={(e: any) => setStatusFilter(e.target.value)}
-              className="h-9 pl-3 pr-8 text-xs font-medium text-slate-300 bg-[#11131A] border border-[#2B303C] rounded-lg appearance-none cursor-pointer hover:border-slate-500 focus:outline-none focus:border-[#7965E9]"
+              className="h-9 pl-3 pr-8 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#11131A] border border-slate-200 dark:border-[#2B303C] rounded-lg appearance-none cursor-pointer hover:border-slate-300 dark:hover:border-slate-500 focus:outline-none focus:border-[#7965E9]"
             >
               <option value="all">🟢 All Status</option>
               <option value="running">🟢 Moving</option>
@@ -735,7 +753,7 @@ export default function GPSTrackingPage() {
             <select
               value={currentSort}
               onChange={(e: any) => setCurrentSort(e.target.value)}
-              className="h-9 pl-3 pr-8 text-xs font-medium text-slate-300 bg-[#11131A] border border-[#2B303C] rounded-lg appearance-none cursor-pointer hover:border-slate-500 focus:outline-none focus:border-[#7965E9]"
+              className="h-9 pl-3 pr-8 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#11131A] border border-slate-200 dark:border-[#2B303C] rounded-lg appearance-none cursor-pointer hover:border-slate-300 dark:hover:border-slate-500 focus:outline-none focus:border-[#7965E9]"
             >
               <option value="name">Sort: Registration</option>
               <option value="speed">Sort: Speed</option>
@@ -751,8 +769,8 @@ export default function GPSTrackingPage() {
             className={cn(
               "h-9 px-3 text-xs font-medium rounded-lg border transition-all cursor-pointer flex items-center gap-1.5",
               isSampleMode
-                ? "bg-[#7965E9]/20 border-[#7965E9] text-[#7965E9]"
-                : "bg-[#11131A] border-[#2B303C] text-slate-400 hover:text-slate-200"
+                ? "bg-[#7965E9]/15 border-[#7965E9] text-[#7965E9] font-semibold"
+                : "bg-slate-50 dark:bg-[#11131A] border-slate-200 dark:border-[#2B303C] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             )}
             title="Toggle between live connected GPS devices and sample fleet overview"
           >
@@ -771,28 +789,28 @@ export default function GPSTrackingPage() {
         {/* =================================================================== */}
         <aside
           className={cn(
-            "w-full lg:w-[360px] xl:w-[380px] bg-[#171922] border border-[#2B303C] rounded-xl flex flex-col shrink-0 overflow-hidden transition-all duration-300 shadow-sm",
+            "w-full lg:w-[360px] xl:w-[380px] bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl flex flex-col shrink-0 overflow-hidden transition-all duration-300 shadow-xs",
             isLeftPanelCollapsed && "lg:w-16"
           )}
         >
           {/* Header */}
-          <div className="p-3.5 border-b border-[#2B303C] flex items-center justify-between shrink-0">
+          <div className="p-3.5 border-b border-slate-200 dark:border-[#2B303C] flex items-center justify-between shrink-0">
             {!isLeftPanelCollapsed ? (
               <>
-                <h2 className="text-sm font-bold text-white tracking-tight">Vehicles</h2>
-                <span className="text-xs text-slate-400 font-medium">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Vehicles</h2>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   {filteredVehicles.length} vehicles
                 </span>
               </>
             ) : (
-              <span className="mx-auto text-xs font-bold text-slate-400">
+              <span className="mx-auto text-xs font-bold text-slate-500 dark:text-slate-400">
                 {filteredVehicles.length}
               </span>
             )}
           </div>
 
-          {/* Scrollable Cards List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+          {/* Scrollable Cards List (Progressive Loading to Prevent Stutter on 3,900+ Vehicles) */}
+          <div onScroll={handleSidebarScroll} className="flex-1 overflow-y-auto p-3 space-y-2.5">
             {isLoadingFleet ? (
               <div className="py-16 text-center text-slate-400 text-xs">
                 <RefreshCw className="w-5 h-5 text-[#7965E9] animate-spin mx-auto mb-2" />
@@ -801,13 +819,13 @@ export default function GPSTrackingPage() {
             ) : filteredVehicles.length === 0 ? (
               // Empty State
               <div className="py-12 px-4 text-center text-slate-400 text-xs flex flex-col items-center">
-                <div className="w-12 h-12 rounded-2xl bg-[#1B202D] border border-[#2B303C] flex items-center justify-center text-slate-500 mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-[#1B202D] border border-slate-200 dark:border-[#2B303C] flex items-center justify-center text-slate-500 mb-3">
                   <Truck className="w-6 h-6" />
                 </div>
-                <div className="text-sm font-bold text-white mb-1">
+                <div className="text-sm font-bold text-slate-900 dark:text-white mb-1">
                   No vehicles found
                 </div>
-                <p className="text-slate-400 leading-relaxed mb-4 max-w-xs">
+                <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-4 max-w-xs">
                   {searchKeyword
                     ? `No registered vehicle matches "${searchKeyword}".`
                     : config?.is_configured === false
@@ -834,75 +852,90 @@ export default function GPSTrackingPage() {
                 </button>
               </div>
             ) : (
-              filteredVehicles.map((v) => {
-                const isSelected = v.vehicleNumber === selectedVehicleNum;
-                const isRunning = v.speed > 0;
-                const isStopped = v.status === "stopped";
+              <>
+                {visibleVehicles.map((v) => {
+                  const isSelected = v.vehicleNumber === selectedVehicleNum;
+                  const isRunning = v.speed > 0;
+                  const isStopped = v.status === "stopped";
 
-                return (
-                  <div
-                    key={v.vehicleNumber}
-                    onClick={() => handleSelectVehicle(v.vehicleNumber)}
-                    className={cn(
-                      "rounded-xl p-3 cursor-pointer transition-all duration-200 flex items-center gap-3 relative select-none",
-                      isSelected
-                        ? "bg-[#181A25] border-2 border-[#7965E9] shadow-[0_0_15px_rgba(121,101,233,0.18)] ring-1 ring-[#7965E9]/50"
-                        : "bg-[#13151D] border border-[#262B37] hover:border-slate-500 shadow-2xs hover:bg-[#161822]"
-                    )}
-                  >
-                    {/* Truck Thumbnail Avatar */}
-                    <div className="w-12 h-12 rounded-lg bg-[#1B1E29] border border-[#2B303C] flex items-center justify-center shrink-0 overflow-hidden">
-                      <Truck className="w-6 h-6 text-slate-300" />
-                    </div>
+                  return (
+                    <div
+                      key={v.vehicleNumber}
+                      onClick={() => handleSelectVehicle(v.vehicleNumber)}
+                      className={cn(
+                        "rounded-xl p-3 cursor-pointer transition-all duration-200 flex items-center gap-3 relative select-none",
+                        isSelected
+                          ? "bg-indigo-50/80 dark:bg-[#181A25] border-2 border-[#7965E9] shadow-sm ring-1 ring-[#7965E9]/50"
+                          : "bg-slate-50/80 dark:bg-[#13151D] border border-slate-200/90 dark:border-[#262B37] hover:border-slate-300 dark:hover:border-slate-500 shadow-2xs hover:bg-slate-100/90 dark:hover:bg-[#161822]"
+                      )}
+                    >
+                      {/* Truck Thumbnail Avatar */}
+                      <div className="w-12 h-12 rounded-lg bg-white dark:bg-[#1B1E29] border border-slate-200 dark:border-[#2B303C] flex items-center justify-center shrink-0 overflow-hidden">
+                        <Truck className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+                      </div>
 
-                    {/* Middle Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold font-mono text-white text-xs sm:text-sm tracking-tight truncate">
-                        {v.vehicleNumber}
+                      {/* Middle Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold font-mono text-slate-900 dark:text-white text-xs sm:text-sm tracking-tight truncate">
+                          {v.vehicleNumber}
+                        </div>
+                        <div className="text-xs text-slate-600 dark:text-slate-400 truncate mt-0.5">
+                          {v.driverName || "Driver Unassigned"}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-500 truncate mt-0.5">
+                          {v.address || "Fetching location..."}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400 truncate mt-0.5">
-                        {v.driverName || "Driver Unassigned"}
-                      </div>
-                      <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {v.address || "Fetching location..."}
-                      </div>
-                    </div>
 
-                    {/* Right Info: Status, Speed & Time */}
-                    <div className="shrink-0 text-right">
-                      <div className="flex items-center justify-end gap-1.5 text-[11px] font-semibold">
-                        <span
-                          className={cn(
-                            "w-1.5 h-1.5 rounded-full",
-                            isRunning
-                              ? "bg-[#20B889]"
-                              : isStopped
-                              ? "bg-[#E66D7C]"
-                              : "bg-slate-400"
-                          )}
-                        />
-                        <span
-                          className={cn(
-                            isRunning
-                              ? "text-[#20B889]"
-                              : isStopped
-                              ? "text-[#E66D7C]"
-                              : "text-slate-400"
-                          )}
-                        >
-                          {isRunning ? "Moving" : isStopped ? "Stopped" : "No Signal"}
-                        </span>
-                      </div>
-                      <div className="font-bold font-mono text-white text-xs mt-1">
-                        {v.speed || 0} km/h
-                      </div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">
-                        {v.lastUpdated || "live"}
+                      {/* Right Info: Status, Speed & Time */}
+                      <div className="shrink-0 text-right">
+                        <div className="flex items-center justify-end gap-1.5 text-[11px] font-semibold">
+                          <span
+                            className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              isRunning
+                                ? "bg-emerald-500 dark:bg-[#20B889]"
+                                : isStopped
+                                ? "bg-rose-500 dark:bg-[#E66D7C]"
+                                : "bg-slate-400"
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              isRunning
+                                ? "text-emerald-600 dark:text-[#20B889]"
+                                : isStopped
+                                ? "text-rose-600 dark:text-[#E66D7C]"
+                                : "text-slate-500 dark:text-slate-400"
+                            )}
+                          >
+                            {isRunning ? "Moving" : isStopped ? "Stopped" : "No Signal"}
+                          </span>
+                        </div>
+                        <div className="font-bold font-mono text-slate-900 dark:text-white text-xs mt-1">
+                          {v.speed || 0} km/h
+                        </div>
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          {v.lastUpdated || "live"}
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+
+                {/* Show Load More Pill if there are more vehicles */}
+                {visibleVehicles.length < filteredVehicles.length && (
+                  <div className="py-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setRenderLimit((prev) => Math.min(prev + 100, filteredVehicles.length))}
+                      className="text-xs text-[#7965E9] hover:underline font-semibold cursor-pointer px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60"
+                    >
+                      Showing {visibleVehicles.length} of {filteredVehicles.length} — Load More
+                    </button>
                   </div>
-                );
-              })
+                )}
+              </>
             )}
           </div>
         </aside>
@@ -910,7 +943,7 @@ export default function GPSTrackingPage() {
         {/* =================================================================== */}
         {/* RIGHT PANEL: Dominant GPS Map Workspace                             */}
         {/* =================================================================== */}
-        <section className="flex-1 bg-[#171922] border border-[#2B303C] rounded-xl overflow-hidden relative flex flex-col shadow-sm">
+        <section className="flex-1 bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl overflow-hidden relative flex flex-col shadow-xs">
           {/* Real Map Component */}
           <GPSTrackingMap
             vehicle={selectedVehicleData}
@@ -927,15 +960,15 @@ export default function GPSTrackingPage() {
           {/* Floating Vehicle Details Card (Bottom Right - Matching Reference) */}
           {/* ----------------------------------------------------------------- */}
           {selectedVehicleData && isDetailsPanelVisible && (
-            <div className="absolute bottom-5 right-5 z-20 w-80 sm:w-96 bg-[#171922]/95 backdrop-blur-md border border-[#2B303C] rounded-2xl p-4 shadow-2xl animate-in fade-in duration-200">
+            <div className="absolute bottom-5 right-5 z-20 w-80 sm:w-96 bg-white/95 dark:bg-[#171922]/95 backdrop-blur-md border border-slate-200 dark:border-[#2B303C] rounded-2xl p-4 shadow-xl animate-in fade-in duration-200">
               {/* Header: Thumbnail + Number + Status Badge + Close X */}
-              <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#2B303C]">
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200 dark:border-[#2B303C]">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-[#1B1E29] border border-[#2B303C] flex items-center justify-center shrink-0">
-                    <Truck className="w-6 h-6 text-slate-300" />
+                  <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-[#1B1E29] border border-slate-200 dark:border-[#2B303C] flex items-center justify-center shrink-0">
+                    <Truck className="w-6 h-6 text-slate-600 dark:text-slate-300" />
                   </div>
                   <div>
-                    <h3 className="font-bold font-mono text-white text-sm tracking-tight">
+                    <h3 className="font-bold font-mono text-slate-900 dark:text-white text-sm tracking-tight">
                       {selectedVehicleData.vehicleNumber}
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5 text-xs">
@@ -943,9 +976,9 @@ export default function GPSTrackingPage() {
                         className={cn(
                           "w-2 h-2 rounded-full",
                           selectedVehicleData.speed > 0
-                            ? "bg-[#20B889]"
+                            ? "bg-emerald-500 dark:bg-[#20B889]"
                             : selectedVehicleData.status === "stopped"
-                            ? "bg-[#E66D7C]"
+                            ? "bg-rose-500 dark:bg-[#E66D7C]"
                             : "bg-slate-400"
                         )}
                       />
@@ -953,10 +986,10 @@ export default function GPSTrackingPage() {
                         className={cn(
                           "font-semibold text-[11px]",
                           selectedVehicleData.speed > 0
-                            ? "text-[#20B889]"
+                            ? "text-emerald-600 dark:text-[#20B889]"
                             : selectedVehicleData.status === "stopped"
-                            ? "text-[#E66D7C]"
-                            : "text-slate-400"
+                            ? "text-rose-600 dark:text-[#E66D7C]"
+                            : "text-slate-500 dark:text-slate-400"
                         )}
                       >
                         {selectedVehicleData.speed > 0
@@ -972,7 +1005,7 @@ export default function GPSTrackingPage() {
                 <button
                   type="button"
                   onClick={() => setIsDetailsPanelVisible(false)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
                   title="Close Card"
                 >
                   <X className="w-4 h-4" />
@@ -980,36 +1013,36 @@ export default function GPSTrackingPage() {
               </div>
 
               {/* Grid: Driver, Location, Speed, Last Update */}
-              <div className="grid grid-cols-2 gap-3 py-3 text-xs border-b border-[#2B303C]">
+              <div className="grid grid-cols-2 gap-3 py-3 text-xs border-b border-slate-200 dark:border-[#2B303C]">
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
                     Driver
                   </span>
-                  <span className="font-medium text-slate-200 truncate block mt-0.5">
+                  <span className="font-medium text-slate-800 dark:text-slate-200 truncate block mt-0.5">
                     {selectedVehicleData.driverName || "Rahul Sharma"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
                     Location
                   </span>
-                  <span className="font-medium text-slate-200 truncate block mt-0.5">
+                  <span className="font-medium text-slate-800 dark:text-slate-200 truncate block mt-0.5">
                     {selectedVehicleData.address || "Sector 18, Noida, UP"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
                     Speed
                   </span>
-                  <span className="font-bold font-mono text-white block mt-0.5">
+                  <span className="font-bold font-mono text-slate-900 dark:text-white block mt-0.5">
                     {selectedVehicleData.speed || 0} km/h
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10px] uppercase font-semibold">
                     Last Update
                   </span>
-                  <span className="font-medium text-slate-200 block mt-0.5">
+                  <span className="font-medium text-slate-800 dark:text-slate-200 block mt-0.5">
                     {selectedVehicleData.lastUpdated || "Just now"}
                   </span>
                 </div>
@@ -1020,15 +1053,15 @@ export default function GPSTrackingPage() {
                 <button
                   type="button"
                   onClick={() => handleOpenRouteHistory()}
-                  className="flex-1 h-9 px-3 text-xs font-semibold text-slate-200 bg-[#11131A] hover:bg-[#1E212D] border border-[#2B303C] rounded-xl inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  className="flex-1 h-9 px-3 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-[#11131A] hover:bg-slate-200/80 dark:hover:bg-[#1E212D] border border-slate-200 dark:border-[#2B303C] rounded-xl inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+                  <KeyRound className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   <span>Route History</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsSpecsDrawerOpen(true)}
-                  className="flex-1 h-9 px-3 text-xs font-semibold text-white bg-[#7965E9] hover:bg-[#6854D8] rounded-xl inline-flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
+                  className="flex-1 h-9 px-3 text-xs font-semibold text-white bg-[#7965E9] hover:bg-[#6854D8] rounded-xl inline-flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Details</span>
@@ -1044,35 +1077,35 @@ export default function GPSTrackingPage() {
       {/* ---------------------------------------------------------------------- */}
       {isHistoryDrawerOpen && selectedVehicleData && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#171922] h-full shadow-2xl flex flex-col justify-between border-l border-[#2B303C]">
+          <div className="w-full max-w-md bg-white dark:bg-[#171922] h-full shadow-2xl flex flex-col justify-between border-l border-slate-200 dark:border-[#2B303C]">
             {/* Header */}
-            <div className="p-4 border-b border-[#2B303C] flex items-center justify-between">
+            <div className="p-4 border-b border-slate-200 dark:border-[#2B303C] flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span>Route History — {selectedVehicleData.vehicleNumber}</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Telemetry history, travel duration &amp; stoppages
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsHistoryDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Date filter selector */}
-            <div className="p-3 border-b border-[#2B303C] flex items-center justify-between gap-2 bg-[#12141C]">
+            <div className="p-3 border-b border-slate-200 dark:border-[#2B303C] flex items-center justify-between gap-2 bg-slate-50 dark:bg-[#12141C]">
               <select
                 value={historyDate}
                 onChange={(e: any) => {
                   setHistoryDate(e.target.value);
                   handleOpenRouteHistory(selectedVehicleData.vehicleNumber);
                 }}
-                className="h-8 px-2.5 bg-[#171922] border border-[#2B303C] rounded-lg text-xs font-semibold text-slate-200 focus:outline-none"
+                className="h-8 px-2.5 bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none"
               >
                 <option value="today">Today</option>
                 <option value="yesterday">Yesterday</option>
@@ -1082,7 +1115,7 @@ export default function GPSTrackingPage() {
               <button
                 type="button"
                 onClick={() => handleOpenRouteHistory(selectedVehicleData.vehicleNumber)}
-                className="p-1.5 text-slate-400 hover:text-white transition-colors"
+                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                 title="Refresh History"
               >
                 <RefreshCw className={cn("w-3.5 h-3.5", isLoadingHistory && "animate-spin")} />
@@ -1093,24 +1126,24 @@ export default function GPSTrackingPage() {
             <div className="p-4 space-y-3 overflow-y-auto flex-1 text-xs">
               {/* Distance Metrics Strip */}
               {routeMetrics && (
-                <div className="p-3 rounded-xl bg-[#12141C] border border-[#2B303C] flex items-center justify-between text-xs">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#12141C] border border-slate-200 dark:border-[#2B303C] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-slate-500 block text-[10px]">Traveled</span>
-                    <span className="font-bold text-[#20B889] font-mono">
+                    <span className="font-bold text-emerald-600 dark:text-[#20B889] font-mono">
                       {routeMetrics.coveredKm.toFixed(0)} km
                     </span>
                   </div>
-                  <div className="h-6 w-[1px] bg-[#2B303C]" />
+                  <div className="h-6 w-[1px] bg-slate-200 dark:bg-[#2B303C]" />
                   <div>
                     <span className="text-slate-500 block text-[10px]">Remaining</span>
                     <span className="font-bold text-[#7965E9] font-mono">
                       {routeMetrics.remainingKm.toFixed(0)} km
                     </span>
                   </div>
-                  <div className="h-6 w-[1px] bg-[#2B303C]" />
+                  <div className="h-6 w-[1px] bg-slate-200 dark:bg-[#2B303C]" />
                   <div>
                     <span className="text-slate-500 block text-[10px]">Total Trip</span>
-                    <span className="font-bold text-white font-mono">
+                    <span className="font-bold text-slate-900 dark:text-white font-mono">
                       {routeMetrics.totalKm.toFixed(0)} km
                     </span>
                   </div>
@@ -1124,8 +1157,8 @@ export default function GPSTrackingPage() {
                   <p>Loading historical GPS coordinates...</p>
                 </div>
               ) : historyTimeline.length === 0 ? (
-                <div className="py-12 text-center text-slate-400">
-                  <Clock className="w-6 h-6 text-slate-500 mx-auto mb-2" />
+                <div className="py-12 text-center text-slate-500 dark:text-slate-400">
+                  <Clock className="w-6 h-6 text-slate-400 dark:text-slate-500 mx-auto mb-2" />
                   <p>No historical telemetry logs available for this period.</p>
                 </div>
               ) : (
@@ -1138,22 +1171,22 @@ export default function GPSTrackingPage() {
                           className={cn(
                             "w-3 h-3 rounded-full border-2",
                             isStop
-                              ? "bg-[#E66D7C] border-[#E66D7C]/40"
-                              : "bg-[#20B889] border-[#20B889]/40"
+                              ? "bg-rose-500 dark:bg-[#E66D7C] border-rose-200 dark:border-[#E66D7C]/40"
+                              : "bg-emerald-500 dark:bg-[#20B889] border-emerald-200 dark:border-[#20B889]/40"
                           )}
                         />
                       </div>
-                      <div className="flex-1 bg-[#12141C] border border-[#2B303C] rounded-xl p-3 text-xs">
+                      <div className="flex-1 bg-slate-50 dark:bg-[#12141C] border border-slate-200 dark:border-[#2B303C] rounded-xl p-3 text-xs">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-bold text-white">{item.title}</span>
-                          <span className="font-mono text-[10px] text-slate-400 bg-[#171922] px-2 py-0.5 rounded border border-[#2B303C]">
+                          <span className="font-bold text-slate-900 dark:text-white">{item.title}</span>
+                          <span className="font-mono text-[10px] text-slate-600 dark:text-slate-400 bg-white dark:bg-[#171922] px-2 py-0.5 rounded border border-slate-200 dark:border-[#2B303C]">
                             {item.duration}
                           </span>
                         </div>
-                        <p className="text-slate-400 leading-relaxed mb-1">
+                        <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-1">
                           {item.address || "Location unavailable"}
                         </p>
-                        <div className="text-[10px] text-slate-500 font-mono">
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                           {item.time_range}
                         </div>
                       </div>
@@ -1164,11 +1197,11 @@ export default function GPSTrackingPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-[#2B303C] flex items-center justify-end bg-[#12141C]">
+            <div className="p-4 border-t border-slate-200 dark:border-[#2B303C] flex items-center justify-end bg-slate-50 dark:bg-[#12141C]">
               <button
                 type="button"
                 onClick={() => setIsHistoryDrawerOpen(false)}
-                className="h-9 px-4 text-xs font-semibold text-slate-300 bg-[#171922] hover:bg-[#202330] border border-[#2B303C] rounded-xl transition-colors cursor-pointer"
+                className="h-9 px-4 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-[#171922] hover:bg-slate-100 dark:hover:bg-[#202330] border border-slate-200 dark:border-[#2B303C] rounded-xl transition-colors cursor-pointer"
               >
                 Close History
               </button>
@@ -1182,21 +1215,21 @@ export default function GPSTrackingPage() {
       {/* ---------------------------------------------------------------------- */}
       {isSpecsDrawerOpen && selectedVehicleData && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#171922] h-full shadow-2xl flex flex-col justify-between border-l border-[#2B303C]">
+          <div className="w-full max-w-md bg-white dark:bg-[#171922] h-full shadow-2xl flex flex-col justify-between border-l border-slate-200 dark:border-[#2B303C]">
             {/* Header */}
-            <div className="p-4 border-b border-[#2B303C] flex items-center justify-between">
+            <div className="p-4 border-b border-slate-200 dark:border-[#2B303C] flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span>Vehicle Details — {selectedVehicleData.vehicleNumber}</span>
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Specifications, engine diagnostics &amp; telematics info
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsSpecsDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1205,63 +1238,63 @@ export default function GPSTrackingPage() {
             {/* Body */}
             <div className="p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
               {/* Vehicle Specifications */}
-              <div className="bg-[#12141C] p-3.5 rounded-xl border border-[#2B303C] space-y-2">
+              <div className="bg-slate-50 dark:bg-[#12141C] p-3.5 rounded-xl border border-slate-200 dark:border-[#2B303C] space-y-2">
                 <div className="text-[11px] font-bold text-[#7965E9] uppercase tracking-wide">
                   Fleet Specifications
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-slate-500 block text-[10px]">Fleet Type</span>
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {selectedVehicleData.isCompany ? "Company Owned" : "Market Attached"}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Group / Division</span>
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {selectedVehicleData.groupName || "Panther Logistics"}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Driver</span>
-                    <span className="font-medium text-slate-300">
+                    <span className="font-medium text-slate-700 dark:text-slate-300">
                       {selectedVehicleData.driverName || "Unassigned"}
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">GPS Provider</span>
-                    <span className="font-medium text-slate-300">WheelsEye Telematics</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">WheelsEye Telematics</span>
                   </div>
                 </div>
               </div>
 
               {/* Live Diagnostics */}
-              <div className="bg-[#12141C] p-3.5 rounded-xl border border-[#2B303C] space-y-2">
-                <div className="text-[11px] font-bold text-[#20B889] uppercase tracking-wide">
+              <div className="bg-slate-50 dark:bg-[#12141C] p-3.5 rounded-xl border border-slate-200 dark:border-[#2B303C] space-y-2">
+                <div className="text-[11px] font-bold text-emerald-600 dark:text-[#20B889] uppercase tracking-wide">
                   Live Engine Diagnostics
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C]">
                     <span className="text-slate-500 block text-[10px]">Engine Ignition</span>
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-slate-900 dark:text-white">
                       {selectedVehicleData.ignition ? "RUNNING (ON)" : "STOPPED (OFF)"}
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C]">
                     <span className="text-slate-500 block text-[10px]">Device Battery</span>
-                    <span className="font-bold text-[#20B889]">
+                    <span className="font-bold text-emerald-600 dark:text-[#20B889]">
                       {selectedVehicleData.battery || 100}%
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C]">
                     <span className="text-slate-500 block text-[10px]">Odometer Reading</span>
-                    <span className="font-bold text-white font-mono">
+                    <span className="font-bold text-slate-900 dark:text-white font-mono">
                       {selectedVehicleData.odometer ? `${selectedVehicleData.odometer} km` : "N/A"}
                     </span>
                   </div>
-                  <div className="p-2.5 rounded-lg bg-[#171922] border border-[#2B303C]">
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C]">
                     <span className="text-slate-500 block text-[10px]">Today Distance</span>
-                    <span className="font-bold text-white font-mono">
+                    <span className="font-bold text-slate-900 dark:text-white font-mono">
                       {selectedVehicleData.todayKm || 0} km
                     </span>
                   </div>
@@ -1270,13 +1303,13 @@ export default function GPSTrackingPage() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-[#2B303C] flex items-center justify-end gap-2 bg-[#12141C]">
+            <div className="p-4 border-t border-slate-200 dark:border-[#2B303C] flex items-center justify-end bg-slate-50 dark:bg-[#12141C]">
               <button
                 type="button"
                 onClick={() => setIsSpecsDrawerOpen(false)}
-                className="h-9 px-4 text-xs font-semibold text-slate-300 bg-[#171922] hover:bg-[#202330] border border-[#2B303C] rounded-xl transition-colors cursor-pointer"
+                className="h-9 px-4 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-[#171922] hover:bg-slate-100 dark:hover:bg-[#202330] border border-slate-200 dark:border-[#2B303C] rounded-xl transition-colors cursor-pointer"
               >
-                Close
+                Close Details
               </button>
             </div>
           </div>

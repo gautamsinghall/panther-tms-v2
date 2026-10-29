@@ -197,6 +197,7 @@ export default function LRRegisterPage() {
 
   // Table Horizontal Scroll & Column Slider State
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const rafScrollRef = useRef<number | null>(null);
   const [canScrollHorizontally, setCanScrollHorizontally] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [maxScrollLeft, setMaxScrollLeft] = useState(0);
@@ -425,7 +426,12 @@ export default function LRRegisterPage() {
     if (!el) return;
 
     const handleScroll = () => {
-      setScrollPosition(el.scrollLeft);
+      if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
+      rafScrollRef.current = requestAnimationFrame(() => {
+        if (tableContainerRef.current) {
+          setScrollPosition(tableContainerRef.current.scrollLeft);
+        }
+      });
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
@@ -443,6 +449,7 @@ export default function LRRegisterPage() {
       el.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", checkScrollable);
       if (resizeObserver) resizeObserver.disconnect();
+      if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
     };
   }, [checkScrollable, visibleColumns, paginatedData, data]);
 
@@ -453,10 +460,13 @@ export default function LRRegisterPage() {
   };
 
   const handleSliderChange = (newVal: number) => {
-    setScrollPosition(newVal);
     if (tableContainerRef.current) {
       tableContainerRef.current.scrollLeft = newVal;
     }
+    if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
+    rafScrollRef.current = requestAnimationFrame(() => {
+      setScrollPosition(newVal);
+    });
   };
 
   // Export to Excel / CSV with UTF-8 BOM
@@ -941,7 +951,7 @@ export default function LRRegisterPage() {
         {/* -------------------------------------------------------------------- */}
         {/* Table Container with Horizontal Scroll                               */}
         {/* -------------------------------------------------------------------- */}
-        <div ref={tableContainerRef} className="overflow-x-auto min-w-full scroll-smooth">
+        <div ref={tableContainerRef} className="overflow-x-auto min-w-full">
           <table className="w-full text-xs text-left border-collapse">
             {/* Table Header: Dark Graphite Header matching Redesign Target */}
             <thead className="bg-slate-100 dark:bg-[#101116] text-slate-600 dark:text-slate-400 select-none border-b border-slate-200 dark:border-[#22232E]">

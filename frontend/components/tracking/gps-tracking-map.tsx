@@ -13,6 +13,7 @@ import {
   Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/lib/theme-context";
 
 export interface GPSVehicleData {
   vehicleNumber: string;
@@ -57,6 +58,26 @@ interface GPSTrackingMapProps {
 // In-memory geocode and road route caches
 const waypointGeocodeCache: Record<string, [number, number]> = {};
 const roadRouteCache: Record<string, { coords: [number, number][]; distanceKm: number }> = {};
+
+// Official Google Maps Dark Theme JSON tokens for PantherTMS Obsidian/Graphite theme
+const DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#1E2029" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#181A22" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8C90A0" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#D1D5DB" }] },
+  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#9CA3AF" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#162723" }] },
+  { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#48BB78" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2B2E3D" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#202330" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9CA3AF" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3B3F54" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#282B3B" }] },
+  { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#E2E8F0" }] },
+  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#252836" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#111726" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#60A5FA" }] },
+];
 
 function haversineDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -211,6 +232,7 @@ export function GPSTrackingMap({
   isSampleData = false,
 }: GPSTrackingMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const { isDark } = useTheme();
   const [mapEngine, setMapEngine] = useState<"google" | "leaflet">("leaflet");
   const [isMapReady, setIsMapReady] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -239,6 +261,7 @@ export function GPSTrackingMap({
   const googleRemainingLineRef = useRef<any>(null);
 
   const leafletMapRef = useRef<any>(null);
+  const leafletTileLayerRef = useRef<any>(null);
   const leafletSelectedMarkerRef = useRef<any>(null);
   const leafletFleetMarkersRef = useRef<any[]>([]);
   const leafletRouteMarkersRef = useRef<any[]>([]);
@@ -289,15 +312,22 @@ export function GPSTrackingMap({
       attributionControl: false,
     }).setView(initialCenter, vehicleRef.current?.latitude ? 13 : 11);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const tileUrl = isDark
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+    const subdomains = isDark ? "abcd" : "abc";
+
+    const tileLayer = L.tileLayer(tileUrl, {
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap",
+      subdomains,
+      attribution: isDark ? "&copy; CARTO &copy; OpenStreetMap" : "&copy; OpenStreetMap",
     }).addTo(map);
 
+    leafletTileLayerRef.current = tileLayer;
     leafletMapRef.current = map;
     setMapEngine("leaflet");
     setIsMapReady(true);
-  }, []);
+  }, [isDark]);
 
   // Initialize Google Maps
   const initGoogleMaps = useCallback(() => {
@@ -321,12 +351,39 @@ export function GPSTrackingMap({
       streetViewControl: false,
       fullscreenControl: false,
       zoomControl: false,
+      styles: isDark ? DARK_MAP_STYLE : [],
     });
 
     googleMapRef.current = map;
     setMapEngine("google");
     setIsMapReady(true);
-  }, []);
+  }, [isDark]);
+
+  // Dynamically synchronize Google Maps & Leaflet styles when theme changes
+  useEffect(() => {
+    if (googleMapRef.current) {
+      googleMapRef.current.setOptions({
+        styles: isDark ? DARK_MAP_STYLE : [],
+      });
+    }
+
+    if (leafletMapRef.current && (window as any).L) {
+      const L = (window as any).L;
+      if (leafletTileLayerRef.current) {
+        leafletMapRef.current.removeLayer(leafletTileLayerRef.current);
+      }
+      const tileUrl = isDark
+        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+      const subdomains = isDark ? "abcd" : "abc";
+
+      leafletTileLayerRef.current = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        subdomains,
+        attribution: isDark ? "&copy; CARTO &copy; OpenStreetMap" : "&copy; OpenStreetMap",
+      }).addTo(leafletMapRef.current);
+    }
+  }, [isDark]);
 
   // Map Engine Loading
   useEffect(() => {
@@ -779,7 +836,7 @@ export function GPSTrackingMap({
   };
 
   return (
-    <div className={`relative w-full h-full min-h-[450px] bg-[#171922] overflow-hidden ${className}`}>
+    <div className={`relative w-full h-full min-h-[450px] bg-slate-100 dark:bg-[#171922] overflow-hidden ${className}`}>
       {/* Map DOM Container */}
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full z-0" />
 
@@ -793,7 +850,7 @@ export function GPSTrackingMap({
             setMapEngine((prev) => (prev === "leaflet" ? "google" : "leaflet"));
           }}
           title="Switch Map Engine"
-          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-all cursor-pointer"
+          className="w-10 h-10 rounded-xl bg-white/95 dark:bg-[#171922]/95 hover:bg-slate-100 dark:hover:bg-[#202330] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#2B303C] shadow-md flex flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-all cursor-pointer"
         >
           <Layers className="w-4 h-4 text-[#7965E9]" />
           <span>Layers</span>
@@ -804,9 +861,9 @@ export function GPSTrackingMap({
           type="button"
           onClick={handleFitFleet}
           title="Fit All Vehicles"
-          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-all cursor-pointer"
+          className="w-10 h-10 rounded-xl bg-white/95 dark:bg-[#171922]/95 hover:bg-slate-100 dark:hover:bg-[#202330] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#2B303C] shadow-md flex flex-col items-center justify-center gap-0.5 text-[9px] font-semibold transition-all cursor-pointer"
         >
-          <Crosshair className="w-4 h-4 text-emerald-400" />
+          <Crosshair className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           <span>Fit Fleet</span>
         </button>
 
@@ -815,9 +872,9 @@ export function GPSTrackingMap({
           type="button"
           onClick={handleZoomIn}
           title="Zoom In"
-          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex items-center justify-center transition-all cursor-pointer text-lg font-bold"
+          className="w-10 h-10 rounded-xl bg-white/95 dark:bg-[#171922]/95 hover:bg-slate-100 dark:hover:bg-[#202330] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#2B303C] shadow-md flex items-center justify-center transition-all cursor-pointer text-lg font-bold"
         >
-          <ZoomIn className="w-4 h-4 text-slate-300" />
+          <ZoomIn className="w-4 h-4 text-slate-600 dark:text-slate-300" />
         </button>
 
         {/* Zoom Out */}
@@ -825,23 +882,23 @@ export function GPSTrackingMap({
           type="button"
           onClick={handleZoomOut}
           title="Zoom Out"
-          className="w-10 h-10 rounded-xl bg-[#171922]/95 hover:bg-[#202330] text-slate-200 border border-[#2B303C] shadow-lg flex items-center justify-center transition-all cursor-pointer text-lg font-bold"
+          className="w-10 h-10 rounded-xl bg-white/95 dark:bg-[#171922]/95 hover:bg-slate-100 dark:hover:bg-[#202330] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#2B303C] shadow-md flex items-center justify-center transition-all cursor-pointer text-lg font-bold"
         >
-          <ZoomOut className="w-4 h-4 text-slate-300" />
+          <ZoomOut className="w-4 h-4 text-slate-600 dark:text-slate-300" />
         </button>
       </div>
 
       {/* Floating Status Pill (Bottom Left - Matching Reference Screenshot) */}
       <div className="absolute bottom-4 left-4 z-20">
-        <div className="px-3 py-1.5 rounded-lg bg-[#171922]/95 backdrop-blur-md text-xs font-medium text-slate-300 border border-[#2B303C] shadow-lg flex items-center gap-2">
+        <div className="px-3 py-1.5 rounded-lg bg-white/95 dark:bg-[#171922]/95 backdrop-blur-md text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#2B303C] shadow-md flex items-center gap-2">
           {isSampleData ? (
             <>
-              <span className="w-2 h-2 rounded-full bg-blue-400" />
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
               <span>Displaying sample fleet data</span>
             </>
           ) : (
             <>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Live fleet tracking active</span>
             </>
           )}

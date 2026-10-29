@@ -631,7 +631,8 @@ html.dark body {
 
 html.dark #workspace-main-canvas,
 html.dark #workspace-form-canvas,
-html.dark .bg-\[\#F8FAFC\] {
+html.dark .bg-\[\#F8FAFC\],
+html.dark .bg-\[\#F3F5FC\] {
   background-color: #0B0B0D !important;
 }
 
