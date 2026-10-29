@@ -735,6 +735,7 @@ export default function LRBookingPage() {
   }, [manualSeriesData, seriesInfo, jobs, activeOfficeDisplay, activeOffice]);
 
   const handledJobIdsRef = useRef<Set<string>>(new Set());
+  const handledEditIdsRef = useRef<Set<string>>(new Set());
 
   const handleCloseDrawer = useCallback(() => {
     setIsDrawerOpen(false);
@@ -743,8 +744,10 @@ export default function LRBookingPage() {
     setDrawerError(null);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      if (url.searchParams.has("job_id")) {
+      if (url.searchParams.has("job_id") || url.searchParams.has("id") || url.searchParams.has("edit")) {
         url.searchParams.delete("job_id");
+        url.searchParams.delete("id");
+        url.searchParams.delete("edit");
         window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
       }
     }
@@ -761,6 +764,24 @@ export default function LRBookingPage() {
       }
     }
   }, [jobs, isDrawerOpen, editingLrId, openCreateDrawer]);
+
+  // Auto-open edit drawer if URL contains ?id=... or ?edit=...
+  useEffect(() => {
+    if (typeof window !== "undefined" && !isDrawerOpen && !editingLrId) {
+      const sp = new URLSearchParams(window.location.search);
+      const qEditId = sp.get("id") || sp.get("edit");
+      if (qEditId && !handledEditIdsRef.current.has(qEditId)) {
+        handledEditIdsRef.current.add(qEditId);
+        apiClient<LRRecord>(`/api/v1/transport/lrs/${qEditId}`)
+          .then((record) => {
+            if (record && record.id) {
+              openEditDrawer(record);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [isDrawerOpen, editingLrId, openEditDrawer]);
 
   const handleSubmit = async (values: Record<string, any>) => {
     if (isSubmitting) return;
@@ -861,8 +882,10 @@ export default function LRBookingPage() {
       // Clear URL query parameter to avoid auto-reopening or duplicate submissions
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
-        if (url.searchParams.has("job_id")) {
+        if (url.searchParams.has("job_id") || url.searchParams.has("id") || url.searchParams.has("edit")) {
           url.searchParams.delete("job_id");
+        url.searchParams.delete("id");
+        url.searchParams.delete("edit");
           window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
         }
       }

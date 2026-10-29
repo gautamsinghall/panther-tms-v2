@@ -52,7 +52,6 @@ interface GPSTrackingMapProps {
   onMetricsComputed?: (metrics: { coveredKm: number; remainingKm: number; totalKm: number }) => void;
   onSelectVehicle?: (vehicleNumber: string) => void;
   className?: string;
-  isSampleData?: boolean;
 }
 
 // In-memory geocode and road route caches
@@ -229,7 +228,6 @@ export function GPSTrackingMap({
   onMetricsComputed,
   onSelectVehicle,
   className = "",
-  isSampleData = false,
 }: GPSTrackingMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const { isDark } = useTheme();
@@ -888,20 +886,11 @@ export function GPSTrackingMap({
         </button>
       </div>
 
-      {/* Floating Status Pill (Bottom Left - Matching Reference Screenshot) */}
+      {/* Floating Status Pill (Bottom Left - Live Fleet Status) */}
       <div className="absolute bottom-4 left-4 z-20">
         <div className="px-3 py-1.5 rounded-lg bg-white/95 dark:bg-[#171922]/95 backdrop-blur-md text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#2B303C] shadow-md flex items-center gap-2">
-          {isSampleData ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
-              <span>Displaying sample fleet data</span>
-            </>
-          ) : (
-            <>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live fleet tracking active</span>
-            </>
-          )}
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Live fleet tracking active</span>
         </div>
       </div>
     </div>

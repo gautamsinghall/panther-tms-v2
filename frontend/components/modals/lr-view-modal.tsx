@@ -3,6 +3,7 @@ import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   X,
   Printer,
@@ -12,6 +13,7 @@ import {
   Building2,
   Phone,
   Mail,
+  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
@@ -108,9 +110,11 @@ interface LRViewModalProps {
   isOpen: boolean;
   lr: LRViewRecord | null;
   onClose: () => void;
+  onEdit?: (lr: LRViewRecord) => void;
 }
 
-export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
+export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [company, setCompany] = useState<CompanySettingData | null>(null);
   const [issuingBranch, setIssuingBranch] = useState<BranchData | null>(null);
@@ -1090,6 +1094,26 @@ export function LRViewModal({ isOpen, lr, onClose }: LRViewModalProps) {
                 <Download className="w-3.5 h-3.5 text-blue-600" />
               )}
               <span>{isDownloadingAllPdf ? "Downloading..." : "Download All"}</span>
+            </Button>
+
+            {/* Edit LR Option (Matching Reference UI) */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (onEdit) {
+                  onEdit(lr);
+                } else if (lr?.id) {
+                  router.push(`/transport/lr-booking?id=${lr.id}`);
+                }
+                onClose();
+              }}
+              className="text-xs font-semibold h-8 gap-1.5 bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 shadow-2xs cursor-pointer ml-0.5"
+              title="Edit this LR booking"
+            >
+              <Edit className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+              <span>Edit LR</span>
             </Button>
 
             <button

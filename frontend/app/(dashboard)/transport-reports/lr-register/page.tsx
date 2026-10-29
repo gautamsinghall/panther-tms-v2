@@ -16,7 +16,6 @@ import {
   Calendar,
   X,
   ExternalLink,
-  Eye,
   AlertCircle,
   FileText,
   Truck,
@@ -28,6 +27,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
 
 // ------------------------------------------------------------------------------
 // Types & Column Definitions
@@ -202,8 +202,19 @@ export default function LRRegisterPage() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [maxScrollLeft, setMaxScrollLeft] = useState(0);
 
-  // Quick View Drawer Modal
-  const [selectedRowForDrawer, setSelectedRowForDrawer] = useState<LRRegisterRow | null>(null);
+  // Full LR Consignment Note View Modal (Matching Reference UI)
+  const [selectedLrForView, setSelectedLrForView] = useState<LRViewRecord | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+  const handleOpenLRView = async (row: LRRegisterRow) => {
+    try {
+      const full = await apiClient<any>(`/api/v1/transport/lrs/${row.id}`);
+      setSelectedLrForView(full || (row as any));
+    } catch {
+      setSelectedLrForView(row as any);
+    }
+    setIsViewModalOpen(true);
+  };
 
   // Close column menu when clicking outside
   useEffect(() => {
@@ -987,9 +998,6 @@ export default function LRRegisterPage() {
                     </th>
                   );
                 })}
-                <th className="py-3 px-3.5 font-medium text-center w-16 print:hidden">
-                  Action
-                </th>
               </tr>
             </thead>
 
@@ -1007,16 +1015,13 @@ export default function LRRegisterPage() {
                         </td>
                       );
                     })}
-                    <td className="py-3 px-3.5 print:hidden">
-                      <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-8 mx-auto" />
-                    </td>
                   </tr>
                 ))
               ) : paginatedData.length === 0 ? (
                 // Clean Empty State
                 <tr>
                   <td
-                    colSpan={AVAILABLE_COLUMNS.filter((c) => visibleColumns[c.key]).length + 1}
+                    colSpan={AVAILABLE_COLUMNS.filter((c) => visibleColumns[c.key]).length}
                     className="py-12 text-center text-slate-500 dark:text-slate-400 bg-white dark:bg-[#121319]"
                   >
                     <div className="flex flex-col items-center justify-center space-y-2.5">
@@ -1054,7 +1059,7 @@ export default function LRRegisterPage() {
                       >
                         <button
                           type="button"
-                          onClick={() => setSelectedRowForDrawer(row)}
+                          onClick={() => handleOpenLRView(row)}
                           className="font-mono font-medium text-[#7F56D9] dark:text-[#9370DB] hover:text-[#5249E6] dark:hover:text-[#A78BFA] underline underline-offset-2 decoration-[#7F56D9]/40 hover:decoration-[#A78BFA] cursor-pointer transition-colors"
                         >
                           {row.lr_number}
@@ -1216,27 +1221,6 @@ export default function LRRegisterPage() {
                         {row.payment_terms || "-"}
                       </td>
                     )}
-
-                    {/* Action Column */}
-                    <td className="py-3 px-3.5 text-center whitespace-nowrap print:hidden">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRowForDrawer(row)}
-                          title="View Details"
-                          className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <Link
-                          href={`/transport/lr-booking?id=${row.id}`}
-                          title="Open in LR Booking"
-                          className="p-1 rounded text-slate-400 hover:text-[#635BFF] transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </Link>
-                      </div>
-                    </td>
                   </tr>
                 ))
               )}
@@ -1304,171 +1288,13 @@ export default function LRRegisterPage() {
       </div>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* 5. Quick View LR Details Drawer Modal                                  */}
+      {/* 5. Full LR Consignment Note View Modal                                 */}
       {/* ---------------------------------------------------------------------- */}
-      {selectedRowForDrawer && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-white dark:bg-[#121319] h-full shadow-2xl flex flex-col justify-between border-l border-slate-200 dark:border-[#22232E]">
-            {/* Drawer Header */}
-            <div className="p-4 border-b border-slate-200 dark:border-[#22232E] flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <span>GR / LR #{selectedRowForDrawer.lr_number}</span>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-[#0E2417] text-emerald-700 dark:text-[#34D399] border border-emerald-200 dark:border-[#1B432B]">
-                    {selectedRowForDrawer.booking_status || "Booked"}
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Booked on {formatDateDisplay(selectedRowForDrawer.lr_date)} · {formatOfficeName(selectedRowForDrawer.issuing_office_name)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRowForDrawer(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Drawer Body */}
-            <div className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
-              {/* Client & Parties */}
-              <div className="bg-slate-50 dark:bg-[#171821] p-3.5 rounded-xl border border-slate-200 dark:border-[#272835] space-y-2">
-                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Client & Parties
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Client / Billing</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {selectedRowForDrawer.client_name || "N/A"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Party Invoice No.</span>
-                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                      {selectedRowForDrawer.party_invoice_no || "-"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Consigner</span>
-                    <span className="text-slate-700 dark:text-slate-300">
-                      {selectedRowForDrawer.consigner_name || "-"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Consignee</span>
-                    <span className="text-slate-700 dark:text-slate-300">
-                      {selectedRowForDrawer.consignee_name || "-"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Transit & Route */}
-              <div className="bg-slate-50 dark:bg-[#171821] p-3.5 rounded-xl border border-slate-200 dark:border-[#272835] space-y-2">
-                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Route & Vehicle
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Origin</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
-                      {formatLocation(selectedRowForDrawer.site_from)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Destination</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
-                      {formatLocation(selectedRowForDrawer.site_to)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Vehicle Number</span>
-                    <span className="font-mono font-bold uppercase text-slate-900 dark:text-white">
-                      {selectedRowForDrawer.vehicle_number}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">E-Way Bill</span>
-                    <span className="font-mono text-slate-900 dark:text-white">
-                      {selectedRowForDrawer.eway_bill_number || "-"}
-                    </span>
-                  </div>
-                  {selectedRowForDrawer.driver_name && (
-                    <div className="col-span-2">
-                      <span className="text-slate-400 block text-[10px]">Driver</span>
-                      <span className="text-slate-700 dark:text-slate-300">
-                        {selectedRowForDrawer.driver_name} {selectedRowForDrawer.driver_phone ? `(${selectedRowForDrawer.driver_phone})` : ""}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Cargo & Financials */}
-              <div className="bg-slate-50 dark:bg-[#171821] p-3.5 rounded-xl border border-slate-200 dark:border-[#272835] space-y-2">
-                <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                  Cargo & Financial Breakdown
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Package Count</span>
-                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                      {selectedRowForDrawer.package_count || 0} pkgs
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Actual Weight</span>
-                    <span className="font-mono font-semibold text-slate-900 dark:text-white">
-                      {Number(selectedRowForDrawer.actual_weight_mt || 0).toFixed(3)} MT
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Total Freight</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      {formatCurrency(selectedRowForDrawer.total_freight_amount)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Advance Paid</span>
-                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                      {formatCurrency(selectedRowForDrawer.advance_amount)}
-                    </span>
-                  </div>
-                  <div className="col-span-2 pt-2 border-t border-slate-200 dark:border-[#272835] flex items-center justify-between">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">Balance Amount</span>
-                    <span className="font-mono text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                      {formatCurrency(selectedRowForDrawer.balance_amount)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Drawer Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-[#22232E] flex items-center justify-end gap-2 bg-slate-50 dark:bg-[#171821]">
-              <button
-                type="button"
-                onClick={() => setSelectedRowForDrawer(null)}
-                className="h-9 px-4 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-[#121319] border border-slate-200 dark:border-[#2B2C37] rounded-xl transition-colors cursor-pointer"
-              >
-                Close
-              </button>
-              <Link href={`/transport/lr-booking?id=${selectedRowForDrawer.id}`}>
-                <button
-                  type="button"
-                  className="h-9 px-4 text-xs font-semibold text-white bg-[#635BFF] hover:bg-[#5249E6] rounded-xl transition-all shadow-sm inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open in LR Booking</span>
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      <LRViewModal
+        isOpen={isViewModalOpen}
+        lr={selectedLrForView}
+        onClose={() => setIsViewModalOpen(false)}
+      />
     </div>
   );
 }
