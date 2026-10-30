@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, ShieldCheck, User, Building2, Search, ChevronDown, Sun, Moon } from "lucide-react";
+import { LogOut, ShieldCheck, User, Building2, Search, ChevronDown, Sun, Moon, Sparkles } from "lucide-react";
+import { usePantherAI } from "@/components/ai";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/ui/badge";
 import { CommandPalette } from "@/components/layout/command-palette";
@@ -15,6 +16,7 @@ import { getStoredAuth, clearStoredAuth } from "@/lib/auth";
 export function Header() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
+  const { toggleAI } = usePantherAI();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [authData, setAuthData] = useState<{
     userName: string;
@@ -117,8 +119,18 @@ export function Header() {
           <Search className="w-4 h-4" />
         </button>
 
-        {/* Action Controls: Notifications & Theme Switch */}
+        {/* Action Controls: Notifications, Theme Switch & Panther AI */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAI}
+            aria-label="Open Panther AI (Ctrl+/)"
+            title="Open Panther AI Copilot (Ctrl+/)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition-colors cursor-pointer select-none"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+            <span className="hidden sm:inline">Panther AI</span>
+          </button>
           <NotificationsPopover />
           <ThemeToggle />
         </div>

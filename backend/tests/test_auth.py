@@ -61,9 +61,14 @@ async def test_demo_admin_auto_reactivation_on_login():
         role="COMPANY_ADMIN",
         is_active=False
     )
-    result_mock = MagicMock()
-    result_mock.scalar_one_or_none.return_value = user
-    db.execute.return_value = result_mock
+    user_res_mock = MagicMock()
+    user_res_mock.scalar_one_or_none.return_value = user
+
+    empty_res_mock = MagicMock()
+    empty_res_mock.scalars.return_value.all.return_value = []
+    empty_res_mock.scalar_one_or_none.return_value = None
+
+    db.execute.side_effect = [user_res_mock, empty_res_mock, empty_res_mock, empty_res_mock]
 
     tenant = Tenant(id=1, tenant_id="demo123456", company_code="DEMOLOGISTICS", company_name="Demo Logistics", db_name="panther_tenant_demologistics")
     login_data = LoginRequest(email="admin@demo.com", password="PantherTMS@2026!")

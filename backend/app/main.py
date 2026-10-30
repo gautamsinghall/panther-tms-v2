@@ -24,6 +24,7 @@ from app.modules.statements.router import router as statements_router
 from app.modules.fleet.router import router as fleet_router
 from app.modules.home.router import router as home_router
 from app.modules.profile.router import router as profile_router
+from app.modules.ai.router import router as ai_router
 
 
 
@@ -611,6 +612,7 @@ app.include_router(statements_router, prefix=settings.API_V1_PREFIX)
 app.include_router(fleet_router, prefix=settings.API_V1_PREFIX)
 app.include_router(home_router, prefix=settings.API_V1_PREFIX)
 app.include_router(profile_router, prefix=settings.API_V1_PREFIX)
+app.include_router(ai_router, prefix=settings.API_V1_PREFIX)
 app.include_router(profile_router)
 app.include_router(transport_router)
 

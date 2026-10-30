@@ -1865,5 +1865,29 @@ class EmailSetting(TenantBase):
         nullable=False
     )
 
+class AIOperationIdempotency(TenantBase):
+    """
+    Durable database-enforced idempotency record for AI write operations (LR, Job, Hire Challan).
+    Guarantees exactly-once transactional semantics across worker crashes,
+    slow transactions exceeding Redis lock TTL, concurrent requests, and cache wipes.
+    """
+    __tablename__ = "ai_operation_idempotency"
 
+    id = Column(Integer, primary_key=True, index=True)
+    operation_id = Column(String(128), unique=True, index=True, nullable=False)
+    tenant_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False)
+    operation_type = Column(String(32), nullable=False)  # LR_CREATE, JOB_CREATE, HIRE_CHALLAN_CREATE
+    status = Column(String(32), nullable=False, default="PENDING")  # PENDING, COMPLETED, FAILED
+    entity_id = Column(Integer, nullable=True)
+    entity_identifier = Column(String(128), nullable=True)
+    response_payload = Column(JSON, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
 

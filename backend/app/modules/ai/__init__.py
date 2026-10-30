@@ -1,0 +1,2 @@
+# Panther AI Copilot Module
+

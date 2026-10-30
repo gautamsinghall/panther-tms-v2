@@ -75,6 +75,46 @@ class Settings(BaseSettings):
     FASTAG_API_KEY: Optional[str] = None
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
+    # Panther AI Assistant (Google Gemini via OpenAI-Compatible Endpoint)
+    OPENAI_API_KEY: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "OPENAI_API_KEY",
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY",
+        ),
+    )
+    OPENAI_BASE_URL: str = Field(
+        default="https://generativelanguage.googleapis.com/v1beta/openai/",
+        validation_alias=AliasChoices(
+            "OPENAI_BASE_URL",
+            "GEMINI_BASE_URL",
+        ),
+    )
+    OPENAI_MODEL: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices(
+            "OPENAI_MODEL",
+            "GEMINI_MODEL",
+        ),
+    )
+    AI_SYSTEM_NAME: str = "Panther AI (Gemini 2.5 Flash)"
+    AI_ENABLE_LR_CREATION: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AI_ENABLE_LR_CREATION"),
+        description="Whether conversational LR creation write operations are enabled. Disabled by default in production for safety."
+    )
+    AI_ENABLE_JOB_CREATION: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AI_ENABLE_JOB_CREATION"),
+        description="Whether conversational Job creation write operations are enabled. Disabled by default in production for safety."
+    )
+    AI_ENABLE_HC_CREATION: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("AI_ENABLE_HC_CREATION"),
+        description="Whether conversational Hire Challan creation write operations are enabled. Disabled by default in production for safety."
+    ) 
+
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
@@ -84,7 +124,7 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env", "/app/.env"),
+        env_file=(".env", "backend/.env", "../.env", "/app/.env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
@@ -130,11 +170,13 @@ def sanitize_ft_base_url(url: Optional[str] = None) -> str:
 def resolve_freight_tiger_token(explicit_token: Optional[str] = None) -> Optional[str]:
     """
     Resolves Freight Tiger Bearer JWT authentication token with robust fallback:
-    1. settings.FREIGHT_TIGER_AUTH_TOKEN (from parsed .env via Pydantic)
-    2. os.environ inspection across all known aliases (.env, Dokploy, Docker runtime)
-    3. Explicit token override (e.g. from tenant company settings)
+    1. Explicit caller / database company settings override
+    2. Environment variables (.env / Dokploy)
+    3. settings.FREIGHT_TIGER_AUTH_TOKEN
     """
-    # 1. Environment variables (primary source of truth when configured in .env / Dokploy)
+    if explicit_token and explicit_token.strip():
+        return explicit_token.strip()
+
     for key in (
         "FREIGHT_TIGER_AUTH_TOKEN",
         "FT_AUTH_TOKEN",
@@ -152,9 +194,4 @@ def resolve_freight_tiger_token(explicit_token: Optional[str] = None) -> Optiona
     if settings.FREIGHT_TIGER_AUTH_TOKEN and settings.FREIGHT_TIGER_AUTH_TOKEN.strip():
         return settings.FREIGHT_TIGER_AUTH_TOKEN.strip()
 
-    # 2. Database company settings fallback
-    if explicit_token and explicit_token.strip():
-        return explicit_token.strip()
-
     return None
-

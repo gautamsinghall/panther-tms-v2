@@ -361,7 +361,7 @@ async def get_all_jobs(
     result = await db.execute(stmt)
     return list(result.scalars().unique().all())
 
-async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] = None, office_id: Optional[int] = None) -> Job:
+async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] = None, office_id: Optional[int] = None, auto_commit: bool = True) -> Job:
     target_office_id = data.issuing_office_id or office_id
     if not target_office_id:
         from app.tenant_db.models import Branch
@@ -382,8 +382,11 @@ async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] =
     
     job = Job(**job_dict)
     db.add(job)
-    await db.commit()
-    await db.refresh(job)
+    if auto_commit:
+        await db.commit()
+        await db.refresh(job)
+    else:
+        await db.flush()
     return job
 
 async def update_job(db: AsyncSession, job_id: int, data: JobUpdate) -> Job:
@@ -510,7 +513,7 @@ async def get_lr_by_id(db: AsyncSession, lr_id: int) -> LR:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="LR not found.")
     return lr
 
-async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = None, office_id: Optional[int] = None) -> LR:
+async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = None, office_id: Optional[int] = None, auto_commit: bool = True) -> LR:
     target_office_id = data.issuing_office_id or office_id
     if not target_office_id:
         from app.tenant_db.models import Branch
@@ -588,8 +591,11 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
         if job and job.status == JobStatus.OPEN.value:
             job.status = JobStatus.BOOKED.value
 
-    await db.commit()
-    await db.refresh(lr)
+    if auto_commit:
+        await db.commit()
+        await db.refresh(lr)
+    else:
+        await db.flush()
     return lr
 
 async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
@@ -717,7 +723,7 @@ async def get_all_hire_challans(db: AsyncSession, office_id: Optional[int] = Non
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
-async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_id: Optional[int] = None) -> HireChallan:
+async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_id: Optional[int] = None, auto_commit: bool = True) -> HireChallan:
     target_office_id = data.issuing_office_id or office_id
     if not target_office_id:
         from app.tenant_db.models import Branch
@@ -783,8 +789,11 @@ async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_
 
     hc = HireChallan(**hc_dict)
     db.add(hc)
-    await db.commit()
-    await db.refresh(hc)
+    if auto_commit:
+        await db.commit()
+        await db.refresh(hc)
+    else:
+        await db.flush()
     return hc
 
 async def update_hire_challan(db: AsyncSession, hc_id: int, data: HireChallanUpdate) -> HireChallan:

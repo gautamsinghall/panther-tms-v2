@@ -9,6 +9,7 @@ import { WorkspaceTabBar } from "@/components/layout/workspace-tab-bar";
 import { WorkspaceTabsProvider, useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { cn } from "@/lib/utils";
 import { FileEdit, ArrowRight } from "lucide-react";
+import { PantherAIProvider, PantherAILauncher, PantherAIPanel } from "@/components/ai";
 
 function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
   const { activeTab, isFormOpen, formTabInfo, setActiveTab, closeFormTab } = useWorkspaceTabs();
@@ -143,22 +144,28 @@ export default function DashboardLayout({
 
   return (
     <WorkspaceTabsProvider>
-      <div className="flex h-screen h-[100dvh] max-h-screen w-full overflow-hidden bg-[#F3F5FC]">
-        {/* Sidebar Navigation - Always accessible & unblocked */}
-        <Sidebar />
+      <PantherAIProvider>
+        <div className="flex h-screen h-[100dvh] max-h-screen w-full overflow-hidden bg-[#F3F5FC]">
+          {/* Sidebar Navigation - Always accessible & unblocked */}
+          <Sidebar />
 
-        {/* Main Content Column */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-          {/* Top Header */}
-          <Header />
+          {/* Main Content Column */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+            {/* Top Header */}
+            <Header />
 
-          {/* In-App Workspace Tab Bar */}
-          <WorkspaceTabBar />
+            {/* In-App Workspace Tab Bar */}
+            <WorkspaceTabBar />
 
-          {/* Workspace Canvas (handles List Canvas and Form Canvas switching) */}
-          <WorkspaceCanvas>{children}</WorkspaceCanvas>
+            {/* Workspace Canvas (handles List Canvas and Form Canvas switching) */}
+            <WorkspaceCanvas>{children}</WorkspaceCanvas>
+          </div>
+
+          {/* Panther AI Assistant Layer */}
+          <PantherAILauncher />
+          <PantherAIPanel />
         </div>
-      </div>
+      </PantherAIProvider>
     </WorkspaceTabsProvider>
   );
 }

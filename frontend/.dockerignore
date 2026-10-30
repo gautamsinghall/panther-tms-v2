@@ -4,6 +4,7 @@ out
 build
 .git
 .gitignore
+.env*
 .env*.local
 *.tsbuildinfo
 npm-debug.log*

@@ -123,7 +123,7 @@ async def get_user_office_context(db: AsyncSession, user: User) -> tuple[list[Of
                 UserOfficeAssignment.is_default == True
             )
         )).scalar_one_or_none()
-        def_id = def_assign.office_id if def_assign else None
+        def_id = getattr(def_assign, 'office_id', None) if def_assign else None
 
         for b in all_brs:
             is_def = (b.id == def_id) if def_id else bool(b.is_head_office)
