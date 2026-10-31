@@ -58,7 +58,7 @@ async def get_or_create_party_account(
                 or_(GroupInPrimary.code == "DEBTORS", GroupInPrimary.name.ilike("%Debtor%"))
             )
             grp_res = await session.execute(grp_stmt)
-            grp = grp_res.scalar_one_or_none()
+            grp = grp_res.scalars().first()
             group_id = grp.id if grp else 1
 
             account = Account(
@@ -93,7 +93,7 @@ async def get_or_create_party_account(
                 or_(GroupInPrimary.code == "CREDITORS", GroupInPrimary.name.ilike("%Creditor%"))
             )
             grp_res = await session.execute(grp_stmt)
-            grp = grp_res.scalar_one_or_none()
+            grp = grp_res.scalars().first()
             group_id = grp.id if grp else 1
 
             account = Account(
@@ -127,7 +127,7 @@ async def get_or_create_party_account(
                 or_(GroupInPrimary.code == "EXP_DIRECT", GroupInPrimary.name.ilike("%Direct%"))
             )
             grp_res = await session.execute(grp_stmt)
-            grp = grp_res.scalar_one_or_none()
+            grp = grp_res.scalars().first()
             group_id = grp.id if grp else 1
 
             account = Account(

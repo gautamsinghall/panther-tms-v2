@@ -59,6 +59,7 @@ async def get_gst_output(
         .options(
             selectinload(Voucher.items).selectinload(VoucherItem.tax_category),
             selectinload(Voucher.lr).selectinload(LR.consigner),
+            selectinload(Voucher.billing_client),
             selectinload(Voucher.einvoice),
         )
         .where(
@@ -105,9 +106,29 @@ async def get_gst_output(
 
         gstin = None
         pos = None
-        if v.lr and v.lr.consigner:
+        if v.billing_client:
+            gstin = v.billing_client.gstin
+            pos = v.billing_client.state
+        elif getattr(v, "party_gstin", None):
+            gstin = v.party_gstin
+            pos = getattr(v, "place_of_supply", None)
+        elif v.lr and v.lr.consigner:
             gstin = v.lr.consigner.gstin
             pos = v.lr.consigner.state
+
+        if getattr(v, "tax_breakup", None):
+            tb = v.tax_breakup or {}
+            if tb.get("is_rcm"):
+                is_rcm = True
+            if tb.get("cgst_amount"):
+                cgst = Decimal(str(tb["cgst_amount"]))
+                cgst_r = Decimal(str(tb.get("cgst_rate", 6)))
+            if tb.get("sgst_amount"):
+                sgst = Decimal(str(tb["sgst_amount"]))
+                sgst_r = Decimal(str(tb.get("sgst_rate", 6)))
+            if tb.get("igst_amount"):
+                igst = Decimal(str(tb["igst_amount"]))
+                igst_r = Decimal(str(tb.get("igst_rate", 12)))
 
         for itm in v.items:
             t_amt = Decimal(str(itm.tax_amount or "0.00"))

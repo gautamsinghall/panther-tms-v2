@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from decimal import Decimal
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 class VoucherItemBase(BaseModel):
@@ -38,6 +38,23 @@ class LedgerEntryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class BillAllocationResponse(BaseModel):
+    id: int
+    voucher_id: int
+    invoice_id: int
+    allocated_amount: Decimal
+    tds_amount: Decimal
+    discount_amount: Decimal
+    total_settled: Decimal
+    adjustment_type: str
+    notes: Optional[str] = None
+    created_at: datetime
+    voucher_number: Optional[str] = None
+    invoice_number: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class VoucherBase(BaseModel):
     voucher_number: Optional[str] = None
     voucher_type: str = Field(..., description="VoucherType enum value")
@@ -59,6 +76,19 @@ class VoucherBase(BaseModel):
     vendor_id: Optional[int] = None
     driver_id: Optional[int] = None
 
+    # Tally-style bill-wise & tax tracking
+    due_date: Optional[date] = None
+    credit_period_days: Optional[int] = 30
+    paid_amount: Decimal = Field(default=Decimal("0.00"))
+    balance_amount: Decimal = Field(default=Decimal("0.00"))
+    payment_status: str = Field(default="UNPAID")
+    gst_treatment: str = Field(default="FCM")
+    place_of_supply: Optional[str] = None
+    party_gstin: Optional[str] = None
+    cost_center: Optional[str] = None
+    tax_breakup: Optional[Dict[str, Any]] = None
+    against_voucher_id: Optional[int] = None
+
 class VoucherCreate(VoucherBase):
     credit_account_id: Optional[int] = None  # For receipt, payment, contra, general voucher
     items: List[VoucherItemCreate] = []
@@ -68,11 +98,34 @@ class TransportInvoiceCreate(BaseModel):
     invoice_number: Optional[str] = None
     voucher_number: Optional[str] = None
     voucher_date: Optional[date] = None
+    due_date: Optional[date] = None
+    credit_period_days: Optional[int] = None
     tax_category_id: Optional[int] = None
+    gst_treatment: Optional[str] = "FCM"  # FCM, RCM, EXEMPT, NIL_RATED
+    place_of_supply: Optional[str] = None
     party_account_id: Optional[int] = None
     billing_client_id: Optional[int] = None
     series_id: Optional[int] = None
+    basic_freight: Optional[Decimal] = None
+    loading_charges: Optional[Decimal] = None
+    unloading_charges: Optional[Decimal] = None
+    detention_charges: Optional[Decimal] = None
+    toll_charges: Optional[Decimal] = None
+    other_charges: Optional[Decimal] = None
+    discount_amount: Optional[Decimal] = None
+    advance_adjusted: Optional[Decimal] = None
     additional_charges: List[VoucherItemCreate] = []
+    narration: Optional[str] = None
+
+class ReceiptAgainstInvoiceCreate(BaseModel):
+    invoice_id: int
+    amount: Decimal = Field(gt=Decimal("0.00"), description="Net payment received in bank or cash")
+    tds_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="TDS deducted by debtor under Sec 194C")
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="Cash discount or agreed deduction")
+    payment_mode: str = Field(default="BANK", description="BANK or CASH")
+    bank_account_id: Optional[int] = None
+    voucher_date: Optional[date] = None
+    reference_number: Optional[str] = None  # Cheque / UTR / NEFT reference
     narration: Optional[str] = None
 
 class ATHPaymentCreate(BaseModel):
@@ -113,6 +166,7 @@ class VoucherResponse(VoucherBase):
     irn_status: Optional[str] = None
     items: List[VoucherItemResponse] = []
     ledger_entries: List[LedgerEntryResponse] = []
+    bill_allocations: List[BillAllocationResponse] = []
     created_at: datetime
     updated_at: datetime
 
@@ -243,4 +297,3 @@ class DetailedLedgerResponse(BaseModel):
     closing_balance_type: str = "DR"
     total_transactions: int = 0
     transactions: List[LedgerTransaction] = []
-

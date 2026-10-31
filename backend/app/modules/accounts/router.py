@@ -71,9 +71,19 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.vendor_name = v.vendor.name if getattr(v, "vendor", None) else None
     resp.driver_name = v.driver.name if getattr(v, "driver", None) else None
     resp.party_gstin = (
-        v.billing_client.gstin if getattr(v, "billing_client", None) and v.billing_client.gstin
-        else (v.vendor.gstin if getattr(v, "vendor", None) and v.vendor.gstin else None)
+        v.party_gstin or (
+            v.billing_client.gstin if getattr(v, "billing_client", None) and v.billing_client.gstin
+            else (v.vendor.gstin if getattr(v, "vendor", None) and v.vendor.gstin else None)
+        )
     )
+    resp.due_date = v.due_date
+    resp.credit_period_days = v.credit_period_days
+    resp.paid_amount = v.paid_amount or Decimal("0.00")
+    resp.balance_amount = v.balance_amount if v.balance_amount is not None else v.net_amount
+    resp.payment_status = v.payment_status or "UNPAID"
+    resp.gst_treatment = v.gst_treatment or "FCM"
+    resp.place_of_supply = v.place_of_supply
+    resp.tax_breakup = v.tax_breakup or {}
 
     # Map item details
     for idx, itm in enumerate(v.items):
@@ -85,6 +95,26 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     for idx, ent in enumerate(v.ledger_entries):
         if idx < len(resp.ledger_entries):
             resp.ledger_entries[idx].account_name = ent.account.name if ent.account else None
+
+    # Map bill allocations
+    if hasattr(v, "bill_allocations") and v.bill_allocations:
+        resp.bill_allocations = [
+            schemas.BillAllocationResponse(
+                id=ba.id,
+                voucher_id=ba.voucher_id,
+                invoice_id=ba.invoice_id,
+                allocated_amount=ba.allocated_amount,
+                tds_amount=ba.tds_amount,
+                discount_amount=ba.discount_amount,
+                total_settled=ba.total_settled,
+                adjustment_type=ba.adjustment_type,
+                notes=ba.notes,
+                created_at=ba.created_at,
+                voucher_number=ba.voucher.voucher_number if ba.voucher else None,
+                invoice_number=ba.invoice.voucher_number if ba.invoice else None,
+            )
+            for ba in v.bill_allocations
+        ]
 
     return resp
 
@@ -222,6 +252,40 @@ async def create_transport_invoice(
     )
     return map_voucher_response(voucher)
 
+@router.post("/transport-invoices/{invoice_id}/payments", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_invoice_payment(
+    invoice_id: int,
+    data: schemas.ReceiptAgainstInvoiceCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "receipt_voucher", "create")),
+):
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    data.invoice_id = invoice_id
+    receipt = await service.create_receipt_against_invoice(
+        session, data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PAYMENT_RECEIVED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(receipt.id),
+        entity_identifier=receipt.voucher_number,
+        office_id=receipt.issuing_office_id or office_id,
+        details_json={
+            "invoice_id": invoice_id,
+            "receipt_number": receipt.voucher_number,
+            "amount": float(data.amount),
+            "tds_amount": float(data.tds_amount or 0),
+        },
+    )
+    return map_voucher_response(receipt)
+
 
 @router.post("/payments/ath", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_ath_payment(
@@ -303,8 +367,8 @@ async def void_voucher_endpoint(
         entity_id=str(voucher.id),
         entity_identifier=voucher.voucher_number,
         office_id=voucher.issuing_office_id,
-        details=f"Voided voucher {voucher.voucher_number}: {data.reason}",
-        details_json={"reason": data.reason},
+        details=f"Voided voucher {voucher.voucher_number}: {data.void_reason}",
+        details_json={"reason": data.void_reason},
     )
     return map_voucher_response(voucher)
 

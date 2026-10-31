@@ -750,6 +750,7 @@ class LR(TenantBase):
     particulars = Column(Text, nullable=True)
     lr_series_id = Column(Integer, ForeignKey("settings_series_masters.id"), nullable=True)
     invoice_items = Column(JSON, default=list, nullable=True)
+    is_billed = Column(Boolean, default=False, nullable=False, index=True)
 
     job = relationship("Job", back_populates="lrs", lazy="selectin")
     consigner = relationship("Consigner", foreign_keys=[consigner_id], lazy="selectin")
@@ -1401,6 +1402,19 @@ class Voucher(TenantBase):
     vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True, index=True)
     driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
 
+    # Tally-style bill-wise & tax tracking
+    due_date = Column(Date, nullable=True)
+    credit_period_days = Column(Integer, default=30, nullable=True)
+    paid_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    balance_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    payment_status = Column(String(50), default="UNPAID", nullable=False, index=True)
+    gst_treatment = Column(String(50), default="FCM", nullable=False)
+    place_of_supply = Column(String(100), nullable=True)
+    party_gstin = Column(String(15), nullable=True)
+    cost_center = Column(String(100), nullable=True)
+    tax_breakup = Column(JSON, default=dict, nullable=True)
+    against_voucher_id = Column(Integer, ForeignKey("accounts_vouchers.id"), nullable=True, index=True)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -1418,6 +1432,8 @@ class Voucher(TenantBase):
     billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
     vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
+    against_voucher = relationship("Voucher", remote_side=[id], foreign_keys=[against_voucher_id])
+    bill_allocations = relationship("BillAllocation", back_populates="invoice", foreign_keys="BillAllocation.invoice_id", cascade="all, delete-orphan", lazy="selectin")
 
 
 class VoucherItem(TenantBase):
@@ -1460,6 +1476,27 @@ class LedgerEntry(TenantBase):
 
     voucher = relationship("Voucher", back_populates="ledger_entries")
     account = relationship("Account", back_populates="ledger_entries", lazy="selectin")
+
+
+class BillAllocation(TenantBase):
+    """
+    Tally Prime style Bill-by-Bill adjustment tracking between Invoices and Receipts/Credit/Debit Notes.
+    """
+    __tablename__ = "accounts_bill_allocations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    voucher_id = Column(Integer, ForeignKey("accounts_vouchers.id", ondelete="CASCADE"), nullable=False, index=True)
+    invoice_id = Column(Integer, ForeignKey("accounts_vouchers.id", ondelete="CASCADE"), nullable=False, index=True)
+    allocated_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    tds_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    discount_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
+    total_settled = Column(Numeric(12, 2), default=0.00, nullable=False)
+    adjustment_type = Column(String(50), default="AGAINST_REF", nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    voucher = relationship("Voucher", foreign_keys=[voucher_id])
+    invoice = relationship("Voucher", back_populates="bill_allocations", foreign_keys=[invoice_id])
 
 
 # ==============================================================================

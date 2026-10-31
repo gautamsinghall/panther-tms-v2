@@ -3,6 +3,7 @@ from app.tenant_db.models import (
     VoucherItem,
     LedgerEntry,
     VoucherType,
+    BillAllocation,
 )
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     "VoucherItem",
     "LedgerEntry",
     "VoucherType",
+    "BillAllocation",
 ]
