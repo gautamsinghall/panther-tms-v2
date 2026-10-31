@@ -494,6 +494,65 @@ async def create_payment_voucher_endpoint(
     return map_voucher_response(pmt)
 
 
+
+
+@router.get("/contra/accounts", response_model=List[schemas.ContraAccountItem])
+async def get_contra_eligible_accounts_endpoint(
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "contra_voucher", "view")),
+):
+    """
+    Get eligible Bank and Cash accounts with live double-entry balances for Contra transfers.
+    """
+    return await service.get_contra_eligible_accounts(session)
+
+
+@router.post("/contra-vouchers", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_contra_voucher_endpoint(
+    data: schemas.ContraVoucherCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "contra_voucher", "create")),
+):
+    """
+    Record and post an internal funds transfer Contra Voucher:
+    Cash to Bank, Bank to Cash, Bank to Bank, Cash to Cash.
+    Strict double-entry balance with zero trading P&L or GST distortion.
+    """
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    contra = await service.create_contra_voucher(
+        session, data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="CONTRA_POSTED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(contra.id),
+        entity_identifier=contra.voucher_number,
+        office_id=contra.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": contra.voucher_number,
+            "party_name": contra.party_name,
+            "contra_type": data.contra_type,
+            "amount": float(data.amount),
+            "bank_charges": float(data.bank_charges or 0),
+            "source_account_id": data.source_account_id,
+            "destination_account_id": data.destination_account_id,
+            "transfer_mode": data.transfer_mode,
+            "reference_number": data.reference_number,
+        },
+    )
+    return map_voucher_response(contra)
+
+
 @router.post("/general-invoices", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_general_invoice_endpoint(
     data: schemas.GeneralInvoiceCreate,

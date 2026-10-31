@@ -314,6 +314,32 @@ class OpenBillItem(BaseModel):
     hire_challan_id: Optional[int] = None
 
 
+class ContraAccountItem(BaseModel):
+    id: int
+    name: str
+    code: str
+    account_type: str  # "BANK" or "CASH"
+    current_balance: Decimal = Decimal("0.00")
+    balance_type: str = "DR"  # "DR" or "CR"
+
+
+class ContraVoucherCreate(BaseModel):
+    contra_type: str  # "CASH_TO_BANK", "BANK_TO_CASH", "BANK_TO_BANK", "CASH_TO_CASH"
+    source_account_id: int
+    destination_account_id: int
+    amount: Decimal = Field(gt=Decimal("0.00"), description="Transfer amount must be positive")
+    voucher_date: date
+    transfer_mode: Optional[str] = "BANK_TRANSFER"  # "CASH_DEPOSIT", "ATM_WITHDRAWAL", "CHEQUE", "NEFT_RTGS", "IMPS", "UPI", "INTERNAL_TRANSFER"
+    reference_number: Optional[str] = None
+    cheque_number: Optional[str] = None
+    cheque_date: Optional[date] = None
+    bank_charges: Optional[Decimal] = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    bank_charges_account_id: Optional[int] = None
+    narration: Optional[str] = None
+    issuing_office_id: Optional[int] = None
+    series_id: Optional[int] = None
+
+
 class ReceiptAgainstInvoiceCreate(BaseModel):
     invoice_id: int
     amount: Decimal = Field(gt=Decimal("0.00"), description="Net payment received in bank or cash")

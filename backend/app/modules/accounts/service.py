@@ -42,6 +42,8 @@ from app.modules.accounts.schemas import (
     PaymentAllocationItem,
     PaymentVoucherCreate,
     OpenBillItem,
+    ContraAccountItem,
+    ContraVoucherCreate,
 )
 from app.modules.accounts.master_ledger_service import get_or_create_party_account
 from app.modules.settings.series_service import allocate_or_validate_voucher_number
@@ -164,6 +166,10 @@ async def ensure_standard_accounts(session: AsyncSession) -> None:
         ("ACC_DRIVER_ADVANCES", "Driver Trip Advances", "CA", "DR"),
         ("ACC_HANDLING_EXP", "Loading, Unloading & Labour Expense", "EXP_DIRECT", "DR"),
         ("ACC_STATUTORY_DUES", "Statutory Dues Payable", "TAX", "CR"),
+        ("ACC_PETTY_CASH", "Petty Cash Account", "CASH", "DR"),
+        ("ACC_ICICI_BANK", "ICICI Bank Operating Account", "BANK", "DR"),
+        ("ACC_SBI_BANK", "State Bank of India (SBI) Account", "BANK", "DR"),
+        ("ACC_BANK_CHARGES_EXP", "Bank Charges & Commission Expense", "EXP_INDIRECT", "DR"),
     ]
 
     for acc_code, acc_name, grp_code, bal_type in accounts_seed:
@@ -2735,6 +2741,328 @@ async def create_payment_voucher(
 # ------------------------------------------------------------------------------
 # Void Voucher (Reversing Entry per Rules §7)
 # ------------------------------------------------------------------------------
+
+
+
+# ------------------------------------------------------------------------------
+# Contra Voucher Engine (Tally-Style Cash/Bank Transfers)
+# ------------------------------------------------------------------------------
+async def get_contra_eligible_accounts(session: AsyncSession) -> List[ContraAccountItem]:
+    """
+    Returns only genuine Bank Accounts and Cash-in-hand accounts for Contra transfers.
+    Calculates live running double-entry balance for each account.
+    Strictly excludes trade debtors, creditors, expense heads, and third-party ledgers.
+    """
+    await ensure_standard_accounts(session)
+
+    stmt = (
+        select(Account)
+        .options(selectinload(Account.group))
+        .where(
+            Account.is_active == True,
+            Account.billing_client_id.is_(None),
+            Account.vendor_id.is_(None),
+            Account.driver_id.is_(None),
+        )
+    )
+    res = await session.execute(stmt)
+    all_accounts = res.scalars().all()
+
+    eligible: List[ContraAccountItem] = []
+    for acc in all_accounts:
+        grp_code = (acc.group.code if acc.group else "").upper()
+        acc_code = (acc.code or "").upper()
+        acc_name = (acc.name or "").lower()
+
+        is_bank = grp_code == "BANK" or "bank" in acc_name or "bank" in acc_code.lower()
+        is_cash = grp_code == "CASH" or "cash" in acc_name or "cash" in acc_code.lower()
+
+        if not (is_bank or is_cash):
+            continue
+
+        acc_type = "BANK" if is_bank else "CASH"
+
+        # Calculate live running double-entry balance
+        le_stmt = select(
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+        ).where(
+            LedgerEntry.account_id == acc.id,
+            LedgerEntry.is_reversal == False,
+        )
+        le_res = await session.execute(le_stmt)
+        tot_dr, tot_cr = le_res.one()
+
+        open_bal = Decimal(str(acc.opening_balance or "0.00"))
+        open_dr = open_bal if acc.opening_balance_type == "DR" else Decimal("0.00")
+        open_cr = open_bal if acc.opening_balance_type == "CR" else Decimal("0.00")
+
+        net_bal = (open_dr + tot_dr) - (open_cr + tot_cr)
+        if net_bal >= Decimal("0.00"):
+            b_type = "DR"
+            b_amt = net_bal
+        else:
+            b_type = "CR"
+            b_amt = abs(net_bal)
+
+        eligible.append(
+            ContraAccountItem(
+                id=acc.id,
+                name=acc.name,
+                code=acc.code,
+                account_type=acc_type,
+                current_balance=b_amt,
+                balance_type=b_type,
+            )
+        )
+
+    return sorted(eligible, key=lambda a: (a.account_type, a.name))
+
+
+async def create_contra_voucher(
+    session: AsyncSession,
+    data: ContraVoucherCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Creates a double-entry Contra Voucher for internal fund movements:
+    1. CASH_TO_BANK: Dr. Bank, Cr. Cash
+    2. BANK_TO_CASH: Dr. Cash, Cr. Bank
+    3. BANK_TO_BANK: Dr. Dest Bank, Cr. Src Bank
+    4. CASH_TO_CASH: Dr. Dest Cash, Cr. Src Cash
+    Strictly preserves net assets and generates zero trading profit/loss or GST liabilities.
+    """
+    await ensure_standard_accounts(session)
+
+    # 1. Validate Amount
+    if data.amount <= Decimal("0.00"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Transfer amount must be strictly greater than zero.",
+        )
+
+    # 2. Prevent Same Account Transfer
+    if data.source_account_id == data.destination_account_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Source and Destination accounts cannot be the same. Please choose two distinct accounts.",
+        )
+
+    # 3. Retrieve and Validate Accounts
+    src_stmt = select(Account).options(selectinload(Account.group)).where(Account.id == data.source_account_id)
+    src_res = await session.execute(src_stmt)
+    source_acc = src_res.scalar_one_or_none()
+    if not source_acc or not source_acc.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Source account does not exist or is inactive.",
+        )
+
+    dest_stmt = select(Account).options(selectinload(Account.group)).where(Account.id == data.destination_account_id)
+    dest_res = await session.execute(dest_stmt)
+    dest_acc = dest_res.scalar_one_or_none()
+    if not dest_acc or not dest_acc.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Destination account does not exist or is inactive.",
+        )
+
+    # Third-Party Account Safeguard:
+    # Under Indian accounting principles, payments to debtors/creditors/drivers cannot be booked as Contra
+    if source_acc.billing_client_id or source_acc.vendor_id or source_acc.driver_id or        dest_acc.billing_client_id or dest_acc.vendor_id or dest_acc.driver_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contra vouchers are strictly for internal fund movements. Payments to or collections from third parties (customers, vendors, drivers) must be recorded using Receipt Voucher or Payment Voucher.",
+        )
+
+    # Determine Account Types
+    def is_bank_acc(a: Account) -> bool:
+        grp = (a.group.code if a.group else "").upper()
+        code = (a.code or "").upper()
+        name = (a.name or "").lower()
+        return grp == "BANK" or "bank" in name or "bank" in code.lower()
+
+    def is_cash_acc(a: Account) -> bool:
+        grp = (a.group.code if a.group else "").upper()
+        code = (a.code or "").upper()
+        name = (a.name or "").lower()
+        return grp == "CASH" or "cash" in name or "cash" in code.lower()
+
+    src_is_bank = is_bank_acc(source_acc)
+    src_is_cash = is_cash_acc(source_acc)
+    dest_is_bank = is_bank_acc(dest_acc)
+    dest_is_cash = is_cash_acc(dest_acc)
+
+    c_type = (data.contra_type or "").upper()
+    if c_type == "CASH_TO_BANK":
+        if not src_is_cash:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"For 'Deposit Cash into Bank', source must be a Cash account. '{source_acc.name}' is not recognized as a Cash account.",
+            )
+        if not dest_is_bank:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"For 'Deposit Cash into Bank', destination must be a Bank account. '{dest_acc.name}' is not recognized as a Bank account.",
+            )
+        type_desc = f"Cash Deposit ({source_acc.name} -> {dest_acc.name})"
+    elif c_type == "BANK_TO_CASH":
+        if not src_is_bank:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"For 'Withdraw Cash from Bank', source must be a Bank account. '{source_acc.name}' is not recognized as a Bank account.",
+            )
+        if not dest_is_cash:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"For 'Withdraw Cash from Bank', destination must be a Cash account. '{dest_acc.name}' is not recognized as a Cash account.",
+            )
+        type_desc = f"Cash Withdrawal ({source_acc.name} -> {dest_acc.name})"
+    elif c_type == "BANK_TO_BANK":
+        if not (src_is_bank and dest_is_bank):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="For 'Transfer Between Bank Accounts', both source and destination must be Bank accounts.",
+            )
+        type_desc = f"Inter-Bank Transfer ({source_acc.name} -> {dest_acc.name})"
+    elif c_type == "CASH_TO_CASH":
+        if not (src_is_cash and dest_is_cash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="For 'Transfer Between Cash Accounts', both source and destination must be Cash accounts.",
+            )
+        type_desc = f"Internal Cash Transfer ({source_acc.name} -> {dest_acc.name})"
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid contra type '{data.contra_type}'. Allowed types are CASH_TO_BANK, BANK_TO_CASH, BANK_TO_BANK, CASH_TO_CASH.",
+        )
+
+    # 4. Duplicate Check
+    if data.reference_number and data.reference_number.strip():
+        dup_stmt = select(Voucher).where(
+            Voucher.voucher_type == VoucherType.CONTRA_VOUCHER.value,
+            Voucher.voucher_date == data.voucher_date,
+            Voucher.net_amount == data.amount,
+            Voucher.reference_number == data.reference_number.strip(),
+            Voucher.is_void == False,
+        )
+        dup = (await session.execute(dup_stmt)).scalar_one_or_none()
+        if dup:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"A Contra Voucher #{dup.voucher_number} already exists for this date, amount, and reference #{data.reference_number}.",
+            )
+
+    # 5. Voucher Numbering (with resilient fallback to auto series)
+    try:
+        v_num = await allocate_or_validate_voucher_number(
+            session,
+            VoucherType.CONTRA_VOUCHER.value,
+            issuing_office_id=office_id,
+            series_id=data.series_id,
+        )
+    except Exception:
+        v_num = await generate_voucher_number(session, VoucherType.CONTRA_VOUCHER.value)
+
+    # 6. Bank Charges Handling
+    bank_charges = data.bank_charges or Decimal("0.00")
+    bank_charges_acc_id = None
+    if bank_charges > Decimal("0.00"):
+        bank_charges_acc_id = data.bank_charges_account_id or (
+            await get_fallback_account_id(session, "ACC_BANK_CHARGES_EXP", "EXP_INDIRECT")
+        )
+
+    # 7. Construct Metadata
+    contra_meta = {
+        "contra_type": c_type,
+        "transfer_mode": data.transfer_mode or "BANK_TRANSFER",
+        "source_account_id": source_acc.id,
+        "source_account_name": source_acc.name,
+        "source_account_code": source_acc.code,
+        "destination_account_id": dest_acc.id,
+        "destination_account_name": dest_acc.name,
+        "destination_account_code": dest_acc.code,
+        "transferred_amount": str(data.amount),
+        "bank_charges": str(bank_charges),
+        "cheque_number": data.cheque_number,
+        "cheque_date": str(data.cheque_date) if data.cheque_date else None,
+        "reference_number": data.reference_number,
+    }
+
+    total_disbursed = data.amount + bank_charges
+
+    # 8. Create Voucher Record
+    voucher = Voucher(
+        voucher_number=v_num,
+        voucher_type=VoucherType.CONTRA_VOUCHER.value,
+        voucher_date=data.voucher_date,
+        party_name=type_desc,
+        party_type="CONTRA",
+        reference_number=data.reference_number,
+        total_amount=total_disbursed,
+        tax_amount=Decimal("0.00"),
+        net_amount=data.amount,
+        paid_amount=data.amount,
+        balance_amount=Decimal("0.00"),
+        payment_status="CLEARED",
+        narration=data.narration.strip() if data.narration else type_desc,
+        tax_breakup=contra_meta,
+        issuing_office_id=office_id,
+        is_void=False,
+    )
+    session.add(voucher)
+    await session.flush()
+
+    # 9. Post Balanced Double-Entry Postings
+    mode_str = f" via {data.transfer_mode or 'Transfer'}"
+    ref_str = f" (Ref #{data.reference_number})" if data.reference_number else ""
+
+    # 9a. DEBIT: Destination Account (Money In - Asset Increases)
+    session.add(
+        LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=dest_acc.id,
+            entry_date=data.voucher_date,
+            debit_amount=data.amount,
+            credit_amount=Decimal("0.00"),
+            narration=f"Transfer In from {source_acc.name}{mode_str}{ref_str}",
+        )
+    )
+
+    # 9b. DEBIT: Bank Charges Expense (if any)
+    if bank_charges > Decimal("0.00") and bank_charges_acc_id:
+        session.add(
+            LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=bank_charges_acc_id,
+                entry_date=data.voucher_date,
+                debit_amount=bank_charges,
+                credit_amount=Decimal("0.00"),
+                narration=f"Bank charges incurred on transfer #{v_num}",
+            )
+        )
+
+    # 9c. CREDIT: Source Account (Money Out - Asset Decreases)
+    session.add(
+        LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=source_acc.id,
+            entry_date=data.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=total_disbursed,
+            narration=f"Transfer Out to {dest_acc.name}{mode_str}{ref_str}",
+        )
+    )
+
+    await session.flush()
+
+    # Commit and return fresh
+    final_id = voucher.id
+    await session.commit()
+    return await get_voucher_by_id(session, final_id)
+
 async def void_voucher(
     session: AsyncSession,
     voucher_id: int,
