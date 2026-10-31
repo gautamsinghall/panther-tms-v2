@@ -189,12 +189,29 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
         logger.error(f"Unhandled Exception on {request.method} {request.url}: {exc}\n{traceback.format_exc()}")
+        raw_msg = str(exc)
+        raw_lower = raw_msg.lower()
+        is_db_leak = any(
+            tok in raw_lower
+            for tok in [
+                "select ", "from ", "where ", "insert into", "update ", "delete from",
+                "programmingerror", "operationalerror", "syntax error", "does not exist",
+                "psycopg", "asyncpg", "sqlalchemy", "foreign key", "relation "
+            ]
+        )
+        if is_db_leak:
+            user_msg = "An internal database error occurred while processing the request. The diagnostic details have been logged securely."
+            details = None
+        else:
+            user_msg = raw_msg if raw_msg else "An unexpected error occurred"
+            details = raw_msg
+
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "error_code": "INTERNAL_SERVER_ERROR",
-                "message": str(exc) if str(exc) else "An unexpected error occurred",
-                "details": str(exc),
+                "message": user_msg,
+                "details": details,
             },
             headers=_cors_headers_for_request(request),
         )

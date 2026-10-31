@@ -298,8 +298,22 @@ export default function TransportInvoicePage() {
 
   // Print Tax Invoice state
   const [printInvoice, setPrintInvoice] = useState<VoucherRecord | null>(null);
+  const [isSyncingSchema, setIsSyncingSchema] = useState(false);
 
-  const loadData = async () => {
+  const handleSyncSchema = async () => {
+    setIsSyncingSchema(true);
+    try {
+      await apiClient("/api/v1/accounts/sync-tally-schema", { method: "POST" });
+      toast.success("Database schema synchronized successfully.");
+      await loadData();
+    } catch (err: any) {
+      toast.error("Schema synchronization failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsSyncingSchema(false);
+    }
+  };
+
+  const loadData = async (isRetry = false) => {
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -323,8 +337,26 @@ export default function TransportInvoicePage() {
         setSelectedTaxCatId(g12.id.toString());
       }
     } catch (err: any) {
+      const msg = err.message || "";
+      const isSchemaErr =
+        msg.toLowerCase().includes("column") ||
+        msg.toLowerCase().includes("does not exist") ||
+        msg.toLowerCase().includes("programmingerror") ||
+        msg.toLowerCase().includes("schema");
+      if (isSchemaErr && !isRetry) {
+        try {
+          await apiClient("/api/v1/accounts/sync-tally-schema", { method: "POST" });
+          return await loadData(true);
+        } catch {
+          // Fall through to error display
+        }
+      }
       setIsError(true);
-      setErrorMessage(err.message || "Failed to load transport invoices.");
+      const cleanMsg =
+        isSchemaErr || msg.includes("SELECT") || msg.includes("accounts_vouchers")
+          ? "Database schema update required. Please click 'Sync Schema & Retry' below to ensure accounting tables are up to date."
+          : msg || "Failed to load transport invoices.";
+      setErrorMessage(cleanMsg);
     } finally {
       setIsLoading(false);
     }
@@ -908,12 +940,26 @@ export default function TransportInvoicePage() {
 
       {/* Notifications */}
       {errorMessage && (
-        <div className="p-3.5 rounded-card bg-[#FEF2F2] border border-[#FECDCA] text-[#DC2626] text-xs flex items-center gap-2.5">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{errorMessage}</span>
-          <button onClick={() => setErrorMessage(null)} className="ml-auto text-[#DC2626] hover:opacity-80">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="p-3.5 rounded-card bg-[#FEF2F2] border border-[#FECDCA] text-[#DC2626] text-xs flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isSyncingSchema}
+              onClick={handleSyncSchema}
+              className="text-xs h-7 px-2.5 bg-white text-[#DC2626] border-[#FECDCA] hover:bg-[#FEF2F2]"
+            >
+              {isSyncingSchema ? "Syncing Schema..." : "Sync Schema & Retry"}
+            </Button>
+            <button onClick={() => setErrorMessage(null)} className="text-[#DC2626] hover:opacity-80">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
       {successMessage && (

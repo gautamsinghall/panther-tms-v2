@@ -531,3 +531,19 @@ async def get_driver_ledger_detail(
     )
 
 
+@router.post("/sync-tally-schema")
+@router.get("/sync-tally-schema")
+async def sync_tally_schema_endpoint(
+    session: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(get_current_user),
+):
+    """
+    On-demand schema synchronization endpoint to ensure Transport Invoice
+    and Tally Prime bookkeeping columns and tables exist across tenant databases.
+    """
+    await service.ensure_tally_schema(session)
+    return {
+        "status": "success",
+        "message": "Transport invoice and Tally Prime bookkeeping schema synchronized successfully.",
+    }
+

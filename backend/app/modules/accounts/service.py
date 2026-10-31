@@ -168,6 +168,66 @@ async def get_fallback_account_id(session: AsyncSession, preferred_code: str, fa
 # ------------------------------------------------------------------------------
 # Core Voucher Queries
 # ------------------------------------------------------------------------------
+async def ensure_tally_schema(session: AsyncSession) -> None:
+    """
+    Idempotent schema healing for Transport Invoice and Tally Prime bookkeeping.
+    Ensures missing columns on accounts_vouchers, transport_lrs, and accounts_bill_allocations
+    are safely created without data loss.
+    """
+    from sqlalchemy import text
+    try:
+        await session.rollback()
+    except Exception:
+        pass
+
+    ddl_statements = [
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS due_date DATE;",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS credit_period_days INTEGER DEFAULT 30;",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(12, 2) DEFAULT 0.00;",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS balance_amount NUMERIC(12, 2) DEFAULT 0.00;",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'UNPAID';",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS gst_treatment VARCHAR(50) DEFAULT 'FCM';",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS place_of_supply VARCHAR(100);",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS party_gstin VARCHAR(15);",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS cost_center VARCHAR(100);",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS tax_breakup JSONB DEFAULT '{}'::jsonb;",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS against_voucher_id INTEGER;",
+        "ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS is_billed BOOLEAN DEFAULT FALSE;",
+        """
+        CREATE TABLE IF NOT EXISTS accounts_bill_allocations (
+            id SERIAL PRIMARY KEY,
+            voucher_id INTEGER NOT NULL REFERENCES accounts_vouchers(id) ON DELETE CASCADE,
+            invoice_id INTEGER NOT NULL REFERENCES accounts_vouchers(id) ON DELETE CASCADE,
+            allocated_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            tds_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            total_settled NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+            adjustment_type VARCHAR(50) NOT NULL DEFAULT 'AGAINST_REF',
+            notes TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_payment_status ON accounts_vouchers (payment_status);",
+        "CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_due_date ON accounts_vouchers (due_date);",
+        "CREATE INDEX IF NOT EXISTS ix_transport_lrs_is_billed ON transport_lrs (is_billed);",
+        "CREATE INDEX IF NOT EXISTS ix_accounts_bill_allocations_voucher_id ON accounts_bill_allocations (voucher_id);",
+        "CREATE INDEX IF NOT EXISTS ix_accounts_bill_allocations_invoice_id ON accounts_bill_allocations (invoice_id);",
+        "UPDATE accounts_vouchers SET balance_amount = net_amount WHERE balance_amount IS NULL OR (balance_amount = 0.00 AND (paid_amount = 0.00 OR paid_amount IS NULL));",
+        "UPDATE accounts_vouchers SET payment_status = 'UNPAID' WHERE payment_status IS NULL;",
+        "UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;",
+    ]
+
+    for stmt in ddl_statements:
+        try:
+            await session.execute(text(stmt))
+            await session.commit()
+        except Exception:
+            try:
+                await session.rollback()
+            except Exception:
+                pass
+
+
 async def get_vouchers(
     session: AsyncSession,
     voucher_type: Optional[str] = None,
@@ -179,8 +239,7 @@ async def get_vouchers(
         selectinload(Voucher.items).selectinload(VoucherItem.charge_head),
         selectinload(Voucher.items).selectinload(VoucherItem.tax_category),
         selectinload(Voucher.ledger_entries).selectinload(LedgerEntry.account),
-        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.invoice),
-        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.voucher),
+        selectinload(Voucher.bill_allocations),
         selectinload(Voucher.lr),
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
@@ -208,16 +267,24 @@ async def get_vouchers(
         else:
             stmt = stmt.where(Voucher.issuing_office_id == office_id)
 
-    res = await session.execute(stmt)
-    return list(res.scalars().all())
+    try:
+        res = await session.execute(stmt)
+        return list(res.scalars().all())
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "does not exist" in err_msg or "due_date" in err_msg or "accounts_vouchers" in err_msg:
+            logger.warning(f"Schema mismatch detected in get_vouchers, auto-healing schema: {e}")
+            await ensure_tally_schema(session)
+            res = await session.execute(stmt)
+            return list(res.scalars().all())
+        raise
 
 async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
     stmt = select(Voucher).options(
         selectinload(Voucher.items).selectinload(VoucherItem.charge_head),
         selectinload(Voucher.items).selectinload(VoucherItem.tax_category),
         selectinload(Voucher.ledger_entries).selectinload(LedgerEntry.account),
-        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.invoice),
-        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.voucher),
+        selectinload(Voucher.bill_allocations),
         selectinload(Voucher.lr),
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
@@ -225,9 +292,21 @@ async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
         selectinload(Voucher.billing_client),
         selectinload(Voucher.vendor),
         selectinload(Voucher.driver),
-    ).where(Voucher.id == voucher_id)
-    res = await session.execute(stmt)
-    voucher = res.scalar_one_or_none()
+    ).where(Voucher.id == voucher_id).execution_options(populate_existing=True)
+
+    try:
+        res = await session.execute(stmt)
+        voucher = res.scalar_one_or_none()
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "does not exist" in err_msg or "due_date" in err_msg or "accounts_vouchers" in err_msg:
+            logger.warning(f"Schema mismatch detected in get_voucher_by_id, auto-healing schema: {e}")
+            await ensure_tally_schema(session)
+            res = await session.execute(stmt)
+            voucher = res.scalar_one_or_none()
+        else:
+            raise
+
     if not voucher:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Voucher not found")
     return voucher
@@ -1003,6 +1082,8 @@ async def create_receipt_against_invoice(
         notes=f"Settlement against {invoice.voucher_number}",
     )
     session.add(allocation)
+    if hasattr(invoice, 'bill_allocations') and invoice.bill_allocations is not None:
+        invoice.bill_allocations.append(allocation)
 
     # Update Invoice Balance & Payment Status
     invoice.paid_amount = (invoice.paid_amount or Decimal("0.00")) + total_settled
@@ -1012,9 +1093,9 @@ async def create_receipt_against_invoice(
     else:
         invoice.payment_status = "PARTIALLY_PAID"
 
+    receipt_id = receipt.id
     await session.commit()
-    session.expire_all()
-    return await get_voucher_by_id(session, receipt.id)
+    return await get_voucher_by_id(session, receipt_id)
 
 
 # ------------------------------------------------------------------------------
@@ -1171,5 +1252,4 @@ async def void_voucher(
 
     v_id = voucher.id
     await session.commit()
-    session.expire_all()
     return await get_voucher_by_id(session, v_id)

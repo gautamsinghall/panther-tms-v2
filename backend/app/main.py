@@ -371,12 +371,46 @@ async def lifespan(app: FastAPI):
                             "lr_id INTEGER REFERENCES transport_lrs(id)",
                             "hire_challan_id INTEGER REFERENCES transport_hire_challans(id)",
                             "account_id INTEGER REFERENCES misc_accounts(id)",
+                            "due_date DATE",
+                            "credit_period_days INTEGER DEFAULT 30",
+                            "paid_amount NUMERIC(12, 2) DEFAULT 0.00",
+                            "balance_amount NUMERIC(12, 2) DEFAULT 0.00",
+                            "payment_status VARCHAR(50) DEFAULT 'UNPAID'",
+                            "gst_treatment VARCHAR(50) DEFAULT 'FCM'",
+                            "place_of_supply VARCHAR(100)",
+                            "party_gstin VARCHAR(15)",
+                            "cost_center VARCHAR(100)",
+                            "tax_breakup JSONB DEFAULT '{}'::jsonb",
+                            "against_voucher_id INTEGER",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS {vch_col};"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_billing_client_id ON accounts_vouchers (billing_client_id);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_vendor_id ON accounts_vouchers (vendor_id);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_driver_id ON accounts_vouchers (driver_id);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_is_void ON accounts_vouchers (is_void);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_payment_status ON accounts_vouchers (payment_status);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_due_date ON accounts_vouchers (due_date);"))
+                        await t_conn.execute(text("ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS is_billed BOOLEAN DEFAULT FALSE;"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_lrs_is_billed ON transport_lrs (is_billed);"))
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS accounts_bill_allocations (
+                                id SERIAL PRIMARY KEY,
+                                voucher_id INTEGER NOT NULL REFERENCES accounts_vouchers(id) ON DELETE CASCADE,
+                                invoice_id INTEGER NOT NULL REFERENCES accounts_vouchers(id) ON DELETE CASCADE,
+                                allocated_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                                tds_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                                discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                                total_settled NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                                adjustment_type VARCHAR(50) NOT NULL DEFAULT 'AGAINST_REF',
+                                notes TEXT,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_bill_allocations_voucher_id ON accounts_bill_allocations (voucher_id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_bill_allocations_invoice_id ON accounts_bill_allocations (invoice_id);"))
+                        await t_conn.execute(text("UPDATE accounts_vouchers SET balance_amount = net_amount WHERE balance_amount IS NULL OR (balance_amount = 0.00 AND (paid_amount = 0.00 OR paid_amount IS NULL));"))
+                        await t_conn.execute(text("UPDATE accounts_vouchers SET payment_status = 'UNPAID' WHERE payment_status IS NULL;"))
+                        await t_conn.execute(text("UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;"))
 
                         # E-Invoicing Records Schema Evolution
                         await t_conn.execute(text("""

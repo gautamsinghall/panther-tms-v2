@@ -33,8 +33,11 @@ async def run_migration():
         try:
             engine = get_tenant_engine(db_name)
             async with engine.begin() as conn:
-                await conn.run_sync(TenantBase.metadata.create_all)
-                # Ensure columns for existing tables
+                try:
+                    await conn.run_sync(TenantBase.metadata.create_all)
+                except Exception as ca_err:
+                    logger.debug(f"Metadata create_all notice on {db_name}: {ca_err}")
+
                 statements = [
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS due_date DATE;",
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS credit_period_days INTEGER DEFAULT 30;",
@@ -45,15 +48,38 @@ async def run_migration():
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS place_of_supply VARCHAR(100);",
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS party_gstin VARCHAR(15);",
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS cost_center VARCHAR(100);",
-                    "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS tax_breakup JSON;",
+                    "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS tax_breakup JSONB DEFAULT '{}'::jsonb;",
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS against_voucher_id INTEGER;",
                     "ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS is_billed BOOLEAN DEFAULT FALSE;",
+                    """
+                    CREATE TABLE IF NOT EXISTS accounts_bill_allocations (
+                        id SERIAL PRIMARY KEY,
+                        voucher_id INTEGER NOT NULL REFERENCES accounts_vouchers(id) ON DELETE CASCADE,
+                        invoice_id INTEGER NOT NULL REFERENCES accounts_vouchers(id) ON DELETE CASCADE,
+                        allocated_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                        tds_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                        discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                        total_settled NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+                        adjustment_type VARCHAR(50) NOT NULL DEFAULT 'AGAINST_REF',
+                        notes TEXT,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );
+                    """,
+                    "CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_payment_status ON accounts_vouchers (payment_status);",
+                    "CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_due_date ON accounts_vouchers (due_date);",
+                    "CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_against_voucher_id ON accounts_vouchers (against_voucher_id);",
+                    "CREATE INDEX IF NOT EXISTS ix_transport_lrs_is_billed ON transport_lrs (is_billed);",
+                    "CREATE INDEX IF NOT EXISTS ix_accounts_bill_allocations_voucher_id ON accounts_bill_allocations (voucher_id);",
+                    "CREATE INDEX IF NOT EXISTS ix_accounts_bill_allocations_invoice_id ON accounts_bill_allocations (invoice_id);",
+                    "UPDATE accounts_vouchers SET balance_amount = net_amount WHERE balance_amount IS NULL OR (balance_amount = 0.00 AND (paid_amount = 0.00 OR paid_amount IS NULL));",
+                    "UPDATE accounts_vouchers SET payment_status = 'UNPAID' WHERE payment_status IS NULL;",
+                    "UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;",
                 ]
                 for stmt in statements:
                     try:
                         await conn.execute(text(stmt))
                     except Exception as col_err:
-                        logger.debug(f"Column check statement '{stmt}' result: {col_err}")
+                        logger.debug(f"Statement execution notice: {col_err}")
 
             logger.info(f"Successfully migrated {db_name}!")
         except Exception as e:
@@ -64,4 +90,3 @@ async def run_migration():
 
 if __name__ == "__main__":
     asyncio.run(run_migration())
-
