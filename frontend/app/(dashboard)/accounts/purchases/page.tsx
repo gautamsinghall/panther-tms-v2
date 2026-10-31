@@ -321,7 +321,14 @@ export default function PurchasesPage() {
       if (msg.includes("does not exist") || msg.includes("due_date") || msg.includes("column")) {
         setSchemaError(true);
       }
-      setErrorMessage(msg);
+      if (msg.includes("does not exist") || msg.includes("due_date") || msg.includes("column") || msg.includes("ProgrammingError")) {
+        setSchemaError(true);
+        setErrorMessage("Database schema update required. Please click 'Sync Schema & Retry' to automatically heal missing fields.");
+      } else if (msg.includes("name '") || msg.includes("Traceback") || msg.includes("Exception") || msg.includes("500")) {
+        setErrorMessage("Unable to load purchase records due to a server response error. Please refresh or click Sync Schema.");
+      } else {
+        setErrorMessage(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -1030,7 +1037,7 @@ export default function PurchasesPage() {
               <strong>Series Warning:</strong> No sequence series is configured for Purchase Bills (NP/GP). Please configure under Settings &gt; Series Master.
             </span>
           </div>
-          <Button variant="outline" size="sm" onClick={() => window.open("/settings/series", "_blank")}>
+          <Button variant="outline" size="sm" onClick={() => window.open("/settings/series-master", "_blank")}>
             Configure Series
           </Button>
         </div>
