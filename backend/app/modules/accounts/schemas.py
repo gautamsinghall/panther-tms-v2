@@ -90,6 +90,8 @@ class VoucherBase(BaseModel):
     cost_center: Optional[str] = None
     tax_breakup: Optional[Dict[str, Any]] = None
     against_voucher_id: Optional[int] = None
+    attachment_url: Optional[str] = None
+    itc_eligibility: Optional[str] = "ELIGIBLE"  # ELIGIBLE, INELIGIBLE, BLOCKED
 
 class VoucherCreate(VoucherBase):
     credit_account_id: Optional[int] = None  # For receipt, payment, contra, general voucher
@@ -124,6 +126,55 @@ class GeneralInvoiceCreate(BaseModel):
     reference_date: Optional[date] = None
     series_id: Optional[int] = None
     items: List[GeneralInvoiceItemCreate] = []
+    narration: Optional[str] = None
+
+class PurchaseBillItemCreate(BaseModel):
+    charge_head_id: Optional[int] = None
+    description: str = Field(..., max_length=255)
+    hsn_sac: Optional[str] = Field(default="9967", max_length=20)
+    quantity: Decimal = Field(default=Decimal("1.00"), gt=Decimal("0.00"))
+    rate: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    tax_category_id: Optional[int] = None
+    tax_amount: Decimal = Field(default=Decimal("0.00"))
+    total_amount: Decimal = Field(default=Decimal("0.00"))
+
+class PurchaseBillCreate(BaseModel):
+    vendor_id: Optional[int] = None
+    party_name: Optional[str] = None
+    party_gstin: Optional[str] = None
+    vendor_state: Optional[str] = None
+    purchase_type: Optional[str] = "NORMAL_PURCHASE"  # NORMAL_PURCHASE, GENERAL_PURCHASE
+    purchase_category: Optional[str] = "SPARES"  # FUEL, TYRES, SPARES, MAINTENANCE, TOLL, TRUCK_HIRE, OFFICE_ADMIN, EQUIPMENT, OTHER
+    voucher_number: Optional[str] = None
+    voucher_date: Optional[date] = None
+    due_date: Optional[date] = None
+    credit_period_days: Optional[int] = 30
+    bill_number: Optional[str] = None  # Supplier invoice reference
+    bill_date: Optional[date] = None
+    expense_account_id: Optional[int] = None
+    party_account_id: Optional[int] = None
+    gst_treatment: Optional[str] = "FCM"  # FCM, RCM, EXEMPT, NIL_RATED
+    itc_eligibility: Optional[str] = "ELIGIBLE"  # ELIGIBLE, INELIGIBLE, BLOCKED
+    place_of_supply: Optional[str] = None
+    hire_challan_id: Optional[int] = None
+    vehicle_number: Optional[str] = None
+    cost_center: Optional[str] = None
+    attachment_url: Optional[str] = None
+    items: List[PurchaseBillItemCreate] = []
+    narration: Optional[str] = None
+
+class PurchasePaymentCreate(BaseModel):
+    amount: Decimal = Field(..., gt=Decimal("0.00"))
+    payment_date: Optional[date] = None
+    payment_mode: str = Field(default="BANK")  # BANK or CASH
+    bank_account_id: Optional[int] = None
+    bank_account_code: Optional[str] = "ACC_HDFC_BANK"
+    reference_number: Optional[str] = None
+    tds_section: Optional[str] = None  # 194C, 194J, 194Q
+    tds_rate: Optional[Decimal] = Decimal("0.00")
+    tds_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
     narration: Optional[str] = None
 
 class TransportInvoiceCreate(BaseModel):

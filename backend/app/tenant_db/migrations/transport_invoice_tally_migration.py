@@ -50,6 +50,9 @@ async def run_migration():
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS cost_center VARCHAR(100);",
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS tax_breakup JSONB DEFAULT '{}'::jsonb;",
                     "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS against_voucher_id INTEGER;",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS attachment_url TEXT;",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS itc_eligibility VARCHAR(50) DEFAULT 'ELIGIBLE';",
+        "UPDATE accounts_vouchers SET itc_eligibility = 'ELIGIBLE' WHERE itc_eligibility IS NULL;",
                     "ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS is_billed BOOLEAN DEFAULT FALSE;",
                     """
                     CREATE TABLE IF NOT EXISTS accounts_bill_allocations (

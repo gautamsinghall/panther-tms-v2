@@ -1414,6 +1414,8 @@ class Voucher(TenantBase):
     cost_center = Column(String(100), nullable=True)
     tax_breakup = Column(JSON, default=dict, nullable=True)
     against_voucher_id = Column(Integer, ForeignKey("accounts_vouchers.id"), nullable=True, index=True)
+    attachment_url = Column(Text, nullable=True)
+    itc_eligibility = Column(String(50), default="ELIGIBLE", nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(

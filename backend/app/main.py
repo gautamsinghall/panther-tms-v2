@@ -382,6 +382,8 @@ async def lifespan(app: FastAPI):
                             "cost_center VARCHAR(100)",
                             "tax_breakup JSONB DEFAULT '{}'::jsonb",
                             "against_voucher_id INTEGER",
+                            "attachment_url TEXT",
+                            "itc_eligibility VARCHAR(50) DEFAULT 'ELIGIBLE'",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS {vch_col};"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_billing_client_id ON accounts_vouchers (billing_client_id);"))

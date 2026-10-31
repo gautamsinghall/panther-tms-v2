@@ -29,6 +29,8 @@ VOUCHER_TYPE_TO_FEATURE = {
     "PAYMENT_BTH": "payment_voucher",
     "BTH_PAYMENT": "payment_voucher",
     "PROFORMA_INVOICE": "proforma_invoice",
+    "NORMAL_PURCHASE": "purchases",
+    "GENERAL_PURCHASE": "purchases",
     "CONTRA_VOUCHER": "contra_voucher",
     "CREDIT_NOTE": "credit_debit_notes",
     "DEBIT_NOTE": "credit_debit_notes",
@@ -84,6 +86,8 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.gst_treatment = v.gst_treatment or "FCM"
     resp.place_of_supply = v.place_of_supply
     resp.tax_breakup = v.tax_breakup or {}
+    resp.attachment_url = getattr(v, "attachment_url", None)
+    resp.itc_eligibility = getattr(v, "itc_eligibility", "ELIGIBLE") or "ELIGIBLE" 
 
     # Map item details
     for idx, itm in enumerate(v.items):
@@ -285,6 +289,86 @@ async def create_invoice_payment(
         },
     )
     return map_voucher_response(receipt)
+
+
+@router.post("/purchases", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_purchase_bill_endpoint(
+    data: schemas.PurchaseBillCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "purchases", "create")),
+):
+    """
+    Record and post a vendor purchase bill with itemized SAC/HSN lines,
+    automatic intra/inter-state Input GST calculation, ITC eligibility check,
+    RCM treatment, and balanced double-entry ledger postings.
+    """
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    voucher = await service.create_purchase_bill(
+        session, data=data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PURCHASE_BILL_RECORDED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id or office_id,
+        details_json={
+            "voucher_number": voucher.voucher_number,
+            "bill_number": data.bill_number,
+            "vendor_name": voucher.party_name,
+            "total_amount": float(voucher.total_amount),
+            "tax_amount": float(voucher.tax_amount),
+            "net_amount": float(voucher.net_amount),
+            "purchase_category": data.purchase_category,
+        },
+    )
+    return map_voucher_response(voucher)
+
+
+@router.post("/purchases/{voucher_id}/payments", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_purchase_bill_payment_endpoint(
+    voucher_id: int,
+    data: schemas.PurchasePaymentCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
+):
+    """
+    Records supplier payment against an existing purchase bill with bill-wise settlement,
+    Section 194C / 194J / 194Q TDS deduction, and cash discount received.
+    """
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    pmt = await service.create_payment_against_purchase(
+        session, purchase_id=voucher_id, data=data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PURCHASE_BILL_PAID",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(pmt.id),
+        entity_identifier=pmt.voucher_number,
+        office_id=pmt.issuing_office_id or office_id,
+        details_json={
+            "purchase_voucher_id": voucher_id,
+            "payment_voucher_number": pmt.voucher_number,
+            "amount": float(data.amount),
+            "tds_amount": float(data.tds_amount or 0),
+            "discount_amount": float(data.discount_amount or 0),
+        },
+    )
+    return map_voucher_response(pmt)
 
 
 @router.post("/general-invoices", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
