@@ -28,6 +28,7 @@ import {
   User,
   Check,
 } from "lucide-react";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -953,7 +954,7 @@ export default function PaymentVoucherPage() {
               variant="outline"
               size="sm"
               onClick={handleExportCSV}
-              className="border-slate-700 hover:bg-slate-800 text-slate-200"
+              className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-[#202025] text-slate-700 dark:text-slate-300 rounded-xl shadow-2xs font-medium"
             >
               <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-400" />
               Export CSV
@@ -975,83 +976,44 @@ export default function PaymentVoucherPage() {
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Payments */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Disbursed</span>
-            <div className="p-2 rounded-lg bg-rose-950/80 border border-rose-800/50 text-rose-400">
-              <Wallet className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalPayments)}
-            </span>
-            <span className="text-xs text-slate-500">({kpis.totalCount} vouchers)</span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Total bank & cash disbursements</p>
-        </div>
-
-        {/* Hire Challan Settlements */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Truck Hire (HC)</span>
-            <div className="p-2 rounded-lg bg-amber-950/80 border border-amber-800/50 text-amber-400">
-              <Truck className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalHireChallans)}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Transporter & market truck advances (ATH/BTH)</p>
-        </div>
-
-        {/* Driver Advances */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Driver Advances</span>
-            <div className="p-2 rounded-lg bg-cyan-950/80 border border-cyan-800/50 text-cyan-400">
-              <User className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalDriverAdvances)}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Trip advances & expense reimbursements</p>
-        </div>
-
-        {/* TDS Retained */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">TDS Retained</span>
-            <div className="p-2 rounded-lg bg-purple-950/80 border border-purple-800/50 text-purple-400">
-              <Percent className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalTds)}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Sec 194C / 194J statutory tax withheld</p>
-        </div>
+        <KpiCard
+          title="Total Disbursed"
+          value={formatCurrency(kpis.totalPayments)}
+          subtext="Total bank & cash disbursements"
+          badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount} vouchers)</span>}
+          icon={<Wallet className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
+        />
+        <KpiCard
+          title="Truck Hire (HC)"
+          value={formatCurrency(kpis.totalHireChallans)}
+          subtext="Transporter & market truck advances (ATH/BTH)"
+          icon={<Truck className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+        />
+        <KpiCard
+          title="Driver Advances"
+          value={formatCurrency(kpis.totalDriverAdvances)}
+          subtext="Trip advances & expense reimbursements"
+          icon={<User className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+        />
+        <KpiCard
+          title="TDS Retained"
+          value={formatCurrency(kpis.totalTds)}
+          subtext="Sec 194C / 194J statutory tax withheld"
+          icon={<Percent className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+        />
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 shadow-2xs space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               placeholder="Search payment #, beneficiary, cheque/UTR #, narration..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              className="w-full bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl pl-9 pr-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-[#F5F5F7] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             />
           </div>
 
@@ -1060,7 +1022,7 @@ export default function PaymentVoucherPage() {
             <select
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+              className="bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
             >
               <option value="ALL">All Payment Modes</option>
               <option value="BANK">Bank Transfer (NEFT/RTGS/IMPS)</option>
@@ -1073,7 +1035,7 @@ export default function PaymentVoucherPage() {
             <select
               value={filterPaymentType}
               onChange={(e) => setFilterPaymentType(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+              className="bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
             >
               <option value="ALL">All Payment Types</option>
               <option value="AGAINST_REF">Against Bills (Supplier Settlement)</option>
@@ -1087,7 +1049,7 @@ export default function PaymentVoucherPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+              className="bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
             >
               <option value="ALL">All Statuses</option>
               <option value="CLEARED">Paid / Cleared</option>
@@ -1118,7 +1080,7 @@ export default function PaymentVoucherPage() {
       <DataTable
         columns={columns}
         data={filteredData}
-        loading={isLoading}
+        isLoading={isLoading}
         actions={actions}
         emptyState={
           <div className="py-12 text-center">
@@ -1152,9 +1114,9 @@ export default function PaymentVoucherPage() {
       >
         <form onSubmit={handleCreatePayment} className="space-y-6 pb-20">
           {/* Step 1: What is this payment for? */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-            <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-950 border border-blue-700 text-xs text-blue-300">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#303036] pb-3 text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                 1
               </span>
               What Is This Payment For? (Payment Category)
@@ -1167,8 +1129,8 @@ export default function PaymentVoucherPage() {
                 className={cn(
                   "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
                   paymentType === "AGAINST_REF"
-                    ? "bg-blue-950/80 border-blue-600 text-blue-300 shadow-sm"
-                    : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                    ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-semibold shadow-xs"
+                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
                 )}
               >
                 <FileText className="h-4 w-4" />
@@ -1181,8 +1143,8 @@ export default function PaymentVoucherPage() {
                 className={cn(
                   "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
                   paymentType === "HIRE_CHALLAN"
-                    ? "bg-amber-950/80 border-amber-600 text-amber-300 shadow-sm"
-                    : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                    ? "bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-900 dark:text-amber-200 font-semibold shadow-xs"
+                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
                 )}
               >
                 <Truck className="h-4 w-4" />
@@ -1195,8 +1157,8 @@ export default function PaymentVoucherPage() {
                 className={cn(
                   "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
                   paymentType === "DRIVER_ADVANCE"
-                    ? "bg-cyan-950/80 border-cyan-600 text-cyan-300 shadow-sm"
-                    : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                    ? "bg-cyan-50 dark:bg-cyan-950/60 border-cyan-500 text-cyan-900 dark:text-cyan-200 font-semibold shadow-xs"
+                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
                 )}
               >
                 <User className="h-4 w-4" />
@@ -1209,8 +1171,8 @@ export default function PaymentVoucherPage() {
                 className={cn(
                   "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
                   paymentType === "DIRECT_EXPENSE"
-                    ? "bg-purple-950/80 border-purple-600 text-purple-300 shadow-sm"
-                    : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                    ? "bg-purple-50 dark:bg-purple-950/60 border-purple-500 text-purple-900 dark:text-purple-200 font-semibold shadow-xs"
+                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
                 )}
               >
                 <CreditCard className="h-4 w-4" />
@@ -1220,9 +1182,9 @@ export default function PaymentVoucherPage() {
           </div>
 
           {/* Step 2: Who are you paying? */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-            <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-950 border border-blue-700 text-xs text-blue-300">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#303036] pb-3 text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                 2
               </span>
               Who Are You Paying? (Beneficiary)
@@ -1233,7 +1195,7 @@ export default function PaymentVoucherPage() {
               {(paymentType === "AGAINST_REF" || paymentType === "ADVANCE") && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Select Vendor / Supplier <span className="text-rose-400">*</span>
                     </label>
                     <select
@@ -1242,7 +1204,7 @@ export default function PaymentVoucherPage() {
                         setSelectedVendorId(e.target.value);
                         if (e.target.value) setCustomPartyName("");
                       }}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
                       <option value="">-- Choose Vendor / Supplier --</option>
                       {vendors.map((v) => (
@@ -1254,7 +1216,7 @@ export default function PaymentVoucherPage() {
                   </div>
                   {!selectedVendorId && (
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
+                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                         Or Enter Vendor Name
                       </label>
                       <input
@@ -1262,7 +1224,7 @@ export default function PaymentVoucherPage() {
                         placeholder="e.g. Local Petrol Pump / Tyre Dealer"
                         value={customPartyName}
                         onChange={(e) => setCustomPartyName(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                        className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                       />
                     </div>
                   )}
@@ -1273,13 +1235,13 @@ export default function PaymentVoucherPage() {
               {paymentType === "HIRE_CHALLAN" && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Select Hire Challan <span className="text-rose-400">*</span>
                     </label>
                     <select
                       value={selectedChallanId}
                       onChange={(e) => setSelectedChallanId(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
                       <option value="">-- Choose Hire Challan --</option>
                       {hireChallans.map((hc) => (
@@ -1290,7 +1252,7 @@ export default function PaymentVoucherPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Challan Payment Stage
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -1300,8 +1262,8 @@ export default function PaymentVoucherPage() {
                         className={cn(
                           "py-2 text-xs rounded-lg font-medium border text-center transition-all",
                           challanPaymentType === "ATH"
-                            ? "bg-amber-950/80 border-amber-600 text-amber-300"
-                            : "bg-slate-900 border-slate-800 text-slate-400"
+                            ? "bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-900 dark:text-amber-200 font-semibold"
+                            : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50"
                         )}
                       >
                         Advance (ATH)
@@ -1312,8 +1274,8 @@ export default function PaymentVoucherPage() {
                         className={cn(
                           "py-2 text-xs rounded-lg font-medium border text-center transition-all",
                           challanPaymentType === "BTH"
-                            ? "bg-amber-950/80 border-amber-600 text-amber-300"
-                            : "bg-slate-900 border-slate-800 text-slate-400"
+                            ? "bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-900 dark:text-amber-200 font-semibold"
+                            : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50"
                         )}
                       >
                         Balance (BTH)
@@ -1324,8 +1286,8 @@ export default function PaymentVoucherPage() {
                         className={cn(
                           "py-2 text-xs rounded-lg font-medium border text-center transition-all",
                           challanPaymentType === "FULL"
-                            ? "bg-amber-950/80 border-amber-600 text-amber-300"
-                            : "bg-slate-900 border-slate-800 text-slate-400"
+                            ? "bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-900 dark:text-amber-200 font-semibold"
+                            : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50"
                         )}
                       >
                         Full Settlement
@@ -1339,13 +1301,13 @@ export default function PaymentVoucherPage() {
               {(paymentType === "DRIVER_ADVANCE" || paymentType === "DRIVER_EXPENSE") && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Select Driver <span className="text-rose-400">*</span>
                     </label>
                     <select
                       value={selectedDriverId}
                       onChange={(e) => setSelectedDriverId(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
                       <option value="">-- Choose Company / Market Driver --</option>
                       {drivers.map((d) => (
@@ -1367,13 +1329,13 @@ export default function PaymentVoucherPage() {
               {paymentType === "DIRECT_EXPENSE" && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Expense Ledger Head <span className="text-rose-400">*</span>
                     </label>
                     <select
                       value={selectedExpenseAccountId}
                       onChange={(e) => setSelectedExpenseAccountId(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
                       <option value="">-- Select Expense Ledger --</option>
                       {expenseAccounts.map((a) => (
@@ -1384,7 +1346,7 @@ export default function PaymentVoucherPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Paid To (Payee Name)
                     </label>
                     <input
@@ -1392,7 +1354,7 @@ export default function PaymentVoucherPage() {
                       placeholder="e.g. Anand Stationary / Coolie Union"
                       value={customPartyName}
                       onChange={(e) => setCustomPartyName(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     />
                   </div>
                 </>
@@ -1401,7 +1363,7 @@ export default function PaymentVoucherPage() {
           </div>
 
           {/* Step 3: Payment & Banking Information */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-950 border border-blue-700 text-xs text-blue-300">
                 3
@@ -1411,13 +1373,13 @@ export default function PaymentVoucherPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                   Payment Method <span className="text-rose-400">*</span>
                 </label>
                 <select
                   value={paymentMode}
                   onChange={(e) => setPaymentMode(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
                   <option value="BANK">Bank Transfer (NEFT / RTGS / IMPS)</option>
                   <option value="CHEQUE">Cheque</option>
@@ -1427,13 +1389,13 @@ export default function PaymentVoucherPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                   Pay From Which Account? <span className="text-rose-400">*</span>
                 </label>
                 <select
                   value={bankAccountId}
                   onChange={(e) => setBankAccountId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
                   <option value="">-- Standard Bank / Cash Account --</option>
                   {bankAccounts.map((a) => (
@@ -1445,14 +1407,14 @@ export default function PaymentVoucherPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                   Payment Date <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="date"
                   value={voucherDate}
                   onChange={(e) => setVoucherDate(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
 
@@ -1460,7 +1422,7 @@ export default function PaymentVoucherPage() {
               {paymentMode === "CHEQUE" ? (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Cheque Number <span className="text-rose-400">*</span>
                     </label>
                     <input
@@ -1468,22 +1430,22 @@ export default function PaymentVoucherPage() {
                       placeholder="e.g. 008921"
                       value={chequeNumber}
                       onChange={(e) => setChequeNumber(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Cheque Date
                     </label>
                     <input
                       type="date"
                       value={chequeDate}
                       onChange={(e) => setChequeDate(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Drawn on Bank
                     </label>
                     <input
@@ -1491,17 +1453,17 @@ export default function PaymentVoucherPage() {
                       placeholder="e.g. HDFC Bank"
                       value={chequeBank}
                       onChange={(e) => setChequeBank(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                       Clearance Status
                     </label>
                     <select
                       value={clearanceStatus}
                       onChange={(e) => setClearanceStatus(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
                       <option value="CLEARED">Cleared (Realized from Bank)</option>
                       <option value="PENDING">Pending Clearance (Cheque Issued)</option>
@@ -1510,7 +1472,7 @@ export default function PaymentVoucherPage() {
                 </>
               ) : (
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                     UTR / Txn Reference #
                   </label>
                   <input
@@ -1518,13 +1480,13 @@ export default function PaymentVoucherPage() {
                     placeholder="e.g. NEFT29482948 or UPI Ref"
                     value={referenceNumber}
                     onChange={(e) => setReferenceNumber(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                   Amount to Pay (₹) <span className="text-rose-400">*</span>
                 </label>
                 <input
@@ -1533,7 +1495,7 @@ export default function PaymentVoucherPage() {
                   placeholder="0.00"
                   value={amountToPay}
                   onChange={(e) => setAmountToPay(e.target.value)}
-                  className="w-full bg-slate-900 border border-blue-600/70 rounded-lg px-3 py-2 text-base font-semibold font-mono text-rose-400 focus:outline-none focus:border-blue-500"
+                  className="w-full h-10 px-3.5 text-sm sm:text-base font-bold rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/30 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all shadow-2xs"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   Net funds disbursed from your bank account or cash drawer.
@@ -1544,7 +1506,7 @@ export default function PaymentVoucherPage() {
 
           {/* Step 4: Bill Allocation Table (if AGAINST_REF) */}
           {paymentType === "AGAINST_REF" && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+            <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-950 border border-blue-700 text-xs text-blue-300">
@@ -1565,7 +1527,7 @@ export default function PaymentVoucherPage() {
                   Loading vendor open bills...
                 </div>
               ) : vendorOpenBills.length === 0 ? (
-                <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6 text-center">
+                <div className="rounded-xl border border-slate-200 dark:border-[#303036] bg-slate-50 dark:bg-[#101013] p-6 text-center">
                   <CheckCircle className="h-8 w-8 text-emerald-500/80 mx-auto mb-2" />
                   <p className="text-xs font-semibold text-slate-300">
                     {selectedVendorId
@@ -1579,9 +1541,9 @@ export default function PaymentVoucherPage() {
                   )}
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-800">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#303036]">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px]">
+                    <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
                       <tr>
                         <th className="p-2.5">Bill # & Date</th>
                         <th className="p-2.5">Supplier Ref #</th>
@@ -1607,7 +1569,7 @@ export default function PaymentVoucherPage() {
                         const isOverAllocated = rowTotal > bill.balance_amount + 0.01;
 
                         return (
-                          <tr key={bill.id} className={cn("hover:bg-slate-900/50 transition-colors", rowTotal > 0 && "bg-blue-950/15")}>
+                          <tr key={bill.id} className={cn("hover:bg-slate-50/80 dark:hover:bg-[#202025] transition-colors border-b border-slate-100 dark:border-[#303036]", rowTotal > 0 && "bg-indigo-50/40 dark:bg-indigo-950/20")}>
                             <td className="p-2.5">
                               <div className="font-semibold text-slate-200 font-mono">
                                 {bill.voucher_number}
@@ -1640,7 +1602,7 @@ export default function PaymentVoucherPage() {
                                     [bill.id]: { ...prev[bill.id], allocated_amount: val },
                                   }));
                                 }}
-                                className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right font-mono text-rose-400 focus:outline-none focus:border-blue-500 text-xs"
+                                className="w-24 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-rose-600 dark:text-rose-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right">
@@ -1656,7 +1618,7 @@ export default function PaymentVoucherPage() {
                                     [bill.id]: { ...prev[bill.id], tds_amount: val },
                                   }));
                                 }}
-                                className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right font-mono text-purple-400 focus:outline-none focus:border-purple-500 text-xs"
+                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-purple-600 dark:text-purple-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right">
@@ -1672,7 +1634,7 @@ export default function PaymentVoucherPage() {
                                     [bill.id]: { ...prev[bill.id], discount_amount: val },
                                   }));
                                 }}
-                                className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right font-mono text-emerald-400 focus:outline-none focus:border-emerald-500 text-xs"
+                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right font-mono font-semibold">
@@ -1698,7 +1660,7 @@ export default function PaymentVoucherPage() {
                         );
                       })}
                     </tbody>
-                    <tfoot className="bg-slate-900 font-semibold border-t border-slate-800 text-slate-200">
+                    <tfoot className="bg-slate-50 dark:bg-[#101013] font-semibold border-t border-slate-200 dark:border-[#303036] text-slate-800 dark:text-slate-200">
                       <tr>
                         <td colSpan={3} className="p-2.5 text-right uppercase text-[10px] text-slate-400">
                           Allocated Totals:
@@ -1726,7 +1688,7 @@ export default function PaymentVoucherPage() {
 
           {/* Deductions & TDS section for non-allocated payments */}
           {paymentType !== "AGAINST_REF" && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+            <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
               <div className="flex items-center gap-2 text-purple-400 font-semibold text-sm">
                 <Percent className="h-4 w-4" />
                 Statutory TDS Deduction on Payment
@@ -1734,13 +1696,13 @@ export default function PaymentVoucherPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                     TDS Section
                   </label>
                   <select
                     value={tdsSection}
                     onChange={(e) => setTdsSection(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                   >
                     <option value="194C">Section 194C (Transporter / Contractor - 1% or 2%)</option>
                     <option value="194J">Section 194J (Professional / Technical - 2% or 10%)</option>
@@ -1750,7 +1712,7 @@ export default function PaymentVoucherPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                     TDS Rate (%)
                   </label>
                   <input
@@ -1758,12 +1720,12 @@ export default function PaymentVoucherPage() {
                     step="0.01"
                     value={tdsRate}
                     onChange={(e) => setTdsRate(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                     TDS Amount (₹)
                   </label>
                   <input
@@ -1771,12 +1733,12 @@ export default function PaymentVoucherPage() {
                     step="0.01"
                     value={tdsAmount}
                     onChange={(e) => setTdsAmount(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-purple-400 focus:outline-none focus:border-purple-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-semibold rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/30 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 shadow-2xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                     Discount / Rebate Received (₹)
                   </label>
                   <input
@@ -1784,7 +1746,7 @@ export default function PaymentVoucherPage() {
                     step="0.01"
                     value={discountAmount}
                     onChange={(e) => setDiscountAmount(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-semibold rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs"
                   />
                 </div>
               </div>
@@ -1792,9 +1754,9 @@ export default function PaymentVoucherPage() {
           )}
 
           {/* Narration & Live Double-Entry Preview */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
                 Narration / Notes
               </label>
               <textarea
@@ -1802,13 +1764,13 @@ export default function PaymentVoucherPage() {
                 placeholder="e.g. Cheque issued towards fuel bill settlement..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
               />
             </div>
 
             {/* Double-Entry Journal Preview Card */}
-            <div className="rounded-lg border border-slate-800 bg-slate-900 p-3.5 space-y-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="rounded-xl border border-slate-200/90 dark:border-[#303036] bg-slate-50 dark:bg-[#101013] p-4 space-y-2">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-blue-400" />
                 Live Tally Double-Entry Preview
               </span>
@@ -1843,7 +1805,7 @@ export default function PaymentVoucherPage() {
                   </div>
                 )}
 
-                <div className="flex justify-between text-rose-400 border-t border-slate-800 pt-1">
+                <div className="flex justify-between text-rose-600 dark:text-rose-400 border-t border-slate-200 dark:border-[#303036] pt-1 font-semibold">
                   <span>Cr. Bank / Cash Account (Funds disbursed)</span>
                   <span>{formatCurrency(parseFloat(amountToPay) || 0)}</span>
                 </div>
@@ -1888,11 +1850,11 @@ export default function PaymentVoucherPage() {
         {selectedVoucher && (
           <div className="space-y-6 pb-12">
             {/* Header Card */}
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+            <div className="rounded-2xl border border-slate-200/90 dark:border-[#303036] bg-white dark:bg-[#17171B] p-5 space-y-3 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs text-slate-500 uppercase tracking-wider">Beneficiary / Payee</span>
-                  <p className="text-base font-semibold text-slate-100">{selectedVoucher.party_name || "Beneficiary"}</p>
+                  <p className="text-base font-semibold text-slate-900 dark:text-white">{selectedVoucher.party_name || "Beneficiary"}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-slate-500 uppercase tracking-wider">Total Value</span>
@@ -1902,7 +1864,7 @@ export default function PaymentVoucherPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 dark:border-[#303036] text-xs">
                 <div>
                   <span className="text-slate-500">Date:</span>{" "}
                   <span className="text-slate-200">{formatDate(selectedVoucher.voucher_date)}</span>
@@ -1924,7 +1886,7 @@ export default function PaymentVoucherPage() {
               </div>
 
               {selectedVoucher.narration && (
-                <div className="text-xs text-slate-400 italic pt-1 border-t border-slate-800/60">
+                <div className="text-xs text-slate-400 italic pt-1 border-t border-slate-100 dark:border-[#303036]">
                   &quot;{selectedVoucher.narration}&quot;
                 </div>
               )}
@@ -1936,9 +1898,9 @@ export default function PaymentVoucherPage() {
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Settled Purchase Bills ({selectedVoucher.bill_allocations.length})
                 </span>
-                <div className="overflow-x-auto rounded-lg border border-slate-800">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#303036]">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider text-[10px]">
+                    <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
                       <tr>
                         <th className="p-2.5">Bill #</th>
                         <th className="p-2.5 text-right">Bank/Cash Applied</th>
@@ -1947,7 +1909,7 @@ export default function PaymentVoucherPage() {
                         <th className="p-2.5 text-right">Total Settled</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-950/50">
+                    <tbody className="divide-y divide-slate-100 dark:divide-[#303036] bg-white dark:bg-[#101013]">
                       {selectedVoucher.bill_allocations.map((ba) => (
                         <tr key={ba.id}>
                           <td className="p-2.5 font-mono text-blue-400 font-semibold">
@@ -1978,9 +1940,9 @@ export default function PaymentVoucherPage() {
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 Posted Double-Entry Ledger Entries
               </span>
-              <div className="overflow-x-auto rounded-lg border border-slate-800">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#303036]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider text-[10px]">
+                  <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
                     <tr>
                       <th className="p-2.5">Ledger Account</th>
                       <th className="p-2.5 text-right">Debit (Dr) ₹</th>
@@ -1988,10 +1950,10 @@ export default function PaymentVoucherPage() {
                       <th className="p-2.5">Entry Narration</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800 bg-slate-950/50">
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#303036] bg-white dark:bg-[#101013]">
                     {selectedVoucher.ledger_entries.map((le) => (
                       <tr key={le.id} className={le.is_reversal ? "bg-rose-950/20" : ""}>
-                        <td className="p-2.5 font-medium text-slate-200">
+                        <td className="p-2.5 font-medium text-slate-800 dark:text-slate-200">
                           {le.account_name || `Account #${le.account_id}`}
                           {le.is_reversal && (
                             <span className="ml-1.5 text-[10px] text-rose-400 uppercase font-semibold">
@@ -2011,7 +1973,7 @@ export default function PaymentVoucherPage() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-slate-900 font-semibold border-t border-slate-800 text-slate-200">
+                  <tfoot className="bg-slate-50 dark:bg-[#101013] font-semibold border-t border-slate-200 dark:border-[#303036] text-slate-800 dark:text-slate-200">
                     <tr>
                       <td className="p-2.5 uppercase text-[10px] text-slate-400">Total:</td>
                       <td className="p-2.5 text-right font-mono text-emerald-400">
@@ -2043,7 +2005,7 @@ export default function PaymentVoucherPage() {
                   setPrintVoucher(selectedVoucher);
                   setIsPrintModalOpen(true);
                 }}
-                className="border-slate-700 text-slate-200"
+                className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-[#202025] text-slate-700 dark:text-slate-300 rounded-xl shadow-2xs font-medium"
               >
                 <Printer className="h-4 w-4 mr-1.5 text-emerald-400" />
                 Print Payment Voucher
@@ -2197,7 +2159,7 @@ export default function PaymentVoucherPage() {
         onConfirm={handleVoidVoucher}
       >
         <div className="mt-3">
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
             Reason for Voiding <span className="text-rose-400">*</span>
           </label>
           <textarea
@@ -2205,7 +2167,7 @@ export default function PaymentVoucherPage() {
             placeholder="e.g. Cheque stopped / RTGS failed / wrong vendor selected..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-rose-500"
+            className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
           />
         </div>
       </ConfirmDialog>

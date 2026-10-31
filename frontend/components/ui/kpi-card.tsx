@@ -21,6 +21,7 @@ export interface KpiCardProps {
  * - Modern tabular-nums display typography
  * - Smooth hover lift effect
  * - Semantic trend indicator
+ * - Full Dark / Light mode responsiveness
  */
 export function KpiCard({
   title,
@@ -34,7 +35,7 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl border border-slate-200/90 p-5 flex flex-col justify-between shadow-2xs hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden",
+        "bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 flex flex-col justify-between shadow-2xs hover:shadow-md hover:border-slate-300 dark:hover:border-[#42424A] hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden",
         className
       )}
     >
@@ -43,13 +44,13 @@ export function KpiCard({
 
       {/* Label and Icon Header */}
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 group-hover:text-slate-800 transition-colors font-mono">
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-[#898991] group-hover:text-slate-800 dark:group-hover:text-[#F5F5F7] transition-colors font-sans">
           {title}
         </span>
         <div className="flex items-center gap-2">
           {badge}
           {icon && (
-            <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-50 group-hover:border-indigo-200 group-hover:scale-105 transition-all shrink-0 shadow-2xs">
+            <div className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-[#202025] border border-slate-200/80 dark:border-[#303036] flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 group-hover:border-indigo-200 dark:group-hover:border-indigo-800 group-hover:scale-105 transition-all shrink-0 shadow-2xs">
               {icon}
             </div>
           )}
@@ -58,7 +59,7 @@ export function KpiCard({
 
       {/* Metric Value & Trend Context */}
       <div className="mt-3.5">
-        <div className="text-2xl sm:text-[26px] leading-8 font-bold text-slate-900 tabular-nums tracking-tight font-sans">
+        <div className="text-2xl sm:text-[26px] leading-8 font-bold text-slate-900 dark:text-white tabular-nums tracking-tight font-sans">
           {value}
         </div>
 
@@ -67,10 +68,10 @@ export function KpiCard({
             {trend && (
               <span
                 className={cn(
-                  "inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-md border font-mono",
+                  "inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-md border font-sans",
                   trend.isPositive
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : "bg-rose-50 border-rose-200 text-rose-800"
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300"
+                    : "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-300"
                 )}
               >
                 {trend.isPositive ? (
@@ -82,7 +83,7 @@ export function KpiCard({
               </span>
             )}
             {subtext && (
-              <span className="text-xs text-slate-500 font-normal">
+              <span className="text-xs text-slate-500 dark:text-[#898991] font-normal">
                 {subtext}
               </span>
             )}

@@ -29,6 +29,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -183,7 +184,6 @@ export default function ContraVoucherPage() {
       const [vouchersRes, accountsRes, sInfo] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=CONTRA_VOUCHER"),
         apiClient<ContraAccountOption[]>("/api/v1/accounts/contra/accounts").catch(async () => {
-          // Fallback to /misc/accounts if specialized endpoint fails
           const raw = await apiClient<any[]>("/api/v1/misc/accounts").catch(() => []);
           return raw
             .filter((a) => {
@@ -195,7 +195,7 @@ export default function ContraVoucherPage() {
               id: a.id,
               name: a.name,
               code: a.code,
-              account_type: (a.code || "").toUpperCase().includes("CASH") ? "CASH" : "BANK",
+              account_type: ((a.code || "").toUpperCase().includes("CASH") ? "CASH" : "BANK") as "BANK" | "CASH",
               current_balance: a.opening_balance || 0,
               balance_type: a.opening_balance_type || "DR",
             }));
@@ -241,7 +241,6 @@ export default function ContraVoucherPage() {
     } else {
       pool = cashAccounts;
     }
-    // Exclude selected source account if in same pool
     return pool.filter((a) => String(a.id) !== sourceAccountId);
   }, [contraType, cashAccounts, bankAccounts, sourceAccountId]);
 
@@ -471,11 +470,11 @@ export default function ContraVoucherPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-slate-100 flex items-center gap-1.5">
-            <ArrowLeftRight className="h-3.5 w-3.5 text-indigo-400" />
+          <span className="font-mono font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <ArrowLeftRight className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
             {row.voucher_number}
           </span>
-          <span className="block text-xs text-slate-400 mt-0.5">{formatDate(row.voucher_date)}</span>
+          <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{formatDate(row.voucher_date)}</span>
         </div>
       ),
     },
@@ -489,18 +488,18 @@ export default function ContraVoucherPage() {
 
         return (
           <div className="space-y-0.5 max-w-[280px]">
-            <span className="font-medium text-slate-200 block text-xs truncate">
+            <span className="font-medium text-slate-800 dark:text-slate-200 block text-xs truncate">
               {row.party_name || "Internal Fund Movement"}
             </span>
             {src && dst ? (
-              <span className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
-                <span className="text-rose-400 truncate max-w-[120px]">{src}</span>
-                <ArrowRight className="h-3 w-3 shrink-0 text-slate-500" />
-                <span className="text-emerald-400 truncate max-w-[120px]">{dst}</span>
+              <span className="flex items-center gap-1 text-[11px] text-slate-500 font-mono">
+                <span className="text-rose-600 dark:text-rose-400 truncate max-w-[120px]">{src}</span>
+                <ArrowRight className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="text-emerald-600 dark:text-emerald-400 truncate max-w-[120px]">{dst}</span>
               </span>
             ) : null}
             {row.reference_number && (
-              <span className="block font-mono text-[11px] text-slate-500">
+              <span className="block font-mono text-[11px] text-slate-400 dark:text-slate-500">
                 Ref: {row.reference_number}
               </span>
             )}
@@ -515,31 +514,31 @@ export default function ContraVoucherPage() {
         const cType = (row.tax_breakup?.contra_type || "").toUpperCase();
         if (cType === "CASH_TO_BANK" || (row.party_name || "").toLowerCase().includes("deposit")) {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-950/60 border border-emerald-800/60 text-emerald-300">
-              <Landmark className="h-3 w-3 text-emerald-400" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300">
+              <Landmark className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
               Cash Deposit
             </span>
           );
         }
         if (cType === "BANK_TO_CASH" || (row.party_name || "").toLowerCase().includes("withdrawal")) {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-cyan-950/60 border border-cyan-800/60 text-cyan-300">
-              <Wallet className="h-3 w-3 text-cyan-400" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800/60 text-cyan-700 dark:text-cyan-300">
+              <Wallet className="h-3 w-3 text-cyan-600 dark:text-cyan-400" />
               Cash Withdrawal
             </span>
           );
         }
         if (cType === "BANK_TO_BANK" || (row.party_name || "").toLowerCase().includes("inter")) {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-950/60 border border-indigo-800/60 text-indigo-300">
-              <Building2 className="h-3 w-3 text-indigo-400" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300">
+              <Building2 className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
               Inter-Bank
             </span>
           );
         }
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/60 border border-amber-800/60 text-amber-300">
-            <ArrowLeftRight className="h-3 w-3 text-amber-400" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 text-amber-700 dark:text-amber-300">
+            <ArrowLeftRight className="h-3 w-3 text-amber-600 dark:text-amber-400" />
             Cash to Cash
           </span>
         );
@@ -552,11 +551,11 @@ export default function ContraVoucherPage() {
       sortable: true,
       cell: (row) => (
         <div className="text-right">
-          <span className="font-mono font-semibold text-slate-100 text-sm tabular-nums">
+          <span className="font-mono font-bold text-slate-900 dark:text-white text-sm tabular-nums">
             {formatCurrency(parseFloat(String(row.net_amount)) || 0)}
           </span>
           {row.tax_breakup?.bank_charges && parseFloat(row.tax_breakup.bank_charges) > 0 && (
-            <span className="block text-[10px] text-amber-400 font-mono">
+            <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-mono">
               + Charges: {formatCurrency(parseFloat(row.tax_breakup.bank_charges))}
             </span>
           )}
@@ -597,7 +596,7 @@ export default function ContraVoucherPage() {
     },
     {
       label: "Void Contra",
-      icon: <Ban className="w-3.5 h-3.5 text-rose-400" />,
+      icon: <Ban className="w-3.5 h-3.5 text-rose-500" />,
       variant: "danger",
       hidden: (row) => row.is_void,
       onClick: (row) => {
@@ -623,9 +622,9 @@ export default function ContraVoucherPage() {
               variant="outline"
               size="sm"
               onClick={handleExportCSV}
-              className="border-slate-700 hover:bg-slate-800 text-slate-200"
+              className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-2xs font-medium"
             >
-              <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-400" />
+              <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-600 dark:text-emerald-400" />
               Export CSV
             </Button>
             <Button
@@ -634,7 +633,7 @@ export default function ContraVoucherPage() {
                 resetCreateForm("CASH_TO_BANK");
                 setIsCreateOpen(true);
               }}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-950/50 font-medium"
+              className="bg-[#4F46E5] hover:bg-[#4338CA] text-white shadow-xs font-semibold rounded-xl"
             >
               <Plus className="h-4 w-4 mr-1.5" />
               Record Contra Transfer
@@ -645,90 +644,42 @@ export default function ContraVoucherPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Transfers */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Total Fund Transfers</span>
-            <span className="p-2 rounded-lg bg-indigo-950/80 border border-indigo-800/50 text-indigo-400">
-              <ArrowLeftRight className="h-4 w-4" />
-            </span>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl font-bold font-mono text-slate-100 tabular-nums">
-              {formatCurrency(kpis.totalTransfers)}
-            </span>
-            <p className="text-[11px] text-slate-500 mt-1">
-              {kpis.count} internal transactions posted
-            </p>
-          </div>
-        </div>
-
-        {/* Cash Deposited in Bank */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Cash Deposited to Bank</span>
-            <span className="p-2 rounded-lg bg-emerald-950/80 border border-emerald-800/50 text-emerald-400">
-              <Landmark className="h-4 w-4" />
-            </span>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl font-bold font-mono text-emerald-400 tabular-nums">
-              {formatCurrency(kpis.cashDeposited)}
-            </span>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Cash-in-hand credited to bank accounts
-            </p>
-          </div>
-        </div>
-
-        {/* Cash Withdrawn from Bank */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Cash Withdrawn (Self/ATM)</span>
-            <span className="p-2 rounded-lg bg-cyan-950/80 border border-cyan-800/50 text-cyan-400">
-              <Wallet className="h-4 w-4" />
-            </span>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl font-bold font-mono text-cyan-400 tabular-nums">
-              {formatCurrency(kpis.cashWithdrawn)}
-            </span>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Bank liquidity converted to office cash
-            </p>
-          </div>
-        </div>
-
-        {/* Inter-Bank Transfers */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400">Inter-Bank Transfers</span>
-            <span className="p-2 rounded-lg bg-purple-950/80 border border-purple-800/50 text-purple-400">
-              <Building2 className="h-4 w-4" />
-            </span>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl font-bold font-mono text-purple-400 tabular-nums">
-              {formatCurrency(kpis.interbank)}
-            </span>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Bank A to Bank B rebalancing
-            </p>
-          </div>
-        </div>
+        <KpiCard
+          title="Total Fund Transfers"
+          value={formatCurrency(kpis.totalTransfers)}
+          subtext={`${kpis.count} internal transactions posted`}
+          icon={<ArrowLeftRight className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+        />
+        <KpiCard
+          title="Cash Deposited to Bank"
+          value={formatCurrency(kpis.cashDeposited)}
+          subtext="Cash-in-hand credited to bank accounts"
+          icon={<Landmark className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+        />
+        <KpiCard
+          title="Cash Withdrawn (Self/ATM)"
+          value={formatCurrency(kpis.cashWithdrawn)}
+          subtext="Bank liquidity converted to office cash"
+          icon={<Wallet className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />}
+        />
+        <KpiCard
+          title="Inter-Bank Transfers"
+          value={formatCurrency(kpis.interbank)}
+          subtext="Bank A to Bank B rebalancing"
+          icon={<Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+        />
       </div>
-
       {/* Filter & Search Bar */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 shadow-2xs space-y-3">
         <div className="flex flex-col md:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
             <input
               type="text"
               placeholder="Search contra vouchers by voucher #, account name, reference, or narration..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950/80 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl pl-9 pr-3.5 py-2 text-xs sm:text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             />
           </div>
 
@@ -737,7 +688,7 @@ export default function ContraVoucherPage() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Categories</option>
               <option value="CASH_TO_BANK">Cash Deposit (Cash &rarr; Bank)</option>
@@ -750,7 +701,7 @@ export default function ContraVoucherPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Status</option>
               <option value="POSTED">Posted (Active)</option>
@@ -766,7 +717,7 @@ export default function ContraVoucherPage() {
                   setFilterType("ALL");
                   setFilterStatus("ALL");
                 }}
-                className="text-slate-400 hover:text-slate-200 text-xs px-2"
+                className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 text-xs px-2.5 rounded-xl"
               >
                 <X className="h-3.5 w-3.5 mr-1" />
                 Reset
@@ -780,13 +731,13 @@ export default function ContraVoucherPage() {
       <DataTable
         columns={columns}
         data={filteredData}
-        loading={isLoading}
+        isLoading={isLoading}
         actions={actions}
         emptyState={
           <div className="py-12 text-center">
-            <ArrowLeftRight className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-300">No Contra Vouchers found</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <ArrowLeftRight className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">No Contra Vouchers found</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Click &quot;Record Contra Transfer&quot; to transfer funds between cash and bank accounts.
             </p>
             <Button
@@ -795,7 +746,7 @@ export default function ContraVoucherPage() {
                 resetCreateForm("CASH_TO_BANK");
                 setIsCreateOpen(true);
               }}
-              className="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+              className="mt-4 bg-[#4F46E5] hover:bg-[#4338CA] text-white font-semibold rounded-xl shadow-xs"
             >
               <Plus className="h-4 w-4 mr-1.5" />
               Record Contra Transfer
@@ -814,9 +765,9 @@ export default function ContraVoucherPage() {
       >
         <form onSubmit={handleCreateContra} className="space-y-6 pb-20">
           {/* Step 1: Select Transfer Category (4 Big Easy Cards) */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-            <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-950 border border-indigo-700 text-xs text-indigo-300">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm border-b border-slate-100 dark:border-[#303036] pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 1
               </span>
               What Kind of Fund Transfer Is This?
@@ -828,27 +779,29 @@ export default function ContraVoucherPage() {
                 type="button"
                 onClick={() => resetCreateForm("CASH_TO_BANK")}
                 className={cn(
-                  "p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between",
+                  "p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between shadow-2xs",
                   contraType === "CASH_TO_BANK"
-                    ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/50"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900"
+                    ? "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/30 ring-2 ring-emerald-500/20"
+                    : "border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#17171B] hover:border-slate-300 hover:bg-slate-50/50"
                 )}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="p-2 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800/40">
+                    <span className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">
                       <Landmark className="h-4 w-4" />
                     </span>
                     {contraType === "CASH_TO_BANK" && (
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                     )}
                   </div>
-                  <h4 className="font-semibold text-slate-100 text-xs">Deposit Cash into Bank</h4>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-xs">Deposit Cash into Bank</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
                     Deposit cash from cash register / drawer into company bank account.
                   </p>
                 </div>
-                <span className="text-[10px] text-emerald-400 mt-2 font-mono">Dr. Bank / Cr. Cash</span>
+                <span className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-2 font-mono font-semibold">
+                  Dr. Bank / Cr. Cash
+                </span>
               </button>
 
               {/* Option 2: Bank to Cash */}
@@ -856,27 +809,29 @@ export default function ContraVoucherPage() {
                 type="button"
                 onClick={() => resetCreateForm("BANK_TO_CASH")}
                 className={cn(
-                  "p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between",
+                  "p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between shadow-2xs",
                   contraType === "BANK_TO_CASH"
-                    ? "border-cyan-500 bg-cyan-950/30 ring-1 ring-cyan-500/50"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900"
+                    ? "border-cyan-500 bg-cyan-50/60 dark:bg-cyan-950/30 ring-2 ring-cyan-500/20"
+                    : "border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#17171B] hover:border-slate-300 hover:bg-slate-50/50"
                 )}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="p-2 rounded-lg bg-cyan-950 text-cyan-400 border border-cyan-800/40">
+                    <span className="p-2 rounded-lg bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-400 border border-cyan-200/60 dark:border-cyan-800/40">
                       <Wallet className="h-4 w-4" />
                     </span>
                     {contraType === "BANK_TO_CASH" && (
-                      <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+                      <span className="h-2 w-2 rounded-full bg-cyan-500 animate-pulse" />
                     )}
                   </div>
-                  <h4 className="font-semibold text-slate-100 text-xs">Withdraw Cash from Bank</h4>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-xs">Withdraw Cash from Bank</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
                     Withdraw funds via self cheque or ATM for operational cash needs.
                   </p>
                 </div>
-                <span className="text-[10px] text-cyan-400 mt-2 font-mono">Dr. Cash / Cr. Bank</span>
+                <span className="text-[10px] text-cyan-700 dark:text-cyan-400 mt-2 font-mono font-semibold">
+                  Dr. Cash / Cr. Bank
+                </span>
               </button>
 
               {/* Option 3: Bank to Bank */}
@@ -884,27 +839,29 @@ export default function ContraVoucherPage() {
                 type="button"
                 onClick={() => resetCreateForm("BANK_TO_BANK")}
                 className={cn(
-                  "p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between",
+                  "p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between shadow-2xs",
                   contraType === "BANK_TO_BANK"
-                    ? "border-indigo-500 bg-indigo-950/30 ring-1 ring-indigo-500/50"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900"
+                    ? "border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/30 ring-2 ring-indigo-500/20"
+                    : "border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#17171B] hover:border-slate-300 hover:bg-slate-50/50"
                 )}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="p-2 rounded-lg bg-indigo-950 text-indigo-400 border border-indigo-800/40">
+                    <span className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40">
                       <Building2 className="h-4 w-4" />
                     </span>
                     {contraType === "BANK_TO_BANK" && (
-                      <span className="h-2 w-2 rounded-full bg-indigo-400 animate-pulse" />
+                      <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
                     )}
                   </div>
-                  <h4 className="font-semibold text-slate-100 text-xs">Transfer Between Banks</h4>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-xs">Transfer Between Banks</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
                     Move funds from Bank A to Bank B (e.g. HDFC to ICICI) via NEFT/RTGS.
                   </p>
                 </div>
-                <span className="text-[10px] text-indigo-400 mt-2 font-mono">Dr. Bank B / Cr. Bank A</span>
+                <span className="text-[10px] text-indigo-700 dark:text-indigo-400 mt-2 font-mono font-semibold">
+                  Dr. Bank B / Cr. Bank A
+                </span>
               </button>
 
               {/* Option 4: Cash to Cash */}
@@ -912,35 +869,37 @@ export default function ContraVoucherPage() {
                 type="button"
                 onClick={() => resetCreateForm("CASH_TO_CASH")}
                 className={cn(
-                  "p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between",
+                  "p-4 rounded-xl border text-left transition-all relative flex flex-col justify-between shadow-2xs",
                   contraType === "CASH_TO_CASH"
-                    ? "border-amber-500 bg-amber-950/30 ring-1 ring-amber-500/50"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900"
+                    ? "border-amber-500 bg-amber-50/60 dark:bg-amber-950/30 ring-2 ring-amber-500/20"
+                    : "border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#17171B] hover:border-slate-300 hover:bg-slate-50/50"
                 )}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="p-2 rounded-lg bg-amber-950 text-amber-400 border border-amber-800/40">
+                    <span className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40">
                       <ArrowLeftRight className="h-4 w-4" />
                     </span>
                     {contraType === "CASH_TO_CASH" && (
-                      <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                      <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                     )}
                   </div>
-                  <h4 className="font-semibold text-slate-100 text-xs">Transfer Between Cash Accounts</h4>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-xs">Transfer Between Cash Accounts</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
                     Move cash internally (e.g. Main Cash to Petty Cash / Branch Drawer).
                   </p>
                 </div>
-                <span className="text-[10px] text-amber-400 mt-2 font-mono">Dr. Petty / Cr. Main Cash</span>
+                <span className="text-[10px] text-amber-700 dark:text-amber-400 mt-2 font-mono font-semibold">
+                  Dr. Petty / Cr. Main Cash
+                </span>
               </button>
             </div>
           </div>
 
           {/* Step 2: Source & Destination Accounts */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-            <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-950 border border-indigo-700 text-xs text-indigo-300">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm border-b border-slate-100 dark:border-[#303036] pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 2
               </span>
               Where Is The Money Moving From &amp; To?
@@ -948,13 +907,13 @@ export default function ContraVoucherPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Transfer From (Credit) */}
-              <div className="p-3.5 rounded-xl border border-rose-900/40 bg-rose-950/10 space-y-2">
+              <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/30 dark:bg-rose-950/10 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-rose-300 flex items-center gap-1.5">
-                    <ArrowUpRight className="h-3.5 w-3.5 text-rose-400" />
+                  <label className="text-xs font-semibold text-rose-900 dark:text-rose-300 flex items-center gap-1.5">
+                    <ArrowUpRight className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
                     Transfer From (Source Account) <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-rose-950 border border-rose-800/50 text-rose-300 font-mono">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950 border border-rose-200 dark:border-rose-800/50 text-rose-700 dark:text-rose-300 font-mono font-bold">
                     Credit (Cr) - Outflow
                   </span>
                 </div>
@@ -963,7 +922,7 @@ export default function ContraVoucherPage() {
                   value={sourceAccountId}
                   onChange={(e) => setSourceAccountId(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-rose-500"
+                  className="w-full bg-white dark:bg-[#0E0F15] border border-rose-300 dark:border-rose-900/60 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600 shadow-2xs transition-all font-medium"
                 >
                   <option value="">-- Select Source Account --</option>
                   {sourceAccountOptions.map((acc) => (
@@ -974,9 +933,9 @@ export default function ContraVoucherPage() {
                 </select>
 
                 {selectedSourceAccount && (
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
                     <span>Available Ledger Balance:</span>
-                    <span className="font-mono font-semibold text-slate-200">
+                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
                       ₹{Number(selectedSourceAccount.current_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })} {selectedSourceAccount.balance_type}
                     </span>
                   </div>
@@ -984,13 +943,13 @@ export default function ContraVoucherPage() {
               </div>
 
               {/* Transfer To (Debit) */}
-              <div className="p-3.5 rounded-xl border border-emerald-900/40 bg-emerald-950/10 space-y-2">
+              <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-emerald-950/10 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
-                    <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" />
+                  <label className="text-xs font-semibold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                    <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                     Transfer To (Destination Account) <span className="text-rose-500">*</span>
                   </label>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800/50 text-emerald-300 font-mono">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 font-mono font-bold">
                     Debit (Dr) - Inflow
                   </span>
                 </div>
@@ -999,7 +958,7 @@ export default function ContraVoucherPage() {
                   value={destinationAccountId}
                   onChange={(e) => setDestinationAccountId(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-[#0E0F15] border border-emerald-300 dark:border-emerald-900/60 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all font-medium"
                 >
                   <option value="">-- Select Destination Account --</option>
                   {destinationAccountOptions.map((acc) => (
@@ -1010,9 +969,9 @@ export default function ContraVoucherPage() {
                 </select>
 
                 {selectedDestinationAccount && (
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
                     <span>Available Ledger Balance:</span>
-                    <span className="font-mono font-semibold text-slate-200">
+                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
                       ₹{Number(selectedDestinationAccount.current_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })} {selectedDestinationAccount.balance_type}
                     </span>
                   </div>
@@ -1022,9 +981,9 @@ export default function ContraVoucherPage() {
           </div>
 
           {/* Step 3: Amount, Date & Reference */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-            <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-950 border border-indigo-700 text-xs text-indigo-300">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm border-b border-slate-100 dark:border-[#303036] pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 3
               </span>
               Transfer Amount &amp; Payment Particulars
@@ -1033,8 +992,8 @@ export default function ContraVoucherPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Amount */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Amount to Transfer (₹) <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                  Amount to Transfer (₹) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -1044,10 +1003,10 @@ export default function ContraVoucherPage() {
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 font-mono font-semibold tabular-nums focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-bold font-mono rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all tabular-nums"
                 />
                 {amount && parseFloat(amount) > 0 && (
-                  <p className="text-[11px] text-indigo-400 mt-1 italic">
+                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1 italic font-medium">
                     {numberToWords(parseFloat(amount))}
                   </p>
                 )}
@@ -1055,27 +1014,27 @@ export default function ContraVoucherPage() {
 
               {/* Transfer Date */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Transfer Date <span className="text-rose-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                  Transfer Date <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="date"
                   required
                   value={voucherDate}
                   onChange={(e) => setVoucherDate(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
               {/* Payment Mode */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Transfer Mode / Instrument
                 </label>
                 <select
                   value={transferMode}
                   onChange={(e) => setTransferMode(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="BANK_TRANSFER">Bank Transfer (NEFT / RTGS)</option>
                   <option value="IMPS">Instant Transfer (IMPS)</option>
@@ -1091,7 +1050,7 @@ export default function ContraVoucherPage() {
             {/* Additional Fields: Reference & Cheque */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Deposit Slip / UTR / Reference #
                 </label>
                 <input
@@ -1099,15 +1058,15 @@ export default function ContraVoucherPage() {
                   placeholder="e.g. SLIP-88123 / UTR9823471"
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
               {transferMode === "CHEQUE" ? (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Cheque Number <span className="text-rose-400">*</span>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
+                      Cheque Number <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -1115,24 +1074,24 @@ export default function ContraVoucherPage() {
                       placeholder="e.g. 004812"
                       value={chequeNumber}
                       onChange={(e) => setChequeNumber(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                       Cheque Date
                     </label>
                     <input
                       type="date"
                       value={chequeDate}
                       onChange={(e) => setChequeDate(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
                 </>
               ) : (
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                     Bank Charges / IMPS Fee (₹)
                   </label>
                   <input
@@ -1142,9 +1101,9 @@ export default function ContraVoucherPage() {
                     placeholder="0.00"
                     value={bankCharges}
                     onChange={(e) => setBankCharges(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     Debits Bank Charges Expense without inflating contra transfer value.
                   </p>
                 </div>
@@ -1152,7 +1111,7 @@ export default function ContraVoucherPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                 Narration / Transfer Particulars
               </label>
               <textarea
@@ -1160,31 +1119,31 @@ export default function ContraVoucherPage() {
                 placeholder="Brief internal note explaining this transfer..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               />
             </div>
           </div>
 
           {/* Live Double-Entry & Confirmation Summary */}
           {amount && parseFloat(amount) > 0 && selectedSourceAccount && selectedDestinationAccount && (
-            <div className="rounded-xl border border-indigo-800/40 bg-indigo-950/20 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
-                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+            <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-indigo-200 dark:border-indigo-900/60 p-5 space-y-4 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#303036] pb-3">
+                <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   Live Transfer &amp; Accounting Confirmation
                 </span>
-                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-950 border border-emerald-700/60 text-emerald-300">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-700/60 text-emerald-700 dark:text-emerald-300">
                   Double-Entry Balanced
                 </span>
               </div>
 
               {/* Clear Human Phrase */}
-              <div className="p-3 bg-slate-900/90 rounded-lg border border-slate-800 text-xs text-slate-200 flex items-center gap-2">
-                <span className="font-semibold text-emerald-400">{formatCurrency(parseFloat(amount))}</span>
+              <div className="p-4 bg-slate-50 dark:bg-[#101013] rounded-xl border border-slate-200/80 dark:border-[#303036] text-xs sm:text-sm text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono">{formatCurrency(parseFloat(amount))}</span>
                 <span>will move out of</span>
-                <span className="font-semibold text-rose-400">{selectedSourceAccount.name}</span>
+                <span className="font-bold text-rose-700 dark:text-rose-400">{selectedSourceAccount.name}</span>
                 <span>and deposit into</span>
-                <span className="font-semibold text-emerald-400">{selectedDestinationAccount.name}</span>
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">{selectedDestinationAccount.name}</span>
               </div>
 
               {/* Collapsible Tally Journal Entry Breakdown */}
@@ -1192,32 +1151,32 @@ export default function ContraVoucherPage() {
                 <button
                   type="button"
                   onClick={() => setShowTallyPreview(!showTallyPreview)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1"
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-semibold flex items-center gap-1"
                 >
                   {showTallyPreview ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                   {showTallyPreview ? "Hide" : "Show"} Tally Prime Journal Posting Breakdown
                 </button>
 
                 {showTallyPreview && (
-                  <div className="mt-2 text-xs font-mono border border-slate-800 rounded-lg overflow-hidden">
-                    <div className="bg-slate-900/90 p-2.5 flex justify-between text-slate-400 border-b border-slate-800">
+                  <div className="mt-3 text-xs font-mono border border-slate-200 dark:border-[#2B2E42] rounded-xl overflow-hidden shadow-2xs">
+                    <div className="bg-slate-50 dark:bg-[#101013] p-3 flex justify-between text-slate-600 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-[#303036]">
                       <span>Account</span>
                       <span>Debit (Dr) / Credit (Cr)</span>
                     </div>
                     {/* Debit: Destination */}
-                    <div className="p-2.5 flex justify-between text-emerald-400 bg-slate-950/60">
+                    <div className="p-3 flex justify-between text-emerald-700 dark:text-emerald-400 bg-white dark:bg-[#17171B] font-semibold">
                       <span>Dr. {selectedDestinationAccount.name} (Inflow)</span>
                       <span>{formatCurrency(parseFloat(amount))}</span>
                     </div>
                     {/* Debit: Bank Charges (if any) */}
                     {parseFloat(bankCharges) > 0 && (
-                      <div className="p-2.5 flex justify-between text-amber-400 bg-slate-950/60 border-t border-slate-900">
+                      <div className="p-3 flex justify-between text-amber-700 dark:text-amber-400 bg-white dark:bg-[#17171B] border-t border-slate-100 dark:border-[#303036]">
                         <span>Dr. Bank Charges Expense</span>
                         <span>{formatCurrency(parseFloat(bankCharges))}</span>
                       </div>
                     )}
                     {/* Credit: Source */}
-                    <div className="p-2.5 flex justify-between text-rose-400 bg-slate-950/60 border-t border-slate-900">
+                    <div className="p-3 flex justify-between text-rose-700 dark:text-rose-400 bg-white dark:bg-[#17171B] border-t border-slate-100 dark:border-[#303036] font-semibold">
                       <span>Cr. {selectedSourceAccount.name} (Outflow)</span>
                       <span>{formatCurrency(parseFloat(amount) + (parseFloat(bankCharges) || 0))}</span>
                     </div>
@@ -1246,76 +1205,76 @@ export default function ContraVoucherPage() {
         {selectedVoucher && (
           <div className="space-y-6">
             {/* Header Card */}
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+            <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 space-y-4 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-slate-400 font-mono">VOUCHER NUMBER</span>
-                  <h3 className="text-lg font-bold text-slate-100 font-mono">{selectedVoucher.voucher_number}</h3>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">VOUCHER NUMBER</span>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white font-mono mt-0.5">{selectedVoucher.voucher_number}</h3>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-slate-400">TRANSFER DATE</span>
-                  <p className="text-sm font-semibold text-slate-200">{formatDate(selectedVoucher.voucher_date)}</p>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">TRANSFER DATE</span>
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5">{formatDate(selectedVoucher.voucher_date)}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2 border-t border-slate-800/80">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-3 border-t border-slate-100 dark:border-[#303036]">
                 <div>
-                  <span className="text-slate-500">Transferred:</span>{" "}
-                  <span className="font-semibold text-slate-200">{formatCurrency(parseFloat(String(selectedVoucher.net_amount)) || 0)}</span>
+                  <span className="text-slate-500 block">Transferred:</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-sm font-mono">{formatCurrency(parseFloat(String(selectedVoucher.net_amount)) || 0)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Nature:</span>{" "}
-                  <span className="text-slate-200">{selectedVoucher.party_name || "Contra Transfer"}</span>
+                  <span className="text-slate-500 block">Nature:</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{selectedVoucher.party_name || "Contra Transfer"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Mode:</span>{" "}
-                  <span className="text-slate-200">{selectedVoucher.tax_breakup?.transfer_mode || "BANK_TRANSFER"}</span>
+                  <span className="text-slate-500 block">Mode:</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{selectedVoucher.tax_breakup?.transfer_mode || "BANK_TRANSFER"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Status:</span>{" "}
+                  <span className="text-slate-500 block">Status:</span>
                   <StatusBadge status={selectedVoucher.is_void ? "VOIDED" : "POSTED"} variant={selectedVoucher.is_void ? "danger" : "success"} />
                 </div>
               </div>
 
               {selectedVoucher.narration && (
-                <div className="text-xs text-slate-400 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/80">
+                <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#101013] p-3 rounded-xl border border-slate-200/80 dark:border-[#303036]">
                   <strong>Narration:</strong> {selectedVoucher.narration}
                 </div>
               )}
             </div>
 
             {/* Double-Entry Journal Postings */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-indigo-400" />
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5 font-mono">
+                <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 Double-Entry Ledger Postings
               </h4>
-              <div className="overflow-x-auto rounded-lg border border-slate-800">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#303036] shadow-2xs">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800 font-medium">
+                  <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-[#303036] font-bold">
                     <tr>
-                      <th className="p-2.5">Ledger Account</th>
-                      <th className="p-2.5 text-right">Debit (Dr) ₹</th>
-                      <th className="p-2.5 text-right">Credit (Cr) ₹</th>
-                      <th className="p-2.5">Entry Narration</th>
+                      <th className="p-3">Ledger Account</th>
+                      <th className="p-3 text-right">Debit (Dr) ₹</th>
+                      <th className="p-3 text-right">Credit (Cr) ₹</th>
+                      <th className="p-3">Entry Narration</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
                     {selectedVoucher.ledger_entries.map((le) => (
-                      <tr key={le.id} className={cn(le.is_reversal && "bg-rose-950/20 text-rose-300")}>
-                        <td className="p-2.5 font-medium text-slate-200">
+                      <tr key={le.id} className={cn(le.is_reversal && "bg-rose-50 dark:bg-rose-950/20 text-rose-700")}>
+                        <td className="p-3 font-semibold text-slate-900 dark:text-white">
                           {le.account_name || `Account #${le.account_id}`}
                           {le.is_reversal && (
-                            <span className="ml-2 text-[10px] font-bold text-rose-400 uppercase">[Reversal]</span>
+                            <span className="ml-2 text-[10px] font-bold text-rose-600 uppercase">[Reversal]</span>
                           )}
                         </td>
-                        <td className="p-2.5 text-right text-emerald-400 font-semibold tabular-nums">
+                        <td className="p-3 text-right text-emerald-700 dark:text-emerald-400 font-bold tabular-nums">
                           {parseFloat(String(le.debit_amount)) > 0 ? formatCurrency(parseFloat(String(le.debit_amount))) : "—"}
                         </td>
-                        <td className="p-2.5 text-right text-rose-400 font-semibold tabular-nums">
+                        <td className="p-3 text-right text-rose-700 dark:text-rose-400 font-bold tabular-nums">
                           {parseFloat(String(le.credit_amount)) > 0 ? formatCurrency(parseFloat(String(le.credit_amount))) : "—"}
                         </td>
-                        <td className="p-2.5 text-slate-400 font-sans text-[11px]">{le.narration || "—"}</td>
+                        <td className="p-3 text-slate-500 font-sans text-xs">{le.narration || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1328,8 +1287,8 @@ export default function ContraVoucherPage() {
 
       {/* MODAL 3: Print Contra Voucher (Indian Transport Standard) */}
       {isPrintModalOpen && printVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 overflow-y-auto">
-          <div className="bg-white text-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative print:m-0 print:p-0 print:w-full print:shadow-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-6 relative print:m-0 print:p-0 print:w-full print:shadow-none">
             {/* Header */}
             <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-start">
               <div>
@@ -1338,7 +1297,7 @@ export default function ContraVoucherPage() {
                 <p className="text-xs text-slate-500 mt-0.5">Issuing Office: {printVoucher.issuing_office_name || "Head Office (MUM-HO)"}</p>
               </div>
               <div className="text-right">
-                <span className="inline-block px-3 py-1 bg-slate-900 text-white text-xs font-bold uppercase rounded">
+                <span className="inline-block px-3 py-1 bg-indigo-600 text-white text-xs font-bold uppercase rounded-lg">
                   CONTRA VOUCHER
                 </span>
                 <p className="text-xs font-mono font-bold mt-1">{printVoucher.voucher_number}</p>
@@ -1347,7 +1306,7 @@ export default function ContraVoucherPage() {
             </div>
 
             {/* Transfer Summary */}
-            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div>
                 <p><strong>Transfer Nature:</strong> {printVoucher.party_name || "Internal Fund Movement"}</p>
                 <p><strong>Instrument / Mode:</strong> {printVoucher.tax_breakup?.transfer_mode || "BANK_TRANSFER"}</p>
@@ -1366,32 +1325,32 @@ export default function ContraVoucherPage() {
             </div>
 
             {/* Amount in Words */}
-            <div className="text-xs border-l-4 border-slate-900 pl-3 py-1 bg-slate-100 italic">
+            <div className="text-xs border-l-4 border-slate-900 pl-3 py-2 bg-slate-50 italic rounded-r-lg">
               <strong>Amount in Words:</strong> {numberToWords(parseFloat(String(printVoucher.net_amount)) || 0)}
             </div>
 
             {/* Ledger Postings Table */}
             <div>
               <h4 className="text-xs font-bold uppercase mb-1">Double-Entry Journal Postings</h4>
-              <table className="w-full text-xs border border-slate-300">
+              <table className="w-full text-xs border border-slate-300 rounded-lg overflow-hidden">
                 <thead className="bg-slate-100 border-b border-slate-300 font-bold">
                   <tr>
-                    <th className="p-1.5 text-left">Particulars</th>
-                    <th className="p-1.5 text-right">Debit (Dr) ₹</th>
-                    <th className="p-1.5 text-right">Credit (Cr) ₹</th>
+                    <th className="p-2 text-left">Particulars</th>
+                    <th className="p-2 text-right">Debit (Dr) ₹</th>
+                    <th className="p-2 text-right">Credit (Cr) ₹</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 font-mono">
                   {printVoucher.ledger_entries.map((le) => (
                     <tr key={le.id}>
-                      <td className="p-1.5 font-sans">
+                      <td className="p-2 font-sans">
                         {le.account_name || `Account #${le.account_id}`}
                         <span className="block text-[10px] text-slate-500 font-mono">{le.narration}</span>
                       </td>
-                      <td className="p-1.5 text-right font-semibold">
+                      <td className="p-2 text-right font-semibold">
                         {parseFloat(String(le.debit_amount)) > 0 ? formatCurrency(parseFloat(String(le.debit_amount))) : "—"}
                       </td>
-                      <td className="p-1.5 text-right font-semibold">
+                      <td className="p-2 text-right font-semibold">
                         {parseFloat(String(le.credit_amount)) > 0 ? formatCurrency(parseFloat(String(le.credit_amount))) : "—"}
                       </td>
                     </tr>
@@ -1404,28 +1363,28 @@ export default function ContraVoucherPage() {
             <div className="pt-8 border-t border-slate-300 grid grid-cols-4 gap-4 text-center text-xs">
               <div>
                 <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600">Prepared By</span>
+                <span className="text-slate-600 font-medium">Prepared By</span>
               </div>
               <div>
                 <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600">Verified By</span>
+                <span className="text-slate-600 font-medium">Verified By</span>
               </div>
               <div>
                 <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600">Authorized Signatory</span>
+                <span className="text-slate-600 font-medium">Authorized Signatory</span>
               </div>
               <div>
                 <div className="border-b border-slate-400 mb-1 h-10" />
-                <span className="text-slate-600">Receiver / Depositor</span>
+                <span className="text-slate-600 font-medium">Receiver / Depositor</span>
               </div>
             </div>
 
             {/* Modal Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 print:hidden">
-              <Button variant="outline" size="sm" onClick={() => setIsPrintModalOpen(false)}>
+              <Button variant="outline" size="sm" onClick={() => setIsPrintModalOpen(false)} className="rounded-xl">
                 Close
               </Button>
-              <Button size="sm" onClick={() => window.print()} className="bg-slate-900 text-white hover:bg-slate-800">
+              <Button size="sm" onClick={() => window.print()} className="bg-[#4F46E5] text-white hover:bg-[#4338CA] rounded-xl font-medium">
                 <Printer className="h-4 w-4 mr-1.5" />
                 Print Voucher
               </Button>
@@ -1447,7 +1406,7 @@ export default function ContraVoucherPage() {
         disabled={voidReason.trim().length < 10}
       >
         <div className="mt-4">
-          <label className="block text-xs font-semibold text-slate-200 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Reason for Voiding * (Min 10 characters)
           </label>
           <textarea
@@ -1456,7 +1415,7 @@ export default function ContraVoucherPage() {
             placeholder="Explain why this internal fund transfer is being reversed..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+            className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs transition-all"
           />
         </div>
       </ConfirmDialog>

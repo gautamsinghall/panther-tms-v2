@@ -41,11 +41,13 @@ export type StatusVariant =
   | "info"
   | "processing"
   | "generating"
+  | "outline"
   | "default";
 
 interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   status: string;
   variant?: StatusVariant;
+  customLabel?: string;
 }
 
 /**
@@ -56,7 +58,7 @@ interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
  * - 12px Label-weight type (text-xs font-medium)
  * - Never color-only
  */
-export function StatusBadge({ status, variant, className, ...props }: StatusBadgeProps) {
+export function StatusBadge({ status, variant, customLabel, className, ...props }: StatusBadgeProps) {
   const normalized = (variant || status || "").toLowerCase().replace(/[\s-]/g, "_");
 
   // Semantic styles - Linear & Stripe Enterprise
@@ -181,13 +183,13 @@ export function StatusBadge({ status, variant, className, ...props }: StatusBadg
         )}
         <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", dotClass)} />
       </span>
-      {formatLabel(status)}
+      {(customLabel as any) || formatLabel(status)}
     </span>
   );
 }
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "primary" | "secondary" | "neutral" | "success" | "danger" | "warning" | "info";
+  variant?: "primary" | "secondary" | "neutral" | "success" | "danger" | "warning" | "info" | "outline";
   dot?: boolean;
   children: React.ReactNode;
 }
@@ -201,6 +203,7 @@ export function Badge({ variant = "neutral", dot = false, className, children, .
     danger: "bg-rose-50 border-rose-200/70 text-rose-800",
     warning: "bg-amber-50 border-amber-200/70 text-amber-800",
     info: "bg-blue-50 border-blue-200/70 text-blue-800",
+    outline: "bg-white dark:bg-[#17171B] border-slate-200 dark:border-[#303036] text-slate-700 dark:text-slate-300",
   };
 
   const dotStyles = {
@@ -211,6 +214,7 @@ export function Badge({ variant = "neutral", dot = false, className, children, .
     danger: "bg-rose-500",
     warning: "bg-amber-500",
     info: "bg-blue-500",
+    outline: "bg-slate-400",
   };
 
   return (

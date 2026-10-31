@@ -1039,7 +1039,7 @@ export default function TransportInvoicePage() {
       >
         <form onSubmit={handleCreateInvoice} className="space-y-6">
           {/* Active Series & Numbering Header */}
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-200 dark:border-[#303036] grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Numbering Series Sequence
@@ -1055,7 +1055,7 @@ export default function TransportInvoicePage() {
                     setInvoiceNumber(matched.next_number_formatted);
                   }
                 }}
-                className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-300 bg-white dark:bg-slate-900"
+                className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-300 bg-white dark:bg-[#101013] text-slate-900 dark:text-white border-slate-300 dark:border-[#303036]"
               >
                 {seriesOptions.map((opt: any) => (
                   <option key={opt.value} value={opt.value}>

@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   RefreshCw,
 } from "lucide-react";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -819,7 +820,7 @@ export default function PurchasesPage() {
       cell: (row) => (
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="font-mono font-bold text-[#101828] text-xs">
+            <span className="font-mono font-bold text-slate-900 dark:text-white text-xs">
               {row.reference_number || "Direct Bill"}
             </span>
             {row.is_void ? (
@@ -827,12 +828,12 @@ export default function PurchasesPage() {
                 VOIDED
               </span>
             ) : (
-              <span className="font-mono text-[10px] text-[#475467] bg-[#F2F4F7] px-1 rounded">
+              <span className="font-mono text-[10px] text-slate-600 dark:text-slate-400 bg-[#F2F4F7] px-1 rounded">
                 {row.voucher_number}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-[#667085] mt-0.5">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             <span>Bill Date: {row.reference_date || row.voucher_date}</span>
             {row.due_date && (
               <span className="text-[10px] text-amber-700 bg-amber-50 px-1 rounded">
@@ -849,10 +850,10 @@ export default function PurchasesPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-semibold text-xs text-[#101828] block">
+          <span className="font-semibold text-xs text-slate-900 dark:text-white block">
             {row.party_name || "Direct Supplier"}
           </span>
-          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#667085]">
+          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
             {row.party_gstin ? (
               <span className="font-mono bg-blue-50 text-blue-700 px-1 py-0.2 rounded border border-blue-200">
                 GSTIN: {row.party_gstin}
@@ -890,7 +891,7 @@ export default function PurchasesPage() {
               {config.label}
             </span>
             {row.cost_center && (
-              <span className="block font-mono text-[10px] text-[#475467] font-medium">
+              <span className="block font-mono text-[10px] text-slate-600 dark:text-slate-400 font-medium">
                 Truck: {row.cost_center}
               </span>
             )}
@@ -910,10 +911,10 @@ export default function PurchasesPage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-xs text-[#101828] block tabular-nums">
+          <span className="font-mono font-bold text-xs text-slate-900 dark:text-white block tabular-nums">
             ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
           </span>
-          <div className="text-[10px] font-mono tabular-nums text-[#667085] mt-0.5">
+          <div className="text-[10px] font-mono tabular-nums text-slate-500 dark:text-slate-400 mt-0.5">
             <span>Taxable: ₹{Number(row.total_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
             <span className="ml-1 text-purple-700">| Tax: ₹{Number(row.tax_amount).toFixed(2)}</span>
           </div>
@@ -956,7 +957,7 @@ export default function PurchasesPage() {
               </span>
             </div>
             <div className="flex items-center justify-end gap-1 mt-0.5">
-              <span className="text-[10px] text-[#667085]">Left to Pay |</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">Left to Pay |</span>
               <StatusBadge status={sb.variant} className="text-[9px] px-1 py-0">
                 {sb.label}
               </StatusBadge>
@@ -1061,68 +1062,32 @@ export default function PurchasesPage() {
 
       {/* Key Metric Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 bg-white dark:bg-[#1E293B] rounded-xl border border-[#E4E7EC] dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider">Total Purchases</span>
-            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
-              <ShoppingCart className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-[#101828] dark:text-white">
-              ₹{summaryMetrics.totGross.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
-            <span className="text-[11px] text-[#667085]">({summaryMetrics.count} Bills)</span>
-          </div>
-          <span className="text-[11px] text-[#667085] block mt-1">Total vendor expenditure billed</span>
-        </div>
-
-        <div className="p-4 bg-white dark:bg-[#1E293B] rounded-xl border border-[#E4E7EC] dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider">Amount Paid</span>
-            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-700">
-              <CheckCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-emerald-700">
-              ₹{summaryMetrics.totPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <span className="text-[11px] text-[#667085] block mt-1">Settled via bank transfer / cash</span>
-        </div>
-
-        <div className="p-4 bg-white dark:bg-[#1E293B] rounded-xl border border-[#E4E7EC] dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider">Amount Left to Pay</span>
-            <div className="p-2 rounded-lg bg-rose-50 text-rose-700">
-              <TrendingDown className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-rose-700">
-              ₹{summaryMetrics.totBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <span className="text-[11px] text-[#667085] block mt-1">Sundry Creditors outstanding liabilities</span>
-        </div>
-
-        <div className="p-4 bg-white dark:bg-[#1E293B] rounded-xl border border-[#E4E7EC] dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#667085] uppercase tracking-wider">Eligible Input GST (ITC)</span>
-            <div className="p-2 rounded-lg bg-purple-50 text-purple-700">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl font-bold font-mono text-purple-700">
-              ₹{summaryMetrics.totItc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <span className="text-[11px] text-[#667085] block mt-1">Claimable against output GST liabilities</span>
-        </div>
+        <KpiCard
+          title="Total Purchases"
+          value={`₹${summaryMetrics.totGross.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+          subtext="Total vendor expenditure billed"
+          badge={<span className="text-[11px] text-slate-500 font-medium">({summaryMetrics.count} Bills)</span>}
+          icon={<ShoppingCart className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+        />
+        <KpiCard
+          title="Amount Paid"
+          value={`₹${summaryMetrics.totPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+          subtext="Settled via bank transfer / cash"
+          icon={<CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-700 dark:text-emerald-400 font-medium" />}
+        />
+        <KpiCard
+          title="Amount Left to Pay"
+          value={`₹${summaryMetrics.totBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+          subtext="Sundry Creditors outstanding liabilities"
+          icon={<TrendingDown className="w-4 h-4 text-rose-600 dark:text-rose-400" />}
+        />
+        <KpiCard
+          title="Eligible Input GST (ITC)"
+          value={`₹${summaryMetrics.totItc.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+          subtext="Claimable against output GST liabilities"
+          icon={<ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />}
+        />
       </div>
-
       {/* Messages */}
       {errorMessage && (
         <div className="p-3 bg-[#FEF3F2] border border-[#FECDCA] text-[#B42318] text-xs rounded-lg font-medium flex items-center justify-between">
@@ -1142,9 +1107,9 @@ export default function PurchasesPage() {
       )}
 
       {/* Filters Bar */}
-      <div className="p-4 bg-white dark:bg-[#1E293B] rounded-xl border border-[#E4E7EC] dark:border-gray-800 shadow-sm space-y-3">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 sm:p-5 shadow-2xs space-y-3.5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-[#344054] mr-1">Purchase Category:</span>
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 mr-1">Purchase Category:</span>
           {[
             { id: "ALL", label: "All Purchases" },
             { id: "FUEL", label: "Fuel & Diesel" },
@@ -1159,10 +1124,10 @@ export default function PurchasesPage() {
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
               className={cn(
-                "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
+                "px-3 py-1.5 rounded-xl text-xs font-medium transition-all shadow-2xs",
                 selectedCategory === cat.id
-                  ? "bg-[#4338CA] text-white"
-                  : "bg-[#F2F4F7] text-[#475467] hover:bg-gray-200"
+                  ? "bg-[#4F46E5] text-white shadow-xs font-semibold"
+                  : "bg-slate-100 dark:bg-[#202025] text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-[#26262D]"
               )}
             >
               {cat.label}
@@ -1170,23 +1135,23 @@ export default function PurchasesPage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#F2F4F7]">
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100 dark:border-[#303036]">
           <div className="flex-1 min-w-[220px]">
             <input
               type="text"
               placeholder="Search by vendor, bill #, voucher #, or truck registration..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-[#F9FAFB] border border-[#D0D5DD] rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#667085]">Payment Status:</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Payment Status:</span>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2.5 py-1.5 text-xs bg-white border border-[#D0D5DD] rounded-lg focus:outline-none"
+              className="h-10 px-3 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Payment Statuses</option>
               <option value="UNPAID">Unpaid (Full Amount Left)</option>
@@ -1197,11 +1162,11 @@ export default function PurchasesPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#667085]">GST Type:</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">GST Type:</span>
             <select
               value={selectedGstTreatment}
               onChange={(e) => setSelectedGstTreatment(e.target.value)}
-              className="px-2.5 py-1.5 text-xs bg-white border border-[#D0D5DD] rounded-lg focus:outline-none"
+              className="h-10 px-3 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             >
               <option value="ALL">All GST Types</option>
               <option value="FCM">Regular (FCM)</option>
@@ -1236,19 +1201,19 @@ export default function PurchasesPage() {
       >
         <form onSubmit={handleCreatePurchase} className="space-y-6 pb-20">
           {/* Step 1: Who did you buy from? */}
-          <div className="p-4 bg-white border border-[#E4E7EC] rounded-xl space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#F2F4F7] pb-2">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#303036] pb-3">
               <Building2 className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-[#101828]">1. Who did you buy from? (Supplier / Vendor)</h3>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">1. Who did you buy from? (Supplier / Vendor)</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Select Supplier / Vendor *</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Select Supplier / Vendor *</label>
                 <select
                   value={selectedVendorId}
                   onChange={(e) => handleVendorSelect(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
                   <option value="">-- Choose from existing Vendors / Suppliers --</option>
                   {vendors.map((v) => (
@@ -1261,70 +1226,70 @@ export default function PurchasesPage() {
 
               {!selectedVendorId && (
                 <div>
-                  <label className="block text-xs font-semibold text-[#344054] mb-1">Or Enter Vendor Name *</label>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Or Enter Vendor Name *</label>
                   <input
                     type="text"
                     placeholder="e.g. Apollo Tyres Agency, Bharat Petroleum"
                     value={manualVendorName}
                     onChange={(e) => setManualVendorName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Supplier GSTIN</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Supplier GSTIN</label>
                 <input
                   type="text"
                   placeholder="e.g. 27AAACM1234F1Z5"
                   value={vendorGstin}
                   onChange={(e) => setVendorGstin(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 text-xs font-mono bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Supplier State / Origin</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Supplier State / Origin</label>
                 <input
                   type="text"
                   placeholder="e.g. Maharashtra, Gujarat, Delhi"
                   value={vendorState}
                   onChange={(e) => setVendorState(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#F2F4F7]">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-[#303036]">
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Supplier Bill / Invoice # *</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Supplier Bill / Invoice # *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. INV-9901, BILL/2026/04"
                   value={billNumber}
                   onChange={(e) => setBillNumber(e.target.value)}
-                  className="w-full px-3 py-2 text-xs font-mono font-bold bg-white border border-[#D0D5DD] rounded-lg focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Bill Date *</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Bill Date *</label>
                 <input
                   type="date"
                   required
                   value={billDate}
                   onChange={(e) => setBillDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Credit Terms (Days)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Credit Terms (Days)</label>
                 <select
                   value={creditPeriodDays}
                   onChange={(e) => setCreditPeriodDays(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
                   <option value="0">Immediate / Cash</option>
                   <option value="15">15 Days</option>
@@ -1337,10 +1302,10 @@ export default function PurchasesPage() {
           </div>
 
           {/* Step 2: What did you purchase? */}
-          <div className="p-4 bg-white border border-[#E4E7EC] rounded-xl space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#F2F4F7] pb-2">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#303036] pb-3">
               <ShoppingCart className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-[#101828]">2. What did you purchase? (Expense Classification)</h3>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">2. What did you purchase? (Expense Classification)</h3>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -1365,35 +1330,35 @@ export default function PurchasesPage() {
                       "p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all",
                       isSel
                         ? "bg-indigo-50 border-indigo-500 text-indigo-900 shadow-sm"
-                        : "bg-white border-[#E4E7EC] text-[#475467] hover:bg-gray-50"
+                        : "bg-white border-[#E4E7EC] text-slate-600 dark:text-slate-400 hover:bg-gray-50"
                     )}
                   >
-                    <IconComp className={cn("w-4 h-4 shrink-0", isSel ? "text-indigo-600" : "text-[#667085]")} />
+                    <IconComp className={cn("w-4 h-4 shrink-0", isSel ? "text-indigo-600" : "text-slate-500 dark:text-slate-400")} />
                     <span className="text-xs font-semibold">{c.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[#F2F4F7]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-[#303036]">
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Link to Vehicle (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Link to Vehicle (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. MH-04-AB-1234, DL-01-AA-9999"
                   value={vehicleNumber}
                   onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 text-xs font-mono uppercase bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono uppercase font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
-                <span className="text-[10px] text-[#667085] mt-0.5 block">Allocates expense to vehicle cost centre</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">Allocates expense to vehicle cost centre</span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Link to Hire Challan (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Link to Hire Challan (Optional)</label>
                 <select
                   value={linkedHireChallanId}
                   onChange={(e) => setLinkedHireChallanId(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
                   <option value="">-- None (Direct Purchase) --</option>
                   {hireChallans.map((hc) => (
@@ -1408,11 +1373,11 @@ export default function PurchasesPage() {
           </div>
 
           {/* Step 3: Items & Amount */}
-          <div className="p-4 bg-white border border-[#E4E7EC] rounded-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#F2F4F7] pb-2">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#303036] pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-indigo-600" />
-                <h3 className="text-sm font-bold text-[#101828]">3. What did it cost? (Line Items & Rates)</h3>
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">3. What did it cost? (Line Items & Rates)</h3>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={addLineItem} className="text-xs">
                 <Plus className="w-3.5 h-3.5 mr-1" />
@@ -1422,9 +1387,9 @@ export default function PurchasesPage() {
 
             <div className="space-y-3">
               {lineItems.map((item, idx) => (
-                <div key={item.id} className="p-3 bg-[#F9FAFB] border border-[#E4E7EC] rounded-lg space-y-2">
+                <div key={item.id} className="p-3.5 bg-slate-50/70 dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#475467]">Item #{idx + 1}</span>
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Item #{idx + 1}</span>
                     {lineItems.length > 1 && (
                       <button
                         type="button"
@@ -1438,30 +1403,30 @@ export default function PurchasesPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
                     <div className="md:col-span-4">
-                      <label className="block text-[10px] font-medium text-[#475467] mb-0.5">Description *</label>
+                      <label className="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">Description *</label>
                       <input
                         type="text"
                         required
                         placeholder="Item description"
                         value={item.description}
                         onChange={(e) => updateLineItem(item.id, "description", e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#D0D5DD] rounded"
+                        className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-medium text-[#475467] mb-0.5">HSN / SAC</label>
+                      <label className="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">HSN / SAC</label>
                       <input
                         type="text"
                         placeholder="HSN"
                         value={item.hsn_sac}
                         onChange={(e) => updateLineItem(item.id, "hsn_sac", e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-[#D0D5DD] rounded"
+                        className="w-full h-9 px-3 text-xs font-mono font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-medium text-[#475467] mb-0.5">Quantity</label>
+                      <label className="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">Quantity</label>
                       <input
                         type="number"
                         step="any"
@@ -1470,12 +1435,12 @@ export default function PurchasesPage() {
                         placeholder="Qty"
                         value={item.quantity}
                         onChange={(e) => updateLineItem(item.id, "quantity", e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-[#D0D5DD] rounded"
+                        className="w-full h-9 px-3 text-xs font-mono font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-medium text-[#475467] mb-0.5">Rate (₹) *</label>
+                      <label className="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">Rate (₹) *</label>
                       <input
                         type="number"
                         step="any"
@@ -1484,16 +1449,16 @@ export default function PurchasesPage() {
                         placeholder="Rate"
                         value={item.rate}
                         onChange={(e) => updateLineItem(item.id, "rate", e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-[#D0D5DD] rounded"
+                        className="w-full h-9 px-3 text-xs font-mono font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-medium text-[#475467] mb-0.5">GST Rate</label>
+                      <label className="block text-[10px] font-medium text-slate-600 dark:text-slate-400 mb-0.5">GST Rate</label>
                       <select
                         value={item.tax_category_id}
                         onChange={(e) => updateLineItem(item.id, "tax_category_id", e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs bg-white border border-[#D0D5DD] rounded"
+                        className="w-full h-9 px-2 text-xs font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
                       >
                         {taxCategories.map((t) => (
                           <option key={t.id} value={t.id}>
@@ -1509,17 +1474,17 @@ export default function PurchasesPage() {
 
             {/* Calculations Summary Card */}
             <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1 text-xs font-mono">
-              <div className="flex justify-between text-[#475467]">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Total Taxable Amount:</span>
-                <span className="font-bold text-[#101828]">₹{calculatedTotals.taxable.toFixed(2)}</span>
+                <span className="font-bold text-slate-900 dark:text-white">₹{calculatedTotals.taxable.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-[#475467]">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>
                   Total GST Tax ({calculatedTotals.isInterstate ? "IGST" : "CGST + SGST"}):
                 </span>
                 <span className="text-purple-700">₹{calculatedTotals.tax.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between font-bold text-sm text-[#101828] pt-1 border-t border-indigo-200">
+              <div className="flex justify-between font-bold text-sm text-slate-900 dark:text-white pt-1 border-t border-indigo-200">
                 <span>Total Net Bill Payable:</span>
                 <span className="text-indigo-900">₹{calculatedTotals.net.toFixed(2)}</span>
               </div>
@@ -1527,19 +1492,19 @@ export default function PurchasesPage() {
           </div>
 
           {/* Step 4: GST & Accounting Live Preview */}
-          <div className="p-4 bg-white border border-[#E4E7EC] rounded-xl space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#F2F4F7] pb-2">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#303036] pb-3">
               <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-[#101828]">4. GST & Accounting Impact (Double-Entry Preview)</h3>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">4. GST & Accounting Impact (Double-Entry Preview)</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">GST Treatment</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">GST Treatment</label>
                 <select
                   value={gstTreatment}
                   onChange={(e) => setGstTreatment(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
                   <option value="FCM">Regular Purchase (FCM)</option>
                   <option value="RCM">Reverse Charge (RCM - Inward)</option>
@@ -1548,11 +1513,11 @@ export default function PurchasesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">ITC Eligibility (Sec 17(5))</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">ITC Eligibility (Sec 17(5))</label>
                 <select
                   value={itcEligibility}
                   onChange={(e) => setItcEligibility(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 >
                   <option value="ELIGIBLE">Eligible for Input Tax Credit</option>
                   <option value="INELIGIBLE">Ineligible / Blocked u/s 17(5)</option>
@@ -1560,42 +1525,42 @@ export default function PurchasesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Place of Supply (State)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Place of Supply (State)</label>
                 <input
                   type="text"
                   placeholder="e.g. Maharashtra"
                   value={placeOfSupply}
                   onChange={(e) => setPlaceOfSupply(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
             </div>
 
             {/* Live Double-Entry Tally Preview */}
-            <div className="p-3 bg-slate-900 text-white rounded-xl text-xs space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-700 pb-1.5">
-                <span className="font-bold text-slate-300">Tally Double-Entry Journal Preview:</span>
+            <div className="p-4 bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-xl text-xs space-y-2">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#303036] pb-2">
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-bold">Tally Double-Entry Journal Preview:</span>
                 <span className="text-[10px] text-slate-400">Voucher #{activeSeries?.next_number_formatted || "PENDING"}</span>
               </div>
               <div className="space-y-1 font-mono text-[11px]">
-                <div className="flex justify-between text-emerald-400">
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
                   <span>Dr. {purchaseCategory} Expense Account</span>
                   <span>₹{(itcEligibility === "INELIGIBLE" ? calculatedTotals.net : calculatedTotals.taxable).toFixed(2)}</span>
                 </div>
                 {itcEligibility !== "INELIGIBLE" && calculatedTotals.tax > 0 && (
                   <>
                     {calculatedTotals.isInterstate ? (
-                      <div className="flex justify-between text-emerald-400">
+                      <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
                         <span>Dr. GST Input IGST Account</span>
                         <span>₹{calculatedTotals.igst.toFixed(2)}</span>
                       </div>
                     ) : (
                       <>
-                        <div className="flex justify-between text-emerald-400">
+                        <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
                           <span>Dr. GST Input CGST Account</span>
                           <span>₹{calculatedTotals.cgst.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-emerald-400">
+                        <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
                           <span>Dr. GST Input SGST Account</span>
                           <span>₹{calculatedTotals.sgst.toFixed(2)}</span>
                         </div>
@@ -1604,12 +1569,12 @@ export default function PurchasesPage() {
                   </>
                 )}
                 {calculatedTotals.isRcm && calculatedTotals.tax > 0 && (
-                  <div className="flex justify-between text-amber-300">
+                  <div className="flex justify-between text-amber-700 dark:text-amber-400 font-medium">
                     <span>Cr. GST RCM Output Liability A/c</span>
                     <span>₹{calculatedTotals.tax.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-amber-400 border-t border-slate-800 pt-1 font-bold">
+                <div className="flex justify-between text-indigo-900 dark:text-indigo-300 border-t border-slate-200 dark:border-[#303036] pt-1.5 font-bold">
                   <span>
                     Cr. Supplier Account ({selectedVendorId ? vendors.find((v) => String(v.id) === selectedVendorId)?.name : manualVendorName || "Vendor"})
                   </span>
@@ -1620,34 +1585,34 @@ export default function PurchasesPage() {
           </div>
 
           {/* Step 5: Remarks & Attachment */}
-          <div className="p-4 bg-white border border-[#E4E7EC] rounded-xl space-y-3">
-            <div className="flex items-center gap-2 border-b border-[#F2F4F7] pb-2">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#303036] pb-3">
               <Paperclip className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-[#101828]">5. Bill Notes & Invoice Attachment (Optional)</h3>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">5. Bill Notes & Invoice Attachment (Optional)</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Bill Narration</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Bill Narration</label>
                 <textarea
                   rows={2}
                   placeholder="Notes, driver delivery reference, or work order notes..."
                   value={narration}
                   onChange={(e) => setNarration(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#344054] mb-1">Invoice Attachment URL / Link</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Invoice Attachment URL / Link</label>
                 <input
                   type="text"
                   placeholder="https://... or doc URL"
                   value={attachmentUrl}
                   onChange={(e) => setAttachmentUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
-                <span className="text-[10px] text-[#667085] mt-1 block">Cloud attachment link for supplier PDF/photo</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">Cloud attachment link for supplier PDF/photo</span>
               </div>
             </div>
           </div>
@@ -1684,15 +1649,15 @@ export default function PurchasesPage() {
           {paymentBill && (
             <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#475467]">Supplier:</span>
-                <span className="font-bold text-[#101828]">{paymentBill.party_name}</span>
+                <span className="text-slate-600 dark:text-slate-400">Supplier:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{paymentBill.party_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#475467]">Bill Amount:</span>
+                <span className="text-slate-600 dark:text-slate-400">Bill Amount:</span>
                 <span className="font-mono font-semibold">₹{Number(paymentBill.net_amount).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#475467]">Already Paid:</span>
+                <span className="text-slate-600 dark:text-slate-400">Already Paid:</span>
                 <span className="font-mono text-emerald-700">₹{Number(paymentBill.paid_amount || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between pt-1 border-t border-indigo-200 font-bold text-sm">
@@ -1705,7 +1670,7 @@ export default function PurchasesPage() {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-[#344054] mb-1">Disbursement Amount (from Bank / Cash) *</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Disbursement Amount (from Bank / Cash) *</label>
             <input
               type="number"
               step="any"
@@ -1720,11 +1685,11 @@ export default function PurchasesPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Payment Mode *</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Payment Mode *</label>
               <select
                 value={paymentMode}
                 onChange={(e) => setPaymentMode(e.target.value as "BANK" | "CASH")}
-                className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
               >
                 <option value="BANK">Bank Transfer (NEFT / RTGS / Cheque)</option>
                 <option value="CASH">Cash-in-hand</option>
@@ -1732,39 +1697,39 @@ export default function PurchasesPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#344054] mb-1">Payment Date *</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Payment Date *</label>
               <input
                 type="date"
                 required
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#344054] mb-1">Transaction Ref # (UTR / Cheque No.)</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Transaction Ref # (UTR / Cheque No.)</label>
             <input
               type="text"
               placeholder="e.g. UTR-HDFC-991204"
               value={paymentRefNumber}
               onChange={(e) => setPaymentRefNumber(e.target.value)}
-              className="w-full px-3 py-2 text-xs font-mono bg-white border border-[#D0D5DD] rounded-lg"
+              className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             />
           </div>
 
           {/* TDS Deduction Options */}
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-            <span className="text-xs font-bold text-[#344054] block">TDS Deduction (Income Tax)</span>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 font-semibold block">TDS Deduction (Income Tax)</span>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-medium text-[#475467] mb-1">TDS Section</label>
+                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">TDS Section</label>
                 <select
                   value={tdsSection}
                   onChange={(e) => handleTdsSectionChange(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#D0D5DD] rounded"
+                  className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
                 >
                   <option value="NONE">No TDS Deduction</option>
                   <option value="194C_1">Sec 194C (1% - Individual Contractor)</option>
@@ -1776,31 +1741,31 @@ export default function PurchasesPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-[#475467] mb-1">TDS Amount (₹)</label>
+                <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">TDS Amount (₹)</label>
                 <input
                   type="number"
                   step="any"
                   min="0"
                   value={tdsAmount}
                   onChange={(e) => setTdsAmount(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-[#D0D5DD] rounded"
+                  className="w-full h-9 px-3 text-xs font-mono font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-medium text-[#475467] mb-1">Cash Discount Received (₹)</label>
+              <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">Cash Discount Received (₹)</label>
               <input
                 type="number"
                 step="any"
                 min="0"
                 value={discountAmount}
                 onChange={(e) => setDiscountAmount(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-[#D0D5DD] rounded"
+                className="w-full h-9 px-3 text-xs font-mono font-medium rounded-lg border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
               />
             </div>
 
-            <div className="text-[11px] font-mono text-[#475467] flex justify-between pt-1 border-t border-gray-200">
+            <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 flex justify-between pt-1 border-t border-gray-200">
               <span>Total Bill Liability Settled:</span>
               <span className="font-bold text-indigo-900">
                 ₹{((parseFloat(paymentAmount) || 0) + (parseFloat(tdsAmount) || 0) + (parseFloat(discountAmount) || 0)).toFixed(2)}
@@ -1809,12 +1774,12 @@ export default function PurchasesPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#344054] mb-1">Payment Narration</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Payment Narration</label>
             <input
               type="text"
               value={paymentNarration}
               onChange={(e) => setPaymentNarration(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+              className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             />
           </div>
 
@@ -1848,43 +1813,43 @@ export default function PurchasesPage() {
       >
         {selectedVoucher && (
           <div className="space-y-5 pb-16">
-            <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-1 text-xs">
+            <div className="p-4 bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-2xl space-y-2 text-xs shadow-2xs">
               <div className="flex justify-between">
-                <span className="text-[#667085]">Supplier / Vendor:</span>
-                <span className="font-bold text-[#101828]">{selectedVoucher.party_name}</span>
+                <span className="text-slate-500 dark:text-slate-400">Supplier / Vendor:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{selectedVoucher.party_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#667085]">Supplier Bill Reference:</span>
+                <span className="text-slate-500 dark:text-slate-400">Supplier Bill Reference:</span>
                 <span className="font-mono font-bold">{selectedVoucher.reference_number || "Direct"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#667085]">Voucher Date:</span>
+                <span className="text-slate-500 dark:text-slate-400">Voucher Date:</span>
                 <span>{selectedVoucher.voucher_date}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#667085]">Net Amount:</span>
+                <span className="text-slate-500 dark:text-slate-400">Net Amount:</span>
                 <span className="font-mono font-bold text-indigo-900">₹{Number(selectedVoucher.net_amount).toFixed(2)}</span>
               </div>
             </div>
 
             {/* Double-entry entries */}
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-[#344054] uppercase tracking-wider">Double-Entry Journal Postings</h4>
-              <div className="border border-[#E4E7EC] rounded-xl overflow-hidden text-xs">
+              <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider">Double-Entry Journal Postings</h4>
+              <div className="border border-slate-200 dark:border-[#303036] rounded-xl overflow-hidden text-xs shadow-2xs">
                 <table className="w-full">
-                  <thead className="bg-[#F9FAFB] border-b border-[#E4E7EC] text-[#475467]">
+                  <thead className="bg-[#F9FAFB] border-b border-[#E4E7EC] text-slate-600 dark:text-slate-400">
                     <tr>
                       <th className="px-3 py-2 text-left font-semibold">Account / Ledger</th>
                       <th className="px-3 py-2 text-right font-semibold">Debit (₹)</th>
                       <th className="px-3 py-2 text-right font-semibold">Credit (₹)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E4E7EC]">
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#303036]">
                     {selectedVoucher.ledger_entries.map((ent, idx) => (
                       <tr key={idx} className={ent.is_reversal ? "bg-rose-50/50" : ""}>
                         <td className="px-3 py-2">
-                          <span className="font-semibold text-[#101828] block">{ent.account_name || `Account #${ent.account_id}`}</span>
-                          {ent.narration && <span className="text-[10px] text-[#667085] block">{ent.narration}</span>}
+                          <span className="font-semibold text-slate-900 dark:text-white block">{ent.account_name || `Account #${ent.account_id}`}</span>
+                          {ent.narration && <span className="text-[10px] text-slate-500 dark:text-slate-400 block">{ent.narration}</span>}
                         </td>
                         <td className="px-3 py-2 text-right font-mono text-emerald-700">
                           {Number(ent.debit_amount) > 0 ? `₹${Number(ent.debit_amount).toFixed(2)}` : "-"}
@@ -1902,7 +1867,7 @@ export default function PurchasesPage() {
             {/* Bill Allocations / Payment History */}
             {selectedVoucher.bill_allocations && selectedVoucher.bill_allocations.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-[#E4E7EC]">
-                <h4 className="text-xs font-bold text-[#344054] uppercase tracking-wider">Payment Settlements</h4>
+                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider">Payment Settlements</h4>
                 <div className="space-y-2">
                   {selectedVoucher.bill_allocations.map((alloc) => (
                     <div key={alloc.id} className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-1">
@@ -2061,14 +2026,14 @@ export default function PurchasesPage() {
         isLoading={isVoiding}
       >
         <div className="mt-3">
-          <label className="block text-xs font-semibold text-[#344054] mb-1">Audit Void Reason (Min 10 chars) *</label>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Audit Void Reason (Min 10 chars) *</label>
           <textarea
             rows={2}
             required
             placeholder="Reason for voiding per audit regulations..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full px-3 py-2 text-xs bg-white border border-[#D0D5DD] rounded-lg"
+            className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
           />
         </div>
       </ConfirmDialog>

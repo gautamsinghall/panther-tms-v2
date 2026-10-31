@@ -26,6 +26,7 @@ import {
   Clock,
   Check,
 } from "lucide-react";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -663,7 +664,7 @@ export default function ReceiptVoucherPage() {
       sortable: true,
       render: (v) => (
         <div className="flex flex-col max-w-[200px]">
-          <span className="font-medium text-slate-200 truncate" title={v.party_name || "Direct Customer"}>
+          <span className="font-medium text-slate-800 dark:text-slate-800 dark:text-slate-200 truncate" title={v.party_name || "Direct Customer"}>
             {v.party_name || "Direct Customer"}
           </span>
           {v.party_gstin && (
@@ -697,7 +698,7 @@ export default function ReceiptVoucherPage() {
               )}
             </div>
             {ref && (
-              <span className="text-xs text-slate-400 font-mono mt-0.5 truncate max-w-[130px]" title={ref}>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mt-0.5 truncate max-w-[130px]" title={ref}>
                 Ref: {ref}
               </span>
             )}
@@ -777,7 +778,7 @@ export default function ReceiptVoucherPage() {
       label: "Settlement Value",
       sortable: true,
       render: (v) => (
-        <span className="font-semibold text-slate-200 font-mono">
+        <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
           {formatCurrency(v.total_amount)}
         </span>
       ),
@@ -868,7 +869,7 @@ export default function ReceiptVoucherPage() {
               variant="outline"
               size="sm"
               onClick={handleExportCSV}
-              className="border-slate-700 hover:bg-slate-800 text-slate-200"
+              className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-[#202025] text-slate-700 dark:text-slate-300 rounded-xl shadow-2xs font-medium"
             >
               <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-400" />
               Export CSV
@@ -879,7 +880,7 @@ export default function ReceiptVoucherPage() {
                 resetCreateForm();
                 setIsCreateOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50 font-medium"
+              className="bg-[#16A34A] hover:bg-[#15803D] text-white shadow-xs font-semibold rounded-xl"
             >
               <Plus className="h-4 w-4 mr-1.5" />
               Record Customer Receipt
@@ -890,74 +891,34 @@ export default function ReceiptVoucherPage() {
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Collections */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Received</span>
-            <div className="p-2 rounded-lg bg-emerald-950/80 border border-emerald-800/50 text-emerald-400">
-              <Wallet className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalReceipts)}
-            </span>
-            <span className="text-xs text-slate-500">({kpis.totalCount} receipts)</span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Net funds credited into Bank/Cash</p>
-        </div>
-
-        {/* Settled Against Invoices */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Invoices Settled</span>
-            <div className="p-2 rounded-lg bg-blue-950/80 border border-blue-800/50 text-blue-400">
-              <FileText className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalSettledBills)}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Applied against debtors receivables</p>
-        </div>
-
-        {/* Customer Advances */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Customer Advances</span>
-            <div className="p-2 rounded-lg bg-cyan-950/80 border border-cyan-800/50 text-cyan-400">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalAdvances)}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Unapplied receipts / credit liability</p>
-        </div>
-
-        {/* TDS Deducted */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">TDS Receivable</span>
-            <div className="p-2 rounded-lg bg-amber-950/80 border border-amber-800/50 text-amber-400">
-              <Percent className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-100">
-              {formatCurrency(kpis.totalTds)}
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Sec 194C / 194J tax credits (Form 26AS)</p>
-        </div>
+        <KpiCard
+          title="Total Received"
+          value={formatCurrency(kpis.totalReceipts)}
+          subtext="Net funds credited into Bank/Cash"
+          badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount} receipts)</span>}
+          icon={<Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+        />
+        <KpiCard
+          title="Invoices Settled"
+          value={formatCurrency(kpis.totalSettledBills)}
+          subtext="Applied against debtors receivables"
+          icon={<FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+        />
+        <KpiCard
+          title="Customer Advances"
+          value={formatCurrency(kpis.totalAdvances)}
+          subtext="Unapplied receipts / credit liability"
+          icon={<TrendingUp className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />}
+        />
+        <KpiCard
+          title="TDS Receivable"
+          value={formatCurrency(kpis.totalTds)}
+          subtext="Sec 194C / 194J tax credits (Form 26AS)"
+          icon={<Percent className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+        />
       </div>
-
       {/* Filter and Search Bar */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-3">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 shadow-2xs space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -966,7 +927,7 @@ export default function ReceiptVoucherPage() {
               placeholder="Search voucher #, customer name, cheque/ref #, narration..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              className="w-full bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl pl-9 pr-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-[#F5F5F7] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
             />
           </div>
 
@@ -975,7 +936,7 @@ export default function ReceiptVoucherPage() {
             <select
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Payment Modes</option>
               <option value="BANK">Bank Transfer / NEFT / RTGS</option>
@@ -988,7 +949,7 @@ export default function ReceiptVoucherPage() {
             <select
               value={filterReceiptType}
               onChange={(e) => setFilterReceiptType(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Receipt Types</option>
               <option value="AGAINST_REF">Against Bills (Settlement)</option>
@@ -1000,7 +961,7 @@ export default function ReceiptVoucherPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Statuses</option>
               <option value="CLEARED">Cleared / Posted</option>
@@ -1018,7 +979,7 @@ export default function ReceiptVoucherPage() {
                   setFilterReceiptType("ALL");
                   setFilterStatus("ALL");
                 }}
-                className="text-xs text-slate-400 hover:text-slate-200"
+                className="text-xs text-slate-400 hover:text-slate-800 dark:text-slate-200"
               >
                 Reset Filters
               </Button>
@@ -1031,7 +992,7 @@ export default function ReceiptVoucherPage() {
       <DataTable
         columns={columns}
         data={filteredData}
-        loading={isLoading}
+        isLoading={isLoading}
         actions={actions}
         emptyState={
           <div className="py-12 text-center">
@@ -1065,7 +1026,7 @@ export default function ReceiptVoucherPage() {
       >
         <form onSubmit={handleCreateReceipt} className="space-y-6 pb-20">
           {/* Step 1: Who paid the money? */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-950 border border-emerald-700 text-xs text-emerald-300">
                 1
@@ -1075,7 +1036,7 @@ export default function ReceiptVoucherPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Select Billing Client <span className="text-rose-400">*</span>
                 </label>
                 <select
@@ -1084,7 +1045,7 @@ export default function ReceiptVoucherPage() {
                     setSelectedClientId(e.target.value);
                     if (e.target.value) setCustomPartyName("");
                   }}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                 >
                   <option value="">-- Choose Corporate / Billing Client --</option>
                   {billingClients.map((c) => (
@@ -1100,7 +1061,7 @@ export default function ReceiptVoucherPage() {
 
               {!selectedClientId && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                     Or Enter Direct Customer Name
                   </label>
                   <input
@@ -1108,13 +1069,13 @@ export default function ReceiptVoucherPage() {
                     placeholder="e.g. Shyam Logistics / Cash Customer"
                     value={customPartyName}
                     onChange={(e) => setCustomPartyName(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Receipt Type / Treatment
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1125,7 +1086,7 @@ export default function ReceiptVoucherPage() {
                       "py-2 px-3 text-xs rounded-lg font-medium border text-center transition-all",
                       receiptType === "AGAINST_REF"
                         ? "bg-emerald-950/80 border-emerald-600 text-emerald-300 shadow-sm"
-                        : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                        : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
                     )}
                   >
                     Against Bills
@@ -1137,7 +1098,7 @@ export default function ReceiptVoucherPage() {
                       "py-2 px-3 text-xs rounded-lg font-medium border text-center transition-all",
                       receiptType === "ADVANCE"
                         ? "bg-cyan-950/80 border-cyan-600 text-cyan-300 shadow-sm"
-                        : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                        : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
                     )}
                   >
                     Customer Advance
@@ -1149,7 +1110,7 @@ export default function ReceiptVoucherPage() {
                       "py-2 px-3 text-xs rounded-lg font-medium border text-center transition-all",
                       receiptType === "ON_ACCOUNT"
                         ? "bg-indigo-950/80 border-indigo-600 text-indigo-300 shadow-sm"
-                        : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                        : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
                     )}
                   >
                     On Account
@@ -1160,7 +1121,7 @@ export default function ReceiptVoucherPage() {
           </div>
 
           {/* Step 2: Where did you receive the money? */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
             <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-950 border border-emerald-700 text-xs text-emerald-300">
                 2
@@ -1170,13 +1131,13 @@ export default function ReceiptVoucherPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Payment Mode <span className="text-rose-400">*</span>
                 </label>
                 <select
                   value={paymentMode}
                   onChange={(e) => setPaymentMode(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                 >
                   <option value="BANK">Bank Transfer (NEFT / RTGS / IMPS)</option>
                   <option value="CHEQUE">Cheque</option>
@@ -1186,13 +1147,13 @@ export default function ReceiptVoucherPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Deposit Into Ledger <span className="text-rose-400">*</span>
                 </label>
                 <select
                   value={bankAccountId}
                   onChange={(e) => setBankAccountId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                 >
                   <option value="">-- Standard Bank / Cash Account --</option>
                   {bankAccounts.map((a) => (
@@ -1204,14 +1165,14 @@ export default function ReceiptVoucherPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Receipt Date <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="date"
                   value={voucherDate}
                   onChange={(e) => setVoucherDate(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1219,7 +1180,7 @@ export default function ReceiptVoucherPage() {
               {paymentMode === "CHEQUE" ? (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                       Cheque Number <span className="text-rose-400">*</span>
                     </label>
                     <input
@@ -1227,22 +1188,22 @@ export default function ReceiptVoucherPage() {
                       placeholder="e.g. 004521"
                       value={chequeNumber}
                       onChange={(e) => setChequeNumber(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                       Cheque Date
                     </label>
                     <input
                       type="date"
                       value={chequeDate}
                       onChange={(e) => setChequeDate(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                       Drawn on Bank
                     </label>
                     <input
@@ -1250,17 +1211,17 @@ export default function ReceiptVoucherPage() {
                       placeholder="e.g. State Bank of India"
                       value={chequeBank}
                       onChange={(e) => setChequeBank(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                       Clearance Status
                     </label>
                     <select
                       value={clearanceStatus}
                       onChange={(e) => setClearanceStatus(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                     >
                       <option value="CLEARED">Cleared (Funds in Bank)</option>
                       <option value="PENDING">Pending Clearance (Cheque in Hand)</option>
@@ -1269,7 +1230,7 @@ export default function ReceiptVoucherPage() {
                 </>
               ) : (
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                     UTR / Txn Reference #
                   </label>
                   <input
@@ -1277,13 +1238,13 @@ export default function ReceiptVoucherPage() {
                     placeholder="e.g. CMS2948294821 or UPI Ref"
                     value={referenceNumber}
                     onChange={(e) => setReferenceNumber(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                   Net Amount Received (₹) <span className="text-rose-400">*</span>
                 </label>
                 <input
@@ -1292,7 +1253,7 @@ export default function ReceiptVoucherPage() {
                   placeholder="0.00"
                   value={amountReceived}
                   onChange={(e) => setAmountReceived(e.target.value)}
-                  className="w-full bg-slate-900 border border-emerald-600/70 rounded-lg px-3 py-2 text-base font-semibold font-mono text-emerald-400 focus:outline-none focus:border-emerald-500"
+                  className="w-full h-10 px-3.5 text-sm sm:text-base font-bold rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   The actual money deposited into your bank account or cash drawer.
@@ -1303,7 +1264,7 @@ export default function ReceiptVoucherPage() {
 
           {/* Step 3: Bill-wise allocation table (if AGAINST_REF) */}
           {receiptType === "AGAINST_REF" && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+            <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-950 border border-emerald-700 text-xs text-emerald-300">
@@ -1324,7 +1285,7 @@ export default function ReceiptVoucherPage() {
                   Loading client open invoices...
                 </div>
               ) : clientOpenInvoices.length === 0 ? (
-                <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6 text-center">
+                <div className="rounded-xl border border-slate-200 dark:border-[#303036] bg-slate-50 dark:bg-[#101013] p-6 text-center">
                   <CheckCircle className="h-8 w-8 text-emerald-500/80 mx-auto mb-2" />
                   <p className="text-xs font-semibold text-slate-300">
                     {selectedClientId
@@ -1338,9 +1299,9 @@ export default function ReceiptVoucherPage() {
                   )}
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-800">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#22232E] shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px]">
+                    <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
                       <tr>
                         <th className="p-2.5">Invoice # & Date</th>
                         <th className="p-2.5">Type</th>
@@ -1366,9 +1327,9 @@ export default function ReceiptVoucherPage() {
                         const isOverAllocated = rowTotal > inv.balance_amount + 0.01;
 
                         return (
-                          <tr key={inv.id} className={cn("hover:bg-slate-900/50 transition-colors", rowTotal > 0 && "bg-emerald-950/10")}>
+                          <tr key={inv.id} className={cn("hover:bg-slate-50/80 dark:hover:bg-[#202025] transition-colors border-b border-slate-100 dark:border-[#303036]", rowTotal > 0 && "bg-emerald-50/40 dark:bg-emerald-950/20")}>
                             <td className="p-2.5">
-                              <div className="font-semibold text-slate-200 font-mono">
+                              <div className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                                 {inv.voucher_number}
                               </div>
                               <div className="text-[10px] text-slate-400">
@@ -1385,7 +1346,7 @@ export default function ReceiptVoucherPage() {
                                 {inv.voucher_type === "TRANSPORT_INVOICE" ? "Transport" : "General"}
                               </Badge>
                             </td>
-                            <td className="p-2.5 text-right font-mono font-semibold text-slate-200">
+                            <td className="p-2.5 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">
                               {formatCurrency(inv.balance_amount)}
                             </td>
                             <td className="p-2.5 text-right">
@@ -1401,7 +1362,7 @@ export default function ReceiptVoucherPage() {
                                     [inv.id]: { ...prev[inv.id], allocated_amount: val },
                                   }));
                                 }}
-                                className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right font-mono text-emerald-400 focus:outline-none focus:border-emerald-500 text-xs"
+                                className="w-24 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right">
@@ -1417,7 +1378,7 @@ export default function ReceiptVoucherPage() {
                                     [inv.id]: { ...prev[inv.id], tds_amount: val },
                                   }));
                                 }}
-                                className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right font-mono text-amber-400 focus:outline-none focus:border-amber-500 text-xs"
+                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right">
@@ -1433,7 +1394,7 @@ export default function ReceiptVoucherPage() {
                                     [inv.id]: { ...prev[inv.id], discount_amount: val },
                                   }));
                                 }}
-                                className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right font-mono text-blue-400 focus:outline-none focus:border-blue-500 text-xs"
+                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-indigo-600 dark:text-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right font-mono font-semibold">
@@ -1459,7 +1420,7 @@ export default function ReceiptVoucherPage() {
                         );
                       })}
                     </tbody>
-                    <tfoot className="bg-slate-900 font-semibold border-t border-slate-800 text-slate-200">
+                    <tfoot className="bg-slate-50 dark:bg-[#101013] font-semibold border-t border-slate-200 dark:border-[#303036] text-slate-800 dark:text-slate-200">
                       <tr>
                         <td colSpan={3} className="p-2.5 text-right uppercase text-[10px] text-slate-400">
                           Allocated Totals:
@@ -1487,7 +1448,7 @@ export default function ReceiptVoucherPage() {
 
           {/* Deductions & TDS section for non-allocated or quick setup */}
           {receiptType !== "AGAINST_REF" && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+            <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
               <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
                 <Percent className="h-4 w-4" />
                 Customer TDS Deduction & Settlement Discount
@@ -1495,13 +1456,13 @@ export default function ReceiptVoucherPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                     TDS Section
                   </label>
                   <select
                     value={tdsSection}
                     onChange={(e) => setTdsSection(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                   >
                     <option value="194C">Section 194C (Transport / Contractor - 1% or 2%)</option>
                     <option value="194J">Section 194J (Professional / Technical - 2% or 10%)</option>
@@ -1510,7 +1471,7 @@ export default function ReceiptVoucherPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                     TDS Rate (%)
                   </label>
                   <input
@@ -1527,12 +1488,12 @@ export default function ReceiptVoucherPage() {
                         setTdsAmount(calculatedTds.toFixed(2));
                       }
                     }}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                     TDS Amount (₹)
                   </label>
                   <input
@@ -1540,12 +1501,12 @@ export default function ReceiptVoucherPage() {
                     step="0.01"
                     value={tdsAmount}
                     onChange={(e) => setTdsAmount(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-amber-400 focus:outline-none focus:border-amber-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-semibold rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-2xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                     Cash Discount Allowed (₹)
                   </label>
                   <input
@@ -1553,7 +1514,7 @@ export default function ReceiptVoucherPage() {
                     step="0.01"
                     value={discountAmount}
                     onChange={(e) => setDiscountAmount(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-blue-400 focus:outline-none focus:border-blue-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs"
                   />
                 </div>
               </div>
@@ -1561,9 +1522,9 @@ export default function ReceiptVoucherPage() {
           )}
 
           {/* Narration & Live Double-Entry Preview */}
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-4">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
                 Narration / Notes
               </label>
               <textarea
@@ -1571,12 +1532,12 @@ export default function ReceiptVoucherPage() {
                 placeholder="e.g. Payment received towards freight bills for April 2026 dispatches..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
               />
             </div>
 
             {/* Double-Entry Journal Preview Card */}
-            <div className="rounded-lg border border-slate-800 bg-slate-900 p-3.5 space-y-2">
+            <div className="rounded-xl border border-slate-200/90 dark:border-[#303036] bg-slate-50 dark:bg-[#101013] p-4 space-y-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
                 Live Tally Double-Entry Preview
@@ -1604,7 +1565,7 @@ export default function ReceiptVoucherPage() {
                 )}
                 {receiptType === "AGAINST_REF" ? (
                   <>
-                    <div className="flex justify-between text-slate-200 border-t border-slate-800 pt-1">
+                    <div className="flex justify-between text-slate-800 dark:text-slate-200 border-t border-slate-200 dark:border-[#303036] pt-1">
                       <span>Cr. Debtor / Customer Ledger (Settled Against Bills)</span>
                       <span>{formatCurrency(allocatedTotals.sumTotal)}</span>
                     </div>
@@ -1616,12 +1577,12 @@ export default function ReceiptVoucherPage() {
                     )}
                   </>
                 ) : receiptType === "ADVANCE" ? (
-                  <div className="flex justify-between text-cyan-400 border-t border-slate-800 pt-1">
+                  <div className="flex justify-between text-cyan-600 dark:text-cyan-400 border-t border-slate-200 dark:border-[#303036] pt-1">
                     <span>Cr. Customer Advances & Unapplied Receipts</span>
                     <span>{formatCurrency(parseFloat(amountReceived) || 0)}</span>
                   </div>
                 ) : (
-                  <div className="flex justify-between text-slate-200 border-t border-slate-800 pt-1">
+                  <div className="flex justify-between text-slate-800 dark:text-slate-200 border-t border-slate-200 dark:border-[#303036] pt-1">
                     <span>Cr. Debtor / Customer Ledger (On Account)</span>
                     <span>{formatCurrency(parseFloat(amountReceived) || 0)}</span>
                   </div>
@@ -1649,7 +1610,7 @@ export default function ReceiptVoucherPage() {
         {selectedVoucher && (
           <div className="space-y-6 pb-12">
             {/* Header Card */}
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+            <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 space-y-4 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs text-slate-500 uppercase tracking-wider">Customer / Debtor</span>
@@ -1663,18 +1624,18 @@ export default function ReceiptVoucherPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200 dark:border-[#303036] text-xs">
                 <div>
                   <span className="text-slate-500">Date:</span>{" "}
-                  <span className="text-slate-200">{formatDate(selectedVoucher.voucher_date)}</span>
+                  <span className="text-slate-800 dark:text-slate-200">{formatDate(selectedVoucher.voucher_date)}</span>
                 </div>
                 <div>
                   <span className="text-slate-500">Mode:</span>{" "}
-                  <span className="text-slate-200">{selectedVoucher.tax_breakup?.payment_mode || "BANK"}</span>
+                  <span className="text-slate-800 dark:text-slate-200">{selectedVoucher.tax_breakup?.payment_mode || "BANK"}</span>
                 </div>
                 <div>
                   <span className="text-slate-500">Ref / Cheque:</span>{" "}
-                  <span className="text-slate-200 font-mono">{selectedVoucher.reference_number || "—"}</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-mono">{selectedVoucher.reference_number || "—"}</span>
                 </div>
                 <div>
                   <span className="text-slate-500">Status:</span>{" "}
@@ -1685,7 +1646,7 @@ export default function ReceiptVoucherPage() {
               </div>
 
               {selectedVoucher.narration && (
-                <div className="text-xs text-slate-400 italic pt-1 border-t border-slate-800/60">
+                <div className="text-xs text-slate-400 italic pt-1 border-t border-slate-200 dark:border-[#303036]">
                   &quot;{selectedVoucher.narration}&quot;
                 </div>
               )}
@@ -1697,9 +1658,9 @@ export default function ReceiptVoucherPage() {
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Settled Invoices ({selectedVoucher.bill_allocations.length})
                 </span>
-                <div className="overflow-x-auto rounded-lg border border-slate-800">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#22232E] shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider text-[10px]">
+                    <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
                       <tr>
                         <th className="p-2.5">Invoice #</th>
                         <th className="p-2.5 text-right">Cash/Bank Applied</th>
@@ -1708,7 +1669,7 @@ export default function ReceiptVoucherPage() {
                         <th className="p-2.5 text-right">Total Settled</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-950/50">
+                    <tbody className="divide-y divide-slate-100 dark:divide-[#303036] bg-white dark:bg-[#101013]">
                       {selectedVoucher.bill_allocations.map((ba) => (
                         <tr key={ba.id}>
                           <td className="p-2.5 font-mono text-cyan-400 font-semibold">
@@ -1739,9 +1700,9 @@ export default function ReceiptVoucherPage() {
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 Posted Double-Entry Ledger Entries
               </span>
-              <div className="overflow-x-auto rounded-lg border border-slate-800">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#22232E] shadow-2xs">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider text-[10px]">
+                  <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
                     <tr>
                       <th className="p-2.5">Ledger Account</th>
                       <th className="p-2.5 text-right">Debit (Dr) ₹</th>
@@ -1749,10 +1710,10 @@ export default function ReceiptVoucherPage() {
                       <th className="p-2.5">Entry Narration</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800 bg-slate-950/50">
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#303036] bg-white dark:bg-[#101013]">
                     {selectedVoucher.ledger_entries.map((le) => (
                       <tr key={le.id} className={le.is_reversal ? "bg-rose-950/20" : ""}>
-                        <td className="p-2.5 font-medium text-slate-200">
+                        <td className="p-2.5 font-medium text-slate-800 dark:text-slate-800 dark:text-slate-200">
                           {le.account_name || `Account #${le.account_id}`}
                           {le.is_reversal && (
                             <span className="ml-1.5 text-[10px] text-rose-400 uppercase font-semibold">
@@ -1772,7 +1733,7 @@ export default function ReceiptVoucherPage() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-slate-900 font-semibold border-t border-slate-800 text-slate-200">
+                  <tfoot className="bg-slate-50 dark:bg-[#101013] font-semibold border-t border-slate-200 dark:border-[#303036] text-slate-800 dark:text-slate-200">
                     <tr>
                       <td className="p-2.5 uppercase text-[10px] text-slate-400">Total:</td>
                       <td className="p-2.5 text-right font-mono text-emerald-400">
@@ -1804,7 +1765,7 @@ export default function ReceiptVoucherPage() {
                   setPrintVoucher(selectedVoucher);
                   setIsPrintModalOpen(true);
                 }}
-                className="border-slate-700 text-slate-200"
+                className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-[#202025] text-slate-700 dark:text-slate-300 rounded-xl shadow-2xs font-medium"
               >
                 <Printer className="h-4 w-4 mr-1.5 text-emerald-400" />
                 Print Receipt Voucher
@@ -1816,8 +1777,8 @@ export default function ReceiptVoucherPage() {
 
       {/* MODAL 3: Print Receipt Voucher (Indian Transport Standard) */}
       {isPrintModalOpen && printVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 overflow-y-auto">
-          <div className="bg-white text-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative print:m-0 print:p-0 print:w-full print:shadow-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-6 relative print:m-0 print:p-0 print:w-full print:shadow-none">
             {/* Modal Controls */}
             <div className="flex items-center justify-between border-b pb-3 print:hidden">
               <span className="font-semibold text-sm text-slate-700 flex items-center gap-1.5">
@@ -1952,7 +1913,7 @@ export default function ReceiptVoucherPage() {
         onConfirm={handleVoidVoucher}
       >
         <div className="mt-3">
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
             Reason for Voiding <span className="text-rose-400">*</span>
           </label>
           <textarea
@@ -1960,7 +1921,7 @@ export default function ReceiptVoucherPage() {
             placeholder="e.g. Cheque dishonoured / payment bounced / wrong client entered..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-rose-500"
+            className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
           />
         </div>
       </ConfirmDialog>

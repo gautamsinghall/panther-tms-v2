@@ -6,18 +6,22 @@ import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface ConfirmDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  open?: boolean;
+  onClose?: () => void;
+  onCancel?: () => void;
   onConfirm: () => void | Promise<void>;
   title: string;
   consequence?: string;
   description?: string;
+  message?: string;
   entityName?: string;
   confirmLabel?: string;
   confirmText?: string;
   cancelLabel?: string;
   cancelText?: string;
   variant?: "danger" | "warning";
+  confirmVariant?: string;
   isLoading?: boolean;
   disabled?: boolean;
   children?: React.ReactNode;
@@ -28,24 +32,31 @@ export interface ConfirmDialogProps {
  * High-clarity confirmation modal for destructive or irreversible actions.
  */
 export function ConfirmDialog({
-  isOpen,
-  onClose,
+  isOpen: rawIsOpen,
+  open: rawOpen,
+  onClose: rawOnClose,
+  onCancel: rawOnCancel,
   onConfirm,
   title,
   consequence,
   description,
+  message,
   entityName,
   confirmLabel,
   confirmText,
   cancelLabel,
   cancelText,
-  variant = "danger",
+  variant: rawVariant = "danger",
+  confirmVariant,
   isLoading = false,
   disabled = false,
   children,
 }: ConfirmDialogProps) {
+  const isOpen = Boolean(rawIsOpen ?? rawOpen);
+  const onClose = rawOnClose || rawOnCancel || (() => {});
+  const variant = (confirmVariant as "danger" | "warning") || rawVariant;
   const [mounted, setMounted] = useState(false);
-  const desc = consequence || description;
+  const desc = consequence || description || message;
   const cLabel = confirmText || confirmLabel || "Confirm";
   const canLabel = cancelText || cancelLabel || "Cancel";
 

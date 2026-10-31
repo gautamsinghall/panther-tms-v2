@@ -52,6 +52,7 @@ export interface DataTableProps<T> {
     onClick: () => void;
   };
   emptyKind?: Extract<DataStateKind, "not-configured" | "not-selected" | "no-records">;
+  emptyState?: React.ReactNode;
   tableClassName?: string;
   defaultDensity?: TableDensity;
   toolbarExtra?: React.ReactNode;
@@ -89,6 +90,7 @@ export function DataTable<T extends Record<string, any>>({
   emptySubtext,
   emptyAction,
   emptyKind = "no-records",
+  emptyState,
   tableClassName,
   defaultDensity = "comfortable",
   toolbarExtra,
@@ -374,7 +376,7 @@ export function DataTable<T extends Record<string, any>>({
                           col.align === "center" ? "justify-center w-full" : ""
                         )}
                       >
-                        <span>{col.header}</span>
+                        <span>{col.header || col.label}</span>
                         {col.sortable && (
                           <span className="text-slate-400">
                             {isSorted && sortDirection === "asc" && (
@@ -453,6 +455,9 @@ export function DataTable<T extends Record<string, any>>({
                     colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
                     className="py-16 text-center"
                   >
+                    {emptyState && !searchTerm.trim() ? (
+                      emptyState
+                    ) : (
                     <DataState
                       kind={searchTerm.trim() ? "no-results" : emptyKind}
                       title={searchTerm.trim() ? "No search results" : emptyMessage}
@@ -467,6 +472,7 @@ export function DataTable<T extends Record<string, any>>({
                           : emptyAction
                       }
                     />
+                    )}
                   </td>
                 </tr>
               )}
@@ -514,7 +520,7 @@ export function DataTable<T extends Record<string, any>>({
                               col.align === "center" ? "text-center" : ""
                             )}
                           >
-                            {col.cell ? col.cell(row, rIndex) : (row[col.key] ?? "-")}
+                            {col.cell ? col.cell(row, rIndex) : col.render ? col.render(row, rIndex) : (row[col.key] ?? "-")}
                           </td>
                         );
                       })}
