@@ -6,8 +6,10 @@ from pydantic import BaseModel, ConfigDict, Field
 class VoucherItemBase(BaseModel):
     charge_head_id: Optional[int] = None
     description: str = Field(..., max_length=255)
+    hsn_sac: Optional[str] = Field(default=None, max_length=20)
     quantity: Decimal = Field(default=Decimal("1.00"))
     rate: Decimal = Field(default=Decimal("0.00"))
+    discount_amount: Decimal = Field(default=Decimal("0.00"))
     tax_category_id: Optional[int] = None
     tax_amount: Decimal = Field(default=Decimal("0.00"))
     total_amount: Decimal = Field(default=Decimal("0.00"))
@@ -92,6 +94,37 @@ class VoucherBase(BaseModel):
 class VoucherCreate(VoucherBase):
     credit_account_id: Optional[int] = None  # For receipt, payment, contra, general voucher
     items: List[VoucherItemCreate] = []
+
+class GeneralInvoiceItemCreate(BaseModel):
+    charge_head_id: Optional[int] = None
+    description: str = Field(..., max_length=255)
+    hsn_sac: Optional[str] = Field(default="9967", max_length=20)
+    quantity: Decimal = Field(default=Decimal("1.00"), gt=Decimal("0.00"))
+    rate: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    tax_category_id: Optional[int] = None
+    tax_amount: Decimal = Field(default=Decimal("0.00"))
+    total_amount: Decimal = Field(default=Decimal("0.00"))
+
+class GeneralInvoiceCreate(BaseModel):
+    invoice_number: Optional[str] = None
+    voucher_number: Optional[str] = None
+    voucher_date: Optional[date] = None
+    due_date: Optional[date] = None
+    credit_period_days: Optional[int] = 30
+    billing_client_id: Optional[int] = None
+    party_name: Optional[str] = None
+    party_gstin: Optional[str] = None
+    place_of_supply: Optional[str] = None
+    gst_treatment: Optional[str] = "FCM"  # FCM, RCM, EXEMPT, NIL_RATED
+    income_account_id: Optional[int] = None
+    party_account_id: Optional[int] = None
+    cost_center: Optional[str] = None
+    reference_number: Optional[str] = None
+    reference_date: Optional[date] = None
+    series_id: Optional[int] = None
+    items: List[GeneralInvoiceItemCreate] = []
+    narration: Optional[str] = None
 
 class TransportInvoiceCreate(BaseModel):
     lr_id: int

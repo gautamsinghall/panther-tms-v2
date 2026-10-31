@@ -287,6 +287,73 @@ async def create_invoice_payment(
     return map_voucher_response(receipt)
 
 
+@router.post("/general-invoices", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_general_invoice_endpoint(
+    data: schemas.GeneralInvoiceCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "general_invoice", "create")),
+):
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    voucher = await service.create_general_invoice(session, data, office_id=office_id)
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="INVOICE_CREATED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": voucher.voucher_number,
+            "total_amount": float(voucher.total_amount or 0),
+            "billing_client_id": data.billing_client_id,
+        },
+    )
+    return map_voucher_response(voucher)
+
+
+@router.post("/general-invoices/{invoice_id}/payments", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_general_invoice_payment(
+    invoice_id: int,
+    data: schemas.ReceiptAgainstInvoiceCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "receipt_voucher", "create")),
+):
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    data.invoice_id = invoice_id
+    receipt = await service.create_receipt_against_invoice(
+        session, data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PAYMENT_RECEIVED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(receipt.id),
+        entity_identifier=receipt.voucher_number,
+        office_id=receipt.issuing_office_id or office_id,
+        details_json={
+            "invoice_id": invoice_id,
+            "receipt_number": receipt.voucher_number,
+            "amount": float(data.amount),
+            "tds_amount": float(data.tds_amount or 0),
+        },
+    )
+    return map_voucher_response(receipt)
+
+
 @router.post("/payments/ath", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_ath_payment(
     data: schemas.ATHPaymentCreate,

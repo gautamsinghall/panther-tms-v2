@@ -1449,6 +1449,8 @@ class VoucherItem(TenantBase):
     quantity = Column(Numeric(12, 2), default=1.00, nullable=False)
     rate = Column(Numeric(12, 2), default=0.00, nullable=False)
     tax_category_id = Column(Integer, ForeignKey("misc_tax_categories.id"), nullable=True)
+    hsn_sac = Column(String(20), nullable=True)
+    discount_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
     tax_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
     total_amount = Column(Numeric(12, 2), default=0.00, nullable=False)
 

@@ -74,6 +74,8 @@ async def run_migration():
                     "UPDATE accounts_vouchers SET balance_amount = net_amount WHERE balance_amount IS NULL OR (balance_amount = 0.00 AND (paid_amount = 0.00 OR paid_amount IS NULL));",
                     "UPDATE accounts_vouchers SET payment_status = 'UNPAID' WHERE payment_status IS NULL;",
                     "UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;",
+                    "ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS hsn_sac VARCHAR(20);",
+                    "ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 2) DEFAULT 0.00;",
                 ]
                 for stmt in statements:
                     try:

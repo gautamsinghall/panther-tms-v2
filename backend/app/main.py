@@ -411,6 +411,8 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("UPDATE accounts_vouchers SET balance_amount = net_amount WHERE balance_amount IS NULL OR (balance_amount = 0.00 AND (paid_amount = 0.00 OR paid_amount IS NULL));"))
                         await t_conn.execute(text("UPDATE accounts_vouchers SET payment_status = 'UNPAID' WHERE payment_status IS NULL;"))
                         await t_conn.execute(text("UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;"))
+                        await t_conn.execute(text("ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS hsn_sac VARCHAR(20);"))
+                        await t_conn.execute(text("ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 2) DEFAULT 0.00;"))
 
                         # E-Invoicing Records Schema Evolution
                         await t_conn.execute(text("""

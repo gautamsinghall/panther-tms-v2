@@ -25,6 +25,8 @@ from app.tenant_db.models import (
 )
 from app.modules.accounts.schemas import (
     VoucherCreate,
+    GeneralInvoiceCreate,
+    GeneralInvoiceItemCreate,
     TransportInvoiceCreate,
     ATHPaymentCreate,
     BTHPaymentCreate,
@@ -129,6 +131,10 @@ async def ensure_standard_accounts(session: AsyncSession) -> None:
         ("ACC_TRUCK_HIRE_EXP", "Truck Hire Expense", "EXP_DIRECT", "DR"),
         ("ACC_FUEL_EXP", "Diesel & Fuel Expense", "EXP_DIRECT", "DR"),
         ("ACC_TOLL_EXP", "Toll Expense", "EXP_DIRECT", "DR"),
+        ("ACC_GENERAL_SALES_REV", "General Sales & Service Revenue", "REV_DIRECT", "CR"),
+        ("ACC_WAREHOUSE_REV", "Warehousing & Storage Income", "REV_DIRECT", "CR"),
+        ("ACC_HANDLING_REV", "Loading & Handling Income", "REV_DIRECT", "CR"),
+        ("ACC_TDS_194J_RECV", "TDS Receivable Account (Sec 194J)", "CA", "DR"),
     ]
 
     for acc_code, acc_name, grp_code, bal_type in accounts_seed:
@@ -215,6 +221,8 @@ async def ensure_tally_schema(session: AsyncSession) -> None:
         "UPDATE accounts_vouchers SET balance_amount = net_amount WHERE balance_amount IS NULL OR (balance_amount = 0.00 AND (paid_amount = 0.00 OR paid_amount IS NULL));",
         "UPDATE accounts_vouchers SET payment_status = 'UNPAID' WHERE payment_status IS NULL;",
         "UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;",
+        "ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS hsn_sac VARCHAR(20);",
+        "ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 2) DEFAULT 0.00;",
     ]
 
     for stmt in ddl_statements:
@@ -516,7 +524,7 @@ async def post_voucher(session: AsyncSession, data: VoucherCreate, office_id: Op
 
     elif data.voucher_type == VoucherType.GENERAL_INVOICE.value:
         debtor_id = debit_acc_id or await get_fallback_account_id(session, "ACC_SUNDRY_DEBTORS", "DEBTORS")
-        rev_id = await get_fallback_account_id(session, "ACC_FREIGHT_REV", "REVENUE")
+        rev_id = credit_acc_id or await get_fallback_account_id(session, "ACC_GENERAL_SALES_REV", "REVENUE")
         gst_out_id = await get_fallback_account_id(session, "ACC_GST_OUT_IGST", "TAX")
 
         session.add(LedgerEntry(
@@ -958,7 +966,266 @@ async def create_transport_invoice_from_lr(
 
 
 # ------------------------------------------------------------------------------
-# Bill-Wise Receipt Against Transport Invoice
+# Specialized General Sales & Service Invoice Workflow
+# ------------------------------------------------------------------------------
+async def create_general_invoice(
+    session: AsyncSession,
+    data: GeneralInvoiceCreate,
+    office_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Creates and posts a comprehensive Tally Prime style General Sales / Services Invoice
+    with itemized lines, SAC/HSN codes, configurable GST (FCM/RCM/Exempt/Nil), bill-wise credit terms,
+    and balanced double-entry ledger postings:
+      - Dr. Customer / Debtor A/c (Net Invoice Receivable)
+      - Cr. General Sales / Service Income A/c (Taxable Amount)
+      - Cr. Applicable Output GST A/c (CGST + SGST or IGST)
+    """
+    from app.modules.accounts.master_ledger_service import get_or_create_party_account
+
+    target_office = office_id or getattr(data, "issuing_office_id", None)
+    
+    # 1. Determine issuing office & supplier state
+    supplier_state = "Maharashtra"
+    if target_office:
+        br_stmt = select(Branch).where(Branch.id == target_office)
+        br_res = await session.execute(br_stmt)
+        branch = br_res.scalar_one_or_none()
+        if branch and branch.state:
+            supplier_state = branch.state
+
+    # 2. Determine Customer / Billing Client details
+    b_client = None
+    b_client_id = data.billing_client_id
+    if b_client_id:
+        bc_stmt = select(BillingClient).where(BillingClient.id == b_client_id)
+        bc_res = await session.execute(bc_stmt)
+        b_client = bc_res.scalar_one_or_none()
+
+    if b_client:
+        party_name = b_client.name
+        party_gstin = data.party_gstin or b_client.gstin
+        recipient_state = data.place_of_supply or b_client.state or supplier_state
+        credit_days = data.credit_period_days if data.credit_period_days is not None else (b_client.credit_period_days or 30)
+        debtor_account = data.party_account_id or await get_or_create_party_account(
+            session, "BILLING_CLIENT", b_client.id, b_client.name, b_client.code
+        )
+        debtor_acc_id = debtor_account.id if hasattr(debtor_account, "id") else debtor_account
+    else:
+        party_name = data.party_name or "Direct Customer"
+        party_gstin = data.party_gstin
+        recipient_state = data.place_of_supply or supplier_state
+        credit_days = data.credit_period_days if data.credit_period_days is not None else 30
+        debtor_acc_id = data.party_account_id or await get_fallback_account_id(session, "ACC_SUNDRY_DEBTORS", "DEBTORS")
+
+    v_date = data.voucher_date or date.today()
+    due_date = data.due_date or (v_date + timedelta(days=credit_days))
+
+    # 3. Determine Tax Treatment and Place of Supply
+    s_clean = "".join(c for c in supplier_state.lower() if c.isalpha())
+    r_clean = "".join(c for c in recipient_state.lower() if c.isalpha())
+    is_intra_state = bool(s_clean and r_clean and (s_clean == r_clean))
+
+    gst_treatment = (data.gst_treatment or "FCM").upper()
+    is_rcm = gst_treatment == "RCM"
+    is_exempt = gst_treatment in ("EXEMPT", "NIL_RATED")
+
+    # 4. Process Itemized Line Items & Calculate Taxes
+    items_to_create = []
+    tot_taxable = Decimal("0.00")
+    tot_cgst = Decimal("0.00")
+    tot_sgst = Decimal("0.00")
+    tot_igst = Decimal("0.00")
+    tot_tax = Decimal("0.00")
+
+    raw_items = data.items or [
+        GeneralInvoiceItemCreate(
+            description="General Business Services / Charges",
+            hsn_sac="9967",
+            quantity=Decimal("1.00"),
+            rate=Decimal("0.00"),
+            discount_amount=Decimal("0.00"),
+        )
+    ]
+
+    for itm in raw_items:
+        qty = itm.quantity if itm.quantity is not None else Decimal("1.00")
+        rate = itm.rate if itm.rate is not None else Decimal("0.00")
+        disc = itm.discount_amount if itm.discount_amount is not None else Decimal("0.00")
+        line_taxable = max(Decimal("0.00"), (qty * rate) - disc)
+
+        tax_cat = None
+        if itm.tax_category_id:
+            tc_stmt = select(TaxCategory).where(TaxCategory.id == itm.tax_category_id)
+            tc_res = await session.execute(tc_stmt)
+            tax_cat = tc_res.scalar_one_or_none()
+
+        line_igst_rate = Decimal(str(tax_cat.igst_rate)) if tax_cat else Decimal("0.00")
+        line_cgst_rate = line_igst_rate / Decimal("2.00")
+        line_sgst_rate = line_cgst_rate
+
+        line_tax = Decimal("0.00")
+        if is_rcm or is_exempt or line_igst_rate == Decimal("0.00"):
+            line_tax = Decimal("0.00")
+        elif is_intra_state:
+            l_cgst = (line_taxable * line_cgst_rate / Decimal("100.00")).quantize(Decimal("0.01"))
+            l_sgst = (line_taxable * line_sgst_rate / Decimal("100.00")).quantize(Decimal("0.01"))
+            tot_cgst += l_cgst
+            tot_sgst += l_sgst
+            line_tax = l_cgst + l_sgst
+        else:
+            l_igst = (line_taxable * line_igst_rate / Decimal("100.00")).quantize(Decimal("0.01"))
+            tot_igst += l_igst
+            line_tax = l_igst
+
+        tot_taxable += line_taxable
+        tot_tax += line_tax
+        line_total = line_taxable + line_tax
+
+        items_to_create.append({
+            "charge_head_id": itm.charge_head_id,
+            "description": itm.description,
+            "hsn_sac": itm.hsn_sac or "9967",
+            "quantity": qty,
+            "rate": rate,
+            "discount_amount": disc,
+            "tax_category_id": itm.tax_category_id,
+            "tax_amount": line_tax,
+            "total_amount": line_total,
+        })
+
+    net_invoice_amount = tot_taxable + tot_tax
+
+    # 5. Allocate / Validate Voucher Number
+    v_num = await allocate_or_validate_voucher_number(
+        session,
+        VoucherType.GENERAL_INVOICE.value,
+        series_id=data.series_id,
+        issuing_office_id=target_office,
+        manual_number=data.invoice_number or data.voucher_number,
+    )
+
+    # 6. Build Tax Breakup JSON
+    tax_breakup = {
+        "taxable_amount": float(tot_taxable),
+        "cgst_amount": float(tot_cgst),
+        "sgst_amount": float(tot_sgst),
+        "igst_amount": float(tot_igst),
+        "total_tax": float(tot_tax),
+        "is_rcm": is_rcm,
+        "is_intra_state": is_intra_state,
+        "supplier_state": supplier_state,
+        "place_of_supply": recipient_state,
+        "gst_treatment": gst_treatment,
+    }
+
+    # 7. Create Voucher
+    voucher = Voucher(
+        voucher_number=v_num,
+        voucher_type=VoucherType.GENERAL_INVOICE.value,
+        voucher_date=v_date,
+        due_date=due_date,
+        credit_period_days=credit_days,
+        party_name=party_name,
+        party_type="BILLING_CLIENT" if b_client_id else "CUSTOMER",
+        reference_number=data.reference_number,
+        reference_date=data.reference_date,
+        total_amount=tot_taxable,
+        tax_amount=tot_tax,
+        net_amount=net_invoice_amount,
+        paid_amount=Decimal("0.00"),
+        balance_amount=net_invoice_amount,
+        payment_status="UNPAID",
+        gst_treatment=gst_treatment,
+        place_of_supply=recipient_state,
+        party_gstin=party_gstin,
+        cost_center=data.cost_center,
+        tax_breakup=tax_breakup,
+        narration=data.narration or f"General Sales & Service Invoice {v_num} for {party_name}",
+        account_id=debtor_acc_id,
+        issuing_office_id=target_office,
+        billing_client_id=b_client_id,
+    )
+    session.add(voucher)
+    await session.flush()
+
+    # 8. Create Line Items
+    for itm_dict in items_to_create:
+        v_item = VoucherItem(
+            voucher_id=voucher.id,
+            charge_head_id=itm_dict["charge_head_id"],
+            description=itm_dict["description"],
+            hsn_sac=itm_dict["hsn_sac"],
+            quantity=itm_dict["quantity"],
+            rate=itm_dict["rate"],
+            discount_amount=itm_dict["discount_amount"],
+            tax_category_id=itm_dict["tax_category_id"],
+            tax_amount=itm_dict["tax_amount"],
+            total_amount=itm_dict["total_amount"],
+        )
+        session.add(v_item)
+
+    # 9. Post Double-Entry Ledger Postings
+    # Account 1: Debit Debtor A/c (Full Net Receivable)
+    session.add(LedgerEntry(
+        voucher_id=voucher.id,
+        account_id=debtor_acc_id,
+        entry_date=v_date,
+        debit_amount=net_invoice_amount,
+        credit_amount=Decimal("0.00"),
+        narration=f"General Invoice {v_num} - {party_name}",
+    ))
+
+    # Account 2: Credit Sales / Service Revenue
+    income_acc_id = data.income_account_id or await get_fallback_account_id(session, "ACC_GENERAL_SALES_REV", "REVENUE")
+    session.add(LedgerEntry(
+        voucher_id=voucher.id,
+        account_id=income_acc_id,
+        entry_date=v_date,
+        debit_amount=Decimal("0.00"),
+        credit_amount=tot_taxable,
+        narration=f"General Sales / Service Revenue for {v_num}",
+    ))
+
+    # Account 3 & 4: Credit Output GST Ledgers (if FCM and tax > 0)
+    if not is_rcm and not is_exempt and tot_tax > Decimal("0.00"):
+        if is_intra_state:
+            cgst_acc_id = await get_fallback_account_id(session, "ACC_GST_OUT_CGST", "TAX")
+            sgst_acc_id = await get_fallback_account_id(session, "ACC_GST_OUT_SGST", "TAX")
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_acc_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=tot_cgst,
+                narration=f"Output CGST for {v_num}",
+            ))
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_acc_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=tot_sgst,
+                narration=f"Output SGST for {v_num}",
+            ))
+        else:
+            igst_acc_id = await get_fallback_account_id(session, "ACC_GST_OUT_IGST", "TAX")
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_acc_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=tot_igst,
+                narration=f"Output IGST for {v_num}",
+            ))
+
+    v_id = voucher.id
+    await session.commit()
+    return await get_voucher_by_id(session, v_id)
+
+
+# ------------------------------------------------------------------------------
+# Bill-Wise Receipt Against Transport / General Invoice
 # ------------------------------------------------------------------------------
 async def create_receipt_against_invoice(
     session: AsyncSession,
@@ -1036,16 +1303,23 @@ async def create_receipt_against_invoice(
         narration=f"Payment received via {data.payment_mode} for Inv {invoice.voucher_number}",
     ))
 
-    # 2. Debit TDS Receivable (Sec 194C TDS deduction by client)
+    # 2. Debit TDS Receivable (Sec 194C or Sec 194J TDS deduction by client)
     if tds > Decimal("0.00"):
-        tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_RECEIVABLE", "ASSET")
+        sec = getattr(data, "tds_section", "194C") or "194C"
+        if sec == "194J":
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_194J_RECV", "ASSET")
+            tds_narr = f"TDS u/s 194J deducted by {invoice.party_name} for Inv {invoice.voucher_number}"
+        else:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_RECEIVABLE", "ASSET")
+            tds_narr = f"TDS u/s 194C deducted by {invoice.party_name} for Inv {invoice.voucher_number}"
+
         session.add(LedgerEntry(
             voucher_id=receipt.id,
             account_id=tds_acc_id,
             entry_date=receipt.voucher_date,
             debit_amount=tds,
             credit_amount=Decimal("0.00"),
-            narration=f"TDS u/s 194C deducted by {invoice.party_name} for Inv {invoice.voucher_number}",
+            narration=tds_narr,
         ))
 
     # 3. Debit Discount Allowed
@@ -1195,8 +1469,8 @@ async def void_voucher(
     if voucher.is_void:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Voucher is already voided")
 
-    # If this is a Transport Invoice, check if active receipts exist
-    if voucher.voucher_type == VoucherType.TRANSPORT_INVOICE.value:
+    # If this is a Transport or General Invoice, check if active receipts exist
+    if voucher.voucher_type in [VoucherType.TRANSPORT_INVOICE.value, VoucherType.GENERAL_INVOICE.value]:
         if voucher.paid_amount and voucher.paid_amount > Decimal("0.00"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
