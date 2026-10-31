@@ -101,8 +101,13 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
         if idx < len(resp.ledger_entries):
             resp.ledger_entries[idx].account_name = ent.account.name if ent.account else None
 
-    # Map bill allocations
+    # Map bill allocations (both received against this invoice, and made by this receipt)
+    allocs = []
     if hasattr(v, "bill_allocations") and v.bill_allocations:
+        allocs.extend(v.bill_allocations)
+    if hasattr(v, "allocations_made") and v.allocations_made:
+        allocs.extend(v.allocations_made)
+    if allocs:
         resp.bill_allocations = [
             schemas.BillAllocationResponse(
                 id=ba.id,
@@ -118,7 +123,7 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
                 voucher_number=ba.voucher.voucher_number if ba.voucher else None,
                 invoice_number=ba.invoice.voucher_number if ba.invoice else None,
             )
-            for ba in v.bill_allocations
+            for ba in allocs
         ]
 
     return resp
@@ -256,6 +261,64 @@ async def create_transport_invoice(
         },
     )
     return map_voucher_response(voucher)
+
+@router.get("/billing-clients/{client_id}/open-invoices", response_model=List[schemas.OpenInvoiceItem])
+async def get_client_open_invoices(
+    client_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "receipt_voucher", "view")),
+):
+    """
+    Get unpaid or partially-paid transport and sales invoices for a billing client,
+    ordered FIFO for bill-by-bill settlement.
+    """
+    return await service.get_open_invoices_for_client(session, client_id)
+
+
+@router.post("/receipt-vouchers", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_receipt_voucher_endpoint(
+    data: schemas.ReceiptVoucherCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "receipt_voucher", "create")),
+):
+    """
+    Record and post a customer receipt voucher with multi-bill allocation,
+    customer advance handling, Sec 194C/194J TDS deduction, cash discount,
+    and balanced double-entry ledger postings.
+    """
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    receipt = await service.create_receipt_voucher(
+        session, data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="RECEIPT_POSTED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(receipt.id),
+        entity_identifier=receipt.voucher_number,
+        office_id=receipt.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": receipt.voucher_number,
+            "party_name": receipt.party_name,
+            "amount": float(data.amount),
+            "tds_amount": float(data.tds_amount or 0),
+            "discount_amount": float(data.discount_amount or 0),
+            "receipt_type": data.receipt_type,
+            "payment_mode": data.payment_mode,
+            "allocations_count": len(data.allocations),
+        },
+    )
+    return map_voucher_response(receipt)
+
 
 @router.post("/transport-invoices/{invoice_id}/payments", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_invoice_payment(

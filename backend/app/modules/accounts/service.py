@@ -35,7 +35,11 @@ from app.modules.accounts.schemas import (
     BTHPaymentCreate,
     VoidVoucherRequest,
     ReceiptAgainstInvoiceCreate,
+    ReceiptAllocationItem,
+    ReceiptVoucherCreate,
+    OpenInvoiceItem,
 )
+from app.modules.accounts.master_ledger_service import get_or_create_party_account
 from app.modules.settings.series_service import allocate_or_validate_voucher_number
 
 VOUCHER_PREFIXES = {
@@ -102,6 +106,7 @@ async def ensure_standard_accounts(session: AsyncSession) -> None:
         "CREDITORS": ("Sundry Creditors", "LIABILITY"),
         "CA": ("Current Assets", "ASSET"),
         "FA": ("Fixed Assets", "ASSET"),
+        "CL": ("Current Liabilities", "LIABILITY"),
     }
     grp_map: Dict[str, int] = {}
     for g_code, (g_name, p_code) in sub_groups.items():
@@ -149,6 +154,8 @@ async def ensure_standard_accounts(session: AsyncSession) -> None:
         ("ACC_TDS_PAYABLE_194Q", "TDS Payable u/s 194Q (Purchase of Goods)", "TAX", "CR"),
         ("ACC_DISCOUNT_RECEIVED", "Discount Received on Purchases", "REV_DIRECT", "CR"),
         ("ACC_GST_RCM_LIABILITY", "GST RCM Output Liability", "TAX", "CR"),
+        ("ACC_CUSTOMER_ADVANCES", "Customer Advances & Unapplied Receipts", "CL", "CR"),
+        ("ACC_CHEQUE_CLEARING", "Cheques in Hand / Clearing Account", "BANK", "DR"),
     ]
 
     for acc_code, acc_name, grp_code, bal_type in accounts_seed:
@@ -1383,6 +1390,336 @@ async def create_receipt_against_invoice(
         invoice.payment_status = "PAID"
     else:
         invoice.payment_status = "PARTIALLY_PAID"
+
+    receipt_id = receipt.id
+    await session.commit()
+    return await get_voucher_by_id(session, receipt_id)
+
+
+# ------------------------------------------------------------------------------
+# Open Invoices for Client (FIFO Bill-wise Allocation)
+# ------------------------------------------------------------------------------
+async def get_open_invoices_for_client(session: AsyncSession, client_id: int) -> List[OpenInvoiceItem]:
+    """
+    Fetch all unpaid or partially paid transport and general sales invoices
+    for a billing client, ordered by date ASC (FIFO).
+    """
+    stmt = (
+        select(Voucher)
+        .where(
+            Voucher.billing_client_id == client_id,
+            Voucher.is_void == False,
+            Voucher.voucher_type.in_([VoucherType.TRANSPORT_INVOICE.value, VoucherType.GENERAL_INVOICE.value]),
+            Voucher.payment_status.in_(["UNPAID", "PARTIALLY_PAID"]),
+        )
+        .order_by(Voucher.voucher_date.asc(), Voucher.id.asc())
+    )
+    res = await session.execute(stmt)
+    vouchers = res.scalars().all()
+
+    today = date.today()
+    items = []
+    for v in vouchers:
+        bal = v.balance_amount if v.balance_amount is not None else v.net_amount
+        if bal <= Decimal("0.00"):
+            continue
+        days_overdue = 0
+        if v.due_date and today > v.due_date:
+            days_overdue = (today - v.due_date).days
+
+        items.append(
+            OpenInvoiceItem(
+                id=v.id,
+                voucher_number=v.voucher_number,
+                voucher_date=v.voucher_date,
+                voucher_type=v.voucher_type,
+                total_amount=v.total_amount,
+                tax_amount=v.tax_amount,
+                net_amount=v.net_amount,
+                paid_amount=v.paid_amount or Decimal("0.00"),
+                balance_amount=bal,
+                due_date=v.due_date,
+                lr_number=v.lr.lr_number if v.lr else None,
+                party_name=v.party_name,
+                gst_treatment=v.gst_treatment,
+                credit_period_days=v.credit_period_days,
+                days_overdue=days_overdue,
+            )
+        )
+    return items
+
+
+# ------------------------------------------------------------------------------
+# Comprehensive Tally-Style Receipt Voucher Posting
+# ------------------------------------------------------------------------------
+async def create_receipt_voucher(
+    session: AsyncSession,
+    data: ReceiptVoucherCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Records customer payments according to Indian double-entry bookkeeping and Tally Prime:
+    1. Multi-invoice bill-wise settlement (AGAINST_REF) with partial payments.
+    2. Customer advances (ADVANCE) and lump-sum on account (ON_ACCOUNT).
+    3. Customer TDS deductions (Sec 194C freight 1%/2%, Sec 194J 2%/10%).
+    4. Cash discount / settlement deduction allowed.
+    5. Overpayment handling (excess credited to Customer Advances).
+    6. Balanced double-entry ledger entries.
+    """
+    await ensure_standard_accounts(session)
+
+    # 1. Resolve Billing Client & Debtor Account
+    client: Optional[BillingClient] = None
+    party_name = (data.party_name or "").strip()
+    party_gstin = None
+
+    if data.billing_client_id:
+        c_res = await session.execute(select(BillingClient).where(BillingClient.id == data.billing_client_id))
+        client = c_res.scalar_one_or_none()
+        if not client:
+            raise HTTPException(status_code=404, detail=f"Billing Client #{data.billing_client_id} not found")
+        party_name = client.name
+        party_gstin = client.gstin
+        debtor_acc = await get_or_create_party_account(
+            session, "BILLING_CLIENT", client.id, client.name, client.code
+        )
+        debtor_id = debtor_acc.id
+    elif data.party_account_id:
+        debtor_id = data.party_account_id
+        if not party_name:
+            acc_obj = await get_account_by_id(session, debtor_id)
+            party_name = acc_obj.name if acc_obj else "Customer"
+    else:
+        party_name = party_name or "Cash Customer"
+        debtor_id = await get_fallback_account_id(session, "ACC_SUNDRY_DEBTORS", "DEBTORS")
+
+    # 2. Resolve Bank or Cash Ledger Account
+    if data.bank_account_id:
+        bank_id = data.bank_account_id
+    elif data.bank_account_code:
+        bank_id = await get_fallback_account_id(session, data.bank_account_code, "BANK")
+    elif (data.payment_mode or "").upper() == "CASH":
+        bank_id = await get_fallback_account_id(session, "ACC_CASH", "CASH")
+    else:
+        bank_id = await get_fallback_account_id(session, "ACC_HDFC_BANK", "BANK")
+
+    # 3. Voucher numbering
+    v_num = await allocate_or_validate_voucher_number(
+        session,
+        VoucherType.RECEIPT_VOUCHER.value,
+        issuing_office_id=office_id,
+        series_id=data.series_id,
+    )
+
+    net_cash = data.amount
+    tds_total = data.tds_amount or Decimal("0.00")
+    disc_total = data.discount_amount or Decimal("0.00")
+    gross_receipt_val = net_cash + tds_total + disc_total
+
+    # 4. Bill Allocation Processing (AGAINST_REF)
+    allocated_bills: List[Dict[str, Any]] = []
+    sum_alloc_net = Decimal("0.00")
+    sum_alloc_total = Decimal("0.00")
+
+    receipt_type = (data.receipt_type or "AGAINST_REF").upper()
+    if receipt_type == "AGAINST_REF" and data.allocations:
+        for item in data.allocations:
+            a_net = item.allocated_amount or Decimal("0.00")
+            a_tds = item.tds_amount or Decimal("0.00")
+            a_disc = item.discount_amount or Decimal("0.00")
+            a_tot = a_net + a_tds + a_disc
+            if a_tot <= Decimal("0.00"):
+                continue
+
+            inv_res = await session.execute(select(Voucher).where(Voucher.id == item.invoice_id))
+            inv = inv_res.scalar_one_or_none()
+            if not inv:
+                raise HTTPException(status_code=404, detail=f"Invoice #{item.invoice_id} not found")
+            if inv.is_void:
+                raise HTTPException(status_code=400, detail=f"Cannot allocate payment to voided invoice {inv.voucher_number}")
+
+            bal = inv.balance_amount if inv.balance_amount is not None else inv.net_amount
+            # 1 paisa tolerance for floating point rounding
+            if a_tot > bal + Decimal("0.01"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Settlement ₹{a_tot} exceeds remaining balance ₹{bal} for invoice {inv.voucher_number}"
+                )
+
+            inv.paid_amount = (inv.paid_amount or Decimal("0.00")) + a_tot
+            inv.balance_amount = max(Decimal("0.00"), inv.net_amount - inv.paid_amount)
+            if inv.balance_amount == Decimal("0.00"):
+                inv.payment_status = "PAID"
+            else:
+                inv.payment_status = "PARTIALLY_PAID"
+
+            allocated_bills.append({
+                "invoice": inv,
+                "allocated_amount": a_net,
+                "tds_amount": a_tds,
+                "discount_amount": a_disc,
+                "total_settled": a_tot,
+            })
+            sum_alloc_net += a_net
+            sum_alloc_total += a_tot
+
+        # Unapplied excess received over allocated bills
+        unapplied_advance = max(Decimal("0.00"), net_cash - sum_alloc_net)
+    elif receipt_type in ["ADVANCE", "ON_ACCOUNT"]:
+        unapplied_advance = net_cash
+    else:
+        unapplied_advance = net_cash
+
+    ref_num = data.reference_number or data.cheque_number
+    ref_dt = data.cheque_date
+
+    tax_breakup = {
+        "receipt_type": receipt_type,
+        "payment_mode": data.payment_mode,
+        "reference_number": ref_num,
+        "cheque_number": data.cheque_number,
+        "cheque_date": str(data.cheque_date) if data.cheque_date else None,
+        "cheque_bank": data.cheque_bank,
+        "clearance_status": data.clearance_status or "CLEARED",
+        "tds_section": data.tds_section or "194C",
+        "tds_rate": float(data.tds_rate or 0),
+        "tds_amount": float(tds_total),
+        "discount_amount": float(disc_total),
+        "unapplied_advance_amount": float(unapplied_advance),
+        "settled_invoices_count": len(allocated_bills),
+    }
+
+    # Primary against voucher if single bill
+    primary_against_id = allocated_bills[0]["invoice"].id if len(allocated_bills) == 1 else None
+
+    # Status: PENDING if cheque not cleared yet, else PAID
+    init_payment_status = "PENDING" if (data.payment_mode or "").upper() == "CHEQUE" and data.clearance_status == "PENDING" else "PAID"
+
+    receipt = Voucher(
+        voucher_number=v_num,
+        voucher_type=VoucherType.RECEIPT_VOUCHER.value,
+        voucher_date=data.voucher_date or date.today(),
+        party_name=party_name,
+        party_type="BILLING_CLIENT",
+        reference_number=ref_num,
+        reference_date=ref_dt,
+        total_amount=gross_receipt_val,
+        tax_amount=Decimal("0.00"),
+        net_amount=net_cash,
+        paid_amount=net_cash,
+        balance_amount=Decimal("0.00"),
+        payment_status=init_payment_status,
+        narration=data.narration or f"Payment received from {party_name} via {data.payment_mode}",
+        account_id=debtor_id,
+        billing_client_id=data.billing_client_id,
+        issuing_office_id=office_id,
+        against_voucher_id=primary_against_id,
+        tax_breakup=tax_breakup,
+        attachment_url=data.attachment_url,
+        cost_center=data.cost_center,
+    )
+    session.add(receipt)
+    await session.flush()
+
+    # 5. Record Bill Allocations
+    for b in allocated_bills:
+        inv = b["invoice"]
+        ba = BillAllocation(
+            voucher_id=receipt.id,
+            invoice_id=inv.id,
+            allocated_amount=b["allocated_amount"],
+            tds_amount=b["tds_amount"],
+            discount_amount=b["discount_amount"],
+            total_settled=b["total_settled"],
+            adjustment_type="AGAINST_REF",
+            notes=f"Settlement against {inv.voucher_number}",
+        )
+        session.add(ba)
+
+    # 6. Balanced Double-Entry Postings
+    # 6a. DEBIT: Bank or Cash Account (Net actual money received)
+    mode_desc = f"via {data.payment_mode}" + (f" (Ref/Cheque #{ref_num})" if ref_num else "")
+    session.add(LedgerEntry(
+        voucher_id=receipt.id,
+        account_id=bank_id,
+        entry_date=receipt.voucher_date,
+        debit_amount=net_cash,
+        credit_amount=Decimal("0.00"),
+        narration=f"Payment received {mode_desc} from {party_name}",
+    ))
+
+    # 6b. DEBIT: TDS Receivable (Tax deducted at source by debtor under 194C / 194J)
+    if tds_total > Decimal("0.00"):
+        sec = (data.tds_section or "194C").upper()
+        if "194J" in sec:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_194J_RECV", "ASSET")
+            tds_narr = f"TDS u/s 194J deducted by {party_name}"
+        else:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_RECEIVABLE", "ASSET")
+            tds_narr = f"TDS u/s 194C deducted by {party_name}"
+
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=tds_acc_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=tds_total,
+            credit_amount=Decimal("0.00"),
+            narration=tds_narr,
+        ))
+
+    # 6c. DEBIT: Discount Allowed (Cash discount / agreed deduction)
+    if disc_total > Decimal("0.00"):
+        disc_acc_id = await get_fallback_account_id(session, "ACC_DISCOUNT_ALLOWED", "EXPENSE")
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=disc_acc_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=disc_total,
+            credit_amount=Decimal("0.00"),
+            narration=f"Discount/Deduction allowed to {party_name}",
+        ))
+
+    # 6d. CREDIT: Debtor / Customer Ledger & Customer Advances
+    if receipt_type == "AGAINST_REF":
+        if sum_alloc_total > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=receipt.id,
+                account_id=debtor_id,
+                entry_date=receipt.voucher_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=sum_alloc_total,
+                narration=f"Payment received against {len(allocated_bills)} invoice(s) from {party_name}",
+            ))
+        if unapplied_advance > Decimal("0.00"):
+            adv_acc_id = await get_fallback_account_id(session, "ACC_CUSTOMER_ADVANCES", "LIABILITY")
+            session.add(LedgerEntry(
+                voucher_id=receipt.id,
+                account_id=adv_acc_id,
+                entry_date=receipt.voucher_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=unapplied_advance,
+                narration=f"Unapplied excess payment / advance from {party_name}",
+            ))
+    elif receipt_type == "ADVANCE":
+        adv_acc_id = await get_fallback_account_id(session, "ACC_CUSTOMER_ADVANCES", "LIABILITY")
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=adv_acc_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=gross_receipt_val,
+            narration=f"Customer advance received from {party_name}",
+        ))
+    elif receipt_type == "ON_ACCOUNT":
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=debtor_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=gross_receipt_val,
+            narration=f"On-account receipt from {party_name}",
+        ))
 
     receipt_id = receipt.id
     await session.commit()

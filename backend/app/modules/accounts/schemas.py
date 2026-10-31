@@ -201,6 +201,60 @@ class TransportInvoiceCreate(BaseModel):
     additional_charges: List[VoucherItemCreate] = []
     narration: Optional[str] = None
 
+class ReceiptAllocationItem(BaseModel):
+    invoice_id: int
+    allocated_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="Net cash/bank applied to this bill")
+    tds_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="TDS deducted on this bill")
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="Cash discount / deduction allowed on this bill")
+    total_settled: Optional[Decimal] = None
+    invoice_number: Optional[str] = None
+
+
+class ReceiptVoucherCreate(BaseModel):
+    billing_client_id: Optional[int] = None
+    party_name: Optional[str] = None
+    party_account_id: Optional[int] = None
+    voucher_date: Optional[date] = None
+    receipt_type: str = Field(default="AGAINST_REF", description="AGAINST_REF, ADVANCE, or ON_ACCOUNT")
+    payment_mode: str = Field(default="BANK", description="BANK, CASH, CHEQUE, UPI, NEFT, RTGS, IMPS")
+    bank_account_id: Optional[int] = None
+    bank_account_code: Optional[str] = None
+    reference_number: Optional[str] = None  # UTR / Txn Ref / Cheque No
+    cheque_number: Optional[str] = None
+    cheque_date: Optional[date] = None
+    cheque_bank: Optional[str] = None
+    clearance_status: Optional[str] = "CLEARED"  # CLEARED, PENDING, BOUNCED
+    amount: Decimal = Field(gt=Decimal("0.00"), description="Total net payment received into bank/cash")
+    tds_section: Optional[str] = "194C"  # 194C (1% / 2%), 194J (2% / 10%), NONE
+    tds_rate: Optional[Decimal] = Decimal("0.00")
+    tds_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    allocations: List[ReceiptAllocationItem] = []
+    unapplied_advance_amount: Optional[Decimal] = Decimal("0.00")
+    narration: Optional[str] = None
+    attachment_url: Optional[str] = None
+    cost_center: Optional[str] = None
+    series_id: Optional[int] = None
+
+
+class OpenInvoiceItem(BaseModel):
+    id: int
+    voucher_number: str
+    voucher_date: date
+    voucher_type: str  # TRANSPORT_INVOICE or GENERAL_INVOICE
+    total_amount: Decimal
+    tax_amount: Decimal
+    net_amount: Decimal
+    paid_amount: Decimal
+    balance_amount: Decimal
+    due_date: Optional[date] = None
+    lr_number: Optional[str] = None
+    party_name: Optional[str] = None
+    gst_treatment: Optional[str] = None
+    credit_period_days: Optional[int] = None
+    days_overdue: Optional[int] = None
+
+
 class ReceiptAgainstInvoiceCreate(BaseModel):
     invoice_id: int
     amount: Decimal = Field(gt=Decimal("0.00"), description="Net payment received in bank or cash")

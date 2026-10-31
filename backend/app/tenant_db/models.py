@@ -1436,6 +1436,7 @@ class Voucher(TenantBase):
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
     against_voucher = relationship("Voucher", remote_side=[id], foreign_keys=[against_voucher_id])
     bill_allocations = relationship("BillAllocation", back_populates="invoice", foreign_keys="BillAllocation.invoice_id", cascade="all, delete-orphan", lazy="selectin")
+    allocations_made = relationship("BillAllocation", back_populates="voucher", foreign_keys="BillAllocation.voucher_id", cascade="all, delete-orphan", lazy="selectin")
 
 
 class VoucherItem(TenantBase):
@@ -1499,7 +1500,7 @@ class BillAllocation(TenantBase):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
-    voucher = relationship("Voucher", foreign_keys=[voucher_id])
+    voucher = relationship("Voucher", back_populates="allocations_made", foreign_keys=[voucher_id])
     invoice = relationship("Voucher", back_populates="bill_allocations", foreign_keys=[invoice_id])
 
 
