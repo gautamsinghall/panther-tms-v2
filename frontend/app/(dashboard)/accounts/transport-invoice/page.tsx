@@ -342,7 +342,10 @@ export default function TransportInvoicePage() {
         msg.toLowerCase().includes("column") ||
         msg.toLowerCase().includes("does not exist") ||
         msg.toLowerCase().includes("programmingerror") ||
-        msg.toLowerCase().includes("schema");
+        msg.toLowerCase().includes("schema") ||
+        msg.toLowerCase().includes("logger") ||
+        msg.toLowerCase().includes("name '") ||
+        msg.toLowerCase().includes("500");
       if (isSchemaErr && !isRetry) {
         try {
           await apiClient("/api/v1/accounts/sync-tally-schema", { method: "POST" });

@@ -1,4 +1,7 @@
+import logging
 from datetime import datetime, date, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 from decimal import Decimal
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -326,8 +329,11 @@ async def get_vouchers(
         return list(res.scalars().all())
     except Exception as e:
         err_msg = str(e).lower()
-        if "does not exist" in err_msg or "due_date" in err_msg or "accounts_vouchers" in err_msg:
-            logger.warning(f"Schema mismatch detected in get_vouchers, auto-healing schema: {e}")
+        if any(k in err_msg for k in ("does not exist", "due_date", "accounts_vouchers", "column", "programmingerror", "undefinedcolumn")):
+            try:
+                logger.warning(f"Schema mismatch detected in get_vouchers, auto-healing schema: {e}")
+            except Exception:
+                pass
             await ensure_tally_schema(session)
             res = await session.execute(stmt)
             return list(res.scalars().all())
@@ -353,8 +359,11 @@ async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
         voucher = res.scalar_one_or_none()
     except Exception as e:
         err_msg = str(e).lower()
-        if "does not exist" in err_msg or "due_date" in err_msg or "accounts_vouchers" in err_msg:
-            logger.warning(f"Schema mismatch detected in get_voucher_by_id, auto-healing schema: {e}")
+        if any(k in err_msg for k in ("does not exist", "due_date", "accounts_vouchers", "column", "programmingerror", "undefinedcolumn")):
+            try:
+                logger.warning(f"Schema mismatch detected in get_voucher_by_id, auto-healing schema: {e}")
+            except Exception:
+                pass
             await ensure_tally_schema(session)
             res = await session.execute(stmt)
             voucher = res.scalar_one_or_none()

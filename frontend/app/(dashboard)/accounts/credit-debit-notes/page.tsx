@@ -234,7 +234,7 @@ export default function CreditDebitNotesPage() {
   const [printVoucher, setPrintVoucher] = useState<VoucherRecord | null>(null);
 
   // Load Initial Page Data
-  const loadData = async () => {
+  const loadData = async (isRetry = false) => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
@@ -262,7 +262,24 @@ export default function CreditDebitNotesPage() {
       setCreditSeries(sCr);
       setDebitSeries(sDr);
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to load credit and debit notes.");
+      const msg = err.message || "";
+      const isSchemaErr =
+        msg.toLowerCase().includes("column") ||
+        msg.toLowerCase().includes("does not exist") ||
+        msg.toLowerCase().includes("programmingerror") ||
+        msg.toLowerCase().includes("schema") ||
+        msg.toLowerCase().includes("logger") ||
+        msg.toLowerCase().includes("name '") ||
+        msg.toLowerCase().includes("500");
+      if (isSchemaErr && !isRetry) {
+        try {
+          await apiClient("/api/v1/accounts/sync-tally-schema", { method: "POST" });
+          return await loadData(true);
+        } catch {
+          // fall through
+        }
+      }
+      setErrorMessage(isSchemaErr ? "Database schema update required. Please refresh." : (msg || "Failed to load credit and debit notes."));
     } finally {
       setIsLoading(false);
     }
@@ -725,100 +742,104 @@ export default function CreditDebitNotesPage() {
 
       {/* 4 Category Action Triggers */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Button
+        <button
+          type="button"
           onClick={() => openCreateDrawer("SALES_CREDIT_NOTE")}
-          className="h-auto py-3.5 px-4 flex flex-col items-start gap-1 bg-card hover:bg-muted border border-blue-500/30 text-left transition-all group"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-blue-500/30 hover:border-blue-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
         >
-          <div className="flex items-center gap-2 text-blue-500 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
             <ArrowDownLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             <span>Reduce Customer Bill</span>
           </div>
           <span className="text-[11px] text-muted-foreground">
             Credit Note: Rate rebate, shortage claim, excess billing
           </span>
-        </Button>
+        </button>
 
-        <Button
+        <button
+          type="button"
           onClick={() => openCreateDrawer("SALES_DEBIT_NOTE")}
-          className="h-auto py-3.5 px-4 flex flex-col items-start gap-1 bg-card hover:bg-muted border border-amber-500/30 text-left transition-all group"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-amber-500/30 hover:border-amber-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
         >
-          <div className="flex items-center gap-2 text-amber-500 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
             <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             <span>Add Extra Customer Charge</span>
           </div>
           <span className="text-[11px] text-muted-foreground">
             Debit Note: Vehicle detention, underbilling, extra drops
           </span>
-        </Button>
+        </button>
 
-        <Button
+        <button
+          type="button"
           onClick={() => openCreateDrawer("PURCHASE_DEBIT_NOTE")}
-          className="h-auto py-3.5 px-4 flex flex-col items-start gap-1 bg-card hover:bg-muted border border-emerald-500/30 text-left transition-all group"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-emerald-500/30 hover:border-emerald-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
         >
-          <div className="flex items-center gap-2 text-emerald-500 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
             <ArrowDownLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             <span>Reduce Supplier Bill</span>
           </div>
           <span className="text-[11px] text-muted-foreground">
             Debit Note: Shortage deduction, purchase return, damage
           </span>
-        </Button>
+        </button>
 
-        <Button
+        <button
+          type="button"
           onClick={() => openCreateDrawer("PURCHASE_CREDIT_NOTE")}
-          className="h-auto py-3.5 px-4 flex flex-col items-start gap-1 bg-card hover:bg-muted border border-purple-500/30 text-left transition-all group"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-purple-500/30 hover:border-purple-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
         >
-          <div className="flex items-center gap-2 text-purple-500 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-purple-400 font-semibold text-sm">
             <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             <span>Adjust Supplier Charge</span>
           </div>
           <span className="text-[11px] text-muted-foreground">
             Credit Note: Additional vendor bill, approved rate escalation
           </span>
-        </Button>
+        </button>
       </div>
 
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between bg-card p-4 rounded-xl border border-border">
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 flex-nowrap min-w-0">
           <Button
-            variant={activeTab === "ALL" ? "default" : "outline"}
+            variant={activeTab === "ALL" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("ALL")}
-            className="text-xs"
+            className="text-xs whitespace-nowrap flex-shrink-0 h-8 px-3"
           >
             All Notes ({data.length})
           </Button>
           <Button
-            variant={activeTab === "SALES_CREDIT_NOTE" ? "default" : "outline"}
+            variant={activeTab === "SALES_CREDIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("SALES_CREDIT_NOTE")}
-            className="text-xs text-blue-500 hover:text-blue-400"
+            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "SALES_CREDIT_NOTE" && "text-blue-400 hover:text-blue-300 border-blue-500/30")}
           >
             Customer Reductions (CN)
           </Button>
           <Button
-            variant={activeTab === "SALES_DEBIT_NOTE" ? "default" : "outline"}
+            variant={activeTab === "SALES_DEBIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("SALES_DEBIT_NOTE")}
-            className="text-xs text-amber-500 hover:text-amber-400"
+            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "SALES_DEBIT_NOTE" && "text-amber-400 hover:text-amber-300 border-amber-500/30")}
           >
             Customer Charges (DN)
           </Button>
           <Button
-            variant={activeTab === "PURCHASE_DEBIT_NOTE" ? "default" : "outline"}
+            variant={activeTab === "PURCHASE_DEBIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("PURCHASE_DEBIT_NOTE")}
-            className="text-xs text-emerald-500 hover:text-emerald-400"
+            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "PURCHASE_DEBIT_NOTE" && "text-emerald-400 hover:text-emerald-300 border-emerald-500/30")}
           >
             Supplier Returns (DN)
           </Button>
           <Button
-            variant={activeTab === "PURCHASE_CREDIT_NOTE" ? "default" : "outline"}
+            variant={activeTab === "PURCHASE_CREDIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("PURCHASE_CREDIT_NOTE")}
-            className="text-xs text-purple-500 hover:text-purple-400"
+            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "PURCHASE_CREDIT_NOTE" && "text-purple-400 hover:text-purple-300 border-purple-500/30")}
           >
             Supplier Charges (CN)
           </Button>

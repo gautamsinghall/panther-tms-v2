@@ -66,7 +66,7 @@ export default function ProformaInvoicePage() {
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
 
-  const loadData = async () => {
+  const loadData = async (isRetry = false) => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
@@ -82,7 +82,23 @@ export default function ProformaInvoicePage() {
         setSelectedSeriesId(String(sInfo.series_options[0].id));
       }
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to load proforma invoices.");
+      const msg = err.message || "";
+      const isSchemaErr =
+        msg.toLowerCase().includes("column") ||
+        msg.toLowerCase().includes("does not exist") ||
+        msg.toLowerCase().includes("programmingerror") ||
+        msg.toLowerCase().includes("logger") ||
+        msg.toLowerCase().includes("name '") ||
+        msg.toLowerCase().includes("500");
+      if (isSchemaErr && !isRetry) {
+        try {
+          await apiClient("/api/v1/accounts/sync-tally-schema", { method: "POST" });
+          return await loadData(true);
+        } catch {
+          // fall through
+        }
+      }
+      setErrorMessage(isSchemaErr ? "Database schema update required. Please click refresh." : (msg || "Failed to load proforma invoices."));
     } finally {
       setIsLoading(false);
     }

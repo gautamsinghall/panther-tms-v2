@@ -282,7 +282,7 @@ export default function PurchasesPage() {
 
   const activeSeries = purchaseType === "NORMAL_PURCHASE" ? normalSeries : generalSeries;
 
-  const loadData = async () => {
+  const loadData = async (isRetry = false) => {
     setIsLoading(true);
     setErrorMessage(null);
     setSchemaError(false);
@@ -318,17 +318,28 @@ export default function PurchasesPage() {
         }
       }
     } catch (err: any) {
-      const msg = err.message || "Failed to load purchase records.";
-      if (msg.includes("does not exist") || msg.includes("due_date") || msg.includes("column")) {
-        setSchemaError(true);
+      const msg = err.message || "";
+      const isSchemaErr =
+        msg.toLowerCase().includes("column") ||
+        msg.toLowerCase().includes("does not exist") ||
+        msg.toLowerCase().includes("programmingerror") ||
+        msg.toLowerCase().includes("schema") ||
+        msg.toLowerCase().includes("logger") ||
+        msg.toLowerCase().includes("name '") ||
+        msg.toLowerCase().includes("500");
+      if (isSchemaErr && !isRetry) {
+        try {
+          await apiClient("/api/v1/accounts/sync-tally-schema", { method: "POST" });
+          return await loadData(true);
+        } catch {
+          // fall through
+        }
       }
-      if (msg.includes("does not exist") || msg.includes("due_date") || msg.includes("column") || msg.includes("ProgrammingError")) {
+      if (isSchemaErr) {
         setSchemaError(true);
         setErrorMessage("Database schema update required. Please click 'Sync Schema & Retry' to automatically heal missing fields.");
-      } else if (msg.includes("name '") || msg.includes("Traceback") || msg.includes("Exception") || msg.includes("500")) {
-        setErrorMessage("Unable to load purchase records due to a server response error. Please refresh or click Sync Schema.");
       } else {
-        setErrorMessage(msg);
+        setErrorMessage(msg || "Failed to load purchase records.");
       }
     } finally {
       setIsLoading(false);
