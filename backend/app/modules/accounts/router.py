@@ -435,6 +435,65 @@ async def create_purchase_bill_payment_endpoint(
     return map_voucher_response(pmt)
 
 
+@router.get("/vendors/{vendor_id}/open-bills", response_model=List[schemas.OpenBillItem])
+async def get_vendor_open_bills(
+    vendor_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "payment_voucher", "view")),
+):
+    """
+    Get unpaid or partially-paid purchase bills and vendor invoices,
+    ordered FIFO for bill-by-bill settlement.
+    """
+    return await service.get_open_bills_for_vendor(session, vendor_id)
+
+
+@router.post("/payment-vouchers", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_payment_voucher_endpoint(
+    data: schemas.PaymentVoucherCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "payment_voucher", "create")),
+):
+    """
+    Record and post a business payment voucher with multi-bill allocation,
+    Hire Challan truck hire settlement, driver advances, direct expenses,
+    TDS deduction, vendor discounts, and balanced double-entry ledger postings.
+    """
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    pmt = await service.create_payment_voucher(
+        session, data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PAYMENT_POSTED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(pmt.id),
+        entity_identifier=pmt.voucher_number,
+        office_id=pmt.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": pmt.voucher_number,
+            "party_name": pmt.party_name,
+            "amount": float(data.amount),
+            "tds_amount": float(data.tds_amount or 0),
+            "discount_amount": float(data.discount_amount or 0),
+            "payment_type": data.payment_type,
+            "payment_mode": data.payment_mode,
+            "allocations_count": len(data.allocations),
+            "hire_challan_id": data.hire_challan_id,
+        },
+    )
+    return map_voucher_response(pmt)
+
+
 @router.post("/general-invoices", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_general_invoice_endpoint(
     data: schemas.GeneralInvoiceCreate,

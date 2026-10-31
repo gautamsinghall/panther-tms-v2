@@ -255,6 +255,65 @@ class OpenInvoiceItem(BaseModel):
     days_overdue: Optional[int] = None
 
 
+class PaymentAllocationItem(BaseModel):
+    invoice_id: Optional[int] = None
+    hire_challan_id: Optional[int] = None
+    allocated_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="Net payment disbursed from bank or cash")
+    tds_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="TDS retained / deducted on this bill")
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="Discount / rebate received from vendor")
+    total_settled: Optional[Decimal] = None
+    bill_number: Optional[str] = None
+    bill_type: Optional[str] = None  # PURCHASE_BILL, HIRE_CHALLAN
+
+
+class PaymentVoucherCreate(BaseModel):
+    vendor_id: Optional[int] = None
+    driver_id: Optional[int] = None
+    party_name: Optional[str] = None
+    party_account_id: Optional[int] = None  # Or selected Expense Account ID for direct expense
+    voucher_date: Optional[date] = None
+    payment_type: str = Field(default="AGAINST_REF", description="AGAINST_REF, HIRE_CHALLAN, DRIVER_ADVANCE, DRIVER_EXPENSE, DIRECT_EXPENSE, ADVANCE, STATUTORY_PAYMENT")
+    payment_mode: str = Field(default="BANK", description="BANK, CASH, CHEQUE, UPI, NEFT, RTGS, IMPS")
+    bank_account_id: Optional[int] = None
+    bank_account_code: Optional[str] = None
+    reference_number: Optional[str] = None  # UTR / Txn Ref / Cheque No
+    cheque_number: Optional[str] = None
+    cheque_date: Optional[date] = None
+    cheque_bank: Optional[str] = None
+    clearance_status: Optional[str] = "CLEARED"  # CLEARED, PENDING
+    amount: Decimal = Field(gt=Decimal("0.00"), description="Total net payment disbursed from bank or cash")
+    tds_section: Optional[str] = "194C"  # 194C (1% / 2%), 194J (2% / 10%), 194Q (0.1%), NONE
+    tds_rate: Optional[Decimal] = Decimal("0.00")
+    tds_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    discount_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    allocations: List[PaymentAllocationItem] = []
+    unapplied_advance_amount: Optional[Decimal] = Decimal("0.00")
+    hire_challan_id: Optional[int] = None
+    hire_challan_payment_type: Optional[str] = None  # ATH, BTH, FULL
+    narration: Optional[str] = None
+    attachment_url: Optional[str] = None
+    cost_center: Optional[str] = None
+    series_id: Optional[int] = None
+
+
+class OpenBillItem(BaseModel):
+    id: int
+    voucher_number: str
+    voucher_date: date
+    voucher_type: str  # NORMAL_PURCHASE or GENERAL_PURCHASE
+    reference_number: Optional[str] = None
+    total_amount: Decimal
+    tax_amount: Decimal
+    net_amount: Decimal
+    paid_amount: Decimal
+    balance_amount: Decimal
+    due_date: Optional[date] = None
+    party_name: Optional[str] = None
+    credit_period_days: Optional[int] = None
+    days_overdue: Optional[int] = None
+    hire_challan_id: Optional[int] = None
+
+
 class ReceiptAgainstInvoiceCreate(BaseModel):
     invoice_id: int
     amount: Decimal = Field(gt=Decimal("0.00"), description="Net payment received in bank or cash")
