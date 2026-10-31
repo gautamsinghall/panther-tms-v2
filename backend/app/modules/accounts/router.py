@@ -88,7 +88,11 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.place_of_supply = v.place_of_supply
     resp.tax_breakup = v.tax_breakup or {}
     resp.attachment_url = getattr(v, "attachment_url", None)
-    resp.itc_eligibility = getattr(v, "itc_eligibility", "ELIGIBLE") or "ELIGIBLE" 
+    resp.itc_eligibility = getattr(v, "itc_eligibility", "ELIGIBLE") or "ELIGIBLE"
+    resp.note_category = getattr(v, "note_category", None)
+    resp.reason_code = getattr(v, "reason_code", None)
+    resp.against_voucher_id = getattr(v, "against_voucher_id", None)
+    resp.against_voucher_number = v.against_voucher.voucher_number if getattr(v, "against_voucher", None) else None 
 
     # Map item details
     for idx, itm in enumerate(v.items):
@@ -680,6 +684,62 @@ async def create_bth_payment(
         },
     )
     return map_voucher_response(voucher)
+
+
+@router.get("/credit-debit-notes/eligible-invoices", response_model=List[schemas.EligibleInvoiceItem])
+async def get_eligible_invoices_for_note_endpoint(
+    party_type: str = Query(..., description="CUSTOMER or VENDOR"),
+    party_id: int = Query(..., description="Billing client ID or Vendor ID"),
+    category: Optional[str] = Query(None, description="Note Category"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view", "credit_debit_notes")),
+):
+    """
+    Fetch invoices / bills eligible for credit or debit note adjustments.
+    """
+    office_id = current_office.id if current_office else None
+    return await service.get_eligible_invoices_for_note(
+        session, party_type=party_type, party_id=party_id, category=category, office_id=office_id
+    )
+
+
+@router.post("/credit-debit-notes", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_credit_debit_note_endpoint(
+    data: schemas.CreditDebitNoteCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: User = Depends(require_accounts_permission("create", "credit_debit_notes")),
+):
+    """
+    Record and post a Tally Prime compliant Credit Note or Debit Note.
+    Supports Sales Credit/Debit Notes and Purchase Debit/Credit Notes with double-entry ledger effects.
+    """
+    await check_entitlement_limit(tenant, session, "max_vouchers_per_month")
+    office_id = current_office.id if current_office else None
+    note = await service.create_credit_debit_note(
+        session, data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="CREDIT_DEBIT_NOTE_POSTED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(note.id),
+        entity_identifier=note.voucher_number,
+        office_id=note.issuing_office_id or office_id,
+        details_json={
+            "note_number": note.voucher_number,
+            "note_type": note.voucher_type,
+            "note_category": note.note_category,
+            "net_amount": float(note.net_amount),
+            "against_voucher_id": note.against_voucher_id,
+        },
+    )
+    return map_voucher_response(note)
 
 
 @router.post("/vouchers/{voucher_id}/void", response_model=schemas.VoucherResponse)

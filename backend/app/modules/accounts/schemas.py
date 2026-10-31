@@ -90,6 +90,8 @@ class VoucherBase(BaseModel):
     cost_center: Optional[str] = None
     tax_breakup: Optional[Dict[str, Any]] = None
     against_voucher_id: Optional[int] = None
+    note_category: Optional[str] = None
+    reason_code: Optional[str] = None
     attachment_url: Optional[str] = None
     itc_eligibility: Optional[str] = "ELIGIBLE"  # ELIGIBLE, INELIGIBLE, BLOCKED
 
@@ -367,6 +369,67 @@ class BTHPaymentCreate(BaseModel):
     voucher_date: Optional[date] = None
     narration: Optional[str] = None
 
+
+class CreditDebitNoteItem(BaseModel):
+    description: str = Field(..., max_length=255)
+    quantity: Decimal = Field(default=Decimal("1.00"), ge=Decimal("0.01"))
+    rate: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    tax_rate: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    tax_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    total_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+
+
+class CreditDebitNoteCreate(BaseModel):
+    note_type: str = Field(..., description="CREDIT_NOTE or DEBIT_NOTE")
+    note_category: str = Field(..., description="SALES_CREDIT_NOTE, SALES_DEBIT_NOTE, PURCHASE_DEBIT_NOTE, PURCHASE_CREDIT_NOTE")
+    voucher_date: Optional[date] = None
+    is_gst_note: bool = Field(default=True, description="Statutory GST Note u/s 34 vs Commercial/Financial Adjustment")
+    against_voucher_id: Optional[int] = None
+    party_type: str = Field(default="CUSTOMER", description="CUSTOMER or VENDOR")
+    billing_client_id: Optional[int] = None
+    vendor_id: Optional[int] = None
+    party_name: Optional[str] = None
+    party_gstin: Optional[str] = None
+    place_of_supply: Optional[str] = None
+    gst_treatment: Optional[str] = "FCM"
+    reason_code: Optional[str] = "04"  # 01-Sales Return, 02-Post Sale Discount, 03-Deficiency in Services, 04-Correction in Invoice, 05-Change in POS, 06-Other
+    reason_description: Optional[str] = None
+    reference_number: Optional[str] = None
+    reference_date: Optional[date] = None
+    total_taxable_amount: Decimal = Field(gt=Decimal("0.00"), description="Taxable value adjustment")
+    tax_rate: Optional[Decimal] = Decimal("0.00")
+    tax_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    cgst_amount: Optional[Decimal] = Decimal("0.00")
+    sgst_amount: Optional[Decimal] = Decimal("0.00")
+    igst_amount: Optional[Decimal] = Decimal("0.00")
+    net_amount: Decimal = Field(gt=Decimal("0.00"), description="Total net adjustment amount")
+    narration: Optional[str] = None
+    cost_center: Optional[str] = None
+    attachment_url: Optional[str] = None
+    series_id: Optional[int] = None
+    items: List[CreditDebitNoteItem] = []
+
+
+class EligibleInvoiceItem(BaseModel):
+    id: int
+    voucher_number: str
+    voucher_date: date
+    voucher_type: str
+    party_name: Optional[str] = None
+    party_gstin: Optional[str] = None
+    place_of_supply: Optional[str] = None
+    gst_treatment: Optional[str] = None
+    total_amount: Decimal
+    tax_amount: Decimal
+    net_amount: Decimal
+    paid_amount: Decimal
+    balance_amount: Decimal
+    tax_breakup: Optional[Dict[str, Any]] = None
+    total_adjusted: Decimal = Decimal("0.00")
+    allowable_adjustment: Decimal = Decimal("0.00")
+
+
 class VoidVoucherRequest(BaseModel):
     void_reason: str = Field(..., min_length=3, description="Audit reason for reversing this voucher")
 
@@ -385,6 +448,7 @@ class VoucherResponse(VoucherBase):
     vendor_name: Optional[str] = None
     driver_name: Optional[str] = None
     party_gstin: Optional[str] = None
+    against_voucher_number: Optional[str] = None
     irn: Optional[str] = None
     irn_status: Optional[str] = None
     items: List[VoucherItemResponse] = []

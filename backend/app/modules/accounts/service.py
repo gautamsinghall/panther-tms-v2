@@ -25,7 +25,11 @@ from app.tenant_db.models import (
     GroupInPrimary,
     PrimaryGroup,
 )
+from app.modules.accounts import schemas
 from app.modules.accounts.schemas import (
+    CreditDebitNoteCreate,
+    CreditDebitNoteItem,
+    EligibleInvoiceItem,
     VoucherCreate,
     GeneralInvoiceCreate,
     PurchaseBillCreate,
@@ -231,6 +235,8 @@ async def ensure_tally_schema(session: AsyncSession) -> None:
         "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS place_of_supply VARCHAR(100);",
         "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS party_gstin VARCHAR(15);",
         "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS cost_center VARCHAR(100);",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS note_category VARCHAR(50);",
+        "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS reason_code VARCHAR(50);",
         "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS tax_breakup JSONB DEFAULT '{}'::jsonb;",
         "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS against_voucher_id INTEGER;",
         "ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS attachment_url TEXT;",
@@ -303,6 +309,8 @@ async def get_vouchers(
             stmt = stmt.where(Voucher.voucher_type.in_(["BTH_PAYMENT", "PAYMENT_BTH"]))
         elif v_upper in ("PAYMENT_VOUCHER", "PAYMENT"):
             stmt = stmt.where(Voucher.voucher_type.in_(["PAYMENT_VOUCHER", "PAYMENT"]))
+        elif v_upper in ("CREDIT_DEBIT_NOTE", "CREDIT_DEBIT_NOTES", "CD_NOTE"):
+            stmt = stmt.where(Voucher.voucher_type.in_(["CREDIT_NOTE", "DEBIT_NOTE"]))
         else:
             stmt = stmt.where(Voucher.voucher_type == voucher_type)
     if lr_id:
@@ -3063,6 +3071,585 @@ async def create_contra_voucher(
     await session.commit()
     return await get_voucher_by_id(session, final_id)
 
+
+
+# ------------------------------------------------------------------------------
+# Credit & Debit Note Management (Tally Prime & Indian GST Sec 34)
+# ------------------------------------------------------------------------------
+async def create_credit_debit_note(
+    session: AsyncSession,
+    data: schemas.CreditDebitNoteCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Creates a Tally Prime compliant Credit Note or Debit Note with proper double-entry accounting.
+    Distinguishes 4 operational categories:
+    1. SALES_CREDIT_NOTE: Customer Credit Note (Bill Reduction)
+       - Dr. Sales Returns / Freight Adjustment (ACC_FREIGHT_REV) [Taxable amount]
+       - Dr. Output GST CGST/SGST/IGST [Tax amount] (if statutory GST note)
+       - Cr. Sundry Debtors (Customer Ledger) [Total Net amount]
+    2. SALES_DEBIT_NOTE: Customer Debit Note (Additional Charge / Detention)
+       - Dr. Sundry Debtors (Customer Ledger) [Total Net amount]
+       - Cr. Additional Freight / Detention Income (ACC_FREIGHT_REV) [Taxable amount]
+       - Cr. Output GST CGST/SGST/IGST [Tax amount] (if statutory GST note)
+    3. PURCHASE_DEBIT_NOTE: Vendor Debit Note (Purchase Return / Shortage Deduction)
+       - Dr. Sundry Creditors (Vendor Ledger) [Total Net amount]
+       - Cr. Truck Hire / Purchase Expense (ACC_TRUCK_HIRE_EXP) [Taxable amount]
+       - Cr. Input GST ITC Reversal CGST/SGST/IGST [Tax amount] (if statutory GST note)
+    4. PURCHASE_CREDIT_NOTE: Vendor Credit Note (Supplier Additional Charge)
+       - Dr. Truck Hire / Purchase Expense (ACC_TRUCK_HIRE_EXP) [Taxable amount]
+       - Dr. Input GST CGST/SGST/IGST [Tax amount] (if statutory GST note)
+       - Cr. Sundry Creditors (Vendor Ledger) [Total Net amount]
+    """
+    # 1. Resolve Office
+    target_office = office_id
+    if not target_office:
+        br_res = await session.execute(
+            select(Branch.id).where(Branch.is_active == True).order_by(Branch.is_head_office.desc(), Branch.id.asc()).limit(1)
+        )
+        target_office = br_res.scalar_one_or_none()
+
+    # 2. Party Validation & Account Resolution
+    party_name = data.party_name
+    party_gstin = data.party_gstin
+    place_of_supply = data.place_of_supply
+
+    if data.note_category in ("SALES_CREDIT_NOTE", "SALES_DEBIT_NOTE"):
+        if not data.billing_client_id:
+            raise HTTPException(status_code=400, detail="Customer (Billing Client) is required for Sales Credit / Debit Notes.")
+        client_res = await session.execute(select(BillingClient).where(BillingClient.id == data.billing_client_id))
+        client = client_res.scalar_one_or_none()
+        if not client:
+            raise HTTPException(status_code=404, detail="Customer not found.")
+        party_name = party_name or client.name
+        party_gstin = party_gstin or client.gstin
+        place_of_supply = place_of_supply or client.state
+        debtor_acc_id = await get_fallback_account_id(session, "ACC_SUNDRY_DEBTORS", "DEBTORS")
+    else:
+        if not data.vendor_id:
+            raise HTTPException(status_code=400, detail="Vendor / Supplier is required for Purchase Debit / Credit Notes.")
+        vend_res = await session.execute(select(Vendor).where(Vendor.id == data.vendor_id))
+        vend = vend_res.scalar_one_or_none()
+        if not vend:
+            raise HTTPException(status_code=404, detail="Vendor not found.")
+        party_name = party_name or vend.name
+        party_gstin = party_gstin or vend.gstin
+        place_of_supply = place_of_supply or vend.state
+        creditor_acc_id = await get_fallback_account_id(session, "ACC_SUNDRY_CREDITORS", "CREDITORS")
+
+    # 3. Check against target invoice if provided
+    target_invoice = None
+    if data.against_voucher_id:
+        target_res = await session.execute(
+            select(Voucher).options(selectinload(Voucher.bill_allocations)).where(Voucher.id == data.against_voucher_id)
+        )
+        target_invoice = target_res.scalar_one_or_none()
+        if not target_invoice:
+            raise HTTPException(status_code=404, detail=f"Target invoice #{data.against_voucher_id} not found.")
+        if target_invoice.is_void:
+            raise HTTPException(status_code=400, detail="Cannot adjust against a voided invoice.")
+
+        # Ensure party matches target invoice
+        if data.note_category.startswith("SALES") and target_invoice.billing_client_id != data.billing_client_id:
+            raise HTTPException(status_code=400, detail="Selected invoice does not belong to this customer.")
+        if data.note_category.startswith("PURCHASE") and target_invoice.vendor_id != data.vendor_id:
+            raise HTTPException(status_code=400, detail="Selected bill does not belong to this vendor.")
+
+        # For SALES_CREDIT_NOTE or PURCHASE_DEBIT_NOTE: prevent adjustments exceeding target invoice total
+        if data.note_category in ("SALES_CREDIT_NOTE", "PURCHASE_DEBIT_NOTE"):
+            existing_adj = sum(
+                (ba.total_settled for ba in (target_invoice.bill_allocations or []) if ba.adjustment_type in ("CREDIT_NOTE", "DEBIT_NOTE")),
+                Decimal("0.00")
+            )
+            if existing_adj + data.net_amount > target_invoice.net_amount + Decimal("0.05"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Total adjustments (₹{existing_adj + data.net_amount}) cannot exceed original invoice gross amount (₹{target_invoice.net_amount})."
+                )
+
+    # 4. Allocate Voucher Number
+    v_num = await allocate_or_validate_voucher_number(
+        session,
+        data.note_type,
+        issuing_office_id=target_office,
+        series_id=data.series_id,
+    )
+
+    # 5. Calculate GST breakdown
+    is_gst = bool(data.is_gst_note)
+    taxable_amt = Decimal(str(data.total_taxable_amount))
+    tax_amt = Decimal(str(data.tax_amount)) if is_gst else Decimal("0.00")
+    net_amt = Decimal(str(data.net_amount))
+
+    # Validate net amount equals taxable + tax
+    expected_net = taxable_amt + tax_amt
+    if abs(net_amt - expected_net) > Decimal("0.05"):
+        net_amt = expected_net
+
+    cgst_amt = Decimal(str(data.cgst_amount or "0.00")) if is_gst else Decimal("0.00")
+    sgst_amt = Decimal(str(data.sgst_amount or "0.00")) if is_gst else Decimal("0.00")
+    igst_amt = Decimal(str(data.igst_amount or "0.00")) if is_gst else Decimal("0.00")
+
+    if is_gst and tax_amt > Decimal("0.00") and cgst_amt == 0 and sgst_amt == 0 and igst_amt == 0:
+        br_stmt = select(Branch).where(Branch.id == target_office)
+        br_obj = (await session.execute(br_stmt)).scalar_one_or_none()
+        is_interstate = False
+        if br_obj and br_obj.state and place_of_supply:
+            is_interstate = br_obj.state.strip().lower() != place_of_supply.strip().lower()
+
+        if is_interstate:
+            igst_amt = tax_amt
+        else:
+            cgst_amt = (tax_amt / Decimal("2.00")).quantize(Decimal("0.01"))
+            sgst_amt = tax_amt - cgst_amt
+
+    tax_breakup = {
+        "is_gst_note": is_gst,
+        "tax_rate": float(data.tax_rate or 0),
+        "taxable_amount": float(taxable_amt),
+        "tax_amount": float(tax_amt),
+        "cgst_amount": float(cgst_amt),
+        "sgst_amount": float(sgst_amt),
+        "igst_amount": float(igst_amt),
+        "reason_code": data.reason_code,
+        "reason_description": data.reason_description,
+    }
+
+    # 6. Create Voucher Header
+    v_date = data.voucher_date or date.today()
+    voucher = Voucher(
+        voucher_number=v_num,
+        voucher_type=data.note_type,
+        note_category=data.note_category,
+        reason_code=data.reason_code,
+        voucher_date=v_date,
+        party_name=party_name,
+        party_type="CUSTOMER" if data.note_category.startswith("SALES") else "VENDOR",
+        party_gstin=party_gstin,
+        place_of_supply=place_of_supply,
+        gst_treatment=data.gst_treatment or "FCM",
+        reference_number=data.reference_number,
+        reference_date=data.reference_date,
+        total_amount=taxable_amt,
+        tax_amount=tax_amt,
+        net_amount=net_amt,
+        narration=data.narration or f"{data.note_category.replace('_', ' ').title()} - Ref #{data.reference_number or v_num}",
+        cost_center=data.cost_center,
+        attachment_url=data.attachment_url,
+        issuing_office_id=target_office,
+        billing_client_id=data.billing_client_id,
+        vendor_id=data.vendor_id,
+        against_voucher_id=data.against_voucher_id,
+        tax_breakup=tax_breakup,
+        payment_status="POSTED",
+        balance_amount=Decimal("0.00"),
+        paid_amount=Decimal("0.00"),
+    )
+    session.add(voucher)
+    await session.flush()
+
+    # 7. Create Line Item(s)
+    if data.items:
+        for itm in data.items:
+            session.add(
+                VoucherItem(
+                    voucher_id=voucher.id,
+                    description=itm.description,
+                    quantity=itm.quantity,
+                    rate=itm.rate,
+                    tax_amount=itm.tax_amount if is_gst else Decimal("0.00"),
+                    total_amount=itm.total_amount,
+                )
+            )
+    else:
+        reason_label = data.reason_description or (f"Reason Code {data.reason_code}" if data.reason_code else "Adjustment")
+        session.add(
+            VoucherItem(
+                voucher_id=voucher.id,
+                description=f"{data.note_category.replace('_', ' ').title()} ({reason_label})",
+                quantity=Decimal("1.00"),
+                rate=taxable_amt,
+                tax_amount=tax_amt,
+                total_amount=net_amt,
+            )
+        )
+
+    # 8. Post Balanced Double-Entry Ledger Entries
+    rev_acc_id = await get_fallback_account_id(session, "ACC_FREIGHT_REV", "REVENUE")
+    exp_acc_id = await get_fallback_account_id(session, "ACC_TRUCK_HIRE_EXP", "EXPENSE")
+    cgst_out_id = await get_fallback_account_id(session, "ACC_GST_OUT_CGST", "TAX")
+    sgst_out_id = await get_fallback_account_id(session, "ACC_GST_OUT_SGST", "TAX")
+    igst_out_id = await get_fallback_account_id(session, "ACC_GST_OUT_IGST", "TAX")
+    cgst_in_id = await get_fallback_account_id(session, "ACC_GST_IN_CGST", "TAX")
+    sgst_in_id = await get_fallback_account_id(session, "ACC_GST_IN_SGST", "TAX")
+    igst_in_id = await get_fallback_account_id(session, "ACC_GST_IN_IGST", "TAX")
+
+    if data.note_category == "SALES_CREDIT_NOTE":
+        # DEBIT: Sales / Revenue Reduction
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=rev_acc_id,
+            entry_date=v_date,
+            debit_amount=taxable_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Revenue reduction / claim via {v_num}",
+        ))
+        # DEBIT: Output GST Reduction (if GST note)
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_out_id,
+                entry_date=v_date,
+                debit_amount=cgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"CGST Output reduction for {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_out_id,
+                entry_date=v_date,
+                debit_amount=sgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"SGST Output reduction for {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_out_id,
+                entry_date=v_date,
+                debit_amount=igst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"IGST Output reduction for {v_num}",
+            ))
+        # CREDIT: Sundry Debtors (Customer Ledger)
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=debtor_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=net_amt,
+            narration=f"Credit note {v_num} issued to {party_name}",
+        ))
+
+        # Update Target Invoice Balance
+        if target_invoice:
+            applied = min(target_invoice.balance_amount or Decimal("0.00"), net_amt)
+            target_invoice.paid_amount = (target_invoice.paid_amount or Decimal("0.00")) + applied
+            target_invoice.balance_amount = max(Decimal("0.00"), (target_invoice.balance_amount or Decimal("0.00")) - applied)
+            if target_invoice.balance_amount == Decimal("0.00"):
+                target_invoice.payment_status = "PAID"
+            elif target_invoice.paid_amount > Decimal("0.00"):
+                target_invoice.payment_status = "PARTIAL"
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=applied,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="CREDIT_NOTE",
+                    notes=f"Credit Note {v_num} applied",
+                )
+            )
+
+    elif data.note_category == "SALES_DEBIT_NOTE":
+        # DEBIT: Sundry Debtors (Customer Ledger)
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=debtor_acc_id,
+            entry_date=v_date,
+            debit_amount=net_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Debit note {v_num} issued to {party_name}",
+        ))
+        # CREDIT: Revenue / Detention / Extra Income
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=rev_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=taxable_amt,
+            narration=f"Additional freight / detention charge via {v_num}",
+        ))
+        # CREDIT: Output GST (if GST note)
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_out_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=cgst_amt,
+                narration=f"CGST Output on Debit Note {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_out_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=sgst_amt,
+                narration=f"SGST Output on Debit Note {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_out_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=igst_amt,
+                narration=f"IGST Output on Debit Note {v_num}",
+            ))
+
+        # Update Target Invoice Balance (increases receivable)
+        if target_invoice:
+            target_invoice.balance_amount = (target_invoice.balance_amount or Decimal("0.00")) + net_amt
+            if target_invoice.payment_status == "PAID":
+                target_invoice.payment_status = "PARTIAL"
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=net_amt,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="DEBIT_NOTE",
+                    notes=f"Debit Note {v_num} added charges",
+                )
+            )
+
+    elif data.note_category == "PURCHASE_DEBIT_NOTE":
+        # DEBIT: Sundry Creditors (Vendor Ledger)
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=creditor_acc_id,
+            entry_date=v_date,
+            debit_amount=net_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Debit note {v_num} to supplier {party_name}",
+        ))
+        # CREDIT: Purchase / Truck Hire Expense Reduction
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=exp_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=taxable_amt,
+            narration=f"Expense reduction / shortage claim via {v_num}",
+        ))
+        # CREDIT: Input GST ITC Reversal (if GST note u/s 34(2))
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_in_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=cgst_amt,
+                narration=f"CGST Input ITC Reversal on {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_in_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=sgst_amt,
+                narration=f"SGST Input ITC Reversal on {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_in_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=igst_amt,
+                narration=f"IGST Input ITC Reversal on {v_num}",
+            ))
+
+        # Update Target Bill Balance
+        if target_invoice:
+            applied = min(target_invoice.balance_amount or Decimal("0.00"), net_amt)
+            target_invoice.paid_amount = (target_invoice.paid_amount or Decimal("0.00")) + applied
+            target_invoice.balance_amount = max(Decimal("0.00"), (target_invoice.balance_amount or Decimal("0.00")) - applied)
+            if target_invoice.balance_amount == Decimal("0.00"):
+                target_invoice.payment_status = "PAID"
+            elif target_invoice.paid_amount > Decimal("0.00"):
+                target_invoice.payment_status = "PARTIAL"
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=applied,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="DEBIT_NOTE",
+                    notes=f"Debit Note {v_num} purchase return/deduction",
+                )
+            )
+
+    elif data.note_category == "PURCHASE_CREDIT_NOTE":
+        # DEBIT: Expense Account (Supplier additional charge)
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=exp_acc_id,
+            entry_date=v_date,
+            debit_amount=taxable_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Additional supplier charge via {v_num}",
+        ))
+        # DEBIT: Input GST (if GST note)
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_in_id,
+                entry_date=v_date,
+                debit_amount=cgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"CGST Input ITC on {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_in_id,
+                entry_date=v_date,
+                debit_amount=sgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"SGST Input ITC on {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_in_id,
+                entry_date=v_date,
+                debit_amount=igst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"IGST Input ITC on {v_num}",
+            ))
+        # CREDIT: Sundry Creditors (Vendor Ledger)
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=creditor_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=net_amt,
+            narration=f"Credit note {v_num} recorded for supplier {party_name}",
+        ))
+
+        # Update Target Bill Balance (increases payable)
+        if target_invoice:
+            target_invoice.balance_amount = (target_invoice.balance_amount or Decimal("0.00")) + net_amt
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=net_amt,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="CREDIT_NOTE",
+                    notes=f"Credit Note {v_num} additional supplier charge",
+                )
+            )
+
+    await session.flush()
+    final_id = voucher.id
+    await session.commit()
+    return await get_voucher_by_id(session, final_id)
+
+
+async def get_eligible_invoices_for_note(
+    session: AsyncSession,
+    party_type: str,
+    party_id: int,
+    category: Optional[str] = None,
+    office_id: Optional[int] = None,
+) -> List[schemas.EligibleInvoiceItem]:
+    """
+    Fetches eligible invoices or bills for credit/debit note adjustments.
+    Filters out voided records and computes current remaining balance and allowable adjustments.
+    """
+    items = []
+    if party_type.upper() == "CUSTOMER":
+        stmt = (
+            select(Voucher)
+            .options(selectinload(Voucher.bill_allocations))
+            .where(
+                Voucher.billing_client_id == party_id,
+                Voucher.is_void == False,
+                Voucher.voucher_type.in_([VoucherType.TRANSPORT_INVOICE.value, VoucherType.GENERAL_INVOICE.value]),
+            )
+            .order_by(Voucher.voucher_date.desc(), Voucher.id.desc())
+        )
+        res = await session.execute(stmt)
+        vouchers = res.scalars().all()
+        for v in vouchers:
+            allocs = [ba for ba in (v.bill_allocations or []) if ba.adjustment_type == "CREDIT_NOTE"]
+            tot_adjusted = sum((ba.total_settled for ba in allocs), Decimal("0.00"))
+            allowable = max(Decimal("0.00"), v.net_amount - tot_adjusted)
+            items.append(
+                schemas.EligibleInvoiceItem(
+                    id=v.id,
+                    voucher_number=v.voucher_number,
+                    voucher_date=v.voucher_date,
+                    voucher_type=v.voucher_type,
+                    party_name=v.party_name,
+                    party_gstin=v.party_gstin,
+                    place_of_supply=v.place_of_supply,
+                    gst_treatment=v.gst_treatment,
+                    total_amount=v.total_amount,
+                    tax_amount=v.tax_amount,
+                    net_amount=v.net_amount,
+                    paid_amount=v.paid_amount or Decimal("0.00"),
+                    balance_amount=v.balance_amount if v.balance_amount is not None else v.net_amount,
+                    tax_breakup=v.tax_breakup or {},
+                    total_adjusted=tot_adjusted,
+                    allowable_adjustment=allowable,
+                )
+            )
+    else:  # VENDOR
+        stmt = (
+            select(Voucher)
+            .options(selectinload(Voucher.bill_allocations))
+            .where(
+                Voucher.vendor_id == party_id,
+                Voucher.is_void == False,
+                Voucher.voucher_type.in_([VoucherType.NORMAL_PURCHASE.value, VoucherType.GENERAL_PURCHASE.value]),
+            )
+            .order_by(Voucher.voucher_date.desc(), Voucher.id.desc())
+        )
+        res = await session.execute(stmt)
+        vouchers = res.scalars().all()
+        for v in vouchers:
+            allocs = [ba for ba in (v.bill_allocations or []) if ba.adjustment_type == "DEBIT_NOTE"]
+            tot_adjusted = sum((ba.total_settled for ba in allocs), Decimal("0.00"))
+            allowable = max(Decimal("0.00"), v.net_amount - tot_adjusted)
+            items.append(
+                schemas.EligibleInvoiceItem(
+                    id=v.id,
+                    voucher_number=v.voucher_number,
+                    voucher_date=v.voucher_date,
+                    voucher_type=v.voucher_type,
+                    party_name=v.party_name,
+                    party_gstin=v.party_gstin,
+                    place_of_supply=v.place_of_supply,
+                    gst_treatment=v.gst_treatment,
+                    total_amount=v.total_amount,
+                    tax_amount=v.tax_amount,
+                    net_amount=v.net_amount,
+                    paid_amount=v.paid_amount or Decimal("0.00"),
+                    balance_amount=v.balance_amount if v.balance_amount is not None else v.net_amount,
+                    tax_breakup=v.tax_breakup or {},
+                    total_adjusted=tot_adjusted,
+                    allowable_adjustment=allowable,
+                )
+            )
+    return items
+
+
 async def void_voucher(
     session: AsyncSession,
     voucher_id: int,
@@ -3091,6 +3678,32 @@ async def void_voucher(
         voucher.payment_status = "VOID"
 
     # If this is a Receipt or Payment Voucher, unallocate from linked invoice/bill(s)
+    if voucher.voucher_type in [VoucherType.CREDIT_NOTE.value, VoucherType.DEBIT_NOTE.value]:
+        alloc_stmt = select(BillAllocation).where(BillAllocation.voucher_id == voucher.id)
+        alloc_res = await session.execute(alloc_stmt)
+        allocations = alloc_res.scalars().all()
+        cat = getattr(voucher, "note_category", None) or ""
+        for alloc in allocations:
+            inv_stmt = select(Voucher).where(Voucher.id == alloc.invoice_id)
+            inv_res = await session.execute(inv_stmt)
+            target = inv_res.scalar_one_or_none()
+            if not target:
+                continue
+            if voucher.voucher_type == VoucherType.CREDIT_NOTE.value:
+                if cat == "PURCHASE_CREDIT_NOTE":
+                    target.balance_amount = max(Decimal("0.00"), (target.balance_amount or Decimal("0.00")) - voucher.net_amount)
+                else:
+                    target.paid_amount = max(Decimal("0.00"), (target.paid_amount or Decimal("0.00")) - alloc.allocated_amount)
+                    target.balance_amount = min(target.net_amount, (target.balance_amount or Decimal("0.00")) + alloc.allocated_amount)
+                    target.payment_status = "UNPAID" if target.balance_amount == target.net_amount else "PARTIAL"
+            elif voucher.voucher_type == VoucherType.DEBIT_NOTE.value:
+                if cat == "SALES_DEBIT_NOTE":
+                    target.balance_amount = max(Decimal("0.00"), (target.balance_amount or Decimal("0.00")) - voucher.net_amount)
+                else:
+                    target.paid_amount = max(Decimal("0.00"), (target.paid_amount or Decimal("0.00")) - alloc.allocated_amount)
+                    target.balance_amount = min(target.net_amount, (target.balance_amount or Decimal("0.00")) + alloc.allocated_amount)
+                    target.payment_status = "UNPAID" if target.balance_amount == target.net_amount else "PARTIAL"
+
     if voucher.voucher_type in [VoucherType.RECEIPT_VOUCHER.value, VoucherType.PAYMENT_VOUCHER.value, VoucherType.PAYMENT_ATH.value, VoucherType.PAYMENT_BTH.value]:
         alloc_stmt = select(BillAllocation).where(BillAllocation.voucher_id == voucher.id)
         alloc_res = await session.execute(alloc_stmt)
