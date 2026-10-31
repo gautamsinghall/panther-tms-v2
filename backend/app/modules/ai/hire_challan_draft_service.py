@@ -52,9 +52,14 @@ def is_hire_challan_intent(text: str) -> bool:
 def is_instructional_hc_inquiry(text: str) -> bool:
     """Detects instructional/knowledge inquiries about Hire Challans."""
     t = text.lower().strip()
+    from app.modules.ai.tools import extract_transport_entities
+    if extract_transport_entities(text).get("hc_number"):
+        return False
+    if any(w in t for w in ("this hc", "is hc", "that hc", "the hc", "this challan", "is challan", "is hire challan", "this hire challan", "its advance", "who is the vendor", "what is the balance")):
+        return False
     inquiry_patterns = [
         r"\b(what is|explain|rules for|how to settle|how to create)\b.*\b(hire challan|challan)\b",
-        r"\b(hire challan kya hai|hire challan kya hota hai|challan kaise settle kare)\b",
+        r"\b(hire challan kya hai|hire challan kya hota hai|challan kaise settle kare|challan kaise banaye)\b",
     ]
     for p in inquiry_patterns:
         if re.search(p, t):

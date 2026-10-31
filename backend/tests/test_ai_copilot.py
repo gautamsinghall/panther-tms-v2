@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta, date
 """
 Panther AI Comprehensive Test Suite.
 Tests multilingual intelligence, TMS knowledge retrieval, navigation accuracy,
@@ -1092,3 +1093,619 @@ async def test_execute_tracking_tool_with_lr_and_hc():
         assert "DL01AA1111" in cards[0].title
         assert "LR-AI-1006" in msg
         assert "NH-48 Dharuhera" in msg
+
+
+# ==============================================================================
+# PHASE 5 — SPECIFIC RECORD LOOKUPS, DOCUMENT INTELLIGENCE & FOLLOW-UP TESTS
+# ==============================================================================
+
+def test_specific_hc_lookup_intent_classification():
+    from app.modules.ai.tools import classify_operational_intent
+
+    # Direct document query
+    intent1 = classify_operational_intent("HC-2026-0007 TELL ME ABOUT THIS HC")
+    assert intent1 is not None
+    assert intent1["tool"] == "hire_challan"
+    assert "HC-2026-0007" in intent1["query"]
+    assert intent1["is_detail"] is True
+
+    # Variations in English & Hinglish
+    intent2 = classify_operational_intent("Show details of HC-2026-0007")
+    assert intent2 is not None
+    assert intent2["tool"] == "hire_challan"
+    assert "HC-2026-0007" in intent2["query"]
+
+    intent3 = classify_operational_intent("Mujhe HC-2026-0007 ki details batao")
+    assert intent3 is not None
+    assert intent3["tool"] == "hire_challan"
+    assert "HC-2026-0007" in intent3["query"]
+
+
+def test_follow_up_hc_context_retention():
+    from app.modules.ai.tools import classify_operational_intent
+
+    history = [
+        {"role": "user", "content": "HC-2026-0007 TELL ME ABOUT THIS HC"},
+        {"role": "assistant", "content": "Hire Challan HC-2026-0007 details for vehicle HR55AA1234."},
+    ]
+
+    # Follow-up: Vendor lookup
+    intent_vendor = classify_operational_intent("Who is the vendor of this HC?", conversation_history=history)
+    assert intent_vendor is not None
+    assert intent_vendor["tool"] == "hire_challan"
+    assert "HC-2026-0007" in intent_vendor["query"]
+    assert intent_vendor["field_focus"] == "vendor"
+
+    # Follow-up: Advance lookup
+    intent_adv = classify_operational_intent("What is its advance?", conversation_history=history)
+    assert intent_adv is not None
+    assert intent_adv["tool"] == "hire_challan"
+    assert "HC-2026-0007" in intent_adv["query"]
+    assert intent_adv["field_focus"] == "advance"
+
+    # Follow-up: Balance lookup
+    intent_bal = classify_operational_intent("What is the balance payable for this HC?", conversation_history=history)
+    assert intent_bal is not None
+    assert intent_bal["tool"] == "hire_challan"
+    assert "HC-2026-0007" in intent_bal["query"]
+    assert intent_bal["field_focus"] == "balance"
+
+    # Follow-up: Status lookup in Hinglish
+    intent_stat = classify_operational_intent("Is Hire Challan ka status kya hai?", conversation_history=history)
+    assert intent_stat is not None
+    assert intent_stat["tool"] == "hire_challan"
+    assert "HC-2026-0007" in intent_stat["query"]
+    assert intent_stat["field_focus"] == "status"
+
+
+def test_specific_lr_lookup_and_follow_up():
+    from app.modules.ai.tools import classify_operational_intent
+
+    # Direct LR lookup
+    intent_lr = classify_operational_intent("Tell me about LR-2026-0012.")
+    assert intent_lr is not None
+    assert intent_lr["tool"] == "lr"
+    assert "LR-2026-0012" in intent_lr["query"]
+    assert intent_lr["is_detail"] is True
+
+    # Follow-up on LR
+    history = [
+        {"role": "user", "content": "Tell me about LR-2026-0012."},
+        {"role": "assistant", "content": "LR-2026-0012 is currently In Transit."},
+    ]
+    intent_followup = classify_operational_intent("Is this LR delivered?", conversation_history=history)
+    assert intent_followup is not None
+    assert intent_followup["tool"] == "lr"
+    assert "LR-2026-0012" in intent_followup["query"]
+    assert intent_followup["field_focus"] == "status"
+
+
+def test_specific_job_and_invoice_lookups():
+    from app.modules.ai.tools import classify_operational_intent
+
+    # Job order lookup
+    intent_job = classify_operational_intent("Job order JOB-2026-0042 ki info")
+    assert intent_job is not None
+    assert intent_job["tool"] == "job"
+    assert "JOB-2026-0042" in intent_job["query"]
+    assert intent_job["is_detail"] is True
+
+    # Job follow-up
+    history_job = [
+        {"role": "user", "content": "Job order JOB-2026-0042 ki info"},
+        {"role": "assistant", "content": "JOB-2026-0042 from Mumbai to Delhi."},
+    ]
+    intent_job_stat = classify_operational_intent("What is the status of this job?", conversation_history=history_job)
+    assert intent_job_stat is not None
+    assert intent_job_stat["tool"] == "job"
+    assert "JOB-2026-0042" in intent_job_stat["query"]
+    assert intent_job_stat["field_focus"] == "status"
+
+    # Invoice lookup
+    intent_inv = classify_operational_intent("INV-2026-0001 ki details batao")
+    assert intent_inv is not None
+    assert intent_inv["tool"] == "invoice"
+    assert "INV-2026-0001" in intent_inv["query"]
+    assert intent_inv["is_detail"] is True
+
+
+@pytest.mark.asyncio
+async def test_execute_hire_challan_tool_field_focus():
+    from app.modules.ai.tools import execute_hire_challan_tool
+    from app.tenant_db.models import HireChallan
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+    office = Branch(id=1, name="Delhi HQ", code="DEL-01")
+
+    mock_hc = MagicMock(spec=HireChallan)
+    mock_hc.id = 7
+    mock_hc.challan_number = "HC-2026-0007"
+    mock_hc.vehicle_number = "HR55AA1234"
+    mock_hc.owner = MagicMock()
+    mock_hc.owner.name = "Sharma Transport"
+    mock_hc.vendor = mock_hc.owner
+    mock_hc.driver_name = "Rajesh Kumar"
+    mock_hc.driver_phone = "9876543210"
+    mock_hc.total_hire_amount = 35000.00
+    mock_hc.advance_amount = 5000.00
+    mock_hc.balance_amount = 30000.00
+    mock_hc.status = "ISSUED"
+    mock_hc.challan_date = None
+    mock_hc.issuing_office = office
+    mock_hc.issuing_office_id = office.id
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [mock_hc]
+    mock_scalar.unique.return_value.all.return_value = [mock_hc]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    # Test vendor focus
+    msg_v, cards_v = await execute_hire_challan_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        query="HC-2026-0007", field_focus="vendor", lang="en"
+    )
+    assert "Sharma Transport" in msg_v
+    assert len(cards_v) == 1
+    assert cards_v[0].card_type == "hire_challan_detail"
+    assert cards_v[0].action["href"] == "/transport/hire-challan"
+
+    # Test balance focus
+    msg_b, _ = await execute_hire_challan_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        query="HC-2026-0007", field_focus="balance", lang="en"
+    )
+    assert "30,000.00" in msg_b
+
+    # Test advance focus
+    msg_a, _ = await execute_hire_challan_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        query="HC-2026-0007", field_focus="advance", lang="en"
+    )
+    assert "5,000.00" in msg_a
+
+
+@pytest.mark.asyncio
+async def test_execute_invoice_tool_execution():
+    from app.modules.ai.tools import execute_invoice_tool
+    from app.tenant_db.models import Voucher, VoucherType
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+    office = Branch(id=1, name="Delhi HQ", code="DEL-01")
+
+    mock_inv = MagicMock(spec=Voucher)
+    mock_inv.id = 1
+    mock_inv.voucher_number = "INV-2026-0001"
+    mock_inv.voucher_type = VoucherType.TRANSPORT_INVOICE
+    mock_inv.party_name = "Acme Corp Ltd"
+    mock_inv.total_amount = 45000.00
+    mock_inv.tax_amount = 8100.00
+    mock_inv.net_amount = 53100.00
+    mock_inv.status = "POSTED"
+    mock_inv.voucher_date = None
+    mock_inv.branch = office
+    mock_inv.branch_id = office.id
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [mock_inv]
+    mock_scalar.unique.return_value.all.return_value = [mock_inv]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    msg, cards = await execute_invoice_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        query="INV-2026-0001", lang="en"
+    )
+    assert len(cards) == 1
+    assert cards[0].card_type == "invoice_detail"
+    assert "INV-2026-0001" in cards[0].title
+    assert "Acme Corp Ltd" in msg
+    assert "53,100.00" in msg
+    assert cards[0].action["href"] == "/accounts/transport-invoice"
+
+
+@pytest.mark.asyncio
+async def test_execute_vehicle_tool_assigned_driver():
+    from app.modules.ai.tools import execute_vehicle_tool
+    from app.tenant_db.models import CompanyVehicle, LR
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+
+    mock_veh = MagicMock(spec=CompanyVehicle)
+    mock_veh.vehicle_number = "UP16AB1234"
+    mock_veh.vehicle_type = "32 FT Container"
+    mock_veh.capacity_mt = 15.0
+    mock_veh.is_active = True
+
+    mock_lr = MagicMock(spec=LR)
+    mock_lr.lr_number = "LR-2026-0099"
+    mock_lr.driver_name = "Mohan Singh"
+    mock_lr.driver_phone = "9123456780"
+    mock_lr.origin_location = None
+    mock_lr.destination_location = None
+    mock_lr.status = "In Transit"
+
+    mock_res_lr = MagicMock()
+    mock_res_lr.scalar_one_or_none.return_value = mock_lr
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res_lr
+
+    with patch("app.modules.ai.tools.get_all_company_vehicles", new_callable=AsyncMock, return_value=[mock_veh]),          patch("app.modules.ai.tools.get_all_market_vehicles", new_callable=AsyncMock, return_value=[]):
+        msg, cards = await execute_vehicle_tool(
+            db=mock_db, user=user, tenant=tenant,
+            query="UP16AB1234", is_detail=True, field_focus="driver", lang="en"
+        )
+        assert len(cards) == 1
+        assert cards[0].card_type == "vehicle_detail"
+        assert "Mohan Singh" in msg
+        assert "UP16AB1234" in msg
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_and_unauthorized_records():
+    from app.modules.ai.tools import execute_hire_challan_tool
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+    office = Branch(id=1, name="Delhi HQ", code="DEL-01")
+
+    mock_scalar_none = MagicMock()
+    mock_scalar_none.all.return_value = []
+    mock_scalar_none.unique.return_value.all.return_value = []
+    mock_res_none = MagicMock()
+    mock_res_none.scalars.return_value = mock_scalar_none
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res_none
+
+    # Record not found should return structured card with 0 Results and action link, never crash or refuse
+    msg, cards = await execute_hire_challan_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        query="HC-9999-9999", lang="en"
+    )
+    assert len(cards) == 1
+    assert "No Hire Challan found" in msg or "HC-9999-9999" in msg
+    assert cards[0].badge["text"] == "0 Results"
+    assert cards[0].action["href"] == "/transport/hire-challan"
+
+    # Unauthorized role check (missing transport.hire_challans permission)
+    restricted_user = User(id=2, email="driver@demo.com", role="DRIVER", full_name="Driver User")
+    msg_unauth, cards_unauth = await execute_hire_challan_tool(
+        db=mock_db, user=restricted_user, tenant=tenant, current_office=office,
+        query="HC-2026-0007", lang="en"
+    )
+    assert cards_unauth[0].badge["text"] == "Access Denied"
+    assert "permission" in msg_unauth.lower() or "denied" in msg_unauth.lower()
+
+
+# ==============================================================================
+# PHASE 6 — FULL MODULE COVERAGE & ENTERPRISE AUDIT INTEGRATION TESTS
+# ==============================================================================
+
+def test_intent_classification_new_modules():
+    from app.modules.ai.tools import classify_operational_intent
+
+    # POD Intent
+    i_pod1 = classify_operational_intent("Show POD of LR-2026-0012")
+    assert i_pod1 is not None and i_pod1["tool"] == "pod"
+    assert "2026-0012" in (i_pod1.get("query") or i_pod1.get("lr_number") or "")
+
+    i_pod2 = classify_operational_intent("Pending POD kitne hain?")
+    assert i_pod2 is not None and i_pod2["tool"] == "pod"
+    assert i_pod2.get("is_pending") is True and i_pod2.get("is_count") is True
+
+    # E-Way Bill Intent
+    i_ewb = classify_operational_intent("Check E-Way Bill 123456789012")
+    assert i_ewb is not None and i_ewb["tool"] == "eway_bill"
+    assert i_ewb.get("query") == "123456789012"
+
+    # Branch Intent
+    i_branch = classify_operational_intent("Hamari kitni branches hain?")
+    assert i_branch is not None and i_branch["tool"] == "branch"
+    assert i_branch.get("is_count") is True
+
+    i_branch_q = classify_operational_intent("Delhi branch details")
+    assert i_branch_q is not None and i_branch_q["tool"] == "branch"
+    assert i_branch_q.get("query") == "Delhi"
+
+    # Consigner / Consignee Intent
+    i_cngr = classify_operational_intent("Consigners kitne hain?")
+    assert i_cngr is not None and i_cngr["tool"] == "consigner_consignee"
+    assert i_cngr.get("party_type") == "consigner"
+
+    i_cnge = classify_operational_intent("Consignee list dikhao")
+    assert i_cnge is not None and i_cnge["tool"] == "consigner_consignee"
+    assert i_cnge.get("party_type") == "consignee"
+
+    # Fleet Maintenance Intent
+    i_fleet = classify_operational_intent("Fitness expiry of UP16AB1234")
+    assert i_fleet is not None and i_fleet["tool"] == "fleet_maintenance"
+    assert i_fleet.get("vehicle_number") == "UP16AB1234"
+    assert i_fleet.get("doc_type") == "fitness"
+
+    # E-Invoice Intent
+    i_einv = classify_operational_intent("IRN status for invoice INV-2026-0001")
+    assert i_einv is not None and i_einv["tool"] == "einvoice"
+
+
+@pytest.mark.asyncio
+async def test_execute_pod_tool():
+    from app.modules.ai.tools import execute_pod_tool
+    from app.tenant_db.models import PODRecord, LR
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+    office = Branch(id=1, name="Delhi HQ", code="DEL-01")
+
+    mock_lr = MagicMock(spec=LR)
+    mock_lr.lr_number = "LR-2026-0012"
+    mock_lr.issuing_office_id = office.id
+
+    mock_pod = MagicMock(spec=PODRecord)
+    mock_pod.id = 101
+    mock_pod.pod_number = "POD-2026-0050"
+    mock_pod.lr = mock_lr
+    mock_pod.receiver_name = "Sunil Verma"
+    mock_pod.receiver_phone = "9811223344"
+    mock_pod.received_condition = "Good & Intact"
+    mock_pod.packages_delivered = 45
+    mock_pod.document_path = "/uploads/pods/pod_101.pdf"
+    mock_pod.verification_status = "PENDING"
+    mock_pod.delivery_date = None
+    mock_pod.remarks = "All packages received verified"
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [mock_pod]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    # 1. Specific POD Lookup
+    msg, cards = await execute_pod_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        query="LR-2026-0012", lang="en"
+    )
+    assert len(cards) == 1
+    assert cards[0].card_type == "pod_detail"
+    assert "POD #POD-2026-0050" in cards[0].title
+    assert "Sunil Verma" in msg
+    assert cards[0].action["href"] == "/transport/pod-records"
+
+    # 2. Aggregate Pending POD Count
+    msg_cnt, cards_cnt = await execute_pod_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        is_pending=True, is_count=True, lang="en"
+    )
+    assert len(cards_cnt) == 1
+    assert "1 Pending / Unverified POD record(s)" in msg_cnt
+    assert cards_cnt[0].action["href"] == "/transport/pod-records"
+
+    # 3. RBAC denial
+    driver_user = User(id=2, email="driver@demo.com", role="DRIVER", full_name="Driver User")
+    msg_denied, cards_denied = await execute_pod_tool(
+        db=mock_db, user=driver_user, tenant=tenant, current_office=office,
+        query="POD-2026-0050", lang="en"
+    )
+    assert cards_denied[0].badge["text"] == "Access Denied"
+
+
+@pytest.mark.asyncio
+async def test_execute_eway_bill_tool():
+    from app.modules.ai.tools import execute_eway_bill_tool
+    from app.tenant_db.models import EWayBill, LR
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+    office = Branch(id=1, name="Delhi HQ", code="DEL-01")
+
+    mock_lr = MagicMock(spec=LR)
+    mock_lr.lr_number = "LR-2026-0099"
+    mock_lr.issuing_office_id = office.id
+
+    mock_ewb = MagicMock(spec=EWayBill)
+    mock_ewb.id = 5
+    mock_ewb.eway_bill_number = "123456789012"
+    mock_ewb.vehicle_number = "UP16AB1234"
+    mock_ewb.lr = mock_lr
+    mock_ewb.valid_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=2)
+    mock_ewb.from_pincode = "110001"
+    mock_ewb.to_pincode = "400001"
+    mock_ewb.approx_distance_km = 1450
+    mock_ewb.status = "ACTIVE"
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [mock_ewb]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    # Lookup by 12-digit EWB Number
+    msg, cards = await execute_eway_bill_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        query="123456789012", lang="en"
+    )
+    assert len(cards) == 1
+    assert cards[0].card_type == "eway_bill_detail"
+    assert "123456789012" in cards[0].title
+    assert "UP16AB1234" in msg
+    assert "1450 KM" in cards[0].metrics[2]["value"]
+    assert cards[0].action["href"] == "/transport/eway-bill"
+
+
+@pytest.mark.asyncio
+async def test_execute_branch_tool():
+    from app.modules.ai.tools import execute_branch_tool
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+
+    b1 = Branch(id=1, name="Delhi HQ", code="DEL-01", city="Delhi", state="Delhi", is_head_office=True, is_active=True)
+    b2 = Branch(id=2, name="Mumbai Branch", code="MUM-01", city="Mumbai", state="Maharashtra", is_head_office=False, is_active=True)
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [b1, b2]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    # 1. Count query
+    msg, cards = await execute_branch_tool(
+        db=mock_db, user=user, tenant=tenant, is_count=True, lang="en"
+    )
+    assert len(cards) == 1
+    assert cards[0].card_type == "branch_list"
+    assert "2 active issuing office(s)" in msg
+    assert cards[0].action["href"] == "/company/branches"
+
+    # 2. Specific search query
+    mock_scalar_delhi = MagicMock()
+    mock_scalar_delhi.all.return_value = [b1]
+    mock_res_delhi = MagicMock()
+    mock_res_delhi.scalars.return_value = mock_scalar_delhi
+    mock_db.execute.return_value = mock_res_delhi
+
+    msg_q, cards_q = await execute_branch_tool(
+        db=mock_db, user=user, tenant=tenant, query="Delhi", lang="en"
+    )
+    assert "1 branch(es)" in msg_q
+    assert "Delhi HQ" in cards_q[0].items[0]["primary"]
+
+
+@pytest.mark.asyncio
+async def test_execute_consigner_consignee_tool():
+    from app.modules.ai.tools import execute_consigner_consignee_tool
+    from app.tenant_db.models import Consigner
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+    office = Branch(id=1, name="Delhi HQ", code="DEL-01")
+
+    c1 = Consigner(id=1, name="Tata Steel Ltd", code="TATA-01", city="Jamshedpur", gstin="20AAACT2727Q1ZB", is_active=True)
+    c2 = Consigner(id=2, name="Reliance Industries", code="RIL-01", city="Mumbai", gstin="27AAACR5055K1Z1", is_active=True)
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [c1, c2]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    # Count consigners
+    msg, cards = await execute_consigner_consignee_tool(
+        db=mock_db, user=user, tenant=tenant, current_office=office,
+        party_type="consigner", is_count=True, lang="en"
+    )
+    assert len(cards) == 1
+    assert "2 active consigner(s)" in msg
+    assert cards[0].action["href"] == "/general/consigner"
+
+
+@pytest.mark.asyncio
+async def test_execute_fleet_maintenance_tool():
+    from app.modules.ai.tools import execute_fleet_maintenance_tool
+    from app.tenant_db.models import VehicleDocument, VehicleHealthRecord
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+
+    doc1 = VehicleDocument(
+        id=1, vehicle_number="UP16AB1234", doc_type="fitness",
+        document_number="FIT-2026-999", valid_till=date.today() + timedelta(days=90)
+    )
+    doc2 = VehicleDocument(
+        id=2, vehicle_number="UP16AB1234", doc_type="insurance",
+        document_number="INS-2026-888", valid_till=date.today() + timedelta(days=180)
+    )
+
+    health = VehicleHealthRecord(
+        id=1, vehicle_number="UP16AB1234", next_service_due_date=date.today() + timedelta(days=45),
+        status="Optimal", engine_health="Good"
+    )
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [doc1, doc2]
+    mock_res_docs = MagicMock()
+    mock_res_docs.scalars.return_value = mock_scalar
+
+    mock_res_health = MagicMock()
+    mock_res_health.scalar_one_or_none.return_value = health
+
+    mock_db = AsyncMock()
+    mock_db.execute.side_effect = [mock_res_docs, mock_res_health]
+
+    msg, cards = await execute_fleet_maintenance_tool(
+        db=mock_db, user=user, tenant=tenant,
+        vehicle_number="UP16AB1234", doc_type="fitness", lang="en"
+    )
+    assert len(cards) == 1
+    assert cards[0].card_type == "fleet_health_detail"
+    assert "UP16AB1234" in cards[0].title
+    assert "FITNESS: FIT-2026-999" in cards[0].items[0]["primary"]
+    assert cards[0].action["href"] == "/fleet/documents"
+
+
+@pytest.mark.asyncio
+async def test_execute_einvoice_tool():
+    from app.modules.ai.tools import execute_einvoice_tool
+    from app.tenant_db.models import EInvoiceRecord, Voucher
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Logistics", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+
+    mock_voucher = MagicMock(spec=Voucher)
+    mock_voucher.voucher_number = "INV-2026-0001"
+
+    mock_einv = MagicMock(spec=EInvoiceRecord)
+    mock_einv.id = 1
+    mock_einv.irn = "8f3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b"
+    mock_einv.ack_number = "122345678901234"
+    mock_einv.ack_date = datetime.now(timezone.utc).replace(tzinfo=None)
+    mock_einv.voucher = mock_voucher
+    mock_einv.status = "GENERATED"
+    mock_einv.legal_name = "Acme Global Transport Ltd"
+    mock_einv.taxpayer_gstin = "07AAAAA0000A1Z5"
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [mock_einv]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    msg, cards = await execute_einvoice_tool(
+        db=mock_db, user=user, tenant=tenant,
+        query="INV-2026-0001", lang="en"
+    )
+    assert len(cards) == 1
+    assert cards[0].card_type == "einvoice_detail"
+    assert "INV-2026-0001" in cards[0].title
+    assert "122345678901234" in msg
+    assert cards[0].action["href"] == "/einvoicing/irn-list"

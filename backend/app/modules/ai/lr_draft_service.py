@@ -37,14 +37,42 @@ def is_instructional_inquiry(text: str) -> bool:
     """Detects if user is asking for guidance, instructions, or conceptual explanations."""
     lower = text.strip().lower()
 
-    # Broad Hinglish & Hindi query construction patterns
+    # 1. If explicit document number present, it's never instructional
+    has_doc_number = bool(
+        re.search(r"\b(?:lr|gr|bilty)[#\s\-_/]*[0-9][A-Za-z0-9_-]*\b", lower) or
+        re.search(r"\b(?:hc)[#\s\-_/]*[0-9][A-Za-z0-9_-]*\b", lower) or
+        re.search(r"\b(?:job)[#\s\-_/]*[0-9][A-Za-z0-9_-]*\b", lower) or
+        re.search(r"\b(?:inv|voucher)[#\s\-_/]*[0-9][A-Za-z0-9_-]*\b", lower) or
+        re.search(r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", text, re.IGNORECASE)
+    )
+    if has_doc_number:
+        return False
+
+    # 2. Specific attribute / follow-up inquiry on active record
+    entity_refs = (
+        "this hc", "is hc", "that hc", "the hc", "this challan", "is challan", "is hire challan", "this hire challan",
+        "this lr", "is lr", "that lr", "the lr", "this bilty", "is bilty", "this consignment",
+        "this job", "is job", "that job", "the job",
+        "this vehicle", "is vehicle", "that vehicle", "the vehicle", "this truck", "this gadi", "this gaadi",
+        "this invoice", "is invoice", "that invoice",
+        "its ", "iska ", "iski ", "iss ", "iske "
+    )
+    attr_words = (
+        "vendor", "balance", "advance", "status", "driver", "consignee", "consigner",
+        "rate", "freight", "delivered", "kahan", "location", "details", "info",
+        "tell me about", "batao", "bataiye"
+    )
+    if any(ref in lower for ref in entity_refs) and any(w in lower for w in attr_words):
+        return False
+
+    # 3. Broad Hinglish & Hindi query construction patterns
     if "kaise" in lower and any(v in lower for v in ["kare", "karein", "create", "bana", "add", "karta", "karti", "hota", "hoti", "process"]):
         return True
 
     inquiry_patterns = [
         # English guidance
         "how do i", "how to", "how can i", "how does", "how would i",
-        "what is", "what are", "explain", "guide me", "tell me about",
+        "what is", "what are", "explain", "guide me", "tell me how",
         "steps to", "process to", "process of", "what is the process",
         "procedure", "workflow", "how it works", "purpose of", "use of",
         # Hinglish guidance
@@ -52,7 +80,7 @@ def is_instructional_inquiry(text: str) -> bool:
         "kaise karu", "kaise karoon", "kaise kare", "kaise karein", "kaise karte",
         "kaise hota", "kaise hoti", "kaise add", "kaise perform", "kaise use", "kaise create",
         "kya hota", "kya hoti", "kya hai", "use kya hai", "purpose kya hai",
-        "fayda kya hai", "matlab kya hai", "kya process", "tell me how",
+        "fayda kya hai", "matlab kya hai", "kya process", "process kya",
         "sikhao", "sikha do", "sikhaoge", "batao kaise",
         # Hindi Devanagari
         "कैसे", "क्या है", "क्या होता", "प्रक्रिया", "सिखाओ", "सिखाइए", "समझाइए", "मार्गदर्शन",

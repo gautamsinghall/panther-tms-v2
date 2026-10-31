@@ -444,7 +444,7 @@ export function PantherAIPanel() {
                   <span>
                     {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
-                  <CheckCheck className="w-3.5 h-3.5 text-indigo-200" />
+                  <CheckCheck className="w-3.5 h-3.5 text-indigo-200 shrink-0 select-none" aria-hidden="true" />
                 </div>
               </div>
             ) : (
@@ -958,9 +958,11 @@ export function PantherAIPanel() {
               </div>
             )}
 
-            <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 px-1 font-mono">
-              {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
+            {msg.role === "assistant" && (
+              <span className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 px-1 font-mono">
+                {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
           </div>
         ))}
 

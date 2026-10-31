@@ -70,6 +70,13 @@ from app.modules.ai.tools import (
     execute_vendor_tool,
     execute_job_tool,
     execute_hire_challan_tool,
+    execute_invoice_tool,
+    execute_pod_tool,
+    execute_eway_bill_tool,
+    execute_branch_tool,
+    execute_consigner_consignee_tool,
+    execute_fleet_maintenance_tool,
+    execute_einvoice_tool,
 )
 
 router = APIRouter(prefix="/ai", tags=["Panther AI"])
@@ -260,7 +267,8 @@ async def chat_with_copilot(
             )
 
     # 3. Operational Intent Dispatch (Read-Only AI Tools)
-    op_intent = classify_operational_intent(last_user_message)
+    history_dicts = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
+    op_intent = classify_operational_intent(last_user_message, conversation_history=history_dicts)
     if op_intent:
         if not db:
             reply_content = (
@@ -300,8 +308,12 @@ async def chat_with_copilot(
                     user=current_user,
                     tenant=tenant,
                     current_office=current_office,
+                    query=op_intent.get("query"),
+                    is_detail=op_intent.get("is_detail", False),
                     is_today=op_intent.get("is_today", False),
                     is_count=op_intent.get("is_count", False),
+                    is_latest=op_intent.get("is_latest", False),
+                    field_focus=op_intent.get("field_focus"),
                     limit=5,
                     lang=detected_lang,
                 )
@@ -315,6 +327,8 @@ async def chat_with_copilot(
                     vehicle_number=op_intent.get("vehicle_number"),
                     status_filter=op_intent.get("status_filter"),
                     is_detail=op_intent.get("is_detail", False),
+                    is_latest=op_intent.get("is_latest", False),
+                    field_focus=op_intent.get("field_focus"),
                     limit=5,
                     lang=detected_lang,
                 )
@@ -326,6 +340,20 @@ async def chat_with_copilot(
                     current_office=current_office,
                     query=op_intent.get("query"),
                     vehicle_number=op_intent.get("vehicle_number"),
+                    is_latest=op_intent.get("is_latest", False),
+                    field_focus=op_intent.get("field_focus"),
+                    limit=5,
+                    lang=detected_lang,
+                )
+            elif tool_name == "invoice":
+                reply_content, cards = await execute_invoice_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    query=op_intent.get("query"),
+                    is_latest=op_intent.get("is_latest", False),
+                    field_focus=op_intent.get("field_focus"),
                     limit=5,
                     lang=detected_lang,
                 )
@@ -355,6 +383,8 @@ async def chat_with_copilot(
                     tenant=tenant,
                     query=op_intent.get("query"),
                     vehicle_type=op_intent.get("vehicle_type"),
+                    is_detail=op_intent.get("is_detail", False),
+                    field_focus=op_intent.get("field_focus"),
                     limit=6,
                     lang=detected_lang,
                 )
@@ -365,6 +395,72 @@ async def chat_with_copilot(
                     tenant=tenant,
                     query=op_intent.get("query"),
                     limit=6,
+                    lang=detected_lang,
+                )
+            elif tool_name == "pod":
+                reply_content, cards = await execute_pod_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    query=op_intent.get("query"),
+                    lr_number=op_intent.get("lr_number"),
+                    is_pending=op_intent.get("is_pending", False),
+                    is_count=op_intent.get("is_count", False),
+                    limit=5,
+                    lang=detected_lang,
+                )
+            elif tool_name == "eway_bill":
+                reply_content, cards = await execute_eway_bill_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    query=op_intent.get("query"),
+                    vehicle_number=op_intent.get("vehicle_number"),
+                    limit=5,
+                    lang=detected_lang,
+                )
+            elif tool_name == "branch":
+                reply_content, cards = await execute_branch_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    query=op_intent.get("query"),
+                    is_count=op_intent.get("is_count", False),
+                    limit=10,
+                    lang=detected_lang,
+                )
+            elif tool_name == "consigner_consignee":
+                reply_content, cards = await execute_consigner_consignee_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    party_type=op_intent.get("party_type", "consigner"),
+                    query=op_intent.get("query"),
+                    is_count=op_intent.get("is_count", False),
+                    limit=6,
+                    lang=detected_lang,
+                )
+            elif tool_name == "fleet_maintenance":
+                reply_content, cards = await execute_fleet_maintenance_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    vehicle_number=op_intent.get("vehicle_number"),
+                    doc_type=op_intent.get("doc_type"),
+                    is_expiry_check=op_intent.get("is_expiry_check", False),
+                    limit=5,
+                    lang=detected_lang,
+                )
+            elif tool_name == "einvoice":
+                reply_content, cards = await execute_einvoice_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    query=op_intent.get("query"),
+                    limit=5,
                     lang=detected_lang,
                 )
             else:
@@ -482,7 +578,8 @@ async def stream_chat_with_copilot(
     detected_lang = detect_language(last_user_msg)
 
     # Operational intent check
-    op_intent = classify_operational_intent(last_user_msg)
+    stream_history = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
+    op_intent = classify_operational_intent(last_user_msg, conversation_history=stream_history)
     if op_intent:
         if not db:
             msg = "Operational data service is currently unavailable."
@@ -493,17 +590,33 @@ async def stream_chat_with_copilot(
             elif tool_name == "vendor":
                 msg, _ = await execute_vendor_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
             elif tool_name == "job":
-                msg, _ = await execute_job_tool(db, current_user, tenant, current_office, is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False), lang=detected_lang)
+                msg, _ = await execute_job_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_detail=op_intent.get("is_detail", False), is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "lr":
-                msg, _ = await execute_lr_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), status_filter=op_intent.get("status_filter"), lang=detected_lang)
+                msg, _ = await execute_lr_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), status_filter=op_intent.get("status_filter"), is_detail=op_intent.get("is_detail", False), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
+            elif tool_name == "hire_challan":
+                msg, _ = await execute_hire_challan_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
+            elif tool_name == "invoice":
+                msg, _ = await execute_invoice_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "tracking":
-                msg, _ = await execute_tracking_tool(db, current_user, tenant, vehicle_number=op_intent.get("vehicle_number"), lang=detected_lang)
+                msg, _ = await execute_tracking_tool(db, current_user, tenant, vehicle_number=op_intent.get("vehicle_number"), lr_number=op_intent.get("lr_number"), challan_number=op_intent.get("challan_number"), lang=detected_lang)
             elif tool_name == "accounting":
                 msg, _ = await execute_accounting_tool(db, current_user, tenant, current_office, party_name=op_intent.get("party_name"), lang=detected_lang)
             elif tool_name == "vehicle":
-                msg, _ = await execute_vehicle_tool(db, current_user, tenant, query=op_intent.get("query"), vehicle_type=op_intent.get("vehicle_type"), lang=detected_lang)
+                msg, _ = await execute_vehicle_tool(db, current_user, tenant, query=op_intent.get("query"), vehicle_type=op_intent.get("vehicle_type"), is_detail=op_intent.get("is_detail", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "driver":
                 msg, _ = await execute_driver_tool(db, current_user, tenant, query=op_intent.get("query"), lang=detected_lang)
+            elif tool_name == "pod":
+                msg, _ = await execute_pod_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), lr_number=op_intent.get("lr_number"), is_pending=op_intent.get("is_pending", False), is_count=op_intent.get("is_count", False), lang=detected_lang)
+            elif tool_name == "eway_bill":
+                msg, _ = await execute_eway_bill_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), lang=detected_lang)
+            elif tool_name == "branch":
+                msg, _ = await execute_branch_tool(db, current_user, tenant, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+            elif tool_name == "consigner_consignee":
+                msg, _ = await execute_consigner_consignee_tool(db, current_user, tenant, current_office, party_type=op_intent.get("party_type", "consigner"), query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+            elif tool_name == "fleet_maintenance":
+                msg, _ = await execute_fleet_maintenance_tool(db, current_user, tenant, vehicle_number=op_intent.get("vehicle_number"), doc_type=op_intent.get("doc_type"), is_expiry_check=op_intent.get("is_expiry_check", False), lang=detected_lang)
+            elif tool_name == "einvoice":
+                msg, _ = await execute_einvoice_tool(db, current_user, tenant, query=op_intent.get("query"), lang=detected_lang)
             else:
                 msg = "Processed operational request."
 

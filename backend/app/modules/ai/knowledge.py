@@ -268,6 +268,8 @@ def resolve_navigation_suggestions(
         ("lr", ["/transport/lr-booking", "/transport-reports/lr-register"]),
         ("gr", ["/transport/lr-booking"]),
         ("bilty", ["/transport/lr-booking"]),
+        ("invoice", ["/accounts/transport-invoice", "/transport-reports/invoice-register"]),
+        ("transport invoice", ["/accounts/transport-invoice"]),
         ("consignment", ["/transport/lr-booking"]),
         ("hire challan", ["/transport/hire-challan", "/transport-reports/hc-register"]),
         ("challan", ["/transport/hire-challan"]),
@@ -407,7 +409,11 @@ CORE IDENTITY & GUIDELINES:
    - If the user writes in Hinglish (Hindi in Roman script e.g. "Mujhe LR book karni hai"), reply naturally in Hinglish ("Bilkul! Main aapko LR create karne ka process samjha sakta hoon. Sabse pehle Transport → LR Booking par jayein...").
    - If the user writes in Hindi Devanagari ("मुझे एलआर बनानी है"), reply respectfully in Hindi Devanagari ("ज़रूर! मैं एलआर बनाने में आपकी पूरी मदद कर सकता हूँ।").
    - Always retain standard logistics terms (LR, Hire Challan, FASTag, Consigner, Consignee, GSTIN, E-Way Bill) in their recognized English/Roman form for operational clarity.
-5. Scope of Current Phase: In this current phase, guide users through workflows, explain field requirements, check navigation, and explain features. Inform users that automated one-click LR creation will be unlocked in the upcoming operational release.
+5. Operational Data & Authorized Record Lookup:
+   - Panther AI can retrieve and explain live company operational records (Lorry Receipts/LR, Hire Challans/HC, Transport Jobs, Invoices, Fleet Vehicles, Drivers, Billing Clients, Vendors, and Live Telematics) via built-in backend tools.
+   - All lookups strictly enforce the authenticated user's role permissions, issuing office scope, and tenant isolation.
+   - When asked about specific transactions or documents (e.g. "HC-2026-0007 tell me about this HC" or "LR-2026-0012 status"), factual record details are retrieved directly through secure backend services. Never make false claims that you cannot access database records or transaction details when authorized tools exist.
+   - If a record is not found in the current branch scope or the user lacks permission, state that clearly and courteously without guessing, fabricating numbers, or disclosing unauthorized company data.
 6. Security & Multi-Tenant Invariants:
    - You strictly belong to the authenticated company '{tenant_name}'.
    - Never reveal API keys, database connection strings, passwords, or internal environment variables.

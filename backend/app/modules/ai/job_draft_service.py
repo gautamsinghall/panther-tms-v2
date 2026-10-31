@@ -47,10 +47,16 @@ def is_job_booking_intent(text: str) -> bool:
 def is_instructional_job_inquiry(text: str) -> bool:
     """Detects instructional/knowledge inquiries about Jobs rather than booking."""
     t = text.lower().strip()
+    from app.modules.ai.tools import extract_transport_entities
+    if extract_transport_entities(text).get("job_number"):
+        return False
+    if any(w in t for w in ("this job", "is job", "that job", "the job", "job order details", "status of this job")):
+        return False
     inquiry_patterns = [
+        r"\b(what is|explain|rules for|how to create|steps to create)\b.*\b(job|transport job)\b",
         r"\b(how|kaise|kya|where|kaha|what)\b.*\b(job|transport job)\b",
-        r"\b(job|transport job|job order)\b.*\b(kya|kaise|kaha|hota|rules|process|status|register)\b",
-        r"\b(what is|explain|details of|rules for)\b.*\b(job|transport job)\b",
+        r"\b(job|transport job|job order)\b.*\b(kya|kaise|kaha|hota|rules|process|register)\b",
+        r"\b(job kaise banaye|job kaise banayein|job create kaise kare)\b",
     ]
     for p in inquiry_patterns:
         if re.search(p, t):
