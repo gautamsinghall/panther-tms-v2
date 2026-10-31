@@ -208,6 +208,7 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
       { feature: "payment_voucher", title: "Payment Voucher", href: "/accounts/payment-voucher" },
       { feature: "contra_voucher", title: "Contra Voucher", href: "/accounts/contra-voucher" },
       { feature: "credit_debit_notes", title: "Credit / Debit Note", href: "/accounts/credit-debit-notes" },
+      { feature: "company_bank_accounts", title: "Company Bank Accounts", href: "/accounts/bank-accounts" },
       { feature: "master_ledger", title: "Master Ledger", href: "/accounts/master-ledger" },
     ],
   },
@@ -385,6 +386,7 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
   "/accounts/payment-voucher": ArrowUpRight,
   "/accounts/contra-voucher": ArrowLeftRight,
   "/accounts/credit-debit-notes": Coins,
+  "/accounts/bank-accounts": Landmark,
   "/accounts/master-ledger": BookOpen,
 
   // Misc
@@ -574,7 +576,13 @@ function normalizeNavGroups(groups: NavGroup[]): NavGroup[] {
       return it;
     }) || [];
 
-    // Ensure Master Ledger is always present under Accounts module
+    // Ensure Company Bank Accounts and Master Ledger are always present under Accounts module
+    if (g.id === "accounts" && !items.some((it) => it.href === "/accounts/bank-accounts" || it.feature === "company_bank_accounts")) {
+      items = [
+        ...items,
+        { feature: "company_bank_accounts", title: "Company Bank Accounts", href: "/accounts/bank-accounts" },
+      ];
+    }
     if (g.id === "accounts" && !items.some((it) => it.href === "/accounts/master-ledger" || it.feature === "master_ledger")) {
       items = [
         ...items,

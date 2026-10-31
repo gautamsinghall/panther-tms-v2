@@ -20,6 +20,7 @@ from app.tenant_db.models import (
     LR,
     Branch,
     GroupInPrimary,
+    CompanyBankAccount,
 )
 from app.modules.accounts import schemas
 
@@ -190,6 +191,15 @@ async def get_master_ledger_summary(
     drv_settled = sum(1 for item in drv_list if item.balance_type == "NIL" or item.current_balance == Decimal("0.00"))
     drv_pending = drv_total_accounts - drv_settled
 
+    # 4. Company Bank Accounts Summary
+    bank_list = await list_company_bank_account_ledgers(session, office_id=office_id)
+    bank_total_accounts = len(bank_list)
+    bank_total_debit = sum(item.total_debit for item in bank_list)
+    bank_total_credit = sum(item.total_credit for item in bank_list)
+    bank_net_balance = sum(item.current_balance for item in bank_list if item.balance_type == "DR") - sum(item.current_balance for item in bank_list if item.balance_type == "CR")
+    bank_active = sum(1 for item in bank_list if item.is_active)
+    bank_inactive = bank_total_accounts - bank_active
+
     return schemas.MasterLedgerOverviewResponse(
         billing_clients=schemas.CategoryOverviewStat(
             total_accounts=bc_total_accounts,
@@ -214,6 +224,14 @@ async def get_master_ledger_summary(
             total_credit=drv_total_expenses,
             settled_count=drv_settled,
             pending_count=drv_pending,
+        ),
+        company_bank_accounts=schemas.CategoryOverviewStat(
+            total_accounts=bank_total_accounts,
+            total_outstanding=bank_net_balance if bank_net_balance > Decimal("0.00") else Decimal("0.00"),
+            total_debit=bank_total_debit,
+            total_credit=bank_total_credit,
+            settled_count=bank_active,
+            pending_count=bank_inactive,
         ),
     )
 
@@ -1376,6 +1394,359 @@ async def get_driver_ledger_detail(
 
     return schemas.DetailedLedgerResponse(
         category="DRIVER",
+        party=party_details,
+        from_date=from_date,
+        to_date=to_date,
+        opening_balance=opening_balance,
+        opening_balance_type=opening_balance_type,
+        total_debit=total_debit,
+        total_credit=total_credit,
+        closing_balance=closing_balance,
+        closing_balance_type=closing_balance_type,
+        total_transactions=len(transactions),
+        transactions=transactions,
+    )
+
+
+# ------------------------------------------------------------------------------
+# 5. Company Bank Accounts Master Ledger Listing & Detailed Statement
+# ------------------------------------------------------------------------------
+
+async def list_company_bank_account_ledgers(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    search: Optional[str] = None,
+    bank_name: Optional[str] = None,
+    account_type: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> List[schemas.CompanyBankAccountLedgerListItem]:
+    stmt = (
+        select(CompanyBankAccount)
+        .options(
+            selectinload(CompanyBankAccount.issuing_office),
+            selectinload(CompanyBankAccount.account),
+        )
+        .order_by(CompanyBankAccount.is_default.desc(), CompanyBankAccount.bank_name.asc())
+    )
+
+    if office_id:
+        stmt = stmt.where(CompanyBankAccount.issuing_office_id == office_id)
+
+    if not is_admin and user_office_ids is not None:
+        stmt = stmt.where(CompanyBankAccount.issuing_office_id.in_(user_office_ids))
+
+    if is_active is not None:
+        stmt = stmt.where(CompanyBankAccount.is_active == is_active)
+
+    if account_type:
+        stmt = stmt.where(CompanyBankAccount.account_type == account_type)
+
+    if bank_name:
+        stmt = stmt.where(CompanyBankAccount.bank_name == bank_name)
+
+    if search:
+        s = f"%{search.strip()}%"
+        stmt = stmt.where(
+            or_(
+                CompanyBankAccount.bank_name.ilike(s),
+                CompanyBankAccount.custom_bank_name.ilike(s),
+                CompanyBankAccount.account_holder_name.ilike(s),
+                CompanyBankAccount.account_number.ilike(s),
+                CompanyBankAccount.ifsc_code.ilike(s),
+                CompanyBankAccount.branch_name.ilike(s),
+                CompanyBankAccount.ledger_name.ilike(s),
+            )
+        )
+
+    res = await session.execute(stmt)
+    accounts = res.scalars().all()
+
+    items: List[schemas.CompanyBankAccountLedgerListItem] = []
+    for ba in accounts:
+        # Query ledger entries for debits, credits, and tx counts
+        le_q = select(
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+            func.count(LedgerEntry.id),
+            func.max(LedgerEntry.entry_date),
+        ).where(
+            LedgerEntry.account_id == ba.account_id,
+            LedgerEntry.is_reversal == False,
+        )
+        if from_date:
+            le_q = le_q.where(LedgerEntry.entry_date >= from_date)
+        if to_date:
+            le_q = le_q.where(LedgerEntry.entry_date <= to_date)
+
+        le_res = await session.execute(le_q)
+        tot_dr, tot_cr, tx_cnt, last_dt = le_res.one()
+
+        open_bal = Decimal(str(ba.opening_balance or "0.00"))
+        open_dr = open_bal if ba.opening_balance_type == "DR" else Decimal("0.00")
+        open_cr = open_bal if ba.opening_balance_type == "CR" else Decimal("0.00")
+
+        # If date range given, prior transactions adjust opening balance
+        if from_date:
+            prior_q = select(
+                func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+                func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+            ).where(
+                LedgerEntry.account_id == ba.account_id,
+                LedgerEntry.is_reversal == False,
+                LedgerEntry.entry_date < from_date,
+            )
+            p_dr, p_cr = (await session.execute(prior_q)).one()
+            effective_open = (open_dr + p_dr) - (open_cr + p_cr)
+            if effective_open >= Decimal("0.00"):
+                open_bal = effective_open
+                open_type = "DR"
+            else:
+                open_bal = abs(effective_open)
+                open_type = "CR"
+            open_dr = open_bal if open_type == "DR" else Decimal("0.00")
+            open_cr = open_bal if open_type == "CR" else Decimal("0.00")
+        else:
+            open_type = ba.opening_balance_type
+
+        net = (open_dr + tot_dr) - (open_cr + tot_cr)
+        if net >= Decimal("0.00"):
+            cur_bal = net
+            bal_type = "DR"
+        else:
+            cur_bal = abs(net)
+            bal_type = "CR"
+
+        last4 = ba.account_number[-4:] if len(ba.account_number) >= 4 else ba.account_number
+        masked = f"XXXX{last4}"
+
+        items.append(
+            schemas.CompanyBankAccountLedgerListItem(
+                id=ba.id,
+                bank_name=ba.bank_name,
+                account_number=ba.account_number,
+                account_number_masked=masked,
+                account_type=ba.account_type,
+                ifsc_code=ba.ifsc_code,
+                branch_name=ba.branch_name,
+                issuing_office_id=ba.issuing_office_id,
+                issuing_office_name=ba.issuing_office.name if ba.issuing_office else "N/A",
+                issuing_office_code=ba.issuing_office.code if ba.issuing_office else None,
+                opening_balance=open_bal,
+                opening_balance_type=open_type,
+                total_debit=tot_dr,
+                total_credit=tot_cr,
+                current_balance=cur_bal,
+                balance_type=bal_type,
+                status="Active" if ba.is_active else "Inactive",
+                is_default=ba.is_default,
+                is_active=ba.is_active,
+                ledger_id=ba.account_id,
+                ledger_name=ba.ledger_name,
+                transaction_count=tx_cnt or 0,
+                last_transaction_date=last_dt,
+            )
+        )
+
+    return items
+
+
+async def get_company_bank_account_ledger_detail(
+    session: AsyncSession,
+    bank_account_id: Optional[int] = None,
+    account_id: Optional[int] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    search: Optional[str] = None,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> schemas.DetailedLedgerResponse:
+    ba: Optional[CompanyBankAccount] = None
+    if bank_account_id:
+        stmt = (
+            select(CompanyBankAccount)
+            .options(
+                selectinload(CompanyBankAccount.issuing_office),
+                selectinload(CompanyBankAccount.account),
+            )
+            .where(CompanyBankAccount.id == bank_account_id)
+        )
+        ba = (await session.execute(stmt)).scalar_one_or_none()
+    elif account_id:
+        stmt = (
+            select(CompanyBankAccount)
+            .options(
+                selectinload(CompanyBankAccount.issuing_office),
+                selectinload(CompanyBankAccount.account),
+            )
+            .where(CompanyBankAccount.account_id == account_id)
+        )
+        ba = (await session.execute(stmt)).scalar_one_or_none()
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="bank_account_id or account_id is required.")
+
+    if not ba:
+        account = await session.get(Account, account_id or (ba.account_id if ba else None))
+        if not account:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bank Account not found.")
+        acc_id = account.id
+        ledger_name = account.name
+        bank_name = account.name
+        acc_num = account.code
+        office_name = "Company Operating"
+        is_default = False
+        is_active = account.is_active
+        init_open = Decimal(str(account.opening_balance or "0.00"))
+        init_open_type = account.opening_balance_type
+        ifsc = ""
+        acc_type = "Current"
+        br_name = ""
+    else:
+        if not is_admin and user_office_ids is not None and ba.issuing_office_id not in user_office_ids:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+        acc_id = ba.account_id
+        ledger_name = ba.ledger_name
+        bank_name = ba.bank_name
+        acc_num = ba.account_number
+        office_name = ba.issuing_office.name if ba.issuing_office else "N/A"
+        is_default = ba.is_default
+        is_active = ba.is_active
+        init_open = Decimal(str(ba.opening_balance or "0.00"))
+        init_open_type = ba.opening_balance_type
+        ifsc = ba.ifsc_code
+        acc_type = ba.account_type
+        br_name = ba.branch_name or ""
+
+    init_dr = init_open if init_open_type == "DR" else Decimal("0.00")
+    init_cr = init_open if init_open_type == "CR" else Decimal("0.00")
+
+    if from_date:
+        prior_stmt = select(
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+        ).where(
+            LedgerEntry.account_id == acc_id,
+            LedgerEntry.is_reversal == False,
+            LedgerEntry.entry_date < from_date,
+        )
+        p_dr, p_cr = (await session.execute(prior_stmt)).one()
+        eff_dr = init_dr + p_dr
+        eff_cr = init_cr + p_cr
+    else:
+        eff_dr = init_dr
+        eff_cr = init_cr
+
+    if eff_dr >= eff_cr:
+        opening_balance = eff_dr - eff_cr
+        opening_balance_type = "DR"
+    else:
+        opening_balance = eff_cr - eff_dr
+        opening_balance_type = "CR"
+
+    tx_stmt = (
+        select(LedgerEntry)
+        .options(
+            selectinload(LedgerEntry.voucher).selectinload(Voucher.issuing_office),
+            selectinload(LedgerEntry.voucher).selectinload(Voucher.lr),
+        )
+        .where(
+            LedgerEntry.account_id == acc_id,
+            LedgerEntry.is_reversal == False,
+        )
+    )
+    if from_date:
+        tx_stmt = tx_stmt.where(LedgerEntry.entry_date >= from_date)
+    if to_date:
+        tx_stmt = tx_stmt.where(LedgerEntry.entry_date <= to_date)
+
+    tx_stmt = tx_stmt.order_by(LedgerEntry.entry_date.asc(), LedgerEntry.id.asc())
+    entries = (await session.execute(tx_stmt)).scalars().all()
+
+    current_running = opening_balance if opening_balance_type == "DR" else -opening_balance
+    total_debit = Decimal("0.00")
+    total_credit = Decimal("0.00")
+    transactions: List[schemas.LedgerTransaction] = []
+
+    for entry in entries:
+        v = entry.voucher
+        if v and v.is_void:
+            continue
+
+        dr = Decimal(str(entry.debit_amount or "0.00"))
+        cr = Decimal(str(entry.credit_amount or "0.00"))
+        total_debit += dr
+        total_credit += cr
+
+        current_running += (dr - cr)
+        bal_type = "DR" if current_running >= Decimal("0.00") else "CR"
+
+        part = entry.narration
+        if not part and v:
+            part = v.narration or f"{v.voucher_type.replace('_', ' ').title()} - {v.voucher_number}"
+        if not part:
+            part = "Bank Transaction"
+
+        v_num = v.voucher_number if v else f"TX-{entry.id}"
+        v_type = v.voucher_type if v else "LEDGER_ENTRY"
+        ref_no = v.reference_number if v else None
+        v_id = v.id if v else entry.voucher_id
+
+        transactions.append(
+            schemas.LedgerTransaction(
+                id=entry.id,
+                entry_date=entry.entry_date,
+                voucher_id=v_id,
+                voucher_number=v_num,
+                voucher_type=v_type,
+                reference_number=ref_no,
+                particulars=part,
+                debit_amount=dr,
+                credit_amount=cr,
+                running_balance=abs(current_running),
+                balance_type=bal_type,
+                status="CLEARED",
+            )
+        )
+
+    if search:
+        s_term = search.strip().lower()
+        transactions = [
+            t for t in transactions
+            if s_term in t.voucher_number.lower()
+            or (t.reference_number and s_term in t.reference_number.lower())
+            or (t.particulars and s_term in t.particulars.lower())
+        ]
+
+    if current_running >= Decimal("0.00"):
+        closing_balance = current_running
+        closing_balance_type = "DR"
+    else:
+        closing_balance = abs(current_running)
+        closing_balance_type = "CR"
+
+    last4 = acc_num[-4:] if len(acc_num) >= 4 else acc_num
+    masked = f"XXXX{last4}"
+
+    party_details = schemas.PartyDetails(
+        id=ba.id if ba else acc_id,
+        name=ledger_name,
+        code=acc_num,
+        bank_name=bank_name,
+        account_number=acc_num if is_admin else None,
+        account_number_masked=masked,
+        account_type=acc_type,
+        ifsc_code=ifsc,
+        branch_name=br_name,
+        issuing_office_name=office_name,
+        is_default=is_default,
+        is_active=is_active,
+    )
+
+    return schemas.DetailedLedgerResponse(
+        category="COMPANY_BANK_ACCOUNT",
         party=party_details,
         from_date=from_date,
         to_date=to_date,

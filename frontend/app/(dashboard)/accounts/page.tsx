@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Plus,
   BookOpen,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,13 @@ export default function AccountsOverviewPage() {
     .reduce((sum, v) => sum + Number(v.net_amount || 0), 0);
 
   const modules = [
+    {
+      title: "Company Bank Accounts",
+      desc: "Maintain bank accounts linked to issuing offices, automated ledger creation, and balances.",
+      href: "/accounts/bank-accounts",
+      icon: <Landmark className="w-5 h-5 text-[#0E9384]" />,
+      badge: "Banking Master",
+    },
     {
       title: "Master Ledger",
       desc: "Complete financial ledgers and statements for Billing Clients, Vendors, and Drivers.",

@@ -940,3 +940,205 @@ async def sync_tally_schema_endpoint(
         "message": "Transport invoice and Tally Prime bookkeeping schema synchronized successfully.",
     }
 
+
+# ==============================================================================
+# Company Bank Accounts Endpoints
+# ==============================================================================
+
+@router.get("/bank-accounts", response_model=List[schemas.CompanyBankAccountResponse])
+async def list_company_bank_accounts(
+    office_id: Optional[int] = Query(None, description="Filter by issuing office"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    account_type: Optional[str] = Query(None, description="Filter by account type"),
+    bank_name: Optional[str] = Query(None, description="Filter by bank name"),
+    search: Optional[str] = Query(None, description="Search bank, branch, account number"),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("view")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await service.list_company_bank_accounts(
+        session,
+        office_id=office_id,
+        search=search,
+        is_active=is_active,
+        account_type=account_type,
+        bank_name=bank_name,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+
+
+@router.post("/bank-accounts", response_model=schemas.CompanyBankAccountResponse, status_code=status.HTTP_201_CREATED)
+async def create_company_bank_account(
+    data: schemas.CompanyBankAccountCreate,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    if not is_admin and user_office_ids is not None and data.issuing_office_id not in user_office_ids:
+        raise ForbiddenException("You do not have permission to create bank accounts for this issuing office.")
+
+    return await service.create_company_bank_account(session, data, user_id=current_user.id)
+
+
+@router.get("/bank-accounts/ifsc/{ifsc_code}", response_model=schemas.IFSCDetailsResponse)
+async def lookup_ifsc_endpoint(
+    ifsc_code: str,
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    return await service.lookup_ifsc(ifsc_code)
+
+
+@router.get("/bank-accounts/default/{office_id}", response_model=Optional[schemas.CompanyBankAccountResponse])
+async def get_default_bank_account_for_office_endpoint(
+    office_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    ba = await service.get_default_bank_account_for_office(session, office_id)
+    if not ba:
+        return None
+    return await service.get_company_bank_account(session, ba.id, is_admin=True)
+
+
+@router.get("/bank-accounts/{bank_account_id}", response_model=schemas.CompanyBankAccountResponse)
+async def get_company_bank_account(
+    bank_account_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("view")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await service.get_company_bank_account(
+        session,
+        bank_account_id,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+
+
+@router.put("/bank-accounts/{bank_account_id}", response_model=schemas.CompanyBankAccountResponse)
+async def update_company_bank_account(
+    bank_account_id: int,
+    data: schemas.CompanyBankAccountUpdate,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("edit")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await service.update_company_bank_account(
+        session,
+        bank_account_id,
+        data,
+        user_id=current_user.id,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+
+
+@router.patch("/bank-accounts/{bank_account_id}/toggle-status", response_model=schemas.CompanyBankAccountResponse)
+async def toggle_company_bank_account_status(
+    bank_account_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("edit")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await service.toggle_bank_account_status(
+        session,
+        bank_account_id,
+        user_id=current_user.id,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+
+
+@router.patch("/bank-accounts/{bank_account_id}/set-default", response_model=schemas.CompanyBankAccountResponse)
+async def set_default_company_bank_account(
+    bank_account_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("edit")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await service.set_default_bank_account(
+        session,
+        bank_account_id,
+        user_id=current_user.id,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+
+
+@router.delete("/bank-accounts/{bank_account_id}")
+async def delete_company_bank_account(
+    bank_account_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("delete")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await service.delete_company_bank_account(
+        session,
+        bank_account_id,
+        user_id=current_user.id,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+
+
+# ==============================================================================
+# Master Ledger - Company Bank Accounts Category
+# ==============================================================================
+
+@router.get("/master-ledger/company-bank-accounts", response_model=List[schemas.CompanyBankAccountLedgerListItem])
+async def list_company_bank_account_ledgers(
+    office_id: Optional[int] = Query(None, description="Filter by issuing office"),
+    bank_name: Optional[str] = Query(None, description="Filter by bank name"),
+    account_type: Optional[str] = Query(None, description="Filter by account type"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    search: Optional[str] = Query(None, description="Search bank, account number, office"),
+    from_date: Optional[date] = Query(None, description="Start date of period"),
+    to_date: Optional[date] = Query(None, description="End date of period"),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("view")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await master_ledger_service.list_company_bank_account_ledgers(
+        session,
+        office_id=office_id,
+        search=search,
+        bank_name=bank_name,
+        account_type=account_type,
+        is_active=is_active,
+        from_date=from_date,
+        to_date=to_date,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+
+
+@router.get("/master-ledger/company-bank-accounts/{bank_account_id}", response_model=schemas.DetailedLedgerResponse)
+async def get_company_bank_account_ledger_detail(
+    bank_account_id: int,
+    from_date: Optional[date] = Query(None, description="Start date of statement"),
+    to_date: Optional[date] = Query(None, description="End date of statement"),
+    search: Optional[str] = Query(None, description="Search reference or particulars"),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("view")),
+):
+    is_admin = current_user.role == "COMPANY_ADMIN"
+    user_office_ids = [oa.office_id for oa in current_user.office_assignments] if (hasattr(current_user, "office_assignments") and current_user.office_assignments) else None
+    return await master_ledger_service.get_company_bank_account_ledger_detail(
+        session,
+        bank_account_id=bank_account_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        user_office_ids=user_office_ids,
+        is_admin=is_admin,
+    )
+

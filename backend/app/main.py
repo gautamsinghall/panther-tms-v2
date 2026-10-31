@@ -213,6 +213,8 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE profile_branches ADD COLUMN IF NOT EXISTS {br_col};"))
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
+                        await t_conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS company_bank_account_id INTEGER REFERENCES company_bank_accounts(id);"))
+                        await t_conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS company_bank_account_id INTEGER REFERENCES company_bank_accounts(id);"))
 
                         # User Activity (Audit Log) Schema Evolution
                         for act_col in [

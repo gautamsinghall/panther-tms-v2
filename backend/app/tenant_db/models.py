@@ -1268,6 +1268,7 @@ class Account(TenantBase):
     billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
     vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
+    company_bank_account = relationship("CompanyBankAccount", back_populates="account", uselist=False, lazy="selectin")
 
 
 class EmployeeMaster(TenantBase):
@@ -1401,6 +1402,7 @@ class Voucher(TenantBase):
     billing_client_id = Column(Integer, ForeignKey("general_billing_clients.id"), nullable=True, index=True)
     vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True, index=True)
     driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
+    company_bank_account_id = Column(Integer, ForeignKey("company_bank_accounts.id"), nullable=True, index=True)
 
     # Tally-style bill-wise & tax tracking
     due_date = Column(Date, nullable=True)
@@ -1436,6 +1438,7 @@ class Voucher(TenantBase):
     billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
     vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
+    company_bank_account = relationship("CompanyBankAccount", foreign_keys=[company_bank_account_id], lazy="selectin")
     against_voucher = relationship("Voucher", remote_side=[id], foreign_keys=[against_voucher_id])
     bill_allocations = relationship("BillAllocation", back_populates="invoice", foreign_keys="BillAllocation.invoice_id", cascade="all, delete-orphan", lazy="selectin")
     allocations_made = relationship("BillAllocation", back_populates="voucher", foreign_keys="BillAllocation.voucher_id", cascade="all, delete-orphan", lazy="selectin")
@@ -1884,6 +1887,58 @@ class Branch(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+    company_bank_accounts = relationship("CompanyBankAccount", back_populates="issuing_office", foreign_keys="CompanyBankAccount.issuing_office_id", lazy="selectin")
+
+
+class CompanyBankAccount(TenantBase):
+    """
+    Company Bank Account master linked to Issuing Office and Master Ledger.
+    """
+    __tablename__ = "company_bank_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bank_name = Column(String(150), nullable=False, index=True)
+    custom_bank_name = Column(String(150), nullable=True)
+    account_holder_name = Column(String(255), nullable=False)
+    account_number = Column(String(50), nullable=False, index=True)
+    account_type = Column(String(50), default="Current", nullable=False)  # Current, Savings, Cash Credit, Overdraft, Other
+    ifsc_code = Column(String(20), nullable=False, index=True)
+    branch_name = Column(String(150), nullable=True)
+    branch_address = Column(Text, nullable=True)
+    micr_code = Column(String(20), nullable=True)
+    upi_id = Column(String(100), nullable=True)
+    currency = Column(String(10), default="INR", nullable=False)
+
+    issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=False, index=True)
+    is_default = Column(Boolean, default=False, nullable=False, index=True)
+
+    account_id = Column(Integer, ForeignKey("misc_accounts.id"), nullable=False, index=True)
+    ledger_name = Column(String(255), nullable=False)
+    ledger_group = Column(String(50), default="Bank Accounts", nullable=False)
+
+    opening_balance = Column(Numeric(14, 2), default=0.00, nullable=False)
+    opening_balance_date = Column(Date, nullable=True)
+    opening_balance_type = Column(String(10), default="DR", nullable=False)  # DR or CR
+    reconciliation_start_date = Column(Date, nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], back_populates="company_bank_accounts", lazy="selectin")
+    account = relationship("Account", foreign_keys=[account_id], back_populates="company_bank_account", lazy="selectin")
+    created_by = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
+    updated_by = relationship("User", foreign_keys=[updated_by_id], lazy="selectin")
 
 
 class EmailSetting(TenantBase):

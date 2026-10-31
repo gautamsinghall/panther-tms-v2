@@ -323,6 +323,9 @@ class ContraAccountItem(BaseModel):
     account_type: str  # "BANK" or "CASH"
     current_balance: Decimal = Decimal("0.00")
     balance_type: str = "DR"  # "DR" or "CR"
+    issuing_office_id: Optional[int] = None
+    issuing_office_name: Optional[str] = None
+    account_number_masked: Optional[str] = None
 
 
 class ContraVoucherCreate(BaseModel):
@@ -476,6 +479,7 @@ class MasterLedgerOverviewResponse(BaseModel):
     billing_clients: CategoryOverviewStat
     vendors: CategoryOverviewStat
     drivers: CategoryOverviewStat
+    company_bank_accounts: Optional[CategoryOverviewStat] = None
 
 class BillingClientLedgerListItem(BaseModel):
     id: int
@@ -570,9 +574,19 @@ class PartyDetails(BaseModel):
     credit_limit: Optional[Decimal] = None
     payment_terms: Optional[str] = None
     issuing_office_name: Optional[str] = None
+    issuing_office_code: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    account_number_masked: Optional[str] = None
+    account_type: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    branch_name: Optional[str] = None
+    is_default: Optional[bool] = None
+    is_active: Optional[bool] = None
+
 
 class DetailedLedgerResponse(BaseModel):
-    category: str  # BILLING_CLIENT, VENDOR, DRIVER
+    category: str  # BILLING_CLIENT, VENDOR, DRIVER, COMPANY_BANK_ACCOUNT
     party: PartyDetails
     from_date: Optional[date] = None
     to_date: Optional[date] = None
@@ -584,3 +598,130 @@ class DetailedLedgerResponse(BaseModel):
     closing_balance_type: str = "DR"
     total_transactions: int = 0
     transactions: List[LedgerTransaction] = []
+
+
+# ==============================================================================
+# Company Bank Account Schemas
+# ==============================================================================
+
+class CompanyBankAccountBase(BaseModel):
+    bank_name: str
+    custom_bank_name: Optional[str] = None
+    account_holder_name: str
+    account_number: str
+    account_type: str = "Current"
+    ifsc_code: str
+    branch_name: Optional[str] = None
+    branch_address: Optional[str] = None
+    micr_code: Optional[str] = None
+    upi_id: Optional[str] = None
+    currency: str = "INR"
+    issuing_office_id: int
+    is_default: bool = False
+    ledger_name: Optional[str] = None
+    ledger_group: Optional[str] = None
+    opening_balance: Decimal = Decimal("0.00")
+    opening_balance_date: Optional[date] = None
+    opening_balance_type: str = "DR"
+    reconciliation_start_date: Optional[date] = None
+    is_active: bool = True
+
+
+class CompanyBankAccountCreate(CompanyBankAccountBase):
+    confirm_account_number: Optional[str] = None
+
+
+class CompanyBankAccountUpdate(BaseModel):
+    bank_name: Optional[str] = None
+    custom_bank_name: Optional[str] = None
+    account_holder_name: Optional[str] = None
+    account_number: Optional[str] = None
+    account_type: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    branch_name: Optional[str] = None
+    branch_address: Optional[str] = None
+    micr_code: Optional[str] = None
+    upi_id: Optional[str] = None
+    currency: Optional[str] = None
+    issuing_office_id: Optional[int] = None
+    is_default: Optional[bool] = None
+    ledger_name: Optional[str] = None
+    ledger_group: Optional[str] = None
+    opening_balance: Optional[Decimal] = None
+    opening_balance_date: Optional[date] = None
+    opening_balance_type: Optional[str] = None
+    reconciliation_start_date: Optional[date] = None
+    is_active: Optional[bool] = None
+
+
+class CompanyBankAccountResponse(BaseModel):
+    id: int
+    bank_name: str
+    custom_bank_name: Optional[str] = None
+    account_holder_name: str
+    account_number_masked: str
+    account_number: Optional[str] = None
+    account_type: str
+    ifsc_code: str
+    branch_name: Optional[str] = None
+    branch_address: Optional[str] = None
+    micr_code: Optional[str] = None
+    upi_id: Optional[str] = None
+    currency: str = "INR"
+    issuing_office_id: int
+    issuing_office_name: Optional[str] = None
+    issuing_office_code: Optional[str] = None
+    is_default: bool = False
+    account_id: int
+    ledger_name: str
+    ledger_group: str
+    opening_balance: Decimal = Decimal("0.00")
+    opening_balance_date: Optional[date] = None
+    opening_balance_type: str = "DR"
+    current_balance: Decimal = Decimal("0.00")
+    balance_type: str = "DR"
+    total_debit: Decimal = Decimal("0.00")
+    total_credit: Decimal = Decimal("0.00")
+    reconciliation_start_date: Optional[date] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IFSCDetailsResponse(BaseModel):
+    ifsc: str
+    bank_name: str
+    branch_name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    micr: Optional[str] = None
+    is_valid: bool = True
+
+
+class CompanyBankAccountLedgerListItem(BaseModel):
+    id: int
+    bank_name: str
+    account_number: str
+    account_number_masked: str
+    account_type: str
+    ifsc_code: str
+    branch_name: Optional[str] = None
+    issuing_office_id: int
+    issuing_office_name: str
+    issuing_office_code: Optional[str] = None
+    opening_balance: Decimal
+    opening_balance_type: str
+    total_debit: Decimal
+    total_credit: Decimal
+    current_balance: Decimal
+    balance_type: str
+    status: str
+    is_default: bool
+    is_active: bool
+    ledger_id: int
+    ledger_name: str
+    transaction_count: int = 0
+    last_transaction_date: Optional[date] = None

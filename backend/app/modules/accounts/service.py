@@ -1,11 +1,12 @@
 import logging
+import re
 from datetime import datetime, date, timezone, timedelta
 
 logger = logging.getLogger(__name__)
 from decimal import Decimal
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, and_, update, delete
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
@@ -27,6 +28,7 @@ from app.tenant_db.models import (
     BillAllocation,
     GroupInPrimary,
     PrimaryGroup,
+    CompanyBankAccount,
 )
 from app.modules.accounts import schemas
 from app.modules.accounts.schemas import (
@@ -114,6 +116,8 @@ async def ensure_standard_accounts(session: AsyncSession) -> None:
         "EXP_INDIRECT": ("Indirect Expenses", "EXPENSE"),
         "TAX": ("Duties & Taxes", "LIABILITY"),
         "BANK": ("Bank Accounts", "ASSET"),
+        "BANK_OD": ("Bank OD A/c", "LIABILITY"),
+        "BANK_OCC": ("Bank OCC A/c", "LIABILITY"),
         "CASH": ("Cash-in-hand", "ASSET"),
         "DEBTORS": ("Sundry Debtors", "ASSET"),
         "CREDITORS": ("Sundry Creditors", "LIABILITY"),
@@ -1526,14 +1530,37 @@ async def create_receipt_voucher(
         debtor_id = await get_fallback_account_id(session, "ACC_SUNDRY_DEBTORS", "DEBTORS")
 
     # 2. Resolve Bank or Cash Ledger Account
+    resolved_company_bank_id: Optional[int] = None
     if data.bank_account_id:
-        bank_id = data.bank_account_id
+        cb_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.id == data.bank_account_id))
+        cb_obj = cb_res.scalar_one_or_none()
+        if cb_obj:
+            if not cb_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected company bank account is deactivated and cannot be used for new transactions.")
+            bank_id = cb_obj.account_id
+            resolved_company_bank_id = cb_obj.id
+        else:
+            acc_res = await session.execute(select(Account).where(Account.id == data.bank_account_id))
+            acc_obj = acc_res.scalar_one_or_none()
+            if acc_obj and not acc_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected ledger account is inactive.")
+            bank_id = data.bank_account_id
+            if acc_obj:
+                cba_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.account_id == acc_obj.id))
+                cba_obj = cba_res.scalar_one_or_none()
+                if cba_obj:
+                    resolved_company_bank_id = cba_obj.id
     elif data.bank_account_code:
         bank_id = await get_fallback_account_id(session, data.bank_account_code, "BANK")
     elif (data.payment_mode or "").upper() == "CASH":
         bank_id = await get_fallback_account_id(session, "ACC_CASH", "CASH")
     else:
-        bank_id = await get_fallback_account_id(session, "ACC_HDFC_BANK", "BANK")
+        default_ba = await get_default_bank_account_for_office(session, office_id) if office_id else None
+        if default_ba:
+            bank_id = default_ba.account_id
+            resolved_company_bank_id = default_ba.id
+        else:
+            bank_id = await get_fallback_account_id(session, "ACC_HDFC_BANK", "BANK")
 
     # 3. Voucher numbering
     v_num = await allocate_or_validate_voucher_number(
@@ -1645,6 +1672,7 @@ async def create_receipt_voucher(
         account_id=debtor_id,
         billing_client_id=data.billing_client_id,
         issuing_office_id=office_id,
+        company_bank_account_id=resolved_company_bank_id,
         against_voucher_id=primary_against_id,
         tax_breakup=tax_breakup,
         attachment_url=data.attachment_url,
@@ -2373,14 +2401,37 @@ async def create_payment_voucher(
     await ensure_standard_accounts(session)
 
     # 1. Resolve Bank or Cash Ledger Account
+    resolved_company_bank_id: Optional[int] = None
     if data.bank_account_id:
-        bank_id = data.bank_account_id
+        cb_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.id == data.bank_account_id))
+        cb_obj = cb_res.scalar_one_or_none()
+        if cb_obj:
+            if not cb_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected company bank account is deactivated and cannot be used for new transactions.")
+            bank_id = cb_obj.account_id
+            resolved_company_bank_id = cb_obj.id
+        else:
+            acc_res = await session.execute(select(Account).where(Account.id == data.bank_account_id))
+            acc_obj = acc_res.scalar_one_or_none()
+            if acc_obj and not acc_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected ledger account is inactive.")
+            bank_id = data.bank_account_id
+            if acc_obj:
+                cba_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.account_id == acc_obj.id))
+                cba_obj = cba_res.scalar_one_or_none()
+                if cba_obj:
+                    resolved_company_bank_id = cba_obj.id
     elif data.bank_account_code:
         bank_id = await get_fallback_account_id(session, data.bank_account_code, "BANK")
     elif (data.payment_mode or "").upper() == "CASH":
         bank_id = await get_fallback_account_id(session, "ACC_CASH", "CASH")
     else:
-        bank_id = await get_fallback_account_id(session, "ACC_HDFC_BANK", "BANK")
+        default_ba = await get_default_bank_account_for_office(session, office_id) if office_id else None
+        if default_ba:
+            bank_id = default_ba.account_id
+            resolved_company_bank_id = default_ba.id
+        else:
+            bank_id = await get_fallback_account_id(session, "ACC_HDFC_BANK", "BANK")
 
     # 2. Voucher Numbering (with resilient fallback to PAYMENT_VOUCHER series)
     v_type = VoucherType.PAYMENT_VOUCHER.value
@@ -2613,6 +2664,7 @@ async def create_payment_voucher(
         driver_id=driver_id,
         hire_challan_id=hire_challan_id,
         issuing_office_id=office_id,
+        company_bank_account_id=resolved_company_bank_id,
         against_voucher_id=primary_against_id,
         tax_breakup=tax_breakup,
         attachment_url=data.attachment_url,
@@ -2774,7 +2826,10 @@ async def get_contra_eligible_accounts(session: AsyncSession) -> List[ContraAcco
 
     stmt = (
         select(Account)
-        .options(selectinload(Account.group))
+        .options(
+            selectinload(Account.group),
+            selectinload(Account.company_bank_account).selectinload(CompanyBankAccount.issuing_office),
+        )
         .where(
             Account.is_active == True,
             Account.billing_client_id.is_(None),
@@ -2790,8 +2845,9 @@ async def get_contra_eligible_accounts(session: AsyncSession) -> List[ContraAcco
         grp_code = (acc.group.code if acc.group else "").upper()
         acc_code = (acc.code or "").upper()
         acc_name = (acc.name or "").lower()
+        c_bank = acc.company_bank_account
 
-        is_bank = grp_code == "BANK" or "bank" in acc_name or "bank" in acc_code.lower()
+        is_bank = grp_code in ("BANK", "BANK_OD", "BANK_OCC") or "bank" in acc_name or "bank" in acc_code.lower() or (c_bank is not None)
         is_cash = grp_code == "CASH" or "cash" in acc_name or "cash" in acc_code.lower()
 
         if not (is_bank or is_cash):
@@ -2822,6 +2878,10 @@ async def get_contra_eligible_accounts(session: AsyncSession) -> List[ContraAcco
             b_type = "CR"
             b_amt = abs(net_bal)
 
+        off_id = c_bank.issuing_office_id if c_bank else None
+        off_name = c_bank.issuing_office.name if (c_bank and c_bank.issuing_office) else None
+        masked_num = mask_account_number(c_bank.account_number) if c_bank else None
+
         eligible.append(
             ContraAccountItem(
                 id=acc.id,
@@ -2830,6 +2890,9 @@ async def get_contra_eligible_accounts(session: AsyncSession) -> List[ContraAcco
                 account_type=acc_type,
                 current_balance=b_amt,
                 balance_type=b_type,
+                issuing_office_id=off_id,
+                issuing_office_name=off_name,
+                account_number_masked=masked_num,
             )
         )
 
@@ -2898,7 +2961,7 @@ async def create_contra_voucher(
         grp = (a.group.code if a.group else "").upper()
         code = (a.code or "").upper()
         name = (a.name or "").lower()
-        return grp == "BANK" or "bank" in name or "bank" in code.lower()
+        return grp in ("BANK", "BANK_OD", "BANK_OCC") or "bank" in name or "bank" in code.lower() or (a.company_bank_account is not None)
 
     def is_cash_acc(a: Account) -> bool:
         grp = (a.group.code if a.group else "").upper()
@@ -3027,6 +3090,7 @@ async def create_contra_voucher(
         narration=data.narration.strip() if data.narration else type_desc,
         tax_breakup=contra_meta,
         issuing_office_id=office_id,
+        company_bank_account_id=dest_acc.company_bank_account.id if dest_acc.company_bank_account else (source_acc.company_bank_account.id if source_acc.company_bank_account else None),
         is_void=False,
     )
     session.add(voucher)
@@ -3764,3 +3828,701 @@ async def void_voucher(
     v_id = voucher.id
     await session.commit()
     return await get_voucher_by_id(session, v_id)
+
+
+# ==============================================================================
+# Company Bank Accounts Management & Accounting Integration
+# ==============================================================================
+
+INDIAN_BANKS_MAP: Dict[str, str] = {
+    "HDFC": "HDFC Bank",
+    "SBIN": "State Bank of India",
+    "ICIC": "ICICI Bank",
+    "UTIB": "Axis Bank",
+    "KKBK": "Kotak Mahindra Bank",
+    "PUNB": "Punjab National Bank",
+    "BARB": "Bank of Baroda",
+    "CNRB": "Canara Bank",
+    "UBIN": "Union Bank of India",
+    "IDIB": "Indian Bank",
+    "IOBA": "Indian Overseas Bank",
+    "MAHB": "Bank of Maharashtra",
+    "PSIB": "Punjab & Sind Bank",
+    "UCOB": "UCO Bank",
+    "CUBK": "City Union Bank",
+    "CSBK": "CSB Bank",
+    "DCBL": "DCB Bank",
+    "FDRL": "Federal Bank",
+    "IDFB": "IDFC First Bank",
+    "INDB": "IndusInd Bank",
+    "JAKA": "Jammu & Kashmir Bank",
+    "KVBL": "Karur Vysya Bank",
+    "RATN": "RBL Bank",
+    "SIBL": "South Indian Bank",
+    "TMBL": "Tamilnad Mercantile Bank",
+    "YESB": "Yes Bank",
+}
+
+
+def mask_account_number(account_number: Optional[str]) -> str:
+    if not account_number:
+        return ""
+    num = str(account_number).strip()
+    return f"XXXX{num[-4:]}" if len(num) >= 4 else num
+
+
+def validate_ifsc_code(ifsc: str) -> bool:
+    if not ifsc:
+        return False
+    return bool(re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc.strip().upper()))
+
+
+async def lookup_ifsc(ifsc: str) -> schemas.IFSCDetailsResponse:
+    clean_ifsc = (ifsc or "").strip().upper()
+    if not validate_ifsc_code(clean_ifsc):
+        return schemas.IFSCDetailsResponse(
+            ifsc=clean_ifsc,
+            bank_name="",
+            branch_name="",
+            is_valid=False,
+        )
+
+    prefix = clean_ifsc[:4]
+    guessed_bank = INDIAN_BANKS_MAP.get(prefix, f"{prefix} Bank")
+
+    # Attempt live Razorpay IFSC lookup if network is reachable
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(f"https://ifsc.razorpay.com/{clean_ifsc}")
+            if resp.status_code == 200:
+                data = resp.json()
+                return schemas.IFSCDetailsResponse(
+                    ifsc=clean_ifsc,
+                    bank_name=data.get("BANK") or guessed_bank,
+                    branch_name=data.get("BRANCH"),
+                    address=data.get("ADDRESS"),
+                    city=data.get("CITY"),
+                    state=data.get("STATE"),
+                    micr=data.get("MICR"),
+                    is_valid=True,
+                )
+    except Exception as exc:
+        logger.debug("IFSC remote lookup skipped: %s", exc)
+
+    return schemas.IFSCDetailsResponse(
+        ifsc=clean_ifsc,
+        bank_name=guessed_bank,
+        branch_name=f"Branch {clean_ifsc[5:]}",
+        is_valid=True,
+    )
+
+
+async def calculate_bank_account_balance(
+    session: AsyncSession,
+    account_id: int,
+    account: Optional[Account] = None,
+) -> Tuple[Decimal, str, Decimal, Decimal]:
+    """
+    Computes live running double-entry balance, total debit, and total credit.
+    """
+    if not account:
+        account = await session.get(Account, account_id)
+        if not account:
+            return Decimal("0.00"), "DR", Decimal("0.00"), Decimal("0.00")
+
+    le_stmt = select(
+        func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+        func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+    ).where(
+        LedgerEntry.account_id == account_id,
+        LedgerEntry.is_reversal == False,
+    )
+    le_res = await session.execute(le_stmt)
+    tot_dr, tot_cr = le_res.one()
+
+    open_bal = Decimal(str(account.opening_balance or "0.00"))
+    open_dr = open_bal if account.opening_balance_type == "DR" else Decimal("0.00")
+    open_cr = open_bal if account.opening_balance_type == "CR" else Decimal("0.00")
+
+    net_bal = (open_dr + tot_dr) - (open_cr + tot_cr)
+    if net_bal >= Decimal("0.00"):
+        return net_bal, "DR", tot_dr, tot_cr
+    else:
+        return abs(net_bal), "CR", tot_dr, tot_cr
+
+
+async def get_default_bank_account_for_office(
+    session: AsyncSession,
+    office_id: int,
+) -> Optional[CompanyBankAccount]:
+    """
+    Auto-select default company bank account for an issuing office.
+    """
+    # 1. Direct active default bank account for this office
+    stmt = (
+        select(CompanyBankAccount)
+        .options(selectinload(CompanyBankAccount.account))
+        .where(
+            CompanyBankAccount.issuing_office_id == office_id,
+            CompanyBankAccount.is_active == True,
+            CompanyBankAccount.is_default == True,
+        )
+    )
+    res = await session.execute(stmt)
+    account = res.scalar_one_or_none()
+    if account:
+        return account
+
+    # 2. First active bank account for this office
+    stmt_any = (
+        select(CompanyBankAccount)
+        .options(selectinload(CompanyBankAccount.account))
+        .where(
+            CompanyBankAccount.issuing_office_id == office_id,
+            CompanyBankAccount.is_active == True,
+        )
+        .order_by(CompanyBankAccount.id.asc())
+    )
+    res_any = await session.execute(stmt_any)
+    account = res_any.scalars().first()
+    if account:
+        return account
+
+    # 3. Head office default bank account as fallback
+    ho_stmt = (
+        select(CompanyBankAccount)
+        .join(Branch, CompanyBankAccount.issuing_office_id == Branch.id)
+        .options(selectinload(CompanyBankAccount.account))
+        .where(
+            Branch.is_head_office == True,
+            CompanyBankAccount.is_active == True,
+        )
+        .order_by(CompanyBankAccount.is_default.desc(), CompanyBankAccount.id.asc())
+    )
+    ho_res = await session.execute(ho_stmt)
+    return ho_res.scalars().first()
+
+
+async def list_company_bank_accounts(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    search: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    account_type: Optional[str] = None,
+    bank_name: Optional[str] = None,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> List[schemas.CompanyBankAccountResponse]:
+    """
+    List company bank accounts with office isolation, masked numbers, and live double-entry balances.
+    """
+    stmt = (
+        select(CompanyBankAccount)
+        .options(
+            selectinload(CompanyBankAccount.issuing_office),
+            selectinload(CompanyBankAccount.account),
+        )
+        .order_by(CompanyBankAccount.is_default.desc(), CompanyBankAccount.bank_name.asc())
+    )
+
+    if office_id:
+        stmt = stmt.where(CompanyBankAccount.issuing_office_id == office_id)
+
+    if not is_admin and user_office_ids is not None:
+        stmt = stmt.where(CompanyBankAccount.issuing_office_id.in_(user_office_ids))
+
+    if is_active is not None:
+        stmt = stmt.where(CompanyBankAccount.is_active == is_active)
+
+    if account_type:
+        stmt = stmt.where(CompanyBankAccount.account_type == account_type)
+
+    if bank_name:
+        stmt = stmt.where(CompanyBankAccount.bank_name == bank_name)
+
+    if search:
+        s = f"%{search.strip()}%"
+        stmt = stmt.where(
+            or_(
+                CompanyBankAccount.bank_name.ilike(s),
+                CompanyBankAccount.custom_bank_name.ilike(s),
+                CompanyBankAccount.account_holder_name.ilike(s),
+                CompanyBankAccount.account_number.ilike(s),
+                CompanyBankAccount.ifsc_code.ilike(s),
+                CompanyBankAccount.branch_name.ilike(s),
+                CompanyBankAccount.ledger_name.ilike(s),
+            )
+        )
+
+    res = await session.execute(stmt)
+    bank_accounts = res.scalars().all()
+
+    items: List[schemas.CompanyBankAccountResponse] = []
+    for ba in bank_accounts:
+        cur_bal, bal_type, tot_dr, tot_cr = await calculate_bank_account_balance(
+            session, ba.account_id, ba.account
+        )
+
+        items.append(
+            schemas.CompanyBankAccountResponse(
+                id=ba.id,
+                bank_name=ba.bank_name,
+                custom_bank_name=ba.custom_bank_name,
+                account_holder_name=ba.account_holder_name,
+                account_number_masked=mask_account_number(ba.account_number),
+                account_number=ba.account_number if is_admin else None,
+                account_type=ba.account_type,
+                ifsc_code=ba.ifsc_code,
+                branch_name=ba.branch_name,
+                branch_address=ba.branch_address,
+                micr_code=ba.micr_code,
+                upi_id=ba.upi_id,
+                currency=ba.currency,
+                issuing_office_id=ba.issuing_office_id,
+                issuing_office_name=ba.issuing_office.name if ba.issuing_office else None,
+                issuing_office_code=ba.issuing_office.code if ba.issuing_office else None,
+                is_default=ba.is_default,
+                account_id=ba.account_id,
+                ledger_name=ba.ledger_name,
+                ledger_group=ba.ledger_group,
+                opening_balance=ba.opening_balance,
+                opening_balance_date=ba.opening_balance_date,
+                opening_balance_type=ba.opening_balance_type,
+                current_balance=cur_bal,
+                balance_type=bal_type,
+                total_debit=tot_dr,
+                total_credit=tot_cr,
+                reconciliation_start_date=ba.reconciliation_start_date,
+                is_active=ba.is_active,
+                created_at=ba.created_at,
+                updated_at=ba.updated_at,
+            )
+        )
+
+    return items
+
+
+async def get_company_bank_account(
+    session: AsyncSession,
+    bank_account_id: int,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> schemas.CompanyBankAccountResponse:
+    stmt = (
+        select(CompanyBankAccount)
+        .options(
+            selectinload(CompanyBankAccount.issuing_office),
+            selectinload(CompanyBankAccount.account),
+        )
+        .where(CompanyBankAccount.id == bank_account_id)
+    )
+    res = await session.execute(stmt)
+    ba = res.scalar_one_or_none()
+    if not ba:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company Bank Account not found")
+
+    if not is_admin and user_office_ids is not None and ba.issuing_office_id not in user_office_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access bank accounts of this issuing office.",
+        )
+
+    cur_bal, bal_type, tot_dr, tot_cr = await calculate_bank_account_balance(
+        session, ba.account_id, ba.account
+    )
+
+    return schemas.CompanyBankAccountResponse(
+        id=ba.id,
+        bank_name=ba.bank_name,
+        custom_bank_name=ba.custom_bank_name,
+        account_holder_name=ba.account_holder_name,
+        account_number_masked=mask_account_number(ba.account_number),
+        account_number=ba.account_number,
+        account_type=ba.account_type,
+        ifsc_code=ba.ifsc_code,
+        branch_name=ba.branch_name,
+        branch_address=ba.branch_address,
+        micr_code=ba.micr_code,
+        upi_id=ba.upi_id,
+        currency=ba.currency,
+        issuing_office_id=ba.issuing_office_id,
+        issuing_office_name=ba.issuing_office.name if ba.issuing_office else None,
+        issuing_office_code=ba.issuing_office.code if ba.issuing_office else None,
+        is_default=ba.is_default,
+        account_id=ba.account_id,
+        ledger_name=ba.ledger_name,
+        ledger_group=ba.ledger_group,
+        opening_balance=ba.opening_balance,
+        opening_balance_date=ba.opening_balance_date,
+        opening_balance_type=ba.opening_balance_type,
+        current_balance=cur_bal,
+        balance_type=bal_type,
+        total_debit=tot_dr,
+        total_credit=tot_cr,
+        reconciliation_start_date=ba.reconciliation_start_date,
+        is_active=ba.is_active,
+        created_at=ba.created_at,
+        updated_at=ba.updated_at,
+    )
+
+
+async def create_company_bank_account(
+    session: AsyncSession,
+    data: schemas.CompanyBankAccountCreate,
+    user_id: Optional[int] = None,
+) -> schemas.CompanyBankAccountResponse:
+    await ensure_standard_accounts(session)
+
+    # 1. Validate IFSC
+    clean_ifsc = (data.ifsc_code or "").strip().upper()
+    if not validate_ifsc_code(clean_ifsc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid IFSC Code format. Must be 11 characters (4 alphabetic, 0, 6 alphanumeric). Example: HDFC0001234",
+        )
+
+    # 2. Confirm Bank Account Number validation
+    clean_acc_num = str(data.account_number or "").strip()
+    if not clean_acc_num:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bank account number cannot be empty.",
+        )
+    if data.confirm_account_number and data.confirm_account_number.strip() != clean_acc_num:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account number and confirmation account number do not match.",
+        )
+
+    # 3. Check for Duplicate Active Account
+    dup_stmt = select(CompanyBankAccount).where(
+        CompanyBankAccount.account_number == clean_acc_num,
+        CompanyBankAccount.bank_name == data.bank_name.strip(),
+        CompanyBankAccount.is_active == True,
+    )
+    existing_ba = (await session.execute(dup_stmt)).scalar_one_or_none()
+    if existing_ba:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"An active bank account with number '{clean_acc_num}' at {data.bank_name} already exists.",
+        )
+
+    # 4. Validate Issuing Office
+    office = await session.get(Branch, data.issuing_office_id)
+    if not office or not office.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Specified issuing office does not exist or is inactive.",
+        )
+
+    # 5. Determine Tally-style Accounting Group
+    is_od = data.account_type in ("Overdraft", "Cash Credit")
+    target_group_code = "BANK_OD" if is_od else "BANK"
+    grp_stmt = select(GroupInPrimary).where(GroupInPrimary.code == target_group_code)
+    grp = (await session.execute(grp_stmt)).scalar_one_or_none()
+    if not grp:
+        grp = (await session.execute(select(GroupInPrimary).where(GroupInPrimary.code == "BANK"))).scalar_one_or_none()
+        group_id = grp.id if grp else 1
+        group_name = grp.name if grp else "Bank Accounts"
+    else:
+        group_id = grp.id
+        group_name = grp.name
+
+    # 6. Automatic Unique Ledger Creation
+    last4 = clean_acc_num[-4:] if len(clean_acc_num) >= 4 else clean_acc_num
+    ledger_name = (data.ledger_name or "").strip() or f"{data.bank_name} - {office.name} ({last4})"
+
+    # Generate unique account code
+    bank_slug = re.sub(r"[^A-Z0-9]", "", data.bank_name.upper())[:4] or "BANK"
+    office_slug = re.sub(r"[^A-Z0-9]", "", (office.code or office.name).upper())[:4] or "OFF"
+    base_code = f"ACC_{bank_slug}_{office_slug}_{last4}"
+    acc_code = base_code
+    suffix = 1
+    while True:
+        existing_acc = await get_account_by_code(session, acc_code)
+        if not existing_acc:
+            break
+        acc_code = f"{base_code}_{suffix}"
+        suffix += 1
+
+    open_bal = Decimal(str(data.opening_balance or "0.00"))
+    open_type = data.opening_balance_type or ("CR" if is_od else "DR")
+
+    new_account = Account(
+        name=ledger_name,
+        code=acc_code,
+        group_id=group_id,
+        opening_balance=open_bal,
+        opening_balance_type=open_type,
+        is_active=data.is_active,
+    )
+    session.add(new_account)
+    await session.flush()
+
+    # 7. Default Account Management per Issuing Office
+    should_be_default = data.is_default
+    if should_be_default:
+        await session.execute(
+            update(CompanyBankAccount)
+            .where(CompanyBankAccount.issuing_office_id == data.issuing_office_id)
+            .values(is_default=False)
+        )
+    else:
+        count_stmt = select(func.count(CompanyBankAccount.id)).where(
+            CompanyBankAccount.issuing_office_id == data.issuing_office_id,
+            CompanyBankAccount.is_active == True,
+        )
+        existing_count = (await session.execute(count_stmt)).scalar() or 0
+        if existing_count == 0:
+            should_be_default = True
+
+    # 8. Create CompanyBankAccount record
+    ba = CompanyBankAccount(
+        bank_name=data.bank_name.strip(),
+        custom_bank_name=(data.custom_bank_name or "").strip() or None,
+        account_holder_name=data.account_holder_name.strip(),
+        account_number=clean_acc_num,
+        account_type=data.account_type,
+        ifsc_code=clean_ifsc,
+        branch_name=(data.branch_name or "").strip() or None,
+        branch_address=(data.branch_address or "").strip() or None,
+        micr_code=(data.micr_code or "").strip() or None,
+        upi_id=(data.upi_id or "").strip() or None,
+        currency=data.currency or "INR",
+        issuing_office_id=data.issuing_office_id,
+        is_default=should_be_default,
+        account_id=new_account.id,
+        ledger_name=ledger_name,
+        ledger_group=group_name,
+        opening_balance=open_bal,
+        opening_balance_date=data.opening_balance_date,
+        opening_balance_type=open_type,
+        reconciliation_start_date=data.reconciliation_start_date,
+        is_active=data.is_active,
+        created_by_id=user_id,
+        updated_by_id=user_id,
+    )
+    session.add(ba)
+    await session.commit()
+    await session.refresh(ba)
+
+    return await get_company_bank_account(session, ba.id, is_admin=True)
+
+
+async def update_company_bank_account(
+    session: AsyncSession,
+    bank_account_id: int,
+    data: schemas.CompanyBankAccountUpdate,
+    user_id: Optional[int] = None,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> schemas.CompanyBankAccountResponse:
+    ba = await session.get(CompanyBankAccount, bank_account_id)
+    if not ba:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company Bank Account not found")
+
+    if not is_admin and user_office_ids is not None and ba.issuing_office_id not in user_office_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update bank accounts of this issuing office.",
+        )
+
+    account = await session.get(Account, ba.account_id)
+
+    if data.bank_name is not None:
+        ba.bank_name = data.bank_name.strip()
+    if data.custom_bank_name is not None:
+        ba.custom_bank_name = data.custom_bank_name.strip() or None
+    if data.account_holder_name is not None:
+        ba.account_holder_name = data.account_holder_name.strip()
+    if data.ifsc_code is not None:
+        clean_ifsc = data.ifsc_code.strip().upper()
+        if not validate_ifsc_code(clean_ifsc):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid IFSC Code format.")
+        ba.ifsc_code = clean_ifsc
+    if data.branch_name is not None:
+        ba.branch_name = data.branch_name.strip() or None
+    if data.branch_address is not None:
+        ba.branch_address = data.branch_address.strip() or None
+    if data.micr_code is not None:
+        ba.micr_code = data.micr_code.strip() or None
+    if data.upi_id is not None:
+        ba.upi_id = data.upi_id.strip() or None
+    if data.currency is not None:
+        ba.currency = data.currency
+    if data.reconciliation_start_date is not None:
+        ba.reconciliation_start_date = data.reconciliation_start_date
+
+    if data.issuing_office_id is not None and data.issuing_office_id != ba.issuing_office_id:
+        office = await session.get(Branch, data.issuing_office_id)
+        if not office or not office.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or inactive issuing office.")
+        ba.issuing_office_id = data.issuing_office_id
+
+    if data.is_default is True and not ba.is_default:
+        await session.execute(
+            update(CompanyBankAccount)
+            .where(
+                CompanyBankAccount.issuing_office_id == ba.issuing_office_id,
+                CompanyBankAccount.id != ba.id,
+            )
+            .values(is_default=False)
+        )
+        ba.is_default = True
+    elif data.is_default is False and ba.is_default:
+        ba.is_default = False
+
+    if data.is_active is not None:
+        ba.is_active = data.is_active
+        if account:
+            account.is_active = data.is_active
+
+    if data.ledger_name is not None and data.ledger_name.strip():
+        ba.ledger_name = data.ledger_name.strip()
+        if account:
+            account.name = data.ledger_name.strip()
+
+    if data.account_type is not None and data.account_type != ba.account_type:
+        ba.account_type = data.account_type
+        is_od = data.account_type in ("Overdraft", "Cash Credit")
+        target_group_code = "BANK_OD" if is_od else "BANK"
+        grp = (await session.execute(select(GroupInPrimary).where(GroupInPrimary.code == target_group_code))).scalar_one_or_none()
+        if grp:
+            ba.ledger_group = grp.name
+            if account:
+                account.group_id = grp.id
+
+    if data.opening_balance is not None:
+        ba.opening_balance = data.opening_balance
+        if account:
+            account.opening_balance = data.opening_balance
+    if data.opening_balance_type is not None:
+        ba.opening_balance_type = data.opening_balance_type
+        if account:
+            account.opening_balance_type = data.opening_balance_type
+    if data.opening_balance_date is not None:
+        ba.opening_balance_date = data.opening_balance_date
+
+    ba.updated_by_id = user_id
+    await session.commit()
+    await session.refresh(ba)
+
+    return await get_company_bank_account(session, ba.id, is_admin=True)
+
+
+async def toggle_bank_account_status(
+    session: AsyncSession,
+    bank_account_id: int,
+    user_id: Optional[int] = None,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> schemas.CompanyBankAccountResponse:
+    ba = await session.get(CompanyBankAccount, bank_account_id)
+    if not ba:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company Bank Account not found")
+
+    if not is_admin and user_office_ids is not None and ba.issuing_office_id not in user_office_ids:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    ba.is_active = not ba.is_active
+    account = await session.get(Account, ba.account_id)
+    if account:
+        account.is_active = ba.is_active
+
+    if not ba.is_active and ba.is_default:
+        ba.is_default = False
+        other_ba = (
+            await session.execute(
+                select(CompanyBankAccount).where(
+                    CompanyBankAccount.issuing_office_id == ba.issuing_office_id,
+                    CompanyBankAccount.id != ba.id,
+                    CompanyBankAccount.is_active == True,
+                )
+            )
+        ).scalars().first()
+        if other_ba:
+            other_ba.is_default = True
+
+    ba.updated_by_id = user_id
+    await session.commit()
+    await session.refresh(ba)
+
+    return await get_company_bank_account(session, ba.id, is_admin=True)
+
+
+async def set_default_bank_account(
+    session: AsyncSession,
+    bank_account_id: int,
+    user_id: Optional[int] = None,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> schemas.CompanyBankAccountResponse:
+    ba = await session.get(CompanyBankAccount, bank_account_id)
+    if not ba:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company Bank Account not found")
+
+    if not ba.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot set an inactive bank account as default.")
+
+    if not is_admin and user_office_ids is not None and ba.issuing_office_id not in user_office_ids:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    await session.execute(
+        update(CompanyBankAccount)
+        .where(
+            CompanyBankAccount.issuing_office_id == ba.issuing_office_id,
+            CompanyBankAccount.id != ba.id,
+        )
+        .values(is_default=False)
+    )
+
+    ba.is_default = True
+    ba.updated_by_id = user_id
+    await session.commit()
+    await session.refresh(ba)
+
+    return await get_company_bank_account(session, ba.id, is_admin=True)
+
+
+async def delete_company_bank_account(
+    session: AsyncSession,
+    bank_account_id: int,
+    user_id: Optional[int] = None,
+    user_office_ids: Optional[List[int]] = None,
+    is_admin: bool = True,
+) -> Dict[str, Any]:
+    ba = await session.get(CompanyBankAccount, bank_account_id)
+    if not ba:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company Bank Account not found")
+
+    if not is_admin and user_office_ids is not None and ba.issuing_office_id not in user_office_ids:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    le_cnt = (
+        await session.execute(
+            select(func.count(LedgerEntry.id)).where(LedgerEntry.account_id == ba.account_id)
+        )
+    ).scalar() or 0
+
+    v_cnt = (
+        await session.execute(
+            select(func.count(Voucher.id)).where(Voucher.company_bank_account_id == ba.id)
+        )
+    ).scalar() or 0
+
+    if le_cnt > 0 or v_cnt > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete Bank Account with existing accounting transactions. Deactivate the account instead to preserve ledger audit trail.",
+        )
+
+    acc_id = ba.account_id
+    await session.delete(ba)
+    if acc_id:
+        acc = await session.get(Account, acc_id)
+        if acc:
+            await session.delete(acc)
+
+    await session.commit()
+    return {"status": "SUCCESS", "message": "Bank account and associated unused ledger deleted successfully."}

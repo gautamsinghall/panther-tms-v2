@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   BookOpen,
   Building2,
   Truck,
   Users,
+  Landmark,
+  Star,
   Search,
   Filter,
   ArrowUpDown,
@@ -46,7 +49,7 @@ import { toast } from "@/lib/toast";
 // Types
 // ------------------------------------------------------------------------------
 
-type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER";
+type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER" | "COMPANY_BANK_ACCOUNT";
 
 interface CategoryStat {
   total_accounts: number;
@@ -61,6 +64,31 @@ interface MasterLedgerOverview {
   billing_clients: CategoryStat;
   vendors: CategoryStat;
   drivers: CategoryStat;
+  company_bank_accounts?: CategoryStat;
+}
+
+export interface CompanyBankAccountLedgerItem {
+  id: number;
+  bank_name: string;
+  custom_bank_name?: string | null;
+  account_number_masked: string;
+  account_type: string;
+  ifsc_code: string;
+  branch_name?: string | null;
+  issuing_office_name?: string | null;
+  issuing_office_id: number;
+  ledger_name?: string | null;
+  ledger_group?: string | null;
+  opening_balance: string | number;
+  opening_balance_type: string;
+  total_debit: string | number;
+  total_credit: string | number;
+  current_balance: string | number;
+  balance_type: string;
+  is_default: boolean;
+  is_active: boolean;
+  transaction_count: number;
+  last_transaction_date?: string | null;
 }
 
 interface BillingClientLedgerItem {
@@ -182,9 +210,22 @@ export default function MasterLedgerPage() {
 
   // Data States
   const [overview, setOverview] = useState<MasterLedgerOverview | null>(null);
+  const searchParams = useSearchParams();
   const [billingClients, setBillingClients] = useState<BillingClientLedgerItem[]>([]);
   const [vendors, setVendors] = useState<VendorLedgerItem[]>([]);
   const [drivers, setDrivers] = useState<DriverLedgerItem[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<CompanyBankAccountLedgerItem[]>([]);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as LedgerCategory | null;
+    const idParam = searchParams.get("id");
+    if (tabParam === "COMPANY_BANK_ACCOUNT" || tabParam === "BILLING_CLIENT" || tabParam === "VENDOR" || tabParam === "DRIVER") {
+      setActiveCategory(tabParam);
+      if (idParam) {
+        setSelectedAccountId(Number(idParam));
+      }
+    }
+  }, [searchParams]);
   const [detailedLedger, setDetailedLedger] = useState<DetailedLedgerData | null>(null);
 
   // Loading & Error States
@@ -219,15 +260,17 @@ export default function MasterLedgerPage() {
     try {
       setIsLoading(true);
       // Fetch master ledger summaries as well as primary entity masters in parallel
-      const [sumRes, bcRes, vendRes, drvRes, rawClients, rawVendors, rawDrivers] = await Promise.all([
+      const [sumRes, bcRes, vendRes, drvRes, bankRes, rawClients, rawVendors, rawDrivers] = await Promise.all([
         apiClient<MasterLedgerOverview>("/api/v1/accounts/master-ledger/summary").catch(() => null),
         apiClient<BillingClientLedgerItem[]>("/api/v1/accounts/master-ledger/billing-clients").catch(() => []),
         apiClient<VendorLedgerItem[]>("/api/v1/accounts/master-ledger/vendors").catch(() => []),
         apiClient<DriverLedgerItem[]>("/api/v1/accounts/master-ledger/drivers").catch(() => []),
+        apiClient<CompanyBankAccountLedgerItem[]>("/api/v1/accounts/master-ledger/company-bank-accounts").catch(() => []),
         apiClient<any[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<any[]>("/api/v1/general/vendors").catch(() => []),
         apiClient<any[]>("/api/v1/transport/drivers").catch(() => []),
       ]);
+      setBankAccounts(bankRes || []);
 
       // 1. Merge Billing Clients: Every client created in Billing Client Master is guaranteed to appear
       const bcMap = new Map<number, BillingClientLedgerItem>();
@@ -347,6 +390,14 @@ export default function MasterLedgerPage() {
           settled_count: mergedDrivers.filter((d) => d.balance_type === "NIL" || Number(d.current_balance) === 0).length,
           pending_count: mergedDrivers.filter((d) => d.balance_type !== "NIL" && Number(d.current_balance) > 0).length,
         },
+        company_bank_accounts: sumRes?.company_bank_accounts || {
+          total_accounts: (bankRes || []).length,
+          total_outstanding: (bankRes || []).reduce((s, b) => s + (b.balance_type === "DR" ? Number(b.current_balance || 0) : -Number(b.current_balance || 0)), 0),
+          total_debit: (bankRes || []).reduce((s, b) => s + Number(b.total_debit || 0), 0),
+          total_credit: (bankRes || []).reduce((s, b) => s + Number(b.total_credit || 0), 0),
+          settled_count: (bankRes || []).filter((b) => Number(b.current_balance) === 0).length,
+          pending_count: (bankRes || []).filter((b) => Number(b.current_balance) !== 0).length,
+        },
       });
     } catch (err) {
       console.error("Error loading master ledger data:", err);
@@ -381,6 +432,8 @@ export default function MasterLedgerPage() {
         endpoint = `/api/v1/accounts/master-ledger/vendors/${id}`;
       } else if (category === "DRIVER") {
         endpoint = `/api/v1/accounts/master-ledger/drivers/${id}`;
+      } else if (category === "COMPANY_BANK_ACCOUNT") {
+        endpoint = `/api/v1/accounts/master-ledger/company-bank-accounts/${id}`;
       }
 
       const params = new URLSearchParams();
@@ -696,6 +749,26 @@ export default function MasterLedgerPage() {
     });
   }, [vendors, searchQuery, statusFilter]);
 
+  const filteredBankAccounts = useMemo(() => {
+    return bankAccounts.filter((b) => {
+      const matchSearch =
+        !searchQuery ||
+        b.bank_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.account_number_masked.includes(searchQuery) ||
+        (b.ifsc_code && b.ifsc_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (b.branch_name && b.branch_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (b.issuing_office_name && b.issuing_office_name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "ACTIVE" && b.is_active) ||
+        (statusFilter === "INACTIVE" && !b.is_active) ||
+        (statusFilter === "DEFAULT" && b.is_default);
+
+      return matchSearch && matchStatus;
+    });
+  }, [bankAccounts, searchQuery, statusFilter]);
+
   const filteredDrivers = useMemo(() => {
     return drivers.filter((d) => {
       const matchSearch =
@@ -743,7 +816,7 @@ export default function MasterLedgerPage() {
       {activeCategory === "OVERVIEW" && !selectedAccountId && (
         <div className="space-y-6">
           {/* Category Cards - Interactive Folder-Style */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Card 1: Billing Client Ledger */}
             <div
               onClick={() => {
@@ -926,6 +999,66 @@ export default function MasterLedgerPage() {
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
+            {/* Card 4: Company Bank Accounts Ledger */}
+            <div
+              onClick={() => {
+                setActiveCategory("COMPANY_BANK_ACCOUNT");
+                setSearchQuery("");
+                setStatusFilter("ALL");
+              }}
+              className="group cursor-pointer relative bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)] hover:border-[#0E9384] dark:hover:border-teal-500 hover:shadow-[0_10px_25px_-5px_rgba(14,147,132,0.12)] transition-all duration-200 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#F0FDF9] dark:bg-teal-950/60 border border-[#99F6E0] dark:border-teal-800 flex items-center justify-center text-[#0E9384] dark:text-teal-400 group-hover:scale-105 transition-transform">
+                    <Landmark className="w-6 h-6" />
+                  </div>
+                  <Badge variant="success" className="text-xs font-semibold px-2.5 py-0.5">
+                    Bank Accounts • Assets / OD
+                  </Badge>
+                </div>
+
+                <h3 className="text-lg font-bold text-[#101828] dark:text-white group-hover:text-[#0E9384] dark:group-hover:text-teal-400 transition-colors">
+                  Company Bank Accounts
+                </h3>
+                <p className="text-xs text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
+                  Bank accounts linked to issuing offices, automated receipts, vendor payments, contra transfers, and TallyPrime ledgers.
+                </p>
+
+                {/* Financial Summary */}
+                <div className="mt-5 pt-4 border-t border-[#F2F4F7] dark:border-slate-800/80 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#667085] dark:text-slate-400">Total Bank Accounts</span>
+                    <span className="font-semibold text-[#101828] dark:text-slate-200">
+                      {overview?.company_bank_accounts?.total_accounts || bankAccounts.length} accounts
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#667085] dark:text-slate-400">Total Inflows (Debits)</span>
+                    <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                      {formatCurrency(overview?.company_bank_accounts?.total_debit || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#667085] dark:text-slate-400">Total Outflows (Credits)</span>
+                    <span className="font-semibold text-[#B42318] dark:text-rose-400">
+                      {formatCurrency(overview?.company_bank_accounts?.total_credit || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-[#E4E7EC] dark:border-slate-800">
+                    <span className="text-[#101828] dark:text-slate-300">Net Liquid Balance</span>
+                    <span className="text-[#0E9384] dark:text-teal-400 font-extrabold text-base">
+                      {formatCurrency(overview?.company_bank_accounts?.total_outstanding || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-3 flex items-center justify-between text-xs font-semibold text-[#0E9384] dark:text-teal-400">
+                <span>Open Bank Directory</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -985,6 +1118,18 @@ export default function MasterLedgerPage() {
                   <Users className="w-3.5 h-3.5" />
                   Drivers ({drivers.length})
                 </button>
+                <button
+                  onClick={() => setActiveCategory("COMPANY_BANK_ACCOUNT")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    activeCategory === "COMPANY_BANK_ACCOUNT"
+                      ? "bg-white dark:bg-slate-900 text-[#0E9384] dark:text-teal-400 shadow-sm"
+                      : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
+                  )}
+                >
+                  <Landmark className="w-3.5 h-3.5" />
+                  Company Bank Accounts ({bankAccounts.length})
+                </button>
               </div>
             </div>
 
@@ -994,7 +1139,7 @@ export default function MasterLedgerPage() {
                 <Search className="w-4 h-4 text-[#667085] dark:text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder={`Search ${activeCategory === "BILLING_CLIENT" ? "clients" : activeCategory === "VENDOR" ? "vendors" : "drivers"}...`}
+                  placeholder={`Search ${activeCategory === "BILLING_CLIENT" ? "clients" : activeCategory === "VENDOR" ? "vendors" : activeCategory === "DRIVER" ? "drivers" : "bank accounts"}...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#F8F9FB] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 rounded-lg focus:outline-none focus:border-[#4F46E5] dark:text-white"
@@ -1397,7 +1542,7 @@ export default function MasterLedgerPage() {
               className="gap-1.5 text-xs font-semibold"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Back to {activeCategory === "BILLING_CLIENT" ? "Clients" : activeCategory === "VENDOR" ? "Vendors" : "Drivers"} List
+              Back to {activeCategory === "BILLING_CLIENT" ? "Clients" : activeCategory === "VENDOR" ? "Vendors" : activeCategory === "DRIVER" ? "Drivers" : "Bank Accounts"} List
             </Button>
 
             <div className="flex items-center gap-2">
@@ -1513,7 +1658,7 @@ export default function MasterLedgerPage() {
                   {formatCurrency(detailedLedger.total_debit)}
                 </div>
                 <div className="text-[10px] text-[#667085] dark:text-slate-400 mt-0.5">
-                  {detailedLedger.category === "BILLING_CLIENT" ? "Total Freight Invoiced" : detailedLedger.category === "VENDOR" ? "Disbursements Made" : "Advances Disbursed"}
+                  {detailedLedger.category === "BILLING_CLIENT" ? "Total Freight Invoiced" : detailedLedger.category === "VENDOR" ? "Disbursements Made" : detailedLedger.category === "DRIVER" ? "Advances Disbursed" : "Total Bank Inflows (Debits)"}
                 </div>
               </div>
 
@@ -1525,7 +1670,7 @@ export default function MasterLedgerPage() {
                   {formatCurrency(detailedLedger.total_credit)}
                 </div>
                 <div className="text-[10px] text-[#667085] dark:text-slate-400 mt-0.5">
-                  {detailedLedger.category === "BILLING_CLIENT" ? "Total Collections" : detailedLedger.category === "VENDOR" ? "Total Bills/Liabilities" : "Approved Expenses"}
+                  {detailedLedger.category === "BILLING_CLIENT" ? "Total Collections" : detailedLedger.category === "VENDOR" ? "Total Bills/Liabilities" : detailedLedger.category === "DRIVER" ? "Approved Expenses" : "Total Bank Outflows (Credits)"}
                 </div>
               </div>
 
@@ -1544,7 +1689,7 @@ export default function MasterLedgerPage() {
                     ? (detailedLedger.closing_balance_type === "DR" ? "Receivable from Client" : "Advance Received")
                     : detailedLedger.category === "VENDOR"
                     ? (detailedLedger.closing_balance_type === "CR" ? "Payable to Vendor" : "Advance Paid")
-                    : (detailedLedger.closing_balance_type === "DR" ? "Recoverable from Driver" : "Payable to Driver")}
+                    : detailedLedger.category === "DRIVER" ? (detailedLedger.closing_balance_type === "DR" ? "Recoverable from Driver" : "Payable to Driver") : (detailedLedger.closing_balance_type === "DR" ? "Bank Liquidity in Hand (Asset)" : "Bank Overdraft Balance (Liability)")}
                 </div>
               </div>
             </div>
@@ -1663,6 +1808,14 @@ export default function MasterLedgerPage() {
                       <option value="TRIP_EXPENSE">Trip Expense</option>
                       <option value="ADVANCE_SETTLEMENT">Advance Settlement</option>
                       <option value="PAYMENT_VOUCHER">Driver Payment</option>
+                    </>
+                  )}
+                  {detailedLedger.category === "COMPANY_BANK_ACCOUNT" && (
+                    <>
+                      <option value="RECEIPT_VOUCHER">Receipts (Inflows)</option>
+                      <option value="PAYMENT_VOUCHER">Payments (Outflows)</option>
+                      <option value="CONTRA_VOUCHER">Contra Transfers</option>
+                      <option value="JOURNAL_VOUCHER">Journal Adjustments</option>
                     </>
                   )}
                 </select>
