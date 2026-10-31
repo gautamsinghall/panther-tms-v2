@@ -1127,13 +1127,24 @@ export default function PaymentVoucherPage() {
             <p className="text-xs text-slate-500 mt-1">
               Click &quot;Record Business Payment&quot; to disburse payments to vendors, drivers, or market truck owners.
             </p>
+            <Button
+              size="sm"
+              onClick={() => {
+                resetCreateForm();
+                setIsCreateOpen(true);
+              }}
+              className="mt-4 bg-rose-600 hover:bg-rose-500 text-white font-medium"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Record Business Payment
+            </Button>
           </div>
         }
       />
 
       {/* DRAWER 1: Record Business Payment (Friendly & Guided) */}
       <EntityDrawer
-        open={isCreateOpen}
+        isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         title="Record Business Payment (Money Out)"
         description="Enter outgoing payment details for vendor bills, market truck hire, driver advances, or direct operating expenses."
@@ -1868,7 +1879,7 @@ export default function PaymentVoucherPage() {
 
       {/* DRAWER 2: View Voucher Details & Ledger */}
       <EntityDrawer
-        open={isLedgerOpen}
+        isOpen={isLedgerOpen}
         onClose={() => setIsLedgerOpen(false)}
         title={selectedVoucher ? `Payment Voucher: ${selectedVoucher.voucher_number}` : "Voucher Details"}
         description="Inspect complete disbursement metadata, bill-wise settlements, and posted double-entry journal postings."

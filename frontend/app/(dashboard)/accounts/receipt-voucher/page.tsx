@@ -1040,13 +1040,24 @@ export default function ReceiptVoucherPage() {
             <p className="text-xs text-slate-500 mt-1">
               Click &quot;Record Customer Receipt&quot; to post a customer collection with bill-wise settlement.
             </p>
+            <Button
+              size="sm"
+              onClick={() => {
+                resetCreateForm();
+                setIsCreateOpen(true);
+              }}
+              className="mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              Record Customer Receipt
+            </Button>
           </div>
         }
       />
 
       {/* DRAWER 1: Record Customer Receipt (Friendly & Intuitive) */}
       <EntityDrawer
-        open={isCreateOpen}
+        isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         title="Record Customer Receipt (Money In)"
         description="Enter payment details received from your customer. Distribute across open invoices or record as an advance deposit."
@@ -1629,7 +1640,7 @@ export default function ReceiptVoucherPage() {
 
       {/* DRAWER 2: View Voucher Details & Ledger */}
       <EntityDrawer
-        open={isLedgerOpen}
+        isOpen={isLedgerOpen}
         onClose={() => setIsLedgerOpen(false)}
         title={selectedVoucher ? `Receipt Voucher: ${selectedVoucher.voucher_number}` : "Voucher Details"}
         description="Inspect complete transaction metadata, bill-wise settlements, and posted double-entry journal postings."

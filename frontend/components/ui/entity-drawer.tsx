@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
 export interface EntityDrawerProps {
-  isOpen: boolean;
+  isOpen?: boolean;
+  open?: boolean;
   onClose: () => void;
   title: string;
   description?: string;
@@ -28,7 +29,8 @@ export interface EntityDrawerProps {
  * - Supports multi-drawer pages (Accounts, Settings, Fleet) without sibling drawer state collision.
  */
 export function EntityDrawer({
-  isOpen,
+  isOpen: rawIsOpen,
+  open: rawOpen,
   onClose,
   title,
   description,
@@ -39,6 +41,7 @@ export function EntityDrawer({
   footer,
   contextLabel = "Record Form",
 }: EntityDrawerProps) {
+  const isOpen = Boolean(rawIsOpen ?? rawOpen);
   const { openFormTab, dismissFormTab, setActiveTab, activeTab } = useWorkspaceTabs();
   const [mounted, setMounted] = useState(false);
   const wasOpenedRef = useRef(false);
