@@ -16,6 +16,9 @@ from app.tenant_db.models import (
     User,
     Branch,
     LR,
+    Job,
+    BillingClient,
+    Vendor,
     CompanyVehicle,
     MarketVehicle,
     Driver,
@@ -36,6 +39,10 @@ from app.modules.transport.service import (
     list_fastag_trips,
     get_sim_trips,
     track_gps_single_vehicle,
+)
+from app.modules.general.service import (
+    list_billing_clients,
+    list_vendors,
 )
 from app.modules.accounts.master_ledger_service import (
     get_master_ledger_summary,
@@ -475,6 +482,249 @@ async def execute_driver_tool(
     return msg, [card]
 
 
+# ==============================================================================
+# 4B. BILLING CLIENT, VENDOR & TRANSPORT JOB TOOLS (DETERMINISTIC QUERIES)
+# ==============================================================================
+
+async def execute_client_tool(
+    db: AsyncSession,
+    user: User,
+    tenant: Tenant,
+    current_office: Optional[Branch] = None,
+    query: Optional[str] = None,
+    is_count: bool = False,
+    limit: int = 6,
+    lang: str = "en",
+) -> Tuple[str, List[StructuredCard]]:
+    """Retrieves registered billing clients with exact counts and branch scoping."""
+    if not is_user_permitted(user, tenant, "general", "billing_clients", "view") and not is_user_permitted(user, tenant, "accounts", "master_ledger", "view"):
+        msg = (
+            "Aapke paas Billing Clients dekhne ki permission nahi hai."
+            if lang in ("hinglish", "hi_devanagari")
+            else "You do not have permission to view billing clients."
+        )
+        card = StructuredCard(
+            card_type="client_list",
+            title="Billing Clients Access Restricted",
+            subtitle="Missing permission: general.billing_clients.view",
+            badge={"text": "Access Denied", "variant": "danger"},
+        )
+        return msg, [card]
+
+    office_id = current_office.id if current_office and user.role != "COMPANY_ADMIN" else None
+    clients = await list_billing_clients(db, office_id=office_id, include_unassigned=True)
+    active_clients = [c for c in clients if getattr(c, "is_active", True) is not False]
+
+    if query:
+        q_norm = query.strip().lower()
+        active_clients = [
+            c for c in active_clients
+            if q_norm in (c.name or "").lower()
+            or q_norm in (c.code or "").lower()
+            or q_norm in (c.company_name or "").lower()
+        ]
+
+    total_count = len(active_clients)
+    matched = active_clients[:limit]
+
+    items = [
+        {
+            "primary": c.name or "Client",
+            "secondary": f"Code: {c.code or 'N/A'} • City: {c.city or 'N/A'}",
+            "status": "Active",
+            "gstin": c.gstin or "Unregistered",
+            "credit": f"{c.credit_period_days or 30} days",
+        }
+        for c in matched
+    ]
+
+    card = StructuredCard(
+        card_type="client_list",
+        title="Billing Clients Directory",
+        subtitle=f"{total_count} registered commercial client(s)" if total_count > 0 else "0 registered clients",
+        badge={"text": f"{total_count} Total", "variant": "success" if total_count > 0 else "neutral"},
+        metrics=[
+            {"label": "Total Active Clients", "value": str(total_count)},
+            {"label": "Office Scope", "value": current_office.name if current_office else "All Offices"},
+        ],
+        items=items,
+        action={"label": "Open Billing Clients Master", "href": "/general/billing-client"},
+    )
+
+    if lang == "hinglish":
+        if total_count == 0:
+            msg = "Aapke paas PantherTMS mein abhi **0 active Billing Clients** registered hain."
+        else:
+            msg = f"Aapke paas PantherTMS mein total **{total_count} active Billing Clients** registered hain. Niche card mein details dekhein."
+    elif lang == "hi_devanagari":
+        if total_count == 0:
+            msg = "आपकी कंपनी में वर्तमान में **0 सक्रिय बिलिंग क्लाइंट** पंजीकृत हैं।"
+        else:
+            msg = f"आपकी कंपनी में कुल **{total_count} सक्रिय बिलिंग क्लाइंट (Billing Clients)** पंजीकृत हैं। विवरण नीचे कार्ड में देखें।"
+    else:
+        if total_count == 0:
+            msg = "You currently have **0 active Billing Clients** registered in PantherTMS."
+        else:
+            msg = f"You have **{total_count} active Billing Client(s)** registered in your system."
+
+    return msg, [card]
+
+
+async def execute_vendor_tool(
+    db: AsyncSession,
+    user: User,
+    tenant: Tenant,
+    current_office: Optional[Branch] = None,
+    query: Optional[str] = None,
+    is_count: bool = False,
+    limit: int = 6,
+    lang: str = "en",
+) -> Tuple[str, List[StructuredCard]]:
+    """Retrieves registered vendors with exact counts and branch scoping."""
+    if not is_user_permitted(user, tenant, "general", "vendors", "view"):
+        msg = (
+            "Aapke paas Vendor records dekhne ki permission nahi hai."
+            if lang in ("hinglish", "hi_devanagari")
+            else "You do not have permission to view vendor records."
+        )
+        card = StructuredCard(
+            card_type="vendor_list",
+            title="Vendors Access Restricted",
+            subtitle="Missing permission: general.vendors.view",
+            badge={"text": "Access Denied", "variant": "danger"},
+        )
+        return msg, [card]
+
+    office_id = current_office.id if current_office and user.role != "COMPANY_ADMIN" else None
+    vendors = await list_vendors(db, office_id=office_id, include_unassigned=True)
+    active_vendors = [v for v in vendors if getattr(v, "is_active", True) is not False]
+
+    if query:
+        q_norm = query.strip().lower()
+        active_vendors = [
+            v for v in active_vendors
+            if q_norm in (v.name or "").lower()
+            or q_norm in (getattr(v, "industry", "") or "").lower()
+            or q_norm in (v.phone or "").lower()
+        ]
+
+    total_count = len(active_vendors)
+    matched = active_vendors[:limit]
+
+    items = [
+        {
+            "primary": v.name or "Vendor",
+            "secondary": f"City: {v.city or 'N/A'} • Phone: {v.phone or 'N/A'}",
+            "status": "Active",
+            "phone": v.phone or "N/A",
+        }
+        for v in matched
+    ]
+
+    card = StructuredCard(
+        card_type="vendor_list",
+        title="Vendors Directory",
+        subtitle=f"{total_count} registered vendor(s)",
+        badge={"text": f"{total_count} Vendors", "variant": "success" if total_count > 0 else "neutral"},
+        metrics=[
+            {"label": "Total Active Vendors", "value": str(total_count)},
+            {"label": "Office Scope", "value": current_office.name if current_office else "All Offices"},
+        ],
+        items=items,
+        action={"label": "Open Vendors Master", "href": "/general/vendor"},
+    )
+
+    if lang == "hinglish":
+        msg = f"Aapke paas PantherTMS mein total **{total_count} active Vendors** registered hain. Niche details dekhein."
+    elif lang == "hi_devanagari":
+        msg = f"आपकी कंपनी में कुल **{total_count} सक्रिय वेंडर्स (Vendors)** पंजीकृत हैं। विवरण नीचे देखें।"
+    else:
+        msg = f"You have **{total_count} active Vendor(s)** registered in your system."
+
+    return msg, [card]
+
+
+async def execute_job_tool(
+    db: AsyncSession,
+    user: User,
+    tenant: Tenant,
+    current_office: Optional[Branch] = None,
+    is_today: bool = False,
+    is_count: bool = False,
+    limit: int = 5,
+    lang: str = "en",
+) -> Tuple[str, List[StructuredCard]]:
+    """Retrieves transport jobs with exact counts and branch scoping."""
+    if not is_user_permitted(user, tenant, "transport", "jobs", "view"):
+        msg = (
+            "Aapke paas Transport Job records dekhne ki permission nahi hai."
+            if lang in ("hinglish", "hi_devanagari")
+            else "You do not have permission to view transport job records."
+        )
+        card = StructuredCard(
+            card_type="job_list",
+            title="Jobs Access Restricted",
+            subtitle="Missing permission: transport.jobs.view",
+            badge={"text": "Access Denied", "variant": "danger"},
+        )
+        return msg, [card]
+
+    stmt = select(Job).order_by(desc(Job.id))
+    if current_office and user.role != "COMPANY_ADMIN":
+        stmt = stmt.where(or_(Job.issuing_office_id == current_office.id, Job.issuing_office_id.is_(None)))
+    if is_today:
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        stmt = stmt.where(Job.created_at >= today_start)
+
+    result = await db.execute(stmt)
+    jobs = result.scalars().all()
+    total_count = len(jobs)
+    matched = jobs[:limit]
+
+    items = [
+        {
+            "primary": f"Job #{j.job_number or j.id}",
+            "secondary": f"Party: {getattr(j, 'billing_party', None) or 'Commercial Party'} • Date: {getattr(j, 'job_date', None) or 'N/A'}",
+            "status": j.status.value if hasattr(j.status, 'value') else str(j.status or 'PENDING'),
+        }
+        for j in matched
+    ]
+
+    card = StructuredCard(
+        card_type="job_list",
+        title="Transport Jobs",
+        subtitle=f"{total_count} job(s) found" + (" for today" if is_today else ""),
+        badge={"text": f"{total_count} Jobs", "variant": "primary"},
+        metrics=[
+            {"label": "Total Jobs" + (" (Today)" if is_today else ""), "value": str(total_count)},
+            {"label": "Office Scope", "value": current_office.name if current_office else "All Offices"},
+        ],
+        items=items,
+        action={"label": "Open Jobs Register", "href": "/transport/jobs"},
+    )
+
+    if lang == "hinglish":
+        msg = (
+            f"Aaj total **{total_count} Transport Jobs** create hue hain."
+            if is_today
+            else f"Aapke system mein total **{total_count} Transport Jobs** registered hain."
+        )
+    elif lang == "hi_devanagari":
+        msg = (
+            f"आज कुल **{total_count} ट्रांसपोर्ट जॉब्स** बनाए गए हैं।"
+            if is_today
+            else f"आपके सिस्टम में कुल **{total_count} ट्रांसपोर्ट जॉब्स** पंजीकृत हैं।"
+        )
+    else:
+        msg = (
+            f"Today, **{total_count} Transport Job(s)** have been created."
+            if is_today
+            else f"You have **{total_count} Transport Job(s)** in your system."
+        )
+
+    return msg, [card]
+
+
 async def execute_tracking_tool(
     db: AsyncSession,
     user: User,
@@ -889,9 +1139,45 @@ def classify_operational_intent(text: str) -> Optional[Dict[str, Any]]:
     lower = clean_text.lower()
 
     # If the user is asking a conceptual / instructional question, return None so RAG handles it
-    from app.modules.ai.lr_draft_service import is_instructional_inquiry
+    from app.modules.ai.lr_draft_service import is_instructional_inquiry, is_lr_booking_intent
+    from app.modules.ai.job_draft_service import is_job_booking_intent
+    from app.modules.ai.hire_challan_draft_service import is_hire_challan_intent
+
+    # Prevent intercepting conversational booking intents
+    if is_lr_booking_intent(clean_text) or is_job_booking_intent(clean_text) or is_hire_challan_intent(clean_text):
+        return None
+
     if is_instructional_inquiry(clean_text):
         return None
+
+    # Detect count intent words in English, Hindi, and Hinglish
+    count_markers = ("kitni", "kitne", "kitna", "how many", "count", "total", "number of", "mere", "meri", "hamare", "list", "dikhao", "batao", "कितने", "कितनी", "कितना", "कुल", "संख्या")
+    is_count = any(w in lower for w in count_markers)
+
+    # 0A. Client / Customer Intent
+    client_markers = ["client", "clients", "billing client", "billing clients", "grahak", "customer", "customers", "क्लाइंट", "ग्राहक"]
+    if any(m in lower for m in client_markers):
+        return {
+            "tool": "client",
+            "is_count": is_count,
+        }
+
+    # 0B. Vendor / Supplier Intent
+    vendor_markers = ["vendor", "vendors", "supplier", "suppliers", "gadi malik", "transporter master", "वेंडर", "सप्लायर"]
+    if any(m in lower for m in vendor_markers):
+        return {
+            "tool": "vendor",
+            "is_count": is_count,
+        }
+
+    # 0C. Transport Job Operational Intent (Counts & Listings)
+    job_markers = ["job", "jobs", "job order", "job orders", "transport job", "transport jobs", "जॉब"]
+    if any(m in lower for m in job_markers):
+        return {
+            "tool": "job",
+            "is_count": is_count,
+            "is_today": "aaj" in lower or "today" in lower,
+        }
 
     # 1. Tracking Intent
     tracking_markers = ["track", "tracking", "kahan hai", "location of", "fastag status", "gps status", "sim status", "toll hit"]
@@ -975,7 +1261,7 @@ def classify_operational_intent(text: str) -> Optional[Dict[str, Any]]:
         }
 
     # 5. Driver Intent
-    driver_markers = ["driver", "drivers", "chalak", "sarathi"]
+    driver_markers = ["driver", "drivers", "chalak", "sarathi", "ड्राइवर", "चालक", "सारथी"]
     if any(m in lower for m in driver_markers):
         # Extract potential name if query format "driver search Ramesh" or "driver Ramesh"
         d_match = re.search(r"(?:driver|chalak)\s+([A-Za-z]+)", clean_text, re.IGNORECASE)
@@ -983,6 +1269,7 @@ def classify_operational_intent(text: str) -> Optional[Dict[str, Any]]:
         return {
             "tool": "driver",
             "query": driver_name,
+            "is_count": is_count,
         }
 
     return None

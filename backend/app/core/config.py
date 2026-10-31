@@ -99,6 +99,46 @@ class Settings(BaseSettings):
         ),
     )
     AI_SYSTEM_NAME: str = "Panther AI (Gemini 2.5 Flash)"
+
+    # Panther AI Assistant LLM Provider Configuration (Groq / NVIDIA / Gemini)
+    AI_PROVIDER: str = Field(
+        default="groq",
+        validation_alias=AliasChoices("AI_PROVIDER", "LLM_PROVIDER"),
+        description="Active LLM provider: 'groq', 'nvidia', or 'gemini'."
+    )
+    GROQ_API_KEY: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("GROQ_API_KEY"),
+    )
+    GROQ_BASE_URL: str = Field(
+        default="https://api.groq.com/openai/v1",
+        validation_alias=AliasChoices("GROQ_BASE_URL"),
+    )
+    GROQ_MODEL: str = Field(
+        default="qwen/qwen3.8-27b",
+        validation_alias=AliasChoices("GROQ_MODEL"),
+    )
+    NVIDIA_API_KEY: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "NVIDIA_API_KEY",
+            "NV_API_KEY",
+        ),
+    )
+    NVIDIA_BASE_URL: str = Field(
+        default="https://integrate.api.nvidia.com/v1",
+        validation_alias=AliasChoices(
+            "NVIDIA_BASE_URL",
+            "NV_BASE_URL",
+        ),
+    )
+    NVIDIA_MODEL: str = Field(
+        default="google/diffusiongemma-26b-a4b-it",
+        validation_alias=AliasChoices(
+            "NVIDIA_MODEL",
+            "NV_MODEL",
+        ),
+    )
     AI_ENABLE_LR_CREATION: bool = Field(
         default=False,
         validation_alias=AliasChoices("AI_ENABLE_LR_CREATION"),
@@ -158,6 +198,42 @@ class Settings(BaseSettings):
 
     def get_tenant_db_sync_url(self, db_name: str) -> str:
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{db_name}"
+
+    @property
+    def active_ai_provider(self) -> str:
+        prov = (self.AI_PROVIDER or "").lower().strip()
+        if prov in ("groq",):
+            return "groq"
+        if prov in ("nvidia", "nv"):
+            return "nvidia"
+        return "gemini"
+
+    @property
+    def active_ai_model(self) -> str:
+        prov = self.active_ai_provider
+        if prov == "groq":
+            return self.GROQ_MODEL
+        elif prov == "nvidia":
+            return self.NVIDIA_MODEL
+        return self.OPENAI_MODEL
+
+    @property
+    def active_ai_provider_name(self) -> str:
+        prov = self.active_ai_provider
+        if prov == "groq":
+            return "GroqCloud LPU (Qwen 3.8 27B)"
+        elif prov == "nvidia":
+            return "NVIDIA Hosted API (DiffusionGemma 26B)"
+        return "Google Gemini (OpenAI Compatible)"
+
+    @property
+    def active_ai_system_name(self) -> str:
+        prov = self.active_ai_provider
+        if prov == "groq":
+            return "Panther AI (Groq Qwen 3.8 27B)"
+        elif prov == "nvidia":
+            return "Panther AI (NVIDIA DiffusionGemma 26B)"
+        return self.AI_SYSTEM_NAME
 
 settings = Settings()
 

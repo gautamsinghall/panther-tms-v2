@@ -66,6 +66,9 @@ from app.modules.ai.tools import (
     execute_driver_tool,
     execute_tracking_tool,
     execute_accounting_tool,
+    execute_client_tool,
+    execute_vendor_tool,
+    execute_job_tool,
 )
 
 router = APIRouter(prefix="/ai", tags=["Panther AI"])
@@ -102,9 +105,9 @@ async def get_ai_status(
     configured = is_provider_configured()
     return AIStatusResponse(
         is_configured=configured,
-        model=settings.OPENAI_MODEL,
-        system_name=settings.AI_SYSTEM_NAME,
-        provider="Google Gemini (OpenAI Compatible)",
+        model=settings.active_ai_model,
+        system_name=settings.active_ai_system_name,
+        provider=settings.active_ai_provider_name,
         supported_languages=["English", "Hindi (हिन्दी)", "Hinglish"],
     )
 
@@ -268,7 +271,40 @@ async def chat_with_copilot(
         else:
             tool_name = op_intent.get("tool")
             cards = []
-            if tool_name == "lr":
+            if tool_name == "client":
+                reply_content, cards = await execute_client_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    query=op_intent.get("query"),
+                    is_count=op_intent.get("is_count", False),
+                    limit=6,
+                    lang=detected_lang,
+                )
+            elif tool_name == "vendor":
+                reply_content, cards = await execute_vendor_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    query=op_intent.get("query"),
+                    is_count=op_intent.get("is_count", False),
+                    limit=6,
+                    lang=detected_lang,
+                )
+            elif tool_name == "job":
+                reply_content, cards = await execute_job_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    is_today=op_intent.get("is_today", False),
+                    is_count=op_intent.get("is_count", False),
+                    limit=5,
+                    lang=detected_lang,
+                )
+            elif tool_name == "lr":
                 reply_content, cards = await execute_lr_tool(
                     db=db,
                     user=current_user,
@@ -331,19 +367,20 @@ async def chat_with_copilot(
     # 4. Check AI Provider configuration for general knowledge queries
     configured = is_provider_configured()
     if not configured:
+        key_name = "NVIDIA_API_KEY" if settings.active_ai_provider == "nvidia" else "OPENAI_API_KEY"
         if detected_lang == "hi_devanagari":
             unconfigured_msg = (
-                "पैंथर एआई (Panther AI) वर्तमान में सेटअप मोड में है क्योंकि बैकएंड में `OPENAI_API_KEY` कॉन्फ़िगर नहीं है। "
+                f"पैंथर एआई (Panther AI) वर्तमान में सेटअप मोड में है क्योंकि बैकएंड में `{key_name}` (या `OPENAI_API_KEY`) कॉन्फ़िगर नहीं है। "
                 "लाइव एआई उत्तरों को सक्रिय करने के लिए कृपया अपने बैकएंड `.env` फ़ाइल में API Key सेट करें।"
             )
         elif detected_lang == "hinglish":
             unconfigured_msg = (
-                "Panther AI abhi setup mode mein hai kyunki backend environment mein `OPENAI_API_KEY` configured nahi hai. "
+                f"Panther AI abhi setup mode mein hai kyunki backend environment mein `{key_name}` (ya `OPENAI_API_KEY`) configured nahi hai. "
                 "Live AI responses activate karne ke liye kripya backend `.env` file mein apni API Key set karein."
             )
         else:
             unconfigured_msg = (
-                "Panther AI is currently in setup mode because `OPENAI_API_KEY` is not configured in the backend environment. "
+                f"Panther AI is currently in setup mode because `{key_name}` (or `OPENAI_API_KEY`) is not configured in the backend environment. "
                 "To enable live assistant responses, please configure your AI provider API key in the backend `.env` file."
             )
 
@@ -394,7 +431,16 @@ async def chat_with_copilot(
         )
         reply_content = sanitize_ai_output(raw_reply)
     except Exception as e:
-        reply_content = f"Sorry, I encountered an issue while processing your request: {str(e)}"
+        err_msg = str(e)
+        if "Quota Exceeded" in err_msg or "rate limit" in err_msg.lower():
+            if detected_lang == "hi_devanagari":
+                reply_content = "एआई सेवा वर्तमान में व्यस्त है (रेट लिमिट)। कृपया कुछ सेकंड बाद पुनः प्रयास करें। आपकी कंपनी के डेटा प्रश्न (जैसे क्लाइंट, वेंडर, ड्राइवर या एलआर) अभी भी उपलब्ध हैं।"
+            elif detected_lang == "hinglish":
+                reply_content = "AI provider abhi rate limited hai. Kripya kuch second baad dobara try karein. Aapke company database queries (jaise clients, vendors, drivers, LRs) bina kisi rukawat ke chalte rahenge."
+            else:
+                reply_content = "The AI assistant is temporarily rate-limited. Please retry in a few moments. Note that direct company records queries (clients, vendors, drivers, LRs) remain fully operational."
+        else:
+            reply_content = f"Sorry, I encountered an issue while processing your request: {err_msg}"
 
     return ChatResponse(
         content=reply_content,
@@ -427,7 +473,13 @@ async def stream_chat_with_copilot(
             msg = "Operational data service is currently unavailable."
         else:
             tool_name = op_intent.get("tool")
-            if tool_name == "lr":
+            if tool_name == "client":
+                msg, _ = await execute_client_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+            elif tool_name == "vendor":
+                msg, _ = await execute_vendor_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+            elif tool_name == "job":
+                msg, _ = await execute_job_tool(db, current_user, tenant, current_office, is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False), lang=detected_lang)
+            elif tool_name == "lr":
                 msg, _ = await execute_lr_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), status_filter=op_intent.get("status_filter"), lang=detected_lang)
             elif tool_name == "tracking":
                 msg, _ = await execute_tracking_tool(db, current_user, tenant, vehicle_number=op_intent.get("vehicle_number"), lang=detected_lang)

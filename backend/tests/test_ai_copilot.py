@@ -500,6 +500,19 @@ def test_operational_intent_classification():
     t8 = classify_operational_intent("Mujhe LR book karni hai, kaise karu?")
     assert t8 is None
 
+    # 8. Operational Client, Vendor, Job queries
+    t_cl = classify_operational_intent("meri client kitni h")
+    assert t_cl is not None and t_cl["tool"] == "client" and t_cl["is_count"] is True
+
+    t_cl_en = classify_operational_intent("How many billing clients do I have?")
+    assert t_cl_en is not None and t_cl_en["tool"] == "client" and t_cl_en["is_count"] is True
+
+    t_vn = classify_operational_intent("Total vendors kitne hain?")
+    assert t_vn is not None and t_vn["tool"] == "vendor" and t_vn["is_count"] is True
+
+    t_jb = classify_operational_intent("Aaj kitne jobs create hue?")
+    assert t_jb is not None and t_jb["tool"] == "job" and t_jb["is_count"] is True and t_jb["is_today"] is True
+
 
 def test_tool_permission_and_rbac_gating():
     from app.modules.ai.tools import is_user_permitted
