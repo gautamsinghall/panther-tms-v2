@@ -647,11 +647,11 @@ export default function ReceiptVoucherPage() {
       sortable: true,
       render: (v) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-slate-100 flex items-center gap-1.5 font-mono">
-            <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 font-mono">
+            <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             {v.voucher_number}
           </span>
-          <span className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+          <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
             <Calendar className="h-3 w-3" />
             {formatDate(v.voucher_date)}
           </span>
@@ -664,11 +664,11 @@ export default function ReceiptVoucherPage() {
       sortable: true,
       render: (v) => (
         <div className="flex flex-col max-w-[200px]">
-          <span className="font-medium text-slate-800 dark:text-slate-800 dark:text-slate-200 truncate" title={v.party_name || "Direct Customer"}>
+          <span className="font-medium text-slate-800 dark:text-slate-200 truncate" title={v.party_name || "Direct Customer"}>
             {v.party_name || "Direct Customer"}
           </span>
           {v.party_gstin && (
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
               GST: {v.party_gstin}
             </span>
           )}
@@ -687,18 +687,18 @@ export default function ReceiptVoucherPage() {
             <div className="flex items-center gap-1.5">
               <span className={cn(
                 "px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase",
-                mode === "CASH" ? "bg-amber-950/80 text-amber-300 border border-amber-800/60" :
-                mode === "CHEQUE" ? "bg-purple-950/80 text-purple-300 border border-purple-800/60" :
-                "bg-blue-950/80 text-blue-300 border border-blue-800/60"
+                mode === "CASH" ? "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800/60" :
+                mode === "CHEQUE" ? "bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-800/60" :
+                "bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950/80 dark:text-blue-300 dark:border-blue-800/60"
               )}>
                 {mode}
               </span>
               {tb.clearance_status === "PENDING" && (
-                <span className="text-[10px] text-amber-400 font-medium">Pending Clear</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Pending Clear</span>
               )}
             </div>
             {ref && (
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mt-0.5 truncate max-w-[130px]" title={ref}>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono mt-0.5 truncate max-w-[130px]" title={ref}>
                 Ref: {ref}
               </span>
             )}
@@ -715,20 +715,20 @@ export default function ReceiptVoucherPage() {
         const allocCount = (v.bill_allocations || []).length;
         if (rType === "ADVANCE") {
           return (
-            <Badge variant="outline" className="bg-cyan-950/60 text-cyan-300 border-cyan-800/60 text-[11px]">
+            <Badge variant="outline" className="bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800/60 text-[11px]">
               Customer Advance
             </Badge>
           );
         }
         if (rType === "ON_ACCOUNT") {
           return (
-            <Badge variant="outline" className="bg-indigo-950/60 text-indigo-300 border-indigo-800/60 text-[11px]">
+            <Badge variant="outline" className="bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/60 text-[11px]">
               On Account
             </Badge>
           );
         }
         return (
-          <Badge variant="outline" className="bg-emerald-950/60 text-emerald-300 border-emerald-800/60 text-[11px]">
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60 text-[11px]">
             Against Bills ({allocCount})
           </Badge>
         );
@@ -740,10 +740,10 @@ export default function ReceiptVoucherPage() {
       sortable: true,
       render: (v) => (
         <div className="flex flex-col text-right">
-          <span className="font-semibold text-emerald-400 font-mono">
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
             {formatCurrency(v.net_amount)}
           </span>
-          <span className="text-[10px] text-slate-500">Net in Bank/Cash</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400">Net in Bank/Cash</span>
         </div>
       ),
     },
@@ -755,17 +755,17 @@ export default function ReceiptVoucherPage() {
         const tds = parseFloat(String(tb.tds_amount)) || 0;
         const disc = parseFloat(String(tb.discount_amount)) || 0;
         if (tds === 0 && disc === 0) {
-          return <span className="text-xs text-slate-500">—</span>;
+          return <span className="text-xs text-slate-500 dark:text-slate-400">—</span>;
         }
         return (
           <div className="flex flex-col text-xs">
             {tds > 0 && (
-              <span className="text-amber-400 font-mono">
-                TDS: {formatCurrency(tds)} <span className="text-[10px] text-slate-500">({tb.tds_section || "194C"})</span>
+              <span className="text-amber-600 dark:text-amber-400 font-mono">
+                TDS: {formatCurrency(tds)} <span className="text-[10px] text-slate-500 dark:text-slate-400">({tb.tds_section || "194C"})</span>
               </span>
             )}
             {disc > 0 && (
-              <span className="text-blue-400 font-mono">
+              <span className="text-blue-600 dark:text-blue-400 font-mono">
                 Disc: {formatCurrency(disc)}
               </span>
             )}
@@ -778,7 +778,7 @@ export default function ReceiptVoucherPage() {
       label: "Settlement Value",
       sortable: true,
       render: (v) => (
-        <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+        <span className="font-semibold text-slate-900 dark:text-slate-100 font-mono">
           {formatCurrency(v.total_amount)}
         </span>
       ),
@@ -792,7 +792,7 @@ export default function ReceiptVoucherPage() {
         }
         if (v.payment_status === "PENDING") {
           return (
-            <Badge variant="outline" className="bg-amber-950/60 text-amber-300 border-amber-800/60 text-[11px] flex items-center gap-1">
+            <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60 text-[11px] flex items-center gap-1">
               <Clock className="h-3 w-3" /> In Clearance
             </Badge>
           );
@@ -994,11 +994,12 @@ export default function ReceiptVoucherPage() {
         data={filteredData}
         isLoading={isLoading}
         actions={actions}
+        searchable={false}
         emptyState={
           <div className="py-12 text-center">
-            <ArrowDownLeft className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-slate-300">No Receipt Vouchers found</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <ArrowDownLeft className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">No Receipt Vouchers found</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Click &quot;Record Customer Receipt&quot; to post a customer collection with bill-wise settlement.
             </p>
             <Button

@@ -73,6 +73,8 @@ export function StatusBadge({ status, variant, customLabel, className, ...props 
       "active",
       "delivered",
       "paid",
+      "cleared",
+      "posted",
       "completed",
       "approved",
       "verified",
@@ -132,6 +134,7 @@ export function StatusBadge({ status, variant, customLabel, className, ...props 
       "suspended",
       "inactive",
       "void",
+      "voided",
       "danger",
     ].includes(normalized)
   ) {

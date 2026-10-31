@@ -733,6 +733,7 @@ export default function ContraVoucherPage() {
         data={filteredData}
         isLoading={isLoading}
         actions={actions}
+        searchable={false}
         emptyState={
           <div className="py-12 text-center">
             <ArrowLeftRight className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto mb-3" />

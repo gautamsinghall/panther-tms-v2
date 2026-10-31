@@ -1193,7 +1193,7 @@ export default function PurchasesPage() {
         columns={columns}
         data={filteredData}
         isLoading={isLoading}
-        searchPlaceholder="Filter records..."
+        searchable={false}
         actions={actions}
         emptyMessage="No purchase bills found"
         emptySubtext="Click 'Add Purchase Bill' above to record vendor bills and automatically post double-entry ledger entries."

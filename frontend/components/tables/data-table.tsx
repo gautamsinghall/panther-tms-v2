@@ -209,9 +209,9 @@ export function DataTable<T extends Record<string, any>>({
 
   const handleExportSelected = () => {
     if (selectedRowsList.length === 0) return;
-    const headers = columns.map((c) => c.header).join(",");
+    const headers = columns.map((c) => c.header || c.label || c.key || c.id || "").join(",");
     const rows = selectedRowsList.map((row) =>
-      columns.map((c) => `"${String(row[c.key] ?? "").replace(/"/g, '""')}"`).join(",")
+      columns.map((c) => `"${String(row[c.key || c.id || ""] ?? "").replace(/"/g, '""')}"`).join(",")
     );
     const csvContent = [headers, ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -354,11 +354,12 @@ export function DataTable<T extends Record<string, any>>({
                   </th>
                 )}
 
-                {columns.map((col) => {
-                  const isSorted = sortKey === col.key;
+                {columns.map((col, cIdx) => {
+                  const colKey = (col.key || col.id || `col-${cIdx}`) as string;
+                  const isSorted = sortKey === colKey;
                   return (
                     <th
-                      key={col.key}
+                      key={colKey}
                       style={{ width: col.width }}
                       className={cn(
                         "text-xs font-semibold uppercase tracking-wider text-slate-500 select-none font-mono",
@@ -367,7 +368,7 @@ export function DataTable<T extends Record<string, any>>({
                         col.align === "center" ? "text-center" : "",
                         col.sortable ? "cursor-pointer hover:text-slate-900" : ""
                       )}
-                      onClick={() => col.sortable && handleSort(col.key)}
+                      onClick={() => col.sortable && handleSort(colKey)}
                     >
                       <div
                         className={cn(
@@ -508,10 +509,11 @@ export function DataTable<T extends Record<string, any>>({
                       )}
 
                       {/* Data Columns */}
-                      {columns.map((col) => {
+                      {columns.map((col, cIdx) => {
+                        const colKey = (col.key || col.id || `col-${cIdx}`) as string;
                         return (
                           <td
-                            key={col.key}
+                            key={colKey}
                             style={{ width: col.width }}
                             className={cn(
                               "text-xs sm:text-[13px] text-slate-800 font-medium",
@@ -520,7 +522,7 @@ export function DataTable<T extends Record<string, any>>({
                               col.align === "center" ? "text-center" : ""
                             )}
                           >
-                            {col.cell ? col.cell(row, rIndex) : col.render ? col.render(row, rIndex) : (row[col.key] ?? "-")}
+                            {col.cell ? col.cell(row, rIndex) : col.render ? col.render(row, rIndex) : (row[colKey] ?? "-")}
                           </td>
                         );
                       })}

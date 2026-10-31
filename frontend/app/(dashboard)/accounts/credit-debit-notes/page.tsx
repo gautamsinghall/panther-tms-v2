@@ -522,25 +522,28 @@ export default function CreditDebitNotesPage() {
   // Table Columns Definition
   const columns: ColumnDef<VoucherRecord>[] = [
     {
+      key: "voucher_number",
       id: "voucher_number",
       header: "NOTE # & DATE",
+      sortable: true,
       cell: (v: VoucherRecord) => (
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground font-mono">{v.voucher_number}</span>
+            <span className="font-semibold text-slate-900 dark:text-white font-mono">{v.voucher_number}</span>
             {v.is_void ? (
-              <Badge variant="destructive" className="text-[10px] px-1 py-0 uppercase">VOIDED</Badge>
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 uppercase bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300">VOIDED</Badge>
             ) : (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-emerald-500 border-emerald-500/30">POSTED</Badge>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold">POSTED</Badge>
             )}
           </div>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
             <Calendar className="w-3 h-3" /> {formatDate(v.voucher_date)}
           </span>
         </div>
       ),
     },
     {
+      key: "note_category",
       id: "note_category",
       header: "ADJUSTMENT CATEGORY",
       cell: (v: VoucherRecord) => {
@@ -549,83 +552,88 @@ export default function CreditDebitNotesPage() {
           case "SALES_CREDIT_NOTE":
             return (
               <div className="flex flex-col">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
                   <ArrowDownLeft className="w-3.5 h-3.5" /> Customer Credit Note
                 </span>
-                <span className="text-[11px] text-muted-foreground">Bill Reduction / Claim</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Bill Reduction / Claim</span>
               </div>
             );
           case "SALES_DEBIT_NOTE":
             return (
               <div className="flex flex-col">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-500">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
                   <ArrowUpRight className="w-3.5 h-3.5" /> Customer Debit Note
                 </span>
-                <span className="text-[11px] text-muted-foreground">Extra Charge / Detention</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Extra Charge / Detention</span>
               </div>
             );
           case "PURCHASE_DEBIT_NOTE":
             return (
               <div className="flex flex-col">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                   <ArrowDownLeft className="w-3.5 h-3.5" /> Supplier Debit Note
                 </span>
-                <span className="text-[11px] text-muted-foreground">Purchase Return / Shortage</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Purchase Return / Shortage</span>
               </div>
             );
           case "PURCHASE_CREDIT_NOTE":
             return (
               <div className="flex flex-col">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-500">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400">
                   <ArrowUpRight className="w-3.5 h-3.5" /> Supplier Credit Note
                 </span>
-                <span className="text-[11px] text-muted-foreground">Additional Vendor Charge</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Additional Vendor Charge</span>
               </div>
             );
         }
       },
     },
     {
+      key: "party_name",
       id: "party_name",
       header: "CUSTOMER / VENDOR",
+      sortable: true,
       cell: (v: VoucherRecord) => (
         <div className="flex flex-col">
-          <span className="font-medium text-foreground text-sm">{v.party_name || "Unknown Party"}</span>
-          <span className="text-xs text-muted-foreground font-mono">
+          <span className="font-medium text-slate-800 dark:text-slate-200 text-sm">{v.party_name || "Unknown Party"}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
             {v.party_gstin ? `GSTIN: ${v.party_gstin}` : "Unregistered"}
           </span>
         </div>
       ),
     },
     {
+      key: "reference",
       id: "reference",
       header: "ORIGINAL INVOICE",
       cell: (v: VoucherRecord) => (
         <div className="flex flex-col">
           {v.against_voucher_number || v.reference_number ? (
-            <span className="font-mono text-xs font-medium text-primary">
+            <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">
               #{v.against_voucher_number || v.reference_number}
             </span>
           ) : (
-            <span className="text-xs text-muted-foreground italic">On-Account / Direct</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 italic">On-Account / Direct</span>
           )}
-          <span className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[180px]">
             {v.tax_breakup?.reason_description || `Reason Code ${v.reason_code || "04"}`}
           </span>
         </div>
       ),
     },
     {
+      key: "amounts",
       id: "amounts",
       header: "TAXABLE & GST",
+      align: "right",
       cell: (v: VoucherRecord) => {
         const taxable = parseFloat(String(v.total_amount || 0));
         const tax = parseFloat(String(v.tax_amount || 0));
         const isGst = v.tax_breakup?.is_gst_note !== false && tax > 0;
         return (
           <div className="flex flex-col text-right">
-            <span className="text-xs text-muted-foreground">Taxable: {formatCurrency(taxable)}</span>
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-xs text-slate-500 dark:text-slate-400">Taxable: {formatCurrency(taxable)}</span>
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
               GST: {isGst ? formatCurrency(tax) : "₹0.00 (Commercial)"}
             </span>
           </div>
@@ -633,17 +641,21 @@ export default function CreditDebitNotesPage() {
       },
     },
     {
+      key: "net_amount",
       id: "net_amount",
       header: "NET AMOUNT",
+      align: "right",
+      isNumeric: true,
+      sortable: true,
       cell: (v: VoucherRecord) => {
         const net = parseFloat(String(v.net_amount || 0));
         const isCredit = v.voucher_type === "CREDIT_NOTE";
         return (
           <div className="flex flex-col text-right">
-            <span className={cn("font-bold text-sm", isCredit ? "text-emerald-500" : "text-amber-500")}>
+            <span className={cn("font-bold text-sm font-mono", isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
               {formatCurrency(net)}
             </span>
-            <span className="text-[10px] text-muted-foreground uppercase">{v.voucher_type.replace(/_/g, " ")}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">{v.voucher_type.replace(/_/g, " ")}</span>
           </div>
         );
       },
@@ -745,13 +757,13 @@ export default function CreditDebitNotesPage() {
         <button
           type="button"
           onClick={() => openCreateDrawer("SALES_CREDIT_NOTE")}
-          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-blue-500/30 hover:border-blue-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-blue-50/50 dark:bg-[#17171B] hover:bg-blue-50 dark:hover:bg-[#202025] border border-blue-200 dark:border-blue-500/30 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer"
         >
-          <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-semibold text-sm">
             <ArrowDownLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             <span>Reduce Customer Bill</span>
           </div>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[11px] text-slate-600 dark:text-slate-400">
             Credit Note: Rate rebate, shortage claim, excess billing
           </span>
         </button>
@@ -759,13 +771,13 @@ export default function CreditDebitNotesPage() {
         <button
           type="button"
           onClick={() => openCreateDrawer("SALES_DEBIT_NOTE")}
-          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-amber-500/30 hover:border-amber-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-amber-50/50 dark:bg-[#17171B] hover:bg-amber-50 dark:hover:bg-[#202025] border border-amber-200 dark:border-amber-500/30 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer"
         >
-          <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold text-sm">
             <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             <span>Add Extra Customer Charge</span>
           </div>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[11px] text-slate-600 dark:text-slate-400">
             Debit Note: Vehicle detention, underbilling, extra drops
           </span>
         </button>
@@ -773,13 +785,13 @@ export default function CreditDebitNotesPage() {
         <button
           type="button"
           onClick={() => openCreateDrawer("PURCHASE_DEBIT_NOTE")}
-          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-emerald-500/30 hover:border-emerald-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-emerald-50/50 dark:bg-[#17171B] hover:bg-emerald-50 dark:hover:bg-[#202025] border border-emerald-200 dark:border-emerald-500/30 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer"
         >
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold text-sm">
             <ArrowDownLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             <span>Reduce Supplier Bill</span>
           </div>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[11px] text-slate-600 dark:text-slate-400">
             Debit Note: Shortage deduction, purchase return, damage
           </span>
         </button>
@@ -787,27 +799,27 @@ export default function CreditDebitNotesPage() {
         <button
           type="button"
           onClick={() => openCreateDrawer("PURCHASE_CREDIT_NOTE")}
-          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-card hover:bg-muted/50 border border-purple-500/30 hover:border-purple-500/60 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+          className="h-auto py-3.5 px-4 rounded-xl flex flex-col items-start gap-1 bg-purple-50/50 dark:bg-[#17171B] hover:bg-purple-50 dark:hover:bg-[#202025] border border-purple-200 dark:border-purple-500/30 text-left transition-all group focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer"
         >
-          <div className="flex items-center gap-2 text-purple-400 font-semibold text-sm">
+          <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400 font-semibold text-sm">
             <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             <span>Adjust Supplier Charge</span>
           </div>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[11px] text-slate-600 dark:text-slate-400">
             Credit Note: Additional vendor bill, approved rate escalation
           </span>
         </button>
       </div>
 
       {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between bg-card p-4 rounded-xl border border-border">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 sm:p-5 shadow-2xs space-y-3.5">
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 flex-nowrap min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant={activeTab === "ALL" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("ALL")}
-            className="text-xs whitespace-nowrap flex-shrink-0 h-8 px-3"
+            className="text-xs whitespace-nowrap h-8 px-3"
           >
             All Notes ({data.length})
           </Button>
@@ -815,7 +827,7 @@ export default function CreditDebitNotesPage() {
             variant={activeTab === "SALES_CREDIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("SALES_CREDIT_NOTE")}
-            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "SALES_CREDIT_NOTE" && "text-blue-400 hover:text-blue-300 border-blue-500/30")}
+            className={cn("text-xs whitespace-nowrap h-8 px-3", activeTab !== "SALES_CREDIT_NOTE" && "text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border-blue-200 dark:border-blue-500/30")}
           >
             Customer Reductions (CN)
           </Button>
@@ -823,7 +835,7 @@ export default function CreditDebitNotesPage() {
             variant={activeTab === "SALES_DEBIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("SALES_DEBIT_NOTE")}
-            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "SALES_DEBIT_NOTE" && "text-amber-400 hover:text-amber-300 border-amber-500/30")}
+            className={cn("text-xs whitespace-nowrap h-8 px-3", activeTab !== "SALES_DEBIT_NOTE" && "text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 border-amber-200 dark:border-amber-500/30")}
           >
             Customer Charges (DN)
           </Button>
@@ -831,7 +843,7 @@ export default function CreditDebitNotesPage() {
             variant={activeTab === "PURCHASE_DEBIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("PURCHASE_DEBIT_NOTE")}
-            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "PURCHASE_DEBIT_NOTE" && "text-emerald-400 hover:text-emerald-300 border-emerald-500/30")}
+            className={cn("text-xs whitespace-nowrap h-8 px-3", activeTab !== "PURCHASE_DEBIT_NOTE" && "text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 border-emerald-200 dark:border-emerald-500/30")}
           >
             Supplier Returns (DN)
           </Button>
@@ -839,29 +851,29 @@ export default function CreditDebitNotesPage() {
             variant={activeTab === "PURCHASE_CREDIT_NOTE" ? "primary" : "outline"}
             size="sm"
             onClick={() => setActiveTab("PURCHASE_CREDIT_NOTE")}
-            className={cn("text-xs whitespace-nowrap flex-shrink-0 h-8 px-3", activeTab !== "PURCHASE_CREDIT_NOTE" && "text-purple-400 hover:text-purple-300 border-purple-500/30")}
+            className={cn("text-xs whitespace-nowrap h-8 px-3", activeTab !== "PURCHASE_CREDIT_NOTE" && "text-purple-700 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 border-purple-200 dark:border-purple-500/30")}
           >
             Supplier Charges (CN)
           </Button>
         </div>
 
         {/* Search & Select Filters */}
-        <div className="flex items-center gap-2">
-          <div className="relative w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100 dark:border-[#303036]">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               placeholder="Search note #, party, invoice #..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-background border border-border rounded-md pl-9 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl pl-9 pr-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
             />
           </div>
 
           <select
             value={statusFilter}
             onChange={(e: any) => setStatusFilter(e.target.value)}
-            className="bg-background border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none"
+            className="bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
           >
             <option value="ALL">All Status</option>
             <option value="ACTIVE">Active Only</option>
@@ -871,37 +883,43 @@ export default function CreditDebitNotesPage() {
           <select
             value={gstFilter}
             onChange={(e: any) => setGstFilter(e.target.value)}
-            className="bg-background border border-border rounded-md px-2.5 py-1.5 text-xs text-foreground focus:outline-none"
+            className="bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
           >
             <option value="ALL">All Tax Types</option>
             <option value="GST">Statutory GST Notes</option>
             <option value="COMMERCIAL">Financial Commercial Notes</option>
           </select>
 
-          <Button variant="ghost" size="sm" onClick={loadData} disabled={isLoading}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadData}
+            disabled={isLoading}
+            className="h-8 w-8 p-0 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-xl"
+            title="Refresh Notes"
+          >
             <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
           </Button>
         </div>
       </div>
 
       {/* Main Table */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <DataTable
-          columns={columns}
-          data={filteredData}
-          rowActions={rowActions}
-          isLoading={isLoading}
-          emptyState={
-            <div className="py-12 flex flex-col items-center justify-center text-center">
-              <FileText className="w-12 h-12 text-muted-foreground/40 mb-3" />
-              <h3 className="font-semibold text-foreground text-sm">No Credit or Debit Notes Found</h3>
-              <p className="text-xs text-muted-foreground max-w-sm mt-1">
-                Use the buttons above to issue a customer credit note, extra detention charge, or supplier return.
-              </p>
-            </div>
-          }
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        actions={rowActions}
+        searchable={false}
+        isLoading={isLoading}
+        emptyState={
+          <div className="py-12 flex flex-col items-center justify-center text-center">
+            <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm">No Credit or Debit Notes Found</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
+              Use the buttons above to issue a customer credit note, extra detention charge, or supplier return.
+            </p>
+          </div>
+        }
+      />
 
       {/* =========================================================================
           CREATE CREDIT / DEBIT NOTE DRAWER

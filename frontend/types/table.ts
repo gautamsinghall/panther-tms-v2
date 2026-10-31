@@ -3,7 +3,8 @@ import React from "react";
 export type SortDirection = "asc" | "desc" | null;
 
 export interface ColumnDef<T> {
-  key: string;
+  key?: string;
+  id?: string; // alias for key
   header?: string;
   label?: string; // alias for header
   sortable?: boolean;
