@@ -57,6 +57,21 @@ class HireChallanRegisterRow(BaseModel):
     hire_rate: Decimal
     advance_amount: Decimal
     balance_amount: Decimal
+    net_payable_amount: Optional[Decimal] = Decimal("0.00")
+    tds_category: Optional[str] = None
+    tds_rate: Optional[Decimal] = Decimal("0.00")
+    tds_amount: Optional[Decimal] = Decimal("0.00")
+    vendor_ref_no: Optional[str] = None
+    detention_charge: Optional[Decimal] = Decimal("0.00")
+    mamul_charges: Optional[Decimal] = Decimal("0.00")
+    owner_id: Optional[int] = None
+    driver_phone: Optional[str] = None
+    issuing_office_id: Optional[int] = None
+    issuing_office_name: Optional[str] = None
+    issuing_office_code: Optional[str] = None
+    remarks: Optional[str] = None
+    lr_id: Optional[int] = None
+    lr_number: Optional[str] = None
     status: str
 
     model_config = ConfigDict(from_attributes=True)
