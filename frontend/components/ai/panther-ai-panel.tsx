@@ -100,6 +100,7 @@ export function PantherAIPanel() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isSubmittingRef = useRef(false);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -111,6 +112,15 @@ export function PantherAIPanel() {
       setTimeout(() => textareaRef.current?.focus(), 150);
     }
   }, [isOpen, messages, scrollToBottom]);
+
+  // Auto-resize textarea smoothly without layout jumps
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      const scrollH = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.min(Math.max(scrollH, 36), 120)}px`;
+    }
+  }, [input]);
 
   // Check provider status on mount
   useEffect(() => {
@@ -132,15 +142,21 @@ export function PantherAIPanel() {
   }, [isOpen]);
 
   const handleSendMessage = async (textToSend?: string) => {
+    if (isSubmittingRef.current) return;
     const rawContent = textToSend !== undefined ? textToSend : input;
     const trimmed = rawContent.trim();
     if (!trimmed || isLoading) return;
 
+    isSubmittingRef.current = true;
     setError(null);
     setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
 
+    const uniqueUserId = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const userMessage: Message = {
-      id: `user-${Date.now()}`,
+      id: uniqueUserId,
       role: "user",
       content: trimmed,
       timestamp: new Date(),
@@ -175,8 +191,9 @@ export function PantherAIPanel() {
 
       setIsProviderConfigured(response.provider_configured);
 
+      const uniqueAsstId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
+        id: uniqueAsstId,
         role: "assistant",
         content: response.content,
         navigationSuggestions: response.navigation_suggestions,
@@ -192,6 +209,7 @@ export function PantherAIPanel() {
       setError(errorMsg);
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -242,8 +260,17 @@ export function PantherAIPanel() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter") {
+      if (e.shiftKey) {
+        // Shift + Enter produces a newline naturally
+        return;
+      }
+      if (e.nativeEvent.isComposing) {
+        // IME composition in progress (e.g. Hindi or multilingual IME); do not submit
+        return;
+      }
       e.preventDefault();
+      e.stopPropagation();
       handleSendMessage();
     }
   };
@@ -853,6 +880,33 @@ export function PantherAIPanel() {
                               </div>
                             )}
 
+                            {card.items && card.items.length > 0 && (
+                              <div className="space-y-1.5 pt-1">
+                                {card.items.map((it, itIdx) => (
+                                  <div
+                                    key={itIdx}
+                                    className="p-2 rounded-xl bg-slate-50 dark:bg-[#1A1E31] border border-slate-200/60 dark:border-[#2D3452] text-xs"
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="font-semibold text-slate-900 dark:text-white truncate">
+                                        {it.primary}
+                                      </span>
+                                      {it.amount && (
+                                        <span className="font-bold text-[#5B50E6] dark:text-violet-400 shrink-0 font-mono text-[11px]">
+                                          {it.amount}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {it.secondary && (
+                                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                        {it.secondary}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
                             {card.action && (
                               <button
                                 type="button"
@@ -948,9 +1002,10 @@ export function PantherAIPanel() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             handleSendMessage();
           }}
-          className="relative flex items-center bg-white dark:bg-[#141727] rounded-2xl border border-slate-200 dark:border-[#252B46] p-1.5 focus-within:border-[#5B50E6] dark:focus-within:border-[#5B50E6] focus-within:ring-1 focus-within:ring-[#5B50E6] transition-all shadow-2xs"
+          className="relative flex items-end bg-white dark:bg-[#141727] rounded-2xl border border-slate-200 dark:border-[#252B46] p-1.5 focus-within:border-[#5B50E6] dark:focus-within:border-[#5B50E6] focus-within:ring-1 focus-within:ring-[#5B50E6] transition-all shadow-2xs"
         >
           <textarea
             ref={textareaRef}
@@ -958,16 +1013,16 @@ export function PantherAIPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Panther AI anything..."
+            placeholder="Ask Panther AI anything... (Shift+Enter for newline)"
             disabled={isLoading}
-            className="flex-1 max-h-24 bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-hidden px-2.5 py-1.5 leading-relaxed"
+            className="flex-1 min-h-[36px] max-h-[120px] bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-hidden px-2.5 py-2 leading-relaxed overflow-y-auto"
           />
 
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
             aria-label="Send message"
-            className="w-8 h-8 rounded-xl bg-[#5B50E6] hover:bg-[#4E43D8] disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white flex items-center justify-center transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed shadow-2xs"
+            className="w-8 h-8 rounded-xl bg-[#5B50E6] hover:bg-[#4E43D8] disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 text-white flex items-center justify-center transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed shadow-2xs mb-0.5"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

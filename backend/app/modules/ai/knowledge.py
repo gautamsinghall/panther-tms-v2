@@ -16,56 +16,94 @@ TMS_CORE_KNOWLEDGE = """
 1. LR / GR BOOKING (Lorry Receipt / Goods Receipt / Consignment Note):
 - Path: /transport/lr-booking
 - Mandatory Fields: Vehicle Number (`vehicle_number`), Consigner (`consigner_id`), Consignee (`consignee_id`).
-- Auto-allocated Series: `lr_number` is automatically generated from active Series Master for the issuing office if left empty, or validated for manual format.
-- Financials: Freight rate, freight amount, loading charges, unloading charges, other charges, total freight amount, advance amount, balance amount.
-- Payment Terms: 'TO_PAY' (Consignee pays at destination), 'PAID' (Consigner paid upfront), or 'TO_BE_BILLED' (Billed to customer on monthly invoice).
+- Auto-allocated Series: `lr_number` is automatically generated from active Series Master for the issuing office if left empty.
+- Financials: Freight rate, freight amount, loading charges, unloading charges, total freight, advance, balance.
+- Payment Terms: 'TO_PAY' (Consignee pays), 'PAID' (Consigner paid), or 'TO_BE_BILLED' (Account billing).
 - Multi-item Invoices: Supports list of invoices with Invoice No, Date, Value, and E-Way Bill Number.
 - Status Life Cycle: BOOKED -> IN_TRANSIT -> DELIVERED (or CANCELLED / RESERVED).
-- Issuing Office: Every LR is attached to the user's active branch / issuing office.
 
 2. HIRE CHALLAN (Truck Hiring Memo):
 - Path: /transport/hire-challan
 - Purpose: Issued to third-party market vehicle owners and drivers for hired trips.
-- Key Information: Market vehicle, vendor/owner, driver, agreed hiring freight, diesel advance, cash advance, balance payable at unloading, and destination branch.
+- Key Information: Market vehicle, vendor/owner, driver, agreed hiring freight, diesel advance, cash advance, balance payable at unloading.
 
 3. JOB CREATION (Booking Orders / Indents):
 - Path: /transport/jobs
-- Purpose: Pre-booking transport jobs before vehicle placement.
-- Key Information: Client, origin location, destination location, estimated packages, estimated weight (MT). Jobs transition to LR once vehicles are assigned.
+- Purpose: Pre-booking transport jobs before vehicle placement. Clients, origin, destination, estimated packages, weight (MT).
 
 4. FLEET & DRIVERS:
 - Market Vehicles: /transport/market-vehicles (Third-party hired trucks with owner mapping).
-- Company Vehicles: /transport/company-vehicles (Tenant-owned dedicated fleet with registration, chassis, insurance).
+- Company Vehicles: /transport/company-vehicles (Dedicated fleet with registration, chassis, fitness, insurance).
 - Drivers: /transport/drivers (Driver profile, license number, Aadhar number, phone, license validity).
 - Vehicle Owners: /transport/vehicle-owners (Transporters / fleet brokers supplying market trucks).
+- Arrival Reports: /transport/arrival-reports (Inbound vehicle arrival logs and package count verification).
+- POD Records: /transport/pod-records (Proof of delivery verification, signed copy uploads, unlocks billing).
+- Truck Hiring Note: /transport/truck-hiring-note (Contracted loading terms and penalty clauses).
+- Update E-Way Bill: /transport/eway-bill (NIC Part-B vehicle updates and validity extension).
 
 5. GENERAL MASTERS:
-- Billing Clients: /general/billing-client (Customers who pay for freight, with GSTIN, billing address, credit days).
+- Billing Clients: /general/billing-client (Customers who pay for freight, GSTIN, billing address, credit days).
 - Consigners: /general/consigner (Pickup / loading parties).
 - Consignees: /general/consignee (Delivery / receiving parties).
-- Locations: /general/location (Cities, industrial areas, godown locations).
-- Vendors: /general/vendor (Petrol pumps, repair vendors, brokers).
-- Indian PIN Codes: Automatically resolves City, State, and Country from 6-digit Indian PIN codes.
+- Vendors: /general/vendor (Petrol pumps, repair workshops, brokers).
+- Locations: /general/location (Cities, industrial hubs, ports).
+- Industry, Designation, Group Company, Unit, Packing Method, Load Type.
+- PIN Code Lookup: /api/v1/general/pincode/{pincode} (Resolves city, district, and state from 6-digit postal PIN codes).
 
 6. SHIPMENT TRACKING MODES:
-- FASTag Tracking: /tracking/fastag (Tracks toll plaza crossings via vehicle FASTag with automated anti-spam cooldown protection).
-- SIM-based Tracking: /tracking/sim (Consent-driven driver phone location tracking via Freight Tiger integration; requires driver SMS consent).
-- GPS Tracking: /tracking/gps (Live telematics coordinates for GPS-fitted vehicles).
+- FASTag Tracking: /tracking/fastag (Tracks toll plaza crossings via vehicle FASTag with automated 10-minute anti-spam cooldown).
+- SIM-based Tracking: /tracking/sim (Consent-driven driver phone location tracking via Freight Tiger; requires driver SMS consent).
+- GPS Tracking: /tracking/gps (Live continuous telematics coordinates for GPS-fitted vehicles).
 
-7. ACCOUNTS & MASTER LEDGER:
-- Master Ledger: /accounts/master-ledger (Real-time financial ledgers for Billing Clients, Vendors, and Drivers with running debit/credit balances).
-- Vouchers: /accounts/vouchers (Standard Indian double-entry accounting conforming to Tally Prime Chart of Accounts: Receipt, Payment, Contra, Journal, Sales, Purchase).
+7. TRANSPORT REPORTS:
+- LR Booking Register: /transport-reports/lr-register
+- Invoice Register: /transport-reports/invoice-register
+- LR Client-Wise: /transport-reports/lr-client-wise
+- Hire Challan Register: /transport-reports/hc-register
+- Pending HC Report: /transport-reports/pending-hc
+- Unbilled Reports: /transport-reports/unbilled
+- Arrival Report Register: /transport-reports/arrival-register
+- Unused GR/LR Series: /transport-reports/unused-series
+
+8. E-INVOICING (NIC GST Portal):
+- Generate IRN: /einvoicing/generate-irn (Converts invoices into government IRN with digital signature and QR code).
+- IRN Generated List: /einvoicing/irn-list
+- Cancel IRN: /einvoicing/cancel-irn (24-hour legal window cancellation).
+- Taxpayer Details: /einvoicing/taxpayer (Real-time live GSTIN verification).
+
+9. ACCOUNTS & MASTER LEDGER:
 - Transport Invoices: /accounts/transport-invoice (Generates GST compliant freight invoices from booked LRs).
+- General Invoice: /accounts/general-invoice, Proforma Invoice: /accounts/proforma-invoice, Purchases: /accounts/purchases.
+- Vouchers: Receipt, Payment, Contra, Credit/Debit Notes conforming to Tally Prime Chart of Accounts.
+- Master Ledger: /accounts/master-ledger (Real-time running debit/credit balances).
 
-8. ISSUING OFFICES & ROLES:
-- Issuing Offices: Head Office and Branches. Every transport transaction belongs to a designated branch.
-- Company Admins: Universal view across all branches, manage company settings, users, and roles.
-- Employees: Restricted strictly to their assigned issuing offices and configured RBAC permissions.
+10. MISC MASTERS:
+- Primary Group: /misc/primary-group, Group in Primary: /misc/group-in-primary, Subgroup: /misc/subgroup.
+- Employee Master: /misc/employee-master, Charge Head: /misc/charge-head, Tax Category: /misc/tax-category.
 
-9. COMMON APPLICATION ERRORS & FIXES:
-- "Token was issued for a different tenant" or "401": Session belongs to another company; log in with the correct company code.
-- "Access to issuing office forbidden" or "403": Employee attempting to create or view records for an unassigned branch.
-- "Entitlement locked" or "SUBSCRIPTION_SUSPENDED": Current tenant subscription plan (e.g. Free) does not include this module (e.g. SIM Tracking or E-Invoicing requires Pro or Business plan).
+11. REPORTS (FINANCIAL):
+- Daybook: /reports/daybook, Ledger: /reports/ledger, Trial Balance: /reports/trial-balance.
+- Balance Sheet: /reports/balance-sheet, Profit & Loss: /reports/profit-loss, Bank Reconciliation: /reports/bank-reconciliation.
+
+12. STATEMENTS:
+- GST Output: /statements/gst-output, GST Input: /statements/gst-input.
+- Outstanding Debtors: /statements/os-debtor, Outstanding Creditors: /statements/os-creditor.
+- TDS Payable & Return: /statements/tds-payable, /statements/tds-return, Opening Balance: /statements/opening-balance.
+
+13. FLEET MANAGEMENT:
+- Trip Expense & Advance: /fleet/trip-expense, /fleet/trip-advance, Expense Register: /fleet/trip-expense-register.
+- Truck-Wise P&L: /fleet/truck-pnl, Vehicle Health: /fleet/vehicle-health, Documents: /fleet/documents.
+- Tyre Management: /fleet/tyre, Repair & Service: /fleet/service.
+
+14. API CENTER:
+- E-Way Bill API: /api-center/eway-bill, GPS Tracking API: /api-center/gps.
+- FASTag API: /api-center/fastag, SIM Tracking API: /api-center/sim.
+
+15. COMPANY SETTINGS, SYSTEM SETTINGS & PROFILE:
+- Issuing Offices / Branches: /company/branches. Every transport transaction belongs to a designated branch.
+- User Management: /company/users, Roles & Permissions: /company/roles.
+- Series Master: /settings/series-master, Admin Setting: /settings/admin, Activity Log: /settings/activity.
+- User Profile: /profile/account, Change Password: /profile/change-password, Monthly P&L: /profile/monthly-pnl.
 """
 
 # Contextual suggestions per route
@@ -110,6 +148,31 @@ ROUTE_SUGGESTIONS: Dict[str, List[str]] = {
     "/general/billing-client": [
         "What details are required to add a Billing Client?",
         "How to set credit days and GSTIN for clients?",
+    ],
+    "/einvoicing/generate-irn": [
+        "How do I generate an IRN for a transport invoice?",
+        "What is the 24-hour IRN cancellation rule?",
+        "Take me to Taxpayer Details",
+    ],
+    "/transport-reports/lr-register": [
+        "How do I export the LR booking register?",
+        "Branch-wise unbilled LRs kaise check karein?",
+        "Take me to Hire Challan Register",
+    ],
+    "/reports/profit-loss": [
+        "How is Truck-wise P&L calculated?",
+        "Explain Gross Margin vs Operating Profit in PantherTMS",
+        "Take me to Balance Sheet",
+    ],
+    "/fleet/trip-expense": [
+        "How to enter trip advances and diesel expenses?",
+        "Tyre serial number kaise map karein?",
+        "Take me to Vehicle Health",
+    ],
+    "/company/branches": [
+        "How do I add a new branch office?",
+        "Employee ko branch access kaise assign karein?",
+        "Take me to Roles & Permissions",
     ],
 }
 
@@ -215,25 +278,49 @@ def resolve_navigation_suggestions(
         ("gaadi", ["/transport/market-vehicles"]),
         ("driver", ["/transport/drivers"]),
         ("owner", ["/transport/vehicle-owners"]),
-        ("fastag", ["/tracking/fastag"]),
-        ("sim", ["/tracking/sim"]),
-        ("gps", ["/tracking/gps"]),
+        ("arrival", ["/transport/arrival-reports", "/transport-reports/arrival-register"]),
+        ("pod", ["/transport/pod-records"]),
+        ("eway", ["/transport/eway-bill", "/api-center/eway-bill"]),
+        ("fastag", ["/tracking/fastag", "/api-center/fastag"]),
+        ("sim", ["/tracking/sim", "/api-center/sim"]),
+        ("gps", ["/tracking/gps", "/api-center/gps"]),
         ("tracking", ["/tracking/fastag", "/tracking/sim", "/tracking/gps"]),
         ("ledger", ["/accounts/master-ledger", "/reports/ledger"]),
         ("khata", ["/accounts/master-ledger"]),
-        ("invoice", ["/accounts/transport-invoice", "/accounts/general-invoice"]),
+        ("invoice", ["/accounts/transport-invoice", "/transport-reports/invoice-register"]),
         ("bill", ["/accounts/transport-invoice"]),
-        ("client", ["/general/billing-client"]),
+        ("voucher", ["/accounts/receipt-voucher", "/accounts/payment-voucher"]),
+        ("client", ["/general/billing-client", "/transport-reports/lr-client-wise"]),
         ("consigner", ["/general/consigner"]),
         ("consignee", ["/general/consignee"]),
         ("vendor", ["/general/vendor"]),
+        ("location", ["/general/location"]),
         ("branch", ["/company/branches"]),
         ("office", ["/company/branches"]),
         ("users", ["/company/users"]),
         ("role", ["/company/roles"]),
-        ("series", ["/settings/series-master"]),
+        ("series", ["/settings/series-master", "/transport-reports/unused-series"]),
         ("activity", ["/settings/activity"]),
         ("log", ["/settings/activity"]),
+        ("irn", ["/einvoicing/generate-irn", "/einvoicing/irn-list"]),
+        ("einvoice", ["/einvoicing/generate-irn", "/einvoicing/irn-list"]),
+        ("taxpayer", ["/einvoicing/taxpayer"]),
+        ("daybook", ["/reports/daybook"]),
+        ("trial", ["/reports/trial-balance"]),
+        ("balance sheet", ["/reports/balance-sheet"]),
+        ("profit", ["/reports/profit-loss", "/fleet/truck-pnl"]),
+        ("pnl", ["/reports/profit-loss", "/fleet/truck-pnl"]),
+        ("gst", ["/statements/gst-output", "/statements/gst-input"]),
+        ("debtor", ["/statements/os-debtor"]),
+        ("creditor", ["/statements/os-creditor"]),
+        ("tds", ["/statements/tds-payable", "/statements/tds-return"]),
+        ("expense", ["/fleet/trip-expense", "/fleet/trip-expense-register"]),
+        ("advance", ["/fleet/trip-advance"]),
+        ("tyre", ["/fleet/tyre"]),
+        ("health", ["/fleet/vehicle-health"]),
+        ("api", ["/api-center/eway-bill", "/api-center/fastag"]),
+        ("password", ["/profile/change-password"]),
+        ("profile", ["/profile/account"]),
     ]
 
     # Collect matched target paths

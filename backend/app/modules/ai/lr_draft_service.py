@@ -34,14 +34,28 @@ INDIAN_VEHICLE_STRICT_REGEX = re.compile(
 
 
 def is_instructional_inquiry(text: str) -> bool:
-    """Detects if user is asking for guidance/how-to rather than initiating an active booking."""
+    """Detects if user is asking for guidance, instructions, or conceptual explanations."""
     lower = text.strip().lower()
+
+    # Broad Hinglish & Hindi query construction patterns
+    if "kaise" in lower and any(v in lower for v in ["kare", "karein", "create", "bana", "add", "karta", "karti", "hota", "hoti", "process"]):
+        return True
+
     inquiry_patterns = [
-        "how do i", "how to", "how can i", "process to", "process of",
-        "explain", "steps to", "guide me", "kaise banti", "kaise banta",
-        "kaise banate", "kaise banaye", "kaise karu", "kaise karoon",
-        "kaise karte", "kya process", "tell me how",
-        "what is the process", "booking process", "creation process",
+        # English guidance
+        "how do i", "how to", "how can i", "how does", "how would i",
+        "what is", "what are", "explain", "guide me", "tell me about",
+        "steps to", "process to", "process of", "what is the process",
+        "procedure", "workflow", "how it works", "purpose of", "use of",
+        # Hinglish guidance
+        "kaise banti", "kaise banta", "kaise banate", "kaise banaye", "kaise banayein",
+        "kaise karu", "kaise karoon", "kaise kare", "kaise karein", "kaise karte",
+        "kaise hota", "kaise hoti", "kaise add", "kaise perform", "kaise use", "kaise create",
+        "kya hota", "kya hoti", "kya hai", "use kya hai", "purpose kya hai",
+        "fayda kya hai", "matlab kya hai", "kya process", "tell me how",
+        "sikhao", "sikha do", "sikhaoge", "batao kaise",
+        # Hindi Devanagari
+        "कैसे", "क्या है", "क्या होता", "प्रक्रिया", "सिखाओ", "सिखाइए", "समझाइए", "मार्गदर्शन",
     ]
     return any(p in lower for p in inquiry_patterns)
 

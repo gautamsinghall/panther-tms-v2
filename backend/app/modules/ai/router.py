@@ -69,6 +69,7 @@ from app.modules.ai.tools import (
     execute_client_tool,
     execute_vendor_tool,
     execute_job_tool,
+    execute_hire_challan_tool,
 )
 
 router = APIRouter(prefix="/ai", tags=["Panther AI"])
@@ -313,6 +314,18 @@ async def chat_with_copilot(
                     query=op_intent.get("query"),
                     vehicle_number=op_intent.get("vehicle_number"),
                     status_filter=op_intent.get("status_filter"),
+                    is_detail=op_intent.get("is_detail", False),
+                    limit=5,
+                    lang=detected_lang,
+                )
+            elif tool_name == "hire_challan":
+                reply_content, cards = await execute_hire_challan_tool(
+                    db=db,
+                    user=current_user,
+                    tenant=tenant,
+                    current_office=current_office,
+                    query=op_intent.get("query"),
+                    vehicle_number=op_intent.get("vehicle_number"),
                     limit=5,
                     lang=detected_lang,
                 )
@@ -322,6 +335,8 @@ async def chat_with_copilot(
                     user=current_user,
                     tenant=tenant,
                     vehicle_number=op_intent.get("vehicle_number"),
+                    lr_number=op_intent.get("lr_number"),
+                    challan_number=op_intent.get("challan_number"),
                     lang=detected_lang,
                 )
             elif tool_name == "accounting":

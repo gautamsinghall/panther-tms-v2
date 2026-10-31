@@ -21,23 +21,63 @@ class KnowledgeChunk:
     source_file: str
     version: str
     content: str
+    route: str = ""
+    permissions: List[str] = field(default_factory=list)
     keywords: List[str] = field(default_factory=list)
+
+
+# Unicode punctuation and whitespace splitter pattern
+TOKEN_PATTERN = re.compile(r"[^\s\.,!?;:()\[\]\"\'\\/<>|+=*&^%$#@~`]+")
 
 
 # Synonyms for transport logistics domain in English, Hindi, and Hinglish
 SYNONYM_MAP: Dict[str, List[str]] = {
-    "lr": ["bilty", "gr", "consignment", "lorry", "goods", "booking", "receipt"],
-    "bilty": ["lr", "gr", "consignment", "lorry", "receipt"],
-    "challan": ["hire", "memo", "truck", "hiring", "supplier", "diesel", "advance"],
-    "ledger": ["khata", "hisab", "balance", "outstanding", "debit", "credit"],
-    "khata": ["ledger", "hisab", "balance", "outstanding"],
-    "vehicle": ["gaadi", "gadi", "truck", "lorry", "market", "fleet"],
-    "gaadi": ["vehicle", "truck", "market", "fleet"],
-    "driver": ["chalak", "license", "dl", "phone"],
-    "chalak": ["driver", "license"],
-    "fastag": ["toll", "plaza", "netc", "cooldown"],
-    "sim": ["consent", "phone", "freight", "tiger", "tracking"],
+    # Transport & Bookings
+    "lr": ["bilty", "gr", "consignment", "lorry", "goods", "booking", "receipt", "एलआर", "बिल्टी"],
+    "bilty": ["lr", "gr", "consignment", "lorry", "receipt", "एलआर", "बिल्टी"],
+    "gr": ["lr", "bilty", "consignment", "goods", "receipt"],
+    "challan": ["hire", "memo", "truck", "hiring", "supplier", "diesel", "advance", "चालान"],
+    "job": ["order", "transport", "booking", "indent", "जॉब", "ऑर्डर"],
+    "order": ["job", "transport", "booking", "indent", "ऑर्डर"],
+    "trip": ["movement", "transit", "dispatch", "यात्रा"],
+
+    # Financials & Accounting
+    "ledger": ["khata", "hisab", "balance", "outstanding", "debit", "credit", "खाता", "लेजर"],
+    "khata": ["ledger", "hisab", "balance", "outstanding", "खाता"],
+    "invoice": ["bill", "einvoice", "gst", "irn", "qr", "बिल", "इनवॉइस"],
+    "bill": ["invoice", "einvoice", "gst", "बिल"],
+    "voucher": ["receipt", "payment", "contra", "journal", "वाउचर"],
+    "payment": ["voucher", "settlement", "receipt", "भुगतान"],
+    "statement": ["balance", "pnl", "profit", "loss", "trial", "p&l"],
+
+    # Fleet & Telematics
+    "vehicle": ["gaadi", "gadi", "truck", "lorry", "market", "fleet", "गाड़ी", "वाहन"],
+    "gaadi": ["vehicle", "truck", "market", "fleet", "गाड़ी", "वाहन"],
+    "gadi": ["vehicle", "truck", "market", "fleet", "गाड़ी", "वाहन"],
+    "driver": ["chalak", "license", "dl", "phone", "चालक", "ड्राइवर"],
+    "chalak": ["driver", "license", "चालक", "ड्राइवर"],
+    "fastag": ["toll", "plaza", "netc", "cooldown", "फास्टैग"],
+    "sim": ["consent", "phone", "freight", "tiger", "tracking", "सिम"],
+    "gps": ["tracking", "telematics", "location", "जीपीएस"],
+    "tracking": ["location", "gps", "sim", "fastag", "ट्रैकिंग"],
+
+    # Hindi Devanagari mappings
+    "एलआर": ["lr", "bilty", "gr", "consignment", "receipt"],
+    "बिल्टी": ["lr", "bilty", "gr", "consignment", "receipt"],
+    "चालान": ["challan", "hire", "memo", "supplier"],
+    "गाड़ी": ["vehicle", "truck", "gaadi", "gadi", "lorry"],
+    "वाहन": ["vehicle", "truck", "gaadi", "gadi", "lorry"],
+    "चालक": ["driver", "chalak", "license"],
+    "खाता": ["ledger", "khata", "balance", "outstanding"],
+    "ट्रैकिंग": ["tracking", "gps", "sim", "fastag"],
+    "फास्टैग": ["fastag", "toll", "plaza"],
+    "सिम": ["sim", "consent", "tracking"],
+    "बिल": ["bill", "invoice", "gst"],
+
+    # System & Errors
     "error": ["401", "403", "404", "unauthorized", "forbidden", "locked", "quota"],
+    "role": ["permission", "rbac", "access", "branch", "user"],
+    "settings": ["company", "branch", "config", "profile"],
 }
 
 
@@ -102,12 +142,16 @@ class PantherKnowledgeEngine:
 
             # Extract metadata fields
             body_lines = []
+            route = ""
+            permissions: List[str] = []
             for line in lines[1:]:
                 m_id = re.match(r"-\s+\*\*Document ID\*\*:\s*`([^`]+)`", line)
                 m_cat = re.match(r"-\s+\*\*Category\*\*:\s*`([^`]+)`", line)
                 m_tier = re.match(r"-\s+\*\*Minimum Plan Tier\*\*:\s*`?(\d+)`?", line)
                 m_src = re.match(r"-\s+\*\*Source File\*\*:\s*`([^`]+)`", line)
                 m_kw = re.match(r"-\s+\*\*Keywords\*\*:\s*`([^`]+)`", line)
+                m_route = re.match(r"-\s+\*\*Route\*\*:\s*`([^`]+)`", line)
+                m_perm = re.match(r"-\s+\*\*Permissions\*\*:\s*`([^`]+)`", line)
 
                 if m_id:
                     doc_id = m_id.group(1).strip()
@@ -119,6 +163,10 @@ class PantherKnowledgeEngine:
                     source_file = m_src.group(1).strip()
                 elif m_kw:
                     keywords = [k.strip().lower() for k in m_kw.group(1).split(",")]
+                elif m_route:
+                    route = m_route.group(1).strip()
+                elif m_perm:
+                    permissions = [p.strip() for p in m_perm.group(1).split(",") if p.strip()]
                 else:
                     body_lines.append(line)
 
@@ -132,6 +180,8 @@ class PantherKnowledgeEngine:
                     source_file=source_file,
                     version=version,
                     content=content,
+                    route=route,
+                    permissions=permissions,
                     keywords=keywords,
                 )
             )
@@ -148,7 +198,7 @@ class PantherKnowledgeEngine:
     }
 
     def _tokenize(self, text: str) -> List[str]:
-        raw_tokens = re.findall(r"\b[a-zA-Z0-9_-]+\b", text.lower())
+        raw_tokens = TOKEN_PATTERN.findall(text.lower())
         content_tokens = [t for t in raw_tokens if t not in self.STOP_WORDS and len(t) > 1]
         expanded = list(content_tokens)
         for t in content_tokens:

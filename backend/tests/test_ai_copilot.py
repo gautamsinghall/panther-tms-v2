@@ -754,3 +754,341 @@ async def test_api_chat_operational_tool_end_to_end():
                 assert "LRs" in data["content"] or "LR" in data["content"]
     finally:
         app.dependency_overrides.clear()
+
+
+
+# ==============================================================================
+# 9. INSTRUCTIONAL INTENT, SIM TRACKING & UNICODE RAG UPGRADE TESTS
+# ==============================================================================
+
+def test_is_instructional_inquiry_detection():
+    from app.modules.ai.lr_draft_service import is_instructional_inquiry
+
+    # English guidance
+    assert is_instructional_inquiry("How do I book an LR in PantherTMS?") is True
+    assert is_instructional_inquiry("Explain the procedure for Hire Challan") is True
+    assert is_instructional_inquiry("What is the purpose of Transport Job?") is True
+    assert is_instructional_inquiry("Steps to generate IRN e-invoice") is True
+
+    # Hinglish guidance
+    assert is_instructional_inquiry("LR kaise banti hai?") is True
+    assert is_instructional_inquiry("Challan kaise create karein?") is True
+    assert is_instructional_inquiry("Bilty banane ka process kya hai?") is True
+    assert is_instructional_inquiry("Mujhe sikhao transport job kaise add karein") is True
+
+    # Hindi Devanagari guidance
+    assert is_instructional_inquiry("मुझे एक नया जॉब ऑर्डर कैसे बनाना है?") is True
+    assert is_instructional_inquiry("एलआर कैसे बनाएं?") is True
+    assert is_instructional_inquiry("फास्टैग ट्रैकिंग की क्या प्रक्रिया है?") is True
+
+    # Operational commands (should NOT be flagged as instructional inquiry)
+    assert is_instructional_inquiry("Book an LR from Delhi to Mumbai MH12AB1234") is False
+    assert is_instructional_inquiry("Create Hire Challan for truck DL01AA1234") is False
+    assert is_instructional_inquiry("Track vehicle DL01AA1111") is False
+
+
+def test_instructional_query_bypasses_tool_execution():
+    from app.modules.ai.tools import classify_operational_intent
+
+    # Instructional inquiries should return None from classify_operational_intent,
+    # deferring completely to grounded RAG responses rather than running DB queries or creating drafts
+    res = classify_operational_intent("How do I create a new LR? Explain the steps.")
+    assert res is None
+
+    res_hinglish = classify_operational_intent("LR kaise banate hain? Mujhe process bataiye.")
+    assert res_hinglish is None
+
+    res_hindi = classify_operational_intent("मुझे एक नया जॉब ऑर्डर कैसे बनाना है?")
+    assert res_hindi is None
+
+    # Real operational query returns operational tool intent
+    op = classify_operational_intent("Meri client kitni hai?")
+    assert op is not None
+    assert op["tool"] == "client"
+    assert op["is_count"] is True
+
+
+@pytest.mark.asyncio
+async def test_sim_tracking_attribute_and_error_handling():
+    from app.modules.ai.tools import execute_tracking_tool
+
+    mock_db = AsyncMock()
+    user = User(id=1, email="admin@test.com", role="COMPANY_ADMIN", full_name="Admin")
+    tenant = Tenant(id=1, company_name="Logistics Co", status="ACTIVE", plan=Plan(id=1, code="PRO", name="Pro"))
+    branch = Branch(id=1, code="DEL", name="Delhi Branch")
+
+    # Mock a SIMTripRecord that only has last_location_address and origin_address, NO last_location
+    mock_sim_record = MagicMock()
+    # Explicitly ensure last_location attribute does not exist
+    del mock_sim_record.last_location
+    mock_sim_record.last_location_address = "Sector 62, Noida, UP"
+    mock_sim_record.origin_address = "Okhla Phase 3, Delhi"
+    mock_sim_record.vehicle_number = "DL01XY9999"
+    mock_sim_record.driver_phone = "+919876543210"
+    mock_sim_record.latest_ping_time = None
+    mock_sim_record.updated_at = None
+    mock_sim_record.created_at = None
+    mock_sim_record.lr = None
+
+    with patch("app.modules.ai.tools.track_gps_single_vehicle", new_callable=AsyncMock, return_value=None), \
+         patch("app.modules.ai.tools.get_sim_trips", new_callable=AsyncMock, return_value=[mock_sim_record]):
+        # This call previously raised AttributeError: 'SIMTripRecord' object has no attribute 'last_location'
+        msg, cards = await execute_tracking_tool(mock_db, user, tenant, vehicle_number="DL01XY9999", lang="en")
+        assert len(cards) == 1
+        assert cards[0].card_type == "tracking"
+        assert "Sector 62, Noida, UP" in cards[0].items[0]["primary"]
+        assert "DL01XY9999" in msg
+
+
+def test_unicode_devanagari_rag_retrieval():
+    from app.modules.ai.rag import knowledge_engine
+
+    # Ensure engine loads
+    knowledge_engine.load_and_index()
+
+    # Query in pure Hindi Devanagari for Job order
+    chunks, fallback = knowledge_engine.retrieve("मुझे एक नया जॉब ऑर्डर बनाना है", plan_code="PRO")
+    assert fallback is False
+    assert any(c.doc_id == "transport-jobs" for c in chunks)
+
+    # Query in Hindi Devanagari for LR
+    chunks_lr, fallback_lr = knowledge_engine.retrieve("एलआर कैसे बनाएं", plan_code="PRO")
+    assert fallback_lr is False
+    assert any(c.doc_id == "transport-lr-booking" for c in chunks_lr)
+
+
+def test_rag_chunk_metadata_route_and_permissions():
+    from app.modules.ai.rag import knowledge_engine
+
+    knowledge_engine.load_and_index()
+    lr_chunk = next((c for c in knowledge_engine.chunks if c.doc_id == "transport-lr-booking"), None)
+    assert lr_chunk is not None
+    assert lr_chunk.route == "/transport/lr-booking"
+    assert "lr_booking" in lr_chunk.permissions
+
+
+
+# ==============================================================================
+# 11. TRANSPORT ENTITY DETAILS & TRACKING RESOLUTION
+# ==============================================================================
+
+def test_extract_transport_entities_full():
+    from app.modules.ai.tools import extract_transport_entities, classify_operational_intent
+
+    # 1. LR detail extraction
+    e1 = extract_transport_entities("LR number 1006 ki details batao")
+    assert e1["lr_number"] == "1006"
+    assert e1["is_detail"] is True
+    assert e1["is_track"] is False
+
+    e2 = extract_transport_entities("LR-AI-1006 ki details")
+    assert e2["lr_number"] == "LR-AI-1006"
+    assert e2["is_detail"] is True
+
+    # 2. Hire Challan detail extraction
+    e3 = extract_transport_entities("HC-0705 ki details batao")
+    assert e3["hc_number"] == "HC-0705"
+    assert e3["is_detail"] is True
+
+    e4 = extract_transport_entities("Hire challan 4 ki info do")
+    assert e4["hc_number"] == "4"
+    assert e4["is_detail"] is True
+
+    # 3. Transport Job detail extraction
+    e5 = extract_transport_entities("Job order JOB-AI-0507 ki details")
+    assert e5["job_number"] == "JOB-AI-0507"
+    assert e5["is_detail"] is True
+
+    # 4. Tracking with LR, HC, and Vehicle
+    e6 = extract_transport_entities("LR 1006 ko track karo")
+    assert e6["lr_number"] in ("1006", "LR 1006")
+    assert e6["is_track"] is True
+
+    e7 = extract_transport_entities("HC-0705 kahan hai")
+    assert e7["hc_number"] == "HC-0705"
+    assert e7["is_track"] is True
+
+    e8 = extract_transport_entities("DL01AB1111 track karo")
+    assert e8["vehicle_number"] == "DL01AB1111"
+    assert e8["is_track"] is True
+
+    # 5. Classify intent dispatch for detail requests
+    t_lr = classify_operational_intent("LR number 1006 ki details batao")
+    assert t_lr is not None and t_lr["tool"] == "lr" and t_lr["query"] == "1006" and t_lr["is_detail"] is True
+
+    t_hc = classify_operational_intent("HC-0705 ki details batao")
+    assert t_hc is not None and t_hc["tool"] == "hire_challan" and t_hc["query"] == "HC-0705" and t_hc["is_detail"] is True
+
+    t_jb = classify_operational_intent("Job order JOB-AI-0507 ki details")
+    assert t_jb is not None and t_jb["tool"] == "job" and t_jb["query"] == "JOB-AI-0507" and t_jb["is_detail"] is True
+
+
+@pytest.mark.asyncio
+async def test_execute_lr_tool_detail_view():
+    from app.modules.ai.tools import execute_lr_tool
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Express", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+
+    mock_lr = MagicMock()
+    mock_lr.id = 1006
+    mock_lr.lr_number = "LR-AI-1006"
+    mock_lr.lr_date = "2026-03-31"
+    mock_lr.status = "In Transit"
+    mock_lr.vehicle_number = "DL01AA1111"
+    mock_lr.vehicle_source = "Market"
+    mock_lr.driver_name = "Ramesh Kumar"
+    mock_lr.driver_phone = "+919876543210"
+    mock_lr.total_freight_amount = 25000.0
+    mock_lr.advance_amount = 5000.0
+    mock_lr.balance_amount = 20000.0
+    mock_lr.payment_terms = "TO_PAY"
+    mock_lr.invoice_no = "INV-2024-99"
+    mock_lr.eway_bill_no = "EWB-112233"
+    mock_lr.eway_bill_expiry = "2026-04-05"
+    mock_lr.consigner = MagicMock(name="Tata Steel")
+    mock_lr.consigner.name = "Tata Steel"
+    mock_lr.consignee = MagicMock(name="Reliance Retail")
+    mock_lr.consignee.name = "Reliance Retail"
+    mock_lr.origin_location = MagicMock(name="Delhi")
+    mock_lr.origin_location.name = "Delhi"
+    mock_lr.destination_location = MagicMock(name="Mumbai")
+    mock_lr.destination_location.name = "Mumbai"
+    mock_lr.billing_customer = MagicMock(name="Tata Steel")
+    mock_lr.billing_customer.name = "Tata Steel"
+    mock_lr.issuing_office = MagicMock(name="Delhi Hub")
+    mock_lr.issuing_office.name = "Delhi Hub"
+    mock_lr.packing_method = MagicMock(name="Pallets")
+    mock_lr.packing_method.name = "Pallets"
+    mock_lr.items = [MagicMock(weight_in_tons=12.5, package_count=200)]
+    mock_lr.charges = []
+    mock_lr.hire_challan = None
+    mock_lr.pod_record = None
+
+    mock_scalar = MagicMock()
+    mock_scalar.unique.return_value.all.return_value = [mock_lr]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    # Test detail view
+    msg, cards = await execute_lr_tool(
+        db=mock_db,
+        user=user,
+        tenant=tenant,
+        current_office=None,
+        query="1006",
+        is_detail=True,
+        lang="en",
+    )
+
+    assert len(cards) == 1
+    assert cards[0].card_type == "lr_detail"
+    assert "LR-AI-1006" in cards[0].title
+    assert "LR-AI-1006" in msg
+    assert "Tata Steel" in msg
+    assert "Reliance Retail" in msg
+    assert "DL01AA1111" in msg
+    assert "₹25,000.00" in msg
+
+
+@pytest.mark.asyncio
+async def test_execute_hire_challan_tool_detail_view():
+    from app.modules.ai.tools import execute_hire_challan_tool
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Express", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+
+    mock_hc = MagicMock()
+    mock_hc.id = 705
+    mock_hc.challan_number = "HC-0705"
+    mock_hc.challan_date = "2026-03-31"
+    mock_hc.status = "In Transit"
+    mock_hc.vehicle_number = "HR55AA1234"
+    mock_hc.driver_name = "Suresh Singh"
+    mock_hc.driver_phone = "+919811223344"
+    mock_hc.driver_license = "DL-0420100012345"
+    mock_hc.supplier = MagicMock()
+    mock_hc.supplier.name = "Sharma Transport"
+    mock_hc.supplier.phone = "+919800000000"
+    mock_hc.owner = MagicMock()
+    mock_hc.owner.name = "Sharma Transport"
+    mock_hc.issuing_office = MagicMock()
+    mock_hc.issuing_office.name = "Delhi Hub"
+    mock_hc.from_location = "Delhi"
+    mock_hc.to_location = "Jaipur"
+    mock_hc.hire_rate = 35000.0
+    mock_hc.total_hire_amount = 35000.0
+    mock_hc.advance_amount = 10000.0
+    mock_hc.tds_amount = 700.0
+    mock_hc.balance_amount = 24300.0
+    mock_hc.balance_payable = 24300.0
+    mock_hc.lr = None
+
+    mock_scalar = MagicMock()
+    mock_scalar.all.return_value = [mock_hc]
+    mock_scalar.unique.return_value.all.return_value = [mock_hc]
+    mock_res = MagicMock()
+    mock_res.scalars.return_value = mock_scalar
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    msg, cards = await execute_hire_challan_tool(
+        db=mock_db,
+        user=user,
+        tenant=tenant,
+        current_office=None,
+        query="HC-0705",
+        lang="hinglish",
+    )
+
+    assert len(cards) == 1
+    assert cards[0].card_type == "hire_challan_detail"
+    assert "HC-0705" in cards[0].title
+    assert "HC-0705" in msg
+    assert "HR55AA1234" in msg
+    assert "Sharma Transport" in msg
+    assert "₹35,000.00" in msg
+
+
+@pytest.mark.asyncio
+async def test_execute_tracking_tool_with_lr_and_hc():
+    from app.modules.ai.tools import execute_tracking_tool
+
+    plan = Plan(id=1, code="PRO", name="Pro Plan")
+    tenant = Tenant(id=1, company_name="Speedways Express", status="ACTIVE", plan=plan, db_name="panther_tenant_demo")
+    user = User(id=1, email="admin@demo.com", role="COMPANY_ADMIN", full_name="Admin User")
+
+    mock_lr = MagicMock()
+    mock_lr.vehicle_number = "DL01AA1111"
+    mock_lr.lr_number = "LR-AI-1006"
+    mock_lr.origin_location = None
+    mock_lr.destination_location = None
+
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = mock_lr
+
+    mock_db = AsyncMock()
+    mock_db.execute.return_value = mock_res
+
+    # Mock tracking providers
+    with patch("app.modules.ai.tools.track_gps_single_vehicle", new_callable=AsyncMock, return_value={"success": True, "truck_data": {"location": "NH-48 Dharuhera, HR", "speed": 55}, "timestamp": "2026-03-31 14:00"}), \
+         patch("app.modules.ai.tools.get_sim_trips", new_callable=AsyncMock, return_value=[]):
+        msg, cards = await execute_tracking_tool(
+            db=mock_db,
+            user=user,
+            tenant=tenant,
+            lr_number="1006",
+            lang="en",
+        )
+
+        assert len(cards) == 1
+        assert cards[0].card_type == "tracking"
+        assert "DL01AA1111" in cards[0].title
+        assert "LR-AI-1006" in msg
+        assert "NH-48 Dharuhera" in msg
