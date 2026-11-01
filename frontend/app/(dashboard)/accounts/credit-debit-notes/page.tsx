@@ -181,6 +181,7 @@ interface EligibleInvoice {
   balance_amount: number;
   total_adjusted: number;
   allowable_adjustment: number;
+  tax_breakup?: any;
 }
 
 export default function CreditDebitNotesPage() {
@@ -531,7 +532,7 @@ export default function CreditDebitNotesPage() {
           <div className="flex items-center gap-2">
             <span className="font-semibold text-slate-900 dark:text-white font-mono">{v.voucher_number}</span>
             {v.is_void ? (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 uppercase bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300">VOIDED</Badge>
+              <Badge variant="danger" className="text-[10px] px-1.5 py-0 uppercase bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300">VOIDED</Badge>
             ) : (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold">POSTED</Badge>
             )}
@@ -723,32 +724,28 @@ export default function CreditDebitNotesPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="CUSTOMER CREDIT NOTES"
+          title="CUSTOMER CREDIT NOTES"
           value={formatCurrency(kpis.salesCn)}
-          icon={<TrendingDown className="w-5 h-5 text-blue-500" />}
-          change="Bill Reductions"
-          positive={true}
+          icon={<TrendingDown className="w-4 h-4" />}
+          subtext="Bill Reductions"
         />
         <KpiCard
-          label="CUSTOMER DEBIT NOTES"
+          title="CUSTOMER DEBIT NOTES"
           value={formatCurrency(kpis.salesDn)}
-          icon={<TrendingUp className="w-5 h-5 text-amber-500" />}
-          change="Detention & Extra Charges"
-          positive={false}
+          icon={<TrendingUp className="w-4 h-4" />}
+          subtext="Detention & Extra Charges"
         />
         <KpiCard
-          label="SUPPLIER RETURNS & CLAIMS"
+          title="SUPPLIER RETURNS & CLAIMS"
           value={formatCurrency(kpis.purchDn)}
-          icon={<ArrowDownLeft className="w-5 h-5 text-emerald-500" />}
-          change="Payables Reduced"
-          positive={true}
+          icon={<ArrowDownLeft className="w-4 h-4" />}
+          subtext="Payables Reduced"
         />
         <KpiCard
-          label="NET GST IMPACT"
+          title="NET GST IMPACT"
           value={formatCurrency(Math.abs(kpis.netGst))}
-          icon={<Percent className="w-5 h-5 text-purple-500" />}
-          change={kpis.netGst <= 0 ? "Output Liability Reduced" : "Output Liability Increased"}
-          positive={kpis.netGst <= 0}
+          icon={<Percent className="w-4 h-4" />}
+          subtext={kpis.netGst <= 0 ? "Output Liability Reduced" : "Output Liability Increased"}
         />
       </div>
 
@@ -893,7 +890,7 @@ export default function CreditDebitNotesPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={loadData}
+            onClick={() => { loadData(); }}
             disabled={isLoading}
             className="h-8 w-8 p-0 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-xl"
             title="Refresh Notes"
@@ -941,15 +938,15 @@ export default function CreditDebitNotesPage() {
       >
         <div className="flex flex-col gap-6 p-1">
           {/* Category Switcher Tabs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 bg-muted/40 rounded-lg border border-border">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => openCreateDrawer("SALES_CREDIT_NOTE")}
               className={cn(
-                "py-2 px-2 rounded text-xs font-semibold text-center transition-all",
+                "h-10 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex items-center justify-center shadow-2xs",
                 selectedCategory === "SALES_CREDIT_NOTE"
-                  ? "bg-blue-600 text-white shadow"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                  : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
               )}
             >
               Customer Credit
@@ -958,10 +955,10 @@ export default function CreditDebitNotesPage() {
               type="button"
               onClick={() => openCreateDrawer("SALES_DEBIT_NOTE")}
               className={cn(
-                "py-2 px-2 rounded text-xs font-semibold text-center transition-all",
+                "h-10 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex items-center justify-center shadow-2xs",
                 selectedCategory === "SALES_DEBIT_NOTE"
-                  ? "bg-amber-600 text-white shadow"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                  : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
               )}
             >
               Customer Debit
@@ -970,10 +967,10 @@ export default function CreditDebitNotesPage() {
               type="button"
               onClick={() => openCreateDrawer("PURCHASE_DEBIT_NOTE")}
               className={cn(
-                "py-2 px-2 rounded text-xs font-semibold text-center transition-all",
+                "h-10 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex items-center justify-center shadow-2xs",
                 selectedCategory === "PURCHASE_DEBIT_NOTE"
-                  ? "bg-emerald-600 text-white shadow"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                  : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
               )}
             >
               Supplier Return
@@ -982,10 +979,10 @@ export default function CreditDebitNotesPage() {
               type="button"
               onClick={() => openCreateDrawer("PURCHASE_CREDIT_NOTE")}
               className={cn(
-                "py-2 px-2 rounded text-xs font-semibold text-center transition-all",
+                "h-10 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex items-center justify-center shadow-2xs",
                 selectedCategory === "PURCHASE_CREDIT_NOTE"
-                  ? "bg-purple-600 text-white shadow"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                  : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
               )}
             >
               Supplier Charge
@@ -1001,7 +998,7 @@ export default function CreditDebitNotesPage() {
               <select
                 value={selectedPartyId || ""}
                 onChange={(e) => setSelectedPartyId(e.target.value ? parseInt(e.target.value) : null)}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               >
                 <option value="">-- Choose {selectedCategory.startsWith("SALES") ? "Billing Client" : "Vendor"} --</option>
                 {selectedCategory.startsWith("SALES")
@@ -1024,14 +1021,14 @@ export default function CreditDebitNotesPage() {
                 type="date"
                 value={voucherDate}
                 onChange={(e) => setVoucherDate(e.target.value)}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               />
             </div>
           </div>
 
           {/* Link to Original Invoice / Bill */}
           {selectedPartyId && (
-            <div className="p-4 rounded-xl border border-border bg-card/60 flex flex-col gap-3">
+            <div className="p-5 rounded-2xl border border-slate-200/90 dark:border-[#22232E] bg-white dark:bg-[#12131A] shadow-2xs flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-primary" />
@@ -1045,7 +1042,7 @@ export default function CreditDebitNotesPage() {
                   <select
                     value={selectedInvoiceId || ""}
                     onChange={(e) => handleSelectInvoice(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   >
                     <option value="">-- Select Original Invoice / Bill (or Leave Unlinked for On-Account) --</option>
                     {eligibleInvoices.map((inv) => (
@@ -1095,7 +1092,7 @@ export default function CreditDebitNotesPage() {
               <select
                 value={reasonCode}
                 onChange={(e) => setReasonCode(e.target.value)}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               >
                 <option value="01">01 - Sales / Purchase Return</option>
                 <option value="02">02 - Post Sale Discount / Rebate</option>
@@ -1115,13 +1112,13 @@ export default function CreditDebitNotesPage() {
                 placeholder="e.g. 5 cartons damaged, approved 10% freight concession..."
                 value={reasonDescription}
                 onChange={(e) => setReasonDescription(e.target.value)}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               />
             </div>
           </div>
 
           {/* Statutory GST Checkbox */}
-          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+          <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200/90 dark:border-[#22232E] bg-white dark:bg-[#12131A]">
             <div className="flex flex-col">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -1150,7 +1147,7 @@ export default function CreditDebitNotesPage() {
                 placeholder="0.00"
                 value={taxableAmount}
                 onChange={(e) => setTaxableAmount(e.target.value)}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs font-mono"
               />
             </div>
 
@@ -1160,7 +1157,7 @@ export default function CreditDebitNotesPage() {
                 <select
                   value={taxRate}
                   onChange={(e) => setTaxRate(e.target.value)}
-                  className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="0">0% (Nil / Exempt)</option>
                   <option value="5">5% (GTA Road Freight)</option>
@@ -1225,7 +1222,7 @@ export default function CreditDebitNotesPage() {
 
           {/* Live Tally Double-Entry Preview Card */}
           {parsedTaxable > 0 && (
-            <div className="p-4 rounded-xl border border-border bg-card/60 flex flex-col gap-2">
+            <div className="p-5 rounded-2xl border border-slate-200/90 dark:border-[#22232E] bg-white dark:bg-[#12131A] shadow-2xs flex flex-col gap-2">
               <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-primary" />
                 Tally Prime Balanced Double-Entry Preview
@@ -1339,7 +1336,7 @@ export default function CreditDebitNotesPage() {
                 placeholder="e.g. VEND-CN-908"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               />
             </div>
 
@@ -1350,18 +1347,26 @@ export default function CreditDebitNotesPage() {
                 placeholder="Brief audit remark for journal voucher..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               />
             </div>
           </div>
 
-          {/* Form Action Bar */}
-          <FormActionBar
-            onCancel={() => setIsCreateOpen(false)}
-            onSubmit={handleSubmitNote}
-            isSubmitting={isSubmitting}
-            submitLabel={`Post ${selectedCategory.replace(/_/g, " ").toLowerCase()}`}
-          />
+          {/* Form Action Footer */}
+          <div className="bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] rounded-2xl p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-2xs mt-8">
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Active Note Draft</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" size="md" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting} className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer">
+                Cancel
+              </Button>
+              <Button type="button" variant="primary" size="md" onClick={handleSubmitNote} isLoading={isSubmitting} disabled={isSubmitting} className="rounded-xl h-10 px-6 text-xs font-semibold cursor-pointer">
+                Post {selectedCategory.replace(/_/g, " ").toLowerCase()}
+              </Button>
+            </div>
+          </div>
         </div>
       </EntityDrawer>
 
@@ -1517,13 +1522,14 @@ export default function CreditDebitNotesPage() {
           ========================================================================= */}
       <ConfirmDialog
         open={isVoidOpen}
-        onOpenChange={setIsVoidOpen}
+        onClose={() => setIsVoidOpen(false)}
+        onCancel={() => setIsVoidOpen(false)}
         title="Void Credit / Debit Note Voucher"
         description="Are you sure you want to void this note voucher? This action will generate balanced reversing ledger entries and restore the linked invoice balance. This action cannot be undone."
         confirmText="Void Voucher"
         onConfirm={handleVoidNote}
         isLoading={isVoiding}
-        danger={true}
+        variant="danger"
       >
         <div className="mt-4">
           <label className="text-xs font-medium text-foreground block mb-1">
@@ -1534,7 +1540,7 @@ export default function CreditDebitNotesPage() {
             placeholder="e.g. Issued under incorrect dispute head, client agreement revised..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full bg-background border border-border rounded-md p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
+            className="w-full px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 shadow-2xs"
           />
         </div>
       </ConfirmDialog>

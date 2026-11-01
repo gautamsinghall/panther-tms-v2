@@ -824,7 +824,7 @@ export default function MasterLedgerPage() {
                 setSearchQuery("");
                 setStatusFilter("ALL");
               }}
-              className="group cursor-pointer relative bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)] hover:border-[#4F46E5] dark:hover:border-indigo-500 hover:shadow-[0_10px_25px_-5px_rgba(79,70,229,0.12)] transition-all duration-200 flex flex-col justify-between"
+              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#4F46E5] dark:hover:border-indigo-500 hover:shadow-[0_10px_25px_-5px_rgba(79,70,229,0.12)] transition-all duration-200 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -844,7 +844,7 @@ export default function MasterLedgerPage() {
                 </p>
 
                 {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-[#F2F4F7] dark:border-slate-800/80 space-y-2.5">
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-[#667085] dark:text-slate-400">Total Client Accounts</span>
                     <span className="font-semibold text-[#101828] dark:text-slate-200">
@@ -863,7 +863,7 @@ export default function MasterLedgerPage() {
                       {formatCurrency(overview?.billing_clients?.total_credit || 0)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-[#E4E7EC] dark:border-slate-800">
+                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
                     <span className="text-[#101828] dark:text-slate-300">Net Outstanding Receivable</span>
                     <span className="text-[#4F46E5] dark:text-indigo-400 font-extrabold text-base">
                       {formatCurrency(overview?.billing_clients?.total_outstanding || 0)}
@@ -885,7 +885,7 @@ export default function MasterLedgerPage() {
                 setSearchQuery("");
                 setStatusFilter("ALL");
               }}
-              className="group cursor-pointer relative bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)] hover:border-[#B54708] dark:hover:border-amber-500 hover:shadow-[0_10px_25px_-5px_rgba(181,71,8,0.12)] transition-all duration-200 flex flex-col justify-between"
+              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#B54708] dark:hover:border-amber-500 hover:shadow-[0_10px_25px_-5px_rgba(181,71,8,0.12)] transition-all duration-200 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -905,7 +905,7 @@ export default function MasterLedgerPage() {
                 </p>
 
                 {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-[#F2F4F7] dark:border-slate-800/80 space-y-2.5">
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-[#667085] dark:text-slate-400">Total Registered Vendors</span>
                     <span className="font-semibold text-[#101828] dark:text-slate-200">
@@ -924,7 +924,7 @@ export default function MasterLedgerPage() {
                       {formatCurrency(overview?.vendors?.total_debit || 0)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-[#E4E7EC] dark:border-slate-800">
+                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
                     <span className="text-[#101828] dark:text-slate-300">Total Outstanding Payable</span>
                     <span className="text-[#B54708] dark:text-amber-400 font-extrabold text-base">
                       {formatCurrency(overview?.vendors?.total_outstanding || 0)}
@@ -946,7 +946,7 @@ export default function MasterLedgerPage() {
                 setSearchQuery("");
                 setStatusFilter("ALL");
               }}
-              className="group cursor-pointer relative bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)] hover:border-[#027A48] dark:hover:border-emerald-500 hover:shadow-[0_10px_25px_-5px_rgba(2,122,72,0.12)] transition-all duration-200 flex flex-col justify-between"
+              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#027A48] dark:hover:border-emerald-500 hover:shadow-[0_10px_25px_-5px_rgba(2,122,72,0.12)] transition-all duration-200 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -966,7 +966,7 @@ export default function MasterLedgerPage() {
                 </p>
 
                 {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-[#F2F4F7] dark:border-slate-800/80 space-y-2.5">
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-[#667085] dark:text-slate-400">Total Active Drivers</span>
                     <span className="font-semibold text-[#101828] dark:text-slate-200">
@@ -985,7 +985,7 @@ export default function MasterLedgerPage() {
                       {formatCurrency(overview?.drivers?.total_credit || 0)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-[#E4E7EC] dark:border-slate-800">
+                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
                     <span className="text-[#101828] dark:text-slate-300">Net Recoverable Imprest</span>
                     <span className="text-[#027A48] dark:text-emerald-400 font-extrabold text-base">
                       {formatCurrency(overview?.drivers?.total_outstanding || 0)}
@@ -1006,7 +1006,7 @@ export default function MasterLedgerPage() {
                 setSearchQuery("");
                 setStatusFilter("ALL");
               }}
-              className="group cursor-pointer relative bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)] hover:border-[#0E9384] dark:hover:border-teal-500 hover:shadow-[0_10px_25px_-5px_rgba(14,147,132,0.12)] transition-all duration-200 flex flex-col justify-between"
+              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#0E9384] dark:hover:border-teal-500 hover:shadow-[0_10px_25px_-5px_rgba(14,147,132,0.12)] transition-all duration-200 flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -1026,7 +1026,7 @@ export default function MasterLedgerPage() {
                 </p>
 
                 {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-[#F2F4F7] dark:border-slate-800/80 space-y-2.5">
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-[#667085] dark:text-slate-400">Total Bank Accounts</span>
                     <span className="font-semibold text-[#101828] dark:text-slate-200">
@@ -1045,7 +1045,7 @@ export default function MasterLedgerPage() {
                       {formatCurrency(overview?.company_bank_accounts?.total_credit || 0)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-[#E4E7EC] dark:border-slate-800">
+                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
                     <span className="text-[#101828] dark:text-slate-300">Net Liquid Balance</span>
                     <span className="text-[#0E9384] dark:text-teal-400 font-extrabold text-base">
                       {formatCurrency(overview?.company_bank_accounts?.total_outstanding || 0)}
@@ -1069,7 +1069,7 @@ export default function MasterLedgerPage() {
       {activeCategory !== "OVERVIEW" && !selectedAccountId && (
         <div className="space-y-4">
           {/* Top Bar with Category Tabs and Back to Folders */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#111827] p-4 rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#17171B] p-4 rounded-xl border border-slate-200/90 dark:border-[#303036] shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -1080,14 +1080,14 @@ export default function MasterLedgerPage() {
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Categories
               </Button>
-              <div className="h-5 w-px bg-[#E4E7EC] dark:bg-slate-800" />
-              <div className="flex rounded-lg bg-[#F2F4F7] dark:bg-slate-800/80 p-0.5">
+              <div className="h-5 w-px bg-[#E4E7EC] dark:bg-[#202025]" />
+              <div className="flex rounded-lg bg-[#F2F4F7] dark:bg-[#202025] p-0.5">
                 <button
                   onClick={() => setActiveCategory("BILLING_CLIENT")}
                   className={cn(
                     "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
                     activeCategory === "BILLING_CLIENT"
-                      ? "bg-white dark:bg-slate-900 text-[#4F46E5] dark:text-indigo-400 shadow-sm"
+                      ? "bg-white dark:bg-[#101013] text-[#4F46E5] dark:text-indigo-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
@@ -1099,7 +1099,7 @@ export default function MasterLedgerPage() {
                   className={cn(
                     "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
                     activeCategory === "VENDOR"
-                      ? "bg-white dark:bg-slate-900 text-[#B54708] dark:text-amber-400 shadow-sm"
+                      ? "bg-white dark:bg-[#101013] text-[#B54708] dark:text-amber-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
@@ -1111,7 +1111,7 @@ export default function MasterLedgerPage() {
                   className={cn(
                     "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
                     activeCategory === "DRIVER"
-                      ? "bg-white dark:bg-slate-900 text-[#027A48] dark:text-emerald-400 shadow-sm"
+                      ? "bg-white dark:bg-[#101013] text-[#027A48] dark:text-emerald-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
@@ -1123,7 +1123,7 @@ export default function MasterLedgerPage() {
                   className={cn(
                     "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
                     activeCategory === "COMPANY_BANK_ACCOUNT"
-                      ? "bg-white dark:bg-slate-900 text-[#0E9384] dark:text-teal-400 shadow-sm"
+                      ? "bg-white dark:bg-[#101013] text-[#0E9384] dark:text-teal-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
@@ -1142,7 +1142,7 @@ export default function MasterLedgerPage() {
                   placeholder={`Search ${activeCategory === "BILLING_CLIENT" ? "clients" : activeCategory === "VENDOR" ? "vendors" : activeCategory === "DRIVER" ? "drivers" : "bank accounts"}...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#F8F9FB] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 rounded-lg focus:outline-none focus:border-[#4F46E5] dark:text-white"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-lg focus:outline-none focus:border-[#4F46E5] dark:text-white"
                 />
                 {searchQuery && (
                   <button
@@ -1157,7 +1157,7 @@ export default function MasterLedgerPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-[#F8F9FB] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 rounded-lg text-[#344054] dark:text-slate-300 font-medium focus:outline-none focus:border-[#4F46E5]"
+                className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-lg text-slate-700 dark:text-slate-300 font-medium focus:outline-none focus:border-[#4F46E5]"
               >
                 <option value="ALL">All Balances</option>
                 {activeCategory === "BILLING_CLIENT" && (
@@ -1186,13 +1186,13 @@ export default function MasterLedgerPage() {
           </div>
 
           {/* Table Container */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-[0_1px_3px_rgba(16,24,40,0.05)] overflow-hidden">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               {/* Category 1: Billing Clients Table */}
               {activeCategory === "BILLING_CLIENT" && (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#F8F9FB] dark:bg-slate-800/60 border-b border-[#E4E7EC] dark:border-slate-800 text-[11px] font-semibold text-[#475467] dark:text-slate-300 uppercase tracking-wider">
+                    <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                       <th className="py-3 px-4">Billing Client</th>
                       <th className="py-3 px-4">Account Code</th>
                       <th className="py-3 px-4 text-right">Opening Balance</th>
@@ -1203,7 +1203,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-slate-800/70 text-xs">
+                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
                     {filteredBillingClients.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center text-[#667085] dark:text-slate-400">
@@ -1236,10 +1236,10 @@ export default function MasterLedgerPage() {
                                 </div>
                               )}
                             </td>
-                            <td className="py-3.5 px-4 font-mono text-xs text-[#344054] dark:text-slate-300">
+                            <td className="py-3.5 px-4 font-mono text-xs text-slate-700 dark:text-slate-300">
                               {client.code || `BC-${client.id}`}
                             </td>
-                            <td className="py-3.5 px-4 text-right font-medium text-[#475467] dark:text-slate-300">
+                            <td className="py-3.5 px-4 text-right font-medium text-slate-600 dark:text-slate-300">
                               {formatCurrency(client.opening_balance)}
                               <span className="text-[10px] text-[#98A2B3] ml-1">
                                 {client.opening_balance_type}
@@ -1269,7 +1269,7 @@ export default function MasterLedgerPage() {
                                 {isPending ? "Receivable" : isAdvance ? "Advance" : "Settled"}
                               </Badge>
                             </td>
-                            <td className="py-3.5 px-4 text-[#475467] dark:text-slate-300">
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               {client.last_transaction_date ? formatDate(client.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
                                 {client.transaction_count} vouchers
@@ -1305,7 +1305,7 @@ export default function MasterLedgerPage() {
               {activeCategory === "VENDOR" && (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#F8F9FB] dark:bg-slate-800/60 border-b border-[#E4E7EC] dark:border-slate-800 text-[11px] font-semibold text-[#475467] dark:text-slate-300 uppercase tracking-wider">
+                    <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                       <th className="py-3 px-4">Vendor / Supplier</th>
                       <th className="py-3 px-4">Vendor Code</th>
                       <th className="py-3 px-4 text-right">Opening Balance</th>
@@ -1316,7 +1316,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-slate-800/70 text-xs">
+                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
                     {filteredVendors.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center text-[#667085] dark:text-slate-400">
@@ -1349,10 +1349,10 @@ export default function MasterLedgerPage() {
                                 </div>
                               )}
                             </td>
-                            <td className="py-3.5 px-4 font-mono text-xs text-[#344054] dark:text-slate-300">
+                            <td className="py-3.5 px-4 font-mono text-xs text-slate-700 dark:text-slate-300">
                               {vendor.code || `VEND-${vendor.id}`}
                             </td>
-                            <td className="py-3.5 px-4 text-right font-medium text-[#475467] dark:text-slate-300">
+                            <td className="py-3.5 px-4 text-right font-medium text-slate-600 dark:text-slate-300">
                               {formatCurrency(vendor.opening_balance)}
                               <span className="text-[10px] text-[#98A2B3] ml-1">
                                 {vendor.opening_balance_type}
@@ -1382,7 +1382,7 @@ export default function MasterLedgerPage() {
                                 {isPayable ? "Payable" : isAdvance ? "Advance Paid" : "Settled"}
                               </Badge>
                             </td>
-                            <td className="py-3.5 px-4 text-[#475467] dark:text-slate-300">
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               {vendor.last_transaction_date ? formatDate(vendor.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
                                 {vendor.transaction_count} entries
@@ -1418,7 +1418,7 @@ export default function MasterLedgerPage() {
               {activeCategory === "DRIVER" && (
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#F8F9FB] dark:bg-slate-800/60 border-b border-[#E4E7EC] dark:border-slate-800 text-[11px] font-semibold text-[#475467] dark:text-slate-300 uppercase tracking-wider">
+                    <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                       <th className="py-3 px-4">Driver Name</th>
                       <th className="py-3 px-4">Driver ID / Contact</th>
                       <th className="py-3 px-4">License / DL Status</th>
@@ -1429,7 +1429,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-slate-800/70 text-xs">
+                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
                     {filteredDrivers.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center text-[#667085] dark:text-slate-400">
@@ -1451,14 +1451,14 @@ export default function MasterLedgerPage() {
                               {driver.name}
                             </td>
                             <td className="py-3.5 px-4">
-                              <span className="font-mono text-xs text-[#344054] dark:text-slate-300">
+                              <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
                                 {driver.driver_id || `DRV-${driver.id}`}
                               </span>
                               <div className="text-[11px] text-[#667085] dark:text-slate-400">
                                 {driver.phone}
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-[#475467] dark:text-slate-300">
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               <span className="font-mono text-xs">
                                 {driver.license_number || "Not on file"}
                               </span>
@@ -1492,7 +1492,7 @@ export default function MasterLedgerPage() {
                                 {isRecoverable ? "Recoverable" : isPayable ? "Reimbursement" : "Settled"}
                               </Badge>
                             </td>
-                            <td className="py-3.5 px-4 text-[#475467] dark:text-slate-300">
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               {driver.last_transaction_date ? formatDate(driver.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
                                 {driver.transaction_count} records
@@ -1568,8 +1568,8 @@ export default function MasterLedgerPage() {
           </div>
 
           {/* Statement Header Card (Printable) */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-6 shadow-[0_1px_3px_rgba(16,24,40,0.05)]">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-[#F2F4F7] dark:border-slate-800">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-slate-100 dark:border-[#303036]">
               <div>
                 <div className="flex items-center gap-2">
                   <Badge variant="primary" className="text-[11px] font-semibold uppercase">
@@ -1585,7 +1585,7 @@ export default function MasterLedgerPage() {
                   {detailedLedger.party.name}
                 </h2>
                 {detailedLedger.party.company_name && detailedLedger.party.company_name !== detailedLedger.party.name && (
-                  <p className="text-xs text-[#475467] dark:text-slate-300 font-medium">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                     {detailedLedger.party.company_name}
                   </p>
                 )}
@@ -1594,17 +1594,17 @@ export default function MasterLedgerPage() {
                   {detailedLedger.party.phone && <span>Ph: {detailedLedger.party.phone}</span>}
                   {detailedLedger.party.email && <span>Email: {detailedLedger.party.email}</span>}
                   {detailedLedger.party.gstin && (
-                    <span className="font-mono text-[#344054] dark:text-slate-300">
+                    <span className="font-mono text-slate-700 dark:text-slate-300">
                       GSTIN: {detailedLedger.party.gstin}
                     </span>
                   )}
                   {detailedLedger.party.pan && (
-                    <span className="font-mono text-[#344054] dark:text-slate-300">
+                    <span className="font-mono text-slate-700 dark:text-slate-300">
                       PAN: {detailedLedger.party.pan}
                     </span>
                   )}
                   {detailedLedger.party.license_number && (
-                    <span className="font-mono text-[#344054] dark:text-slate-300">
+                    <span className="font-mono text-slate-700 dark:text-slate-300">
                       DL: {detailedLedger.party.license_number}
                     </span>
                   )}
@@ -1635,7 +1635,7 @@ export default function MasterLedgerPage() {
 
             {/* Financial KPI Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-              <div className="p-4 rounded-lg bg-[#F8F9FB] dark:bg-slate-800/40 border border-[#E4E7EC] dark:border-slate-800">
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036]">
                 <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">
                   Opening Balance
                 </div>
@@ -1650,7 +1650,7 @@ export default function MasterLedgerPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-lg bg-[#F8F9FB] dark:bg-slate-800/40 border border-[#E4E7EC] dark:border-slate-800">
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036]">
                 <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">
                   Total Period Debits
                 </div>
@@ -1662,7 +1662,7 @@ export default function MasterLedgerPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-lg bg-[#F8F9FB] dark:bg-slate-800/40 border border-[#E4E7EC] dark:border-slate-800">
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036]">
                 <div className="text-[11px] font-medium text-[#667085] dark:text-slate-400">
                   Total Period Credits
                 </div>
@@ -1696,11 +1696,11 @@ export default function MasterLedgerPage() {
           </div>
 
           {/* Statement Filters Toolbar (Print: Hidden) */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] print:hidden space-y-3">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 shadow-2xs print:hidden space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* Date Presets */}
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-semibold text-[#475467] dark:text-slate-400 mr-1">Period:</span>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 mr-1">Period:</span>
                 {[
                   { label: "All Time", value: "ALL" },
                   { label: "This Month", value: "THIS_MONTH" },
@@ -1715,7 +1715,7 @@ export default function MasterLedgerPage() {
                       "px-2.5 py-1 text-xs rounded-md font-medium transition-colors",
                       datePreset === p.value
                         ? "bg-[#4F46E5] text-white"
-                        : "bg-[#F2F4F7] dark:bg-slate-800 text-[#475467] dark:text-slate-300 hover:bg-[#E4E7EC]"
+                        : "bg-[#F2F4F7] dark:bg-[#202025] text-slate-600 dark:text-slate-300 hover:bg-[#E4E7EC]"
                     )}
                   >
                     {p.label}
@@ -1734,7 +1734,7 @@ export default function MasterLedgerPage() {
                       setDatePreset("CUSTOM");
                       setDetailFromDate(e.target.value);
                     }}
-                    className="px-2 py-1 text-xs bg-[#F8F9FB] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 rounded-md focus:outline-none focus:border-[#4F46E5] dark:text-white"
+                    className="px-2 py-1 text-xs bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-md focus:outline-none focus:border-[#4F46E5] dark:text-white"
                   />
                 </div>
                 <div className="flex items-center gap-1 text-xs">
@@ -1746,14 +1746,14 @@ export default function MasterLedgerPage() {
                       setDatePreset("CUSTOM");
                       setDetailToDate(e.target.value);
                     }}
-                    className="px-2 py-1 text-xs bg-[#F8F9FB] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 rounded-md focus:outline-none focus:border-[#4F46E5] dark:text-white"
+                    className="px-2 py-1 text-xs bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-md focus:outline-none focus:border-[#4F46E5] dark:text-white"
                   />
                 </div>
               </div>
             </div>
 
             {/* Search and Voucher Type Filter */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#F2F4F7] dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-[#303036]">
               <div className="relative w-full sm:w-72">
                 <Search className="w-4 h-4 text-[#667085] dark:text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -1761,7 +1761,7 @@ export default function MasterLedgerPage() {
                   placeholder="Search voucher #, ref #, or particulars..."
                   value={detailSearch}
                   onChange={(e) => setDetailSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#F8F9FB] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 rounded-lg focus:outline-none focus:border-[#4F46E5] dark:text-white"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-lg focus:outline-none focus:border-[#4F46E5] dark:text-white"
                 />
                 {detailSearch && (
                   <button
@@ -1778,7 +1778,7 @@ export default function MasterLedgerPage() {
                 <select
                   value={detailTxType}
                   onChange={(e) => setDetailTxType(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs bg-[#F8F9FB] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 rounded-lg text-[#344054] dark:text-slate-300 font-medium focus:outline-none focus:border-[#4F46E5]"
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-lg text-slate-700 dark:text-slate-300 font-medium focus:outline-none focus:border-[#4F46E5]"
                 >
                   <option value="ALL">All Transaction Types</option>
                   {detailedLedger.category === "BILLING_CLIENT" && (
@@ -1824,11 +1824,11 @@ export default function MasterLedgerPage() {
           </div>
 
           {/* Statement Transaction History Table */}
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-[0_1px_3px_rgba(16,24,40,0.05)] overflow-hidden">
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#F8F9FB] dark:bg-slate-800/60 border-b border-[#E4E7EC] dark:border-slate-800 text-[11px] font-semibold text-[#475467] dark:text-slate-300 uppercase tracking-wider">
+                  <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
                     <th className="py-3 px-4 w-28">Date</th>
                     <th className="py-3 px-4 w-36">Voucher / Tx #</th>
                     <th className="py-3 px-4 w-32">Type</th>
@@ -1841,9 +1841,9 @@ export default function MasterLedgerPage() {
                     <th className="py-3 px-4 text-right w-20 print:hidden">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#F2F4F7] dark:divide-slate-800/70 text-xs">
+                <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
                   {/* Opening Balance Row */}
-                  <tr className="bg-[#FAFBFD] dark:bg-slate-800/30 font-semibold italic text-[#475467] dark:text-slate-400">
+                  <tr className="bg-slate-50/50 dark:bg-[#202025]/30 font-semibold italic text-slate-600 dark:text-slate-400">
                     <td className="py-3 px-4">{detailFromDate ? formatDate(detailFromDate) : "—"}</td>
                     <td className="py-3 px-4 font-mono text-[11px]">OPENING</td>
                     <td className="py-3 px-4">
@@ -1884,7 +1884,7 @@ export default function MasterLedgerPage() {
                           tx.is_void && "opacity-50 line-through bg-rose-50/20 dark:bg-rose-950/20"
                         )}
                       >
-                        <td className="py-3 px-4 text-[#475467] dark:text-slate-300 whitespace-nowrap">
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">
                           {formatDate(tx.entry_date)}
                         </td>
                         <td className="py-3 px-4 font-mono font-semibold text-xs text-[#101828] dark:text-slate-200">
@@ -1909,7 +1909,7 @@ export default function MasterLedgerPage() {
                         <td className="py-3 px-4 font-mono text-xs text-[#667085] dark:text-slate-400">
                           {tx.reference_number || "—"}
                         </td>
-                        <td className="py-3 px-4 text-[#344054] dark:text-slate-300">
+                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
                           {tx.particulars}
                         </td>
                         <td className="py-3 px-4 text-right font-medium text-[#101828] dark:text-slate-200 font-mono">
@@ -1932,7 +1932,7 @@ export default function MasterLedgerPage() {
                                 ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
                                 : tx.status === "SETTLED"
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                : "bg-slate-100 text-slate-700 dark:bg-[#202025] dark:text-slate-300"
                             )}
                           >
                             {tx.status}
@@ -1954,7 +1954,7 @@ export default function MasterLedgerPage() {
                   )}
 
                   {/* Statement Grand Totals Row */}
-                  <tr className="bg-[#F8F9FB] dark:bg-slate-800/60 font-bold border-t-2 border-[#D0D5DD] dark:border-slate-700 text-xs">
+                  <tr className="bg-slate-50 dark:bg-[#101013] font-bold border-t-2 border-[#D0D5DD] dark:border-[#303036] text-xs">
                     <td colSpan={5} className="py-3.5 px-4 text-right uppercase tracking-wider text-[#101828] dark:text-white">
                       Period Totals & Closing Balance:
                     </td>
@@ -1981,8 +1981,8 @@ export default function MasterLedgerPage() {
       {/* ------------------------------------------------------------------------ */}
       {sourceDocModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E4E7EC] dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-[#F2F4F7] dark:border-slate-800">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] shadow-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#303036]">
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-[#4F46E5]" />
                 <h3 className="font-bold text-sm text-[#101828] dark:text-white">
@@ -1999,7 +1999,7 @@ export default function MasterLedgerPage() {
 
             {sourceDocModal.tx && (
               <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-[#F8F9FB] dark:bg-slate-800/40">
+                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-slate-50 dark:bg-[#101013]">
                   <div>
                     <span className="text-[#667085] dark:text-slate-400 text-[11px]">Voucher Number</span>
                     <p className="font-mono font-bold text-sm text-[#101828] dark:text-white">
@@ -2020,7 +2020,7 @@ export default function MasterLedgerPage() {
                   </div>
                   <div>
                     <span className="text-[#667085] dark:text-slate-400 text-[11px]">Reference</span>
-                    <p className="font-mono text-[#344054] dark:text-slate-300">
+                    <p className="font-mono text-slate-700 dark:text-slate-300">
                       {sourceDocModal.tx.reference_number || "None"}
                     </p>
                   </div>
@@ -2028,19 +2028,19 @@ export default function MasterLedgerPage() {
 
                 <div>
                   <span className="text-[#667085] dark:text-slate-400 font-medium">Particulars:</span>
-                  <p className="mt-1 p-2 rounded bg-[#FAFBFD] dark:bg-slate-900 border border-[#E4E7EC] dark:border-slate-800 text-[#344054] dark:text-slate-200">
+                  <p className="mt-1 p-2 rounded bg-slate-50/50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] text-slate-700 dark:text-slate-200">
                     {sourceDocModal.tx.particulars}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="p-2.5 rounded border border-[#E4E7EC] dark:border-slate-800">
+                  <div className="p-2.5 rounded border border-slate-200/90 dark:border-[#303036]">
                     <span className="text-[#667085] dark:text-slate-400 text-[11px]">Debit Amount</span>
                     <p className="font-mono font-bold text-base text-[#101828] dark:text-white">
                       {formatCurrency(sourceDocModal.tx.debit_amount)}
                     </p>
                   </div>
-                  <div className="p-2.5 rounded border border-[#E4E7EC] dark:border-slate-800">
+                  <div className="p-2.5 rounded border border-slate-200/90 dark:border-[#303036]">
                     <span className="text-[#667085] dark:text-slate-400 text-[11px]">Credit Amount</span>
                     <p className="font-mono font-bold text-base text-[#027A48] dark:text-emerald-400">
                       {formatCurrency(sourceDocModal.tx.credit_amount)}
@@ -2050,8 +2050,8 @@ export default function MasterLedgerPage() {
 
                 {sourceDocModal.data?.items && sourceDocModal.data.items.length > 0 && (
                   <div className="pt-2">
-                    <span className="font-semibold text-[#344054] dark:text-slate-300 text-xs">Line Items:</span>
-                    <div className="mt-1 divide-y divide-[#F2F4F7] dark:divide-slate-800 border border-[#E4E7EC] dark:border-slate-800 rounded-lg overflow-hidden">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs">Line Items:</span>
+                    <div className="mt-1 divide-y divide-[#F2F4F7] dark:divide-[#303036] border border-slate-200/90 dark:border-[#303036] rounded-lg overflow-hidden">
                       {sourceDocModal.data.items.map((itm: any, idx: number) => (
                         <div key={idx} className="p-2 flex items-center justify-between text-[11px]">
                           <span>{itm.description}</span>
@@ -2064,7 +2064,7 @@ export default function MasterLedgerPage() {
               </div>
             )}
 
-            <div className="pt-3 border-t border-[#F2F4F7] dark:border-slate-800 flex justify-end">
+            <div className="pt-3 border-t border-slate-100 dark:border-[#303036] flex justify-end">
               <Button
                 variant="outline"
                 size="sm"

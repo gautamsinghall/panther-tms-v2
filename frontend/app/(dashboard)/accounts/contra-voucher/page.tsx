@@ -616,30 +616,22 @@ export default function ContraVoucherPage() {
           { label: "Accounts", href: "/accounts" },
           { label: "Contra Vouchers" },
         ]}
-        actions={
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-2xs font-medium"
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-600 dark:text-emerald-400" />
-              Export CSV
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                resetCreateForm("CASH_TO_BANK");
-                setIsCreateOpen(true);
-              }}
-              className="bg-[#4F46E5] hover:bg-[#4338CA] text-white shadow-xs font-semibold rounded-xl"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Record Contra Transfer
-            </Button>
-          </div>
-        }
+        primaryAction={{
+          label: "Record Contra Transfer",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => {
+            resetCreateForm("CASH_TO_BANK");
+            setIsCreateOpen(true);
+          },
+        }}
+        secondaryActions={[
+          {
+            label: "Export CSV",
+            icon: <FileSpreadsheet className="w-4 h-4 text-emerald-600" />,
+            onClick: handleExportCSV,
+            variant: "outline",
+          },
+        ]}
       />
 
       {/* KPI Cards */}
@@ -648,25 +640,25 @@ export default function ContraVoucherPage() {
           title="Total Fund Transfers"
           value={formatCurrency(kpis.totalTransfers)}
           subtext={`${kpis.count} internal transactions posted`}
-          icon={<ArrowLeftRight className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+          icon={<ArrowLeftRight className="h-4 w-4" />}
         />
         <KpiCard
           title="Cash Deposited to Bank"
           value={formatCurrency(kpis.cashDeposited)}
           subtext="Cash-in-hand credited to bank accounts"
-          icon={<Landmark className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+          icon={<Landmark className="h-4 w-4" />}
         />
         <KpiCard
           title="Cash Withdrawn (Self/ATM)"
           value={formatCurrency(kpis.cashWithdrawn)}
           subtext="Bank liquidity converted to office cash"
-          icon={<Wallet className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />}
+          icon={<Wallet className="h-4 w-4" />}
         />
         <KpiCard
           title="Inter-Bank Transfers"
           value={formatCurrency(kpis.interbank)}
           subtext="Bank A to Bank B rebalancing"
-          icon={<Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+          icon={<Building2 className="h-4 w-4" />}
         />
       </div>
       {/* Filter & Search Bar */}
@@ -767,7 +759,7 @@ export default function ContraVoucherPage() {
         <form onSubmit={handleCreateContra} className="space-y-6 pb-20">
           {/* Step 1: Select Transfer Category (4 Big Easy Cards) */}
           <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm border-b border-slate-100 dark:border-[#303036] pb-3">
+            <div className="flex items-center gap-2 flex items-center gap-2.5 border-b border-slate-100 dark:border-[#22232E] pb-3 text-base font-bold text-slate-900 dark:text-white">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 1
               </span>
@@ -899,7 +891,7 @@ export default function ContraVoucherPage() {
 
           {/* Step 2: Source & Destination Accounts */}
           <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm border-b border-slate-100 dark:border-[#303036] pb-3">
+            <div className="flex items-center gap-2 flex items-center gap-2.5 border-b border-slate-100 dark:border-[#22232E] pb-3 text-base font-bold text-slate-900 dark:text-white">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 2
               </span>
@@ -923,7 +915,7 @@ export default function ContraVoucherPage() {
                   value={sourceAccountId}
                   onChange={(e) => setSourceAccountId(e.target.value)}
                   required
-                  className="w-full bg-white dark:bg-[#0E0F15] border border-rose-300 dark:border-rose-900/60 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600 shadow-2xs transition-all font-medium"
+                  className="w-full bg-white dark:bg-[#0E0F15] border border-rose-300 dark:border-rose-900/60 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600 shadow-2xs transition-all font-medium"
                 >
                   <option value="">-- Select Source Account --</option>
                   {sourceAccountOptions.map((acc) => (
@@ -936,7 +928,7 @@ export default function ContraVoucherPage() {
                 {selectedSourceAccount && (
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
                     <span>Available Ledger Balance:</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                    <span className="font-mono font-bold text-slate-900 dark:text-slate-900 dark:text-white">
                       ₹{Number(selectedSourceAccount.current_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })} {selectedSourceAccount.balance_type}
                     </span>
                   </div>
@@ -959,7 +951,7 @@ export default function ContraVoucherPage() {
                   value={destinationAccountId}
                   onChange={(e) => setDestinationAccountId(e.target.value)}
                   required
-                  className="w-full bg-white dark:bg-[#0E0F15] border border-emerald-300 dark:border-emerald-900/60 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all font-medium"
+                  className="w-full bg-white dark:bg-[#0E0F15] border border-emerald-300 dark:border-emerald-900/60 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all font-medium"
                 >
                   <option value="">-- Select Destination Account --</option>
                   {destinationAccountOptions.map((acc) => (
@@ -972,7 +964,7 @@ export default function ContraVoucherPage() {
                 {selectedDestinationAccount && (
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
                     <span>Available Ledger Balance:</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
+                    <span className="font-mono font-bold text-slate-900 dark:text-slate-900 dark:text-white">
                       ₹{Number(selectedDestinationAccount.current_balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })} {selectedDestinationAccount.balance_type}
                     </span>
                   </div>
@@ -983,7 +975,7 @@ export default function ContraVoucherPage() {
 
           {/* Step 3: Amount, Date & Reference */}
           <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm border-b border-slate-100 dark:border-[#303036] pb-3">
+            <div className="flex items-center gap-2 flex items-center gap-2.5 border-b border-slate-100 dark:border-[#22232E] pb-3 text-base font-bold text-slate-900 dark:text-white">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 3
               </span>

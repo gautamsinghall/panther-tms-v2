@@ -668,10 +668,10 @@ export default function TransportInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-[#172033] block text-xs sm:text-sm">
+          <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs sm:text-sm">
             {row.voucher_number}
           </span>
-          <div className="flex items-center gap-1.5 text-[11px] text-[#667085]">
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
             <span>{formatDate(row.voucher_date)}</span>
             {row.due_date && (
               <span className="text-[10px] bg-slate-100 text-slate-600 px-1 py-0.2 rounded font-mono">
@@ -688,7 +688,7 @@ export default function TransportInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-[#F2F4F7] text-[#172033] border border-[#E4E7EC]">
+          <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#1A1D2B] text-slate-900 dark:text-white border border-slate-200/90 dark:border-[#22232E]">
             {row.lr_number || `LR #${row.lr_id}`}
           </span>
           {row.lr?.vehicle_number && (
@@ -705,7 +705,7 @@ export default function TransportInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-semibold text-[#172033] block text-xs">
+          <span className="font-semibold text-slate-900 dark:text-white block text-xs">
             {row.party_name || "General Client"}
           </span>
           <div className="flex items-center gap-2 mt-0.5">
@@ -757,10 +757,10 @@ export default function TransportInvoicePage() {
       isNumeric: true,
       cell: (row) => (
         <div className="text-right">
-          <span className="font-mono font-bold text-[#172033] block text-xs sm:text-sm">
+          <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs sm:text-sm">
             {formatCurrency(row.net_amount)}
           </span>
-          <span className="text-[11px] font-mono text-[#667085]">
+          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
             Tax: {formatCurrency(row.tax_amount)}
           </span>
         </div>
@@ -836,7 +836,7 @@ export default function TransportInvoicePage() {
                 IRN Active
               </Badge>
               {row.irn && (
-                <span className="font-mono text-[10px] text-[#98A2B3] mt-0.5 truncate max-w-[100px]" title={row.irn}>
+                <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-[100px]" title={row.irn}>
                   {row.irn.substring(0, 8)}...
                 </span>
               )}
@@ -943,7 +943,7 @@ export default function TransportInvoicePage() {
 
       {/* Notifications */}
       {errorMessage && (
-        <div className="p-3.5 rounded-card bg-[#FEF2F2] border border-[#FECDCA] text-[#DC2626] text-xs flex flex-wrap items-center justify-between gap-2.5">
+        <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
@@ -966,7 +966,7 @@ export default function TransportInvoicePage() {
         </div>
       )}
       {successMessage && (
-        <div className="p-3.5 rounded-card bg-[#ECFDF3] border border-[#A6F4C5] text-[#16A34A] text-xs flex items-center gap-2.5">
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2.5">
           <CheckCircle className="w-4 h-4 shrink-0" />
           <span>{successMessage}</span>
           <button onClick={() => setSuccessMessage(null)} className="ml-auto text-[#16A34A] hover:opacity-80">
@@ -1042,7 +1042,7 @@ export default function TransportInvoicePage() {
       >
         <form onSubmit={handleCreateInvoice} className="space-y-6">
           {/* Active Series & Numbering Header */}
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-200 dark:border-[#303036] grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-5 rounded-2xl bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] grid grid-cols-1 sm:grid-cols-2 gap-4 shadow-2xs">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Numbering Series Sequence
@@ -1058,7 +1058,7 @@ export default function TransportInvoicePage() {
                     setInvoiceNumber(matched.next_number_formatted);
                   }
                 }}
-                className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-300 bg-white dark:bg-[#101013] text-slate-900 dark:text-white border-slate-300 dark:border-[#303036]"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               >
                 {seriesOptions.map((opt: any) => (
                   <option key={opt.value} value={opt.value}>
@@ -1077,13 +1077,13 @@ export default function TransportInvoicePage() {
                 disabled
                 value={activeNextNumber || invoiceNumber || ""}
                 placeholder={activeNextNumber || "Auto-allocated"}
-                className="w-full h-9 px-3 text-xs font-mono font-bold rounded-lg border border-slate-200 bg-slate-100 text-slate-800 cursor-not-allowed"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-slate-100 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 cursor-not-allowed shadow-2xs"
               />
             </div>
           </div>
 
           {/* Consignment LR Selection */}
-          <div className="space-y-1.5 bg-white p-4 rounded-xl border border-slate-200">
+          <div className="bg-white dark:bg-[#12131A] p-5 sm:p-6 rounded-2xl border border-slate-200/90 dark:border-[#22232E] space-y-4 shadow-2xs">
             <label className="block text-xs font-bold text-slate-900">
               Select Lorry Receipt (LR) to Bill <span className="text-red-500">*</span>
             </label>
@@ -1105,7 +1105,7 @@ export default function TransportInvoicePage() {
           </div>
 
           {/* Itemized Transport Freight Charges */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+          <div className="bg-white dark:bg-[#12131A] p-5 sm:p-6 rounded-2xl border border-slate-200/90 dark:border-[#22232E] space-y-4 shadow-2xs">
             <div className="flex items-center justify-between border-b pb-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 Transport Charges & Tariff Breakdown
@@ -1123,7 +1123,7 @@ export default function TransportInvoicePage() {
                   step="0.01"
                   value={basicFreight}
                   onChange={(e) => setBasicFreight(e.target.value)}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
               <div>
@@ -1135,7 +1135,7 @@ export default function TransportInvoicePage() {
                   step="0.01"
                   value={loadingCharges}
                   onChange={(e) => setLoadingCharges(e.target.value)}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
               <div>
@@ -1147,7 +1147,7 @@ export default function TransportInvoicePage() {
                   step="0.01"
                   value={unloadingCharges}
                   onChange={(e) => setUnloadingCharges(e.target.value)}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
               <div>
@@ -1159,7 +1159,7 @@ export default function TransportInvoicePage() {
                   step="0.01"
                   value={detentionCharges}
                   onChange={(e) => setDetentionCharges(e.target.value)}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
             </div>
@@ -1174,7 +1174,7 @@ export default function TransportInvoicePage() {
                   step="0.01"
                   value={tollCharges}
                   onChange={(e) => setTollCharges(e.target.value)}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
               <div>
@@ -1186,7 +1186,7 @@ export default function TransportInvoicePage() {
                   step="0.01"
                   value={otherCharges}
                   onChange={(e) => setOtherCharges(e.target.value)}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
               <div>
@@ -1198,10 +1198,10 @@ export default function TransportInvoicePage() {
                   step="0.01"
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(e.target.value)}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-red-300 bg-red-50/50 text-red-700 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 text-red-700 dark:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 shadow-2xs transition-all"
                 />
               </div>
-              <div className="bg-slate-100 p-2 rounded-lg flex flex-col justify-center">
+              <div className="bg-slate-50 dark:bg-[#17171B] p-3 rounded-xl border border-slate-200/90 dark:border-[#22232E] flex flex-col justify-center">
                 <span className="text-[10px] text-slate-500 uppercase font-semibold">
                   Taxable Freight Total
                 </span>
@@ -1213,7 +1213,7 @@ export default function TransportInvoicePage() {
           </div>
 
           {/* GST Configuration & Place of Supply */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+          <div className="bg-white dark:bg-[#12131A] p-5 sm:p-6 rounded-2xl border border-slate-200/90 dark:border-[#22232E] space-y-4 shadow-2xs">
             <div className="flex items-center justify-between border-b pb-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 GST Treatment & Place of Supply (POS)
@@ -1229,7 +1229,7 @@ export default function TransportInvoicePage() {
                 <select
                   value={gstTreatment}
                   onChange={(e) => setGstTreatment(e.target.value)}
-                  className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-300 bg-white"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="FCM">FCM — Forward Charge (Transporter collects GST)</option>
                   <option value="RCM">RCM — Reverse Charge (Recipient pays GST under GTA)</option>
@@ -1246,7 +1246,7 @@ export default function TransportInvoicePage() {
                   value={placeOfSupply}
                   onChange={(e) => setPlaceOfSupply(e.target.value)}
                   placeholder="e.g. Maharashtra, Gujarat, Karnataka"
-                  className="w-full h-9 px-3 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1258,7 +1258,7 @@ export default function TransportInvoicePage() {
                   type="number"
                   value={creditPeriodDays}
                   onChange={(e) => setCreditPeriodDays(parseInt(e.target.value, 10) || 30)}
-                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
             </div>
@@ -1271,7 +1271,7 @@ export default function TransportInvoicePage() {
                 <select
                   value={selectedTaxCatId}
                   onChange={(e) => setSelectedTaxCatId(e.target.value)}
-                  className="w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-300 bg-white"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   {taxCategories.map((t) => (
                     <option key={t.id} value={String(t.id)}>
@@ -1285,7 +1285,7 @@ export default function TransportInvoicePage() {
           </div>
 
           {/* Double-Entry Ledger Posting Preview (Tally Prime Style) */}
-          <div className="bg-indigo-50/70 border border-indigo-200 p-4 rounded-xl space-y-3">
+          <div className="bg-indigo-50/60 dark:bg-[#171725] border border-indigo-200/70 dark:border-indigo-900/50 p-5 rounded-2xl space-y-3 shadow-2xs">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
                 <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
@@ -1296,7 +1296,7 @@ export default function TransportInvoicePage() {
               </span>
             </div>
 
-            <div className="bg-white rounded-lg border border-indigo-100 divide-y text-xs">
+            <div className="bg-white dark:bg-[#12131A] rounded-xl border border-indigo-100 dark:border-[#2B2E42] divide-y divide-slate-100 dark:divide-[#22232E] text-xs">
               {/* Debit Line */}
               <div className="p-2.5 flex items-center justify-between font-mono">
                 <div className="flex items-center gap-2">
@@ -1374,7 +1374,7 @@ export default function TransportInvoicePage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-[#172033]">
+            <label className="block text-xs font-semibold text-slate-900 dark:text-white">
               Voucher Narration / Audit Note
             </label>
             <textarea
@@ -1382,11 +1382,11 @@ export default function TransportInvoicePage() {
               value={narration}
               onChange={(e) => setNarration(e.target.value)}
               placeholder="e.g. Freight billing for Steel Coils Mumbai to Pune via Corridor 4"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-[#E4E7EC]">
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200/90 dark:border-[#22232E]">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsCreateOpen(false)}>
               Cancel
             </Button>
@@ -1416,7 +1416,7 @@ export default function TransportInvoicePage() {
         {paymentInvoice && (
           <form onSubmit={handleRecordPayment} className="space-y-5">
             {/* Invoice Financial Card */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-3 gap-3 text-xs">
+            <div className="p-5 rounded-2xl bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs shadow-2xs">
               <div>
                 <span className="text-slate-500 block text-[11px]">Billed Party</span>
                 <strong className="text-slate-900 block truncate">{paymentInvoice.party_name}</strong>
@@ -1436,7 +1436,7 @@ export default function TransportInvoicePage() {
             </div>
 
             {/* Payment Inputs */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4">
+            <div className="bg-white dark:bg-[#12131A] p-5 sm:p-6 rounded-2xl border border-slate-200/90 dark:border-[#22232E] space-y-4 shadow-2xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1448,7 +1448,7 @@ export default function TransportInvoicePage() {
                     required
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="w-full h-10 px-3 text-sm font-mono font-bold rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
                   />
                 </div>
 
@@ -1459,7 +1459,7 @@ export default function TransportInvoicePage() {
                   <select
                     value={paymentMode}
                     onChange={(e) => setPaymentMode(e.target.value as any)}
-                    className="w-full h-10 px-3 text-xs font-medium rounded-lg border border-slate-300 bg-white"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
                   >
                     <option value="BANK">Bank Account (NEFT / RTGS / IMPS / Cheque)</option>
                     <option value="CASH">Cash in Hand</option>
@@ -1880,28 +1880,28 @@ export default function TransportInvoicePage() {
       >
         {selectedVoucher && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-card border border-[#E4E7EC]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white dark:bg-[#12131A] p-5 rounded-2xl border border-slate-200/90 dark:border-[#22232E] shadow-2xs">
               <div>
-                <span className="text-[11px] text-[#667085] block">Party</span>
-                <span className="text-xs font-semibold text-[#172033]">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Party</span>
+                <span className="text-xs font-semibold text-slate-900 dark:text-white">
                   {selectedVoucher.party_name || "-"}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] text-[#667085] block">Date</span>
-                <span className="text-xs font-semibold text-[#172033]">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Date</span>
+                <span className="text-xs font-semibold text-slate-900 dark:text-white">
                   {formatDate(selectedVoucher.voucher_date)}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] text-[#667085] block">Outstanding</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Outstanding</span>
                 <span className="text-xs font-mono font-bold text-amber-700">
                   {formatCurrency(selectedVoucher.balance_amount ?? selectedVoucher.net_amount)}
                 </span>
               </div>
               <div>
-                <span className="text-[11px] text-[#667085] block">Net Total</span>
-                <span className="text-xs font-mono font-bold text-[#172033]">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Net Total</span>
+                <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
                   {formatCurrency(selectedVoucher.net_amount)}
                 </span>
               </div>
@@ -1909,8 +1909,8 @@ export default function TransportInvoicePage() {
 
             {/* Bill Allocation Settlement History */}
             {selectedVoucher.bill_allocations && selectedVoucher.bill_allocations.length > 0 && (
-              <div className="bg-white rounded-card border border-[#E4E7EC] overflow-hidden">
-                <div className="p-3 bg-slate-50 border-b border-[#E4E7EC] flex items-center justify-between">
+              <div className="bg-white rounded-xl border border-slate-200/90 dark:border-[#22232E] overflow-hidden">
+                <div className="p-4 bg-slate-50 dark:bg-[#17171B] border-b border-slate-200/90 dark:border-[#22232E] flex items-center justify-between">
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                     Bill-by-Bill Payment Allocations
                   </h4>
@@ -1925,7 +1925,7 @@ export default function TransportInvoicePage() {
                   </span>
                 </div>
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-[#F7F8FA] border-b border-[#E4E7EC] text-[11px] font-semibold uppercase text-[#667085]">
+                  <thead className="bg-slate-50 dark:bg-[#17171B] border-b border-slate-200/90 dark:border-[#22232E] text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">
                     <tr>
                       <th className="py-2 px-3">Receipt Ref</th>
                       <th className="py-2 px-3 text-right">Received (₹)</th>
@@ -1935,7 +1935,7 @@ export default function TransportInvoicePage() {
                       <th className="py-2 px-3">Settlement Date</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E4E7EC]">
+                  <tbody className="divide-y divide-slate-200/80 dark:divide-[#22232E]">
                     {selectedVoucher.bill_allocations.map((alloc) => (
                       <tr key={alloc.id} className="hover:bg-slate-50 font-mono">
                         <td className="py-2 px-3 font-semibold text-indigo-700">
@@ -1960,14 +1960,14 @@ export default function TransportInvoicePage() {
             )}
 
             {/* Double-Entry General Ledger Postings */}
-            <div className="bg-white rounded-card border border-[#E4E7EC] overflow-hidden">
-              <div className="p-3 bg-slate-50 border-b border-[#E4E7EC]">
+            <div className="bg-white rounded-xl border border-slate-200/90 dark:border-[#22232E] overflow-hidden">
+              <div className="p-4 bg-slate-50 dark:bg-[#17171B] border-b border-slate-200/90 dark:border-[#22232E]">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                   Balanced Double-Entry Journal Postings
                 </h4>
               </div>
               <table className="w-full text-left border-collapse text-xs">
-                <thead className="bg-[#F7F8FA] border-b border-[#E4E7EC] text-[11px] font-semibold uppercase text-[#667085]">
+                <thead className="bg-slate-50 dark:bg-[#17171B] border-b border-slate-200/90 dark:border-[#22232E] text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">
                   <tr>
                     <th className="py-2.5 px-4">Account Head</th>
                     <th className="py-2.5 px-4 text-right">Debit (₹)</th>
@@ -1975,12 +1975,12 @@ export default function TransportInvoicePage() {
                     <th className="py-2.5 px-4">Narration</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E4E7EC] text-[#172033]">
+                <tbody className="divide-y divide-slate-200/80 dark:divide-[#22232E] text-slate-900 dark:text-white">
                   {selectedVoucher.ledger_entries?.map((entry) => (
                     <tr
                       key={entry.id}
                       className={cn(
-                        "hover:bg-[#F7F8FA]",
+                        "hover:bg-slate-50 dark:bg-[#17171B]",
                         entry.is_reversal && "bg-red-50/50 text-red-900"
                       )}
                     >
@@ -2000,7 +2000,7 @@ export default function TransportInvoicePage() {
                           ? formatCurrency(entry.credit_amount)
                           : "-"}
                       </td>
-                      <td className="py-2.5 px-4 text-[#667085]">{entry.narration || "-"}</td>
+                      <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400">{entry.narration || "-"}</td>
                     </tr>
                   ))}
                 </tbody>

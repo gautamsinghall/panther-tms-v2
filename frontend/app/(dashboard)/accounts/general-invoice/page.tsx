@@ -752,7 +752,7 @@ export default function GeneralInvoicePage() {
           <div className="flex items-center gap-2 mt-0.5 text-xs text-text-muted">
             <span>{formatDate(row.voucher_date)}</span>
             {row.due_date && (
-              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1 py-0.2 rounded font-mono">
+              <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 dark:text-slate-400 px-1 py-0.2 rounded font-mono">
                 Due: {formatDate(row.due_date)}
               </span>
             )}
@@ -793,7 +793,7 @@ export default function GeneralInvoicePage() {
             {row.reference_number || "—"}
           </span>
           {row.cost_center && (
-            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">
+            <span className="text-[10px] bg-slate-100 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono">
               CC: {row.cost_center}
             </span>
           )}
@@ -998,7 +998,7 @@ export default function GeneralInvoicePage() {
 
       {/* Notifications */}
       {errorMessage && (
-        <div className="p-3.5 rounded-card bg-[#FEF2F2] border border-[#FECDCA] text-[#DC2626] text-xs flex flex-wrap items-center justify-between gap-2.5">
+        <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
@@ -1021,7 +1021,7 @@ export default function GeneralInvoicePage() {
         </div>
       )}
       {successMessage && (
-        <div className="p-3.5 rounded-card bg-[#ECFDF3] border border-[#A6F4C5] text-[#16A34A] text-xs flex items-center justify-between gap-2.5">
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 shrink-0" />
             <span>{successMessage}</span>
@@ -1108,32 +1108,32 @@ export default function GeneralInvoicePage() {
             submitDisabled={!seriesInfo?.configured && seriesOptions.length === 0}
             summary={
               <div
-                className="grid grid-cols-4 gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs"
+                className="grid grid-cols-4 gap-3 rounded-xl border border-slate-200/90 dark:border-[#22232E] bg-slate-50 dark:bg-[#12131A] px-4 py-3 text-xs"
                 aria-label="Invoice summary"
               >
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Taxable Value</span>
-                  <span className="font-mono text-xs font-semibold text-slate-800">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Taxable Value</span>
+                  <span className="font-mono text-xs font-semibold text-slate-900 dark:text-white">
                     {formatCurrency(calculationSummary.taxableTotal)}
                   </span>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     {calculationSummary.isIntra ? "CGST + SGST" : "IGST"}
                   </span>
-                  <span className="font-mono text-xs font-semibold text-slate-800">
+                  <span className="font-mono text-xs font-semibold text-slate-900 dark:text-white">
                     {formatCurrency(calculationSummary.taxTotal)}
                   </span>
                 </div>
-                <div className="border-l border-slate-200 pl-3">
+                <div className="border-l border-slate-200/90 dark:border-[#22232E] pl-3">
                   <span className="block text-[10px] font-bold uppercase tracking-wide text-indigo-600">Net Receivable</span>
                   <output className="font-mono text-sm font-bold text-indigo-700">
                     {formatCurrency(calculationSummary.netReceivable)}
                   </output>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">GST Supply</span>
-                  <span className="font-semibold text-slate-800 text-[11px]">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">GST Supply</span>
+                  <span className="font-semibold text-slate-900 dark:text-white text-[11px]">
                     {calculationSummary.isRcm
                       ? "GTA RCM"
                       : calculationSummary.isExempt
@@ -1150,14 +1150,14 @@ export default function GeneralInvoicePage() {
       >
         <form id="general-invoice-form" onSubmit={handleCreateInvoice} className="space-y-6">
           {/* Section 1: Series & Document Header */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-2xs">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-indigo-600" /> Document Series & Sequencing
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                   Document Series <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -1172,8 +1172,8 @@ export default function GeneralInvoicePage() {
                     }
                   }}
                   className={cn(
-                    "w-full h-9 px-3 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer",
-                    seriesOptions.length <= 1 && "bg-slate-100 text-slate-600 cursor-not-allowed select-none"
+                    "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all cursor-pointer",
+                    seriesOptions.length <= 1 && "bg-slate-100 dark:bg-[#17171B] text-slate-500 dark:text-slate-400 dark:text-slate-400 cursor-not-allowed select-none"
                   )}
                 >
                   {seriesOptions.map((opt: any) => (
@@ -1185,10 +1185,10 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1 flex items-center justify-between">
                   <span>Invoice Number</span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1 py-0.2 rounded border border-slate-200">
-                    <Lock className="w-2.5 h-2.5 text-slate-500" /> Auto-Allocated
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 px-1 py-0.2 rounded border border-slate-200">
+                    <Lock className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" /> Auto-Allocated
                   </span>
                 </label>
                 <input
@@ -1197,12 +1197,12 @@ export default function GeneralInvoicePage() {
                   disabled
                   value={activeNextNumber || voucherNumber || ""}
                   placeholder={activeNextNumber || "Auto-allocated sequence"}
-                  className="w-full h-9 px-3 text-xs font-mono font-bold rounded-lg border border-slate-200 bg-slate-100 text-slate-800 cursor-not-allowed select-none focus:outline-none"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-slate-100 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 cursor-not-allowed select-none focus:outline-none shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                   Invoice Date <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1210,21 +1210,21 @@ export default function GeneralInvoicePage() {
                   required
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 2: Customer / Debtor & Statutory Details */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-2xs">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-indigo-600" /> Billed Customer & Place of Supply
             </h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                   Select Customer (Billing Client Ledger)
                 </label>
                 <select
@@ -1245,13 +1245,13 @@ export default function GeneralInvoicePage() {
                     </option>
                   ))}
                 </select>
-                <span className="text-[11px] text-slate-500 mt-1 block">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block">
                   Select existing debtor ledger, or type custom customer name below.
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                   Customer / Debtor Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1267,7 +1267,7 @@ export default function GeneralInvoicePage() {
                   disabled={Boolean(selectedClientId)}
                   className={cn(
                     "w-full h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600",
-                    Boolean(selectedClientId) && "bg-slate-100 text-slate-600"
+                    Boolean(selectedClientId) && "bg-slate-100 text-slate-600 dark:text-slate-400"
                   )}
                 />
               </div>
@@ -1275,7 +1275,7 @@ export default function GeneralInvoicePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Customer GSTIN</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Customer GSTIN</label>
                 <input
                   type="text"
                   placeholder="27AABCT1332L1Z4"
@@ -1287,13 +1287,13 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                   Place of Supply (POS) <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={placeOfSupply}
                   onChange={(e) => setPlaceOfSupply(e.target.value)}
-                  className="w-full h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   {INDIAN_STATES.map((s) => (
                     <option key={s} value={s}>
@@ -1304,7 +1304,7 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">GST Treatment</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">GST Treatment</label>
                 <select
                   value={gstTreatment}
                   onChange={(e) => setGstTreatment(e.target.value)}
@@ -1317,7 +1317,7 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Credit Period (Days)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Credit Period (Days)</label>
                 <input
                   type="number"
                   min={0}
@@ -1330,7 +1330,7 @@ export default function GeneralInvoicePage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Reference / PO Number</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Reference / PO Number</label>
                 <input
                   type="text"
                   placeholder="PO-2026-998"
@@ -1341,7 +1341,7 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Cost Centre</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Cost Centre</label>
                 <input
                   type="text"
                   placeholder="e.g. WH-MUMBAI-MAIN"
@@ -1352,7 +1352,7 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Revenue Income Ledger Head</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Revenue Income Ledger Head</label>
                 <select
                   value={incomeHead}
                   onChange={(e) => setIncomeHead(e.target.value)}
@@ -1367,9 +1367,9 @@ export default function GeneralInvoicePage() {
           </div>
 
           {/* Section 3: Itemized Service Lines Table */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-2xs">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                 <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600" /> Itemized Services & Charges
               </h4>
               <Button
@@ -1383,9 +1383,9 @@ export default function GeneralInvoicePage() {
               </Button>
             </div>
 
-            <div className="border border-slate-200 rounded-lg overflow-x-auto">
+            <div className="border border-slate-200/90 dark:border-[#22232E] rounded-xl overflow-x-auto bg-white dark:bg-[#12131A]">
               <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                   <tr>
                     <th className="px-3 py-2 w-8">#</th>
                     <th className="px-3 py-2 min-w-[200px]">Service Description</th>
@@ -1402,7 +1402,7 @@ export default function GeneralInvoicePage() {
                 <tbody className="divide-y divide-slate-100">
                   {calculationSummary.computedLines.map((line, idx) => (
                     <tr key={line.id} className="hover:bg-slate-50/50">
-                      <td className="px-3 py-2 font-mono text-slate-500">{idx + 1}</td>
+                      <td className="px-3 py-2 font-mono text-slate-500 dark:text-slate-400">{idx + 1}</td>
                       <td className="px-3 py-2">
                         <input
                           type="text"
@@ -1485,7 +1485,7 @@ export default function GeneralInvoicePage() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-slate-50 border-t border-slate-200 font-semibold text-slate-800">
+                <tfoot className="bg-slate-50 border-t border-slate-200 font-semibold text-slate-900 dark:text-white">
                   <tr>
                     <td colSpan={7} className="px-3 py-2 text-right">
                       Subtotals:
@@ -1504,7 +1504,7 @@ export default function GeneralInvoicePage() {
 
             {/* Narration */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                 Voucher Narration / Remarks
               </label>
               <textarea
@@ -1518,8 +1518,8 @@ export default function GeneralInvoicePage() {
           </div>
 
           {/* Section 4: Real-time Double-Entry Posting Preview */}
-          <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-3 shadow-2xs">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-indigo-600" /> Tally Prime Double-Entry Posting Preview
               </span>
@@ -1528,9 +1528,9 @@ export default function GeneralInvoicePage() {
               </span>
             </h4>
 
-            <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+            <div className="border border-slate-200/90 dark:border-[#22232E] rounded-xl overflow-hidden bg-white dark:bg-[#12131A]">
               <table className="w-full text-xs text-left">
-                <thead className="bg-slate-100 text-slate-600 font-semibold border-b">
+                <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                   <tr>
                     <th className="px-3 py-2">Ledger Account</th>
                     <th className="px-3 py-2">Accounting Group</th>
@@ -1543,7 +1543,7 @@ export default function GeneralInvoicePage() {
                     <td className="px-3 py-2 font-medium text-slate-900">
                       Dr. {selectedClientId ? clients.find((c) => String(c.id) === selectedClientId)?.name || "Customer Ledger" : customPartyName || "Sundry Debtors A/c"}
                     </td>
-                    <td className="px-3 py-2 text-slate-500">Sundry Debtors (Asset)</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Sundry Debtors (Asset)</td>
                     <td className="px-3 py-2 font-mono text-right text-emerald-700 font-bold">
                       {formatCurrency(calculationSummary.netReceivable)}
                     </td>
@@ -1553,7 +1553,7 @@ export default function GeneralInvoicePage() {
                     <td className="px-3 py-2 font-medium text-slate-900">
                       Cr. {incomeHead === "ACC_WAREHOUSE_REV" ? "Warehousing & Storage Income" : incomeHead === "ACC_HANDLING_REV" ? "Loading & Material Handling Income" : "General Sales & Service Revenue"}
                     </td>
-                    <td className="px-3 py-2 text-slate-500">Direct Income (Revenue)</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Direct Income (Revenue)</td>
                     <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
                     <td className="px-3 py-2 font-mono text-right text-indigo-700 font-bold">
                       {formatCurrency(calculationSummary.taxableTotal)}
@@ -1565,17 +1565,17 @@ export default function GeneralInvoicePage() {
                         <>
                           <tr>
                             <td className="px-3 py-2 font-medium text-slate-900">Cr. GST Output CGST A/c</td>
-                            <td className="px-3 py-2 text-slate-500">Duties & Taxes (Liability)</td>
+                            <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Duties & Taxes (Liability)</td>
                             <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
-                            <td className="px-3 py-2 font-mono text-right text-slate-800">
+                            <td className="px-3 py-2 font-mono text-right text-slate-900 dark:text-white">
                               {formatCurrency(calculationSummary.cgstTotal)}
                             </td>
                           </tr>
                           <tr>
                             <td className="px-3 py-2 font-medium text-slate-900">Cr. GST Output SGST A/c</td>
-                            <td className="px-3 py-2 text-slate-500">Duties & Taxes (Liability)</td>
+                            <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Duties & Taxes (Liability)</td>
                             <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
-                            <td className="px-3 py-2 font-mono text-right text-slate-800">
+                            <td className="px-3 py-2 font-mono text-right text-slate-900 dark:text-white">
                               {formatCurrency(calculationSummary.sgstTotal)}
                             </td>
                           </tr>
@@ -1583,9 +1583,9 @@ export default function GeneralInvoicePage() {
                       ) : (
                         <tr>
                           <td className="px-3 py-2 font-medium text-slate-900">Cr. GST Output IGST A/c</td>
-                          <td className="px-3 py-2 text-slate-500">Duties & Taxes (Liability)</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Duties & Taxes (Liability)</td>
                           <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
-                          <td className="px-3 py-2 font-mono text-right text-slate-800">
+                          <td className="px-3 py-2 font-mono text-right text-slate-900 dark:text-white">
                             {formatCurrency(calculationSummary.igstTotal)}
                           </td>
                         </tr>
@@ -1623,7 +1623,7 @@ export default function GeneralInvoicePage() {
         size="md"
         footer={
           <div className="flex items-center justify-between w-full">
-            <span className="text-xs font-mono font-semibold text-slate-600">
+            <span className="text-xs font-mono font-semibold text-slate-600 dark:text-slate-400">
               Outstanding:{" "}
               <strong>
                 {formatCurrency(
@@ -1654,23 +1654,23 @@ export default function GeneralInvoicePage() {
           <div className="space-y-4">
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
               <div className="flex justify-between">
-                <span className="text-slate-500">Invoice Number:</span>
+                <span className="text-slate-500 dark:text-slate-400">Invoice Number:</span>
                 <span className="font-mono font-bold text-slate-900">{paymentInvoice.voucher_number}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Billed Customer:</span>
+                <span className="text-slate-500 dark:text-slate-400">Billed Customer:</span>
                 <span className="font-semibold text-slate-900">{paymentInvoice.party_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Total Invoice Value:</span>
+                <span className="text-slate-500 dark:text-slate-400">Total Invoice Value:</span>
                 <span className="font-mono text-slate-900">{formatCurrency(paymentInvoice.net_amount)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Currently Paid:</span>
+                <span className="text-slate-500 dark:text-slate-400">Currently Paid:</span>
                 <span className="font-mono text-emerald-600 font-semibold">{formatCurrency(paymentInvoice.paid_amount || 0)}</span>
               </div>
               <div className="flex justify-between border-t pt-1">
-                <span className="font-bold text-slate-700">Remaining Balance:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">Remaining Balance:</span>
                 <span className="font-mono font-bold text-amber-700">
                   {formatCurrency(paymentInvoice.balance_amount ?? paymentInvoice.net_amount)}
                 </span>
@@ -1679,7 +1679,7 @@ export default function GeneralInvoicePage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
                   Net Amount Received (₹) <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1693,7 +1693,7 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Mode</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Payment Mode</label>
                 <select
                   value={paymentMode}
                   onChange={(e) => setPaymentMode(e.target.value as "BANK" | "CASH")}
@@ -1707,7 +1707,7 @@ export default function GeneralInvoicePage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">TDS Deducted (₹)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">TDS Deducted (₹)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1718,7 +1718,7 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">TDS Section</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">TDS Section</label>
                 <select
                   value={paymentTdsSec}
                   onChange={(e) => setPaymentTdsSec(e.target.value)}
@@ -1732,7 +1732,7 @@ export default function GeneralInvoicePage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Agreed Discount / Deduction (₹)</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Agreed Discount / Deduction (₹)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1743,7 +1743,7 @@ export default function GeneralInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt Date</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Receipt Date</label>
                 <input
                   type="date"
                   value={paymentDate}
@@ -1754,7 +1754,7 @@ export default function GeneralInvoicePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Cheque / UTR / Reference No.</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Cheque / UTR / Reference No.</label>
               <input
                 type="text"
                 placeholder="UTR / Cheque number..."
@@ -1765,7 +1765,7 @@ export default function GeneralInvoicePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Receipt Narration</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Receipt Narration</label>
               <input
                 type="text"
                 value={paymentNarration}
@@ -1796,19 +1796,19 @@ export default function GeneralInvoicePage() {
       >
         {selectedVoucher && (
           <div className="space-y-5">
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+            <div className="p-4 bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] flex items-center justify-between text-xs shadow-2xs">
               <div>
-                <span className="text-slate-500 block">Total Invoice Value</span>
+                <span className="text-slate-500 dark:text-slate-400 block">Total Invoice Value</span>
                 <span className="font-mono font-bold text-sm text-slate-900">
                   {formatCurrency(selectedVoucher.net_amount)}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block">Tax Amount</span>
+                <span className="text-slate-500 dark:text-slate-400 block">Tax Amount</span>
                 <span className="font-mono text-slate-900">{formatCurrency(selectedVoucher.tax_amount)}</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Outstanding</span>
+                <span className="text-slate-500 dark:text-slate-400 block">Outstanding</span>
                 <span className="font-mono font-bold text-amber-700">
                   {formatCurrency(selectedVoucher.balance_amount ?? selectedVoucher.net_amount)}
                 </span>
@@ -1816,12 +1816,12 @@ export default function GeneralInvoicePage() {
             </div>
 
             <div>
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-2">
                 Double-Entry Ledger Entries
               </h5>
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-100 text-slate-600 font-semibold border-b">
+                  <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                     <tr>
                       <th className="px-3 py-2">Account Name</th>
                       <th className="px-3 py-2">Posting Type</th>
@@ -1838,7 +1838,7 @@ export default function GeneralInvoicePage() {
                             <span className="ml-2 text-[10px] font-bold text-red-600 uppercase">[Reversal]</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-slate-500">
+                        <td className="px-3 py-2 text-slate-500 dark:text-slate-400">
                           {Number(entry.debit_amount) > 0 ? "Debit (Dr)" : "Credit (Cr)"}
                         </td>
                         <td className="px-3 py-2 font-mono text-right font-medium">
@@ -1868,12 +1868,12 @@ export default function GeneralInvoicePage() {
             {/* Bill Allocations History */}
             {selectedVoucher.bill_allocations && selectedVoucher.bill_allocations.length > 0 && (
               <div>
-                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                <h5 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-2">
                   Customer Settlement History
                 </h5>
                 <div className="border border-slate-200 rounded-lg overflow-hidden">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-100 text-slate-600 font-semibold border-b">
+                    <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                       <tr>
                         <th className="px-3 py-2">Receipt Voucher</th>
                         <th className="px-3 py-2 text-right">Received Amount</th>
@@ -1949,20 +1949,20 @@ export default function GeneralInvoicePage() {
             {/* Printable Document Sheet */}
             <div
               id="printable-tax-invoice"
-              className="p-6 border border-slate-300 rounded-xl space-y-6 text-xs text-slate-800 bg-white"
+              className="p-6 border border-slate-300 rounded-xl space-y-6 text-xs text-slate-900 dark:text-white bg-white"
             >
               {/* Header */}
               <div className="text-center border-b pb-4 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                   ORIGINAL FOR RECIPIENT
                 </span>
                 <h1 className="text-lg font-black uppercase text-slate-900">
                   Panther Logistics & Transport Private Limited
                 </h1>
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   Registered Office: Corridor Road, Sector 18, Vashi, Navi Mumbai, Maharashtra - 400703
                 </p>
-                <div className="flex items-center justify-center gap-4 text-[11px] font-semibold font-mono text-slate-700">
+                <div className="flex items-center justify-center gap-4 text-[11px] font-semibold font-mono text-slate-700 dark:text-slate-300">
                   <span>GSTIN: 27AAACP0123M1Z1</span>
                   <span>•</span>
                   <span>State: Maharashtra (Code: 27)</span>
@@ -1974,7 +1974,7 @@ export default function GeneralInvoicePage() {
               {/* Title & Metadata */}
               <div className="grid grid-cols-2 gap-4 border-b pb-4">
                 <div>
-                  <span className="text-[11px] font-bold uppercase text-slate-500 block">
+                  <span className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
                     TAX INVOICE DETAILS
                   </span>
                   <div className="mt-1 space-y-0.5">
@@ -1998,7 +1998,7 @@ export default function GeneralInvoicePage() {
                   </div>
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold uppercase text-slate-500 block">
+                  <span className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
                     REFERENCE & COMMERCIAL DETAILS
                   </span>
                   <div className="mt-1 space-y-0.5">
@@ -2022,16 +2022,16 @@ export default function GeneralInvoicePage() {
 
               {/* Billed To / Recipient */}
               <div className="border-b pb-4 bg-slate-50 p-3 rounded-lg">
-                <span className="text-[11px] font-bold uppercase text-slate-500 block">
+                <span className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
                   BILLED TO (RECIPIENT)
                 </span>
                 <p className="font-bold text-sm text-slate-900 mt-1">
                   {printInvoice.party_name || "General Client"}
                 </p>
-                <p className="font-mono font-semibold text-slate-700 mt-0.5">
+                <p className="font-mono font-semibold text-slate-700 dark:text-slate-300 mt-0.5">
                   GSTIN: {printInvoice.party_gstin || "27AABCT1332L1Z4"}
                 </p>
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   Place of Supply: {printInvoice.place_of_supply || "Maharashtra"}
                 </p>
               </div>
@@ -2039,7 +2039,7 @@ export default function GeneralInvoicePage() {
               {/* Itemized Table */}
               <table className="w-full border-collapse border border-slate-300 text-xs">
                 <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold">
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 dark:text-slate-300 font-bold">
                     <th className="p-2 border-r border-slate-300 text-center w-10">Sr.</th>
                     <th className="p-2 border-r border-slate-300 text-left">Description of Services</th>
                     <th className="p-2 border-r border-slate-300 text-center w-24">SAC / HSN</th>
@@ -2114,10 +2114,10 @@ export default function GeneralInvoicePage() {
 
               {/* Amount in Words */}
               <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                <span className="text-[10px] text-slate-500 uppercase block font-semibold">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase block font-semibold">
                   Amount Chargeable (in words):
                 </span>
-                <span className="font-bold text-slate-800 text-xs">
+                <span className="font-bold text-slate-900 dark:text-white text-xs">
                   {numberToWords(parseFloat(String(printInvoice.net_amount)))}
                 </span>
               </div>
@@ -2125,7 +2125,7 @@ export default function GeneralInvoicePage() {
               {/* Bank & Payment Remittance Details */}
               <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
                     BANK REMITTANCE DETAILS (RTGS / NEFT)
                   </span>
                   <p>
@@ -2145,7 +2145,7 @@ export default function GeneralInvoicePage() {
                   </p>
                 </div>
                 <div className="flex flex-col justify-between text-right p-3">
-                  <span className="text-slate-500 text-[10px]">
+                  <span className="text-slate-500 dark:text-slate-400 text-[10px]">
                     For Panther Logistics & Transport Pvt Ltd
                   </span>
                   <div className="h-12 flex items-center justify-end">
@@ -2153,7 +2153,7 @@ export default function GeneralInvoicePage() {
                       [ Digitally Signed & Authorized ]
                     </span>
                   </div>
-                  <span className="font-bold text-slate-800">Authorized Signatory</span>
+                  <span className="font-bold text-slate-900 dark:text-white">Authorized Signatory</span>
                 </div>
               </div>
             </div>
@@ -2176,7 +2176,7 @@ export default function GeneralInvoicePage() {
         disabled={voidReason.trim().length < 10}
       >
         <div className="mt-4">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">
             Audit Reason for Voiding * (Min 10 characters)
           </label>
           <textarea

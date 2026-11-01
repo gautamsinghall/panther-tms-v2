@@ -1028,7 +1028,7 @@ export default function PurchasesPage() {
         description="Record and track operational purchases (fuel, tyres, spare parts, vehicle repairs, fleet overheads) with automated GST ITC tracking and Tally-style double-entry bookkeeping."
         primaryAction={{
           label: "Add Purchase Bill",
-          icon: Plus,
+          icon: <Plus className="w-4 h-4" />,
           onClick: () => setIsCreateOpen(true),
         }}
         secondaryActions={[
@@ -1340,7 +1340,7 @@ export default function PurchasesPage() {
                     className={cn(
                       "p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all",
                       isSel
-                        ? "bg-indigo-50 border-indigo-500 text-indigo-900 shadow-sm"
+                        ? "bg-indigo-50 border-indigo-500 text-indigo-900 dark:text-indigo-300 shadow-sm"
                         : "bg-white border-[#E4E7EC] text-slate-600 dark:text-slate-400 hover:bg-gray-50"
                     )}
                   >
@@ -1497,7 +1497,7 @@ export default function PurchasesPage() {
               </div>
               <div className="flex justify-between font-bold text-sm text-slate-900 dark:text-white pt-1 border-t border-indigo-200">
                 <span>Total Net Bill Payable:</span>
-                <span className="text-indigo-900">₹{calculatedTotals.net.toFixed(2)}</span>
+                <span className="text-indigo-900 dark:text-indigo-300">₹{calculatedTotals.net.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -1585,7 +1585,7 @@ export default function PurchasesPage() {
                     <span>₹{calculatedTotals.tax.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-indigo-900 dark:text-indigo-300 border-t border-slate-200 dark:border-[#303036] pt-1.5 font-bold">
+                <div className="flex justify-between text-indigo-900 dark:text-indigo-300 dark:text-indigo-300 border-t border-slate-200 dark:border-[#303036] pt-1.5 font-bold">
                   <span>
                     Cr. Supplier Account ({selectedVendorId ? vendors.find((v) => String(v.id) === selectedVendorId)?.name : manualVendorName || "Vendor"})
                   </span>
@@ -1658,7 +1658,7 @@ export default function PurchasesPage() {
       >
         <form onSubmit={handleRecordPaymentSubmit} className="space-y-5 pb-20">
           {paymentBill && (
-            <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
+            <div className="p-4 bg-indigo-50/70 dark:bg-[#171725] border border-indigo-200/70 dark:border-indigo-900/50 rounded-2xl space-y-2 text-xs shadow-2xs">
               <div className="flex justify-between">
                 <span className="text-slate-600 dark:text-slate-400">Supplier:</span>
                 <span className="font-bold text-slate-900 dark:text-white">{paymentBill.party_name}</span>
@@ -1671,8 +1671,8 @@ export default function PurchasesPage() {
                 <span className="text-slate-600 dark:text-slate-400">Already Paid:</span>
                 <span className="font-mono text-emerald-700">₹{Number(paymentBill.paid_amount || 0).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between pt-1 border-t border-indigo-200 font-bold text-sm">
-                <span className="text-indigo-950">Amount Left to Pay:</span>
+              <div className="flex justify-between pt-1 border-t border-indigo-200 dark:border-indigo-900/60 font-bold text-sm">
+                <span className="text-indigo-950 dark:text-indigo-200">Amount Left to Pay:</span>
                 <span className="text-rose-700 font-mono">
                   ₹{Number(paymentBill.balance_amount !== undefined ? paymentBill.balance_amount : paymentBill.net_amount).toFixed(2)}
                 </span>
@@ -1778,7 +1778,7 @@ export default function PurchasesPage() {
 
             <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 flex justify-between pt-1 border-t border-gray-200">
               <span>Total Bill Liability Settled:</span>
-              <span className="font-bold text-indigo-900">
+              <span className="font-bold text-indigo-900 dark:text-indigo-300">
                 ₹{((parseFloat(paymentAmount) || 0) + (parseFloat(tdsAmount) || 0) + (parseFloat(discountAmount) || 0)).toFixed(2)}
               </span>
             </div>
@@ -1839,7 +1839,7 @@ export default function PurchasesPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400">Net Amount:</span>
-                <span className="font-mono font-bold text-indigo-900">₹{Number(selectedVoucher.net_amount).toFixed(2)}</span>
+                <span className="font-mono font-bold text-indigo-900 dark:text-indigo-300">₹{Number(selectedVoucher.net_amount).toFixed(2)}</span>
               </div>
             </div>
 
@@ -1997,7 +1997,7 @@ export default function PurchasesPage() {
                 </div>
                 <div className="flex justify-between font-bold text-base text-gray-900 border-t border-gray-300 pt-1">
                   <span>Grand Total:</span>
-                  <span className="text-indigo-900">₹{Number(printBill.net_amount).toFixed(2)}</span>
+                  <span className="text-indigo-900 dark:text-indigo-300">₹{Number(printBill.net_amount).toFixed(2)}</span>
                 </div>
               </div>
             </div>

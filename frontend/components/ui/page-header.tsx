@@ -249,7 +249,7 @@ export function PageHeader({
     return items;
   }, [breadcrumbs, pathname, title]);
   return (
-    <div className={cn("space-y-2.5 pb-4 border-b border-slate-200/80", className)}>
+    <div className={cn("space-y-2.5 pb-4 border-b border-slate-200/80 dark:border-[#22232E]", className)}>
       {/* Breadcrumb Row */}
       {resolvedBreadcrumbs && resolvedBreadcrumbs.length > 0 && (
         <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
@@ -257,16 +257,16 @@ export function PageHeader({
             const isLast = idx === resolvedBreadcrumbs.length - 1;
             return (
               <React.Fragment key={`${crumb.label}-${idx}`}>
-                {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+                {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />}
                 {crumb.href && !isLast ? (
                   <Link
                     href={crumb.href}
-                    className="hover:text-slate-800 transition-colors"
+                    className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
                   >
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? "font-semibold text-slate-700" : ""}>
+                  <span className={isLast ? "font-semibold text-slate-700 dark:text-slate-200" : ""}>
                     {crumb.label}
                   </span>
                 )}
@@ -280,13 +280,13 @@ export function PageHeader({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 leading-tight">
+            <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
               {title}
             </h1>
             {badge}
           </div>
           {description && (
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-600 mt-1">
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-400 mt-1">
               {description}
             </p>
           )}

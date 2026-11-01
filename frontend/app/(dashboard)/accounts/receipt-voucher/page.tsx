@@ -863,30 +863,22 @@ export default function ReceiptVoucherPage() {
       <PageHeader
         title="Receipt Vouchers"
         description="Double-entry customer collections, multi-invoice bill-wise settlements, TDS deductions (Sec 194C/194J), and customer advances."
-        actions={
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-[#202025] text-slate-700 dark:text-slate-300 rounded-xl shadow-2xs font-medium"
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-400" />
-              Export CSV
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                resetCreateForm();
-                setIsCreateOpen(true);
-              }}
-              className="bg-[#16A34A] hover:bg-[#15803D] text-white shadow-xs font-semibold rounded-xl"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Record Customer Receipt
-            </Button>
-          </div>
-        }
+        primaryAction={{
+          label: "Record Customer Receipt",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => {
+            resetCreateForm();
+            setIsCreateOpen(true);
+          },
+        }}
+        secondaryActions={[
+          {
+            label: "Export CSV",
+            icon: <FileSpreadsheet className="w-4 h-4 text-emerald-600" />,
+            onClick: handleExportCSV,
+            variant: "outline",
+          },
+        ]}
       />
 
       {/* KPI Summary Cards */}
@@ -896,25 +888,25 @@ export default function ReceiptVoucherPage() {
           value={formatCurrency(kpis.totalReceipts)}
           subtext="Net funds credited into Bank/Cash"
           badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount} receipts)</span>}
-          icon={<Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+          icon={<Wallet className="h-4 w-4" />}
         />
         <KpiCard
           title="Invoices Settled"
           value={formatCurrency(kpis.totalSettledBills)}
           subtext="Applied against debtors receivables"
-          icon={<FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+          icon={<FileText className="h-4 w-4" />}
         />
         <KpiCard
           title="Customer Advances"
           value={formatCurrency(kpis.totalAdvances)}
           subtext="Unapplied receipts / credit liability"
-          icon={<TrendingUp className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />}
+          icon={<TrendingUp className="h-4 w-4" />}
         />
         <KpiCard
           title="TDS Receivable"
           value={formatCurrency(kpis.totalTds)}
           subtext="Sec 194C / 194J tax credits (Form 26AS)"
-          icon={<Percent className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+          icon={<Percent className="h-4 w-4" />}
         />
       </div>
       {/* Filter and Search Bar */}
@@ -927,7 +919,7 @@ export default function ReceiptVoucherPage() {
               placeholder="Search voucher #, customer name, cheque/ref #, narration..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl pl-9 pr-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-[#F5F5F7] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
+              className="w-full bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-xl pl-9 pr-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-[#F5F5F7] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             />
           </div>
 
@@ -936,7 +928,7 @@ export default function ReceiptVoucherPage() {
             <select
               value={filterMode}
               onChange={(e) => setFilterMode(e.target.value)}
-              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Payment Modes</option>
               <option value="BANK">Bank Transfer / NEFT / RTGS</option>
@@ -949,7 +941,7 @@ export default function ReceiptVoucherPage() {
             <select
               value={filterReceiptType}
               onChange={(e) => setFilterReceiptType(e.target.value)}
-              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Receipt Types</option>
               <option value="AGAINST_REF">Against Bills (Settlement)</option>
@@ -961,7 +953,7 @@ export default function ReceiptVoucherPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-2xs"
+              className="bg-white dark:bg-[#0E0F15] border border-slate-200 dark:border-[#2B2E42] rounded-xl px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
             >
               <option value="ALL">All Statuses</option>
               <option value="CLEARED">Cleared / Posted</option>
@@ -1028,8 +1020,8 @@ export default function ReceiptVoucherPage() {
         <form onSubmit={handleCreateReceipt} className="space-y-6 pb-20">
           {/* Step 1: Who paid the money? */}
           <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
-            <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-950 border border-emerald-700 text-xs text-emerald-300">
+            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-[#22232E] pb-3 text-base font-bold text-slate-900 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                 1
               </span>
               Who Paid You The Money? (Customer)
@@ -1046,7 +1038,7 @@ export default function ReceiptVoucherPage() {
                     setSelectedClientId(e.target.value);
                     if (e.target.value) setCustomPartyName("");
                   }}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="">-- Choose Corporate / Billing Client --</option>
                   {billingClients.map((c) => (
@@ -1070,7 +1062,7 @@ export default function ReceiptVoucherPage() {
                     placeholder="e.g. Shyam Logistics / Cash Customer"
                     value={customPartyName}
                     onChange={(e) => setCustomPartyName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   />
                 </div>
               )}
@@ -1084,10 +1076,10 @@ export default function ReceiptVoucherPage() {
                     type="button"
                     onClick={() => setReceiptType("AGAINST_REF")}
                     className={cn(
-                      "py-2 px-3 text-xs rounded-lg font-medium border text-center transition-all",
+                      "h-10 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex items-center justify-center shadow-2xs",
                       receiptType === "AGAINST_REF"
-                        ? "bg-emerald-950/80 border-emerald-600 text-emerald-300 shadow-sm"
-                        : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                     )}
                   >
                     Against Bills
@@ -1096,10 +1088,10 @@ export default function ReceiptVoucherPage() {
                     type="button"
                     onClick={() => setReceiptType("ADVANCE")}
                     className={cn(
-                      "py-2 px-3 text-xs rounded-lg font-medium border text-center transition-all",
+                      "h-10 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex items-center justify-center shadow-2xs",
                       receiptType === "ADVANCE"
-                        ? "bg-cyan-950/80 border-cyan-600 text-cyan-300 shadow-sm"
-                        : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                     )}
                   >
                     Customer Advance
@@ -1108,10 +1100,10 @@ export default function ReceiptVoucherPage() {
                     type="button"
                     onClick={() => setReceiptType("ON_ACCOUNT")}
                     className={cn(
-                      "py-2 px-3 text-xs rounded-lg font-medium border text-center transition-all",
+                      "h-10 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex items-center justify-center shadow-2xs",
                       receiptType === "ON_ACCOUNT"
-                        ? "bg-indigo-950/80 border-indigo-600 text-indigo-300 shadow-sm"
-                        : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                     )}
                   >
                     On Account
@@ -1123,8 +1115,8 @@ export default function ReceiptVoucherPage() {
 
           {/* Step 2: Where did you receive the money? */}
           <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
-            <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-950 border border-emerald-700 text-xs text-emerald-300">
+            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-[#22232E] pb-3 text-base font-bold text-slate-900 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                 2
               </span>
               Payment & Banking Information
@@ -1138,7 +1130,7 @@ export default function ReceiptVoucherPage() {
                 <select
                   value={paymentMode}
                   onChange={(e) => setPaymentMode(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="BANK">Bank Transfer (NEFT / RTGS / IMPS)</option>
                   <option value="CHEQUE">Cheque</option>
@@ -1154,7 +1146,7 @@ export default function ReceiptVoucherPage() {
                 <select
                   value={bankAccountId}
                   onChange={(e) => setBankAccountId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="">-- Standard Bank / Cash Account --</option>
                   {bankAccounts.map((a) => (
@@ -1173,7 +1165,7 @@ export default function ReceiptVoucherPage() {
                   type="date"
                   value={voucherDate}
                   onChange={(e) => setVoucherDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1189,7 +1181,7 @@ export default function ReceiptVoucherPage() {
                       placeholder="e.g. 004521"
                       value={chequeNumber}
                       onChange={(e) => setChequeNumber(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
                   <div>
@@ -1200,7 +1192,7 @@ export default function ReceiptVoucherPage() {
                       type="date"
                       value={chequeDate}
                       onChange={(e) => setChequeDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
                   <div>
@@ -1212,7 +1204,7 @@ export default function ReceiptVoucherPage() {
                       placeholder="e.g. State Bank of India"
                       value={chequeBank}
                       onChange={(e) => setChequeBank(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
                   <div>
@@ -1222,7 +1214,7 @@ export default function ReceiptVoucherPage() {
                     <select
                       value={clearanceStatus}
                       onChange={(e) => setClearanceStatus(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     >
                       <option value="CLEARED">Cleared (Funds in Bank)</option>
                       <option value="PENDING">Pending Clearance (Cheque in Hand)</option>
@@ -1239,7 +1231,7 @@ export default function ReceiptVoucherPage() {
                     placeholder="e.g. CMS2948294821 or UPI Ref"
                     value={referenceNumber}
                     onChange={(e) => setReferenceNumber(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   />
                 </div>
               )}
@@ -1254,7 +1246,7 @@ export default function ReceiptVoucherPage() {
                   placeholder="0.00"
                   value={amountReceived}
                   onChange={(e) => setAmountReceived(e.target.value)}
-                  className="w-full h-10 px-3.5 text-sm sm:text-base font-bold rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-2xs"
+                  className="w-full h-10 px-3.5 text-sm sm:text-base font-bold rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   The actual money deposited into your bank account or cash drawer.
@@ -1266,9 +1258,9 @@ export default function ReceiptVoucherPage() {
           {/* Step 3: Bill-wise allocation table (if AGAINST_REF) */}
           {receiptType === "AGAINST_REF" && (
             <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-950 border border-emerald-700 text-xs text-emerald-300">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#22232E] pb-3">
+                <div className="flex items-center gap-2.5 text-base font-bold text-slate-900 dark:text-white">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                     3
                   </span>
                   Which Bills / Invoices Are Being Settled?
@@ -1302,7 +1294,7 @@ export default function ReceiptVoucherPage() {
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#22232E] shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
+                    <thead className="bg-slate-50 dark:bg-[#181926] text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#22232E]">
                       <tr>
                         <th className="p-2.5">Invoice # & Date</th>
                         <th className="p-2.5">Type</th>
@@ -1328,7 +1320,7 @@ export default function ReceiptVoucherPage() {
                         const isOverAllocated = rowTotal > inv.balance_amount + 0.01;
 
                         return (
-                          <tr key={inv.id} className={cn("hover:bg-slate-50/80 dark:hover:bg-[#202025] transition-colors border-b border-slate-100 dark:border-[#303036]", rowTotal > 0 && "bg-emerald-50/40 dark:bg-emerald-950/20")}>
+                          <tr key={inv.id} className={cn("hover:bg-slate-50/80 dark:hover:bg-[#202025] transition-colors border-b border-slate-100 dark:border-[#303036]", rowTotal > 0 && "bg-indigo-50/40 dark:bg-indigo-950/20")}>
                             <td className="p-2.5">
                               <div className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                                 {inv.voucher_number}
@@ -1363,7 +1355,7 @@ export default function ReceiptVoucherPage() {
                                     [inv.id]: { ...prev[inv.id], allocated_amount: val },
                                   }));
                                 }}
-                                className="w-24 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
+                                className="w-24 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right">
@@ -1379,7 +1371,7 @@ export default function ReceiptVoucherPage() {
                                     [inv.id]: { ...prev[inv.id], tds_amount: val },
                                   }));
                                 }}
-                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
+                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right">
@@ -1395,7 +1387,7 @@ export default function ReceiptVoucherPage() {
                                     [inv.id]: { ...prev[inv.id], discount_amount: val },
                                   }));
                                 }}
-                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-indigo-600 dark:text-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs shadow-2xs"
+                                className="w-20 h-8 bg-white dark:bg-[#101013] border border-slate-200 dark:border-[#303036] rounded-lg px-2 text-right font-sans font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 text-xs shadow-2xs"
                               />
                             </td>
                             <td className="p-2.5 text-right font-mono font-semibold">
@@ -1412,7 +1404,7 @@ export default function ReceiptVoucherPage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handlePayFullInvoice(inv)}
-                                className="text-[10px] h-6 px-2 border-emerald-700 text-emerald-300 hover:bg-emerald-950/60"
+                                className="text-[10px] h-6 px-2.5 rounded-lg border-slate-200 dark:border-[#2B2E42] text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-semibold cursor-pointer"
                               >
                                 Pay Full
                               </Button>
@@ -1450,8 +1442,8 @@ export default function ReceiptVoucherPage() {
           {/* Deductions & TDS section for non-allocated or quick setup */}
           {receiptType !== "AGAINST_REF" && (
             <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
-              <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-                <Percent className="h-4 w-4" />
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-[#22232E] pb-3">
+                <Percent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 Customer TDS Deduction & Settlement Discount
               </div>
 
@@ -1463,7 +1455,7 @@ export default function ReceiptVoucherPage() {
                   <select
                     value={tdsSection}
                     onChange={(e) => setTdsSection(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   >
                     <option value="194C">Section 194C (Transport / Contractor - 1% or 2%)</option>
                     <option value="194J">Section 194J (Professional / Technical - 2% or 10%)</option>
@@ -1489,7 +1481,7 @@ export default function ReceiptVoucherPage() {
                         setTdsAmount(calculatedTds.toFixed(2));
                       }
                     }}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   />
                 </div>
 
@@ -1533,7 +1525,7 @@ export default function ReceiptVoucherPage() {
                 placeholder="e.g. Payment received towards freight bills for April 2026 dispatches..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs transition-all"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               />
             </div>
 
@@ -1615,11 +1607,11 @@ export default function ReceiptVoucherPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs text-slate-500 uppercase tracking-wider">Customer / Debtor</span>
-                  <p className="text-base font-semibold text-slate-100">{selectedVoucher.party_name || "Direct Customer"}</p>
+                  <p className="text-base font-bold text-slate-900 dark:text-white">{selectedVoucher.party_name || "Direct Customer"}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-slate-500 uppercase tracking-wider">Total Value</span>
-                  <p className="text-base font-bold font-mono text-emerald-400">
+                  <p className="text-base font-bold font-mono text-slate-900 dark:text-white">
                     {formatCurrency(selectedVoucher.net_amount)}
                   </p>
                 </div>
@@ -1661,7 +1653,7 @@ export default function ReceiptVoucherPage() {
                 </span>
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#22232E] shadow-2xs">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
+                    <thead className="bg-slate-50 dark:bg-[#181926] text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#22232E]">
                       <tr>
                         <th className="p-2.5">Invoice #</th>
                         <th className="p-2.5 text-right">Cash/Bank Applied</th>
@@ -1703,7 +1695,7 @@ export default function ReceiptVoucherPage() {
               </span>
               <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-[#22232E] shadow-2xs">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-[#101013] text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#303036]">
+                  <thead className="bg-slate-50 dark:bg-[#181926] text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200 dark:border-[#22232E]">
                     <tr>
                       <th className="p-2.5">Ledger Account</th>
                       <th className="p-2.5 text-right">Debit (Dr) ₹</th>

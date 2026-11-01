@@ -200,18 +200,18 @@ export function Form({
         return (
           <div
             key={section.id || section.title || sIndex}
-            className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs"
+            className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs"
           >
             {/* Section Header */}
             {(section.title || section.description) && (
-              <div className="border-b border-slate-100 pb-3.5">
+              <div className="border-b border-slate-100 dark:border-[#22232E] pb-3.5">
                 {section.title && (
-                  <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+                  <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">
                     {section.title}
                   </h2>
                 )}
                 {section.description && (
-                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5 leading-normal">
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-normal">
                     {section.description}
                   </p>
                 )}
@@ -240,7 +240,7 @@ export function Form({
                       <div className="flex items-center justify-between">
                         <label
                           htmlFor={inputId}
-                          className="block text-xs font-semibold text-slate-700 tracking-tight"
+                          className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight"
                         >
                           {field.label}
                           {field.required && (
@@ -398,10 +398,10 @@ export function Form({
                         onChange={(e) => handleChange(field.name, e.target.value)}
                         onBlur={() => handleBlur(field)}
                         className={cn(
-                          "w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all resize-y shadow-2xs",
+                          "w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all resize-y shadow-2xs",
                           field.disabled
-                            ? "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200"
-                            : "border-slate-200",
+                            ? "bg-slate-50 dark:bg-[#151620] text-slate-400 dark:text-slate-500 cursor-not-allowed border-slate-200 dark:border-[#22232E]"
+                            : "border-slate-200 dark:border-[#2B2E42]",
                           fieldError && "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
                         )}
                       />
@@ -497,10 +497,10 @@ export function Form({
                         onChange={(e) => handleChange(field.name, e.target.value)}
                         onBlur={() => handleBlur(field)}
                         className={cn(
-                          "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs",
+                          "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs",
                           field.disabled
-                            ? "bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200"
-                            : "border-slate-200",
+                            ? "bg-slate-50 dark:bg-[#151620] text-slate-400 dark:text-slate-500 cursor-not-allowed border-slate-200 dark:border-[#22232E]"
+                            : "border-slate-200 dark:border-[#2B2E42]",
                           fieldError && "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
                         )}
                       />
@@ -508,9 +508,9 @@ export function Form({
 
                     {/* Unambiguous Date Confirmation Display */}
                     {field.type === "date" && val && !fieldError && (
-                      <p className="text-[11px] text-indigo-700 font-medium pt-0.5 flex items-center gap-1.5">
+                      <p className="text-[11px] text-indigo-700 dark:text-indigo-300 font-medium pt-0.5 flex items-center gap-1.5">
                         <span className="text-slate-400 font-normal">Date:</span>
-                        <span className="font-semibold bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">{formatDate(val)}</span>
+                        <span className="font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded border border-indigo-100 dark:border-indigo-800/60">{formatDate(val)}</span>
                       </p>
                     )}
 
@@ -574,8 +574,8 @@ export function Form({
       )}
 
       {/* Form Action Footer - Positioned at the very end of the form */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-2xs mt-8">
-        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+      <div className="bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] rounded-2xl p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-2xs mt-8">
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Active Form Draft</span>
         </div>

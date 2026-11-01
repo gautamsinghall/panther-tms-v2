@@ -543,7 +543,7 @@ export default function CompanyBankAccountsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl p-4 sm:p-5 border border-slate-200/90 dark:border-[#303036] shadow-2xs flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="flex-1 relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -551,7 +551,7 @@ export default function CompanyBankAccountsPage() {
             placeholder="Search by Bank, Account No, IFSC, or Office..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full h-10 pl-9 pr-4 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-slate-50 dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
           />
         </div>
 
@@ -560,7 +560,7 @@ export default function CompanyBankAccountsPage() {
           <select
             value={selectedOfficeFilter}
             onChange={(e) => setSelectedOfficeFilter(e.target.value)}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md py-2 px-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all cursor-pointer"
           >
             <option value="ALL">All Issuing Offices</option>
             {branches.map((b) => (
@@ -574,7 +574,7 @@ export default function CompanyBankAccountsPage() {
           <select
             value={selectedTypeFilter}
             onChange={(e) => setSelectedTypeFilter(e.target.value)}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md py-2 px-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all cursor-pointer"
           >
             <option value="ALL">All Account Types</option>
             <option value="CURRENT">Current Account</option>
@@ -588,7 +588,7 @@ export default function CompanyBankAccountsPage() {
           <select
             value={selectedStatusFilter}
             onChange={(e) => setSelectedStatusFilter(e.target.value)}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md py-2 px-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all cursor-pointer"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active Only</option>
@@ -598,10 +598,10 @@ export default function CompanyBankAccountsPage() {
       </div>
 
       {/* Bank Accounts Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-700 dark:text-gray-200">
-            <thead className="bg-gray-50 dark:bg-gray-900/50 text-xs uppercase font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+            <thead className="bg-slate-50 dark:bg-[#101013] text-[11px] uppercase font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-200/90 dark:border-[#303036]">
               <tr>
                 <th className="py-3.5 px-4">Bank & Branch</th>
                 <th className="py-3.5 px-4">Account Number</th>
@@ -857,7 +857,7 @@ export default function CompanyBankAccountsPage() {
                 <select
                   value={formBankName}
                   onChange={(e) => setFormBankName(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   {INDIAN_BANKS.map((b) => (
                     <option key={b} value={b}>
@@ -879,7 +879,7 @@ export default function CompanyBankAccountsPage() {
                     placeholder="Enter full bank name"
                     value={formCustomBankName}
                     onChange={(e) => setFormCustomBankName(e.target.value)}
-                    className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   />
                 </div>
               )}
@@ -895,7 +895,7 @@ export default function CompanyBankAccountsPage() {
                   placeholder="e.g. Panther Logistics Pvt Ltd"
                   value={formAccountHolder}
                   onChange={(e) => setFormAccountHolder(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -907,7 +907,7 @@ export default function CompanyBankAccountsPage() {
                 <select
                   value={formAccountType}
                   onChange={(e) => setFormAccountType(e.target.value as any)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="CURRENT">Current Account</option>
                   <option value="SAVINGS">Savings Account</option>
@@ -928,7 +928,7 @@ export default function CompanyBankAccountsPage() {
                   placeholder="Enter full account number"
                   value={formAccountNumber}
                   onChange={(e) => setFormAccountNumber(e.target.value)}
-                  className="w-full text-sm font-mono border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -944,7 +944,7 @@ export default function CompanyBankAccountsPage() {
                     placeholder="Re-enter account number"
                     value={formConfirmAccountNumber}
                     onChange={(e) => setFormConfirmAccountNumber(e.target.value)}
-                    className="w-full text-sm font-mono border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   />
                   {formConfirmAccountNumber && formAccountNumber !== formConfirmAccountNumber && (
                     <span className="text-[11px] text-rose-500 mt-1 block">Account numbers do not match</span>
@@ -965,7 +965,7 @@ export default function CompanyBankAccountsPage() {
                     placeholder="e.g. HDFC0001234"
                     value={formIFSC}
                     onChange={(e) => setFormIFSC(e.target.value.toUpperCase())}
-                    className="flex-1 text-sm font-mono uppercase border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                    className="flex-1 h-10 px-3.5 text-xs sm:text-sm font-mono font-medium uppercase rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                   />
                   <Button
                     type="button"
@@ -990,7 +990,7 @@ export default function CompanyBankAccountsPage() {
                   placeholder="e.g. Connaught Place Branch"
                   value={formBranchName}
                   onChange={(e) => setFormBranchName(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1004,7 +1004,7 @@ export default function CompanyBankAccountsPage() {
                   placeholder="Branch street address, city, state"
                   value={formBranchAddress}
                   onChange={(e) => setFormBranchAddress(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1018,7 +1018,7 @@ export default function CompanyBankAccountsPage() {
                   placeholder="9-digit MICR code"
                   value={formMICR}
                   onChange={(e) => setFormMICR(e.target.value)}
-                  className="w-full text-sm font-mono border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1032,14 +1032,14 @@ export default function CompanyBankAccountsPage() {
                   placeholder="e.g. company@hdfcbank"
                   value={formUPI}
                   onChange={(e) => setFormUPI(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 2: Issuing Office Association */}
-          <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="space-y-4 pt-4 border-t border-slate-200/90 dark:border-[#22232E]">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-indigo-600" />
               2. Issuing Office Association
@@ -1055,7 +1055,7 @@ export default function CompanyBankAccountsPage() {
                   required
                   value={formOfficeId}
                   onChange={(e) => setFormOfficeId(Number(e.target.value))}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="">Select Issuing Office</option>
                   {branches.map((b) => (
@@ -1067,7 +1067,7 @@ export default function CompanyBankAccountsPage() {
               </div>
 
               {/* Selected Office Info */}
-              <div className="bg-gray-50 dark:bg-gray-900/60 p-3 rounded-md border border-gray-200 dark:border-gray-700 text-xs space-y-1">
+              <div className="bg-white dark:bg-[#12131A] p-4 rounded-xl border border-slate-200/90 dark:border-[#22232E] text-xs space-y-1.5 shadow-2xs">
                 <div className="text-gray-500">Office Code & Location:</div>
                 <div className="font-semibold text-gray-800 dark:text-gray-200">
                   {selectedOfficeObj
@@ -1096,7 +1096,7 @@ export default function CompanyBankAccountsPage() {
           </div>
 
           {/* Section 3: Expandable Advanced Accounting Details */}
-          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="pt-4 border-t border-slate-200/90 dark:border-[#22232E]">
             <button
               type="button"
               onClick={() => setShowAdvancedDetails(!showAdvancedDetails)}
@@ -1110,7 +1110,7 @@ export default function CompanyBankAccountsPage() {
             </button>
 
             {showAdvancedDetails && (
-              <div className="mt-3 space-y-4 p-4 bg-gray-50 dark:bg-gray-900/60 rounded-md border border-gray-200 dark:border-gray-700">
+              <div className="mt-3 space-y-4 p-5 bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] shadow-2xs">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Technical double-entry parameters automatically assigned per Indian accounting standards.
                 </p>
@@ -1126,7 +1126,7 @@ export default function CompanyBankAccountsPage() {
                       placeholder="e.g. HDFC Bank - Delhi Office"
                       value={formLedgerName}
                       onChange={(e) => setFormLedgerName(e.target.value)}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
 
@@ -1139,7 +1139,7 @@ export default function CompanyBankAccountsPage() {
                       type="text"
                       readOnly
                       value={formLedgerGroup}
-                      className="w-full text-sm bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-slate-100 dark:bg-[#17171B] text-slate-600 dark:text-slate-400 cursor-not-allowed shadow-2xs"
                     />
                   </div>
 
@@ -1154,7 +1154,7 @@ export default function CompanyBankAccountsPage() {
                       placeholder="0.00"
                       value={formOpeningBalance}
                       onChange={(e) => setFormOpeningBalance(e.target.value)}
-                      className="w-full text-sm font-mono border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
 
@@ -1166,7 +1166,7 @@ export default function CompanyBankAccountsPage() {
                     <select
                       value={formOpeningType}
                       onChange={(e) => setFormOpeningType(e.target.value as "DR" | "CR")}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     >
                       <option value="DR">Debit (Asset / In Hand)</option>
                       <option value="CR">Credit (Liability / Overdrawn)</option>
@@ -1182,7 +1182,7 @@ export default function CompanyBankAccountsPage() {
                       type="date"
                       value={formOpeningDate}
                       onChange={(e) => setFormOpeningDate(e.target.value)}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
 
@@ -1195,7 +1195,7 @@ export default function CompanyBankAccountsPage() {
                       type="date"
                       value={formReconciliationDate}
                       onChange={(e) => setFormReconciliationDate(e.target.value)}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                     />
                   </div>
 
@@ -1218,12 +1218,13 @@ export default function CompanyBankAccountsPage() {
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200/90 dark:border-[#22232E]">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsDrawerOpen(false)}
               disabled={isSubmitting}
+              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
             >
               Cancel
             </Button>

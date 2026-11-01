@@ -218,10 +218,10 @@ export default function ProformaInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-semibold text-text-primary flex items-center gap-2">
+          <span className="font-mono font-semibold text-slate-900 dark:text-white flex items-center gap-2">
             {row.voucher_number}
           </span>
-          <span className="block text-xs text-text-muted mt-0.5">{row.voucher_date}</span>
+          <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">{row.voucher_date}</span>
         </div>
       ),
     },
@@ -230,11 +230,11 @@ export default function ProformaInvoicePage() {
       header: "Prospective Customer",
       cell: (row) => (
         <div>
-          <span className="font-medium text-text-primary">
+          <span className="font-medium text-slate-900 dark:text-white">
             {row.party_name || "—"}
           </span>
           {row.reference_number && (
-            <span className="block font-mono text-xs text-text-muted mt-0.5">
+            <span className="block font-mono text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Ref: {row.reference_number}
             </span>
           )}
@@ -248,10 +248,10 @@ export default function ProformaInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div className="text-right">
-          <span className="font-mono font-semibold text-text-primary text-sm tabular-nums">
+          <span className="font-mono font-semibold text-slate-900 dark:text-white text-sm tabular-nums">
             ₹{Number(row.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className="block text-xs text-text-muted mt-0.5 tabular-nums">
+          <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
             Tax: ₹{Number(row.tax_amount).toFixed(2)}
           </span>
         </div>
@@ -344,13 +344,15 @@ export default function ProformaInvoicePage() {
         size="md"
         footer={
           <div className="flex justify-end gap-3 w-full">
-            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer">
               Cancel
             </Button>
             <Button
               type="submit"
+              variant="primary"
               form="proforma-invoice-form"
               disabled={!seriesInfo?.configured || isSubmitting}
+              className="rounded-xl h-10 px-6 text-xs font-semibold cursor-pointer"
             >
               {isSubmitting ? "Generating..." : "Issue Proforma"}
             </Button>
@@ -376,15 +378,15 @@ export default function ProformaInvoicePage() {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs">
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-5 shadow-2xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-text-primary mb-1 flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1 flex items-center justify-between">
                   <span>
                     Select Series <span className="text-[#DC2626]">*</span>
                   </span>
                   {seriesOptions.length <= 1 && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#17171B] px-1.5 py-0.5 rounded border border-slate-200 dark:border-[#2B2E42]">
                       <Lock className="w-2.5 h-2.5 text-slate-500" /> Frozen
                     </span>
                   )}
@@ -394,8 +396,8 @@ export default function ProformaInvoicePage() {
                   disabled={seriesOptions.length <= 1}
                   onChange={(e) => setSelectedSeriesId(e.target.value)}
                   className={cn(
-                    "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs cursor-pointer",
-                    seriesOptions.length <= 1 && "bg-slate-100/90 text-slate-600 cursor-not-allowed select-none"
+                    "w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all cursor-pointer",
+                    seriesOptions.length <= 1 && "bg-slate-100 dark:bg-[#17171B] text-slate-500 dark:text-slate-400 cursor-not-allowed select-none"
                   )}
                 >
                   {seriesOptions.map((opt: any) => (
@@ -412,11 +414,11 @@ export default function ProformaInvoicePage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-text-primary mb-1 flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1 flex items-center justify-between">
                   <span>
                     Proforma Number <span className="text-[#DC2626]">*</span>
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#17171B] px-1.5 py-0.5 rounded border border-slate-200 dark:border-[#2B2E42]">
                     <Lock className="w-2.5 h-2.5 text-slate-500" /> Auto / Locked
                   </span>
                 </label>
@@ -427,7 +429,7 @@ export default function ProformaInvoicePage() {
                     disabled
                     value={activeNextNumber || ""}
                     placeholder={activeNextNumber || "Auto-allocated"}
-                    className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
+                    className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-slate-100 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 cursor-not-allowed select-none focus:outline-none shadow-2xs"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <Lock className="w-4 h-4 text-slate-400" />
@@ -442,7 +444,7 @@ export default function ProformaInvoicePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-primary mb-1">
+              <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1">
                 Prospective Customer / Party *
               </label>
               <input
@@ -451,12 +453,12 @@ export default function ProformaInvoicePage() {
                 placeholder="e.g. Apex Industrial Works"
                 value={partyName}
                 onChange={(e) => setPartyName(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-primary mb-1">
+              <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1">
                 Enquiry / Reference Number
               </label>
               <input
@@ -464,13 +466,13 @@ export default function ProformaInvoicePage() {
                 placeholder="e.g. ENQ-4412"
                 value={refNumber}
                 onChange={(e) => setRefNumber(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-text-primary mb-1">
+                <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1">
                   Estimated Amount (₹) *
                 </label>
                 <input
@@ -480,11 +482,11 @@ export default function ProformaInvoicePage() {
                   placeholder="0.00"
                   value={totalAmount}
                   onChange={(e) => setTotalAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-text-primary mb-1">
+                <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1">
                   Estimated Tax (₹)
                 </label>
                 <input
@@ -493,13 +495,13 @@ export default function ProformaInvoicePage() {
                   placeholder="0.00"
                   value={taxAmount}
                   onChange={(e) => setTaxAmount(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-text-primary mb-1">
+              <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1">
                 Quotation Terms & Narration
               </label>
               <textarea
@@ -507,7 +509,7 @@ export default function ProformaInvoicePage() {
                 placeholder="Proforma notes and validity period..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
@@ -531,23 +533,23 @@ export default function ProformaInvoicePage() {
       >
         {selectedVoucher && (
           <div className="space-y-4">
-            <div className="p-4 bg-surface-secondary rounded-xl border border-border space-y-2.5 text-xs">
+            <div className="p-5 bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] space-y-3 text-xs shadow-2xs">
               <div className="flex justify-between">
-                <span className="text-text-muted">Customer / Party</span>
-                <span className="font-medium text-text-primary">{selectedVoucher.party_name}</span>
+                <span className="text-slate-500 dark:text-slate-400">Customer / Party</span>
+                <span className="font-medium text-slate-900 dark:text-white">{selectedVoucher.party_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-text-muted">Quotation Date</span>
-                <span className="text-text-primary">{selectedVoucher.voucher_date}</span>
+                <span className="text-slate-500 dark:text-slate-400">Quotation Date</span>
+                <span className="text-slate-900 dark:text-white">{selectedVoucher.voucher_date}</span>
               </div>
               {selectedVoucher.reference_number && (
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Enquiry Reference</span>
-                  <span className="font-mono text-text-primary">{selectedVoucher.reference_number}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Enquiry Reference</span>
+                  <span className="font-mono text-slate-900 dark:text-white">{selectedVoucher.reference_number}</span>
                 </div>
               )}
-              <div className="flex justify-between border-t border-border pt-2 text-sm font-semibold">
-                <span className="text-text-primary">Net Estimated Amount</span>
+              <div className="flex justify-between border-t border-slate-200/90 dark:border-[#22232E] pt-2 text-sm font-semibold">
+                <span className="text-slate-900 dark:text-white">Net Estimated Amount</span>
                 <span className="font-mono text-primary tabular-nums">
                   ₹{Number(selectedVoucher.net_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
@@ -555,9 +557,9 @@ export default function ProformaInvoicePage() {
             </div>
 
             {selectedVoucher.narration && (
-              <div className="p-3 bg-surface-secondary border border-border rounded-xl text-xs">
-                <strong className="text-text-primary block mb-1">Terms & Notes:</strong>
-                <p className="text-text-secondary whitespace-pre-wrap">{selectedVoucher.narration}</p>
+              <div className="p-4 bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] rounded-2xl text-xs shadow-2xs">
+                <strong className="text-slate-900 dark:text-white block mb-1">Terms & Notes:</strong>
+                <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{selectedVoucher.narration}</p>
               </div>
             )}
 
@@ -583,7 +585,7 @@ export default function ProformaInvoicePage() {
         disabled={voidReason.trim().length < 10}
       >
         <div className="mt-4">
-          <label className="block text-xs font-semibold text-text-primary mb-1">
+          <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1">
             Reason for Cancellation * (Min 10 characters)
           </label>
           <textarea
@@ -592,7 +594,7 @@ export default function ProformaInvoicePage() {
             placeholder="Reason for cancelling this proforma..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-danger/20"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-danger/20"
           />
         </div>
       </ConfirmDialog>

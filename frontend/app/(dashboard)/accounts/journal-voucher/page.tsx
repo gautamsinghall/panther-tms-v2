@@ -757,7 +757,7 @@ export default function JournalVouchersPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 shadow-2xs flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="flex-1 relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -765,7 +765,7 @@ export default function JournalVouchersPage() {
             placeholder="Search by Voucher #, Reference, Account, or Narration..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-[#303036] rounded-xl bg-white dark:bg-[#101013] text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
           />
         </div>
 
@@ -774,7 +774,7 @@ export default function JournalVouchersPage() {
           <select
             value={selectedOfficeFilter}
             onChange={(e) => setSelectedOfficeFilter(e.target.value)}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md py-2 px-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="h-10 px-3 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
           >
             <option value="ALL">All Issuing Offices</option>
             {branches.map((b) => (
@@ -788,7 +788,7 @@ export default function JournalVouchersPage() {
           <select
             value={selectedTypeFilter}
             onChange={(e) => setSelectedTypeFilter(e.target.value)}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md py-2 px-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="h-10 px-3 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
           >
             <option value="ALL">All Adjustment Categories</option>
             {adjustmentTypes.map((t) => (
@@ -802,7 +802,7 @@ export default function JournalVouchersPage() {
           <select
             value={selectedStatusFilter}
             onChange={(e) => setSelectedStatusFilter(e.target.value)}
-            className="text-sm border border-gray-200 dark:border-gray-700 rounded-md py-2 px-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="h-10 px-3 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
           >
             <option value="ALL">All Statuses</option>
             <option value="POSTED">Posted Only</option>
@@ -813,10 +813,10 @@ export default function JournalVouchersPage() {
       </div>
 
       {/* Vouchers Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-700 dark:text-gray-200">
-            <thead className="bg-gray-50 dark:bg-gray-900/50 text-xs uppercase font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+            <thead className="bg-slate-50 dark:bg-[#101013] text-xs uppercase font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-[#303036]">
               <tr>
                 <th className="py-3.5 px-4 w-28">Date</th>
                 <th className="py-3.5 px-4 w-36">Voucher #</th>
@@ -829,7 +829,7 @@ export default function JournalVouchersPage() {
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-slate-100 dark:divide-[#22232E]">
               {isLoading ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-gray-500">
@@ -861,7 +861,7 @@ export default function JournalVouchersPage() {
                   return (
                     <tr
                       key={v.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
+                      className="hover:bg-slate-50/80 dark:hover:bg-[#202025] transition-colors"
                     >
                       {/* Date */}
                       <td className="py-3.5 px-4 whitespace-nowrap text-xs text-gray-600 dark:text-gray-300 font-mono">
@@ -1117,11 +1117,11 @@ export default function JournalVouchersPage() {
           )}
 
           {/* Section 1: Voucher Details */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-indigo-600" />
-              1. Voucher Details
-            </h3>
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-[#22232E] pb-3 text-base font-bold text-slate-900 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">1</span>
+              Voucher Specifications
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Voucher Date */}
@@ -1134,7 +1134,7 @@ export default function JournalVouchersPage() {
                   required
                   value={formVoucherDate}
                   onChange={(e) => setFormVoucherDate(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1147,7 +1147,7 @@ export default function JournalVouchersPage() {
                   required
                   value={formOfficeId}
                   onChange={(e) => setFormOfficeId(Number(e.target.value))}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   <option value="">Select Issuing Office</option>
                   {branches.map((b) => (
@@ -1166,7 +1166,7 @@ export default function JournalVouchersPage() {
                 <select
                   value={formAdjustmentType}
                   onChange={(e) => handleSelectAdjustmentType(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
                   {adjustmentTypes.map((t) => (
                     <option key={t.code} value={t.code}>
@@ -1186,7 +1186,7 @@ export default function JournalVouchersPage() {
                   placeholder="e.g. AUDIT-2026-04, POL-9842"
                   value={formReferenceNumber}
                   onChange={(e) => setFormReferenceNumber(e.target.value)}
-                  className="w-full text-sm font-mono border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1199,7 +1199,7 @@ export default function JournalVouchersPage() {
                   type="date"
                   value={formReferenceDate}
                   onChange={(e) => setFormReferenceDate(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1213,19 +1213,19 @@ export default function JournalVouchersPage() {
                   placeholder="e.g. Fleet Operations, Maintenance Hub"
                   value={formCostCenter}
                   onChange={(e) => setFormCostCenter(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 2: Accounting Entry Details */}
-          <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                <Scale className="w-4 h-4 text-indigo-600" />
-                2. Accounting Entry Details (Double-Entry Invariant)
-              </h3>
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#22232E] pb-3">
+              <div className="flex items-center gap-2.5 text-base font-bold text-slate-900 dark:text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">2</span>
+                Accounting Entry Details (Double-Entry Invariant)
+              </div>
               <Button
                 type="button"
                 variant="outline"
@@ -1241,7 +1241,7 @@ export default function JournalVouchersPage() {
             {/* Entry Table */}
             <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
               <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-900/50 text-xs uppercase font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                <thead className="bg-slate-50 dark:bg-[#101013] text-xs uppercase font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-[#303036]">
                   <tr>
                     <th className="py-2.5 px-3 w-10 text-center">#</th>
                     <th className="py-2.5 px-3">Account / Ledger <span className="text-rose-500">*</span></th>
@@ -1251,7 +1251,7 @@ export default function JournalVouchersPage() {
                     <th className="py-2.5 px-3 w-12 text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-slate-100 dark:divide-[#22232E]">
                   {formLines.map((line, idx) => {
                     const selectedAcc = accounts.find((a) => a.id === Number(line.account_id));
                     return (
@@ -1403,11 +1403,11 @@ export default function JournalVouchersPage() {
           </div>
 
           {/* Section 3: Narration & Additional Details */}
-          <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-indigo-600" />
-              3. Narration & Supporting Documentation
-            </h3>
+          <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-4 shadow-2xs">
+            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-[#22232E] pb-3 text-base font-bold text-slate-900 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">3</span>
+              Narration & Supporting Documentation
+            </div>
 
             {/* Narration */}
             <div>
@@ -1431,7 +1431,7 @@ export default function JournalVouchersPage() {
                 placeholder="Explain the commercial/accounting reason for this journal adjustment..."
                 value={formNarration}
                 onChange={(e) => setFormNarration(e.target.value)}
-                className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
               />
             </div>
 
@@ -1446,7 +1446,7 @@ export default function JournalVouchersPage() {
                   placeholder="Notes for internal auditors / finance team"
                   value={formInternalRemarks}
                   onChange={(e) => setFormInternalRemarks(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
 
@@ -1460,7 +1460,7 @@ export default function JournalVouchersPage() {
                   placeholder="https://... or document reference link"
                   value={formAttachmentUrl}
                   onChange={(e) => setFormAttachmentUrl(e.target.value)}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
             </div>
@@ -1542,7 +1542,7 @@ export default function JournalVouchersPage() {
           </div>
 
           {/* Form Actions Footer */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] rounded-2xl p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-2xs mt-8">
             <Button
               type="button"
               variant="outline"
@@ -1669,7 +1669,7 @@ export default function JournalVouchersPage() {
                       <th className="py-2.5 px-3 w-32 text-right">Credit (₹)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#22232E]">
                     {(viewVoucher.ledger_entries || []).map((le, idx) => (
                       <tr key={idx} className={le.is_reversal ? "opacity-60 italic" : ""}>
                         <td className="py-2.5 px-3">

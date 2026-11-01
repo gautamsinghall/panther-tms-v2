@@ -718,7 +718,7 @@ export default function PaymentVoucherPage() {
       sortable: true,
       render: (v) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 font-mono">
+          <span className="font-semibold text-slate-900 dark:text-slate-900 dark:text-white flex items-center gap-1.5 font-mono">
             <ArrowUpRight className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
             {v.voucher_number}
           </span>
@@ -863,7 +863,7 @@ export default function PaymentVoucherPage() {
       label: "Settlement Value",
       sortable: true,
       render: (v) => (
-        <span className="font-semibold text-slate-900 dark:text-slate-100 font-mono">
+        <span className="font-semibold text-slate-900 dark:text-slate-900 dark:text-white font-mono">
           {formatCurrency(v.total_amount)}
         </span>
       ),
@@ -948,30 +948,22 @@ export default function PaymentVoucherPage() {
       <PageHeader
         title="Payment Vouchers"
         description="Double-entry disbursements, vendor bill settlements, truck hire settlements (ATH/BTH), driver advances, and statutory payments."
-        actions={
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              className="border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] hover:bg-slate-50 dark:hover:bg-[#202025] text-slate-700 dark:text-slate-300 rounded-xl shadow-2xs font-medium"
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-1.5 text-emerald-400" />
-              Export CSV
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                resetCreateForm();
-                setIsCreateOpen(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-950/50 font-medium"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Record Business Payment
-            </Button>
-          </div>
-        }
+        primaryAction={{
+          label: "Record Business Payment",
+          icon: <Plus className="w-4 h-4" />,
+          onClick: () => {
+            resetCreateForm();
+            setIsCreateOpen(true);
+          },
+        }}
+        secondaryActions={[
+          {
+            label: "Export CSV",
+            icon: <FileSpreadsheet className="w-4 h-4 text-emerald-600" />,
+            onClick: handleExportCSV,
+            variant: "outline",
+          },
+        ]}
       />
 
       {/* KPI Summary Cards */}
@@ -981,25 +973,25 @@ export default function PaymentVoucherPage() {
           value={formatCurrency(kpis.totalPayments)}
           subtext="Total bank & cash disbursements"
           badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount} vouchers)</span>}
-          icon={<Wallet className="h-4 w-4 text-rose-600 dark:text-rose-400" />}
+          icon={<Wallet className="h-4 w-4" />}
         />
         <KpiCard
           title="Truck Hire (HC)"
           value={formatCurrency(kpis.totalHireChallans)}
           subtext="Transporter & market truck advances (ATH/BTH)"
-          icon={<Truck className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+          icon={<Truck className="h-4 w-4" />}
         />
         <KpiCard
           title="Driver Advances"
           value={formatCurrency(kpis.totalDriverAdvances)}
           subtext="Trip advances & expense reimbursements"
-          icon={<User className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
+          icon={<User className="h-4 w-4" />}
         />
         <KpiCard
           title="TDS Retained"
           value={formatCurrency(kpis.totalTds)}
           subtext="Sec 194C / 194J statutory tax withheld"
-          icon={<Percent className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
+          icon={<Percent className="h-4 w-4" />}
         />
       </div>
 
@@ -1128,10 +1120,10 @@ export default function PaymentVoucherPage() {
                 type="button"
                 onClick={() => setPaymentType("AGAINST_REF")}
                 className={cn(
-                  "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
+                  "h-14 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-2xs",
                   paymentType === "AGAINST_REF"
-                    ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-semibold shadow-xs"
-                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                    : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                 )}
               >
                 <FileText className="h-4 w-4" />
@@ -1142,10 +1134,10 @@ export default function PaymentVoucherPage() {
                 type="button"
                 onClick={() => setPaymentType("HIRE_CHALLAN")}
                 className={cn(
-                  "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
+                  "h-14 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-2xs",
                   paymentType === "HIRE_CHALLAN"
-                    ? "bg-amber-50 dark:bg-amber-950/60 border-amber-500 text-amber-900 dark:text-amber-200 font-semibold shadow-xs"
-                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                    : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                 )}
               >
                 <Truck className="h-4 w-4" />
@@ -1156,10 +1148,10 @@ export default function PaymentVoucherPage() {
                 type="button"
                 onClick={() => setPaymentType("DRIVER_ADVANCE")}
                 className={cn(
-                  "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
+                  "h-14 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-2xs",
                   paymentType === "DRIVER_ADVANCE"
-                    ? "bg-cyan-50 dark:bg-cyan-950/60 border-cyan-500 text-cyan-900 dark:text-cyan-200 font-semibold shadow-xs"
-                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                    : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                 )}
               >
                 <User className="h-4 w-4" />
@@ -1170,10 +1162,10 @@ export default function PaymentVoucherPage() {
                 type="button"
                 onClick={() => setPaymentType("DIRECT_EXPENSE")}
                 className={cn(
-                  "py-2.5 px-3 text-xs rounded-lg font-medium border text-center transition-all flex flex-col items-center gap-1",
+                  "h-14 px-3 text-xs rounded-xl font-semibold border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 shadow-2xs",
                   paymentType === "DIRECT_EXPENSE"
-                    ? "bg-purple-50 dark:bg-purple-950/60 border-purple-500 text-purple-900 dark:text-purple-200 font-semibold shadow-xs"
-                    : "bg-white dark:bg-[#101013] border-slate-200 dark:border-[#303036] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#202025]"
+                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                    : "bg-white dark:bg-[#0E0F15] border-slate-200 dark:border-[#2B2E42] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1A1D2B]"
                 )}
               >
                 <CreditCard className="h-4 w-4" />
@@ -1365,8 +1357,8 @@ export default function PaymentVoucherPage() {
 
           {/* Step 3: Payment & Banking Information */}
           <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
-            <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-950 border border-blue-700 text-xs text-blue-300">
+            <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-[#303036] pb-3 text-base font-bold text-slate-900 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                 3
               </span>
               Payment & Banking Information
@@ -1496,7 +1488,7 @@ export default function PaymentVoucherPage() {
                   placeholder="0.00"
                   value={amountToPay}
                   onChange={(e) => setAmountToPay(e.target.value)}
-                  className="w-full h-10 px-3.5 text-sm sm:text-base font-bold rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50/30 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all shadow-2xs"
+                  className="w-full h-10 px-3.5 text-sm sm:text-base font-bold rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
                   Net funds disbursed from your bank account or cash drawer.
@@ -1508,9 +1500,9 @@ export default function PaymentVoucherPage() {
           {/* Step 4: Bill Allocation Table (if AGAINST_REF) */}
           {paymentType === "AGAINST_REF" && (
             <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 sm:p-6 space-y-4 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-blue-400 font-semibold text-sm">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-950 border border-blue-700 text-xs text-blue-300">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#303036] pb-3">
+                <div className="flex items-center gap-2.5 text-base font-bold text-slate-900 dark:text-white">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 text-xs font-bold text-indigo-700 dark:text-indigo-300 shrink-0">
                     4
                   </span>
                   Select Unpaid Purchase Bills / Invoices
@@ -1639,7 +1631,7 @@ export default function PaymentVoucherPage() {
                               />
                             </td>
                             <td className="p-2.5 text-right font-mono font-semibold">
-                              <span className={cn(isOverAllocated ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-slate-100")}>
+                              <span className={cn(isOverAllocated ? "text-rose-600 dark:text-rose-400" : "text-slate-900 dark:text-slate-900 dark:text-white")}>
                                 {formatCurrency(rowTotal)}
                               </span>
                               {isOverAllocated && (
@@ -1675,7 +1667,7 @@ export default function PaymentVoucherPage() {
                         <td className="p-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400">
                           {formatCurrency(allocatedTotals.sumDisc)}
                         </td>
-                        <td className="p-2.5 text-right font-mono text-slate-900 dark:text-slate-100 font-semibold">
+                        <td className="p-2.5 text-right font-mono text-slate-900 dark:text-slate-900 dark:text-white font-semibold">
                           {formatCurrency(allocatedTotals.sumTotal)}
                         </td>
                         <td></td>
@@ -1925,7 +1917,7 @@ export default function PaymentVoucherPage() {
                           <td className="p-2.5 text-right font-mono text-emerald-400">
                             {formatCurrency(ba.discount_amount)}
                           </td>
-                          <td className="p-2.5 text-right font-mono text-slate-900 dark:text-slate-100 font-semibold">
+                          <td className="p-2.5 text-right font-mono text-slate-900 dark:text-slate-900 dark:text-white font-semibold">
                             {formatCurrency(ba.total_settled)}
                           </td>
                         </tr>
