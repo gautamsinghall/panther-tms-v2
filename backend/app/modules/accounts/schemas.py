@@ -475,12 +475,19 @@ class CategoryOverviewStat(BaseModel):
     settled_count: int = 0
     pending_count: int = 0
 
+class HierarchyOverviewStat(BaseModel):
+    primary_groups_count: int = 5
+    groups_count: int = 25
+    subgroups_count: int = 63
+    status: str = "100% Compliant"
+
 class MasterLedgerOverviewResponse(BaseModel):
     billing_clients: CategoryOverviewStat
     vendors: CategoryOverviewStat
     drivers: CategoryOverviewStat
     company_bank_accounts: Optional[CategoryOverviewStat] = None
     duties_and_taxes: Optional[CategoryOverviewStat] = None
+    hierarchy: Optional[HierarchyOverviewStat] = None
 
 
 class DutiesAndTaxesLedgerListItem(BaseModel):

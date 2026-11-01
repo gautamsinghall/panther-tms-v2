@@ -282,4 +282,16 @@ async def test_hierarchy_verify_endpoint(hier_session: AsyncSession):
     assert res.status == "SUCCESS"
     assert res.total_primary_groups == 5
     assert res.total_groups >= 20
-    assert res.total_subgroups >= 30
+    assert res.total_subgroups == 63
+
+
+@pytest.mark.asyncio
+async def test_master_ledger_summary_hierarchy_live(hier_session: AsyncSession):
+    session = hier_session
+    summary = await master_ledger_service.get_master_ledger_summary(session)
+    assert summary.hierarchy is not None
+    assert summary.hierarchy.primary_groups_count == 5
+    assert summary.hierarchy.groups_count == 25
+    assert summary.hierarchy.subgroups_count == 63
+    assert summary.hierarchy.status == "100% Compliant"
+

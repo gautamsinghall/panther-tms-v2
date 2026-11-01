@@ -9,7 +9,7 @@ Pre-defined Chart of Accounts Hierarchy:
 import logging
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.models import PrimaryGroup, GroupInPrimary, SubgroupInGroup, Account, CompanyBankAccount
@@ -880,6 +880,10 @@ async def seed_indian_accounting_chart_of_accounts(session: AsyncSession) -> Dic
         f"Core Accounts seeded: {accounts_seeded}, Accounts healed: {accounts_healed}"
     )
 
+    total_pg = (await session.execute(select(func.count(PrimaryGroup.id)))).scalar() or len(primary_map)
+    total_g = (await session.execute(select(func.count(GroupInPrimary.id)))).scalar() or len(group_map)
+    total_sg = (await session.execute(select(func.count(SubgroupInGroup.id)))).scalar() or len(subgroup_map)
+
     return {
         "status": "SUCCESS",
         "primary_groups_seeded": primary_seeded,
@@ -887,7 +891,7 @@ async def seed_indian_accounting_chart_of_accounts(session: AsyncSession) -> Dic
         "subgroups_seeded": subgroups_seeded,
         "core_accounts_seeded": accounts_seeded,
         "accounts_healed": accounts_healed,
-        "total_primary_groups": len(primary_map),
-        "total_groups": len(group_map),
-        "total_subgroups": len(subgroup_map),
+        "total_primary_groups": total_pg,
+        "total_groups": total_g,
+        "total_subgroups": total_sg,
     }

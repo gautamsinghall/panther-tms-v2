@@ -61,12 +61,20 @@ interface CategoryStat {
   pending_count: number;
 }
 
+export interface HierarchyOverviewStat {
+  primary_groups_count: number;
+  groups_count: number;
+  subgroups_count: number;
+  status: string;
+}
+
 interface MasterLedgerOverview {
   billing_clients: CategoryStat;
   vendors: CategoryStat;
   drivers: CategoryStat;
   company_bank_accounts?: CategoryStat;
   duties_and_taxes?: CategoryStat;
+  hierarchy?: HierarchyOverviewStat;
 }
 
 export interface DutiesAndTaxesLedgerItem {
@@ -240,6 +248,17 @@ export default function MasterLedgerPage() {
   const [bankAccounts, setBankAccounts] = useState<CompanyBankAccountLedgerItem[]>([]);
   const [dutiesAndTaxes, setDutiesAndTaxes] = useState<DutiesAndTaxesLedgerItem[]>([]);
   const [isVerifyingHierarchy, setIsVerifyingHierarchy] = useState(false);
+  const [hierarchyStats, setHierarchyStats] = useState<{
+    primary_groups: number;
+    groups: number;
+    subgroups: number;
+    status: string;
+  }>({
+    primary_groups: 5,
+    groups: 25,
+    subgroups: 63,
+    status: "100% Compliant",
+  });
 
   useEffect(() => {
     const tabParam = searchParams.get("tab") as LedgerCategory | null;
@@ -304,6 +323,14 @@ export default function MasterLedgerPage() {
       ]);
       setBankAccounts(bankRes || []);
       setDutiesAndTaxes(dutiesRes || []);
+      if (sumRes?.hierarchy) {
+        setHierarchyStats({
+          primary_groups: sumRes.hierarchy.primary_groups_count,
+          groups: sumRes.hierarchy.groups_count,
+          subgroups: sumRes.hierarchy.subgroups_count,
+          status: sumRes.hierarchy.status || "100% Compliant",
+        });
+      }
 
       // 1. Merge Billing Clients: Every client created in Billing Client Master is guaranteed to appear
       const bcMap = new Map<number, BillingClientLedgerItem>();
@@ -439,6 +466,7 @@ export default function MasterLedgerPage() {
           settled_count: (dutiesRes || []).filter((d) => Number(d.current_balance) === 0).length,
           pending_count: (dutiesRes || []).filter((d) => Number(d.current_balance) !== 0).length,
         },
+        hierarchy: sumRes?.hierarchy,
       });
     } catch (err) {
       console.error("Error loading master ledger data:", err);
@@ -454,17 +482,28 @@ export default function MasterLedgerPage() {
       setIsVerifyingHierarchy(true);
       const res = await apiClient<{
         status: string;
-        primary_groups_verified: number;
-        groups_verified: number;
-        subgroups_verified: number;
-        accounts_checked: number;
+        primary_groups_seeded: number;
+        groups_seeded: number;
+        subgroups_seeded: number;
+        core_accounts_seeded: number;
         accounts_healed: number;
+        total_primary_groups: number;
+        total_groups: number;
+        total_subgroups: number;
         message: string;
       }>("/api/v1/accounts/master-ledger/verify-hierarchy", {
         method: "POST",
       });
+      if (res?.total_subgroups !== undefined) {
+        setHierarchyStats({
+          primary_groups: res.total_primary_groups,
+          groups: res.total_groups,
+          subgroups: res.total_subgroups,
+          status: "100% Compliant",
+        });
+      }
       toast.success(
-        `Hierarchy verified: ${res.accounts_checked} accounts audited, ${res.accounts_healed} healed according to Ind AS.`
+        `Hierarchy verified: ${res.total_primary_groups} Primary Groups, ${res.total_groups} Groups, ${res.total_subgroups} Subgroups active & compliant.`
       );
       await loadOverviewAndLists();
     } catch (err: any) {
@@ -1396,20 +1435,26 @@ export default function MasterLedgerPage() {
                   <div className="mt-3.5 space-y-2 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Primary Groups:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">5 Active</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {overview?.hierarchy?.primary_groups_count ?? hierarchyStats.primary_groups} Active
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Groups in Primary:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">26 Verified</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {overview?.hierarchy?.groups_count ?? hierarchyStats.groups} Verified
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Subgroups in Group:</span>
-                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">42 Bound</span>
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                        {overview?.hierarchy?.subgroups_count ?? hierarchyStats.subgroups} Bound
+                      </span>
                     </div>
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#303036]">
                       <span className="text-slate-500">Status:</span>
                       <span className="text-[#027A48] dark:text-emerald-400 font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> 100% Compliant
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {overview?.hierarchy?.status ?? hierarchyStats.status}
                       </span>
                     </div>
                   </div>

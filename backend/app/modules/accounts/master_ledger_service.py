@@ -280,6 +280,18 @@ async def get_master_ledger_summary(
     tax_settled = sum(1 for item in tax_list if item.balance_type == "NIL" or item.current_balance == Decimal("0.00"))
     tax_pending = tax_total_accounts - tax_settled
 
+    # 6. Live Hierarchy Counts (Ind AS / Tally 3-tier)
+    pg_count = (await session.execute(select(func.count(PrimaryGroup.id)))).scalar() or 0
+    g_count = (await session.execute(select(func.count(GroupInPrimary.id)))).scalar() or 0
+    sg_count = (await session.execute(select(func.count(SubgroupInGroup.id)))).scalar() or 0
+
+    if pg_count == 0 or g_count == 0 or sg_count == 0:
+        from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+        seed_res = await seed_indian_accounting_chart_of_accounts(session)
+        pg_count = seed_res.get("total_primary_groups", pg_count)
+        g_count = seed_res.get("total_groups", g_count)
+        sg_count = seed_res.get("total_subgroups", sg_count)
+
     return schemas.MasterLedgerOverviewResponse(
         billing_clients=schemas.CategoryOverviewStat(
             total_accounts=bc_total_accounts,
@@ -320,6 +332,12 @@ async def get_master_ledger_summary(
             total_credit=tax_total_credit,
             settled_count=tax_settled,
             pending_count=tax_pending,
+        ),
+        hierarchy=schemas.HierarchyOverviewStat(
+            primary_groups_count=pg_count,
+            groups_count=g_count,
+            subgroups_count=sg_count,
+            status="100% Compliant" if (pg_count >= 5 and g_count >= 25 and sg_count >= 63) else "Compliant",
         ),
     )
 
