@@ -29,6 +29,7 @@ from app.tenant_db.models import (
     GroupInPrimary,
     PrimaryGroup,
     CompanyBankAccount,
+    User,
 )
 from app.modules.accounts import schemas
 from app.modules.accounts.schemas import (
@@ -69,8 +70,9 @@ VOUCHER_PREFIXES = {
     VoucherType.PAYMENT_BTH.value: "BTH",
     VoucherType.CREDIT_NOTE.value: "CN",
     VoucherType.DEBIT_NOTE.value: "DN",
-    VoucherType.GENERAL_VOUCHER.value: "JV",
+    VoucherType.GENERAL_VOUCHER.value: "GV",
     VoucherType.CONTRA_VOUCHER.value: "CV",
+    VoucherType.JOURNAL_VOUCHER.value: "JV",
 }
 
 async def generate_voucher_number(session: AsyncSession, voucher_type: str) -> str:
@@ -181,6 +183,15 @@ async def ensure_standard_accounts(session: AsyncSession) -> None:
         ("ACC_ICICI_BANK", "ICICI Bank Operating Account", "BANK", "DR"),
         ("ACC_SBI_BANK", "State Bank of India (SBI) Account", "BANK", "DR"),
         ("ACC_BANK_CHARGES_EXP", "Bank Charges & Commission Expense", "EXP_INDIRECT", "DR"),
+        ("ACC_DEPRECIATION_EXP", "Depreciation on Vehicles & Equipment", "EXP_INDIRECT", "DR"),
+        ("ACC_ACCUMULATED_DEP", "Accumulated Depreciation Account", "FA", "CR"),
+        ("ACC_OUTSTANDING_EXP", "Outstanding Expenses Payable", "CL", "CR"),
+        ("ACC_PREPAID_EXP", "Prepaid Expenses & Insurance", "CA", "DR"),
+        ("ACC_ACCRUED_INCOME", "Accrued Freight & Other Income", "CA", "DR"),
+        ("ACC_PROVISION_EXP", "Provision for Expenses & Contingencies", "CL", "CR"),
+        ("ACC_BAD_DEBTS_EXP", "Bad Debts Written Off", "EXP_INDIRECT", "DR"),
+        ("ACC_PROVISION_DOUBTFUL", "Provision for Doubtful Debts", "CL", "CR"),
+        ("ACC_ROUNDING_OFF", "Round Off & Small Balances", "EXP_INDIRECT", "DR"),
     ]
 
     for acc_code, acc_name, grp_code, bal_type in accounts_seed:
@@ -4526,3 +4537,572 @@ async def delete_company_bank_account(
 
     await session.commit()
     return {"status": "SUCCESS", "message": "Bank account and associated unused ledger deleted successfully."}
+
+
+# ==============================================================================
+# Journal Voucher Management & Double-Entry Accounting Service
+# ==============================================================================
+
+JOURNAL_ADJUSTMENT_TYPES: Dict[str, Dict[str, Any]] = {
+    "GENERAL": {
+        "code": "GENERAL",
+        "label": "General Journal Entry",
+        "description": "Standard non-cash double-entry accounting adjustment between general ledger accounts.",
+        "typical_debit_ledger": "Appropriate Expense / Asset / Liability Ledger",
+        "typical_credit_ledger": "Appropriate Revenue / Liability / Asset Ledger",
+        "default_narration": "General non-cash accounting adjustment",
+        "suggested_debit_account_code": None,
+        "suggested_credit_account_code": None,
+    },
+    "EXPENSE_ADJUSTMENT": {
+        "code": "EXPENSE_ADJUSTMENT",
+        "label": "Expense Adjustment",
+        "description": "Reclassify operational freight expenses, fuel, maintenance, or administrative overheads.",
+        "typical_debit_ledger": "Target Expense Account",
+        "typical_credit_ledger": "Source Expense Account",
+        "default_narration": "Reclassification of operational expenses between cost heads",
+        "suggested_debit_account_code": "ACC_VEHICLE_MAINT_EXP",
+        "suggested_credit_account_code": "ACC_OFFICE_EXP",
+    },
+    "OUTSTANDING_EXPENSE": {
+        "code": "OUTSTANDING_EXPENSE",
+        "label": "Outstanding Expense",
+        "description": "Accrue unpaid transport expenses, driver trip charges, rent, or salaries for the accounting period.",
+        "typical_debit_ledger": "Relevant Operational Expense (Dr)",
+        "typical_credit_ledger": "Outstanding Expenses Payable (Cr)",
+        "default_narration": "Accrual of outstanding expenses payable for the period",
+        "suggested_debit_account_code": "ACC_TRUCK_HIRE_EXP",
+        "suggested_credit_account_code": "ACC_OUTSTANDING_EXP",
+    },
+    "PREPAID_EXPENSE": {
+        "code": "PREPAID_EXPENSE",
+        "label": "Prepaid Expense Adjustment",
+        "description": "Amortize prepaid vehicle insurance, national permits, road taxes, or advance facility rentals.",
+        "typical_debit_ledger": "Insurance / Operational Expense (Dr)",
+        "typical_credit_ledger": "Prepaid Expenses & Insurance Asset (Cr)",
+        "default_narration": "Periodic recognition and amortization of prepaid insurance and permits",
+        "suggested_debit_account_code": "ACC_OFFICE_EXP",
+        "suggested_credit_account_code": "ACC_PREPAID_EXP",
+    },
+    "ACCRUED_INCOME": {
+        "code": "ACCRUED_INCOME",
+        "label": "Accrued Income",
+        "description": "Recognize earned freight revenue, demurrage, or warehousing fees prior to formal invoice generation.",
+        "typical_debit_ledger": "Accrued Freight & Other Income (Dr)",
+        "typical_credit_ledger": "Freight / Warehousing Revenue (Cr)",
+        "default_narration": "Accrual of freight and handling income earned during the period",
+        "suggested_debit_account_code": "ACC_ACCRUED_INCOME",
+        "suggested_credit_account_code": "ACC_FREIGHT_REV",
+    },
+    "DEPRECIATION": {
+        "code": "DEPRECIATION",
+        "label": "Depreciation",
+        "description": "Charge periodic depreciation on transport trucks, trailers, material handling equipment, and computers.",
+        "typical_debit_ledger": "Depreciation on Vehicles & Equipment (Dr)",
+        "typical_credit_ledger": "Accumulated Depreciation Account (Cr)",
+        "default_narration": "Depreciation charged on commercial fleet assets per Accounting Standard 10",
+        "suggested_debit_account_code": "ACC_DEPRECIATION_EXP",
+        "suggested_credit_account_code": "ACC_ACCUMULATED_DEP",
+    },
+    "PROVISION_ENTRY": {
+        "code": "PROVISION_ENTRY",
+        "label": "Provision Entry",
+        "description": "Record prudent provisions for known liabilities of uncertain timing or amount per AS-29.",
+        "typical_debit_ledger": "Profit & Loss / Expense Account (Dr)",
+        "typical_credit_ledger": "Provision for Expenses & Contingencies (Cr)",
+        "default_narration": "Provision created for estimated logistics liabilities and contingent expenses",
+        "suggested_debit_account_code": "ACC_PROVISION_EXP",
+        "suggested_credit_account_code": "ACC_OUTSTANDING_EXP",
+    },
+    "LEDGER_ADJUSTMENT": {
+        "code": "LEDGER_ADJUSTMENT",
+        "label": "Ledger Adjustment",
+        "description": "Internal balance adjustments between distinct general ledger heads without cash involvement.",
+        "typical_debit_ledger": "Receiving Ledger (Dr)",
+        "typical_credit_ledger": "Relinquishing Ledger (Cr)",
+        "default_narration": "Internal ledger balance adjustment",
+        "suggested_debit_account_code": None,
+        "suggested_credit_account_code": None,
+    },
+    "PARTY_ADJUSTMENT": {
+        "code": "PARTY_ADJUSTMENT",
+        "label": "Vendor / Customer Adjustment",
+        "description": "Reconcile agreed mutual trade settlements between vendor credit and customer debit balances.",
+        "typical_debit_ledger": "Vendor Account / Creditor (Dr)",
+        "typical_credit_ledger": "Customer Account / Debtor (Cr)",
+        "default_narration": "Mutual settlement adjustment between vendor and customer accounts",
+        "suggested_debit_account_code": "ACC_SUNDRY_CREDITORS",
+        "suggested_credit_account_code": "ACC_SUNDRY_DEBTORS",
+    },
+    "DRIVER_ADJUSTMENT": {
+        "code": "DRIVER_ADJUSTMENT",
+        "label": "Driver Account Adjustment",
+        "description": "Settle verified driver trip advances against approved operational trip expenses and shortages.",
+        "typical_debit_ledger": "Trip Fuel / Handling / Shortage Expense (Dr)",
+        "typical_credit_ledger": "Driver Trip Advances (Cr)",
+        "default_narration": "Driver trip advance adjustment against verified trip expenses",
+        "suggested_debit_account_code": "ACC_HANDLING_EXP",
+        "suggested_credit_account_code": "ACC_DRIVER_ADVANCES",
+    },
+    "GST_ADJUSTMENT": {
+        "code": "GST_ADJUSTMENT",
+        "label": "GST Adjustment",
+        "description": "Record statutory GST adjustments, blocked credit reversals under Sec 17(5), or tax liability adjustments.",
+        "typical_debit_ledger": "Expense / ITC Reversal Account (Dr)",
+        "typical_credit_ledger": "GST Input Tax Ledger (Cr)",
+        "default_narration": "GST ITC reversal under Section 17(5) / Rule 42 of CGST Rules",
+        "suggested_debit_account_code": "ACC_OFFICE_EXP",
+        "suggested_credit_account_code": "ACC_GST_IN_IGST",
+    },
+    "TDS_ADJUSTMENT": {
+        "code": "TDS_ADJUSTMENT",
+        "label": "TDS Adjustment",
+        "description": "Reconcile TDS deducted under Sec 194C/194J against Form 26AS, AIS, or statutory challan dues.",
+        "typical_debit_ledger": "TDS Payable / Statutory Dues (Dr)",
+        "typical_credit_ledger": "TDS Receivable / Expense Account (Cr)",
+        "default_narration": "TDS reconciliation with Form 26AS/AIS and statutory tax accounts",
+        "suggested_debit_account_code": "ACC_TDS_PAYABLE_194C",
+        "suggested_credit_account_code": "ACC_TDS_RECEIVABLE",
+    },
+    "YEAR_END_ADJUSTMENT": {
+        "code": "YEAR_END_ADJUSTMENT",
+        "label": "Financial Year-End Adjustment",
+        "description": "Statutory audit adjustments, rounding write-offs, and final financial year closing adjustments.",
+        "typical_debit_ledger": "Round Off / Bad Debts Written Off (Dr)",
+        "typical_credit_ledger": "Small Balances / Sundry Account (Cr)",
+        "default_narration": "Financial year-end closing and audit adjustment entry",
+        "suggested_debit_account_code": "ACC_ROUNDING_OFF",
+        "suggested_credit_account_code": "ACC_SUNDRY_DEBTORS",
+    },
+    "CORRECTION_ENTRY": {
+        "code": "CORRECTION_ENTRY",
+        "label": "Correction / Rectification Entry",
+        "description": "Rectify errors of commission or principle from prior transactions while preserving full audit history.",
+        "typical_debit_ledger": "Correct Ledger Head (Dr)",
+        "typical_credit_ledger": "Erroneously Posted Ledger Head (Cr)",
+        "default_narration": "Rectification entry correcting wrong account classification in prior period",
+        "suggested_debit_account_code": None,
+        "suggested_credit_account_code": None,
+    },
+}
+
+
+def get_journal_adjustment_types_list() -> List[Dict[str, Any]]:
+    """Returns the list of 14 standard Indian accounting adjustment categories with metadata."""
+    return list(JOURNAL_ADJUSTMENT_TYPES.values())
+
+
+async def calculate_account_balance(
+    session: AsyncSession,
+    account_id: int,
+    account: Optional[Account] = None,
+) -> Tuple[Decimal, str, Decimal, Decimal]:
+    """
+    Computes live running double-entry balance, total debit, and total credit for any Account.
+    """
+    if not account:
+        account = await session.get(Account, account_id)
+        if not account:
+            return Decimal("0.00"), "NIL", Decimal("0.00"), Decimal("0.00")
+
+    op_bal = Decimal(str(account.opening_balance or "0.00"))
+    op_type = account.opening_balance_type or "DR"
+
+    stmt = (
+        select(
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")).label("tot_debit"),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")).label("tot_credit"),
+        )
+        .join(Voucher, LedgerEntry.voucher_id == Voucher.id)
+        .where(
+            LedgerEntry.account_id == account_id,
+            Voucher.is_void == False,
+        )
+    )
+    res = await session.execute(stmt)
+    row = res.one_or_none()
+    tot_dr = Decimal(str(row.tot_debit)) if row else Decimal("0.00")
+    tot_cr = Decimal(str(row.tot_credit)) if row else Decimal("0.00")
+
+    net_dr = tot_dr - tot_cr
+    if op_type == "DR":
+        final_val = op_bal + net_dr
+    else:
+        final_val = -op_bal + net_dr
+
+    if final_val > Decimal("0.00"):
+        return abs(final_val), "DR", tot_dr, tot_cr
+    elif final_val < Decimal("0.00"):
+        return abs(final_val), "CR", tot_dr, tot_cr
+    else:
+        return Decimal("0.00"), "NIL", tot_dr, tot_cr
+
+
+async def preview_journal_voucher(
+    session: AsyncSession,
+    data: schemas.JournalVoucherCreate,
+) -> schemas.JournalVoucherPreviewResponse:
+    """
+    Validates journal entries and produces a dry-run accounting preview showing
+    whether the entry is balanced and explaining the accounting effect of each line.
+    """
+    await ensure_standard_accounts(session)
+    errors: List[str] = []
+    lines: List[schemas.JournalEntryPreviewLine] = []
+
+    if not data.entries or len(data.entries) < 2:
+        errors.append("A valid Journal Voucher requires at least two ledger lines (at least one Debit and one Credit).")
+
+    tot_dr = Decimal("0.00")
+    tot_cr = Decimal("0.00")
+    has_debit = False
+    has_credit = False
+
+    for idx, e in enumerate(data.entries or []):
+        dr = Decimal(str(e.debit_amount or "0.00"))
+        cr = Decimal(str(e.credit_amount or "0.00"))
+
+        if dr < Decimal("0.00") or cr < Decimal("0.00"):
+            errors.append(f"Line {idx + 1}: Negative amounts are not allowed in double-entry bookkeeping.")
+
+        if dr > Decimal("0.00") and cr > Decimal("0.00"):
+            errors.append(f"Line {idx + 1}: A line cannot have both Debit and Credit amounts. Use separate lines.")
+
+        if dr == Decimal("0.00") and cr == Decimal("0.00"):
+            errors.append(f"Line {idx + 1}: Line amount cannot be zero.")
+
+        if dr > Decimal("0.00"):
+            tot_dr += dr
+            has_debit = True
+        if cr > Decimal("0.00"):
+            tot_cr += cr
+            has_credit = True
+
+        acc_stmt = select(Account).options(
+            selectinload(Account.group).selectinload(GroupInPrimary.primary_group),
+        ).where(Account.id == e.account_id)
+        acc = (await session.execute(acc_stmt)).scalar_one_or_none()
+
+        if not acc:
+            errors.append(f"Line {idx + 1}: Ledger account with ID {e.account_id} not found.")
+            continue
+
+        if not acc.is_active:
+            errors.append(f"Line {idx + 1}: Ledger account '{acc.name}' is inactive.")
+
+        # Cash / Bank restriction check
+        grp_code = (acc.group.code if acc.group else "").upper()
+        if grp_code in ("BANK", "BANK_OD", "BANK_OCC", "CASH") and not data.allow_cash_bank:
+            errors.append(
+                f"Line {idx + 1}: Account '{acc.name}' is a Cash/Bank account. "
+                "Journal Vouchers are strictly non-cash adjustment entries per Indian accounting standards. "
+                "Normal receipts belong in Receipt Voucher, payments in Payment Voucher, and transfers in Contra Voucher. "
+                "To record an exceptional adjustment, check the 'Allow Exceptional Cash/Bank Override' option."
+            )
+
+        cur_bal, bal_type, _, _ = await calculate_account_balance(session, acc.id, acc)
+        grp_name = acc.group.name if acc.group else "Ledger"
+        prim_code = (acc.group.primary_group.code if acc.group and acc.group.primary_group else "").upper()
+
+        # Human-readable impact explanation
+        if dr > Decimal("0.00"):
+            if "EXPENSE" in prim_code:
+                impact = f"Debits '{acc.name}' by ₹{dr:,.2f} -> Increases Expenses in Profit & Loss"
+            elif "ASSET" in prim_code:
+                impact = f"Debits '{acc.name}' by ₹{dr:,.2f} -> Increases Assets in Balance Sheet"
+            elif "LIABILITY" in prim_code:
+                impact = f"Debits '{acc.name}' by ₹{dr:,.2f} -> Reduces Outstanding Liabilities in Balance Sheet"
+            else:
+                impact = f"Debits '{acc.name}' by ₹{dr:,.2f} -> Reduces Revenue / Trading Income"
+        else:
+            if "EXPENSE" in prim_code:
+                impact = f"Credits '{acc.name}' by ₹{cr:,.2f} -> Reduces Expenses / Reclassifies Cost"
+            elif "ASSET" in prim_code:
+                impact = f"Credits '{acc.name}' by ₹{cr:,.2f} -> Reduces Assets / Increases Contra-Asset"
+            elif "LIABILITY" in prim_code:
+                impact = f"Credits '{acc.name}' by ₹{cr:,.2f} -> Increases Outstanding Liabilities in Balance Sheet"
+            else:
+                impact = f"Credits '{acc.name}' by ₹{cr:,.2f} -> Increases Revenue in Profit & Loss"
+
+        lines.append(
+            schemas.JournalEntryPreviewLine(
+                account_id=acc.id,
+                account_code=acc.code,
+                account_name=acc.name,
+                group_name=grp_name,
+                debit_amount=dr,
+                credit_amount=cr,
+                current_balance=cur_bal,
+                balance_type=bal_type,
+                accounting_impact=impact,
+            )
+        )
+
+    if not has_debit or not has_credit:
+        errors.append("Journal entry must contain at least one Debit line and one Credit line.")
+
+    diff = tot_dr - tot_cr
+    is_balanced = (abs(diff) == Decimal("0.00")) and (tot_dr > Decimal("0.00"))
+
+    if not is_balanced and tot_dr > Decimal("0.00") and tot_cr > Decimal("0.00"):
+        errors.append(f"Voucher is unbalanced. Total Debit (₹{tot_dr:,.2f}) does not match Total Credit (₹{tot_cr:,.2f}). Difference: ₹{abs(diff):,.2f}.")
+
+    if is_balanced:
+        summary_impact = (
+            f"Voucher is fully balanced at ₹{tot_dr:,.2f}. "
+            f"Affects {len(lines)} ledger accounts in double-entry books without cash movement."
+        )
+    else:
+        summary_impact = f"Voucher is unbalanced by ₹{abs(diff):,.2f}. Adjust Debit and Credit amounts so they equal."
+
+    return schemas.JournalVoucherPreviewResponse(
+        is_balanced=is_balanced,
+        total_debit=tot_dr,
+        total_credit=tot_cr,
+        difference=abs(diff),
+        lines=lines,
+        validation_errors=errors,
+        summary_impact=summary_impact,
+    )
+
+
+async def create_journal_voucher(
+    session: AsyncSession,
+    data: schemas.JournalVoucherCreate,
+    current_user: Optional[User] = None,
+    office_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Creates and optionally posts a professional Tally-style Journal Voucher.
+    Follows Indian double-entry rules:
+    - Sum(Debit) == Sum(Credit) > 0
+    - Non-cash rule by default (Cash/Bank prohibited unless allow_cash_bank=True)
+    - Automatically updates Master Ledger and Trial Balance upon posting
+    - Preserves audit trails and draft support
+    """
+    await ensure_standard_accounts(session)
+
+    target_office_id = data.issuing_office_id or office_id
+    if not target_office_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Issuing office is mandatory for Journal Vouchers.",
+        )
+
+    office = await session.get(Branch, target_office_id)
+    if not office or not office.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Selected issuing office does not exist or is inactive.",
+        )
+
+    # Run preview validation
+    preview = await preview_journal_voucher(session, data)
+    if not data.is_draft and (not preview.is_balanced or preview.validation_errors):
+        first_err = preview.validation_errors[0] if preview.validation_errors else "Voucher is unbalanced."
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot post Journal Voucher: {first_err}",
+        )
+
+    # Check for duplicate submission within 10 seconds
+    ten_sec_ago = datetime.now(timezone.utc) - timedelta(seconds=10)
+    dup_stmt = select(Voucher).where(
+        Voucher.issuing_office_id == target_office_id,
+        Voucher.voucher_type == VoucherType.JOURNAL_VOUCHER.value,
+        Voucher.voucher_date == data.voucher_date,
+        Voucher.net_amount == preview.total_debit,
+        Voucher.reference_number == data.reference_number,
+        Voucher.is_void == False,
+        Voucher.created_at >= ten_sec_ago,
+    )
+    dup = (await session.execute(dup_stmt)).scalar_one_or_none()
+    if dup and data.reference_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A duplicate Journal Voucher #{dup.voucher_number} was just recorded with reference '{data.reference_number}'.",
+        )
+
+    # Voucher Numbering
+    try:
+        v_num = await allocate_or_validate_voucher_number(
+            session,
+            VoucherType.JOURNAL_VOUCHER.value,
+            issuing_office_id=target_office_id,
+            series_id=data.series_id,
+            manual_number=data.voucher_number,
+        )
+    except Exception:
+        v_num = await generate_voucher_number(session, VoucherType.JOURNAL_VOUCHER.value)
+
+    # Determine primary party if a party ledger is involved
+    primary_party_name = None
+    party_type = None
+    account_id = None
+    billing_client_id = None
+    vendor_id = None
+    driver_id = None
+
+    for line in preview.lines:
+        acc = await session.get(Account, line.account_id)
+        if acc:
+            if acc.billing_client_id and not billing_client_id:
+                billing_client_id = acc.billing_client_id
+                primary_party_name = acc.name
+                party_type = "CUSTOMER"
+                account_id = acc.id
+            elif acc.vendor_id and not vendor_id:
+                vendor_id = acc.vendor_id
+                primary_party_name = acc.name
+                party_type = "VENDOR"
+                account_id = acc.id
+            elif acc.driver_id and not driver_id:
+                driver_id = acc.driver_id
+                primary_party_name = acc.name
+                party_type = "DRIVER"
+                account_id = acc.id
+
+    if not primary_party_name:
+        primary_party_name = JOURNAL_ADJUSTMENT_TYPES.get(data.adjustment_type, {}).get("label", "Journal Adjustment")
+        party_type = "GENERAL_JOURNAL"
+
+    # Metadata dictionary for audit and tax adjustment tracking
+    tax_breakup = {
+        "adjustment_type": data.adjustment_type,
+        "gst_tax_type": data.gst_tax_type,
+        "tds_section": data.tds_section,
+        "internal_remarks": data.internal_remarks,
+        "allow_cash_bank": data.allow_cash_bank,
+        "is_balanced": preview.is_balanced,
+        "total_debit": float(preview.total_debit),
+        "total_credit": float(preview.total_credit),
+        "draft_entries": [
+            {
+                "account_id": e.account_id,
+                "debit_amount": float(e.debit_amount),
+                "credit_amount": float(e.credit_amount),
+                "narration": e.narration,
+                "cost_center": e.cost_center,
+            }
+            for e in data.entries
+        ] if data.is_draft else [],
+    }
+
+    voucher = Voucher(
+        voucher_number=v_num,
+        voucher_type=VoucherType.JOURNAL_VOUCHER.value,
+        voucher_date=data.voucher_date,
+        party_name=primary_party_name,
+        party_type=party_type,
+        reference_number=data.reference_number,
+        reference_date=data.reference_date,
+        total_amount=preview.total_debit,
+        tax_amount=Decimal("0.00"),
+        net_amount=preview.total_debit,
+        narration=data.narration,
+        cost_center=data.cost_center,
+        issuing_office_id=target_office_id,
+        account_id=account_id,
+        billing_client_id=billing_client_id,
+        vendor_id=vendor_id,
+        driver_id=driver_id,
+        note_category=data.adjustment_type,
+        attachment_url=data.attachment_url,
+        payment_status="DRAFT" if data.is_draft else "POSTED",
+        tax_breakup=tax_breakup,
+        is_void=False,
+    )
+    session.add(voucher)
+    await session.flush()
+
+    # If posted (not draft), create double-entry LedgerEntry postings
+    if not data.is_draft:
+        for e in data.entries:
+            dr = Decimal(str(e.debit_amount or "0.00"))
+            cr = Decimal(str(e.credit_amount or "0.00"))
+            line_narr = e.narration.strip() if e.narration and e.narration.strip() else data.narration
+            session.add(
+                LedgerEntry(
+                    voucher_id=voucher.id,
+                    account_id=e.account_id,
+                    entry_date=data.voucher_date,
+                    debit_amount=dr,
+                    credit_amount=cr,
+                    narration=line_narr,
+                )
+            )
+
+    await session.commit()
+    return await get_voucher_by_id(session, voucher.id)
+
+
+async def post_draft_journal_voucher(
+    session: AsyncSession,
+    voucher_id: int,
+    current_user: Optional[User] = None,
+) -> Voucher:
+    """
+    Posts a previously saved DRAFT Journal Voucher into live accounting books.
+    """
+    voucher = await get_voucher_by_id(session, voucher_id)
+    if voucher.is_void:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot post a voided voucher.")
+
+    if voucher.payment_status != "DRAFT":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Voucher #{voucher.voucher_number} is already {voucher.payment_status}.")
+
+    draft_entries = (voucher.tax_breakup or {}).get("draft_entries", [])
+    if not draft_entries:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No draft entries found on this voucher to post.")
+
+    tot_dr = sum(Decimal(str(e.get("debit_amount", 0))) for e in draft_entries)
+    tot_cr = sum(Decimal(str(e.get("credit_amount", 0))) for e in draft_entries)
+
+    if tot_dr != tot_cr or tot_dr <= Decimal("0.00"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot post unbalanced draft. Total Debit: {tot_dr}, Total Credit: {tot_cr}.",
+        )
+
+    for e in draft_entries:
+        session.add(
+            LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=e["account_id"],
+                entry_date=voucher.voucher_date,
+                debit_amount=Decimal(str(e.get("debit_amount", 0))),
+                credit_amount=Decimal(str(e.get("credit_amount", 0))),
+                narration=e.get("narration") or voucher.narration,
+            )
+        )
+
+    voucher.payment_status = "POSTED"
+    tb = dict(voucher.tax_breakup or {})
+    tb["posted_at"] = datetime.now(timezone.utc).isoformat()
+    tb["posted_by"] = current_user.id if current_user else None
+    voucher.tax_breakup = tb
+
+    await session.commit()
+    return await get_voucher_by_id(session, voucher.id)
+
+
+async def reverse_journal_voucher(
+    session: AsyncSession,
+    voucher_id: int,
+    data: schemas.JournalVoucherReverseRequest,
+    current_user: Optional[User] = None,
+) -> Voucher:
+    """
+    Reverses an active Journal Voucher by generating exact reversing double-entry lines
+    and marking the original voucher void per TallyPrime & Indian Accounting Standards.
+    """
+    voucher = await get_voucher_by_id(session, voucher_id)
+    if voucher.voucher_type != VoucherType.JOURNAL_VOUCHER.value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only Journal Vouchers can be reversed via this endpoint.")
+
+    if voucher.is_void:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Voucher is already voided/reversed.")
+
+    user_id = current_user.id if current_user else None
+    reversal_reason = data.reversal_reason.strip()
+    return await void_voucher(session, voucher_id, schemas.VoidVoucherRequest(void_reason=reversal_reason), user_id=user_id)

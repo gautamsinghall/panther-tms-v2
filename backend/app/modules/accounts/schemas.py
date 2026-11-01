@@ -725,3 +725,76 @@ class CompanyBankAccountLedgerListItem(BaseModel):
     ledger_name: str
     transaction_count: int = 0
     last_transaction_date: Optional[date] = None
+
+
+# ==============================================================================
+# Journal Voucher Schemas (TallyPrime Double-Entry Adjustments)
+# ==============================================================================
+
+class JournalEntryLineCreate(BaseModel):
+    account_id: int = Field(..., description="Ledger account ID from misc_accounts")
+    debit_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="Debit amount in INR")
+    credit_amount: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), description="Credit amount in INR")
+    narration: Optional[str] = Field(None, max_length=500, description="Optional line-level narration")
+    cost_center: Optional[str] = Field(None, max_length=100, description="Optional cost center allocation")
+
+
+class JournalVoucherCreate(BaseModel):
+    voucher_date: date = Field(default_factory=date.today)
+    issuing_office_id: int = Field(..., description="Mandatory Issuing office / branch ID")
+    adjustment_type: str = Field(
+        default="GENERAL",
+        description="GENERAL, EXPENSE_ADJUSTMENT, OUTSTANDING_EXPENSE, PREPAID_EXPENSE, ACCRUED_INCOME, DEPRECIATION, PROVISION_ENTRY, LEDGER_ADJUSTMENT, PARTY_ADJUSTMENT, DRIVER_ADJUSTMENT, GST_ADJUSTMENT, TDS_ADJUSTMENT, YEAR_END_ADJUSTMENT, CORRECTION_ENTRY"
+    )
+    voucher_number: Optional[str] = None
+    reference_number: Optional[str] = Field(None, max_length=100)
+    reference_date: Optional[date] = None
+    narration: str = Field(..., min_length=3, max_length=1000, description="Clear description/reason for adjustment")
+    internal_remarks: Optional[str] = Field(None, max_length=1000)
+    cost_center: Optional[str] = Field(None, max_length=100)
+    attachment_url: Optional[str] = None
+    is_draft: bool = False
+    series_id: Optional[int] = None
+    allow_cash_bank: bool = Field(default=False, description="Explicit override flag allowing Cash/Bank entries in Journal")
+    gst_tax_type: Optional[str] = Field(None, description="ITC_REVERSAL, LIABILITY_ADJUSTMENT, RCM_ADJUSTMENT")
+    tds_section: Optional[str] = Field(None, description="194C, 194J, 194Q, 194H")
+    entries: List[JournalEntryLineCreate] = Field(..., min_length=2, description="At least two balanced ledger entries")
+
+
+class JournalEntryPreviewLine(BaseModel):
+    account_id: int
+    account_code: str
+    account_name: str
+    group_name: str
+    debit_amount: Decimal
+    credit_amount: Decimal
+    current_balance: Decimal
+    balance_type: str
+    accounting_impact: str
+
+
+class JournalVoucherPreviewResponse(BaseModel):
+    is_balanced: bool
+    total_debit: Decimal
+    total_credit: Decimal
+    difference: Decimal
+    lines: List[JournalEntryPreviewLine]
+    validation_errors: List[str] = []
+    summary_impact: str
+
+
+class JournalAdjustmentTypeInfo(BaseModel):
+    code: str
+    label: str
+    description: str
+    typical_debit_ledger: str
+    typical_credit_ledger: str
+    default_narration: str
+    suggested_debit_account_code: Optional[str] = None
+    suggested_credit_account_code: Optional[str] = None
+
+
+class JournalVoucherReverseRequest(BaseModel):
+    reversal_date: Optional[date] = None
+    reversal_reason: str = Field(..., min_length=3, max_length=500, description="Mandatory reason for reversing posted journal")
+

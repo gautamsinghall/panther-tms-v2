@@ -16,6 +16,7 @@ import {
   Plus,
   BookOpen,
   Landmark,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +120,13 @@ export default function AccountsOverviewPage() {
       href: "/accounts/contra-voucher",
       icon: <ArrowLeftRight className="w-5 h-5 text-[#175CD3]" />,
       badge: "Transfers",
+    },
+    {
+      title: "Journal Voucher",
+      desc: "Tally-style non-cash accounting adjustments, provisions, accruals, depreciation, and rectifications.",
+      href: "/accounts/journal-voucher",
+      icon: <Scale className="w-5 h-5 text-[#7C3AED]" />,
+      badge: "Adjustments",
     },
     {
       title: "Credit & Debit Notes",

@@ -35,6 +35,7 @@ VOUCHER_TYPE_TO_FEATURE = {
     "CONTRA_VOUCHER": "contra_voucher",
     "CREDIT_NOTE": "credit_debit_notes",
     "DEBIT_NOTE": "credit_debit_notes",
+    "JOURNAL_VOUCHER": "journal_voucher",
 }
 
 
@@ -1142,3 +1143,129 @@ async def get_company_bank_account_ledger_detail(
         is_admin=is_admin,
     )
 
+
+
+# ==============================================================================
+# Journal Voucher Endpoints (TallyPrime-Style Accounting Adjustments)
+# ==============================================================================
+
+@router.get("/journal-vouchers/adjustment-types", response_model=List[schemas.JournalAdjustmentTypeInfo])
+async def get_journal_adjustment_types_endpoint():
+    """
+    Returns the 14 standard Indian accounting adjustment categories with guidance metadata.
+    """
+    return service.get_journal_adjustment_types_list()
+
+
+@router.post("/journal-vouchers/preview", response_model=schemas.JournalVoucherPreviewResponse)
+async def preview_journal_voucher_endpoint(
+    data: schemas.JournalVoucherCreate,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("view", "journal_voucher")),
+):
+    """
+    Dry-run preview of Journal Voucher entries, showing debit/credit balance,
+    difference, and human-readable accounting impacts.
+    """
+    return await service.preview_journal_voucher(session, data)
+
+
+@router.get("/journal-vouchers", response_model=List[schemas.VoucherResponse])
+async def list_journal_vouchers(
+    office_id: Optional[int] = Query(None, description="Filter by issuing office"),
+    adjustment_type: Optional[str] = Query(None, description="Filter by adjustment type"),
+    from_date: Optional[date] = Query(None, description="Filter from date"),
+    to_date: Optional[date] = Query(None, description="Filter to date"),
+    status: Optional[str] = Query(None, description="Filter status: POSTED, DRAFT, VOID"),
+    search: Optional[str] = Query(None, description="Search voucher number, reference, or narration"),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    current_user: User = Depends(require_accounts_permission("view", "journal_voucher")),
+):
+    """
+    List Journal Vouchers with filtering by office, adjustment type, date range, and status.
+    """
+    effective_office_id = office_id or (current_office.id if current_office else None)
+    include_unassigned = current_office.is_head_office if current_office else True
+
+    vouchers = await service.get_vouchers(
+        session,
+        voucher_type=VoucherType.JOURNAL_VOUCHER.value,
+        office_id=effective_office_id,
+        include_unassigned=include_unassigned,
+    )
+
+    filtered = []
+    for v in vouchers:
+        if adjustment_type and getattr(v, "note_category", None) != adjustment_type:
+            continue
+        if from_date and v.voucher_date < from_date:
+            continue
+        if to_date and v.voucher_date > to_date:
+            continue
+        if status:
+            s_up = status.upper()
+            if s_up == "VOID" and not v.is_void:
+                continue
+            elif s_up == "DRAFT" and (v.is_void or v.payment_status != "DRAFT"):
+                continue
+            elif s_up == "POSTED" and (v.is_void or v.payment_status == "DRAFT"):
+                continue
+        if search:
+            q = search.lower().strip()
+            match_num = q in (v.voucher_number or "").lower()
+            match_ref = q in (v.reference_number or "").lower()
+            match_narr = q in (v.narration or "").lower()
+            match_party = q in (v.party_name or "").lower()
+            if not (match_num or match_ref or match_narr or match_party):
+                continue
+        filtered.append(map_voucher_response(v))
+
+    return filtered
+
+
+@router.post("/journal-vouchers", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
+async def create_journal_voucher_endpoint(
+    data: schemas.JournalVoucherCreate,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    current_user: User = Depends(require_accounts_permission("create", "journal_voucher")),
+):
+    """
+    Create and post (or save as draft) a professional balanced Journal Voucher.
+    """
+    effective_office_id = data.issuing_office_id or (current_office.id if current_office else None)
+    voucher = await service.create_journal_voucher(
+        session,
+        data,
+        current_user=current_user,
+        office_id=effective_office_id,
+    )
+    return map_voucher_response(voucher)
+
+
+@router.post("/journal-vouchers/{voucher_id}/post", response_model=schemas.VoucherResponse)
+async def post_draft_journal_voucher_endpoint(
+    voucher_id: int,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create", "journal_voucher")),
+):
+    """
+    Post a previously saved DRAFT Journal Voucher into the central Master Ledger.
+    """
+    voucher = await service.post_draft_journal_voucher(session, voucher_id, current_user=current_user)
+    return map_voucher_response(voucher)
+
+
+@router.post("/journal-vouchers/{voucher_id}/reverse", response_model=schemas.VoucherResponse)
+async def reverse_journal_voucher_endpoint(
+    voucher_id: int,
+    data: schemas.JournalVoucherReverseRequest,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("create", "journal_voucher")),
+):
+    """
+    Reverse an active Journal Voucher per TallyPrime rules, posting balanced reversing entries.
+    """
+    voucher = await service.reverse_journal_voucher(session, voucher_id, data, current_user=current_user)
+    return map_voucher_response(voucher)

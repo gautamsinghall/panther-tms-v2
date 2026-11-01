@@ -1367,6 +1367,7 @@ class VoucherType(str, enum.Enum):
     DEBIT_NOTE = "DEBIT_NOTE"
     GENERAL_VOUCHER = "GENERAL_VOUCHER"
     CONTRA_VOUCHER = "CONTRA_VOUCHER"
+    JOURNAL_VOUCHER = "JOURNAL_VOUCHER"
 
 
 class Voucher(TenantBase):
