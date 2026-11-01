@@ -93,121 +93,12 @@ async def get_account_by_code(session: AsyncSession, code: str) -> Optional[Acco
 
 async def ensure_standard_accounts(session: AsyncSession) -> None:
     """
-    Ensure core chart of accounts hierarchy exists for Tally double-entry bookkeeping.
+    Ensure complete Indian Accounting Law Standards (AS / Ind AS & Schedule III)
+    and Tally Prime chart of accounts hierarchy exists:
+    Primary Groups -> Groups in Primary -> Subgroups in Group -> Standard Ledgers (Duties & Taxes, etc.)
     """
-    # 1. Ensure basic groups exist
-    groups = {
-        "ASSET": ("Assets", "DEBIT"),
-        "LIABILITY": ("Liabilities", "CREDIT"),
-        "INCOME": ("Income / Revenue", "CREDIT"),
-        "EXPENSE": ("Expenses", "DEBIT"),
-    }
-    pg_map: Dict[str, int] = {}
-    for code, (name, nature) in groups.items():
-        stmt = select(PrimaryGroup).where(PrimaryGroup.code == code)
-        pg = (await session.execute(stmt)).scalar_one_or_none()
-        if not pg:
-            pg = PrimaryGroup(code=code, name=name, nature=nature)
-            session.add(pg)
-            await session.flush()
-        pg_map[code] = pg.id
-
-    sub_groups = {
-        "REV_DIRECT": ("Direct Income", "INCOME"),
-        "EXP_DIRECT": ("Direct Expenses", "EXPENSE"),
-        "EXP_INDIRECT": ("Indirect Expenses", "EXPENSE"),
-        "TAX": ("Duties & Taxes", "LIABILITY"),
-        "BANK": ("Bank Accounts", "ASSET"),
-        "BANK_OD": ("Bank OD A/c", "LIABILITY"),
-        "BANK_OCC": ("Bank OCC A/c", "LIABILITY"),
-        "CASH": ("Cash-in-hand", "ASSET"),
-        "DEBTORS": ("Sundry Debtors", "ASSET"),
-        "CREDITORS": ("Sundry Creditors", "LIABILITY"),
-        "CA": ("Current Assets", "ASSET"),
-        "FA": ("Fixed Assets", "ASSET"),
-        "CL": ("Current Liabilities", "LIABILITY"),
-    }
-    grp_map: Dict[str, int] = {}
-    for g_code, (g_name, p_code) in sub_groups.items():
-        stmt = select(GroupInPrimary).where(GroupInPrimary.code == g_code)
-        grp = (await session.execute(stmt)).scalar_one_or_none()
-        if not grp:
-            grp = GroupInPrimary(
-                code=g_code,
-                name=g_name,
-                primary_group_id=pg_map.get(p_code, 1),
-            )
-            session.add(grp)
-            await session.flush()
-        grp_map[g_code] = grp.id
-
-    # 2. Standard Accounts List
-    accounts_seed = [
-        ("ACC_FREIGHT_REV", "Freight Revenue Account", "REV_DIRECT", "CR"),
-        ("ACC_GST_OUT_CGST", "GST Output CGST", "TAX", "CR"),
-        ("ACC_GST_OUT_SGST", "GST Output SGST", "TAX", "CR"),
-        ("ACC_GST_OUT_IGST", "GST Output IGST", "TAX", "CR"),
-        ("ACC_GST_IN_CGST", "GST Input CGST", "TAX", "DR"),
-        ("ACC_GST_IN_SGST", "GST Input SGST", "TAX", "DR"),
-        ("ACC_GST_IN_IGST", "GST Input IGST", "TAX", "DR"),
-        ("ACC_TDS_RECEIVABLE", "TDS Receivable Account (Sec 194C)", "CA", "DR"),
-        ("ACC_DISCOUNT_ALLOWED", "Consignment Discount Allowed", "EXP_INDIRECT", "DR"),
-        ("ACC_HDFC_BANK", "HDFC Bank Operating Account", "BANK", "DR"),
-        ("ACC_CASH", "Cash-in-hand Account", "CASH", "DR"),
-        ("ACC_SUNDRY_DEBTORS", "General Trade Debtors", "DEBTORS", "DR"),
-        ("ACC_SUNDRY_CREDITORS", "General Trade Creditors", "CREDITORS", "CR"),
-        ("ACC_TRUCK_HIRE_EXP", "Truck Hire Expense", "EXP_DIRECT", "DR"),
-        ("ACC_FUEL_EXP", "Diesel & Fuel Expense", "EXP_DIRECT", "DR"),
-        ("ACC_TOLL_EXP", "Toll Expense", "EXP_DIRECT", "DR"),
-        ("ACC_GENERAL_SALES_REV", "General Sales & Service Revenue", "REV_DIRECT", "CR"),
-        ("ACC_WAREHOUSE_REV", "Warehousing & Storage Income", "REV_DIRECT", "CR"),
-        ("ACC_HANDLING_REV", "Loading & Handling Income", "REV_DIRECT", "CR"),
-        ("ACC_TDS_194J_RECV", "TDS Receivable Account (Sec 194J)", "CA", "DR"),
-        ("ACC_VEHICLE_MAINT_EXP", "Vehicle Maintenance & Repair Expense", "EXP_DIRECT", "DR"),
-        ("ACC_TYRE_EXP", "Tyres & Tubes Expense", "EXP_DIRECT", "DR"),
-        ("ACC_SPARES_EXP", "Vehicle Spare Parts Expense", "EXP_DIRECT", "DR"),
-        ("ACC_OFFICE_EXP", "Office Supplies & Admin Expense", "EXP_INDIRECT", "DR"),
-        ("ACC_EQUIPMENT_ASSET", "Office Equipment & Hardware", "FA", "DR"),
-        ("ACC_TDS_PAYABLE_194C", "TDS Payable u/s 194C (Transporter/Contractor)", "TAX", "CR"),
-        ("ACC_TDS_PAYABLE_194J", "TDS Payable u/s 194J (Professional/Technical)", "TAX", "CR"),
-        ("ACC_TDS_PAYABLE_194Q", "TDS Payable u/s 194Q (Purchase of Goods)", "TAX", "CR"),
-        ("ACC_DISCOUNT_RECEIVED", "Discount Received on Purchases", "REV_DIRECT", "CR"),
-        ("ACC_GST_RCM_LIABILITY", "GST RCM Output Liability", "TAX", "CR"),
-        ("ACC_CUSTOMER_ADVANCES", "Customer Advances & Unapplied Receipts", "CL", "CR"),
-        ("ACC_CHEQUE_CLEARING", "Cheques in Hand / Clearing Account", "BANK", "DR"),
-        ("ACC_SUPPLIER_ADVANCES", "Supplier Advances & Prepaid Expenses", "CA", "DR"),
-        ("ACC_DRIVER_ADVANCES", "Driver Trip Advances", "CA", "DR"),
-        ("ACC_HANDLING_EXP", "Loading, Unloading & Labour Expense", "EXP_DIRECT", "DR"),
-        ("ACC_STATUTORY_DUES", "Statutory Dues Payable", "TAX", "CR"),
-        ("ACC_PETTY_CASH", "Petty Cash Account", "CASH", "DR"),
-        ("ACC_ICICI_BANK", "ICICI Bank Operating Account", "BANK", "DR"),
-        ("ACC_SBI_BANK", "State Bank of India (SBI) Account", "BANK", "DR"),
-        ("ACC_BANK_CHARGES_EXP", "Bank Charges & Commission Expense", "EXP_INDIRECT", "DR"),
-        ("ACC_DEPRECIATION_EXP", "Depreciation on Vehicles & Equipment", "EXP_INDIRECT", "DR"),
-        ("ACC_ACCUMULATED_DEP", "Accumulated Depreciation Account", "FA", "CR"),
-        ("ACC_OUTSTANDING_EXP", "Outstanding Expenses Payable", "CL", "CR"),
-        ("ACC_PREPAID_EXP", "Prepaid Expenses & Insurance", "CA", "DR"),
-        ("ACC_ACCRUED_INCOME", "Accrued Freight & Other Income", "CA", "DR"),
-        ("ACC_PROVISION_EXP", "Provision for Expenses & Contingencies", "CL", "CR"),
-        ("ACC_BAD_DEBTS_EXP", "Bad Debts Written Off", "EXP_INDIRECT", "DR"),
-        ("ACC_PROVISION_DOUBTFUL", "Provision for Doubtful Debts", "CL", "CR"),
-        ("ACC_ROUNDING_OFF", "Round Off & Small Balances", "EXP_INDIRECT", "DR"),
-    ]
-
-    for acc_code, acc_name, grp_code, bal_type in accounts_seed:
-        acc = await get_account_by_code(session, acc_code)
-        if not acc:
-            gid = grp_map.get(grp_code, 1)
-            new_acc = Account(
-                code=acc_code,
-                name=acc_name,
-                group_id=gid,
-                opening_balance=Decimal("0.00"),
-                opening_balance_type=bal_type,
-                is_active=True,
-            )
-            session.add(new_acc)
-            await session.flush()
+    from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+    await seed_indian_accounting_chart_of_accounts(session)
 
 async def get_fallback_account_id(session: AsyncSession, preferred_code: str, fallback_type: str) -> int:
     acc = await get_account_by_code(session, preferred_code)

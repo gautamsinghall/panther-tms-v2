@@ -19,7 +19,9 @@ from app.tenant_db.models import (
     TripExpense,
     LR,
     Branch,
+    PrimaryGroup,
     GroupInPrimary,
+    SubgroupInGroup,
     CompanyBankAccount,
 )
 from app.modules.accounts import schemas
@@ -38,7 +40,8 @@ async def get_or_create_party_account(
 ) -> Account:
     """
     Ensure every Billing Client, Vendor, and Driver has a dedicated Account
-    linked in the chart of accounts without requiring manual setup.
+    properly bound to Primary Group, Group in Primary, and Subgroup in Group
+    per Indian Accounting Standards and Tally Prime.
     """
     account: Optional[Account] = None
 
@@ -53,19 +56,29 @@ async def get_or_create_party_account(
         res = await session.execute(stmt)
         account = res.scalar_one_or_none()
 
-        if not account:
-            # Find Sundry Debtors group
-            grp_stmt = select(GroupInPrimary).where(
-                or_(GroupInPrimary.code == "DEBTORS", GroupInPrimary.name.ilike("%Debtor%"))
-            )
-            grp_res = await session.execute(grp_stmt)
-            grp = grp_res.scalars().first()
-            group_id = grp.id if grp else 1
+        # Find Sundry Debtors group
+        grp_stmt = select(GroupInPrimary).where(
+            or_(GroupInPrimary.code == "DEBTORS", GroupInPrimary.name.ilike("%Debtor%"))
+        )
+        grp = (await session.execute(grp_stmt)).scalars().first()
+        group_id = grp.id if grp else 1
 
+        # Find Corporate Debtors subgroup under DEBTORS
+        subgrp_stmt = select(SubgroupInGroup).where(
+            SubgroupInGroup.group_id == group_id,
+            or_(SubgroupInGroup.code == "DEBTORS_CORP", SubgroupInGroup.name.ilike("%Corporate%"))
+        )
+        subgrp = (await session.execute(subgrp_stmt)).scalars().first()
+        if not subgrp:
+            subgrp = (await session.execute(select(SubgroupInGroup).where(SubgroupInGroup.group_id == group_id))).scalars().first()
+        subgroup_id = subgrp.id if subgrp else None
+
+        if not account:
             account = Account(
                 name=party_name,
                 code=party_code or f"BC_{party_id:04d}",
                 group_id=group_id,
+                subgroup_id=subgroup_id,
                 opening_balance=Decimal("0.00"),
                 opening_balance_type="DR",
                 billing_client_id=party_id,
@@ -73,9 +86,19 @@ async def get_or_create_party_account(
             )
             session.add(account)
             await session.flush()
-        elif not account.billing_client_id:
-            account.billing_client_id = party_id
-            await session.flush()
+        else:
+            updated = False
+            if not account.billing_client_id:
+                account.billing_client_id = party_id
+                updated = True
+            if account.group_id != group_id:
+                account.group_id = group_id
+                updated = True
+            if subgroup_id and account.subgroup_id != subgroup_id:
+                account.subgroup_id = subgroup_id
+                updated = True
+            if updated:
+                await session.flush()
 
     elif party_type == "VENDOR":
         stmt = select(Account).where(
@@ -88,19 +111,29 @@ async def get_or_create_party_account(
         res = await session.execute(stmt)
         account = res.scalar_one_or_none()
 
-        if not account:
-            # Find Sundry Creditors group
-            grp_stmt = select(GroupInPrimary).where(
-                or_(GroupInPrimary.code == "CREDITORS", GroupInPrimary.name.ilike("%Creditor%"))
-            )
-            grp_res = await session.execute(grp_stmt)
-            grp = grp_res.scalars().first()
-            group_id = grp.id if grp else 1
+        # Find Sundry Creditors group
+        grp_stmt = select(GroupInPrimary).where(
+            or_(GroupInPrimary.code == "CREDITORS", GroupInPrimary.name.ilike("%Creditor%"))
+        )
+        grp = (await session.execute(grp_stmt)).scalars().first()
+        group_id = grp.id if grp else 1
 
+        # Find Market Vehicle / General Creditors subgroup
+        subgrp_stmt = select(SubgroupInGroup).where(
+            SubgroupInGroup.group_id == group_id,
+            or_(SubgroupInGroup.code == "CRED_MARKET_VEHICLES", SubgroupInGroup.name.ilike("%Market Vehicle%"))
+        )
+        subgrp = (await session.execute(subgrp_stmt)).scalars().first()
+        if not subgrp:
+            subgrp = (await session.execute(select(SubgroupInGroup).where(SubgroupInGroup.group_id == group_id))).scalars().first()
+        subgroup_id = subgrp.id if subgrp else None
+
+        if not account:
             account = Account(
                 name=party_name,
                 code=party_code or f"VEND_{party_id:04d}",
                 group_id=group_id,
+                subgroup_id=subgroup_id,
                 opening_balance=Decimal("0.00"),
                 opening_balance_type="CR",
                 vendor_id=party_id,
@@ -108,9 +141,19 @@ async def get_or_create_party_account(
             )
             session.add(account)
             await session.flush()
-        elif not account.vendor_id:
-            account.vendor_id = party_id
-            await session.flush()
+        else:
+            updated = False
+            if not account.vendor_id:
+                account.vendor_id = party_id
+                updated = True
+            if account.group_id != group_id:
+                account.group_id = group_id
+                updated = True
+            if subgroup_id and account.subgroup_id != subgroup_id:
+                account.subgroup_id = subgroup_id
+                updated = True
+            if updated:
+                await session.flush()
 
     elif party_type == "DRIVER":
         stmt = select(Account).where(
@@ -118,23 +161,38 @@ async def get_or_create_party_account(
                 Account.driver_id == party_id,
                 Account.code == f"DRV_{party_id}",
                 Account.name == party_name,
+                Account.name == f"Driver - {party_name}",
             )
         )
         res = await session.execute(stmt)
         account = res.scalar_one_or_none()
 
-        if not account:
+        # Driver Trip Advances belong under LOANS_ADV_ASSET (Loans & Advances Asset)
+        grp_stmt = select(GroupInPrimary).where(GroupInPrimary.code == "LOANS_ADV_ASSET")
+        grp = (await session.execute(grp_stmt)).scalars().first()
+        if not grp:
             grp_stmt = select(GroupInPrimary).where(
-                or_(GroupInPrimary.code == "EXP_DIRECT", GroupInPrimary.name.ilike("%Direct%"))
+                or_(GroupInPrimary.name.ilike("%Loans & Advances%"), GroupInPrimary.code == "CA")
             )
-            grp_res = await session.execute(grp_stmt)
-            grp = grp_res.scalars().first()
-            group_id = grp.id if grp else 1
+            grp = (await session.execute(grp_stmt)).scalars().first()
+        group_id = grp.id if grp else 1
 
+        # Find Driver Trip Advances subgroup
+        subgrp_stmt = select(SubgroupInGroup).where(
+            SubgroupInGroup.group_id == group_id,
+            or_(SubgroupInGroup.code == "ADV_DRIVER_TRIP", SubgroupInGroup.name.ilike("%Driver%"))
+        )
+        subgrp = (await session.execute(subgrp_stmt)).scalars().first()
+        if not subgrp:
+            subgrp = (await session.execute(select(SubgroupInGroup).where(SubgroupInGroup.group_id == group_id))).scalars().first()
+        subgroup_id = subgrp.id if subgrp else None
+
+        if not account:
             account = Account(
                 name=f"Driver - {party_name}",
                 code=party_code or f"DRV_{party_id:04d}",
                 group_id=group_id,
+                subgroup_id=subgroup_id,
                 opening_balance=Decimal("0.00"),
                 opening_balance_type="DR",
                 driver_id=party_id,
@@ -142,9 +200,22 @@ async def get_or_create_party_account(
             )
             session.add(account)
             await session.flush()
-        elif not account.driver_id:
-            account.driver_id = party_id
-            await session.flush()
+        else:
+            updated = False
+            if not account.driver_id:
+                account.driver_id = party_id
+                updated = True
+            if account.group_id != group_id:
+                account.group_id = group_id
+                updated = True
+            if subgroup_id and account.subgroup_id != subgroup_id:
+                account.subgroup_id = subgroup_id
+                updated = True
+            if account.opening_balance_type != "DR":
+                account.opening_balance_type = "DR"
+                updated = True
+            if updated:
+                await session.flush()
 
     return account
 
@@ -200,6 +271,15 @@ async def get_master_ledger_summary(
     bank_active = sum(1 for item in bank_list if item.is_active)
     bank_inactive = bank_total_accounts - bank_active
 
+    # 5. Duties & Taxes (Statutory GST / TDS) Summary
+    tax_list = await list_duties_and_taxes_ledgers(session, office_id=office_id)
+    tax_total_accounts = len(tax_list)
+    tax_total_debit = sum(item.total_debit for item in tax_list)
+    tax_total_credit = sum(item.total_credit for item in tax_list)
+    tax_net_payable = sum(item.current_balance for item in tax_list if item.balance_type == "CR")
+    tax_settled = sum(1 for item in tax_list if item.balance_type == "NIL" or item.current_balance == Decimal("0.00"))
+    tax_pending = tax_total_accounts - tax_settled
+
     return schemas.MasterLedgerOverviewResponse(
         billing_clients=schemas.CategoryOverviewStat(
             total_accounts=bc_total_accounts,
@@ -233,6 +313,402 @@ async def get_master_ledger_summary(
             settled_count=bank_active,
             pending_count=bank_inactive,
         ),
+        duties_and_taxes=schemas.CategoryOverviewStat(
+            total_accounts=tax_total_accounts,
+            total_outstanding=tax_net_payable,
+            total_debit=tax_total_debit,
+            total_credit=tax_total_credit,
+            settled_count=tax_settled,
+            pending_count=tax_pending,
+        ),
+    )
+
+
+# ------------------------------------------------------------------------------
+# 5. Duties & Taxes (Statutory GST, TDS, TCS) Ledgers
+# ------------------------------------------------------------------------------
+
+async def list_duties_and_taxes_ledgers(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    search: Optional[str] = None,
+) -> List[schemas.DutiesAndTaxesLedgerListItem]:
+    """
+    Fetch all statutory tax and duties ledgers (GST Output/Input/RCM, TDS u/s 194C/194J/194Q, TCS)
+    bound under Duties & Taxes (TAX) and Current Assets (CA - TDS Receivable).
+    Calculates live debits, credits, and current balances across all voucher postings.
+    """
+    from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+    # Ensure standard accounts and hierarchy exist
+    await seed_indian_accounting_chart_of_accounts(session)
+
+    stmt = (
+        select(Account)
+        .options(
+            selectinload(Account.group).selectinload(GroupInPrimary.primary_group),
+            selectinload(Account.subgroup),
+        )
+        .join(Account.group)
+        .where(
+            or_(
+                GroupInPrimary.code == "TAX",
+                Account.code.like("ACC_GST_%"),
+                Account.code.like("ACC_TDS_%"),
+                Account.code.like("ACC_TCS_%"),
+                Account.code == "ACC_STATUTORY_DUES",
+            )
+        )
+        .order_by(Account.code.asc())
+    )
+    accounts = (await session.execute(stmt)).scalars().all()
+
+    items: List[schemas.DutiesAndTaxesLedgerListItem] = []
+    for acc in accounts:
+        open_bal = Decimal(str(acc.opening_balance or "0.00"))
+        open_type = acc.opening_balance_type or "CR"
+
+        # Query all LedgerEntry records for this account
+        tx_query = (
+            select(
+                func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+                func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+                func.count(LedgerEntry.id),
+                func.max(LedgerEntry.entry_date),
+            )
+            .join(LedgerEntry.voucher)
+            .where(
+                LedgerEntry.account_id == acc.id,
+                LedgerEntry.is_reversal == False,
+                Voucher.is_void == False,
+            )
+        )
+        if office_id:
+            tx_query = tx_query.where(
+                or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None))
+            )
+
+        tot_dr, tot_cr, tx_count, max_date = (await session.execute(tx_query)).one()
+        tot_dr = Decimal(str(tot_dr or "0.00"))
+        tot_cr = Decimal(str(tot_cr or "0.00"))
+
+        if open_type == "CR":
+            net_balance = open_bal + tot_cr - tot_dr
+            if net_balance > Decimal("0.00"):
+                bal_type = "CR"
+                cur_bal = net_balance
+            elif net_balance < Decimal("0.00"):
+                bal_type = "DR"
+                cur_bal = abs(net_balance)
+            else:
+                bal_type = "NIL"
+                cur_bal = Decimal("0.00")
+        else:
+            net_balance = open_bal + tot_dr - tot_cr
+            if net_balance > Decimal("0.00"):
+                bal_type = "DR"
+                cur_bal = net_balance
+            elif net_balance < Decimal("0.00"):
+                bal_type = "CR"
+                cur_bal = abs(net_balance)
+            else:
+                bal_type = "NIL"
+                cur_bal = Decimal("0.00")
+
+        upper_code = acc.code.upper()
+        upper_name = acc.name.upper()
+        if "GST" in upper_code or "GST" in upper_name:
+            t_type = "GST"
+        elif "TDS" in upper_code or "TDS" in upper_name:
+            t_type = "TDS"
+        elif "TCS" in upper_code or "TCS" in upper_name:
+            t_type = "TCS"
+        else:
+            t_type = "STATUTORY"
+
+        grp = acc.group
+        subgrp = acc.subgroup
+        pg = grp.primary_group if grp else None
+
+        item = schemas.DutiesAndTaxesLedgerListItem(
+            id=acc.id,
+            name=acc.name,
+            code=acc.code,
+            primary_group_name=pg.name if pg else "Liabilities",
+            primary_group_code=pg.code if pg else "LIABILITY",
+            group_name=grp.name if grp else "Duties & Taxes",
+            group_code=grp.code if grp else "TAX",
+            subgroup_name=subgrp.name if subgrp else ("GST Duties" if t_type == "GST" else "TDS Withholdings"),
+            subgroup_code=subgrp.code if subgrp else None,
+            opening_balance=open_bal,
+            opening_balance_type=open_type,
+            total_debit=tot_dr,
+            total_credit=tot_cr,
+            current_balance=cur_bal,
+            balance_type=bal_type,
+            last_transaction_date=max_date,
+            transaction_count=tx_count or 0,
+            tax_type=t_type,
+        )
+        items.append(item)
+
+    if search:
+        st = search.strip().lower()
+        items = [
+            it for it in items
+            if st in it.name.lower() or st in it.code.lower() or (it.subgroup_name and st in it.subgroup_name.lower())
+        ]
+
+    return items
+
+
+# ------------------------------------------------------------------------------
+# 6. Universal Ledger Statement (For Any Ledger in Chart of Accounts)
+# ------------------------------------------------------------------------------
+
+async def get_generic_account_ledger_detail(
+    session: AsyncSession,
+    account_id: int,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    search: Optional[str] = None,
+    tx_type: Optional[str] = None,
+    office_id: Optional[int] = None,
+) -> schemas.DetailedLedgerResponse:
+    """
+    Universal chronological ledger statement for ANY ledger account in the chart of accounts,
+    including all Duties & Taxes ledgers, Bank, Cash, Expenses, Revenue, and Party accounts.
+    Calculates prior opening balance, running balances, particulars, voucher references, and double-entry postings.
+    """
+    stmt = (
+        select(Account)
+        .options(
+            selectinload(Account.group).selectinload(GroupInPrimary.primary_group),
+            selectinload(Account.subgroup),
+            selectinload(Account.company_bank_account).selectinload(CompanyBankAccount.issuing_office),
+            selectinload(Account.billing_client).selectinload(BillingClient.issuing_office),
+            selectinload(Account.vendor),
+            selectinload(Account.driver),
+        )
+        .where(Account.id == account_id)
+    )
+    acc = (await session.execute(stmt)).scalar_one_or_none()
+    if not acc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Account #{account_id} not found")
+
+    grp = acc.group
+    subgrp = acc.subgroup
+    pg = grp.primary_group if grp else None
+
+    init_open = Decimal(str(acc.opening_balance or "0.00"))
+    init_open_type = acc.opening_balance_type or ("CR" if (pg and pg.nature == "CREDIT") else "DR")
+
+    init_dr = init_open if init_open_type == "DR" else Decimal("0.00")
+    init_cr = init_open if init_open_type == "CR" else Decimal("0.00")
+
+    if from_date:
+        prior_stmt = (
+            select(
+                func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+                func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+            )
+            .join(LedgerEntry.voucher)
+            .where(
+                LedgerEntry.account_id == acc.id,
+                LedgerEntry.is_reversal == False,
+                Voucher.is_void == False,
+                LedgerEntry.entry_date < from_date,
+            )
+        )
+        if office_id:
+            prior_stmt = prior_stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+        p_dr, p_cr = (await session.execute(prior_stmt)).one()
+        eff_dr = init_dr + Decimal(str(p_dr or "0.00"))
+        eff_cr = init_cr + Decimal(str(p_cr or "0.00"))
+    else:
+        eff_dr = init_dr
+        eff_cr = init_cr
+
+    is_credit_nature = (init_open_type == "CR") or (pg and pg.nature == "CREDIT")
+
+    if is_credit_nature:
+        net_prior = eff_cr - eff_dr
+        if net_prior >= Decimal("0.00"):
+            opening_balance = net_prior
+            opening_balance_type = "CR"
+        else:
+            opening_balance = abs(net_prior)
+            opening_balance_type = "DR"
+    else:
+        net_prior = eff_dr - eff_cr
+        if net_prior >= Decimal("0.00"):
+            opening_balance = net_prior
+            opening_balance_type = "DR"
+        else:
+            opening_balance = abs(net_prior)
+            opening_balance_type = "CR"
+
+    tx_stmt = (
+        select(LedgerEntry)
+        .options(
+            selectinload(LedgerEntry.voucher).selectinload(Voucher.issuing_office),
+            selectinload(LedgerEntry.voucher).selectinload(Voucher.lr),
+        )
+        .join(LedgerEntry.voucher)
+        .where(
+            LedgerEntry.account_id == acc.id,
+            LedgerEntry.is_reversal == False,
+            Voucher.is_void == False,
+        )
+    )
+    if from_date:
+        tx_stmt = tx_stmt.where(LedgerEntry.entry_date >= from_date)
+    if to_date:
+        tx_stmt = tx_stmt.where(LedgerEntry.entry_date <= to_date)
+    if office_id:
+        tx_stmt = tx_stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+
+    tx_stmt = tx_stmt.order_by(LedgerEntry.entry_date.asc(), LedgerEntry.id.asc())
+    entries = (await session.execute(tx_stmt)).scalars().all()
+
+    current_running = (opening_balance if opening_balance_type == "CR" else -opening_balance) if is_credit_nature else (opening_balance if opening_balance_type == "DR" else -opening_balance)
+    total_debit = Decimal("0.00")
+    total_credit = Decimal("0.00")
+    transactions: List[schemas.LedgerTransaction] = []
+
+    for entry in entries:
+        v = entry.voucher
+        if v and v.is_void:
+            continue
+        if tx_type and tx_type.upper() != "ALL":
+            if v and v.voucher_type.upper() != tx_type.upper():
+                continue
+
+        dr = Decimal(str(entry.debit_amount or "0.00"))
+        cr = Decimal(str(entry.credit_amount or "0.00"))
+        total_debit += dr
+        total_credit += cr
+
+        if is_credit_nature:
+            current_running += (cr - dr)
+            bal_type = "CR" if current_running >= Decimal("0.00") else "DR"
+        else:
+            current_running += (dr - cr)
+            bal_type = "DR" if current_running >= Decimal("0.00") else "CR"
+
+        part = entry.narration
+        if not part and v:
+            part = v.narration or (f"{v.party_name} - {v.voucher_type.replace('_', ' ').title()}" if v.party_name else f"{v.voucher_type.replace('_', ' ').title()} - {v.voucher_number}")
+        if not part:
+            part = acc.name
+
+        v_num = v.voucher_number if v else f"TX-{entry.id}"
+        v_type = v.voucher_type if v else "JOURNAL_VOUCHER"
+        ref_no = v.reference_number if v else None
+        v_id = v.id if v else entry.voucher_id
+
+        transactions.append(
+            schemas.LedgerTransaction(
+                id=entry.id,
+                entry_date=entry.entry_date,
+                voucher_id=v_id,
+                voucher_number=v_num,
+                voucher_type=v_type,
+                reference_number=ref_no,
+                particulars=part,
+                debit_amount=dr,
+                credit_amount=cr,
+                running_balance=abs(current_running),
+                balance_type=bal_type,
+                status="CLEARED",
+            )
+        )
+
+    if search:
+        s_term = search.strip().lower()
+        transactions = [
+            t for t in transactions
+            if s_term in t.voucher_number.lower()
+            or (t.reference_number and s_term in t.reference_number.lower())
+            or (t.particulars and s_term in t.particulars.lower())
+        ]
+
+    if is_credit_nature:
+        if current_running >= Decimal("0.00"):
+            closing_balance = current_running
+            closing_balance_type = "CR"
+        else:
+            closing_balance = abs(current_running)
+            closing_balance_type = "DR"
+    else:
+        if current_running >= Decimal("0.00"):
+            closing_balance = current_running
+            closing_balance_type = "DR"
+        else:
+            closing_balance = abs(current_running)
+            closing_balance_type = "CR"
+
+    if grp and grp.code == "TAX":
+        cat_name = "DUTIES_AND_TAXES"
+    elif acc.billing_client_id:
+        cat_name = "BILLING_CLIENT"
+    elif acc.vendor_id:
+        cat_name = "VENDOR"
+    elif acc.driver_id:
+        cat_name = "DRIVER"
+    elif acc.company_bank_account:
+        cat_name = "COMPANY_BANK_ACCOUNT"
+    else:
+        cat_name = "GENERAL_LEDGER"
+
+    party_details = schemas.PartyDetails(
+        id=acc.id,
+        name=acc.name,
+        code=acc.code,
+        group_name=grp.name if grp else None,
+        subgroup_name=subgrp.name if subgrp else None,
+        primary_group_name=pg.name if pg else None,
+        account_type=grp.name if grp else "General Ledger",
+    )
+
+    return schemas.DetailedLedgerResponse(
+        category=cat_name,
+        party=party_details,
+        from_date=from_date,
+        to_date=to_date,
+        opening_balance=opening_balance,
+        opening_balance_type=opening_balance_type,
+        total_debit=total_debit,
+        total_credit=total_credit,
+        closing_balance=closing_balance,
+        closing_balance_type=closing_balance_type,
+        total_transactions=len(transactions),
+        transactions=transactions,
+    )
+
+
+# ------------------------------------------------------------------------------
+# 7. Verification & Hierarchy Healing
+# ------------------------------------------------------------------------------
+
+async def verify_and_heal_chart_of_accounts(session: AsyncSession) -> schemas.HierarchyVerificationResponse:
+    """
+    Explicitly verifies and binds all master ledgers to their Primary Groups,
+    Groups in Primary, and Subgroups in Group per Indian Accounting Standards / Tally Prime.
+    Auto-seeds all standard Duties & Taxes (GST, TDS, TCS) and core operational ledgers.
+    """
+    from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+    result = await seed_indian_accounting_chart_of_accounts(session)
+    return schemas.HierarchyVerificationResponse(
+        status=result["status"],
+        primary_groups_seeded=result["primary_groups_seeded"],
+        groups_seeded=result["groups_seeded"],
+        subgroups_seeded=result["subgroups_seeded"],
+        core_accounts_seeded=result["core_accounts_seeded"],
+        accounts_healed=result["accounts_healed"],
+        total_primary_groups=result["total_primary_groups"],
+        total_groups=result["total_groups"],
+        total_subgroups=result["total_subgroups"],
+        message="Master ledger hierarchy verified and bound to Indian Accounting Standards & Tally Prime successfully.",
     )
 
 

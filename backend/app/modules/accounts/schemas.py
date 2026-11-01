@@ -480,6 +480,41 @@ class MasterLedgerOverviewResponse(BaseModel):
     vendors: CategoryOverviewStat
     drivers: CategoryOverviewStat
     company_bank_accounts: Optional[CategoryOverviewStat] = None
+    duties_and_taxes: Optional[CategoryOverviewStat] = None
+
+
+class DutiesAndTaxesLedgerListItem(BaseModel):
+    id: int
+    name: str
+    code: str
+    primary_group_name: str = "Liabilities"
+    primary_group_code: str = "LIABILITY"
+    group_name: str = "Duties & Taxes"
+    group_code: str = "TAX"
+    subgroup_name: Optional[str] = None
+    subgroup_code: Optional[str] = None
+    opening_balance: Decimal = Decimal("0.00")
+    opening_balance_type: str = "CR"
+    total_debit: Decimal = Decimal("0.00")
+    total_credit: Decimal = Decimal("0.00")
+    current_balance: Decimal = Decimal("0.00")
+    balance_type: str = "CR"  # CR (Payable), DR (Credit), NIL
+    last_transaction_date: Optional[date] = None
+    transaction_count: int = 0
+    tax_type: str = "GST"  # GST, TDS, TCS, STATUTORY
+
+
+class HierarchyVerificationResponse(BaseModel):
+    status: str
+    primary_groups_seeded: int
+    groups_seeded: int
+    subgroups_seeded: int
+    core_accounts_seeded: int
+    accounts_healed: int
+    total_primary_groups: int
+    total_groups: int
+    total_subgroups: int
+    message: str
 
 class BillingClientLedgerListItem(BaseModel):
     id: int
@@ -583,6 +618,9 @@ class PartyDetails(BaseModel):
     branch_name: Optional[str] = None
     is_default: Optional[bool] = None
     is_active: Optional[bool] = None
+    group_name: Optional[str] = None
+    subgroup_name: Optional[str] = None
+    primary_group_name: Optional[str] = None
 
 
 class DetailedLedgerResponse(BaseModel):

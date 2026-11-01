@@ -49,7 +49,7 @@ import { toast } from "@/lib/toast";
 // Types
 // ------------------------------------------------------------------------------
 
-type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER" | "COMPANY_BANK_ACCOUNT";
+type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER" | "COMPANY_BANK_ACCOUNT" | "DUTIES_AND_TAXES";
 
 interface CategoryStat {
   total_accounts: number;
@@ -65,6 +65,28 @@ interface MasterLedgerOverview {
   vendors: CategoryStat;
   drivers: CategoryStat;
   company_bank_accounts?: CategoryStat;
+  duties_and_taxes?: CategoryStat;
+}
+
+export interface DutiesAndTaxesLedgerItem {
+  id: number;
+  name: string;
+  code: string;
+  primary_group_name: string;
+  primary_group_code: string;
+  group_name: string;
+  group_code: string;
+  subgroup_name?: string | null;
+  subgroup_code?: string | null;
+  opening_balance: string | number;
+  opening_balance_type: string;
+  total_debit: string | number;
+  total_credit: string | number;
+  current_balance: string | number;
+  balance_type: string;
+  last_transaction_date?: string | null;
+  transaction_count: number;
+  tax_type: string;
 }
 
 export interface CompanyBankAccountLedgerItem {
@@ -215,11 +237,19 @@ export default function MasterLedgerPage() {
   const [vendors, setVendors] = useState<VendorLedgerItem[]>([]);
   const [drivers, setDrivers] = useState<DriverLedgerItem[]>([]);
   const [bankAccounts, setBankAccounts] = useState<CompanyBankAccountLedgerItem[]>([]);
+  const [dutiesAndTaxes, setDutiesAndTaxes] = useState<DutiesAndTaxesLedgerItem[]>([]);
+  const [isVerifyingHierarchy, setIsVerifyingHierarchy] = useState(false);
 
   useEffect(() => {
     const tabParam = searchParams.get("tab") as LedgerCategory | null;
     const idParam = searchParams.get("id");
-    if (tabParam === "COMPANY_BANK_ACCOUNT" || tabParam === "BILLING_CLIENT" || tabParam === "VENDOR" || tabParam === "DRIVER") {
+    if (
+      tabParam === "COMPANY_BANK_ACCOUNT" ||
+      tabParam === "BILLING_CLIENT" ||
+      tabParam === "VENDOR" ||
+      tabParam === "DRIVER" ||
+      tabParam === "DUTIES_AND_TAXES"
+    ) {
       setActiveCategory(tabParam);
       if (idParam) {
         setSelectedAccountId(Number(idParam));
@@ -260,7 +290,7 @@ export default function MasterLedgerPage() {
     try {
       setIsLoading(true);
       // Fetch master ledger summaries as well as primary entity masters in parallel
-      const [sumRes, bcRes, vendRes, drvRes, bankRes, rawClients, rawVendors, rawDrivers] = await Promise.all([
+      const [sumRes, bcRes, vendRes, drvRes, bankRes, rawClients, rawVendors, rawDrivers, dutiesRes] = await Promise.all([
         apiClient<MasterLedgerOverview>("/api/v1/accounts/master-ledger/summary").catch(() => null),
         apiClient<BillingClientLedgerItem[]>("/api/v1/accounts/master-ledger/billing-clients").catch(() => []),
         apiClient<VendorLedgerItem[]>("/api/v1/accounts/master-ledger/vendors").catch(() => []),
@@ -269,8 +299,10 @@ export default function MasterLedgerPage() {
         apiClient<any[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<any[]>("/api/v1/general/vendors").catch(() => []),
         apiClient<any[]>("/api/v1/transport/drivers").catch(() => []),
+        apiClient<DutiesAndTaxesLedgerItem[]>("/api/v1/accounts/master-ledger/duties-and-taxes").catch(() => []),
       ]);
       setBankAccounts(bankRes || []);
+      setDutiesAndTaxes(dutiesRes || []);
 
       // 1. Merge Billing Clients: Every client created in Billing Client Master is guaranteed to appear
       const bcMap = new Map<number, BillingClientLedgerItem>();
@@ -398,6 +430,14 @@ export default function MasterLedgerPage() {
           settled_count: (bankRes || []).filter((b) => Number(b.current_balance) === 0).length,
           pending_count: (bankRes || []).filter((b) => Number(b.current_balance) !== 0).length,
         },
+        duties_and_taxes: sumRes?.duties_and_taxes || {
+          total_accounts: (dutiesRes || []).length,
+          total_outstanding: (dutiesRes || []).reduce((s, d) => s + (d.balance_type === "CR" ? Number(d.current_balance || 0) : -Number(d.current_balance || 0)), 0),
+          total_debit: (dutiesRes || []).reduce((s, d) => s + Number(d.total_debit || 0), 0),
+          total_credit: (dutiesRes || []).reduce((s, d) => s + Number(d.total_credit || 0), 0),
+          settled_count: (dutiesRes || []).filter((d) => Number(d.current_balance) === 0).length,
+          pending_count: (dutiesRes || []).filter((d) => Number(d.current_balance) !== 0).length,
+        },
       });
     } catch (err) {
       console.error("Error loading master ledger data:", err);
@@ -405,6 +445,32 @@ export default function MasterLedgerPage() {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const handleVerifyHierarchy = async () => {
+    try {
+      setIsVerifyingHierarchy(true);
+      const res = await apiClient<{
+        status: string;
+        primary_groups_verified: number;
+        groups_verified: number;
+        subgroups_verified: number;
+        accounts_checked: number;
+        accounts_healed: number;
+        message: string;
+      }>("/api/v1/accounts/master-ledger/verify-hierarchy", {
+        method: "POST",
+      });
+      toast.success(
+        `Hierarchy verified: ${res.accounts_checked} accounts audited, ${res.accounts_healed} healed according to Ind AS.`
+      );
+      await loadOverviewAndLists();
+    } catch (err: any) {
+      console.error("Hierarchy verification error:", err);
+      toast.error("Failed to verify accounting hierarchy.");
+    } finally {
+      setIsVerifyingHierarchy(false);
     }
   };
 
@@ -434,6 +500,8 @@ export default function MasterLedgerPage() {
         endpoint = `/api/v1/accounts/master-ledger/drivers/${id}`;
       } else if (category === "COMPANY_BANK_ACCOUNT") {
         endpoint = `/api/v1/accounts/master-ledger/company-bank-accounts/${id}`;
+      } else if (category === "DUTIES_AND_TAXES") {
+        endpoint = `/api/v1/accounts/master-ledger/accounts/${id}`;
       }
 
       const params = new URLSearchParams();
@@ -491,6 +559,27 @@ export default function MasterLedgerPage() {
               code: driver.driver_id,
               phone: driver.phone,
               license_number: driver.license_number,
+            };
+          }
+        } else if (category === "COMPANY_BANK_ACCOUNT") {
+          const bank = bankAccounts.find((b) => b.id === id);
+          if (bank) {
+            partyObj = {
+              id: bank.id,
+              name: bank.custom_bank_name || bank.bank_name,
+              code: bank.account_number_masked,
+              company_name: bank.branch_name || bank.account_type,
+              issuing_office_name: bank.issuing_office_name || undefined,
+            };
+          }
+        } else if (category === "DUTIES_AND_TAXES") {
+          const tax = dutiesAndTaxes.find((t) => t.id === id);
+          if (tax) {
+            partyObj = {
+              id: tax.id,
+              name: tax.name,
+              code: tax.code,
+              company_name: tax.subgroup_name || tax.group_name || "Duties & Taxes",
             };
           }
         }
@@ -787,6 +876,25 @@ export default function MasterLedgerPage() {
     });
   }, [drivers, searchQuery, statusFilter]);
 
+  const filteredDutiesAndTaxes = useMemo(() => {
+    return dutiesAndTaxes.filter((t) => {
+      const matchSearch =
+        !searchQuery ||
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.group_name && t.group_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (t.subgroup_name && t.subgroup_name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "PAYABLE" && t.balance_type === "CR" && Number(t.current_balance) > 0) ||
+        (statusFilter === "INPUT_ITC" && t.balance_type === "DR" && Number(t.current_balance) > 0) ||
+        (statusFilter === "SETTLED" && (t.balance_type === "NIL" || Number(t.current_balance) === 0));
+
+      return matchSearch && matchStatus;
+    });
+  }, [dutiesAndTaxes, searchQuery, statusFilter]);
+
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
@@ -798,7 +906,7 @@ export default function MasterLedgerPage() {
             { label: "Master Ledger" },
           ]}
           title="Master Ledger System"
-          description="Enterprise accounting ledgers maintaining real-time auditability across Billing Clients, Vendors, and Drivers."
+          description="Enterprise accounting ledgers maintaining real-time auditability across Billing Clients, Vendors, Drivers, Bank Accounts, and Duties & Taxes per Indian Accounting Standards."
           primaryAction={{
             label: "Refresh Ledgers",
             icon: RefreshCw,
@@ -807,6 +915,15 @@ export default function MasterLedgerPage() {
               loadOverviewAndLists();
             },
           }}
+          secondaryActions={[
+            {
+              label: isVerifyingHierarchy ? "Verifying Hierarchy..." : "Verify & Bind Hierarchy",
+              icon: CheckCircle2,
+              onClick: handleVerifyHierarchy,
+              disabled: isVerifyingHierarchy,
+              variant: "outline",
+            },
+          ]}
         />
       </div>
 
@@ -816,7 +933,7 @@ export default function MasterLedgerPage() {
       {activeCategory === "OVERVIEW" && !selectedAccountId && (
         <div className="space-y-6">
           {/* Category Cards - Interactive Folder-Style */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
             {/* Card 1: Billing Client Ledger */}
             <div
               onClick={() => {
@@ -1059,6 +1176,67 @@ export default function MasterLedgerPage() {
                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
+
+            {/* Card 5: Duties & Taxes Ledger */}
+            <div
+              onClick={() => {
+                setActiveCategory("DUTIES_AND_TAXES");
+                setSearchQuery("");
+                setStatusFilter("ALL");
+              }}
+              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#7C3AED] dark:hover:border-purple-500 hover:shadow-[0_10px_25px_-5px_rgba(124,58,237,0.12)] transition-all duration-200 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/60 border border-[#DDD6FE] dark:border-purple-800 flex items-center justify-center text-[#7C3AED] dark:text-purple-400 group-hover:scale-105 transition-transform">
+                    <Receipt className="w-6 h-6" />
+                  </div>
+                  <Badge variant="primary" className="text-xs font-semibold px-2.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800">
+                    Duties &amp; Taxes • Ind AS
+                  </Badge>
+                </div>
+
+                <h3 className="text-lg font-bold text-[#101828] dark:text-white group-hover:text-[#7C3AED] dark:group-hover:text-purple-400 transition-colors">
+                  Duties &amp; Taxes
+                </h3>
+                <p className="text-xs text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
+                  Statutory GST (Output/Input ITC, RCM GTA 5%), TDS u/s 194C/J/Q, and TCS ledgers with voucher drill-down.
+                </p>
+
+                {/* Financial Summary */}
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#667085] dark:text-slate-400">Total Tax Accounts</span>
+                    <span className="font-semibold text-[#101828] dark:text-slate-200">
+                      {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length} ledgers
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#667085] dark:text-slate-400">Total Tax Accrued (Credits)</span>
+                    <span className="font-semibold text-[#B42318] dark:text-rose-400">
+                      {formatCurrency(overview?.duties_and_taxes?.total_credit || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#667085] dark:text-slate-400">ITC &amp; TDS Paid (Debits)</span>
+                    <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                      {formatCurrency(overview?.duties_and_taxes?.total_debit || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                    <span className="text-[#101828] dark:text-slate-300">Net Tax Liability</span>
+                    <span className="text-[#7C3AED] dark:text-purple-400 font-extrabold text-base">
+                      {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-3 flex items-center justify-between text-xs font-semibold text-[#7C3AED] dark:text-purple-400">
+                <span>Open Tax Directory</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1128,7 +1306,19 @@ export default function MasterLedgerPage() {
                   )}
                 >
                   <Landmark className="w-3.5 h-3.5" />
-                  Company Bank Accounts ({bankAccounts.length})
+                  Bank Accounts ({bankAccounts.length})
+                </button>
+                <button
+                  onClick={() => setActiveCategory("DUTIES_AND_TAXES")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    activeCategory === "DUTIES_AND_TAXES"
+                      ? "bg-white dark:bg-[#101013] text-[#7C3AED] dark:text-purple-400 shadow-sm"
+                      : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
+                  )}
+                >
+                  <Receipt className="w-3.5 h-3.5" />
+                  Duties &amp; Taxes ({dutiesAndTaxes.length})
                 </button>
               </div>
             </div>
@@ -1139,7 +1329,17 @@ export default function MasterLedgerPage() {
                 <Search className="w-4 h-4 text-[#667085] dark:text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder={`Search ${activeCategory === "BILLING_CLIENT" ? "clients" : activeCategory === "VENDOR" ? "vendors" : activeCategory === "DRIVER" ? "drivers" : "bank accounts"}...`}
+                  placeholder={`Search ${
+                    activeCategory === "BILLING_CLIENT"
+                      ? "clients"
+                      : activeCategory === "VENDOR"
+                      ? "vendors"
+                      : activeCategory === "DRIVER"
+                      ? "drivers"
+                      : activeCategory === "COMPANY_BANK_ACCOUNT"
+                      ? "bank accounts"
+                      : "tax accounts"
+                  }...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-[#101013] border border-slate-200/90 dark:border-[#303036] rounded-lg focus:outline-none focus:border-[#4F46E5] dark:text-white"
@@ -1179,6 +1379,20 @@ export default function MasterLedgerPage() {
                     <option value="RECOVERABLE">Recoverable (Advance Due)</option>
                     <option value="PAYABLE">Reimbursement Payable</option>
                     <option value="SETTLED">Settled</option>
+                  </>
+                )}
+                {activeCategory === "COMPANY_BANK_ACCOUNT" && (
+                  <>
+                    <option value="ACTIVE">Active Accounts</option>
+                    <option value="INACTIVE">Inactive Accounts</option>
+                    <option value="DEFAULT">Default Account</option>
+                  </>
+                )}
+                {activeCategory === "DUTIES_AND_TAXES" && (
+                  <>
+                    <option value="PAYABLE">Tax Payable (Credit)</option>
+                    <option value="INPUT_ITC">Input Tax Credit / Advance (Debit)</option>
+                    <option value="SETTLED">Settled (NIL)</option>
                   </>
                 )}
               </select>
@@ -1523,6 +1737,195 @@ export default function MasterLedgerPage() {
                   </tbody>
                 </table>
               )}
+
+              {/* Category 4: Company Bank Accounts Table */}
+              {activeCategory === "COMPANY_BANK_ACCOUNT" && (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      <th className="py-3 px-4">Bank Name &amp; Details</th>
+                      <th className="py-3 px-4">Account Number</th>
+                      <th className="py-3 px-4">Branch / IFSC</th>
+                      <th className="py-3 px-4">Issuing Office</th>
+                      <th className="py-3 px-4 text-right">Inflows (Dr)</th>
+                      <th className="py-3 px-4 text-right">Outflows (Cr)</th>
+                      <th className="py-3 px-4 text-right">Current Balance</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
+                    {filteredBankAccounts.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-[#667085] dark:text-slate-400">
+                          <Landmark className="w-8 h-8 mx-auto text-[#98A2B3] mb-2" />
+                          <p className="font-semibold text-sm text-[#101828] dark:text-slate-200">No Bank Accounts Found</p>
+                          <p className="text-xs mt-0.5">No bank accounts match your search criteria.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredBankAccounts.map((b) => (
+                        <tr key={b.id} className="hover:bg-[#F9FAFB] dark:hover:bg-slate-800/40 transition-colors">
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-[#101828] dark:text-white flex items-center gap-1.5">
+                              {b.custom_bank_name || b.bank_name}
+                              {b.is_default && (
+                                <Badge variant="primary" className="text-[10px] px-1.5 py-0">Default</Badge>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[#667085] dark:text-slate-400">
+                              {b.account_type} {b.ledger_group ? `• ${b.ledger_group}` : ""}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-xs text-slate-700 dark:text-slate-300">
+                            {b.account_number_masked}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                            <div>{b.branch_name || "—"}</div>
+                            <div className="font-mono text-[11px] text-[#667085] dark:text-slate-400">IFSC: {b.ifsc_code}</div>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                            {b.issuing_office_name || "All Offices"}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-medium text-[#027A48] dark:text-emerald-400">
+                            {formatCurrency(b.total_debit)}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-medium text-[#B42318] dark:text-rose-400">
+                            {formatCurrency(b.total_credit)}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <span className={cn(
+                              "font-bold text-xs",
+                              b.balance_type === "DR" ? "text-[#027A48] dark:text-emerald-400" : "text-[#B42318] dark:text-rose-400"
+                            )}>
+                              {formatCurrency(b.current_balance)}
+                            </span>
+                            <span className="text-[10px] text-[#98A2B3] ml-1">{b.balance_type}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedAccountId(b.id);
+                                setDatePreset("ALL");
+                                setDetailFromDate("");
+                                setDetailToDate("");
+                                setDetailSearch("");
+                                setDetailTxType("ALL");
+                              }}
+                              className="text-xs h-7 gap-1 font-semibold hover:border-[#0E9384] hover:text-[#0E9384]"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              View Ledger
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
+
+              {/* Category 5: Duties & Taxes Table */}
+              {activeCategory === "DUTIES_AND_TAXES" && (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      <th className="py-3 px-4">Tax Ledger Name</th>
+                      <th className="py-3 px-4">Account Code</th>
+                      <th className="py-3 px-4">Subgroup / Group</th>
+                      <th className="py-3 px-4 text-right">Total Debit (ITC / Paid)</th>
+                      <th className="py-3 px-4 text-right">Total Credit (Liability)</th>
+                      <th className="py-3 px-4 text-right">Current Balance</th>
+                      <th className="py-3 px-4">Activity</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
+                    {filteredDutiesAndTaxes.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-[#667085] dark:text-slate-400">
+                          <Receipt className="w-8 h-8 mx-auto text-[#98A2B3] mb-2" />
+                          <p className="font-semibold text-sm text-[#101828] dark:text-slate-200">No Tax Ledgers Found</p>
+                          <p className="text-xs mt-0.5">Click &apos;Verify &amp; Bind Hierarchy&apos; above to auto-provision standard Ind AS tax accounts.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDutiesAndTaxes.map((tax) => {
+                        const isPayable = tax.balance_type === "CR" && Number(tax.current_balance) > 0;
+                        const isITC = tax.balance_type === "DR" && Number(tax.current_balance) > 0;
+                        return (
+                          <tr key={tax.id} className="hover:bg-[#F9FAFB] dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-[#101828] dark:text-white">
+                                {tax.name}
+                              </div>
+                              <div className="text-[10px] text-[#667085] dark:text-slate-400">
+                                {tax.tax_type.replace(/_/g, " ")} • {tax.primary_group_name}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-xs text-slate-700 dark:text-slate-300">
+                              {tax.code}
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                              <div className="font-medium text-xs">{tax.subgroup_name || tax.group_name}</div>
+                              <div className="text-[10px] text-[#98A2B3]">{tax.group_name}</div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-[#101828] dark:text-slate-200 font-mono">
+                              {formatCurrency(tax.total_debit)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-[#027A48] dark:text-emerald-400 font-mono">
+                              {formatCurrency(tax.total_credit)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <span className={cn(
+                                "font-bold text-xs font-mono",
+                                isPayable && "text-[#B54708] dark:text-amber-400",
+                                isITC && "text-[#027A48] dark:text-emerald-400",
+                                !isPayable && !isITC && "text-[#667085] dark:text-slate-400"
+                              )}>
+                                {formatCurrency(tax.current_balance)}
+                              </span>
+                              <Badge
+                                variant={isPayable ? "warning" : isITC ? "success" : "neutral"}
+                                className="ml-2 text-[10px] px-1.5 py-0"
+                              >
+                                {isPayable ? "Payable" : isITC ? "ITC / Asset" : "Settled"}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                              <div className="text-[11px]">
+                                {tax.last_transaction_date ? formatDate(tax.last_transaction_date) : "No vouchers"}
+                              </div>
+                              <div className="text-[10px] text-[#98A2B3]">
+                                {tax.transaction_count} voucher lines
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedAccountId(tax.id);
+                                  setDatePreset("ALL");
+                                  setDetailFromDate("");
+                                  setDetailToDate("");
+                                  setDetailSearch("");
+                                  setDetailTxType("ALL");
+                                }}
+                                className="text-xs h-7 gap-1 font-semibold hover:border-[#7C3AED] hover:text-[#7C3AED]"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                View Ledger
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
@@ -1542,7 +1945,17 @@ export default function MasterLedgerPage() {
               className="gap-1.5 text-xs font-semibold"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Back to {activeCategory === "BILLING_CLIENT" ? "Clients" : activeCategory === "VENDOR" ? "Vendors" : activeCategory === "DRIVER" ? "Drivers" : "Bank Accounts"} List
+              Back to {
+                activeCategory === "BILLING_CLIENT"
+                  ? "Clients"
+                  : activeCategory === "VENDOR"
+                  ? "Vendors"
+                  : activeCategory === "DRIVER"
+                  ? "Drivers"
+                  : activeCategory === "COMPANY_BANK_ACCOUNT"
+                  ? "Bank Accounts"
+                  : "Duties & Taxes"
+              } List
             </Button>
 
             <div className="flex items-center gap-2">
@@ -1658,7 +2071,15 @@ export default function MasterLedgerPage() {
                   {formatCurrency(detailedLedger.total_debit)}
                 </div>
                 <div className="text-[10px] text-[#667085] dark:text-slate-400 mt-0.5">
-                  {detailedLedger.category === "BILLING_CLIENT" ? "Total Freight Invoiced" : detailedLedger.category === "VENDOR" ? "Disbursements Made" : detailedLedger.category === "DRIVER" ? "Advances Disbursed" : "Total Bank Inflows (Debits)"}
+                  {detailedLedger.category === "BILLING_CLIENT"
+                    ? "Total Freight Invoiced"
+                    : detailedLedger.category === "VENDOR"
+                    ? "Disbursements Made"
+                    : detailedLedger.category === "DRIVER"
+                    ? "Advances Disbursed"
+                    : detailedLedger.category === "COMPANY_BANK_ACCOUNT"
+                    ? "Total Bank Inflows (Debits)"
+                    : "ITC Deducted / Tax Paid"}
                 </div>
               </div>
 
@@ -1670,7 +2091,15 @@ export default function MasterLedgerPage() {
                   {formatCurrency(detailedLedger.total_credit)}
                 </div>
                 <div className="text-[10px] text-[#667085] dark:text-slate-400 mt-0.5">
-                  {detailedLedger.category === "BILLING_CLIENT" ? "Total Collections" : detailedLedger.category === "VENDOR" ? "Total Bills/Liabilities" : detailedLedger.category === "DRIVER" ? "Approved Expenses" : "Total Bank Outflows (Credits)"}
+                  {detailedLedger.category === "BILLING_CLIENT"
+                    ? "Total Collections"
+                    : detailedLedger.category === "VENDOR"
+                    ? "Total Bills/Liabilities"
+                    : detailedLedger.category === "DRIVER"
+                    ? "Approved Expenses"
+                    : detailedLedger.category === "COMPANY_BANK_ACCOUNT"
+                    ? "Total Bank Outflows (Credits)"
+                    : "Output Tax / Tax Payable"}
                 </div>
               </div>
 
@@ -1689,7 +2118,11 @@ export default function MasterLedgerPage() {
                     ? (detailedLedger.closing_balance_type === "DR" ? "Receivable from Client" : "Advance Received")
                     : detailedLedger.category === "VENDOR"
                     ? (detailedLedger.closing_balance_type === "CR" ? "Payable to Vendor" : "Advance Paid")
-                    : detailedLedger.category === "DRIVER" ? (detailedLedger.closing_balance_type === "DR" ? "Recoverable from Driver" : "Payable to Driver") : (detailedLedger.closing_balance_type === "DR" ? "Bank Liquidity in Hand (Asset)" : "Bank Overdraft Balance (Liability)")}
+                    : detailedLedger.category === "DRIVER"
+                    ? (detailedLedger.closing_balance_type === "DR" ? "Recoverable from Driver" : "Payable to Driver")
+                    : detailedLedger.category === "COMPANY_BANK_ACCOUNT"
+                    ? (detailedLedger.closing_balance_type === "DR" ? "Bank Liquidity in Hand (Asset)" : "Bank Overdraft Balance (Liability)")
+                    : (detailedLedger.closing_balance_type === "CR" ? "Statutory Tax Payable (Liability)" : "Input Tax Credit (Asset)")}
                 </div>
               </div>
             </div>
@@ -1816,6 +2249,17 @@ export default function MasterLedgerPage() {
                       <option value="PAYMENT_VOUCHER">Payments (Outflows)</option>
                       <option value="CONTRA_VOUCHER">Contra Transfers</option>
                       <option value="JOURNAL_VOUCHER">Journal Adjustments</option>
+                    </>
+                  )}
+                  {detailedLedger.category === "DUTIES_AND_TAXES" && (
+                    <>
+                      <option value="TRANSPORT_INVOICE">Transport Invoice (GST)</option>
+                      <option value="GENERAL_INVOICE">General Invoice (GST)</option>
+                      <option value="PURCHASE_REGISTER">Purchase Bill (ITC / TDS)</option>
+                      <option value="PAYMENT_VOUCHER">Payment (TDS / Tax Paid)</option>
+                      <option value="JOURNAL_VOUCHER">Journal Adjustment</option>
+                      <option value="CREDIT_NOTE">Credit Note</option>
+                      <option value="DEBIT_NOTE">Debit Note</option>
                     </>
                   )}
                 </select>

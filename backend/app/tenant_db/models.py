@@ -1206,7 +1206,7 @@ class GroupInPrimary(TenantBase):
         nullable=False
     )
 
-    primary_group = relationship("PrimaryGroup", back_populates="groups")
+    primary_group = relationship("PrimaryGroup", back_populates="groups", lazy="selectin")
     subgroups = relationship("SubgroupInGroup", back_populates="group", cascade="all, delete-orphan")
     accounts = relationship("Account", back_populates="group", cascade="all, delete-orphan")
 
@@ -1262,8 +1262,8 @@ class Account(TenantBase):
         nullable=False
     )
 
-    group = relationship("GroupInPrimary", back_populates="accounts")
-    subgroup = relationship("SubgroupInGroup", back_populates="accounts")
+    group = relationship("GroupInPrimary", back_populates="accounts", lazy="selectin")
+    subgroup = relationship("SubgroupInGroup", back_populates="accounts", lazy="selectin")
     ledger_entries = relationship("LedgerEntry", back_populates="account")
     billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
     vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")

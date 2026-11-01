@@ -925,6 +925,65 @@ async def get_driver_ledger_detail(
     )
 
 
+@router.get("/master-ledger/duties-and-taxes", response_model=List[schemas.DutiesAndTaxesLedgerListItem])
+async def list_duties_and_taxes_ledgers(
+    search: Optional[str] = Query(None, description="Search GST or TDS tax ledger name or code"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    List all statutory Duties & Taxes ledgers (GST Output/Input/RCM, TDS u/s 194C/194J/194Q, TCS)
+    bound to Indian Accounting Standards and Tally Prime hierarchy with live balances across all vouchers.
+    """
+    office_id = current_office.id if current_office else None
+    return await master_ledger_service.list_duties_and_taxes_ledgers(
+        session, office_id=office_id, search=search
+    )
+
+
+@router.get("/master-ledger/accounts/{account_id}", response_model=schemas.DetailedLedgerResponse)
+async def get_generic_account_ledger_detail(
+    account_id: int,
+    from_date: Optional[date] = Query(None, description="Start date of statement"),
+    to_date: Optional[date] = Query(None, description="End date of statement"),
+    search: Optional[str] = Query(None, description="Search particulars or voucher number"),
+    tx_type: Optional[str] = Query(None, description="Filter transaction type"),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    _perm: User = Depends(require_accounts_permission("view")),
+):
+    """
+    Universal chronological ledger statement for ANY ledger in the chart of accounts,
+    including all Duties & Taxes ledgers, Revenue, Expense, Cash, Bank, and Party accounts.
+    """
+    office_id = current_office.id if current_office else None
+    return await master_ledger_service.get_generic_account_ledger_detail(
+        session,
+        account_id=account_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        tx_type=tx_type,
+        office_id=office_id,
+    )
+
+
+@router.post("/master-ledger/verify-hierarchy", response_model=schemas.HierarchyVerificationResponse)
+@router.get("/master-ledger/verify-hierarchy", response_model=schemas.HierarchyVerificationResponse)
+async def verify_chart_of_accounts_hierarchy(
+    session: AsyncSession = Depends(get_tenant_db),
+    _user: User = Depends(get_current_user),
+):
+    """
+    Explicitly audit, verify, and heal the Chart of Accounts hierarchy per Indian Accounting Law
+    Standards (AS / Ind AS & Schedule III) and Tally Prime.
+    Ensures all primary groups, groups in primary, subgroups in groups, and default ledgers
+    (GST, TDS, TCS, etc.) are correctly bound and synchronized.
+    """
+    return await master_ledger_service.verify_and_heal_chart_of_accounts(session)
+
+
 @router.post("/sync-tally-schema")
 @router.get("/sync-tally-schema")
 async def sync_tally_schema_endpoint(
