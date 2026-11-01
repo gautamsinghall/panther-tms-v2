@@ -22,6 +22,7 @@ import {
   TrendingUp,
   TrendingDown,
   CheckCircle2,
+  ShieldCheck,
   Clock,
   Eye,
   AlertCircle,
@@ -932,309 +933,500 @@ export default function MasterLedgerPage() {
       {/* ------------------------------------------------------------------------ */}
       {activeCategory === "OVERVIEW" && !selectedAccountId && (
         <div className="space-y-6">
-          {/* Category Cards - Interactive Folder-Style */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {/* Card 1: Billing Client Ledger */}
-            <div
-              onClick={() => {
-                setActiveCategory("BILLING_CLIENT");
-                setSearchQuery("");
-                setStatusFilter("ALL");
-              }}
-              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#4F46E5] dark:hover:border-indigo-500 hover:shadow-[0_10px_25px_-5px_rgba(79,70,229,0.12)] transition-all duration-200 flex flex-col justify-between"
-            >
+          {/* Section 1: 4 Core Master Ledger Categories (4 by 4 Grid) */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#EEF2FF] dark:bg-indigo-950/60 border border-[#C7D2FE] dark:border-indigo-800 flex items-center justify-center text-[#4F46E5] dark:text-indigo-400 group-hover:scale-105 transition-transform">
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <Badge variant="primary" className="text-xs font-semibold px-2.5 py-0.5">
-                    Sundry Debtors • Asset
-                  </Badge>
-                </div>
-
-                <h3 className="text-lg font-bold text-[#101828] dark:text-white group-hover:text-[#4F46E5] dark:group-hover:text-indigo-400 transition-colors">
-                  Billing Client Ledger
+                <h3 className="text-sm font-bold text-[#101828] dark:text-white uppercase tracking-wider">
+                  Operational Master Ledgers
                 </h3>
-                <p className="text-xs text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
-                  Real-time customer freight billing, payment receipts, debit/credit notes, and open receivables.
+                <p className="text-xs text-[#667085] dark:text-slate-400">
+                  Party, fleet imprest, and banking master accounts mapped to Ind AS Schedule III groups.
                 </p>
-
-                {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Client Accounts</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {overview?.billing_clients?.total_accounts || billingClients.length} accounts
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Billed (Debits)</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {formatCurrency(overview?.billing_clients?.total_debit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Collections (Credits)</span>
-                    <span className="font-semibold text-[#027A48] dark:text-emerald-400">
-                      {formatCurrency(overview?.billing_clients?.total_credit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
-                    <span className="text-[#101828] dark:text-slate-300">Net Outstanding Receivable</span>
-                    <span className="text-[#4F46E5] dark:text-indigo-400 font-extrabold text-base">
-                      {formatCurrency(overview?.billing_clients?.total_outstanding || 0)}
-                    </span>
-                  </div>
-                </div>
               </div>
-
-              <div className="mt-6 pt-3 flex items-center justify-between text-xs font-semibold text-[#4F46E5] dark:text-indigo-400">
-                <span>Open Client Directory</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
+              <Badge variant="neutral" className="text-xs font-medium">
+                4 Core Categories
+              </Badge>
             </div>
 
-            {/* Card 2: Vendor Ledger */}
-            <div
-              onClick={() => {
-                setActiveCategory("VENDOR");
-                setSearchQuery("");
-                setStatusFilter("ALL");
-              }}
-              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#B54708] dark:hover:border-amber-500 hover:shadow-[0_10px_25px_-5px_rgba(181,71,8,0.12)] transition-all duration-200 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#FFFAEB] dark:bg-amber-950/60 border border-[#FEDF89] dark:border-amber-800 flex items-center justify-center text-[#B54708] dark:text-amber-400 group-hover:scale-105 transition-transform">
-                    <Truck className="w-6 h-6" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+              {/* Card 1: Billing Client Ledger */}
+              <div
+                onClick={() => {
+                  setActiveCategory("BILLING_CLIENT");
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#4F46E5] dark:hover:border-indigo-500 hover:shadow-[0_10px_25px_-5px_rgba(79,70,229,0.12)] transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#EEF2FF] dark:bg-indigo-950/60 border border-[#C7D2FE] dark:border-indigo-800 flex items-center justify-center text-[#4F46E5] dark:text-indigo-400 group-hover:scale-105 transition-transform">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <Badge variant="primary" className="text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap">
+                      Current Assets • Dr
+                    </Badge>
                   </div>
-                  <Badge variant="warning" className="text-xs font-semibold px-2.5 py-0.5">
-                    Sundry Creditors • Liability
-                  </Badge>
+
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#4F46E5] dark:group-hover:text-indigo-400 transition-colors">
+                    Billing Client Ledger
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    Customer freight billing, receipts, debit/credit notes, and open receivables.
+                  </p>
+
+                  {/* 3-Tier Ind AS Hierarchy Block */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Assets</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Sundry Debtors</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
+                      <span className="font-semibold text-[#4F46E5] dark:text-indigo-400">Corporate Debtors</span>
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Accounts</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {overview?.billing_clients?.total_accounts || billingClients.length} clients
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Billed (Dr)</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {formatCurrency(overview?.billing_clients?.total_debit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Collections (Cr)</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                        {formatCurrency(overview?.billing_clients?.total_credit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                      <span className="text-[#101828] dark:text-slate-300">Receivable</span>
+                      <span className="text-[#4F46E5] dark:text-indigo-400 font-extrabold">
+                        {formatCurrency(overview?.billing_clients?.total_outstanding || 0)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-[#101828] dark:text-white group-hover:text-[#B54708] dark:group-hover:text-amber-400 transition-colors">
-                  Vendor Ledger
-                </h3>
-                <p className="text-xs text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
-                  Supplier purchase bills, Hire Challan freight payables, ATH/BTH disbursements, and liabilities.
-                </p>
-
-                {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Registered Vendors</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {overview?.vendors?.total_accounts || vendors.length} vendors
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Bills & Payables</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {formatCurrency(overview?.vendors?.total_credit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Disbursements (Debits)</span>
-                    <span className="font-semibold text-[#027A48] dark:text-emerald-400">
-                      {formatCurrency(overview?.vendors?.total_debit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
-                    <span className="text-[#101828] dark:text-slate-300">Total Outstanding Payable</span>
-                    <span className="text-[#B54708] dark:text-amber-400 font-extrabold text-base">
-                      {formatCurrency(overview?.vendors?.total_outstanding || 0)}
-                    </span>
-                  </div>
+                <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#4F46E5] dark:text-indigo-400 border-t border-slate-100 dark:border-[#303036]">
+                  <span>Open Client Directory</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
 
-              <div className="mt-6 pt-3 flex items-center justify-between text-xs font-semibold text-[#B54708] dark:text-amber-400">
-                <span>Open Vendor Directory</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {/* Card 2: Vendor Ledger */}
+              <div
+                onClick={() => {
+                  setActiveCategory("VENDOR");
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#B54708] dark:hover:border-amber-500 hover:shadow-[0_10px_25px_-5px_rgba(181,71,8,0.12)] transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#FFFAEB] dark:bg-amber-950/60 border border-[#FEDF89] dark:border-amber-800 flex items-center justify-center text-[#B54708] dark:text-amber-400 group-hover:scale-105 transition-transform">
+                      <Truck className="w-5 h-5" />
+                    </div>
+                    <Badge variant="warning" className="text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap">
+                      Current Liab • Cr
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#B54708] dark:group-hover:text-amber-400 transition-colors">
+                    Vendor Ledger
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    Supplier purchase bills, Hire Challans, ATH/BTH disbursements, and liabilities.
+                  </p>
+
+                  {/* 3-Tier Ind AS Hierarchy Block */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Liabilities</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Sundry Creditors</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
+                      <span className="font-semibold text-[#B54708] dark:text-amber-400">Market Vehicle Vendors</span>
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Accounts</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {overview?.vendors?.total_accounts || vendors.length} vendors
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Bills &amp; Payables (Cr)</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {formatCurrency(overview?.vendors?.total_credit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Disbursed (Dr)</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                        {formatCurrency(overview?.vendors?.total_debit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                      <span className="text-[#101828] dark:text-slate-300">Payable</span>
+                      <span className="text-[#B54708] dark:text-amber-400 font-extrabold">
+                        {formatCurrency(overview?.vendors?.total_outstanding || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#B54708] dark:text-amber-400 border-t border-slate-100 dark:border-[#303036]">
+                  <span>Open Vendor Directory</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 3: Driver Ledger */}
+              <div
+                onClick={() => {
+                  setActiveCategory("DRIVER");
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#027A48] dark:hover:border-emerald-500 hover:shadow-[0_10px_25px_-5px_rgba(2,122,72,0.12)] transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#ECFDF3] dark:bg-emerald-950/60 border border-[#A6F4C5] dark:border-emerald-800 flex items-center justify-center text-[#027A48] dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <Badge variant="success" className="text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap">
+                      Current Assets • Dr
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#027A48] dark:group-hover:text-emerald-400 transition-colors">
+                    Driver Ledger
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    Trip advances (cash/fuel), toll &amp; expense reimbursements, and recoveries.
+                  </p>
+
+                  {/* 3-Tier Ind AS Hierarchy Block */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Assets</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Loans &amp; Advances (Asset)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">Driver Trip Advances</span>
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Accounts</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {overview?.drivers?.total_accounts || drivers.length} drivers
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Advances (Dr)</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {formatCurrency(overview?.drivers?.total_debit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Expenses (Cr)</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                        {formatCurrency(overview?.drivers?.total_credit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                      <span className="text-[#101828] dark:text-slate-300">Recoverable</span>
+                      <span className="text-[#027A48] dark:text-emerald-400 font-extrabold">
+                        {formatCurrency(overview?.drivers?.total_outstanding || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#027A48] dark:text-emerald-400 border-t border-slate-100 dark:border-[#303036]">
+                  <span>Open Driver Directory</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 4: Company Bank Accounts */}
+              <div
+                onClick={() => {
+                  setActiveCategory("COMPANY_BANK_ACCOUNT");
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#0E9384] dark:hover:border-teal-500 hover:shadow-[0_10px_25px_-5px_rgba(14,147,132,0.12)] transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#F0FDF9] dark:bg-teal-950/60 border border-[#99F6E0] dark:border-teal-800 flex items-center justify-center text-[#0E9384] dark:text-teal-400 group-hover:scale-105 transition-transform">
+                      <Landmark className="w-5 h-5" />
+                    </div>
+                    <Badge variant="success" className="text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap">
+                      Current Assets / OD
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#0E9384] dark:group-hover:text-teal-400 transition-colors">
+                    Company Bank Accounts
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    Commercial bank accounts, receipts, vendor payments, contra transfers, and TallyPrime.
+                  </p>
+
+                  {/* 3-Tier Ind AS Hierarchy Block */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Assets / Liab</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Bank Accounts / OD</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
+                      <span className="font-semibold text-[#0E9384] dark:text-teal-400">Current &amp; OD Accounts</span>
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Accounts</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {overview?.company_bank_accounts?.total_accounts || bankAccounts.length} accounts
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Inflows (Dr)</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                        {formatCurrency(overview?.company_bank_accounts?.total_debit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Outflows (Cr)</span>
+                      <span className="font-semibold text-[#B42318] dark:text-rose-400">
+                        {formatCurrency(overview?.company_bank_accounts?.total_credit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                      <span className="text-[#101828] dark:text-slate-300">Net Liquid</span>
+                      <span className="text-[#0E9384] dark:text-teal-400 font-extrabold">
+                        {formatCurrency(overview?.company_bank_accounts?.total_outstanding || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#0E9384] dark:text-teal-400 border-t border-slate-100 dark:border-[#303036]">
+                  <span>Open Bank Directory</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Card 3: Driver Ledger */}
-            <div
-              onClick={() => {
-                setActiveCategory("DRIVER");
-                setSearchQuery("");
-                setStatusFilter("ALL");
-              }}
-              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#027A48] dark:hover:border-emerald-500 hover:shadow-[0_10px_25px_-5px_rgba(2,122,72,0.12)] transition-all duration-200 flex flex-col justify-between"
-            >
+          {/* Section 2: Statutory Duties & Taxes & Ind AS Compliance */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#ECFDF3] dark:bg-emerald-950/60 border border-[#A6F4C5] dark:border-emerald-800 flex items-center justify-center text-[#027A48] dark:text-emerald-400 group-hover:scale-105 transition-transform">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <Badge variant="success" className="text-xs font-semibold px-2.5 py-0.5">
-                    Fleet Imprest & Settlements
-                  </Badge>
-                </div>
-
-                <h3 className="text-lg font-bold text-[#101828] dark:text-white group-hover:text-[#027A48] dark:group-hover:text-emerald-400 transition-colors">
-                  Driver Ledger
+                <h3 className="text-sm font-bold text-[#101828] dark:text-white uppercase tracking-wider">
+                  Statutory &amp; Regulatory Ledgers
                 </h3>
-                <p className="text-xs text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
-                  En-route trip advances (cash/fuel), toll & expense reimbursements, deductions, and balance recovery.
+                <p className="text-xs text-[#667085] dark:text-slate-400">
+                  GST, TDS, and statutory duty accounts mapped under Indian Accounting Standards.
                 </p>
-
-                {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Active Drivers</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {overview?.drivers?.total_accounts || drivers.length} drivers
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Advances Disbursed</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {formatCurrency(overview?.drivers?.total_debit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Approved Trip Expenses</span>
-                    <span className="font-semibold text-[#027A48] dark:text-emerald-400">
-                      {formatCurrency(overview?.drivers?.total_credit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
-                    <span className="text-[#101828] dark:text-slate-300">Net Recoverable Imprest</span>
-                    <span className="text-[#027A48] dark:text-emerald-400 font-extrabold text-base">
-                      {formatCurrency(overview?.drivers?.total_outstanding || 0)}
-                    </span>
-                  </div>
-                </div>
               </div>
-
-              <div className="mt-6 pt-3 flex items-center justify-between text-xs font-semibold text-[#027A48] dark:text-emerald-400">
-                <span>Open Driver Directory</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-            {/* Card 4: Company Bank Accounts Ledger */}
-            <div
-              onClick={() => {
-                setActiveCategory("COMPANY_BANK_ACCOUNT");
-                setSearchQuery("");
-                setStatusFilter("ALL");
-              }}
-              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#0E9384] dark:hover:border-teal-500 hover:shadow-[0_10px_25px_-5px_rgba(14,147,132,0.12)] transition-all duration-200 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#F0FDF9] dark:bg-teal-950/60 border border-[#99F6E0] dark:border-teal-800 flex items-center justify-center text-[#0E9384] dark:text-teal-400 group-hover:scale-105 transition-transform">
-                    <Landmark className="w-6 h-6" />
-                  </div>
-                  <Badge variant="success" className="text-xs font-semibold px-2.5 py-0.5">
-                    Bank Accounts • Assets / OD
-                  </Badge>
-                </div>
-
-                <h3 className="text-lg font-bold text-[#101828] dark:text-white group-hover:text-[#0E9384] dark:group-hover:text-teal-400 transition-colors">
-                  Company Bank Accounts
-                </h3>
-                <p className="text-xs text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
-                  Bank accounts linked to issuing offices, automated receipts, vendor payments, contra transfers, and TallyPrime ledgers.
-                </p>
-
-                {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Bank Accounts</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {overview?.company_bank_accounts?.total_accounts || bankAccounts.length} accounts
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Inflows (Debits)</span>
-                    <span className="font-semibold text-[#027A48] dark:text-emerald-400">
-                      {formatCurrency(overview?.company_bank_accounts?.total_debit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Outflows (Credits)</span>
-                    <span className="font-semibold text-[#B42318] dark:text-rose-400">
-                      {formatCurrency(overview?.company_bank_accounts?.total_credit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
-                    <span className="text-[#101828] dark:text-slate-300">Net Liquid Balance</span>
-                    <span className="text-[#0E9384] dark:text-teal-400 font-extrabold text-base">
-                      {formatCurrency(overview?.company_bank_accounts?.total_outstanding || 0)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-3 flex items-center justify-between text-xs font-semibold text-[#0E9384] dark:text-teal-400">
-                <span>Open Bank Directory</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
+              <Badge variant="primary" className="text-xs font-medium">
+                Ind AS / Schedule III
+              </Badge>
             </div>
 
-            {/* Card 5: Duties & Taxes Ledger */}
-            <div
-              onClick={() => {
-                setActiveCategory("DUTIES_AND_TAXES");
-                setSearchQuery("");
-                setStatusFilter("ALL");
-              }}
-              className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs hover:border-[#7C3AED] dark:hover:border-purple-500 hover:shadow-[0_10px_25px_-5px_rgba(124,58,237,0.12)] transition-all duration-200 flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/60 border border-[#DDD6FE] dark:border-purple-800 flex items-center justify-center text-[#7C3AED] dark:text-purple-400 group-hover:scale-105 transition-transform">
-                    <Receipt className="w-6 h-6" />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+              {/* Card 5: Duties & Taxes Featured Card (Spans 3 Columns) */}
+              <div
+                onClick={() => {
+                  setActiveCategory("DUTIES_AND_TAXES");
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="lg:col-span-3 group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#7C3AED] dark:hover:border-purple-500 hover:shadow-[0_10px_25px_-5px_rgba(124,58,237,0.12)] transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/60 border border-[#DDD6FE] dark:border-purple-800 flex items-center justify-center text-[#7C3AED] dark:text-purple-400 group-hover:scale-105 transition-transform">
+                        <Receipt className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#7C3AED] dark:group-hover:text-purple-400 transition-colors">
+                            Duties &amp; Taxes (GST, TDS &amp; TCS)
+                          </h3>
+                          <Badge variant="primary" className="text-[10px] font-semibold px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800 whitespace-nowrap">
+                            Statutory Dues
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-0.5">
+                          Output GST on freight billing, Input Tax Credit (ITC) on supplier purchases, GTA 5% RCM, and TDS u/s 194C/J/Q.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right sm:self-center">
+                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">Net Statutory Liability</span>
+                      <span className="text-lg font-extrabold text-[#7C3AED] dark:text-purple-400">
+                        {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
+                      </span>
+                    </div>
                   </div>
-                  <Badge variant="primary" className="text-xs font-semibold px-2.5 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800">
-                    Duties &amp; Taxes • Ind AS
-                  </Badge>
+
+                  {/* 3-Tier Hierarchy Inline Badges */}
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 flex flex-wrap items-center justify-between gap-2 text-xs mb-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded bg-white dark:bg-[#1C1D24] shadow-2xs border border-slate-200/60 dark:border-[#303036]">
+                        Current Liabilities &amp; Assets (ITC)
+                      </span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded bg-white dark:bg-[#1C1D24] shadow-2xs border border-slate-200/60 dark:border-[#303036]">
+                        Duties &amp; Taxes (TAX)
+                      </span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Subgroups:</span>
+                      <span className="font-semibold text-[#7C3AED] dark:text-purple-400 px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800">
+                        GST Output • Input ITC • RCM • TDS
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 4 Financial Metric Mini-Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
+                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">Tax Accounts</span>
+                      <span className="text-sm font-bold text-[#101828] dark:text-white mt-1 block">
+                        {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length} ledgers
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
+                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">Output Tax (Cr)</span>
+                      <span className="text-sm font-bold text-[#B42318] dark:text-rose-400 mt-1 block">
+                        {formatCurrency(overview?.duties_and_taxes?.total_credit || 0)}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
+                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">ITC &amp; TDS Paid (Dr)</span>
+                      <span className="text-sm font-bold text-[#027A48] dark:text-emerald-400 mt-1 block">
+                        {formatCurrency(overview?.duties_and_taxes?.total_debit || 0)}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/30 border border-[#DDD6FE] dark:border-purple-800">
+                      <span className="text-[11px] text-[#7C3AED] dark:text-purple-300 font-medium block">Net Payable</span>
+                      <span className="text-sm font-extrabold text-[#7C3AED] dark:text-purple-400 mt-1 block">
+                        {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-[#101828] dark:text-white group-hover:text-[#7C3AED] dark:group-hover:text-purple-400 transition-colors">
-                  Duties &amp; Taxes
-                </h3>
-                <p className="text-xs text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
-                  Statutory GST (Output/Input ITC, RCM GTA 5%), TDS u/s 194C/J/Q, and TCS ledgers with voucher drill-down.
-                </p>
-
-                {/* Financial Summary */}
-                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-[#303036] space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Tax Accounts</span>
-                    <span className="font-semibold text-[#101828] dark:text-slate-200">
-                      {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length} ledgers
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">Total Tax Accrued (Credits)</span>
-                    <span className="font-semibold text-[#B42318] dark:text-rose-400">
-                      {formatCurrency(overview?.duties_and_taxes?.total_credit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#667085] dark:text-slate-400">ITC &amp; TDS Paid (Debits)</span>
-                    <span className="font-semibold text-[#027A48] dark:text-emerald-400">
-                      {formatCurrency(overview?.duties_and_taxes?.total_debit || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm font-bold pt-2 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
-                    <span className="text-[#101828] dark:text-slate-300">Net Tax Liability</span>
-                    <span className="text-[#7C3AED] dark:text-purple-400 font-extrabold text-base">
-                      {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
-                    </span>
-                  </div>
+                <div className="mt-4 pt-3 flex items-center justify-between text-xs font-semibold text-[#7C3AED] dark:text-purple-400 border-t border-slate-100 dark:border-[#303036]">
+                  <span>Open Duties &amp; Taxes Directory</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
 
-              <div className="mt-6 pt-3 flex items-center justify-between text-xs font-semibold text-[#7C3AED] dark:text-purple-400">
-                <span>Open Tax Directory</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {/* Card 6: Ind AS Chart of Accounts Health (Spans 1 Column) */}
+              <div className="lg:col-span-1 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <Badge variant="neutral" className="text-[10px] font-semibold whitespace-nowrap">
+                      TallyPrime 3-Tier
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-sm font-bold text-[#101828] dark:text-white">
+                    Ind AS Hierarchy Binding
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
+                    Automatic hierarchy verification for corporate statutory reporting and TallyPrime XML export.
+                  </p>
+
+                  <div className="mt-3.5 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Primary Groups:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">5 Active</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Groups in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">26 Verified</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Subgroups in Group:</span>
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">42 Bound</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#303036]">
+                      <span className="text-slate-500">Status:</span>
+                      <span className="text-[#027A48] dark:text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> 100% Compliant
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#303036]">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleVerifyHierarchy}
+                    disabled={isVerifyingHierarchy}
+                    className="w-full text-xs h-8 gap-1.5 font-semibold text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                  >
+                    <RefreshCw className={cn("w-3.5 h-3.5", isVerifyingHierarchy && "animate-spin")} />
+                    {isVerifyingHierarchy ? "Verifying..." : "Verify & Bind"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1399,6 +1591,94 @@ export default function MasterLedgerPage() {
             </div>
           </div>
 
+          {/* Accounting Hierarchy Classification Bar (Ind AS 3-Tier Hierarchy Context) */}
+          <div className="bg-white dark:bg-[#17171B] rounded-xl border border-slate-200/90 dark:border-[#303036] p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center border",
+                    activeCategory === "BILLING_CLIENT" && "bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-400",
+                    activeCategory === "VENDOR" && "bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-400",
+                    activeCategory === "DRIVER" && "bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-400",
+                    activeCategory === "COMPANY_BANK_ACCOUNT" && "bg-teal-50 border-teal-200 text-teal-600 dark:bg-teal-950/60 dark:border-teal-800 dark:text-teal-400",
+                    activeCategory === "DUTIES_AND_TAXES" && "bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-950/60 dark:border-purple-800 dark:text-purple-400"
+                  )}
+                >
+                  {activeCategory === "BILLING_CLIENT" && <Building2 className="w-5 h-5" />}
+                  {activeCategory === "VENDOR" && <Truck className="w-5 h-5" />}
+                  {activeCategory === "DRIVER" && <Users className="w-5 h-5" />}
+                  {activeCategory === "COMPANY_BANK_ACCOUNT" && <Landmark className="w-5 h-5" />}
+                  {activeCategory === "DUTIES_AND_TAXES" && <Receipt className="w-5 h-5" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-[#101828] dark:text-white">
+                      {activeCategory === "BILLING_CLIENT" && "Billing Clients (Trade Receivables)"}
+                      {activeCategory === "VENDOR" && "Vendors & Suppliers (Trade Payables)"}
+                      {activeCategory === "DRIVER" && "Driver Fleet Imprest & Advances"}
+                      {activeCategory === "COMPANY_BANK_ACCOUNT" && "Company Bank Accounts & Liquidity"}
+                      {activeCategory === "DUTIES_AND_TAXES" && "Statutory Duties & Taxes (GST, TDS & TCS)"}
+                    </h4>
+                    <Badge variant="neutral" className="text-[10px] font-mono whitespace-nowrap">
+                      Ind AS &amp; TallyPrime Linked
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-[#667085] dark:text-slate-400 mt-0.5">
+                    {activeCategory === "BILLING_CLIENT" && "Client accounts bound to Sundry Debtors asset group for automated freight billing & receipt allocations."}
+                    {activeCategory === "VENDOR" && "Supplier accounts bound to Sundry Creditors liability group for vehicle hire challans & purchase registers."}
+                    {activeCategory === "DRIVER" && "Driver imprest accounts bound to Loans & Advances asset group for en-route fuel/cash recovery."}
+                    {activeCategory === "COMPANY_BANK_ACCOUNT" && "Commercial bank accounts linked to issuing offices for automated inflows, disbursements & contra transfers."}
+                    {activeCategory === "DUTIES_AND_TAXES" && "Statutory tax accounts mapped under Duties & Taxes for GST returns (GSTR-1, GSTR-3B) and TDS quarterly returns."}
+                  </p>
+                </div>
+              </div>
+
+              {/* 3-Tier Hierarchy Breadcrumb Pill */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-50 dark:bg-[#101013] p-2 rounded-lg border border-slate-200/80 dark:border-[#303036] text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Primary Group:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded bg-white dark:bg-[#1C1D24] shadow-2xs border border-slate-200/60 dark:border-[#303036]">
+                    {activeCategory === "BILLING_CLIENT" && "Current Assets (Dr)"}
+                    {activeCategory === "VENDOR" && "Current Liabilities (Cr)"}
+                    {activeCategory === "DRIVER" && "Current Assets (Dr)"}
+                    {activeCategory === "COMPANY_BANK_ACCOUNT" && "Current Assets / Liab"}
+                    {activeCategory === "DUTIES_AND_TAXES" && "Liabilities & Assets (ITC)"}
+                  </span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Group in Primary:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded bg-white dark:bg-[#1C1D24] shadow-2xs border border-slate-200/60 dark:border-[#303036]">
+                    {activeCategory === "BILLING_CLIENT" && "Sundry Debtors"}
+                    {activeCategory === "VENDOR" && "Sundry Creditors"}
+                    {activeCategory === "DRIVER" && "Loans & Advances (Asset)"}
+                    {activeCategory === "COMPANY_BANK_ACCOUNT" && "Bank Accounts / OD"}
+                    {activeCategory === "DUTIES_AND_TAXES" && "Duties & Taxes (TAX)"}
+                  </span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Subgroup in Group:</span>
+                  <span className={cn(
+                    "font-semibold px-2 py-0.5 rounded border",
+                    activeCategory === "BILLING_CLIENT" && "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800",
+                    activeCategory === "VENDOR" && "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800",
+                    activeCategory === "DRIVER" && "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800",
+                    activeCategory === "COMPANY_BANK_ACCOUNT" && "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 border-teal-200 dark:border-teal-800",
+                    activeCategory === "DUTIES_AND_TAXES" && "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800"
+                  )}>
+                    {activeCategory === "BILLING_CLIENT" && "Corporate Billing Clients"}
+                    {activeCategory === "VENDOR" && "Market Vehicle Vendors"}
+                    {activeCategory === "DRIVER" && "Driver Trip Advances"}
+                    {activeCategory === "COMPANY_BANK_ACCOUNT" && "Current & OD Accounts"}
+                    {activeCategory === "DUTIES_AND_TAXES" && "GST Output / Input ITC / TDS"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Table Container */}
           <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
@@ -1414,7 +1694,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Total Credit</th>
                       <th className="py-3 px-4 text-right">Outstanding Balance</th>
                       <th className="py-3 px-4">Last Activity</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -1444,6 +1724,11 @@ export default function MasterLedgerPage() {
                                   {client.company_name}
                                 </div>
                               )}
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">Corporate Debtors</span>
+                                <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">Sundry Debtors (Asset)</span>
+                              </div>
                               {client.gstin && (
                                 <div className="text-[10px] text-[#98A2B3] font-mono mt-0.5">
                                   GST: {client.gstin}
@@ -1489,7 +1774,7 @@ export default function MasterLedgerPage() {
                                 {client.transaction_count} vouchers
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right">
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1501,7 +1786,7 @@ export default function MasterLedgerPage() {
                                   setDetailSearch("");
                                   setDetailTxType("ALL");
                                 }}
-                                className="text-xs h-7 gap-1 font-semibold hover:border-[#4F46E5] hover:text-[#4F46E5]"
+                                className="text-xs h-7.5 px-3 gap-1.5 font-semibold whitespace-nowrap inline-flex items-center justify-center hover:border-[#4F46E5] hover:text-[#4F46E5]"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 View Ledger
@@ -1527,7 +1812,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Total Credit (Billed)</th>
                       <th className="py-3 px-4 text-right">Outstanding Payable</th>
                       <th className="py-3 px-4">Last Activity</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -1551,6 +1836,11 @@ export default function MasterLedgerPage() {
                             <td className="py-3.5 px-4">
                               <div className="font-semibold text-[#101828] dark:text-white">
                                 {vendor.name}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Market Vehicle Vendors</span>
+                                <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">Sundry Creditors (Liability)</span>
                               </div>
                               {vendor.phone && (
                                 <div className="text-[11px] text-[#667085] dark:text-slate-400">
@@ -1602,7 +1892,7 @@ export default function MasterLedgerPage() {
                                 {vendor.transaction_count} entries
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right">
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1614,7 +1904,7 @@ export default function MasterLedgerPage() {
                                   setDetailSearch("");
                                   setDetailTxType("ALL");
                                 }}
-                                className="text-xs h-7 gap-1 font-semibold hover:border-[#B54708] hover:text-[#B54708]"
+                                className="text-xs h-7.5 px-3 gap-1.5 font-semibold whitespace-nowrap inline-flex items-center justify-center hover:border-[#B54708] hover:text-[#B54708]"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 View Ledger
@@ -1640,7 +1930,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Settled Expenses</th>
                       <th className="py-3 px-4 text-right">Current Balance</th>
                       <th className="py-3 px-4">Last Activity</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -1661,8 +1951,15 @@ export default function MasterLedgerPage() {
                             key={driver.id}
                             className="hover:bg-[#F9FAFB] dark:hover:bg-slate-800/40 transition-colors"
                           >
-                            <td className="py-3.5 px-4 font-semibold text-[#101828] dark:text-white">
-                              {driver.name}
+                            <td className="py-3.5 px-4">
+                              <div className="font-semibold text-[#101828] dark:text-white">
+                                {driver.name}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Driver Trip Advances</span>
+                                <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">Loans &amp; Advances (Asset)</span>
+                              </div>
                             </td>
                             <td className="py-3.5 px-4">
                               <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
@@ -1712,7 +2009,7 @@ export default function MasterLedgerPage() {
                                 {driver.transaction_count} records
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right">
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1724,7 +2021,7 @@ export default function MasterLedgerPage() {
                                   setDetailSearch("");
                                   setDetailTxType("ALL");
                                 }}
-                                className="text-xs h-7 gap-1 font-semibold hover:border-[#027A48] hover:text-[#027A48]"
+                                className="text-xs h-7.5 px-3 gap-1.5 font-semibold whitespace-nowrap inline-flex items-center justify-center hover:border-[#027A48] hover:text-[#027A48]"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 View Ledger
@@ -1750,7 +2047,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Inflows (Dr)</th>
                       <th className="py-3 px-4 text-right">Outflows (Cr)</th>
                       <th className="py-3 px-4 text-right">Current Balance</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -1772,8 +2069,10 @@ export default function MasterLedgerPage() {
                                 <Badge variant="primary" className="text-[10px] px-1.5 py-0">Default</Badge>
                               )}
                             </div>
-                            <div className="text-[11px] text-[#667085] dark:text-slate-400">
-                              {b.account_type} {b.ledger_group ? `• ${b.ledger_group}` : ""}
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold">{b.ledger_group || "Current Accounts"}</span>
+                              <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">Bank Accounts (Asset)</span>
                             </div>
                           </td>
                           <td className="py-3.5 px-4 font-mono text-xs text-slate-700 dark:text-slate-300">
@@ -1801,7 +2100,7 @@ export default function MasterLedgerPage() {
                             </span>
                             <span className="text-[10px] text-[#98A2B3] ml-1">{b.balance_type}</span>
                           </td>
-                          <td className="py-3.5 px-4 text-right">
+                          <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
                             <Button
                               size="sm"
                               variant="outline"
@@ -1813,7 +2112,7 @@ export default function MasterLedgerPage() {
                                 setDetailSearch("");
                                 setDetailTxType("ALL");
                               }}
-                              className="text-xs h-7 gap-1 font-semibold hover:border-[#0E9384] hover:text-[#0E9384]"
+                              className="text-xs h-7.5 px-3 gap-1.5 font-semibold whitespace-nowrap inline-flex items-center justify-center hover:border-[#0E9384] hover:text-[#0E9384]"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               View Ledger
@@ -1838,7 +2137,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right">Total Credit (Liability)</th>
                       <th className="py-3 px-4 text-right">Current Balance</th>
                       <th className="py-3 px-4">Activity</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -1860,16 +2159,22 @@ export default function MasterLedgerPage() {
                               <div className="font-semibold text-[#101828] dark:text-white">
                                 {tax.name}
                               </div>
-                              <div className="text-[10px] text-[#667085] dark:text-slate-400">
-                                {tax.tax_type.replace(/_/g, " ")} • {tax.primary_group_name}
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                                  {tax.tax_type.replace(/_/g, " ")}
+                                </span>
+                                <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                  {tax.balance_type === "DR" ? "Current Assets (ITC)" : "Current Liabilities (Tax)"}
+                                </span>
                               </div>
                             </td>
                             <td className="py-3.5 px-4 font-mono text-xs text-slate-700 dark:text-slate-300">
                               {tax.code}
                             </td>
                             <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
-                              <div className="font-medium text-xs">{tax.subgroup_name || tax.group_name}</div>
-                              <div className="text-[10px] text-[#98A2B3]">{tax.group_name}</div>
+                              <div className="font-medium text-xs text-purple-700 dark:text-purple-300">{tax.subgroup_name || tax.group_name}</div>
+                              <div className="text-[10px] text-[#98A2B3]">Group: {tax.group_name}</div>
                             </td>
                             <td className="py-3.5 px-4 text-right font-medium text-[#101828] dark:text-slate-200 font-mono">
                               {formatCurrency(tax.total_debit)}
@@ -1901,7 +2206,7 @@ export default function MasterLedgerPage() {
                                 {tax.transaction_count} voucher lines
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right">
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1913,7 +2218,7 @@ export default function MasterLedgerPage() {
                                   setDetailSearch("");
                                   setDetailTxType("ALL");
                                 }}
-                                className="text-xs h-7 gap-1 font-semibold hover:border-[#7C3AED] hover:text-[#7C3AED]"
+                                className="text-xs h-7.5 px-3 gap-1.5 font-semibold whitespace-nowrap inline-flex items-center justify-center hover:border-[#7C3AED] hover:text-[#7C3AED]"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 View Ledger
@@ -1984,10 +2289,17 @@ export default function MasterLedgerPage() {
           <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-6 shadow-2xs">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-slate-100 dark:border-[#303036]">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="primary" className="text-[11px] font-semibold uppercase">
                     {detailedLedger.category.replace("_", " ")} STATEMENT
                   </Badge>
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-slate-100 dark:bg-[#202025] font-medium text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-[#303036]">
+                    {detailedLedger.category === "BILLING_CLIENT" && "Current Assets → Sundry Debtors → Corporate Debtors"}
+                    {detailedLedger.category === "VENDOR" && "Current Liabilities → Sundry Creditors → Market Vehicle Vendors"}
+                    {detailedLedger.category === "DRIVER" && "Current Assets → Loans & Advances → Driver Trip Advances"}
+                    {detailedLedger.category === "COMPANY_BANK_ACCOUNT" && "Current Assets / Liab → Bank Accounts → Current & OD"}
+                    {detailedLedger.category === "DUTIES_AND_TAXES" && "Liabilities & Assets → Duties & Taxes → Statutory Dues"}
+                  </span>
                   {detailedLedger.party.code && (
                     <span className="font-mono text-xs text-[#667085] dark:text-slate-400">
                       #{detailedLedger.party.code}
