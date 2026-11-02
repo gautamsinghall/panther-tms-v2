@@ -215,6 +215,12 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE settings_series_masters ADD COLUMN IF NOT EXISTS series_mode VARCHAR(20) DEFAULT 'AUTOMATIC';"))
                         await t_conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS company_bank_account_id INTEGER REFERENCES company_bank_accounts(id);"))
                         await t_conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS company_bank_account_id INTEGER REFERENCES company_bank_accounts(id);"))
+                        await t_conn.execute(text("ALTER TABLE misc_accounts ADD COLUMN IF NOT EXISTS company_vehicle_id INTEGER REFERENCES transport_company_vehicles(id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_misc_accounts_company_vehicle_id ON misc_accounts (company_vehicle_id);"))
+                        await t_conn.execute(text("ALTER TABLE transport_company_vehicles ADD COLUMN IF NOT EXISTS account_id INTEGER REFERENCES misc_accounts(id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_company_vehicles_account_id ON transport_company_vehicles (account_id);"))
+                        await t_conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS company_vehicle_id INTEGER REFERENCES transport_company_vehicles(id);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_company_vehicle_id ON accounts_vouchers (company_vehicle_id);"))
 
                         # User Activity (Audit Log) Schema Evolution
                         for act_col in [

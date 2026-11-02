@@ -1203,6 +1203,48 @@ async def get_company_bank_account_ledger_detail(
     )
 
 
+# ==============================================================================
+# Master Ledger - Company Vehicles Category (Fixed Assets / Tangible Fleet PPE)
+# ==============================================================================
+
+@router.get("/master-ledger/company-vehicles", response_model=List[schemas.CompanyVehicleLedgerListItem])
+async def list_company_vehicle_ledgers(
+    office_id: Optional[int] = Query(None, description="Filter by office"),
+    vehicle_type: Optional[str] = Query(None, description="Filter by vehicle type"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    search: Optional[str] = Query(None, description="Search vehicle number, chassis, engine"),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("view")),
+):
+    return await master_ledger_service.list_company_vehicle_ledgers(
+        session,
+        office_id=office_id,
+        search=search,
+        vehicle_type=vehicle_type,
+        is_active=is_active,
+    )
+
+
+@router.get("/master-ledger/company-vehicles/{vehicle_id}", response_model=schemas.DetailedLedgerResponse)
+async def get_company_vehicle_ledger_detail(
+    vehicle_id: int,
+    from_date: Optional[date] = Query(None, description="Start date of statement"),
+    to_date: Optional[date] = Query(None, description="End date of statement"),
+    search: Optional[str] = Query(None, description="Search reference or particulars"),
+    tx_type: Optional[str] = Query(None, description="Filter by transaction type"),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(require_accounts_permission("view")),
+):
+    return await master_ledger_service.get_company_vehicle_ledger_detail(
+        session,
+        vehicle_id=vehicle_id,
+        from_date=from_date,
+        to_date=to_date,
+        search=search,
+        tx_type=tx_type,
+    )
+
+
 
 # ==============================================================================
 # Journal Voucher Endpoints (TallyPrime-Style Accounting Adjustments)

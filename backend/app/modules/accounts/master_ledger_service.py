@@ -23,6 +23,7 @@ from app.tenant_db.models import (
     GroupInPrimary,
     SubgroupInGroup,
     CompanyBankAccount,
+    CompanyVehicle,
 )
 from app.modules.accounts import schemas
 
@@ -217,6 +218,81 @@ async def get_or_create_party_account(
             if updated:
                 await session.flush()
 
+    elif party_type == "COMPANY_VEHICLE":
+        clean_v_name = party_name if party_name.startswith("Vehicle - ") else f"Vehicle - {party_name}"
+        raw_reg = party_name.replace("Vehicle - ", "").strip()
+        code_val = party_code or f"VEH_{party_id:04d}"
+
+        stmt = select(Account).where(
+            or_(
+                Account.company_vehicle_id == party_id,
+                Account.code == code_val,
+                Account.code == f"VEH_{party_id}",
+                Account.name == clean_v_name,
+                Account.name == raw_reg,
+            )
+        )
+        res = await session.execute(stmt)
+        account = res.scalar_one_or_none()
+
+        # Fixed Assets group (FA) under ASSET (Assets - Nature: DEBIT)
+        grp_stmt = select(GroupInPrimary).where(
+            or_(GroupInPrimary.code == "FA", GroupInPrimary.name.ilike("%Fixed Asset%"))
+        )
+        grp = (await session.execute(grp_stmt)).scalars().first()
+        group_id = grp.id if grp else 1
+
+        # Subgroup under FA (Company Owned Fleet Vehicles / Heavy Commercial Vehicles)
+        subgrp_stmt = select(SubgroupInGroup).where(
+            SubgroupInGroup.group_id == group_id,
+            or_(
+                SubgroupInGroup.code == "FA_COMPANY_VEHICLES",
+                SubgroupInGroup.code == "FA_HEAVY_VEHICLES",
+                SubgroupInGroup.name.ilike("%Company%Vehicle%"),
+                SubgroupInGroup.name.ilike("%Commercial%Vehicle%"),
+            )
+        )
+        subgrp = (await session.execute(subgrp_stmt)).scalars().first()
+        if not subgrp:
+            subgrp = (await session.execute(select(SubgroupInGroup).where(SubgroupInGroup.group_id == group_id))).scalars().first()
+        subgroup_id = subgrp.id if subgrp else None
+
+        if not account:
+            account = Account(
+                name=clean_v_name,
+                code=code_val,
+                group_id=group_id,
+                subgroup_id=subgroup_id,
+                opening_balance=Decimal("0.00"),
+                opening_balance_type="DR",
+                company_vehicle_id=party_id,
+                is_active=True,
+            )
+            session.add(account)
+            await session.flush()
+        else:
+            updated = False
+            if hasattr(account, "company_vehicle_id") and not account.company_vehicle_id:
+                account.company_vehicle_id = party_id
+                updated = True
+            if account.group_id != group_id:
+                account.group_id = group_id
+                updated = True
+            if subgroup_id and account.subgroup_id != subgroup_id:
+                account.subgroup_id = subgroup_id
+                updated = True
+            if account.opening_balance_type != "DR":
+                account.opening_balance_type = "DR"
+                updated = True
+            if updated:
+                await session.flush()
+
+        # Ensure CompanyVehicle master has account_id bound
+        veh = await session.get(CompanyVehicle, party_id)
+        if veh and hasattr(veh, "account_id") and veh.account_id != account.id:
+            veh.account_id = account.id
+            await session.flush()
+
     return account
 
 
@@ -262,7 +338,16 @@ async def get_master_ledger_summary(
     drv_settled = sum(1 for item in drv_list if item.balance_type == "NIL" or item.current_balance == Decimal("0.00"))
     drv_pending = drv_total_accounts - drv_settled
 
-    # 4. Company Bank Accounts Summary
+    # 4. Company Vehicles (Fixed Assets / Tangible Fleet PPE) Summary
+    veh_list = await list_company_vehicle_ledgers(session, office_id=office_id)
+    veh_total_accounts = len(veh_list)
+    veh_total_debit = sum(item.total_debit for item in veh_list)
+    veh_total_credit = sum(item.total_credit for item in veh_list)
+    veh_book_value = sum(item.current_balance for item in veh_list if item.balance_type == "DR")
+    veh_active = sum(1 for item in veh_list if item.is_active)
+    veh_inactive = veh_total_accounts - veh_active
+
+    # 5. Company Bank Accounts Summary
     bank_list = await list_company_bank_account_ledgers(session, office_id=office_id)
     bank_total_accounts = len(bank_list)
     bank_total_debit = sum(item.total_debit for item in bank_list)
@@ -316,6 +401,14 @@ async def get_master_ledger_summary(
             total_credit=drv_total_expenses,
             settled_count=drv_settled,
             pending_count=drv_pending,
+        ),
+        company_vehicles=schemas.CategoryOverviewStat(
+            total_accounts=veh_total_accounts,
+            total_outstanding=veh_book_value,
+            total_debit=veh_total_debit,
+            total_credit=veh_total_credit,
+            settled_count=veh_active,
+            pending_count=veh_inactive,
         ),
         company_bank_accounts=schemas.CategoryOverviewStat(
             total_accounts=bank_total_accounts,
@@ -2250,6 +2343,383 @@ async def get_company_bank_account_ledger_detail(
         total_credit=total_credit,
         closing_balance=closing_balance,
         closing_balance_type=closing_balance_type,
+        total_transactions=len(transactions),
+        transactions=transactions,
+    )
+
+
+# ------------------------------------------------------------------------------
+# 6. Company Vehicles Master Ledger Listing & Detailed Statement
+# ------------------------------------------------------------------------------
+
+async def list_company_vehicle_ledgers(
+    session: AsyncSession,
+    office_id: Optional[int] = None,
+    search: Optional[str] = None,
+    vehicle_type: Optional[str] = None,
+    is_active: Optional[bool] = None,
+) -> List[schemas.CompanyVehicleLedgerListItem]:
+    """
+    Fetch all Company-owned vehicles from Company Vehicle Master and compute
+    their Fixed Asset capitalization (DR), depreciation/credits (CR),
+    current asset book value (WDV), and connected operational trip expenses
+    (Fuel, Toll/FASTag, Maintenance) per Indian Transport Accounting Standards.
+    Ensures every company vehicle has a dedicated leaf ledger account bound to:
+    - Primary Group: Assets (ASSET - Debit)
+    - Group in Primary: Fixed Assets (FA)
+    - Subgroup in Group: Heavy Commercial Vehicles (FA_HEAVY_VEHICLES) or Company Fleet (FA_COMPANY_VEHICLES)
+    """
+    from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
+    await seed_indian_accounting_chart_of_accounts(session)
+
+    stmt = (
+        select(CompanyVehicle)
+        .options(
+            selectinload(CompanyVehicle.default_driver),
+            selectinload(CompanyVehicle.account).selectinload(Account.group).selectinload(GroupInPrimary.primary_group),
+            selectinload(CompanyVehicle.account).selectinload(Account.subgroup),
+        )
+        .order_by(CompanyVehicle.vehicle_number.asc())
+    )
+
+    if is_active is not None:
+        stmt = stmt.where(CompanyVehicle.is_active == is_active)
+
+    if vehicle_type:
+        stmt = stmt.where(CompanyVehicle.vehicle_type == vehicle_type)
+
+    if search:
+        s = f"%{search.strip()}%"
+        stmt = stmt.where(
+            or_(
+                CompanyVehicle.vehicle_number.ilike(s),
+                CompanyVehicle.vehicle_type.ilike(s),
+                CompanyVehicle.chassis_number.ilike(s),
+                CompanyVehicle.engine_number.ilike(s),
+            )
+        )
+
+    res = await session.execute(stmt)
+    vehicles = list(res.scalars().all())
+
+    items: List[schemas.CompanyVehicleLedgerListItem] = []
+    for v in vehicles:
+        acc = v.account
+        if not acc:
+            acc = await get_or_create_party_account(
+                session,
+                party_type="COMPANY_VEHICLE",
+                party_id=v.id,
+                party_name=v.vehicle_number,
+                party_code=f"VEH_{v.id:04d}",
+            )
+
+        open_bal = Decimal(str(acc.opening_balance or "0.00")) if acc else Decimal("0.00")
+        open_dr = open_bal if (acc and acc.opening_balance_type == "DR") else Decimal("0.00")
+        open_cr = open_bal if (acc and acc.opening_balance_type == "CR") else Decimal("0.00")
+
+        tot_dr = Decimal("0.00")
+        tot_cr = Decimal("0.00")
+        tx_cnt = 0
+        last_dt = None
+        if acc:
+            le_q = select(
+                func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+                func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+                func.count(LedgerEntry.id),
+                func.max(LedgerEntry.entry_date),
+            ).where(
+                LedgerEntry.account_id == acc.id,
+                LedgerEntry.is_reversal == False,
+            )
+            le_res = await session.execute(le_q)
+            tot_dr, tot_cr, tx_cnt, last_dt = le_res.one()
+
+        net = (open_dr + tot_dr) - (open_cr + tot_cr)
+        if net >= Decimal("0.00"):
+            cur_bal = net
+            bal_type = "DR"
+        else:
+            cur_bal = abs(net)
+            bal_type = "CR"
+
+        exp_q = select(
+            TripExpense.expense_category,
+            func.coalesce(func.sum(TripExpense.amount), Decimal("0.00")),
+        ).where(
+            TripExpense.vehicle_number == v.vehicle_number,
+            TripExpense.status == "APPROVED",
+        ).group_by(TripExpense.expense_category)
+        exp_res = await session.execute(exp_q)
+        exp_map = {cat: amt for cat, amt in exp_res.all()}
+
+        diesel_exp = exp_map.get("DIESEL", Decimal("0.00"))
+        toll_exp = exp_map.get("TOLL", Decimal("0.00"))
+        maint_exp = exp_map.get("MAINTENANCE", Decimal("0.00"))
+        other_exp = sum(amt for cat, amt in exp_map.items() if cat not in ("DIESEL", "TOLL", "MAINTENANCE"))
+        total_op_exp = diesel_exp + toll_exp + maint_exp + other_exp
+
+        lr_cnt_q = select(func.count(LR.id)).where(LR.vehicle_number == v.vehicle_number)
+        trips_cnt = (await session.execute(lr_cnt_q)).scalar() or 0
+
+        sg_name = acc.subgroup.name if (acc and acc.subgroup) else "Company Owned Fleet Vehicles"
+        sg_code = acc.subgroup.code if (acc and acc.subgroup) else "FA_COMPANY_VEHICLES"
+        g_name = acc.group.name if (acc and acc.group) else "Fixed Assets"
+        g_code = acc.group.code if (acc and acc.group) else "FA"
+        pg_name = acc.group.primary_group.name if (acc and acc.group and acc.group.primary_group) else "Assets"
+        pg_code = acc.group.primary_group.code if (acc and acc.group and acc.group.primary_group) else "ASSET"
+
+        items.append(
+            schemas.CompanyVehicleLedgerListItem(
+                id=v.id,
+                vehicle_number=v.vehicle_number,
+                vehicle_type=v.vehicle_type,
+                capacity_mt=Decimal(str(v.capacity_mt or "0.000")),
+                chassis_number=v.chassis_number,
+                engine_number=v.engine_number,
+                registration_date=v.registration_date,
+                insurance_expiry=v.insurance_expiry,
+                fitness_expiry=v.fitness_expiry,
+                national_permit_expiry=v.national_permit_expiry,
+                default_driver_id=v.default_driver_id,
+                default_driver_name=v.default_driver.name if v.default_driver else None,
+                current_odometer_km=v.current_odometer_km or 0,
+                is_active=v.is_active,
+                status="Active" if v.is_active else "Inactive",
+                primary_group_code=pg_code,
+                primary_group_name=pg_name,
+                group_code=g_code,
+                group_name=g_name,
+                subgroup_code=sg_code,
+                subgroup_name=sg_name,
+                ledger_id=acc.id if acc else None,
+                ledger_name=acc.name if acc else f"Vehicle - {v.vehicle_number}",
+                ledger_code=acc.code if acc else f"VEH_{v.id:04d}",
+                opening_balance=open_bal,
+                opening_balance_type="DR",
+                total_debit=tot_dr,
+                total_credit=tot_cr,
+                current_balance=cur_bal,
+                balance_type=bal_type,
+                total_diesel_expense=diesel_exp,
+                total_toll_expense=toll_exp,
+                total_maintenance_expense=maint_exp,
+                total_other_trip_expenses=other_exp,
+                total_operational_expense=total_op_exp,
+                total_trips_count=trips_cnt,
+                transaction_count=tx_cnt or 0,
+                last_transaction_date=last_dt,
+            )
+        )
+
+    return items
+
+
+async def get_company_vehicle_ledger_detail(
+    session: AsyncSession,
+    vehicle_id: int,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    search: Optional[str] = None,
+    tx_type: Optional[str] = None,
+) -> schemas.DetailedLedgerResponse:
+    """
+    Detailed ledger statement for a Company Vehicle:
+    - Primary Group: Assets (ASSET)
+    - Group in Primary: Fixed Assets (FA)
+    - Subgroup in Group: Heavy Commercial Vehicles (HCV) / Fleet Vehicles
+    Shows capital asset additions, depreciation entries, and connected trip operational vouchers.
+    """
+    v = await session.get(CompanyVehicle, vehicle_id)
+    if not v:
+        raise HTTPException(status_code=404, detail="Company vehicle not found.")
+
+    acc = await get_or_create_party_account(
+        session,
+        party_type="COMPANY_VEHICLE",
+        party_id=v.id,
+        party_name=v.vehicle_number,
+        party_code=f"VEH_{v.id:04d}",
+    )
+
+    acc_stmt = (
+        select(Account)
+        .options(
+            selectinload(Account.group).selectinload(GroupInPrimary.primary_group),
+            selectinload(Account.subgroup),
+        )
+        .where(Account.id == acc.id)
+    )
+    acc = (await session.execute(acc_stmt)).scalar_one()
+
+    open_bal = Decimal(str(acc.opening_balance or "0.00"))
+    open_dr = open_bal if acc.opening_balance_type == "DR" else Decimal("0.00")
+    open_cr = open_bal if acc.opening_balance_type == "CR" else Decimal("0.00")
+
+    if from_date:
+        prior_q = select(
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+        ).where(
+            LedgerEntry.account_id == acc.id,
+            LedgerEntry.is_reversal == False,
+            LedgerEntry.entry_date < from_date,
+        )
+        p_dr, p_cr = (await session.execute(prior_q)).one()
+        eff_open = (open_dr + p_dr) - (open_cr + p_cr)
+        if eff_open >= Decimal("0.00"):
+            open_bal = eff_open
+            open_type = "DR"
+        else:
+            open_bal = abs(eff_open)
+            open_type = "CR"
+    else:
+        open_type = acc.opening_balance_type
+
+    le_stmt = (
+        select(LedgerEntry)
+        .options(selectinload(LedgerEntry.voucher))
+        .where(
+            LedgerEntry.account_id == acc.id,
+            LedgerEntry.is_reversal == False,
+        )
+        .order_by(LedgerEntry.entry_date.asc(), LedgerEntry.id.asc())
+    )
+    if from_date:
+        le_stmt = le_stmt.where(LedgerEntry.entry_date >= from_date)
+    if to_date:
+        le_stmt = le_stmt.where(LedgerEntry.entry_date <= to_date)
+
+    entries = list((await session.execute(le_stmt)).scalars().all())
+
+    te_stmt = (
+        select(TripExpense)
+        .options(selectinload(TripExpense.lr), selectinload(TripExpense.driver))
+        .where(TripExpense.vehicle_number == v.vehicle_number)
+        .order_by(TripExpense.expense_date.asc(), TripExpense.id.asc())
+    )
+    if from_date:
+        te_stmt = te_stmt.where(TripExpense.expense_date >= from_date)
+    if to_date:
+        te_stmt = te_stmt.where(TripExpense.expense_date <= to_date)
+    trip_expenses = list((await session.execute(te_stmt)).scalars().all())
+
+    running = open_bal if open_type == "DR" else -open_bal
+    transactions: List[schemas.LedgerTransaction] = []
+    tot_dr = Decimal("0.00")
+    tot_cr = Decimal("0.00")
+
+    for entry in entries:
+        dr = Decimal(str(entry.debit_amount or "0.00"))
+        cr = Decimal(str(entry.credit_amount or "0.00"))
+        running += (dr - cr)
+        tot_dr += dr
+        tot_cr += cr
+
+        v_type = entry.voucher.voucher_type if entry.voucher else "JOURNAL_VOUCHER"
+        v_num = entry.voucher.voucher_number if entry.voucher else f"TX_{entry.id}"
+        particulars = entry.narration or (entry.voucher.narration if entry.voucher else f"Asset Entry: {acc.name}")
+
+        transactions.append(
+            schemas.LedgerTransaction(
+                id=entry.id,
+                entry_date=entry.entry_date,
+                voucher_id=entry.voucher_id,
+                voucher_number=v_num,
+                voucher_type=v_type,
+                reference_number=entry.voucher.reference_number if entry.voucher else None,
+                particulars=particulars,
+                debit_amount=dr,
+                credit_amount=cr,
+                running_balance=abs(running),
+                balance_type="DR" if running >= Decimal("0.00") else "CR",
+                status="POSTED",
+                is_void=entry.voucher.is_void if entry.voucher else False,
+                is_reversal=entry.is_reversal,
+                source_type="VOUCHER",
+                source_id=entry.voucher_id,
+            )
+        )
+
+    for te in trip_expenses:
+        amt = Decimal(str(te.amount or "0.00"))
+        transactions.append(
+            schemas.LedgerTransaction(
+                id=f"TE_{te.id}",
+                entry_date=te.expense_date,
+                voucher_id=None,
+                voucher_number=te.expense_number,
+                voucher_type=f"EXP_{te.expense_category}",
+                reference_number=te.receipt_number or (te.lr.lr_number if te.lr else None),
+                particulars=f"Trip Expense: {te.expense_category} ({te.payment_mode}) - {te.remarks or 'Vehicle en-route operational expense'}",
+                debit_amount=amt,
+                credit_amount=Decimal("0.00"),
+                running_balance=abs(running),
+                balance_type="DR" if running >= Decimal("0.00") else "CR",
+                status=te.status,
+                is_void=False,
+                is_reversal=False,
+                source_type="TRIP_EXPENSE",
+                source_id=te.id,
+            )
+        )
+
+    if search:
+        s_lower = search.strip().lower()
+        transactions = [
+            t for t in transactions
+            if s_lower in t.voucher_number.lower()
+            or s_lower in t.particulars.lower()
+            or (t.reference_number and s_lower in t.reference_number.lower())
+        ]
+
+    if tx_type and tx_type != "ALL":
+        transactions = [t for t in transactions if t.voucher_type == tx_type]
+
+    transactions.sort(key=lambda t: (t.entry_date, str(t.id)))
+
+    net_close = (open_dr + tot_dr) - (open_cr + tot_cr)
+    if net_close >= Decimal("0.00"):
+        close_bal = net_close
+        close_type = "DR"
+    else:
+        close_bal = abs(net_close)
+        close_type = "CR"
+
+    driver_name = v.default_driver.name if v.default_driver else None
+
+    party_info = schemas.PartyDetails(
+        id=v.id,
+        name=acc.name,
+        code=acc.code,
+        vehicle_number=v.vehicle_number,
+        vehicle_type=v.vehicle_type,
+        capacity_mt=Decimal(str(v.capacity_mt or "0.000")),
+        chassis_number=v.chassis_number,
+        engine_number=v.engine_number,
+        registration_date=v.registration_date,
+        insurance_expiry=v.insurance_expiry,
+        fitness_expiry=v.fitness_expiry,
+        national_permit_expiry=v.national_permit_expiry,
+        current_odometer_km=v.current_odometer_km or 0,
+        driver_name=driver_name,
+        is_active=v.is_active,
+        group_name=acc.group.name if acc.group else "Fixed Assets",
+        subgroup_name=acc.subgroup.name if acc.subgroup else "Company Owned Fleet Vehicles",
+        primary_group_name=acc.group.primary_group.name if (acc.group and acc.group.primary_group) else "Assets",
+    )
+
+    return schemas.DetailedLedgerResponse(
+        category="COMPANY_VEHICLE",
+        party=party_info,
+        from_date=from_date,
+        to_date=to_date,
+        opening_balance=open_bal,
+        opening_balance_type=open_type,
+        total_debit=tot_dr,
+        total_credit=tot_cr,
+        closing_balance=close_bal,
+        closing_balance_type=close_type,
         total_transactions=len(transactions),
         transactions=transactions,
     )

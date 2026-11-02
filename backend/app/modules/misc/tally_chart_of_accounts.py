@@ -366,6 +366,12 @@ SUBGROUPS_IN_GROUP_DATA = [
     # --- Under FA (Fixed Assets) ---
     {
         "group": "FA",
+        "code": "FA_COMPANY_VEHICLES",
+        "name": "Company Owned Fleet Vehicles",
+        "description": "Capital asset ledger for company-owned transport fleet, trucks, and trailers",
+    },
+    {
+        "group": "FA",
         "code": "FA_HEAVY_VEHICLES",
         "name": "Heavy Commercial Vehicles (HCV)",
         "description": "Company-owned multi-axle trucks, prime movers, 40ft/20ft trailers, and heavy haulage lorries",
@@ -692,6 +698,7 @@ DEFAULT_CORE_ACCOUNTS_DATA = [
     {"code": "ACC_ROUNDING_OFF", "name": "Round Off & Small Balances", "group": "EXP_INDIRECT", "subgroup": "EXP_BANK_CHARGES", "opening_balance_type": "DR"},
 
     # --- Fixed Assets & Capital ---
+    {"code": "ACC_FLEET_VEHICLES", "name": "Company Fleet Vehicles Asset Account", "group": "FA", "subgroup": "FA_COMPANY_VEHICLES", "opening_balance_type": "DR"},
     {"code": "ACC_EQUIPMENT_ASSET", "name": "Office Equipment & Hardware", "group": "FA", "subgroup": "FA_OFFICE_EQUIP", "opening_balance_type": "DR"},
     {"code": "ACC_ACCUMULATED_DEP", "name": "Accumulated Depreciation Account", "group": "FA", "subgroup": "FA_HEAVY_VEHICLES", "opening_balance_type": "CR"},
     {"code": "ACC_CAPITAL", "name": "Owners / Share Capital Account", "group": "CAPITAL_GRP", "subgroup": "CAP_PROPRIETOR", "opening_balance_type": "CR"},
@@ -830,6 +837,8 @@ async def seed_indian_accounting_chart_of_accounts(session: AsyncSession) -> Dic
     driver_adv_sgid = subgroup_map.get("ADV_DRIVER_TRIP")
     bank_gid = group_map.get("BANK")
     bank_sgid = subgroup_map.get("BANK_CURRENT")
+    fa_gid = group_map.get("FA")
+    fa_veh_sgid = subgroup_map.get("FA_COMPANY_VEHICLES") or subgroup_map.get("FA_HEAVY_VEHICLES")
 
     for acc in all_accounts:
         updated = False
@@ -860,6 +869,17 @@ async def seed_indian_accounting_chart_of_accounts(session: AsyncSession) -> Dic
             if acc.opening_balance_type != "DR":
                 acc.opening_balance_type = "DR"
                 updated = True
+        # Company Vehicles -> Fixed Assets -> Company Owned Fleet Vehicles
+        elif getattr(acc, "company_vehicle_id", None):
+            if fa_gid and acc.group_id != fa_gid:
+                acc.group_id = fa_gid
+                updated = True
+            if fa_veh_sgid and acc.subgroup_id != fa_veh_sgid:
+                acc.subgroup_id = fa_veh_sgid
+                updated = True
+            if acc.opening_balance_type != "DR":
+                acc.opening_balance_type = "DR"
+                updated = True
         # Fallback: if subgroup_id is missing, attach first subgroup of that group
         elif not acc.subgroup_id and acc.group_id:
             sub_res = await session.execute(
@@ -871,6 +891,16 @@ async def seed_indian_accounting_chart_of_accounts(session: AsyncSession) -> Dic
                 updated = True
 
         if updated:
+            accounts_healed += 1
+
+    # 6. Auto-provision / heal dedicated ledger accounts for all Company Vehicles
+    from app.tenant_db.models import CompanyVehicle
+    from app.modules.accounts.master_ledger_service import get_or_create_party_account
+    all_vehicles = (await session.execute(select(CompanyVehicle))).scalars().all()
+    for veh in all_vehicles:
+        v_acc = await get_or_create_party_account(session, "COMPANY_VEHICLE", veh.id, veh.vehicle_number, f"VEH_{veh.id:04d}")
+        if hasattr(veh, "account_id") and veh.account_id != v_acc.id:
+            veh.account_id = v_acc.id
             accounts_healed += 1
 
     await session.commit()

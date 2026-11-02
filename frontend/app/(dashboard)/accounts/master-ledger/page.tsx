@@ -50,7 +50,7 @@ import { toast } from "@/lib/toast";
 // Types
 // ------------------------------------------------------------------------------
 
-type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER" | "COMPANY_BANK_ACCOUNT" | "DUTIES_AND_TAXES";
+type LedgerCategory = "OVERVIEW" | "BILLING_CLIENT" | "VENDOR" | "DRIVER" | "COMPANY_VEHICLE" | "COMPANY_BANK_ACCOUNT" | "DUTIES_AND_TAXES";
 
 interface CategoryStat {
   total_accounts: number;
@@ -72,9 +72,51 @@ interface MasterLedgerOverview {
   billing_clients: CategoryStat;
   vendors: CategoryStat;
   drivers: CategoryStat;
+  company_vehicles?: CategoryStat;
   company_bank_accounts?: CategoryStat;
   duties_and_taxes?: CategoryStat;
   hierarchy?: HierarchyOverviewStat;
+}
+
+export interface CompanyVehicleLedgerItem {
+  id: number;
+  vehicle_number: string;
+  vehicle_type: string;
+  capacity_mt: number | string;
+  chassis_number?: string | null;
+  engine_number?: string | null;
+  registration_date?: string | null;
+  insurance_expiry?: string | null;
+  fitness_expiry?: string | null;
+  national_permit_expiry?: string | null;
+  default_driver_id?: number | null;
+  default_driver_name?: string | null;
+  current_odometer_km: number;
+  is_active: boolean;
+  status: string;
+  primary_group_code: string;
+  primary_group_name: string;
+  group_code: string;
+  group_name: string;
+  subgroup_code: string;
+  subgroup_name: string;
+  ledger_id?: number | null;
+  ledger_name?: string | null;
+  ledger_code?: string | null;
+  opening_balance: number | string;
+  opening_balance_type: string;
+  total_debit: number | string;
+  total_credit: number | string;
+  current_balance: number | string;
+  balance_type: string;
+  total_diesel_expense: number | string;
+  total_toll_expense: number | string;
+  total_maintenance_expense: number | string;
+  total_other_trip_expenses: number | string;
+  total_operational_expense: number | string;
+  total_trips_count: number;
+  transaction_count: number;
+  last_transaction_date?: string | null;
 }
 
 export interface DutiesAndTaxesLedgerItem {
@@ -217,6 +259,19 @@ interface PartyDetails {
   credit_limit?: number | string;
   payment_terms?: string;
   issuing_office_name?: string;
+  vehicle_number?: string;
+  vehicle_type?: string;
+  capacity_mt?: number | string;
+  chassis_number?: string;
+  engine_number?: string;
+  insurance_expiry?: string;
+  fitness_expiry?: string;
+  national_permit_expiry?: string;
+  current_odometer_km?: number;
+  driver_name?: string;
+  group_name?: string;
+  subgroup_name?: string;
+  primary_group_name?: string;
 }
 
 interface DetailedLedgerData {
@@ -245,6 +300,7 @@ export default function MasterLedgerPage() {
   const [billingClients, setBillingClients] = useState<BillingClientLedgerItem[]>([]);
   const [vendors, setVendors] = useState<VendorLedgerItem[]>([]);
   const [drivers, setDrivers] = useState<DriverLedgerItem[]>([]);
+  const [companyVehicles, setCompanyVehicles] = useState<CompanyVehicleLedgerItem[]>([]);
   const [bankAccounts, setBankAccounts] = useState<CompanyBankAccountLedgerItem[]>([]);
   const [dutiesAndTaxes, setDutiesAndTaxes] = useState<DutiesAndTaxesLedgerItem[]>([]);
   const [isVerifyingHierarchy, setIsVerifyingHierarchy] = useState(false);
@@ -256,7 +312,7 @@ export default function MasterLedgerPage() {
   }>({
     primary_groups: 5,
     groups: 25,
-    subgroups: 63,
+    subgroups: 64,
     status: "100% Compliant",
   });
 
@@ -265,6 +321,7 @@ export default function MasterLedgerPage() {
     const idParam = searchParams.get("id");
     if (
       tabParam === "COMPANY_BANK_ACCOUNT" ||
+      tabParam === "COMPANY_VEHICLE" ||
       tabParam === "BILLING_CLIENT" ||
       tabParam === "VENDOR" ||
       tabParam === "DRIVER" ||
@@ -310,15 +367,17 @@ export default function MasterLedgerPage() {
     try {
       setIsLoading(true);
       // Fetch master ledger summaries as well as primary entity masters in parallel
-      const [sumRes, bcRes, vendRes, drvRes, bankRes, rawClients, rawVendors, rawDrivers, dutiesRes] = await Promise.all([
+      const [sumRes, bcRes, vendRes, drvRes, vehRes, bankRes, rawClients, rawVendors, rawDrivers, rawVehicles, dutiesRes] = await Promise.all([
         apiClient<MasterLedgerOverview>("/api/v1/accounts/master-ledger/summary").catch(() => null),
         apiClient<BillingClientLedgerItem[]>("/api/v1/accounts/master-ledger/billing-clients").catch(() => []),
         apiClient<VendorLedgerItem[]>("/api/v1/accounts/master-ledger/vendors").catch(() => []),
         apiClient<DriverLedgerItem[]>("/api/v1/accounts/master-ledger/drivers").catch(() => []),
+        apiClient<CompanyVehicleLedgerItem[]>("/api/v1/accounts/master-ledger/company-vehicles").catch(() => []),
         apiClient<CompanyBankAccountLedgerItem[]>("/api/v1/accounts/master-ledger/company-bank-accounts").catch(() => []),
         apiClient<any[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<any[]>("/api/v1/general/vendors").catch(() => []),
         apiClient<any[]>("/api/v1/transport/drivers").catch(() => []),
+        apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<DutiesAndTaxesLedgerItem[]>("/api/v1/accounts/master-ledger/duties-and-taxes").catch(() => []),
       ]);
       setBankAccounts(bankRes || []);
@@ -417,7 +476,54 @@ export default function MasterLedgerPage() {
       const mergedDrivers = Array.from(drvMap.values());
       setDrivers(mergedDrivers);
 
-      // 4. Compute / Enhance Overview Summary metrics
+      // 4. Merge Company Vehicles: Guaranteed to include every fleet vehicle with Indian Accounting binding
+      const vehMap = new Map<number, CompanyVehicleLedgerItem>();
+      (vehRes || []).forEach((v) => vehMap.set(v.id, v));
+      (rawVehicles || []).forEach((rv) => {
+        if (!vehMap.has(rv.id)) {
+          vehMap.set(rv.id, {
+            id: rv.id,
+            vehicle_number: rv.vehicle_number,
+            vehicle_type: rv.vehicle_type || "Commercial Fleet",
+            capacity_mt: rv.capacity_mt || 0,
+            chassis_number: rv.chassis_number,
+            engine_number: rv.engine_number,
+            registration_date: rv.registration_date,
+            insurance_expiry: rv.insurance_expiry,
+            fitness_expiry: rv.fitness_expiry,
+            national_permit_expiry: rv.national_permit_expiry,
+            default_driver_id: rv.default_driver_id,
+            current_odometer_km: rv.current_odometer_km || 0,
+            is_active: rv.is_active ?? true,
+            status: rv.is_active === false ? "Inactive" : "Active",
+            primary_group_code: "ASSET",
+            primary_group_name: "Assets",
+            group_code: "FA",
+            group_name: "Fixed Assets",
+            subgroup_code: "FA_COMPANY_VEHICLES",
+            subgroup_name: "Company Owned Fleet Vehicles",
+            ledger_code: `VEH_${String(rv.id).padStart(4, "0")}`,
+            ledger_name: `Vehicle - ${rv.vehicle_number}`,
+            opening_balance: "0.00",
+            opening_balance_type: "DR",
+            total_debit: "0.00",
+            total_credit: "0.00",
+            current_balance: "0.00",
+            balance_type: "DR",
+            total_diesel_expense: "0.00",
+            total_toll_expense: "0.00",
+            total_maintenance_expense: "0.00",
+            total_other_trip_expenses: "0.00",
+            total_operational_expense: "0.00",
+            total_trips_count: 0,
+            transaction_count: 0,
+          });
+        }
+      });
+      const mergedVehicles = Array.from(vehMap.values());
+      setCompanyVehicles(mergedVehicles);
+
+      // 5. Compute / Enhance Overview Summary metrics
       const bcOutstanding = sumRes?.billing_clients?.total_outstanding ??
         mergedClients.reduce((sum, c) => sum + (c.balance_type === "DR" ? Number(c.outstanding_balance || 0) : 0), 0);
       const vendOutstanding = sumRes?.vendors?.total_outstanding ??
@@ -449,6 +555,14 @@ export default function MasterLedgerPage() {
           total_credit: sumRes?.drivers?.total_credit || mergedDrivers.reduce((s, d) => s + Number(d.total_expenses || 0), 0),
           settled_count: mergedDrivers.filter((d) => d.balance_type === "NIL" || Number(d.current_balance) === 0).length,
           pending_count: mergedDrivers.filter((d) => d.balance_type !== "NIL" && Number(d.current_balance) > 0).length,
+        },
+        company_vehicles: sumRes?.company_vehicles || {
+          total_accounts: Math.max(sumRes?.company_vehicles?.total_accounts || 0, mergedVehicles.length),
+          total_outstanding: mergedVehicles.reduce((s, v) => s + (v.balance_type === "DR" ? Number(v.current_balance || 0) : 0), 0),
+          total_debit: sumRes?.company_vehicles?.total_debit || mergedVehicles.reduce((s, v) => s + Number(v.total_debit || 0), 0),
+          total_credit: sumRes?.company_vehicles?.total_credit || mergedVehicles.reduce((s, v) => s + Number(v.total_credit || 0), 0),
+          settled_count: mergedVehicles.filter((v) => v.is_active).length,
+          pending_count: mergedVehicles.filter((v) => !v.is_active).length,
         },
         company_bank_accounts: sumRes?.company_bank_accounts || {
           total_accounts: (bankRes || []).length,
@@ -538,6 +652,8 @@ export default function MasterLedgerPage() {
         endpoint = `/api/v1/accounts/master-ledger/vendors/${id}`;
       } else if (category === "DRIVER") {
         endpoint = `/api/v1/accounts/master-ledger/drivers/${id}`;
+      } else if (category === "COMPANY_VEHICLE") {
+        endpoint = `/api/v1/accounts/master-ledger/company-vehicles/${id}`;
       } else if (category === "COMPANY_BANK_ACCOUNT") {
         endpoint = `/api/v1/accounts/master-ledger/company-bank-accounts/${id}`;
       } else if (category === "DUTIES_AND_TAXES") {
@@ -599,6 +715,28 @@ export default function MasterLedgerPage() {
               code: driver.driver_id,
               phone: driver.phone,
               license_number: driver.license_number,
+            };
+          }
+        } else if (category === "COMPANY_VEHICLE") {
+          const veh = companyVehicles.find((v) => v.id === id);
+          if (veh) {
+            partyObj = {
+              id: veh.id,
+              name: veh.ledger_name || `Vehicle - ${veh.vehicle_number}`,
+              code: veh.ledger_code || `VEH_${veh.id}`,
+              vehicle_number: veh.vehicle_number,
+              vehicle_type: veh.vehicle_type,
+              capacity_mt: veh.capacity_mt,
+              chassis_number: veh.chassis_number || undefined,
+              engine_number: veh.engine_number || undefined,
+              insurance_expiry: veh.insurance_expiry || undefined,
+              fitness_expiry: veh.fitness_expiry || undefined,
+              national_permit_expiry: veh.national_permit_expiry || undefined,
+              current_odometer_km: veh.current_odometer_km,
+              driver_name: veh.default_driver_name || undefined,
+              group_name: veh.group_name || "Fixed Assets",
+              subgroup_name: veh.subgroup_name || "Company Owned Fleet Vehicles",
+              primary_group_name: veh.primary_group_name || "Assets",
             };
           }
         } else if (category === "COMPANY_BANK_ACCOUNT") {
@@ -916,6 +1054,28 @@ export default function MasterLedgerPage() {
     });
   }, [drivers, searchQuery, statusFilter]);
 
+  const filteredCompanyVehicles = useMemo(() => {
+    return companyVehicles.filter((v) => {
+      const matchSearch =
+        !searchQuery ||
+        v.vehicle_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        v.vehicle_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (v.ledger_code && v.ledger_code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (v.chassis_number && v.chassis_number.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (v.engine_number && v.engine_number.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (v.default_driver_name && v.default_driver_name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "ACTIVE" && v.is_active) ||
+        (statusFilter === "INACTIVE" && !v.is_active) ||
+        (statusFilter === "HCV" && (v.vehicle_type.includes("HCV") || Number(v.capacity_mt) >= 7.5)) ||
+        (statusFilter === "LCV" && (v.vehicle_type.includes("LCV") || Number(v.capacity_mt) < 7.5));
+
+      return matchSearch && matchStatus;
+    });
+  }, [companyVehicles, searchQuery, statusFilter]);
+
   const filteredDutiesAndTaxes = useMemo(() => {
     return dutiesAndTaxes.filter((t) => {
       const matchSearch =
@@ -984,11 +1144,11 @@ export default function MasterLedgerPage() {
                 </p>
               </div>
               <Badge variant="neutral" className="text-xs font-medium">
-                4 Core Categories
+                5 Core Categories
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
               {/* Card 1: Billing Client Ledger */}
               <div
                 onClick={() => {
@@ -1220,7 +1380,84 @@ export default function MasterLedgerPage() {
                 </div>
               </div>
 
-              {/* Card 4: Company Bank Accounts */}
+              {/* Card 4: Company Vehicles Ledger (Fixed Assets / Tangible PPE) */}
+              <div
+                onClick={() => {
+                  setActiveCategory("COMPANY_VEHICLE");
+                  setSearchQuery("");
+                  setStatusFilter("ALL");
+                }}
+                className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#2563EB] dark:hover:border-blue-500 hover:shadow-[0_10px_25px_-5px_rgba(37,99,235,0.12)] transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#EFF6FF] dark:bg-blue-950/60 border border-[#BFDBFE] dark:border-blue-800 flex items-center justify-center text-[#2563EB] dark:text-blue-400 group-hover:scale-105 transition-transform">
+                      <Truck className="w-5 h-5" />
+                    </div>
+                    <Badge variant="primary" className="text-[11px] font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                      Fixed Assets • Dr
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#2563EB] dark:group-hover:text-blue-400 transition-colors">
+                    Company Vehicles Ledger
+                  </h3>
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    Fleet capital assets, WDV, depreciation, additions, and operating cost accounts.
+                  </p>
+
+                  {/* 3-Tier Ind AS Hierarchy Block */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Assets (ASSET)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Fixed Assets (FA)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
+                      <span className="font-semibold text-[#2563EB] dark:text-blue-400">Fleet Vehicles (HCV/LCV)</span>
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Total Fleet</span>
+                      <span className="font-semibold text-[#101828] dark:text-slate-200">
+                        {overview?.company_vehicles?.total_accounts || companyVehicles.length} vehicles
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Additions (Dr)</span>
+                      <span className="font-semibold text-[#027A48] dark:text-emerald-400">
+                        {formatCurrency(overview?.company_vehicles?.total_debit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Depreciation (Cr)</span>
+                      <span className="font-semibold text-[#B42318] dark:text-rose-400">
+                        {formatCurrency(overview?.company_vehicles?.total_credit || 0)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
+                      <span className="text-[#101828] dark:text-slate-300">Book Value (WDV)</span>
+                      <span className="text-[#2563EB] dark:text-blue-400 font-extrabold">
+                        {formatCurrency(overview?.company_vehicles?.total_outstanding || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#2563EB] dark:text-blue-400 border-t border-slate-100 dark:border-[#303036]">
+                  <span>Open Vehicle Directory</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 5: Company Bank Accounts */}
               <div
                 onClick={() => {
                   setActiveCategory("COMPANY_BANK_ACCOUNT");
@@ -1534,6 +1771,18 @@ export default function MasterLedgerPage() {
                   Drivers ({drivers.length})
                 </button>
                 <button
+                  onClick={() => setActiveCategory("COMPANY_VEHICLE")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    activeCategory === "COMPANY_VEHICLE"
+                      ? "bg-white dark:bg-[#101013] text-[#2563EB] dark:text-blue-400 shadow-sm"
+                      : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
+                  )}
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  Company Vehicles ({companyVehicles.length})
+                </button>
+                <button
                   onClick={() => setActiveCategory("COMPANY_BANK_ACCOUNT")}
                   className={cn(
                     "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
@@ -1573,6 +1822,8 @@ export default function MasterLedgerPage() {
                       ? "vendors"
                       : activeCategory === "DRIVER"
                       ? "drivers"
+                      : activeCategory === "COMPANY_VEHICLE"
+                      ? "company vehicles"
                       : activeCategory === "COMPANY_BANK_ACCOUNT"
                       ? "bank accounts"
                       : "tax accounts"
@@ -1616,6 +1867,14 @@ export default function MasterLedgerPage() {
                     <option value="RECOVERABLE">Recoverable (Advance Due)</option>
                     <option value="PAYABLE">Reimbursement Payable</option>
                     <option value="SETTLED">Settled</option>
+                  </>
+                )}
+                {activeCategory === "COMPANY_VEHICLE" && (
+                  <>
+                    <option value="ACTIVE">Active Fleet</option>
+                    <option value="INACTIVE">Inactive / Decommissioned</option>
+                    <option value="HCV">Heavy Commercial (HCV)</option>
+                    <option value="LCV">Light Commercial (LCV)</option>
                   </>
                 )}
                 {activeCategory === "COMPANY_BANK_ACCOUNT" && (
@@ -2080,6 +2339,143 @@ export default function MasterLedgerPage() {
                 </table>
               )}
 
+              {/* Category: Company Vehicles Table (Fixed Assets / Tangible Fleet PPE) */}
+              {activeCategory === "COMPANY_VEHICLE" && (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      <th className="py-3 px-4">Vehicle &amp; Fleet Specs</th>
+                      <th className="py-3 px-4">Ledger Account &amp; Hierarchy</th>
+                      <th className="py-3 px-4 text-right">Additions (Dr)</th>
+                      <th className="py-3 px-4 text-right">Depreciation (Cr)</th>
+                      <th className="py-3 px-4 text-right">Book Value (WDV)</th>
+                      <th className="py-3 px-4 text-right">Trip Costs (P&amp;L)</th>
+                      <th className="py-3 px-4">Compliance Status</th>
+                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
+                    {filteredCompanyVehicles.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-[#667085] dark:text-slate-400">
+                          <Truck className="w-8 h-8 mx-auto text-[#98A2B3] mb-2" />
+                          <p className="font-semibold text-sm text-[#101828] dark:text-slate-200">No Company Vehicles Found</p>
+                          <p className="text-xs mt-0.5">No fleet vehicles match your search or filter criteria.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCompanyVehicles.map((veh) => {
+                        const isHCV = veh.vehicle_type.includes("HCV") || Number(veh.capacity_mt) >= 7.5;
+                        return (
+                          <tr
+                            key={veh.id}
+                            className="hover:bg-[#F9FAFB] dark:hover:bg-slate-800/40 transition-colors"
+                          >
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-sm text-[#101828] dark:text-white flex items-center gap-2">
+                                <span className="font-mono tracking-wide px-2 py-0.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded">
+                                  {veh.vehicle_number}
+                                </span>
+                                <Badge
+                                  variant="neutral"
+                                  className="text-[10px] px-1.5 py-0"
+                                >
+                                  {veh.capacity_mt ? `${veh.capacity_mt} MT` : veh.vehicle_type}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-[#667085] dark:text-slate-400">
+                                <span>{veh.vehicle_type}</span>
+                                {veh.default_driver_name && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Driver: {veh.default_driver_name}</span>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                {veh.ledger_code || `VEH_${veh.id}`}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                                  {veh.subgroup_name || (isHCV ? "Heavy Commercial Vehicles (HCV)" : "Light Commercial Vehicles (LCV)")}
+                                </span>
+                                <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                  {veh.group_name || "Fixed Assets"} ({veh.primary_group_name || "Assets"})
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-[#027A48] dark:text-emerald-400">
+                              {formatCurrency(veh.total_debit)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-[#B42318] dark:text-rose-400">
+                              {formatCurrency(veh.total_credit)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <span
+                                className={cn(
+                                  "font-bold text-xs",
+                                  veh.balance_type === "DR" ? "text-blue-600 dark:text-blue-400" : "text-[#B42318] dark:text-rose-400"
+                                )}
+                              >
+                                {formatCurrency(veh.current_balance)}
+                              </span>
+                              <span className="text-[10px] text-[#98A2B3] ml-1">{veh.balance_type}</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="font-semibold text-slate-700 dark:text-slate-200 text-xs">
+                                {formatCurrency(veh.total_operational_expense)}
+                              </div>
+                              <div className="text-[10px] text-[#98A2B3]">
+                                Diesel: {formatCurrency(veh.total_diesel_expense)} • Toll: {formatCurrency(veh.total_toll_expense)}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <Badge
+                                  variant={veh.is_active ? "success" : "neutral"}
+                                  className="text-[10px] px-1.5 py-0"
+                                >
+                                  {veh.status}
+                                </Badge>
+                                {veh.fitness_expiry && (
+                                  <span className="text-[10px] text-[#667085] dark:text-slate-400">
+                                    Fit: {formatDate(veh.fitness_expiry)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-[#98A2B3] mt-0.5">
+                                {veh.transaction_count} ledger entries
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedAccountId(veh.id);
+                                  setDatePreset("ALL");
+                                  setDetailFromDate("");
+                                  setDetailToDate("");
+                                  setDetailSearch("");
+                                  setDetailTxType("ALL");
+                                }}
+                                className="text-xs h-7.5 px-3 gap-1.5 font-semibold whitespace-nowrap inline-flex items-center justify-center hover:border-blue-600 hover:text-blue-600"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                View Ledger
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              )}
+
               {/* Category 4: Company Bank Accounts Table */}
               {activeCategory === "COMPANY_BANK_ACCOUNT" && (
                 <table className="w-full text-left border-collapse">
@@ -2302,6 +2698,8 @@ export default function MasterLedgerPage() {
                   ? "Vendors"
                   : activeCategory === "DRIVER"
                   ? "Drivers"
+                  : activeCategory === "COMPANY_VEHICLE"
+                  ? "Company Vehicles"
                   : activeCategory === "COMPANY_BANK_ACCOUNT"
                   ? "Bank Accounts"
                   : "Duties & Taxes"
@@ -2342,6 +2740,7 @@ export default function MasterLedgerPage() {
                     {detailedLedger.category === "BILLING_CLIENT" && "Current Assets → Sundry Debtors → Corporate Debtors"}
                     {detailedLedger.category === "VENDOR" && "Current Liabilities → Sundry Creditors → Market Vehicle Vendors"}
                     {detailedLedger.category === "DRIVER" && "Current Assets → Loans & Advances → Driver Trip Advances"}
+                    {detailedLedger.category === "COMPANY_VEHICLE" && "Fixed Assets (ASSET) → Fixed Assets (FA) → Heavy Commercial / Fleet Assets"}
                     {detailedLedger.category === "COMPANY_BANK_ACCOUNT" && "Current Assets / Liab → Bank Accounts → Current & OD"}
                     {detailedLedger.category === "DUTIES_AND_TAXES" && "Liabilities & Assets → Duties & Taxes → Statutory Dues"}
                   </span>
@@ -2377,6 +2776,29 @@ export default function MasterLedgerPage() {
                     <span className="font-mono text-slate-700 dark:text-slate-300">
                       DL: {detailedLedger.party.license_number}
                     </span>
+                  )}
+                  {detailedLedger.party.vehicle_number && (
+                    <span className="font-mono font-bold text-amber-700 dark:text-amber-300 px-1.5 py-0.5 bg-amber-50 dark:bg-amber-950/40 rounded border border-amber-200 dark:border-amber-800">
+                      Vehicle: {detailedLedger.party.vehicle_number}
+                    </span>
+                  )}
+                  {detailedLedger.party.vehicle_type && (
+                    <span>Type: {detailedLedger.party.vehicle_type}</span>
+                  )}
+                  {detailedLedger.party.capacity_mt && (
+                    <span>Capacity: {detailedLedger.party.capacity_mt} MT</span>
+                  )}
+                  {detailedLedger.party.driver_name && (
+                    <span>Driver: {detailedLedger.party.driver_name}</span>
+                  )}
+                  {detailedLedger.party.chassis_number && (
+                    <span className="font-mono">Chassis: {detailedLedger.party.chassis_number}</span>
+                  )}
+                  {detailedLedger.party.engine_number && (
+                    <span className="font-mono">Engine: {detailedLedger.party.engine_number}</span>
+                  )}
+                  {detailedLedger.party.fitness_expiry && (
+                    <span>Fitness: {formatDate(detailedLedger.party.fitness_expiry)}</span>
                   )}
                 </div>
 
@@ -2598,6 +3020,16 @@ export default function MasterLedgerPage() {
                       <option value="TRIP_EXPENSE">Trip Expense</option>
                       <option value="ADVANCE_SETTLEMENT">Advance Settlement</option>
                       <option value="PAYMENT_VOUCHER">Driver Payment</option>
+                    </>
+                  )}
+                  {detailedLedger.category === "COMPANY_VEHICLE" && (
+                    <>
+                      <option value="JOURNAL_VOUCHER">Journal Adjustment (Asset / WDV)</option>
+                      <option value="EXP_DIESEL">Diesel &amp; Fuel Vouchers</option>
+                      <option value="EXP_TOLL">Toll &amp; FASTag Charges</option>
+                      <option value="EXP_MAINTENANCE">Maintenance &amp; Repairs</option>
+                      <option value="EXP_DRIVER_ALLOWANCE">Driver Allowance</option>
+                      <option value="PAYMENT_VOUCHER">Payment / Disbursement</option>
                     </>
                   )}
                   {detailedLedger.category === "COMPANY_BANK_ACCOUNT" && (

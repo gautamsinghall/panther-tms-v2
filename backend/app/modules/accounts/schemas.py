@@ -485,9 +485,58 @@ class MasterLedgerOverviewResponse(BaseModel):
     billing_clients: CategoryOverviewStat
     vendors: CategoryOverviewStat
     drivers: CategoryOverviewStat
+    company_vehicles: Optional[CategoryOverviewStat] = None
     company_bank_accounts: Optional[CategoryOverviewStat] = None
     duties_and_taxes: Optional[CategoryOverviewStat] = None
     hierarchy: Optional[HierarchyOverviewStat] = None
+
+
+class CompanyVehicleLedgerListItem(BaseModel):
+    id: int  # Vehicle ID
+    vehicle_number: str
+    vehicle_type: str
+    capacity_mt: Decimal = Decimal("0.000")
+    chassis_number: Optional[str] = None
+    engine_number: Optional[str] = None
+    registration_date: Optional[date] = None
+    insurance_expiry: Optional[date] = None
+    fitness_expiry: Optional[date] = None
+    national_permit_expiry: Optional[date] = None
+    default_driver_id: Optional[int] = None
+    default_driver_name: Optional[str] = None
+    current_odometer_km: int = 0
+    is_active: bool = True
+    status: str = "Active"
+
+    # Indian Accounting Hierarchy
+    primary_group_code: str = "ASSET"
+    primary_group_name: str = "Assets"
+    group_code: str = "FA"
+    group_name: str = "Fixed Assets"
+    subgroup_code: str = "FA_COMPANY_VEHICLES"
+    subgroup_name: str = "Company Owned Fleet Vehicles"
+
+    # Connected Ledger Details
+    ledger_id: Optional[int] = None
+    ledger_name: Optional[str] = None
+    ledger_code: Optional[str] = None
+    opening_balance: Decimal = Decimal("0.00")
+    opening_balance_type: str = "DR"
+    total_debit: Decimal = Decimal("0.00")
+    total_credit: Decimal = Decimal("0.00")
+    current_balance: Decimal = Decimal("0.00")
+    balance_type: str = "DR"  # DR (Asset Book Value), CR (Depreciation/Write-down)
+
+    # Connected Operational & Expense Tracking (Indian Transport P&L concepts)
+    total_diesel_expense: Decimal = Decimal("0.00")
+    total_toll_expense: Decimal = Decimal("0.00")
+    total_maintenance_expense: Decimal = Decimal("0.00")
+    total_other_trip_expenses: Decimal = Decimal("0.00")
+    total_operational_expense: Decimal = Decimal("0.00")
+    total_trips_count: int = 0
+
+    transaction_count: int = 0
+    last_transaction_date: Optional[date] = None
 
 
 class DutiesAndTaxesLedgerListItem(BaseModel):
@@ -628,6 +677,17 @@ class PartyDetails(BaseModel):
     group_name: Optional[str] = None
     subgroup_name: Optional[str] = None
     primary_group_name: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    capacity_mt: Optional[Decimal] = None
+    chassis_number: Optional[str] = None
+    engine_number: Optional[str] = None
+    registration_date: Optional[date] = None
+    insurance_expiry: Optional[date] = None
+    fitness_expiry: Optional[date] = None
+    national_permit_expiry: Optional[date] = None
+    current_odometer_km: Optional[int] = None
+    driver_name: Optional[str] = None
 
 
 class DetailedLedgerResponse(BaseModel):

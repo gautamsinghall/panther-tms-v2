@@ -628,6 +628,7 @@ class CompanyVehicle(TenantBase):
     fitness_expiry = Column(Date, nullable=True)
     national_permit_expiry = Column(Date, nullable=True)
     default_driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True)
+    account_id = Column(Integer, ForeignKey("misc_accounts.id"), nullable=True, index=True)
     current_odometer_km = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -639,6 +640,7 @@ class CompanyVehicle(TenantBase):
     )
 
     default_driver = relationship("Driver", lazy="selectin")
+    account = relationship("Account", foreign_keys=[account_id], lazy="selectin")
 
 
 class Job(TenantBase):
@@ -1253,6 +1255,7 @@ class Account(TenantBase):
     billing_client_id = Column(Integer, ForeignKey("general_billing_clients.id"), nullable=True, index=True)
     vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True, index=True)
     driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
+    company_vehicle_id = Column(Integer, ForeignKey("transport_company_vehicles.id"), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -1268,6 +1271,7 @@ class Account(TenantBase):
     billing_client = relationship("BillingClient", foreign_keys=[billing_client_id], lazy="selectin")
     vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
+    company_vehicle = relationship("CompanyVehicle", foreign_keys=[company_vehicle_id], lazy="selectin")
     company_bank_account = relationship("CompanyBankAccount", back_populates="account", uselist=False, lazy="selectin")
 
 
@@ -1404,6 +1408,7 @@ class Voucher(TenantBase):
     vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True, index=True)
     driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True, index=True)
     company_bank_account_id = Column(Integer, ForeignKey("company_bank_accounts.id"), nullable=True, index=True)
+    company_vehicle_id = Column(Integer, ForeignKey("transport_company_vehicles.id"), nullable=True, index=True)
 
     # Tally-style bill-wise & tax tracking
     due_date = Column(Date, nullable=True)
@@ -1440,6 +1445,7 @@ class Voucher(TenantBase):
     vendor = relationship("Vendor", foreign_keys=[vendor_id], lazy="selectin")
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
     company_bank_account = relationship("CompanyBankAccount", foreign_keys=[company_bank_account_id], lazy="selectin")
+    company_vehicle = relationship("CompanyVehicle", foreign_keys=[company_vehicle_id], lazy="selectin")
     against_voucher = relationship("Voucher", remote_side=[id], foreign_keys=[against_voucher_id])
     bill_allocations = relationship("BillAllocation", back_populates="invoice", foreign_keys="BillAllocation.invoice_id", cascade="all, delete-orphan", lazy="selectin")
     allocations_made = relationship("BillAllocation", back_populates="voucher", foreign_keys="BillAllocation.voucher_id", cascade="all, delete-orphan", lazy="selectin")

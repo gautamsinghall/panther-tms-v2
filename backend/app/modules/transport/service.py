@@ -294,6 +294,20 @@ async def create_company_vehicle(db: AsyncSession, data: CompanyVehicleCreate) -
         raise AppException(status_code=400, error_code="DUPLICATE_VEHICLE", message="Company vehicle already registered.")
     vehicle = CompanyVehicle(**data.model_dump())
     db.add(vehicle)
+    await db.flush()
+
+    # Automatically create dedicated Fixed Asset master ledger account per Indian Accounting Standards
+    from app.modules.accounts.master_ledger_service import get_or_create_party_account
+    acc = await get_or_create_party_account(
+        db,
+        party_type="COMPANY_VEHICLE",
+        party_id=vehicle.id,
+        party_name=vehicle.vehicle_number,
+        party_code=f"VEH_{vehicle.id:04d}",
+    )
+    if hasattr(vehicle, "account_id") and acc:
+        vehicle.account_id = acc.id
+
     await db.commit()
     await db.refresh(vehicle)
     return vehicle
@@ -302,8 +316,23 @@ async def update_company_vehicle(db: AsyncSession, vehicle_id: int, data: Compan
     vehicle = await db.get(CompanyVehicle, vehicle_id)
     if not vehicle:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="Company vehicle not found.")
+    old_number = vehicle.vehicle_number
     for field, val in data.model_dump(exclude_unset=True).items():
         setattr(vehicle, field, val)
+
+    # If vehicle number changed, keep the linked ledger account in sync
+    if data.vehicle_number and data.vehicle_number != old_number:
+        from app.modules.accounts.master_ledger_service import get_or_create_party_account
+        acc = await get_or_create_party_account(
+            db,
+            party_type="COMPANY_VEHICLE",
+            party_id=vehicle.id,
+            party_name=vehicle.vehicle_number,
+            party_code=f"VEH_{vehicle.id:04d}",
+        )
+        if hasattr(vehicle, "account_id") and acc:
+            vehicle.account_id = acc.id
+
     await db.commit()
     await db.refresh(vehicle)
     return vehicle
