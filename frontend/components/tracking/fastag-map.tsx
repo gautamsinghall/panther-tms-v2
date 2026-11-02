@@ -846,14 +846,14 @@ export function FastagMap({
       </div>
 
       {/* Top-Left Engine Indicator Badge */}
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-lg shadow-md border border-slate-200/80">
+      <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg shadow-md border border-slate-200/80">
         <span
           className={`inline-block w-2 h-2 rounded-full ${
             mapEngine === "google" ? "bg-emerald-500 animate-pulse" : "bg-blue-500"
           }`}
         />
-        <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-700">
-          {mapEngine === "google" ? "Google Maps Engine" : "Leaflet Engine"}
+        <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-700 hidden xs:inline">
+          {mapEngine === "google" ? "Google Maps" : "Leaflet"}
         </span>
         {isCalculatingRoute && (
           <span className="text-[9px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded animate-pulse">

@@ -187,7 +187,7 @@ export function WorkspaceTabBar() {
   }
 
   return (
-    <div className="h-11 border-b border-slate-200/90 bg-[#F1F5F9]/80 px-4 pt-1.5 flex items-center justify-between select-none shrink-0 min-w-0">
+    <div className="h-10 sm:h-11 border-b border-slate-200/90 dark:border-[#22232E] bg-[#F1F5F9]/90 dark:bg-[#12131A] px-2.5 sm:px-4 pt-1 sm:pt-1.5 flex items-center justify-between select-none shrink-0 min-w-0">
       {/* Tab Items List */}
       <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto overflow-y-hidden no-scrollbar">
         {/* Tab 1: Module Records / List Tab */}
@@ -203,7 +203,7 @@ export function WorkspaceTabBar() {
           title={`View ${routeInfo.title} records`}
         >
           <ListIcon className={cn("w-3.5 h-3.5 shrink-0", activeTab === "list" ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600")} />
-          <span className="truncate max-w-[200px]">{routeInfo.title}</span>
+          <span className="truncate max-w-[120px] sm:max-w-[200px]">{routeInfo.title}</span>
 
           {/* Indicator dot if form draft is active in background */}
           {isFormOpen && activeTab === "list" && (
@@ -230,11 +230,11 @@ export function WorkspaceTabBar() {
             title={formTabInfo?.title || "New Entry Form"}
           >
             <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            <span className="max-w-[220px] truncate">
+            <span className="max-w-[120px] sm:max-w-[220px] truncate">
               {formTabInfo?.title || "New Entry Form"}
             </span>
 
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/70 uppercase tracking-wider font-bold shrink-0">
+            <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/70 uppercase tracking-wider font-bold shrink-0">
               Form Tab
             </span>
 

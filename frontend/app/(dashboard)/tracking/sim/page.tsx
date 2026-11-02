@@ -442,11 +442,13 @@ export default function SIMTrackingPage() {
     if (!activeModalTrip) return;
     setIsSubmitting(true);
     try {
-      const cleanPhone = editFormData.driver_phone.replace(/\D/g, "").slice(-10);      const updated = await apiClient<SIMTripRecord>(`/api/v1/transport/tracking/sim/${activeModalTrip.id}`, {
+      const cleanPhone = editFormData.driver_phone.replace(/\D/g, "").slice(-10);
+      const updated = await apiClient<SIMTripRecord>(`/api/v1/transport/tracking/sim/${activeModalTrip.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           ...editFormData,
-          driver_phone: cleanPhone,        }),
+          driver_phone: cleanPhone,
+        }),
       });
       setSimTrips((prev) => prev.map((t) => (t.id === activeModalTrip.id ? updated : t)));
       setFeedbackMessage({
@@ -860,7 +862,7 @@ export default function SIMTrackingPage() {
           METRICS CARDS ROW (5 Cards matching Reference Design)
          ========================================================================= */}
       {activeTab === "open" && (
-        <div className="flex items-center gap-3 w-full">
+        <div className="flex items-center gap-3 w-full overflow-x-auto no-scrollbar pb-1">
           {/* Card 1: In Plant */}
           <div className="flex-1 min-w-[150px] p-3 rounded-lg border border-slate-200 bg-white shadow-2xs">
             <div className="text-sm font-bold text-slate-900">

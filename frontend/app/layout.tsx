@@ -1,9 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { ThemeProvider } from "@/lib/theme-context";
 
 export const dynamic = "force-dynamic";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0B0D" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "PantherTMS — Multi-Tenant Transport Management System",
@@ -54,7 +65,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="h-full overflow-hidden bg-[var(--color-bg)] text-slate-900 antialiased font-sans" suppressHydrationWarning>
+      <body className="h-full overflow-hidden bg-[var(--color-bg)] text-slate-900 antialiased font-sans select-none sm:select-auto" suppressHydrationWarning>
         <ThemeProvider>
           <ToastProvider />
           {children}

@@ -25,6 +25,11 @@ interface WorkspaceTabsContextValue {
   closeFormTab: (callOnClose?: boolean) => void;
   dismissFormTab: () => void;
   isFormOpen: boolean;
+  isMobileNavOpen: boolean;
+  setIsMobileNavOpen: (open: boolean) => void;
+  openMobileNav: () => void;
+  closeMobileNav: () => void;
+  toggleMobileNav: () => void;
 }
 
 const WorkspaceTabsContext = createContext<WorkspaceTabsContextValue | null>(null);
@@ -33,6 +38,7 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<"list" | "form">("list");
   const [formTabInfo, setFormTabInfo] = useState<FormTabInfo | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
   const onCloseRef = useRef<(() => void) | null>(null);
 
   // Keep ref up to date with latest onClose callback
@@ -40,11 +46,12 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
     onCloseRef.current = formTabInfo?.onClose ?? null;
   }, [formTabInfo]);
 
-  // When pathname changes (user navigated via sidebar), reset to list tab and clear form tab
+  // When pathname changes (user navigated via sidebar), reset to list tab, clear form tab, and close mobile nav
   useEffect(() => {
     const cb = onCloseRef.current;
     setActiveTab("list");
     setFormTabInfo(null);
+    setIsMobileNavOpen(false);
     onCloseRef.current = null;
     if (cb) {
       try {
@@ -80,6 +87,10 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
     setActiveTab("list");
   }, []);
 
+  const openMobileNav = useCallback(() => setIsMobileNavOpen(true), []);
+  const closeMobileNav = useCallback(() => setIsMobileNavOpen(false), []);
+  const toggleMobileNav = useCallback(() => setIsMobileNavOpen((prev) => !prev), []);
+
   const value = useMemo(
     () => ({
       activeTab,
@@ -89,8 +100,23 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
       closeFormTab,
       dismissFormTab,
       isFormOpen: formTabInfo !== null,
+      isMobileNavOpen,
+      setIsMobileNavOpen,
+      openMobileNav,
+      closeMobileNav,
+      toggleMobileNav,
     }),
-    [activeTab, formTabInfo, openFormTab, closeFormTab, dismissFormTab]
+    [
+      activeTab,
+      formTabInfo,
+      openFormTab,
+      closeFormTab,
+      dismissFormTab,
+      isMobileNavOpen,
+      openMobileNav,
+      closeMobileNav,
+      toggleMobileNav,
+    ]
   );
 
   return (

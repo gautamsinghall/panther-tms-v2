@@ -549,7 +549,7 @@ export default function GPSTrackingPage() {
         {/* =================================================================== */}
         <aside
           className={cn(
-            "w-full lg:w-[350px] xl:w-[370px] bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl flex flex-col shrink-0 h-full min-h-0 overflow-hidden transition-all duration-300 shadow-xs",
+            "w-full lg:w-[350px] xl:w-[370px] bg-white dark:bg-[#171922] border border-slate-200 dark:border-[#2B303C] rounded-xl flex flex-col shrink-0 h-[280px] sm:h-[320px] lg:h-full min-h-0 overflow-hidden transition-all duration-300 shadow-xs",
             isLeftPanelCollapsed && "lg:w-16"
           )}
         >
@@ -713,7 +713,7 @@ export default function GPSTrackingPage() {
           {/* Floating Vehicle Details Card (Bottom Right - Matching Reference) */}
           {/* ----------------------------------------------------------------- */}
           {selectedVehicleData && isDetailsPanelVisible && (
-            <div className="absolute bottom-5 right-5 z-20 w-80 sm:w-96 bg-white/95 dark:bg-[#171922]/95 backdrop-blur-md border border-slate-200 dark:border-[#2B303C] rounded-2xl p-4 shadow-xl animate-in fade-in duration-200">
+            <div className="absolute bottom-3 right-3 left-3 sm:left-auto sm:right-5 sm:bottom-5 z-20 w-auto sm:w-96 bg-white/95 dark:bg-[#171922]/95 backdrop-blur-md border border-slate-200 dark:border-[#2B303C] rounded-2xl p-3 sm:p-4 shadow-xl animate-in fade-in duration-200">
               {/* Header: Thumbnail + Number + Status Badge + Close X */}
               <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-200 dark:border-[#2B303C]">
                 <div className="flex items-center gap-3">

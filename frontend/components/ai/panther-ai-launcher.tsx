@@ -8,7 +8,7 @@ export function PantherAILauncher() {
   const { isOpen, toggleAI } = usePantherAI();
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 group">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 group">
       {/* Accessible Tooltip */}
       <div
         role="tooltip"
@@ -24,7 +24,7 @@ export function PantherAILauncher() {
         onClick={toggleAI}
         aria-label="Toggle Panther AI Copilot (Ctrl+/)"
         title="Toggle Panther AI (Ctrl+/)"
-        className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#4F46E5] to-[#7C3AED] text-white shadow-[0_8px_25px_rgba(91,80,230,0.45)] hover:shadow-[0_12px_32px_rgba(91,80,230,0.6)] transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-[#0F111D] motion-reduce:transform-none motion-reduce:transition-none ${
+        className={`relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#4F46E5] to-[#7C3AED] text-white shadow-[0_8px_25px_rgba(91,80,230,0.45)] hover:shadow-[0_12px_32px_rgba(91,80,230,0.6)] transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-[#0F111D] motion-reduce:transform-none motion-reduce:transition-none ${
           isOpen ? "ring-2 ring-indigo-300/60 shadow-[0_0_20px_rgba(124,58,237,0.5)]" : ""
         }`}
       >

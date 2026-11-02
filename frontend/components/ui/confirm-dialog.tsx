@@ -131,13 +131,13 @@ export function ConfirmDialog({
           </div>
 
           {/* Action Footer */}
-          <div className="mt-6 flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+          <div className="mt-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
             <Button
               variant="outline"
               size="md"
               onClick={onClose}
               disabled={isLoading}
-              className="text-xs font-semibold rounded-xl h-9 px-4"
+              className="text-xs font-semibold rounded-xl h-9 px-4 w-full sm:w-auto"
             >
               {canLabel}
             </Button>
@@ -147,7 +147,7 @@ export function ConfirmDialog({
               onClick={onConfirm}
               isLoading={isLoading}
               disabled={disabled || isLoading}
-              className="text-xs font-semibold rounded-xl h-9 px-4"
+              className="text-xs font-semibold rounded-xl h-9 px-4 w-full sm:w-auto"
             >
               {cLabel}
             </Button>

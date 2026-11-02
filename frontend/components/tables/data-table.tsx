@@ -288,10 +288,10 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       ) : (
         (searchable || toolbarExtra) && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-white dark:bg-[#17171B] p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 dark:border-[#303036] shadow-2xs">
             {/* Search Input */}
             {searchable && (
-              <div className="relative flex-1 max-w-sm">
+              <div className="relative w-full sm:max-w-sm flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
@@ -316,7 +316,7 @@ export function DataTable<T extends Record<string, any>>({
             )}
 
             {/* Right Tools: Extra Controls + Density Toggle */}
-            <div className="flex items-center gap-2 justify-end shrink-0">
+            <div className="flex items-center gap-2 justify-between sm:justify-end shrink-0 w-full sm:w-auto">
               {toolbarExtra}
 
               {/* Density Toggle */}
@@ -336,7 +336,7 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Main Table Container */}
       <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto [webkit-overflow-scrolling:touch] custom-scrollbar">
           <table className={cn("w-full text-left border-collapse", tableClassName)}>
             {/* Sticky Header */}
             <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200/80 backdrop-blur-xs">
@@ -599,32 +599,32 @@ export function DataTable<T extends Record<string, any>>({
 
         {/* Numbered Pagination */}
         {!isLoading && !isError && totalItems > 0 && (
-          <div className="px-4 py-3 border-t border-slate-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="px-3.5 sm:px-4 py-3 border-t border-slate-100 dark:border-[#26262D] bg-white dark:bg-[#17171B] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-[#898991]">
             {/* Range info */}
-            <div>
+            <div className="text-center sm:text-left">
               Showing{" "}
-              <span className="font-semibold text-slate-900 font-mono">
+              <span className="font-semibold text-slate-900 dark:text-white font-mono">
                 {(validPage - 1) * pageSize + 1}
               </span>{" "}
               to{" "}
-              <span className="font-semibold text-slate-900 font-mono">
+              <span className="font-semibold text-slate-900 dark:text-white font-mono">
                 {Math.min(validPage * pageSize, totalItems)}
               </span>{" "}
-              of <span className="font-semibold text-slate-900 font-mono">{totalItems}</span> records
+              of <span className="font-semibold text-slate-900 dark:text-white font-mono">{totalItems}</span> records
             </div>
 
             {/* Page Buttons & Page Size */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
               {/* Page size selector */}
-              <div className="flex items-center gap-1.5">
-                <span>Rows:</span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="hidden xs:inline">Rows:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="h-7 px-2 border border-slate-200 rounded-lg bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer"
+                  className="h-8 px-2 border border-slate-200 dark:border-[#303036] rounded-lg bg-white dark:bg-[#101013] text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer"
                 >
                   {pageSizeOptions.map((opt) => (
                     <option key={opt} value={opt}>
@@ -634,13 +634,18 @@ export function DataTable<T extends Record<string, any>>({
                 </select>
               </div>
 
-              {/* Numbered Buttons */}
-              <div className="flex items-center gap-1">
+              {/* Mobile Compact Page Indicator (< sm) */}
+              <div className="sm:hidden text-xs font-mono text-slate-600 dark:text-slate-400 font-semibold px-2">
+                {validPage} / {totalPages}
+              </div>
+
+              {/* Numbered Buttons (Hidden on mobile < sm, visible on desktop >= sm) */}
+              <div className="hidden sm:flex items-center gap-1">
                 <button
                   type="button"
                   disabled={validPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  className="p-1 rounded-lg border border-slate-200 dark:border-[#303036] text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -664,7 +669,7 @@ export function DataTable<T extends Record<string, any>>({
                         "min-w-[28px] h-7 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer font-mono",
                         isCurrent
                           ? "bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-xs border border-indigo-700/30 font-semibold"
-                          : "border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                          : "border border-slate-200 dark:border-[#303036] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#202026] hover:text-slate-900"
                       )}
                     >
                       {btn}
@@ -676,10 +681,32 @@ export function DataTable<T extends Record<string, any>>({
                   type="button"
                   disabled={validPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  className="p-1 rounded-lg border border-slate-200 dark:border-[#303036] text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
                   aria-label="Next page"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Mobile Prev / Next Buttons (< sm) */}
+              <div className="flex sm:hidden items-center gap-1">
+                <button
+                  type="button"
+                  disabled={validPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-[#303036] text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={validPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-[#303036] text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>

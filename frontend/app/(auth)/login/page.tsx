@@ -125,11 +125,11 @@ export default function LoginPage() {
       {/* ========================================================================= */}
       {/* MAIN CONTAINER: Split Layout (~60% Left / ~40% Right)                     */}
       {/* ========================================================================= */}
-      <main className="flex-1 w-full max-w-[1580px] mx-auto px-6 sm:px-10 lg:px-14 py-2 xl:py-3 relative flex flex-col lg:flex-row items-center lg:items-center justify-between min-h-0 gap-8 lg:gap-12">
+      <main className="flex-1 w-full max-w-[1580px] mx-auto px-4 sm:px-10 lg:px-14 py-2 xl:py-3 relative flex flex-col lg:flex-row items-center justify-between min-h-0 gap-6 sm:gap-8 lg:gap-12">
         {/* ======================================================================= */}
         {/* LEFT PRODUCT AREA: Brand Hero, Feature Highlights & Security Trust     */}
         {/* ======================================================================= */}
-        <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col justify-center py-2 relative z-10">
+        <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col justify-center py-2 relative z-10 order-2 lg:order-1">
           <div className="space-y-4 sm:space-y-5 max-w-[580px]">
             {/* 1. Pill Badge */}
             <div className="animate-liquid-fade-1">
@@ -221,14 +221,14 @@ export default function LoginPage() {
         {/* ======================================================================= */}
         {/* RIGHT COLUMN: Highly Transparent Apple VisionOS Glass Login Panel       */}
         {/* ======================================================================= */}
-        <div className="w-full lg:w-[42%] xl:w-[38%] flex justify-end z-20 py-2 lg:py-0 animate-liquid-fade-panel">
+        <div className="w-full lg:w-[42%] xl:w-[38%] flex justify-center lg:justify-end z-20 py-2 lg:py-0 animate-liquid-fade-panel order-1 lg:order-2">
           <div className="w-full max-w-[440px] xl:max-w-[450px]">
             {/* Highly Transparent Liquid Glass Container matching reference */}
             <div
               onMouseMove={handleMouseMove}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              className="liquid-glass-panel rounded-[32px] p-7 sm:p-9 space-y-5 relative"
+              className="liquid-glass-panel rounded-[24px] sm:rounded-[32px] p-5 sm:p-9 space-y-5 relative"
             >
               {/* Dynamic neutral reflection / subtle glint without blue tint */}
               <div

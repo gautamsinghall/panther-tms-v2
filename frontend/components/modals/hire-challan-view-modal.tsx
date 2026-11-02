@@ -458,7 +458,7 @@ export function HireChallanViewModal({
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="hc-modal-container relative w-full max-w-4xl h-[88vh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="hc-modal-container relative w-full max-w-4xl h-[96vh] sm:h-[88vh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Hidden in Print) */}
         <div className="px-6 py-3 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print flex-wrap gap-2">
           <div className="flex items-center gap-2">
@@ -519,7 +519,7 @@ export function HireChallanViewModal({
         </div>
 
         {/* Modal Body */}
-        <div ref={modalBodyRef} className="hc-modal-body p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center">
+        <div ref={modalBodyRef} className="hc-modal-body p-2 sm:p-6 overflow-y-auto overflow-x-auto flex-1 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center [webkit-overflow-scrolling:touch]">
           {/* PRINTABLE VOUCHER WRAPPER */}
           <div
             id="hc-voucher-wrapper"

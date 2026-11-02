@@ -999,7 +999,7 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
       `}</style>
 
       {/* Modal Dialog Container */}
-      <div className="lr-modal-container relative w-full max-w-4xl max-h-[92vh] my-auto bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="lr-modal-container relative w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] my-auto bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Header Bar: Document Title & Close Button */}
         <div className="px-4 sm:px-6 py-2.5 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] flex items-center justify-between shrink-0 no-print gap-2">
           <div className="flex items-center gap-2">
@@ -1134,7 +1134,7 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
         </div>
 
         {/* Modal Printable Body - Clean A4 Goods Receipt / Consignment Note */}
-        <div ref={modalBodyRef} className="lr-modal-body p-2 sm:p-2.5 bg-slate-100 dark:bg-[#0B0B0E] flex flex-col items-center">
+        <div ref={modalBodyRef} className="lr-modal-body p-2 sm:p-2.5 bg-slate-100 dark:bg-[#0B0B0E] flex flex-col items-center overflow-y-auto overflow-x-auto flex-1 [webkit-overflow-scrolling:touch]">
           {/* 1. Single View (Active Copy on screen, and printed when printMode === 'single') */}
           <div
             id="lr-single-print-wrapper"

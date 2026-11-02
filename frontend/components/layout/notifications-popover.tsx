@@ -159,7 +159,7 @@ export function NotificationsPopover() {
 
       {/* Popover Card */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] shadow-floating z-50 animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
+        <div className="fixed inset-x-3 top-16 sm:inset-x-auto sm:right-0 sm:top-full sm:absolute w-auto sm:w-96 rounded-2xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] shadow-floating z-50 animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] flex items-center justify-between">
             <div className="flex items-center gap-2">

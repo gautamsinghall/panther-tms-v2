@@ -534,7 +534,7 @@ export function JobOrderViewModal({
       <div
         ref={modalRef}
         tabIndex={-1}
-        className="job-order-modal-container relative w-full max-w-4xl h-[88vh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col focus:outline-none print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
+        className="job-order-modal-container relative w-full max-w-4xl h-[96vh] sm:h-[88vh] bg-white dark:bg-[#12131A] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 animate-in zoom-in-95 duration-150 flex flex-col focus:outline-none print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none"
       >
         {/* Top Control Bar (Hidden in Print) */}
         <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#22232E] bg-slate-50/90 dark:bg-[#161722] flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
@@ -635,7 +635,7 @@ export function JobOrderViewModal({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div ref={modalBodyRef} className="job-order-modal-body overflow-y-auto flex-1 bg-slate-50/60 dark:bg-[#0B0B0E] flex justify-center">
+        <div ref={modalBodyRef} className="job-order-modal-body overflow-y-auto overflow-x-auto flex-1 bg-slate-50/60 dark:bg-[#0B0B0E] flex justify-center [webkit-overflow-scrolling:touch]">
           {isLoadingDetails ? (
             <div className="min-h-[420px] flex flex-col items-center justify-center p-8 space-y-3">
               <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />

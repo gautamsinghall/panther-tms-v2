@@ -343,7 +343,7 @@ export function PantherAIPanel() {
     <div
       role="dialog"
       aria-label="Panther AI Copilot"
-      className="fixed bottom-[88px] right-6 z-50 w-[410px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[calc(100vh-105px)] rounded-3xl flex flex-col bg-white dark:bg-[#0F111D] border border-slate-200/90 dark:border-[#1E2235] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-200 animate-in fade-in slide-in-from-bottom-4 motion-reduce:animate-none"
+      className="fixed bottom-18 sm:bottom-[88px] right-3 left-3 sm:left-auto sm:right-6 z-50 sm:w-[410px] h-[calc(100dvh-5.5rem)] sm:h-[620px] max-h-[calc(100dvh-5rem)] rounded-2xl sm:rounded-3xl flex flex-col bg-white dark:bg-[#0F111D] border border-slate-200/90 dark:border-[#1E2235] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-200 animate-in fade-in slide-in-from-bottom-4 motion-reduce:animate-none"
     >
       {/* 1. Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-[#0F111D] border-b border-slate-100 dark:border-[#1C2033] shrink-0">

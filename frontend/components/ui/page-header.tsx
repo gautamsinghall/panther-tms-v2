@@ -252,7 +252,7 @@ export function PageHeader({
     <div className={cn("space-y-2.5 pb-4 border-b border-slate-200/80 dark:border-[#22232E]", className)}>
       {/* Breadcrumb Row */}
       {resolvedBreadcrumbs && resolvedBreadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
+        <div className="overflow-x-auto no-scrollbar py-0.5"><nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium whitespace-nowrap">
           {resolvedBreadcrumbs.map((crumb, idx) => {
             const isLast = idx === resolvedBreadcrumbs.length - 1;
             return (
@@ -273,14 +273,14 @@ export function PageHeader({
               </React.Fragment>
             );
           })}
-        </nav>
+        </nav></div>
       )}
 
       {/* Main Title & Action Row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
+            <h1 className="text-xl sm:text-2xl md:text-[26px] font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
               {title}
             </h1>
             {badge}
@@ -294,7 +294,7 @@ export function PageHeader({
 
         {/* Action Buttons */}
         {(primaryAction || secondaryActions.length > 0 || actions) && (
-          <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap shrink-0">
             {secondaryActions.map((action, idx) => (
               <Button
                 key={idx}

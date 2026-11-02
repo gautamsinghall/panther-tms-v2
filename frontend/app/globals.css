@@ -1689,3 +1689,58 @@ html.dark #job-order-printable-document table tbody td {
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
+
+
+/* ==========================================================================
+   MOBILE & TABLET RESPONSIVENESS ENHANCEMENTS (Scoped to < 1024px)
+   Strictly preserving desktop/laptop design >= 1024px
+   ========================================================================== */
+
+/* Prevent horizontal page overflow across viewports */
+html,
+body {
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Safe area support for iOS notched displays and home indicator */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Touch scrolling on mobile */
+.custom-scrollbar,
+.custom-sidebar-scroll,
+.overflow-x-auto,
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific usability optimizations */
+@media (max-width: 1024px) {
+  /* Prevent unwanted auto-zoom on iOS Safari when tapping form inputs */
+  @supports (-webkit-touch-callout: none) {
+    input[type="text"]:not([readonly]),
+    input[type="email"]:not([readonly]),
+    input[type="password"]:not([readonly]),
+    input[type="number"]:not([readonly]),
+    input[type="tel"]:not([readonly]),
+    input[type="date"]:not([readonly]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Safe tap interactions */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+}

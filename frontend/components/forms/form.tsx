@@ -200,7 +200,7 @@ export function Form({
         return (
           <div
             key={section.id || section.title || sIndex}
-            className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 lg:p-7 space-y-5 shadow-2xs"
+            className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-4 sm:p-6 lg:p-7 space-y-4 sm:space-y-5 shadow-2xs"
           >
             {/* Section Header */}
             {(section.title || section.description) && (
@@ -574,12 +574,12 @@ export function Form({
       )}
 
       {/* Form Action Footer - Positioned at the very end of the form */}
-      <div className="bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] rounded-2xl p-4 sm:p-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 shadow-2xs mt-8">
+      <div className="bg-white dark:bg-[#12131A] border border-slate-200/90 dark:border-[#22232E] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xs mt-6 sm:mt-8">
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Active Form Draft</span>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3">
+        <div className="flex items-center justify-end gap-2.5 sm:gap-3 w-full sm:w-auto">
           {onCancel && (
             <Button
               type="button"
@@ -587,7 +587,7 @@ export function Form({
               size="md"
               onClick={onCancel}
               disabled={loading}
-              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer"
+              className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer flex-1 sm:flex-initial"
             >
               {cancelLabel}
             </Button>
@@ -598,7 +598,7 @@ export function Form({
             size="md"
             isLoading={loading}
             disabled={loading || submitDisabled}
-            className="rounded-xl h-10 px-6 text-xs font-semibold cursor-pointer"
+            className="rounded-xl h-10 px-6 text-xs font-semibold cursor-pointer flex-1 sm:flex-initial"
           >
             {submitLabel}
           </Button>

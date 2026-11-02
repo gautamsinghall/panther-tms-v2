@@ -565,7 +565,7 @@ export default function FastagTrackingPage() {
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
         <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           {/* Search Input & Action */}
-          <div className="flex items-center gap-2 w-full md:w-auto flex-1 max-w-xl">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto flex-1 max-w-xl">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -829,7 +829,7 @@ export default function FastagTrackingPage() {
         </div>
 
         {/* CENTER COLUMN: Full Interactive Map Engine (Cols 6) */}
-        <div className="lg:col-span-6 h-[580px] flex flex-col">
+        <div className="lg:col-span-6 h-[380px] sm:h-[480px] lg:h-[580px] flex flex-col">
           <FastagMap
             route={currentRoute}
             trip={currentTrip}

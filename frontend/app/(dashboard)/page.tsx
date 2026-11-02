@@ -651,7 +651,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
           {/* FY Filter */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer select-none">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -705,12 +705,12 @@ export default function DashboardPage() {
 
 
       {/* 3. Horizontal Navigation Tabs */}
-      <div className="border-b border-slate-200 flex items-center gap-8 text-xs font-semibold select-none pt-1">
+      <div className="border-b border-slate-200 dark:border-[#22232E] flex items-center gap-4 sm:gap-8 text-xs font-semibold select-none pt-1 overflow-x-auto no-scrollbar min-w-0">
         <button
           type="button"
           onClick={() => setActiveTab("overview")}
           className={cn(
-            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer shrink-0",
             activeTab === "overview"
               ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
               : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
@@ -724,7 +724,7 @@ export default function DashboardPage() {
           type="button"
           onClick={() => setActiveTab("finance")}
           className={cn(
-            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer shrink-0",
             activeTab === "finance"
               ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
               : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
@@ -738,7 +738,7 @@ export default function DashboardPage() {
           type="button"
           onClick={() => setActiveTab("operations")}
           className={cn(
-            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer shrink-0",
             activeTab === "operations"
               ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
               : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"
@@ -752,7 +752,7 @@ export default function DashboardPage() {
           type="button"
           onClick={() => setActiveTab("own_fleet")}
           className={cn(
-            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer",
+            "flex items-center gap-2 pb-2.5 -mb-px transition-colors cursor-pointer shrink-0",
             activeTab === "own_fleet"
               ? "border-b-2 border-indigo-600 text-indigo-700 font-bold"
               : "text-slate-500 hover:text-slate-800 border-b-2 border-transparent"

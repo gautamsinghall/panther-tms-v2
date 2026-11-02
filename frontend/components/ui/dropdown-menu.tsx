@@ -128,7 +128,7 @@ export function DropdownMenu({ trigger, items, align = "right", className }: Dro
             style={menuStyle}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "min-w-[160px] rounded-xl border border-slate-200/90 bg-white p-1.5 shadow-xl animate-in fade-in-0 zoom-in-95",
+              "min-w-[160px] max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200/90 bg-white p-1.5 shadow-xl animate-in fade-in-0 zoom-in-95",
               className
             )}
           >
