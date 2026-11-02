@@ -771,7 +771,8 @@ export default function MasterLedgerPage() {
             const idMatch =
               (category === "BILLING_CLIENT" && (v.billing_client_id === id || v.lr?.billing_customer_id === id)) ||
               (category === "VENDOR" && (v.vendor_id === id || v.hire_challan?.vendor_id === id)) ||
-              (category === "DRIVER" && v.driver_id === id);
+              (category === "DRIVER" && v.driver_id === id) ||
+              (category === "COMPANY_VEHICLE" && (v.company_vehicle_id === id || v.vehicle_id === id));
             return partyMatch || idMatch;
           });
 
@@ -795,6 +796,15 @@ export default function MasterLedgerPage() {
               } else {
                 cr = amt;
                 running += cr;
+              }
+            } else if (category === "COMPANY_VEHICLE") {
+              // Asset account: additions/purchases/maintenance debit; depreciation/credit reductions credit
+              if (["PURCHASE_VOUCHER", "PAYMENT_VOUCHER", "DEBIT_NOTE", "ASSET_ADDITION"].includes(v.voucher_type)) {
+                dr = amt;
+                running += dr;
+              } else {
+                cr = amt;
+                running -= cr;
               }
             } else {
               if (["PAYMENT_VOUCHER", "ATH_PAYMENT", "BTH_PAYMENT"].includes(v.voucher_type)) {
@@ -1410,15 +1420,15 @@ export default function MasterLedgerPage() {
                   <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">Assets (ASSET)</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Fixed Assets</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">Fixed Assets (FA)</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Fixed Assets</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
-                      <span className="font-semibold text-[#2563EB] dark:text-blue-400">Fleet Vehicles (HCV/LCV)</span>
+                      <span className="font-semibold text-[#2563EB] dark:text-blue-400">Company Owned Fleet Vehicles</span>
                     </div>
                   </div>
 
@@ -1905,6 +1915,7 @@ export default function MasterLedgerPage() {
                     activeCategory === "BILLING_CLIENT" && "bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-400",
                     activeCategory === "VENDOR" && "bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-400",
                     activeCategory === "DRIVER" && "bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-400",
+                    activeCategory === "COMPANY_VEHICLE" && "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-950/60 dark:border-blue-800 dark:text-blue-400",
                     activeCategory === "COMPANY_BANK_ACCOUNT" && "bg-teal-50 border-teal-200 text-teal-600 dark:bg-teal-950/60 dark:border-teal-800 dark:text-teal-400",
                     activeCategory === "DUTIES_AND_TAXES" && "bg-purple-50 border-purple-200 text-purple-600 dark:bg-purple-950/60 dark:border-purple-800 dark:text-purple-400"
                   )}
@@ -1912,6 +1923,7 @@ export default function MasterLedgerPage() {
                   {activeCategory === "BILLING_CLIENT" && <Building2 className="w-5 h-5" />}
                   {activeCategory === "VENDOR" && <Truck className="w-5 h-5" />}
                   {activeCategory === "DRIVER" && <Users className="w-5 h-5" />}
+                  {activeCategory === "COMPANY_VEHICLE" && <Truck className="w-5 h-5" />}
                   {activeCategory === "COMPANY_BANK_ACCOUNT" && <Landmark className="w-5 h-5" />}
                   {activeCategory === "DUTIES_AND_TAXES" && <Receipt className="w-5 h-5" />}
                 </div>
@@ -1921,6 +1933,7 @@ export default function MasterLedgerPage() {
                       {activeCategory === "BILLING_CLIENT" && "Billing Clients (Trade Receivables)"}
                       {activeCategory === "VENDOR" && "Vendors & Suppliers (Trade Payables)"}
                       {activeCategory === "DRIVER" && "Driver Fleet Imprest & Advances"}
+                      {activeCategory === "COMPANY_VEHICLE" && "Company Vehicles (Fixed Assets & Fleet PPE)"}
                       {activeCategory === "COMPANY_BANK_ACCOUNT" && "Company Bank Accounts & Liquidity"}
                       {activeCategory === "DUTIES_AND_TAXES" && "Statutory Duties & Taxes (GST, TDS & TCS)"}
                     </h4>
@@ -1932,6 +1945,7 @@ export default function MasterLedgerPage() {
                     {activeCategory === "BILLING_CLIENT" && "Client accounts bound to Sundry Debtors asset group for automated freight billing & receipt allocations."}
                     {activeCategory === "VENDOR" && "Supplier accounts bound to Sundry Creditors liability group for vehicle hire challans & purchase registers."}
                     {activeCategory === "DRIVER" && "Driver imprest accounts bound to Loans & Advances asset group for en-route fuel/cash recovery."}
+                    {activeCategory === "COMPANY_VEHICLE" && "Company-owned fleet asset accounts bound to Fixed Assets for capital additions, depreciation, and operating trip costs."}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Commercial bank accounts linked to issuing offices for automated inflows, disbursements & contra transfers."}
                     {activeCategory === "DUTIES_AND_TAXES" && "Statutory tax accounts mapped under Duties & Taxes for GST returns (GSTR-1, GSTR-3B) and TDS quarterly returns."}
                   </p>
@@ -1946,6 +1960,7 @@ export default function MasterLedgerPage() {
                     {activeCategory === "BILLING_CLIENT" && "Current Assets (Dr)"}
                     {activeCategory === "VENDOR" && "Current Liabilities (Cr)"}
                     {activeCategory === "DRIVER" && "Current Assets (Dr)"}
+                    {activeCategory === "COMPANY_VEHICLE" && "Fixed Assets (Dr)"}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Current Assets / Liab"}
                     {activeCategory === "DUTIES_AND_TAXES" && "Liabilities & Assets (ITC)"}
                   </span>
@@ -1957,6 +1972,7 @@ export default function MasterLedgerPage() {
                     {activeCategory === "BILLING_CLIENT" && "Sundry Debtors"}
                     {activeCategory === "VENDOR" && "Sundry Creditors"}
                     {activeCategory === "DRIVER" && "Loans & Advances (Asset)"}
+                    {activeCategory === "COMPANY_VEHICLE" && "Fixed Assets"}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Bank Accounts / OD"}
                     {activeCategory === "DUTIES_AND_TAXES" && "Duties & Taxes (TAX)"}
                   </span>
@@ -1969,12 +1985,14 @@ export default function MasterLedgerPage() {
                     activeCategory === "BILLING_CLIENT" && "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800",
                     activeCategory === "VENDOR" && "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800",
                     activeCategory === "DRIVER" && "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800",
+                    activeCategory === "COMPANY_VEHICLE" && "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800",
                     activeCategory === "COMPANY_BANK_ACCOUNT" && "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 border-teal-200 dark:border-teal-800",
                     activeCategory === "DUTIES_AND_TAXES" && "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 border-purple-200 dark:border-purple-800"
                   )}>
                     {activeCategory === "BILLING_CLIENT" && "Corporate Billing Clients"}
                     {activeCategory === "VENDOR" && "Market Vehicle Vendors"}
                     {activeCategory === "DRIVER" && "Driver Trip Advances"}
+                    {activeCategory === "COMPANY_VEHICLE" && "Company Owned Fleet Vehicles"}
                     {activeCategory === "COMPANY_BANK_ACCOUNT" && "Current & OD Accounts"}
                     {activeCategory === "DUTIES_AND_TAXES" && "GST Output / Input ITC / TDS"}
                   </span>
@@ -2344,13 +2362,13 @@ export default function MasterLedgerPage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-4">Vehicle &amp; Fleet Specs</th>
-                      <th className="py-3 px-4">Ledger Account &amp; Hierarchy</th>
+                      <th className="py-3 px-4">Company Vehicle</th>
+                      <th className="py-3 px-4">Account Code</th>
+                      <th className="py-3 px-4 text-right">Opening Balance</th>
                       <th className="py-3 px-4 text-right">Additions (Dr)</th>
                       <th className="py-3 px-4 text-right">Depreciation (Cr)</th>
                       <th className="py-3 px-4 text-right">Book Value (WDV)</th>
-                      <th className="py-3 px-4 text-right">Trip Costs (P&amp;L)</th>
-                      <th className="py-3 px-4">Compliance Status</th>
+                      <th className="py-3 px-4">Last Activity</th>
                       <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
@@ -2360,20 +2378,20 @@ export default function MasterLedgerPage() {
                         <td colSpan={8} className="py-12 text-center text-[#667085] dark:text-slate-400">
                           <Truck className="w-8 h-8 mx-auto text-[#98A2B3] mb-2" />
                           <p className="font-semibold text-sm text-[#101828] dark:text-slate-200">No Company Vehicles Found</p>
-                          <p className="text-xs mt-0.5">No fleet vehicles match your search or filter criteria.</p>
+                          <p className="text-xs mt-0.5">No fleet vehicles match your filter or search criteria.</p>
                         </td>
                       </tr>
                     ) : (
                       filteredCompanyVehicles.map((veh) => {
-                        const isHCV = veh.vehicle_type.includes("HCV") || Number(veh.capacity_mt) >= 7.5;
+                        const isCarryingVal = veh.balance_type === "DR" && Number(veh.current_balance) > 0;
                         return (
                           <tr
                             key={veh.id}
                             className="hover:bg-[#F9FAFB] dark:hover:bg-slate-800/40 transition-colors"
                           >
                             <td className="py-3.5 px-4">
-                              <div className="font-bold text-sm text-[#101828] dark:text-white flex items-center gap-2">
-                                <span className="font-mono tracking-wide px-2 py-0.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold tracking-wide px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 rounded">
                                   {veh.vehicle_number}
                                 </span>
                                 <Badge
@@ -2383,29 +2401,37 @@ export default function MasterLedgerPage() {
                                   {veh.capacity_mt ? `${veh.capacity_mt} MT` : veh.vehicle_type}
                                 </Badge>
                               </div>
-                              <div className="flex items-center gap-2 mt-1 text-[11px] text-[#667085] dark:text-slate-400">
-                                <span>{veh.vehicle_type}</span>
-                                {veh.default_driver_name && (
-                                  <>
-                                    <span>•</span>
-                                    <span>Driver: {veh.default_driver_name}</span>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
-                                {veh.ledger_code || `VEH_${veh.id}`}
+                              <div className="text-[11px] text-[#667085] dark:text-slate-400 mt-0.5">
+                                {veh.vehicle_type}
                               </div>
                               <div className="flex items-center gap-1 mt-0.5">
                                 <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
-                                  {veh.subgroup_name || (isHCV ? "Heavy Commercial Vehicles (HCV)" : "Light Commercial Vehicles (LCV)")}
+                                  {veh.subgroup_name || "Company Owned Fleet Vehicles"}
                                 </span>
                                 <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
                                 <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                                  {veh.group_name || "Fixed Assets"} ({veh.primary_group_name || "Assets"})
+                                  Fixed Assets (Asset)
                                 </span>
                               </div>
+                              {veh.default_driver_name && (
+                                <div className="text-[10px] text-[#667085] dark:text-slate-400 mt-0.5">
+                                  Driver: {veh.default_driver_name}
+                                </div>
+                              )}
+                              {veh.chassis_number && (
+                                <div className="text-[10px] text-[#98A2B3] font-mono mt-0.5">
+                                  Chassis: {veh.chassis_number}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-xs text-slate-700 dark:text-slate-300">
+                              {veh.ledger_code || `VEH-${veh.id}`}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-medium text-slate-600 dark:text-slate-300">
+                              {formatCurrency(veh.opening_balance)}
+                              <span className="text-[10px] text-[#98A2B3] ml-1">
+                                {veh.opening_balance_type}
+                              </span>
                             </td>
                             <td className="py-3.5 px-4 text-right font-medium text-[#027A48] dark:text-emerald-400">
                               {formatCurrency(veh.total_debit)}
@@ -2417,37 +2443,22 @@ export default function MasterLedgerPage() {
                               <span
                                 className={cn(
                                   "font-bold text-xs",
-                                  veh.balance_type === "DR" ? "text-blue-600 dark:text-blue-400" : "text-[#B42318] dark:text-rose-400"
+                                  isCarryingVal ? "text-blue-600 dark:text-blue-400" : "text-[#667085] dark:text-slate-400"
                                 )}
                               >
                                 {formatCurrency(veh.current_balance)}
                               </span>
-                              <span className="text-[10px] text-[#98A2B3] ml-1">{veh.balance_type}</span>
+                              <Badge
+                                variant={isCarryingVal ? "primary" : "neutral"}
+                                className="ml-2 text-[10px] px-1.5 py-0"
+                              >
+                                {isCarryingVal ? "Book Value" : "Written Off"}
+                              </Badge>
                             </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <div className="font-semibold text-slate-700 dark:text-slate-200 text-xs">
-                                {formatCurrency(veh.total_operational_expense)}
-                              </div>
+                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                              {veh.last_transaction_date ? formatDate(veh.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
-                                Diesel: {formatCurrency(veh.total_diesel_expense)} • Toll: {formatCurrency(veh.total_toll_expense)}
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300 text-xs">
-                              <div className="flex items-center gap-1.5">
-                                <Badge
-                                  variant={veh.is_active ? "success" : "neutral"}
-                                  className="text-[10px] px-1.5 py-0"
-                                >
-                                  {veh.status}
-                                </Badge>
-                                {veh.fitness_expiry && (
-                                  <span className="text-[10px] text-[#667085] dark:text-slate-400">
-                                    Fit: {formatDate(veh.fitness_expiry)}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-[#98A2B3] mt-0.5">
-                                {veh.transaction_count} ledger entries
+                                {veh.transaction_count} entries • Ops: {formatCurrency(veh.total_operational_expense)}
                               </div>
                             </td>
                             <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
@@ -2740,7 +2751,7 @@ export default function MasterLedgerPage() {
                     {detailedLedger.category === "BILLING_CLIENT" && "Current Assets → Sundry Debtors → Corporate Debtors"}
                     {detailedLedger.category === "VENDOR" && "Current Liabilities → Sundry Creditors → Market Vehicle Vendors"}
                     {detailedLedger.category === "DRIVER" && "Current Assets → Loans & Advances → Driver Trip Advances"}
-                    {detailedLedger.category === "COMPANY_VEHICLE" && "Fixed Assets (ASSET) → Fixed Assets (FA) → Heavy Commercial / Fleet Assets"}
+                    {detailedLedger.category === "COMPANY_VEHICLE" && "Fixed Assets → Fixed Assets → Company Owned Fleet Vehicles"}
                     {detailedLedger.category === "COMPANY_BANK_ACCOUNT" && "Current Assets / Liab → Bank Accounts → Current & OD"}
                     {detailedLedger.category === "DUTIES_AND_TAXES" && "Liabilities & Assets → Duties & Taxes → Statutory Dues"}
                   </span>

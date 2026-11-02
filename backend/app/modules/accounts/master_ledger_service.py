@@ -2369,15 +2369,10 @@ async def list_company_vehicle_ledgers(
     - Group in Primary: Fixed Assets (FA)
     - Subgroup in Group: Heavy Commercial Vehicles (FA_HEAVY_VEHICLES) or Company Fleet (FA_COMPANY_VEHICLES)
     """
-    from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
-    await seed_indian_accounting_chart_of_accounts(session)
-
     stmt = (
         select(CompanyVehicle)
         .options(
             selectinload(CompanyVehicle.default_driver),
-            selectinload(CompanyVehicle.account).selectinload(Account.group).selectinload(GroupInPrimary.primary_group),
-            selectinload(CompanyVehicle.account).selectinload(Account.subgroup),
         )
         .order_by(CompanyVehicle.vehicle_number.asc())
     )
@@ -2402,9 +2397,21 @@ async def list_company_vehicle_ledgers(
     res = await session.execute(stmt)
     vehicles = list(res.scalars().all())
 
+    # Map accounts linked to company vehicles (mirrors billing clients, vendors, drivers)
+    acc_stmt = (
+        select(Account)
+        .options(
+            selectinload(Account.group).selectinload(GroupInPrimary.primary_group),
+            selectinload(Account.subgroup),
+        )
+        .where(Account.company_vehicle_id.is_not(None))
+    )
+    acc_res = await session.execute(acc_stmt)
+    acc_map = {acc.company_vehicle_id: acc for acc in acc_res.scalars().all()}
+
     items: List[schemas.CompanyVehicleLedgerListItem] = []
     for v in vehicles:
-        acc = v.account
+        acc = acc_map.get(v.id) or getattr(v, "account", None)
         if not acc:
             acc = await get_or_create_party_account(
                 session,
@@ -2413,6 +2420,7 @@ async def list_company_vehicle_ledgers(
                 party_name=v.vehicle_number,
                 party_code=f"VEH_{v.id:04d}",
             )
+            acc_map[v.id] = acc
 
         open_bal = Decimal(str(acc.opening_balance or "0.00")) if acc else Decimal("0.00")
         open_dr = open_bal if (acc and acc.opening_balance_type == "DR") else Decimal("0.00")
