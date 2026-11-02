@@ -36,7 +36,7 @@ export function AuthNavbar({
 
   return (
     <header
-      className={`w-full bg-transparent px-8 sm:px-12 lg:px-16 h-16 sm:h-20 flex items-center justify-between z-30 shrink-0 ${
+      className={`w-full bg-transparent px-4 sm:px-12 lg:px-16 h-16 sm:h-20 flex items-center justify-between z-30 shrink-0 ${
         className || ""
       }`}
     >
@@ -91,7 +91,7 @@ export function AuthNavbar({
         </span>
         <Link
           href={resolvedCtaHref}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 active:scale-[0.98] transition-all group/cta ${
+          className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 active:scale-[0.98] transition-all group/cta ${
             isDark
               ? "liquid-glass-pill hover:bg-white/20 text-white border border-white/25"
               : "bg-white hover:bg-slate-50 text-slate-800 hover:text-indigo-600 border border-slate-200/90 shadow-2xs hover:shadow-xs"

@@ -129,7 +129,7 @@ export default function LoginPage() {
         {/* ======================================================================= */}
         {/* LEFT PRODUCT AREA: Brand Hero, Feature Highlights & Security Trust     */}
         {/* ======================================================================= */}
-        <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col justify-center py-2 relative z-10 order-2 lg:order-1">
+        <div className="hidden lg:flex w-full lg:w-[58%] xl:w-[60%] flex-col justify-center py-2 relative z-10 order-2 lg:order-1">
           <div className="space-y-4 sm:space-y-5 max-w-[580px]">
             {/* 1. Pill Badge */}
             <div className="animate-liquid-fade-1">
@@ -228,7 +228,7 @@ export default function LoginPage() {
               onMouseMove={handleMouseMove}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              className="liquid-glass-panel rounded-[24px] sm:rounded-[32px] p-5 sm:p-9 space-y-5 relative"
+              className="liquid-glass-panel rounded-2xl sm:rounded-[32px] p-4.5 sm:p-9 space-y-4 sm:space-y-5 relative"
             >
               {/* Dynamic neutral reflection / subtle glint without blue tint */}
               <div
@@ -256,7 +256,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <h2 className="text-2xl sm:text-[26px] font-extrabold tracking-tight text-white pt-0.5 leading-snug">
+                  <h2 className="text-xl sm:text-2xl xl:text-[26px] font-extrabold tracking-tight text-white pt-0.5 leading-snug">
                     Sign in to your workspace
                   </h2>
                   <p className="text-xs sm:text-[13px] text-white/70 leading-normal">
@@ -415,13 +415,13 @@ export default function LoginPage() {
                 </div>
 
                 {/* 6. Demo Workspace Card - Clean visionOS glass inset */}
-                <div className="liquid-glass-inset rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3">
+                <div className="liquid-glass-inset rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
                       <Sparkles className="w-4 h-4 text-white" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-xs font-bold text-white leading-snug truncate">
+                      <h3 className="text-xs font-bold text-white leading-snug">
                         Try the demo workspace
                       </h3>
                       <p className="text-[11px] text-white/60 leading-tight">
@@ -433,7 +433,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={fillDemo}
-                    className="liquid-glass-pill hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-white/25 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap shrink-0 group/demo"
+                    className="liquid-glass-pill hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-white/25 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap shrink-0 group/demo"
                   >
                     <span>Use demo credentials</span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover/demo:translate-x-0.5 transition-transform" />
@@ -448,8 +448,8 @@ export default function LoginPage() {
       {/* ========================================================================= */}
       {/* ENTERPRISE TRUST & SECURITY FOOTER                                        */}
       {/* ========================================================================= */}
-      <footer className="w-full border-t border-white/10 bg-transparent py-3 px-8 sm:px-12 lg:px-16 flex flex-wrap items-center justify-between gap-y-2 text-xs text-white/70 z-30 shrink-0">
-        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+      <footer className="w-full border-t border-white/10 bg-transparent py-3 px-4 sm:px-12 lg:px-16 flex flex-wrap items-center justify-between gap-y-2 text-xs text-white/70 z-30 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6">
           {/* Status Badge */}
           <div className="liquid-glass-pill inline-flex items-center gap-2 px-3 py-1 rounded-full">
             <span className="relative flex h-2 w-2">
@@ -459,17 +459,17 @@ export default function LoginPage() {
             <span className="font-semibold text-white font-sans text-[11px]">Systems Operational</span>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 font-medium text-white/75 text-[11px]">
+          <span className="hidden sm:inline-flex items-center gap-1.5 font-medium text-white/75 text-[11px]">
             <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>Tenant-Isolated architecture</span>
           </span>
 
-          <span className="inline-flex items-center gap-1.5 font-medium text-white/75 text-[11px]">
+          <span className="hidden md:inline-flex items-center gap-1.5 font-medium text-white/75 text-[11px]">
             <ShieldCheck className="w-3.5 h-3.5 text-white/80 shrink-0" />
             <span>256-bit SSL encrypted</span>
           </span>
 
-          <span className="hidden md:inline-flex items-center gap-1.5 font-medium text-white/75 text-[11px]">
+          <span className="hidden lg:inline-flex items-center gap-1.5 font-medium text-white/75 text-[11px]">
             <Layers className="w-3.5 h-3.5 text-white/80 shrink-0" />
             <span>Multi-tier RBAC security</span>
           </span>
