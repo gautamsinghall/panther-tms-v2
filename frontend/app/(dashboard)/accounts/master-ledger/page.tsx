@@ -1142,7 +1142,7 @@ export default function MasterLedgerPage() {
       {/* ------------------------------------------------------------------------ */}
       {activeCategory === "OVERVIEW" && !selectedAccountId && (
         <div className="space-y-6">
-          {/* Section 1: 4 Core Master Ledger Categories (4 by 4 Grid) */}
+          {/* Section 1: 4 Operational Master Ledger Categories (4 by 4 Grid) */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -1150,15 +1150,15 @@ export default function MasterLedgerPage() {
                   Operational Master Ledgers
                 </h3>
                 <p className="text-xs text-[#667085] dark:text-slate-400">
-                  Party, fleet imprest, and banking master accounts mapped to Ind AS Schedule III groups.
+                  Party and fleet master accounts mapped to Ind AS Schedule III groups.
                 </p>
               </div>
               <Badge variant="neutral" className="text-xs font-medium">
-                5 Core Categories
+                4 Core Categories
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               {/* Card 1: Billing Client Ledger */}
               <div
                 onClick={() => {
@@ -1181,7 +1181,7 @@ export default function MasterLedgerPage() {
                   <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#4F46E5] dark:group-hover:text-indigo-400 transition-colors">
                     Billing Client Ledger
                   </h3>
-                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed min-h-[34px]">
                     Customer freight billing, receipts, debit/credit notes, and open receivables.
                   </p>
 
@@ -1258,7 +1258,7 @@ export default function MasterLedgerPage() {
                   <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#B54708] dark:group-hover:text-amber-400 transition-colors">
                     Vendor Ledger
                   </h3>
-                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed min-h-[34px]">
                     Supplier purchase bills, Hire Challans, ATH/BTH disbursements, and liabilities.
                   </p>
 
@@ -1335,7 +1335,7 @@ export default function MasterLedgerPage() {
                   <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#027A48] dark:group-hover:text-emerald-400 transition-colors">
                     Driver Ledger
                   </h3>
-                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed min-h-[34px]">
                     Trip advances (cash/fuel), toll &amp; expense reimbursements, and recoveries.
                   </p>
 
@@ -1412,7 +1412,7 @@ export default function MasterLedgerPage() {
                   <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#2563EB] dark:group-hover:text-blue-400 transition-colors">
                     Company Vehicles Ledger
                   </h3>
-                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed min-h-[34px]">
                     Fleet capital assets, WDV, depreciation, additions, and operating cost accounts.
                   </p>
 
@@ -1466,8 +1466,27 @@ export default function MasterLedgerPage() {
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Card 5: Company Bank Accounts */}
+          {/* Section 2: Statutory, Banking & Regulatory Ledgers */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-[#101828] dark:text-white uppercase tracking-wider">
+                  Banking, Statutory &amp; Regulatory Ledgers
+                </h3>
+                <p className="text-xs text-[#667085] dark:text-slate-400">
+                  Commercial banking liquidity, GST/TDS statutory tax ledgers, and Ind AS Schedule III compliance.
+                </p>
+              </div>
+              <Badge variant="primary" className="text-xs font-medium">
+                Ind AS / Schedule III
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+              {/* Card 5: Company Bank Accounts (Spans 1 Column) */}
               <div
                 onClick={() => {
                   setActiveCategory("COMPANY_BANK_ACCOUNT");
@@ -1489,7 +1508,7 @@ export default function MasterLedgerPage() {
                   <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#0E9384] dark:group-hover:text-teal-400 transition-colors">
                     Company Bank Accounts
                   </h3>
-                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed min-h-[34px]">
                     Commercial bank accounts, receipts, vendor payments, contra transfers, and TallyPrime.
                   </p>
 
@@ -1543,125 +1562,98 @@ export default function MasterLedgerPage() {
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Section 2: Statutory Duties & Taxes & Ind AS Compliance */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-bold text-[#101828] dark:text-white uppercase tracking-wider">
-                  Statutory &amp; Regulatory Ledgers
-                </h3>
-                <p className="text-xs text-[#667085] dark:text-slate-400">
-                  GST, TDS, and statutory duty accounts mapped under Indian Accounting Standards.
-                </p>
-              </div>
-              <Badge variant="primary" className="text-xs font-medium">
-                Ind AS / Schedule III
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-              {/* Card 5: Duties & Taxes Featured Card (Spans 3 Columns) */}
+              {/* Card 6: Duties & Taxes Featured Card (Spans 2 Columns) */}
               <div
                 onClick={() => {
                   setActiveCategory("DUTIES_AND_TAXES");
                   setSearchQuery("");
                   setStatusFilter("ALL");
                 }}
-                className="lg:col-span-3 group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#7C3AED] dark:hover:border-purple-500 hover:shadow-[0_10px_25px_-5px_rgba(124,58,237,0.12)] transition-all duration-200 flex flex-col justify-between"
+                className="xl:col-span-2 group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#7C3AED] dark:hover:border-purple-500 hover:shadow-[0_10px_25px_-5px_rgba(124,58,237,0.12)] transition-all duration-200 flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/60 border border-[#DDD6FE] dark:border-purple-800 flex items-center justify-center text-[#7C3AED] dark:text-purple-400 group-hover:scale-105 transition-transform">
-                        <Receipt className="w-6 h-6" />
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-11 h-11 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/60 border border-[#DDD6FE] dark:border-purple-800 flex items-center justify-center text-[#7C3AED] dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
+                        <Receipt className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <h3 className="text-base font-bold text-[#101828] dark:text-white group-hover:text-[#7C3AED] dark:group-hover:text-purple-400 transition-colors">
-                            Duties &amp; Taxes (GST, TDS &amp; TCS)
+                            Duties &amp; Taxes
                           </h3>
                           <Badge variant="primary" className="text-[10px] font-semibold px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border-purple-200 dark:border-purple-800 whitespace-nowrap">
                             Statutory Dues
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-0.5">
-                          Output GST on freight billing, Input Tax Credit (ITC) on supplier purchases, GTA 5% RCM, and TDS u/s 194C/J/Q.
+                        <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-0.5 min-h-[16px] line-clamp-1">
+                          Output GST, Input Tax Credit (ITC), GTA 5% RCM, and TDS.
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-right sm:self-center">
-                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">Net Statutory Liability</span>
-                      <span className="text-lg font-extrabold text-[#7C3AED] dark:text-purple-400">
+                    <div className="text-right shrink-0">
+                      <span className="text-[10px] uppercase font-bold text-[#667085] dark:text-slate-400 block">Net Liability</span>
+                      <span className="text-base font-extrabold text-[#7C3AED] dark:text-purple-400">
                         {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
                       </span>
                     </div>
                   </div>
 
-                  {/* 3-Tier Hierarchy Inline Badges */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 flex flex-wrap items-center justify-between gap-2 text-xs mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Primary Group:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded bg-white dark:bg-[#1C1D24] shadow-2xs border border-slate-200/60 dark:border-[#303036]">
-                        Current Liabilities &amp; Assets (ITC)
-                      </span>
+                  {/* 3-Tier Ind AS Hierarchy Block */}
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Primary Group:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Current Liabilities &amp; Assets (ITC)</span>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Group in Primary:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded bg-white dark:bg-[#1C1D24] shadow-2xs border border-slate-200/60 dark:border-[#303036]">
-                        Duties &amp; Taxes (TAX)
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Group in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Duties &amp; Taxes (TAX)</span>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Subgroups:</span>
-                      <span className="font-semibold text-[#7C3AED] dark:text-purple-400 px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800">
-                        GST Output • Input ITC • RCM • TDS
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#667085] dark:text-slate-400">Subgroup in Group:</span>
+                      <span className="font-semibold text-[#7C3AED] dark:text-purple-400">GST Output • Input ITC • RCM • TDS</span>
                     </div>
                   </div>
 
                   {/* 4 Financial Metric Mini-Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
-                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">Tax Accounts</span>
-                      <span className="text-sm font-bold text-[#101828] dark:text-white mt-1 block">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-[#303036]">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
+                      <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">Tax Accounts</span>
+                      <span className="text-xs font-bold text-[#101828] dark:text-white mt-0.5 block truncate">
                         {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length} ledgers
                       </span>
                     </div>
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
-                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">Output Tax (Cr)</span>
-                      <span className="text-sm font-bold text-[#B42318] dark:text-rose-400 mt-1 block">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
+                      <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">Output Tax (Cr)</span>
+                      <span className="text-xs font-bold text-[#B42318] dark:text-rose-400 mt-0.5 block truncate">
                         {formatCurrency(overview?.duties_and_taxes?.total_credit || 0)}
                       </span>
                     </div>
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
-                      <span className="text-[11px] text-[#667085] dark:text-slate-400 block">ITC &amp; TDS Paid (Dr)</span>
-                      <span className="text-sm font-bold text-[#027A48] dark:text-emerald-400 mt-1 block">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
+                      <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">ITC &amp; TDS Paid</span>
+                      <span className="text-xs font-bold text-[#027A48] dark:text-emerald-400 mt-0.5 block truncate">
                         {formatCurrency(overview?.duties_and_taxes?.total_debit || 0)}
                       </span>
                     </div>
-                    <div className="p-3 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/30 border border-[#DDD6FE] dark:border-purple-800">
-                      <span className="text-[11px] text-[#7C3AED] dark:text-purple-300 font-medium block">Net Payable</span>
-                      <span className="text-sm font-extrabold text-[#7C3AED] dark:text-purple-400 mt-1 block">
+                    <div className="p-2.5 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/30 border border-[#DDD6FE] dark:border-purple-800">
+                      <span className="text-[10px] text-[#7C3AED] dark:text-purple-300 font-medium block truncate">Net Payable</span>
+                      <span className="text-xs font-extrabold text-[#7C3AED] dark:text-purple-400 mt-0.5 block truncate">
                         {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 flex items-center justify-between text-xs font-semibold text-[#7C3AED] dark:text-purple-400 border-t border-slate-100 dark:border-[#303036]">
+                <div className="mt-4 pt-2.5 flex items-center justify-between text-xs font-semibold text-[#7C3AED] dark:text-purple-400 border-t border-slate-100 dark:border-[#303036]">
                   <span>Open Duties &amp; Taxes Directory</span>
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
 
-              {/* Card 6: Ind AS Chart of Accounts Health (Spans 1 Column) */}
-              <div className="lg:col-span-1 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs flex flex-col justify-between">
+              {/* Card 7: Ind AS Chart of Accounts Health (Spans 1 Column) */}
+              <div className="xl:col-span-1 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
@@ -1672,34 +1664,37 @@ export default function MasterLedgerPage() {
                     </Badge>
                   </div>
 
-                  <h3 className="text-sm font-bold text-[#101828] dark:text-white">
+                  <h3 className="text-base font-bold text-[#101828] dark:text-white">
                     Ind AS Hierarchy Binding
                   </h3>
-                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 leading-relaxed">
+                  <p className="text-[11px] text-[#667085] dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed min-h-[34px]">
                     Automatic hierarchy verification for corporate statutory reporting and TallyPrime XML export.
                   </p>
 
-                  <div className="mt-3.5 space-y-2 text-xs">
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Primary Groups:</span>
+                      <span className="text-[#667085] dark:text-slate-400">Primary Groups:</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">
                         {overview?.hierarchy?.primary_groups_count ?? hierarchyStats.primary_groups} Active
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Groups in Primary:</span>
+                      <span className="text-[#667085] dark:text-slate-400">Groups in Primary:</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">
                         {overview?.hierarchy?.groups_count ?? hierarchyStats.groups} Verified
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Subgroups in Group:</span>
+                      <span className="text-[#667085] dark:text-slate-400">Subgroups in Group:</span>
                       <span className="font-semibold text-indigo-600 dark:text-indigo-400">
                         {overview?.hierarchy?.subgroups_count ?? hierarchyStats.subgroups} Bound
                       </span>
                     </div>
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#303036]">
-                      <span className="text-slate-500">Status:</span>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-[#303036] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#667085] dark:text-slate-400">Audit Status</span>
                       <span className="text-[#027A48] dark:text-emerald-400 font-bold flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5" /> {overview?.hierarchy?.status ?? hierarchyStats.status}
                       </span>
@@ -1707,13 +1702,13 @@ export default function MasterLedgerPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#303036]">
+                <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-[#303036]">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={handleVerifyHierarchy}
                     disabled={isVerifyingHierarchy}
-                    className="w-full text-xs h-8 gap-1.5 font-semibold text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                    className="w-full text-xs h-7.5 gap-1.5 font-semibold text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/60 hover:bg-blue-50 dark:hover:bg-blue-950/40"
                   >
                     <RefreshCw className={cn("w-3.5 h-3.5", isVerifyingHierarchy && "animate-spin")} />
                     {isVerifyingHierarchy ? "Verifying..." : "Verify & Bind"}
@@ -1731,97 +1726,97 @@ export default function MasterLedgerPage() {
       {activeCategory !== "OVERVIEW" && !selectedAccountId && (
         <div className="space-y-4">
           {/* Top Bar with Category Tabs and Back to Folders */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#17171B] p-4 rounded-xl border border-slate-200/90 dark:border-[#303036] shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 bg-white dark:bg-[#17171B] p-3 sm:p-4 rounded-xl border border-slate-200/90 dark:border-[#303036] shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+            <div className="flex items-center gap-2 min-w-0 overflow-x-auto no-scrollbar py-0.5">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveCategory("OVERVIEW")}
-                className="gap-1.5 text-xs font-semibold"
+                className="gap-1.5 text-xs font-semibold shrink-0 whitespace-nowrap"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Categories
               </Button>
-              <div className="h-5 w-px bg-[#E4E7EC] dark:bg-[#202025]" />
-              <div className="flex rounded-lg bg-[#F2F4F7] dark:bg-[#202025] p-0.5">
+              <div className="h-5 w-px bg-[#E4E7EC] dark:bg-[#202025] shrink-0" />
+              <div className="flex items-center rounded-lg bg-[#F2F4F7] dark:bg-[#202025] p-0.5 shrink-0">
                 <button
                   onClick={() => setActiveCategory("BILLING_CLIENT")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                     activeCategory === "BILLING_CLIENT"
                       ? "bg-white dark:bg-[#101013] text-[#4F46E5] dark:text-indigo-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
-                  <Building2 className="w-3.5 h-3.5" />
-                  Billing Clients ({billingClients.length})
+                  <Building2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Billing Clients ({billingClients.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveCategory("VENDOR")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                     activeCategory === "VENDOR"
                       ? "bg-white dark:bg-[#101013] text-[#B54708] dark:text-amber-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
-                  <Truck className="w-3.5 h-3.5" />
-                  Vendors ({vendors.length})
+                  <Truck className="w-3.5 h-3.5 shrink-0" />
+                  <span>Vendors ({vendors.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveCategory("DRIVER")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                     activeCategory === "DRIVER"
                       ? "bg-white dark:bg-[#101013] text-[#027A48] dark:text-emerald-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
-                  <Users className="w-3.5 h-3.5" />
-                  Drivers ({drivers.length})
+                  <Users className="w-3.5 h-3.5 shrink-0" />
+                  <span>Drivers ({drivers.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveCategory("COMPANY_VEHICLE")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                     activeCategory === "COMPANY_VEHICLE"
                       ? "bg-white dark:bg-[#101013] text-[#2563EB] dark:text-blue-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
-                  <Truck className="w-3.5 h-3.5" />
-                  Company Vehicles ({companyVehicles.length})
+                  <Truck className="w-3.5 h-3.5 shrink-0" />
+                  <span>Company Vehicles ({companyVehicles.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveCategory("COMPANY_BANK_ACCOUNT")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                     activeCategory === "COMPANY_BANK_ACCOUNT"
                       ? "bg-white dark:bg-[#101013] text-[#0E9384] dark:text-teal-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
-                  <Landmark className="w-3.5 h-3.5" />
-                  Bank Accounts ({bankAccounts.length})
+                  <Landmark className="w-3.5 h-3.5 shrink-0" />
+                  <span>Bank Accounts ({bankAccounts.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveCategory("DUTIES_AND_TAXES")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                    "px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0",
                     activeCategory === "DUTIES_AND_TAXES"
                       ? "bg-white dark:bg-[#101013] text-[#7C3AED] dark:text-purple-400 shadow-sm"
                       : "text-[#667085] dark:text-slate-400 hover:text-[#101828] dark:hover:text-white"
                   )}
                 >
-                  <Receipt className="w-3.5 h-3.5" />
-                  Duties &amp; Taxes ({dutiesAndTaxes.length})
+                  <Receipt className="w-3.5 h-3.5 shrink-0" />
+                  <span>Duties &amp; Taxes ({dutiesAndTaxes.length})</span>
                 </button>
               </div>
             </div>
 
             {/* Search & Filters */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-64">
+            <div className="flex items-center gap-2 w-full xl:w-auto shrink-0">
+              <div className="relative flex-1 xl:w-64">
                 <Search className="w-4 h-4 text-[#667085] dark:text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
@@ -1833,7 +1828,7 @@ export default function MasterLedgerPage() {
                       : activeCategory === "DRIVER"
                       ? "drivers"
                       : activeCategory === "COMPANY_VEHICLE"
-                      ? "company vehicles"
+                      ? "vehicles"
                       : activeCategory === "COMPANY_BANK_ACCOUNT"
                       ? "bank accounts"
                       : "tax accounts"
@@ -1953,7 +1948,7 @@ export default function MasterLedgerPage() {
               </div>
 
               {/* 3-Tier Hierarchy Breadcrumb Pill */}
-              <div className="flex flex-wrap items-center gap-2 bg-slate-50 dark:bg-[#101013] p-2 rounded-lg border border-slate-200/80 dark:border-[#303036] text-xs">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar bg-slate-50 dark:bg-[#101013] p-2 rounded-lg border border-slate-200/80 dark:border-[#303036] text-xs shrink-0 whitespace-nowrap">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] uppercase font-bold text-slate-400">Primary Group:</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200 px-2 py-0.5 rounded bg-white dark:bg-[#1C1D24] shadow-2xs border border-slate-200/60 dark:border-[#303036]">
