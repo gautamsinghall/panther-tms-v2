@@ -33,7 +33,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getActiveOffice, OfficeSummary, getStoredAuth } from "@/lib/auth";
@@ -1295,90 +1295,40 @@ export default function LRBookingPage() {
       key: "lr_number",
       header: "LR / GR Number",
       sortable: true,
+      minWidth: "140px",
+      defaultVisible: true,
       cell: (row) => (
-        <div>
-          <span className="font-mono font-bold text-slate-900 block text-xs hover:text-primary transition-colors cursor-pointer">
-            {row.lr_number}
-          </span>
-          <span className="text-[11px] text-slate-500 block">
-            {formatDate(row.dispatch_date || row.lr_date)}
-          </span>
-          {row.issuing_office_name && (
-            <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[10px] bg-slate-100 text-slate-600 border border-slate-200">
-              {row.issuing_office_name}
-            </span>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedLrForView(row);
+            setIsViewModalOpen(true);
+          }}
+          className="font-mono font-bold text-slate-900 dark:text-white hover:text-indigo-600 transition-colors text-xs text-left cursor-pointer"
+          title="Click to view and print Lorry Receipt"
+        >
+          {row.lr_number}
+        </button>
       ),
     },
     {
-      key: "parties",
-      header: "Consignor & Consignee",
+      key: "lr_date",
+      header: "Booking Date",
+      sortable: true,
+      minWidth: "115px",
+      defaultVisible: true,
       cell: (row) => (
-        <div className="space-y-0.5 text-xs max-w-[220px]">
-          <div className="font-semibold text-slate-900 truncate" title={row.consigner_name}>
-            <span className="text-[10px] text-slate-400 font-normal mr-1">FROM:</span>
-            {row.consigner_name || "—"}
-          </div>
-          <div className="text-slate-600 truncate" title={row.consignee_name}>
-            <span className="text-[10px] text-slate-400 font-normal mr-1">TO:</span>
-            {row.consignee_name || "—"}
-          </div>
-          {row.billing_customer_name && (
-            <div className="text-[10px] text-indigo-600 font-medium truncate" title={row.billing_customer_name}>
-              Bill: {row.billing_customer_name}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "corridor",
-      header: "Route / Corridor",
-      cell: (row) => (
-        <div className="flex items-center gap-1.5 text-xs text-slate-700">
-          <span className="font-medium text-slate-900">{row.origin_city || "Origin"}</span>
-          <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
-          <span className="font-medium text-slate-900">{row.destination_city || "Dest"}</span>
-        </div>
-      ),
-    },
-    {
-      key: "vehicle",
-      header: "Vehicle & Driver",
-      cell: (row) => (
-        <div className="space-y-1">
-          <VehiclePlate vehicleNumber={row.vehicle_number} source={row.vehicle_source as any} />
-          {row.driver_name && (
-            <div className="text-[11px] text-slate-500 flex items-center gap-1">
-              <span>{row.driver_name}</span>
-              {row.driver_phone && <span className="text-slate-400">({row.driver_phone})</span>}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "cargo",
-      header: "Cargo & Load Type",
-      cell: (row) => (
-        <div className="text-xs space-y-0.5">
-          <span className="font-semibold text-slate-900 block">
-            {row.chargeable_weight_mt ? `${parseFloat(String(row.chargeable_weight_mt))} MT` : "0 MT"}
-            {row.package_count ? ` · ${row.package_count} Pkgs` : ""}
-          </span>
-          {(row.load_type_name || row.load_type) && (
-            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
-              {row.load_type_name || row.load_type}
-            </span>
-          )}
-        </div>
+        <span className="text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
+          {formatDate(row.dispatch_date || row.lr_date)}
+        </span>
       ),
     },
     {
       key: "booking_status",
       header: "Booking Status",
       align: "center",
+      minWidth: "120px",
+      defaultVisible: true,
       cell: (row) => {
         const bStatus = row.booking_status || (row.status === "CANCELLED" ? "Canceled" : "Booked");
         const badgeColor =
@@ -1398,7 +1348,304 @@ export default function LRBookingPage() {
       key: "status",
       header: "Lifecycle Status",
       align: "center",
+      minWidth: "130px",
+      defaultVisible: true,
       cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "fastag_tracking",
+      header: "FASTag Tracking",
+      align: "center",
+      minWidth: "140px",
+      defaultVisible: true,
+      cell: (row) => {
+        if (!row.vehicle_number) {
+          return <span className="text-xs text-slate-400 italic">No vehicle</span>;
+        }
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/tracking/fastag?vehicle=${encodeURIComponent(row.vehicle_number)}`);
+            }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-2xs group cursor-pointer whitespace-nowrap"
+            title={`Track FASTag toll movements for ${row.vehicle_number}`}
+          >
+            <Navigation className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span>Track FASTag</span>
+          </button>
+        );
+      },
+    },
+    {
+      key: "consigner_name",
+      header: "Consignor (From)",
+      sortable: true,
+      minWidth: "180px",
+      defaultVisible: true,
+      cell: (row) => (
+        <div className="text-xs max-w-[200px]">
+          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block" title={row.consigner_name}>
+            {row.consigner_name || "—"}
+          </span>
+          {row.consigner_address && (
+            <span className="text-[11px] text-slate-400 truncate block" title={row.consigner_address}>
+              {row.consigner_address}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "consignee_name",
+      header: "Consignee (To)",
+      sortable: true,
+      minWidth: "180px",
+      defaultVisible: true,
+      cell: (row) => (
+        <div className="text-xs max-w-[200px]">
+          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate block" title={row.consignee_name}>
+            {row.consignee_name || "—"}
+          </span>
+          {row.consignee_address && (
+            <span className="text-[11px] text-slate-400 truncate block" title={row.consignee_address}>
+              {row.consignee_address}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "billing_customer_name",
+      header: "Billing Customer",
+      sortable: true,
+      minWidth: "170px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate block max-w-[190px]" title={row.billing_customer_name}>
+          {row.billing_customer_name || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "origin_city",
+      header: "Origin",
+      sortable: true,
+      minWidth: "130px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
+          {row.origin_city || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "destination_city",
+      header: "Destination",
+      sortable: true,
+      minWidth: "130px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
+          {row.destination_city || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "vehicle_number",
+      header: "Vehicle Number",
+      sortable: true,
+      minWidth: "130px",
+      defaultVisible: true,
+      cell: (row) => (
+        <VehiclePlate vehicleNumber={row.vehicle_number} source={row.vehicle_source as any} />
+      ),
+    },
+    {
+      key: "vehicle_source",
+      header: "Vehicle Source",
+      minWidth: "115px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className={cn(
+          "px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wider border",
+          row.vehicle_source === "MARKET"
+            ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+            : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
+        )}>
+          {row.vehicle_source || "FLEET"}
+        </span>
+      ),
+    },
+    {
+      key: "driver_name",
+      header: "Driver Name",
+      minWidth: "130px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs text-slate-800 dark:text-slate-200">
+          {row.driver_name || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "driver_phone",
+      header: "Driver Phone",
+      minWidth: "120px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
+          {row.driver_phone || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "issuing_office_name",
+      header: "Issuing Office",
+      sortable: true,
+      minWidth: "120px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300">
+          {row.issuing_office_name || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "chargeable_weight_mt",
+      header: "Weight (MT)",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "115px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 font-mono">
+          {row.chargeable_weight_mt ? `${parseFloat(String(row.chargeable_weight_mt))} MT` : "0 MT"}
+        </span>
+      ),
+    },
+    {
+      key: "actual_weight_mt",
+      header: "Actual Wt (MT)",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "115px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300 font-mono">
+          {row.actual_weight_mt ? `${parseFloat(String(row.actual_weight_mt))} MT` : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "package_count",
+      header: "Packages",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "95px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs text-slate-800 dark:text-slate-200 font-mono">
+          {row.package_count || 0}
+        </span>
+      ),
+    },
+    {
+      key: "load_type",
+      header: "Load Type",
+      minWidth: "105px",
+      defaultVisible: false,
+      cell: (row) => (
+        row.load_type_name || row.load_type ? (
+          <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+            {row.load_type_name || row.load_type}
+          </span>
+        ) : "—"
+      ),
+    },
+    {
+      key: "particulars",
+      header: "Cargo / Goods",
+      minWidth: "140px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300 truncate block max-w-[150px]" title={row.particulars}>
+          {row.particulars || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "total_freight_amount",
+      header: "Freight Amount",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "125px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 font-mono">
+          {formatCurrency(row.total_freight_amount)}
+        </span>
+      ),
+    },
+    {
+      key: "advance_amount",
+      header: "Advance",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "110px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300 font-mono">
+          {formatCurrency(row.advance_amount)}
+        </span>
+      ),
+    },
+    {
+      key: "balance_amount",
+      header: "Balance",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "115px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className={cn(
+          "font-mono font-bold text-xs",
+          parseFloat(String(row.balance_amount)) > 0
+            ? "text-rose-600 dark:text-rose-400"
+            : "text-emerald-600 dark:text-emerald-400"
+        )}>
+          {formatCurrency(row.balance_amount)}
+        </span>
+      ),
+    },
+    {
+      key: "eway_bill_number",
+      header: "E-Way Bill No.",
+      minWidth: "130px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+          {row.eway_bill_number || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "job_number",
+      header: "Job Number",
+      minWidth: "120px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+          {row.job_number || "—"}
+        </span>
+      ),
     },
   ];
 
@@ -1589,6 +1836,7 @@ export default function LRBookingPage() {
       />
 
       <DataTable
+        tableId="lr_booking_table"
         columns={columns}
         data={filteredData}
         isLoading={isLoading}

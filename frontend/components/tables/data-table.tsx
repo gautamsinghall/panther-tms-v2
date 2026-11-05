@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -59,6 +59,9 @@ export interface DataTableProps<T> {
   selectable?: boolean;
   bulkActions?: BulkActionDef<T>[];
   getRowId?: (row: T, index: number) => string | number;
+  enableColumnToggle?: boolean;
+  enableColumnSlider?: boolean;
+  tableId?: string;
 }
 
 /**
@@ -97,6 +100,9 @@ export function DataTable<T extends Record<string, any>>({
   selectable = true,
   bulkActions = [],
   getRowId,
+  enableColumnToggle = true,
+  enableColumnSlider = true,
+  tableId,
 }: DataTableProps<T>) {
   const activeSearchCol = searchColumn || searchField;
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,6 +112,102 @@ export function DataTable<T extends Record<string, any>>({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [density, setDensity] = useState<TableDensity>(defaultDensity);
   const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
+
+  // 1. Column Visibility State
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    columns.forEach((c, idx) => {
+      const k = (c.key || c.id || `col-${idx}`) as string;
+      initial[k] = c.defaultVisible !== false;
+    });
+    if (typeof window !== "undefined" && tableId) {
+      try {
+        const saved = localStorage.getItem(`dt_cols_${tableId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return { ...initial, ...parsed };
+        }
+      } catch {}
+    }
+    return initial;
+  });
+
+  useEffect(() => {
+    setVisibleColumns((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      columns.forEach((c, idx) => {
+        const k = (c.key || c.id || `col-${idx}`) as string;
+        if (next[k] === undefined) {
+          next[k] = c.defaultVisible !== false;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [columns]);
+
+  const [isColMenuOpen, setIsColMenuOpen] = useState(false);
+  const colMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
+        setIsColMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleColumn = (key: string) => {
+    setVisibleColumns((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (typeof window !== "undefined" && tableId) {
+        try {
+          localStorage.setItem(`dt_cols_${tableId}`, JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllColumns = () => {
+    const all: Record<string, boolean> = {};
+    columns.forEach((c, idx) => {
+      const k = (c.key || c.id || `col-${idx}`) as string;
+      all[k] = true;
+    });
+    setVisibleColumns(all);
+    if (typeof window !== "undefined" && tableId) {
+      try {
+        localStorage.setItem(`dt_cols_${tableId}`, JSON.stringify(all));
+      } catch {}
+    }
+  };
+
+  const handleResetColumns = () => {
+    const reset: Record<string, boolean> = {};
+    columns.forEach((c, idx) => {
+      const k = (c.key || c.id || `col-${idx}`) as string;
+      reset[k] = c.defaultVisible !== false;
+    });
+    setVisibleColumns(reset);
+    if (typeof window !== "undefined" && tableId) {
+      try {
+        localStorage.removeItem(`dt_cols_${tableId}`);
+      } catch {}
+    }
+  };
+
+  const activeColumns = useMemo(() => {
+    if (!enableColumnToggle) return columns;
+    return columns.filter((col, idx) => {
+      const k = (col.key || col.id || `col-${idx}`) as string;
+      return visibleColumns[k] !== false;
+    });
+  }, [columns, visibleColumns, enableColumnToggle]);
+
 
   const resolveRowId = (row: T, index: number): string | number => {
     if (getRowId) return getRowId(row, index);
@@ -173,6 +275,72 @@ export function DataTable<T extends Record<string, any>>({
     return sortedData.slice(start, start + pageSize);
   }, [sortedData, validPage, pageSize]);
 
+  // 2. Table Horizontal Scroll & Column Slider State
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const rafScrollRef = useRef<number | null>(null);
+  const [canScrollHorizontally, setCanScrollHorizontally] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [maxScrollLeft, setMaxScrollLeft] = useState(0);
+
+  const checkScrollable = useCallback(() => {
+    const el = tableContainerRef.current;
+    if (!el) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 4;
+    setCanScrollHorizontally(hasOverflow);
+    setMaxScrollLeft(Math.max(0, el.scrollWidth - el.clientWidth));
+    setScrollPosition(el.scrollLeft);
+  }, []);
+
+  useEffect(() => {
+    if (!enableColumnSlider) return;
+    checkScrollable();
+    const el = tableContainerRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
+      rafScrollRef.current = requestAnimationFrame(() => {
+        if (tableContainerRef.current) {
+          setScrollPosition(tableContainerRef.current.scrollLeft);
+        }
+      });
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", checkScrollable);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        checkScrollable();
+      });
+      resizeObserver.observe(el);
+    }
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", checkScrollable);
+      if (resizeObserver) resizeObserver.disconnect();
+      if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
+    };
+  }, [checkScrollable, enableColumnSlider, activeColumns, paginatedData]);
+
+  const handleScrollBy = (offset: number) => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollBy({ left: offset, behavior: "smooth" });
+    }
+  };
+
+  const handleSliderChange = (newVal: number) => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollLeft = newVal;
+    }
+    if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
+    rafScrollRef.current = requestAnimationFrame(() => {
+      setScrollPosition(newVal);
+    });
+  };
+
   const allCurrentPageSelected = useMemo(() => {
     if (paginatedData.length === 0) return false;
     return paginatedData.every((row, idx) => selectedIds.has(resolveRowId(row, idx)));
@@ -209,9 +377,9 @@ export function DataTable<T extends Record<string, any>>({
 
   const handleExportSelected = () => {
     if (selectedRowsList.length === 0) return;
-    const headers = columns.map((c) => c.header || c.label || c.key || c.id || "").join(",");
+    const headers = activeColumns.map((c) => c.header || c.label || c.key || c.id || "").join(",");
     const rows = selectedRowsList.map((row) =>
-      columns.map((c) => `"${String(row[c.key || c.id || ""] ?? "").replace(/"/g, '""')}"`).join(",")
+      activeColumns.map((c) => `"${String(row[c.key || c.id || ""] ?? "").replace(/"/g, '""')}"`).join(",")
     );
     const csvContent = [headers, ...rows].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -287,7 +455,7 @@ export function DataTable<T extends Record<string, any>>({
           </div>
         </div>
       ) : (
-        (searchable || toolbarExtra) && (
+        (searchable || toolbarExtra || enableColumnToggle) && (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-white dark:bg-[#17171B] p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 dark:border-[#303036] shadow-2xs">
             {/* Search Input */}
             {searchable && (
@@ -301,13 +469,13 @@ export function DataTable<T extends Record<string, any>>({
                     setCurrentPage(1);
                   }}
                   placeholder={searchPlaceholder}
-                  className="w-full pl-9 pr-8 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                  className="w-full pl-9 pr-8 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-[#333546] bg-white dark:bg-[#111219] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 {searchTerm && (
                   <button
                     type="button"
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-slate-700 transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -315,15 +483,75 @@ export function DataTable<T extends Record<string, any>>({
               </div>
             )}
 
-            {/* Right Tools: Extra Controls + Density Toggle */}
-            <div className="flex items-center gap-2 justify-between sm:justify-end shrink-0 w-full sm:w-auto">
+            {/* Right Tools: Extra Controls + Columns Toggle + Density Toggle */}
+            <div className="flex items-center gap-2 justify-between sm:justify-end shrink-0 w-full sm:w-auto ml-auto">
               {toolbarExtra}
+
+              {/* Columns Visibility Dropdown */}
+              {enableColumnToggle && (
+                <div className="relative" ref={colMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsColMenuOpen(!isColMenuOpen)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#181922] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-xl transition-all shadow-2xs cursor-pointer"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Columns</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </button>
+
+                  {isColMenuOpen && (
+                    <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-[#272835] font-semibold text-slate-900 dark:text-slate-200">
+                        <span>Columns Visibility</span>
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={handleSelectAllColumns}
+                            className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                          >
+                            All
+                          </button>
+                          <span className="text-slate-400">·</span>
+                          <button
+                            type="button"
+                            onClick={handleResetColumns}
+                            className="text-slate-400 hover:underline cursor-pointer"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                        {columns.map((col, idx) => {
+                          const colKey = (col.key || col.id || `col-${idx}`) as string;
+                          const colLabel = col.header || col.label || colKey;
+                          return (
+                            <label
+                              key={colKey}
+                              className="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 dark:hover:bg-[#20222E] rounded-md cursor-pointer text-slate-700 dark:text-slate-300 transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={visibleColumns[colKey] !== false}
+                                onChange={() => toggleColumn(colKey)}
+                                className="rounded border-slate-300 dark:border-[#3D3E4E] text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer accent-indigo-600"
+                              />
+                              <span className="select-none truncate">{colLabel}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Density Toggle */}
               <button
                 type="button"
                 onClick={() => setDensity(density === "comfortable" ? "compact" : "comfortable")}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all shadow-2xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-[#181922] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] rounded-xl transition-all shadow-2xs cursor-pointer"
                 title={`Current: ${density}. Click to switch.`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
@@ -335,8 +563,56 @@ export function DataTable<T extends Record<string, any>>({
       )}
 
       {/* Main Table Container */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto [webkit-overflow-scrolling:touch] custom-scrollbar">
+      <div className="rounded-2xl border border-slate-200/90 dark:border-[#2D303E] bg-white dark:bg-[#111219] shadow-2xs overflow-hidden">
+        {/* Horizontal Column Slider (Rendered whenever columns overflow) */}
+        {enableColumnSlider && canScrollHorizontally && (
+          <div className="px-4 py-2 bg-slate-50/90 dark:bg-[#0F1015] border-b border-slate-200/80 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 print:hidden animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 font-mono uppercase tracking-wider">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Columns Slider</span>
+              </span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                (Slide horizontally to view all columns)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleScrollBy(-240)}
+                disabled={scrollPosition <= 0}
+                aria-label="Slide Left"
+                className="w-7 h-7 rounded-lg bg-white dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="relative flex items-center">
+                <input
+                  type="range"
+                  min={0}
+                  max={maxScrollLeft}
+                  value={scrollPosition}
+                  onChange={(e) => handleSliderChange(Number(e.target.value))}
+                  className="w-36 sm:w-64 h-2 bg-slate-200 dark:bg-[#1A1B24] border border-slate-300 dark:border-[#2B2C37] rounded-lg appearance-none cursor-pointer accent-indigo-600 transition-all"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleScrollBy(240)}
+                disabled={scrollPosition >= maxScrollLeft - 2}
+                aria-label="Slide Right"
+                className="w-7 h-7 rounded-lg bg-white dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div ref={tableContainerRef} className="overflow-x-auto [webkit-overflow-scrolling:touch] custom-scrollbar">
           <table className={cn("w-full text-left border-collapse", tableClassName)}>
             {/* Sticky Header */}
             <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200/80 backdrop-blur-xs">
@@ -354,19 +630,19 @@ export function DataTable<T extends Record<string, any>>({
                   </th>
                 )}
 
-                {columns.map((col, cIdx) => {
+                {activeColumns.map((col, cIdx) => {
                   const colKey = (col.key || col.id || `col-${cIdx}`) as string;
                   const isSorted = sortKey === colKey;
                   return (
                     <th
                       key={colKey}
-                      style={{ width: col.width }}
+                      style={{ width: col.width, minWidth: col.minWidth || col.width }}
                       className={cn(
-                        "text-xs font-semibold uppercase tracking-wider text-slate-500 select-none font-mono",
+                        "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none font-mono whitespace-nowrap",
                         cellPaddingClass,
                         col.align === "right" || col.isNumeric ? "text-right" : "",
                         col.align === "center" ? "text-center" : "",
-                        col.sortable ? "cursor-pointer hover:text-slate-900" : ""
+                        col.sortable ? "cursor-pointer hover:text-slate-900 dark:hover:text-white" : ""
                       )}
                       onClick={() => col.sortable && handleSort(colKey)}
                     >
@@ -420,8 +696,8 @@ export function DataTable<T extends Record<string, any>>({
                         <Skeleton className="w-4 h-4 rounded mx-auto" />
                       </td>
                     )}
-                    {columns.map((c) => (
-                      <td key={c.key} className={cellPaddingClass}>
+                    {activeColumns.map((c, idx) => (
+                      <td key={(c.key || c.id || `col-${idx}`) as string} className={cellPaddingClass}>
                         <Skeleton className="h-4 w-3/4 rounded" />
                       </td>
                     ))}
@@ -437,7 +713,7 @@ export function DataTable<T extends Record<string, any>>({
               {!isLoading && isError && (
                 <tr>
                   <td
-                    colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
+                    colSpan={activeColumns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
                     className="py-14 text-center"
                   >
                     <DataState
@@ -453,7 +729,7 @@ export function DataTable<T extends Record<string, any>>({
               {!isLoading && !isError && paginatedData.length === 0 && (
                 <tr>
                   <td
-                    colSpan={columns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
+                    colSpan={activeColumns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
                     className="py-16 text-center"
                   >
                     {emptyState && !searchTerm.trim() ? (

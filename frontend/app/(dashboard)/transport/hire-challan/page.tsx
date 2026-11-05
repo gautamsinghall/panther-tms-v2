@@ -1112,68 +1112,133 @@ export default function HireChallansPage() {
       key: "challan_number",
       header: "Challan Number",
       sortable: true,
+      minWidth: "140px",
+      defaultVisible: true,
       cell: (row) => (
-        <div>
-          <span className="font-mono font-bold text-slate-900 block text-xs">
-            {row.challan_number}
-          </span>
-          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500">
-            <span>{formatDate(row.challan_date)}</span>
-            {row.issuing_office_code && (
-              <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded text-[10px] font-semibold">
-                {row.issuing_office_code}
-              </span>
-            )}
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setSelectedChallanDetail(row)}
+          className="font-mono font-bold text-slate-900 dark:text-white hover:text-indigo-600 transition-colors text-xs text-left cursor-pointer"
+          title="Click to view & print challan"
+        >
+          {row.challan_number}
+        </button>
       ),
     },
     {
-      key: "vehicle",
-      header: "Vehicle / Driver",
+      key: "challan_date",
+      header: "Challan Date",
+      sortable: true,
+      minWidth: "115px",
+      defaultVisible: true,
       cell: (row) => (
-        <div>
-          <span className="font-mono font-bold uppercase text-slate-800 block text-xs">
-            {row.vehicle_number}
-          </span>
-          <span className="block text-[11px] text-slate-500">
-            {row.driver_name || "Unassigned"}
-            {row.driver_phone ? ` (${row.driver_phone})` : ""}
-          </span>
-        </div>
+        <span className="text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
+          {formatDate(row.challan_date)}
+        </span>
       ),
     },
     {
-      key: "owner",
+      key: "issuing_office_code",
+      header: "Issuing Office",
+      sortable: true,
+      minWidth: "120px",
+      defaultVisible: true,
+      cell: (row) => (
+        row.issuing_office_code || row.issuing_office_name ? (
+          <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[10px] font-semibold border border-slate-200 dark:border-slate-700">
+            {row.issuing_office_code || row.issuing_office_name}
+          </span>
+        ) : "—"
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      align: "center",
+      minWidth: "120px",
+      defaultVisible: true,
+      cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "vehicle_number",
+      header: "Vehicle Number",
+      sortable: true,
+      minWidth: "130px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="font-mono font-bold uppercase text-slate-900 dark:text-white text-xs">
+          {row.vehicle_number}
+        </span>
+      ),
+    },
+    {
+      key: "owner_name",
       header: "Vendor / Owner",
+      sortable: true,
+      minWidth: "160px",
+      defaultVisible: true,
       cell: (row) => (
-        <div>
-          <span className="text-xs text-slate-700 font-medium block">
-            {row.owner_name || "Direct Driver"}
-          </span>
-          {row.vendor_ref_no && (
-            <span className="text-[10px] text-slate-400 font-mono">
-              Ref: {row.vendor_ref_no}
-            </span>
-          )}
-        </div>
+        <span className="text-xs text-slate-800 dark:text-slate-200 font-medium block truncate max-w-[180px]" title={row.owner_name}>
+          {row.owner_name || "Direct Driver"}
+        </span>
       ),
     },
     {
-      key: "route",
-      header: "Route",
+      key: "driver_name",
+      header: "Driver Name",
+      minWidth: "130px",
+      defaultVisible: true,
       cell: (row) => (
-        <span className="text-xs text-slate-600">
-          {row.from_location || "-"} → {row.to_location || "-"}
+        <span className="text-xs text-slate-700 dark:text-slate-300">
+          {row.driver_name || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "driver_phone",
+      header: "Driver Phone",
+      minWidth: "120px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
+          {row.driver_phone || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "from_location",
+      header: "From (Origin)",
+      sortable: true,
+      minWidth: "130px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300">
+          {row.from_location || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "to_location",
+      header: "To (Destination)",
+      sortable: true,
+      minWidth: "130px",
+      defaultVisible: true,
+      cell: (row) => (
+        <span className="text-xs text-slate-700 dark:text-slate-300">
+          {row.to_location || "—"}
         </span>
       ),
     },
     {
       key: "hire_rate",
-      header: "Agreed Rate / Exp.",
+      header: "Agreed Rate",
+      sortable: true,
       isNumeric: true,
+      align: "right",
+      minWidth: "120px",
+      defaultVisible: true,
       cell: (row) => (
-        <span className="text-xs font-semibold text-slate-900">
+        <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 font-mono">
           {formatCurrency(row.hire_rate)}
         </span>
       ),
@@ -1181,9 +1246,13 @@ export default function HireChallansPage() {
     {
       key: "advance_amount",
       header: "Advance Paid",
+      sortable: true,
       isNumeric: true,
+      align: "right",
+      minWidth: "115px",
+      defaultVisible: false,
       cell: (row) => (
-        <span className="text-xs text-slate-600 font-mono">
+        <span className="text-xs text-slate-700 dark:text-slate-300 font-mono">
           {formatCurrency(row.advance_amount)}
         </span>
       ),
@@ -1191,14 +1260,18 @@ export default function HireChallansPage() {
     {
       key: "balance_amount",
       header: "Balance Due",
+      sortable: true,
       isNumeric: true,
+      align: "right",
+      minWidth: "115px",
+      defaultVisible: true,
       cell: (row) => (
         <span
           className={cn(
             "font-mono font-bold text-xs",
             parseFloat(String(row.balance_amount)) > 0
-              ? "text-rose-600"
-              : "text-emerald-600"
+              ? "text-rose-600 dark:text-rose-400"
+              : "text-emerald-600 dark:text-emerald-400"
           )}
         >
           {formatCurrency(row.balance_amount)}
@@ -1206,10 +1279,53 @@ export default function HireChallansPage() {
       ),
     },
     {
-      key: "status",
-      header: "Status",
-      align: "center",
-      cell: (row) => <StatusBadge status={row.status} />,
+      key: "net_payable_amount",
+      header: "Net Payable",
+      sortable: true,
+      isNumeric: true,
+      align: "right",
+      minWidth: "120px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+          {formatCurrency(row.net_payable_amount)}
+        </span>
+      ),
+    },
+    {
+      key: "tds_amount",
+      header: "TDS Amount",
+      isNumeric: true,
+      align: "right",
+      minWidth: "110px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
+          {formatCurrency(row.tds_amount)}
+        </span>
+      ),
+    },
+    {
+      key: "vendor_ref_no",
+      header: "Vendor Ref No.",
+      minWidth: "130px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
+          {row.vendor_ref_no || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "lr_number",
+      header: "Linked LR",
+      minWidth: "130px",
+      defaultVisible: false,
+      cell: (row) => (
+        <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+          {row.lr_number || "—"}
+        </span>
+      ),
     },
   ];
 
@@ -1308,6 +1424,7 @@ export default function HireChallansPage() {
       />
 
       <DataTable
+        tableId="hire_challans_table"
         columns={columns}
         data={filteredData}
         actions={actions}

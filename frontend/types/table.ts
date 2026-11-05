@@ -11,6 +11,8 @@ export interface ColumnDef<T> {
   align?: "left" | "center" | "right";
   isNumeric?: boolean; // Uses tabular-nums formatting
   width?: string;
+  minWidth?: string;
+  defaultVisible?: boolean;
   cell?: (row: T, index: number) => React.ReactNode;
   render?: (row: T, index: number) => React.ReactNode; // alias for cell
 }
