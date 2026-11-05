@@ -421,11 +421,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="command-palette-title"
-          className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl border border-slate-200 transition-all animate-in zoom-in-95 duration-150 flex flex-col max-h-[75vh] z-10"
+          className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-[#12131A] text-left shadow-2xl border border-slate-200 dark:border-[#28293D] transition-all animate-in zoom-in-95 duration-150 flex flex-col max-h-[75vh] z-10"
           onKeyDown={handleKeyDown}
         >
           {/* Top Search Input Bar */}
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#E4E7EC] bg-white">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200 dark:border-[#22232E] bg-white dark:bg-[#12131A]">
             <style dangerouslySetInnerHTML={{ __html: `
               #command-palette-search-input,
               #command-palette-search-input:focus,
@@ -444,7 +444,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 appearance: none !important;
               }
             `}} />
-            <Search className="w-5 h-5 text-[#667085] shrink-0" />
+            <Search className="w-5 h-5 text-slate-400 dark:text-slate-500 shrink-0" />
             <input
               id="command-palette-search-input"
               aria-label="Search modules and records"
@@ -456,7 +456,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 setSelectedIndex(0);
               }}
               placeholder="Search LR records or modules…"
-              className="flex-1 bg-transparent text-sm text-[#101828] placeholder-[#98A2B3] border-none outline-none ring-0 shadow-none focus:border-none focus:outline-none focus:ring-0 focus:shadow-none"
+              className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 border-none outline-none ring-0 shadow-none focus:border-none focus:outline-none focus:ring-0 focus:shadow-none"
               style={{
                 outline: "none",
                 boxShadow: "none",
@@ -468,35 +468,35 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="p-1 text-[#98A2B3] hover:text-[#101828] rounded"
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded"
                 aria-label="Clear search"
               >
                 <X className="w-4 h-4" />
               </button>
             ) : (
-              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-[#F8F9FA] border border-[#D0D5DD] rounded text-[#667085]">
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-[#1A1A24] border border-slate-200 dark:border-[#303036] rounded text-slate-500 dark:text-slate-400">
                 ESC
               </kbd>
             )}
           </div>
 
           {/* Results List */}
-          <div className="flex-1 overflow-y-auto p-2 divide-y divide-[#F2F4F7]">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 divide-y-0">
             <span id="command-palette-title" className="sr-only">Global search</span>
             {(searchStatus === "debouncing" || searchStatus === "loading") && allResults.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 bg-slate-50 rounded-lg mb-1" role="status">
+              <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-white/5 rounded-lg mb-1" role="status">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
                 <span>Searching LR records for “{query}”…</span>
               </div>
             )}
             {(searchStatus === "debouncing" || searchStatus === "loading") && allResults.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#667085] flex flex-col items-center justify-center gap-2" role="status">
+              <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col items-center justify-center gap-2" role="status">
                 <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                 <span>Searching records and modules for “{query}”…</span>
               </div>
             ) : allResults.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#667085]">
-                <Search className="w-8 h-8 text-[#D0D5DD] mx-auto mb-2" />
+              <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400">
+                <Search className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
                 {searchStatus === "error"
                   ? "Record search could not be loaded. Module results are still available."
                   : `No modules or LR records match “${query}”.`}
@@ -511,38 +511,54 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                     onClick={() => handleSelect(item)}
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={cn(
-                      "w-full flex items-center justify-between p-3 rounded-control text-left transition-colors cursor-pointer group",
-                      isSelected ? "bg-[#EEF2FF] text-[#101828]" : "hover:bg-[#F8F9FB] text-[#344054]"
+                      "w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer group border",
+                      isSelected
+                        ? "bg-indigo-50/90 dark:bg-indigo-950/70 border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs"
+                        : "bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-white/5"
                     )}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
                         className={cn(
-                          "p-2 rounded-control border shrink-0 transition-colors",
+                          "p-2 rounded-lg border shrink-0 transition-colors",
                           isSelected
-                            ? "bg-white border-[#C7D2FE] shadow-xs"
-                            : "bg-[#F8F9FB] border-[#E4E7EC]"
+                            ? "bg-white dark:bg-indigo-900/60 border-indigo-200 dark:border-indigo-700 shadow-2xs"
+                            : "bg-slate-50 dark:bg-[#181924] border-slate-200/80 dark:border-[#28293D]"
                         )}
                       >
                         {item.icon}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-[#101828]">
+                          <span
+                            className={cn(
+                              "text-xs font-semibold truncate",
+                              isSelected
+                                ? "text-indigo-950 dark:text-white"
+                                : "text-slate-800 dark:text-slate-200"
+                            )}
+                          >
                             {item.title}
                           </span>
                           <span
                             className={cn(
-                              "text-[10px] px-1.5 py-0.2 rounded font-medium",
+                              "text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0",
                               isSelected
-                                ? "bg-[#C7D2FE] text-[#3730A3]"
-                                : "bg-[#F2F4F7] text-[#667085]"
+                                ? "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-700/60"
+                                : "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-white/10"
                             )}
                           >
                             {item.category}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#667085] mt-0.5 line-clamp-1">
+                        <p
+                          className={cn(
+                            "text-[11px] mt-0.5 line-clamp-1 truncate",
+                            isSelected
+                              ? "text-indigo-700/90 dark:text-indigo-200/80"
+                              : "text-slate-500 dark:text-slate-400"
+                          )}
+                        >
                           {item.description}
                         </p>
                       </div>
@@ -550,8 +566,10 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
                     <ArrowRight
                       className={cn(
-                        "w-4 h-4 shrink-0 transition-transform",
-                        isSelected ? "text-[#4F46E5] translate-x-1" : "text-[#D0D5DD] opacity-0 group-hover:opacity-100"
+                        "w-4 h-4 shrink-0 transition-transform ml-2",
+                        isSelected
+                          ? "text-indigo-600 dark:text-indigo-400 translate-x-1"
+                          : "text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100"
                       )}
                     />
                   </button>
@@ -561,19 +579,19 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           </div>
 
           {/* Footer Shortcuts */}
-          <div className="px-4 py-2.5 border-t border-[#E4E7EC] bg-[#F8F9FB] flex items-center justify-between text-xs text-[#667085]">
+          <div className="px-4 py-2.5 border-t border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#101014] flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white border border-[#D0D5DD] rounded text-xs font-mono">↑</kbd>
-                <kbd className="px-1.5 py-0.5 bg-white border border-[#D0D5DD] rounded text-xs font-mono">↓</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white dark:bg-[#1A1A24] border border-slate-200 dark:border-[#303036] rounded text-xs font-mono text-slate-700 dark:text-slate-300">↑</kbd>
+                <kbd className="px-1.5 py-0.5 bg-white dark:bg-[#1A1A24] border border-slate-200 dark:border-[#303036] rounded text-xs font-mono text-slate-700 dark:text-slate-300">↓</kbd>
                 <span>navigate</span>
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-2 py-0.5 bg-white border border-[#D0D5DD] rounded text-xs font-mono">↵</kbd>
+                <kbd className="px-2 py-0.5 bg-white dark:bg-[#1A1A24] border border-slate-200 dark:border-[#303036] rounded text-xs font-mono text-slate-700 dark:text-slate-300">↵</kbd>
                 <span>open</span>
               </span>
             </div>
-            <span className="text-xs text-[#98A2B3]">PantherTMS Quick Navigation</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">PantherTMS Quick Navigation</span>
           </div>
         </div>
       </div>

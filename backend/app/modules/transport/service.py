@@ -292,7 +292,15 @@ async def create_company_vehicle(db: AsyncSession, data: CompanyVehicleCreate) -
     existing = await db.execute(select(CompanyVehicle).where(CompanyVehicle.vehicle_number == data.vehicle_number))
     if existing.scalar_one_or_none():
         raise AppException(status_code=400, error_code="DUPLICATE_VEHICLE", message="Company vehicle already registered.")
-    vehicle = CompanyVehicle(**data.model_dump())
+    
+    vehicle_data = data.model_dump()
+    if data.owner_id:
+        owner = await db.get(VehicleOwner, data.owner_id)
+        if owner:
+            vehicle_data["owner_name"] = vehicle_data.get("owner_name") or owner.name
+            vehicle_data["owner_phone"] = vehicle_data.get("owner_phone") or owner.phone
+            
+    vehicle = CompanyVehicle(**vehicle_data)
     db.add(vehicle)
     await db.flush()
 
@@ -317,7 +325,16 @@ async def update_company_vehicle(db: AsyncSession, vehicle_id: int, data: Compan
     if not vehicle:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="Company vehicle not found.")
     old_number = vehicle.vehicle_number
-    for field, val in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    if "owner_id" in update_data and update_data["owner_id"]:
+        owner = await db.get(VehicleOwner, update_data["owner_id"])
+        if owner:
+            if "owner_name" not in update_data or not update_data["owner_name"]:
+                update_data["owner_name"] = owner.name
+            if "owner_phone" not in update_data or not update_data["owner_phone"]:
+                update_data["owner_phone"] = owner.phone
+
+    for field, val in update_data.items():
         setattr(vehicle, field, val)
 
     # If vehicle number changed, keep the linked ledger account in sync

@@ -159,26 +159,7 @@ export function OfficeSwitcher() {
 
   const isMultiOffice = offices.length > 1 || isAdmin;
 
-  // Single office user (non-admin): Show fixed clear badge
-  if (!isMultiOffice && activeOffice) {
-    return (
-      <div
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50/80 border border-emerald-200/80 text-emerald-800 text-xs font-medium shadow-2xs select-none"
-        title={`Assigned Office: ${activeOffice.name} (${activeOffice.code})`}
-      >
-        <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span className="font-semibold text-emerald-900">{activeOffice.code}</span>
-        <span className="text-emerald-700 truncate max-w-[120px] hidden sm:inline">{activeOffice.name}</span>
-        {activeOffice.is_head_office && (
-          <span className="text-[10px] bg-emerald-200/60 text-emerald-800 px-1 py-0.2 rounded font-semibold">
-            HQ
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  // Multi-office or Admin: Interactive Switcher Dropdown
+  // Multi-office, Single-office, or Admin: Interactive Switcher Dropdown
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
@@ -187,7 +168,7 @@ export function OfficeSwitcher() {
         className={cn(
           "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg border transition-all duration-150 shadow-2xs cursor-pointer select-none text-xs",
           isOpen
-            ? "bg-indigo-50 border-indigo-300 text-indigo-900 ring-2 ring-indigo-500/20"
+            ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200 ring-2 ring-indigo-500/20"
             : "bg-white dark:bg-[#17171B] border-slate-200/90 dark:border-[#303036] text-slate-800 dark:text-[#F5F5F7] hover:bg-slate-50 dark:hover:bg-[#1E1E24] hover:border-slate-300"
         )}
       >
@@ -197,13 +178,13 @@ export function OfficeSwitcher() {
         <div className="flex items-center gap-1.5 text-left truncate">
           <span className="text-slate-400 font-normal hidden sm:inline">Office:</span>
           {activeOffice?.id === 0 ? (
-            <span className="font-semibold text-indigo-700 flex items-center gap-1">
+            <span className="font-semibold text-indigo-700 dark:text-indigo-400 flex items-center gap-1">
               <Globe className="w-3 h-3 inline" /> All Offices
             </span>
           ) : (
             <>
-              <span className="font-bold text-slate-900">{activeOffice?.code || "HQ"}</span>
-              <span className="font-medium text-slate-600 truncate max-w-[110px] hidden sm:inline">
+              <span className="font-bold text-slate-900 dark:text-white">{activeOffice?.code || "HQ"}</span>
+              <span className="font-medium text-slate-600 dark:text-slate-300 truncate max-w-[110px] hidden sm:inline">
                 {activeOffice?.name || "Corporate Office"}
               </span>
             </>
@@ -220,12 +201,12 @@ export function OfficeSwitcher() {
 
       {isOpen && (
         <div className="absolute left-0 mt-1.5 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#17171B] p-1.5 shadow-xl z-50 animate-in fade-in-0 zoom-in-95">
-          <div className="px-2.5 py-2 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-2.5 py-2 border-b border-slate-100 dark:border-[#22232E] flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Active Issuing Office
             </span>
             <span className="text-[10px] text-slate-500 font-medium">
-              {offices.length} Available
+              {offices.length} {offices.length === 1 ? "Assigned" : "Available"}
             </span>
           </div>
 
@@ -237,14 +218,14 @@ export function OfficeSwitcher() {
                 className={cn(
                   "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer",
                   activeOffice?.id === 0
-                    ? "bg-indigo-50/90 text-indigo-900 font-semibold"
-                    : "text-slate-700 hover:bg-slate-50"
+                    ? "bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 font-semibold"
+                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
                 )}
               >
                 <div className="flex items-center gap-2">
                   <Globe className="w-4 h-4 text-indigo-600 shrink-0" />
                   <div>
-                    <div className="font-semibold text-slate-900">All Issuing Offices</div>
+                    <div className="font-semibold text-slate-900 dark:text-white">All Issuing Offices</div>
                     <div className="text-[11px] text-slate-400">Consolidated cross-office view</div>
                   </div>
                 </div>
@@ -262,16 +243,16 @@ export function OfficeSwitcher() {
                   className={cn(
                     "w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer group",
                     isSelected
-                      ? "bg-indigo-50/90 text-indigo-900 font-semibold"
-                      : "text-slate-700 hover:bg-slate-50"
+                      ? "bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 font-semibold"
+                      : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5"
                   )}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <MapPin className={cn("w-3.5 h-3.5 shrink-0", isSelected ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600")} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-900">{office.code}</span>
-                        <span className="text-slate-700 truncate">{office.name}</span>
+                        <span className="font-bold text-slate-900 dark:text-white">{office.code}</span>
+                        <span className="text-slate-700 dark:text-slate-200 truncate">{office.name}</span>
                         {office.is_head_office && (
                           <span className="text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 px-1 py-0.2 rounded shrink-0">
                             HQ
@@ -296,9 +277,11 @@ export function OfficeSwitcher() {
             })}
           </div>
 
-          <div className="pt-1.5 mt-1 border-t border-slate-100 px-2.5 pb-1">
+          <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-[#22232E] px-2.5 pb-1">
             <span className="text-[10px] text-slate-400">
-              Data & transactions are scoped to the selected office.
+              {!isMultiOffice
+                ? "Assigned exclusively to this office. Additional branches can be assigned under Settings > Users."
+                : "Data & transactions are scoped to the selected office."}
             </span>
           </div>
         </div>

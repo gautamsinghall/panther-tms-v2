@@ -172,19 +172,64 @@ async def chat_with_copilot(
 
     # 2.5 Conversational Write Workflows (LR, Job, Hire Challan)
     if db:
-        # A. Transport Job Workflow
+        # Check active drafts across all three workflow types
         active_job_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="job")
-        has_active_job = False
-        if active_job_id:
-            d_job = await lr_draft_store.get_draft(active_job_id)
-            if d_job and not d_job.is_confirmed:
-                has_active_job = True
+        d_job = (await lr_draft_store.get_draft(active_job_id)) if active_job_id else None
+        has_active_job = bool(d_job and not d_job.is_confirmed)
+
+        active_hc_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="hire_challan")
+        d_hc = (await lr_draft_store.get_draft(active_hc_id)) if active_hc_id else None
+        has_active_hc = bool(d_hc and not d_hc.is_confirmed)
+
+        active_d_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="lr")
+        existing_d = (await lr_draft_store.get_draft(active_d_id)) if active_d_id else None
+        has_active_draft = bool(existing_d and not existing_d.is_confirmed)
 
         is_job_req = is_job_booking_intent(last_user_message)
         is_job_canc = is_job_cancel_intent(last_user_message)
         is_job_inq = is_instructional_job_inquiry(last_user_message)
 
-        if not is_job_inq and (is_job_req or is_job_canc or (has_active_job and any(w in last_user_message.lower() for w in ("consigner", "consignee", "from", "to", "cargo", "weight", "packages", "ton", "mt", "box")))):
+        is_hc_req = is_hire_challan_intent(last_user_message)
+        is_hc_canc = is_hc_cancel_intent(last_user_message)
+        is_hc_inq = is_instructional_hc_inquiry(last_user_message)
+
+        is_booking = is_lr_booking_intent(last_user_message)
+        is_cancel = is_cancel_intent(last_user_message)
+        is_inquiry = is_instructional_inquiry(last_user_message)
+
+        chosen_workflow = None
+
+        # Priority 1: Explicit cancellation of an active draft
+        if is_job_canc and has_active_job:
+            chosen_workflow = "job"
+        elif is_hc_canc and has_active_hc:
+            chosen_workflow = "hc"
+        elif is_cancel and has_active_draft:
+            chosen_workflow = "lr"
+        # Priority 2: Explicit new booking intent (not instructional inquiry)
+        elif is_job_req and not is_job_inq:
+            chosen_workflow = "job"
+        elif is_hc_req and not is_hc_inq:
+            chosen_workflow = "hc"
+        elif is_booking and not is_inquiry:
+            chosen_workflow = "lr"
+        # Priority 3: Seamless continuation of an active draft
+        # Allows user to provide fields one-by-one or in compound answers without dropping context
+        elif not (is_job_inq or is_hc_inq or is_inquiry):
+            active_list = []
+            if has_active_job and d_job:
+                active_list.append(("job", getattr(d_job, "updated_at", "")))
+            if has_active_hc and d_hc:
+                active_list.append(("hc", getattr(d_hc, "updated_at", "")))
+            if has_active_draft and existing_d:
+                active_list.append(("lr", getattr(existing_d, "updated_at", "")))
+
+            if active_list:
+                # Select the most recently updated active draft
+                active_list.sort(key=lambda x: str(x[1]), reverse=True)
+                chosen_workflow = active_list[0][0]
+
+        if chosen_workflow == "job":
             reply_content, cards = await handle_conversational_job_booking(
                 db=db,
                 user=current_user,
@@ -201,20 +246,7 @@ async def chat_with_copilot(
                 provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
-
-        # B. Hire Challan Workflow
-        active_hc_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="hire_challan")
-        has_active_hc = False
-        if active_hc_id:
-            d_hc = await lr_draft_store.get_draft(active_hc_id)
-            if d_hc and not d_hc.is_confirmed:
-                has_active_hc = True
-
-        is_hc_req = is_hire_challan_intent(last_user_message)
-        is_hc_canc = is_hc_cancel_intent(last_user_message)
-        is_hc_inq = is_instructional_hc_inquiry(last_user_message)
-
-        if not is_hc_inq and (is_hc_req or is_hc_canc or (has_active_hc and any(w in last_user_message.lower() for w in ("vehicle", "rate", "hire", "advance", "from", "to", "driver", "tds", "challan")))):
+        elif chosen_workflow == "hc":
             reply_content, cards = await handle_conversational_hc_booking(
                 db=db,
                 user=current_user,
@@ -231,24 +263,7 @@ async def chat_with_copilot(
                 provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
-
-        # C. LR / GR Booking Workflow
-        active_d_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="lr")
-        has_active_draft = False
-        if active_d_id:
-            existing_d = await lr_draft_store.get_draft(active_d_id)
-            if existing_d and not existing_d.is_confirmed:
-                has_active_draft = True
-
-        is_booking = is_lr_booking_intent(last_user_message)
-        is_cancel = is_cancel_intent(last_user_message)
-        is_inquiry = is_instructional_inquiry(last_user_message)
-
-        if not is_inquiry and (
-            is_booking
-            or is_cancel
-            or (has_active_draft and any(w in last_user_message.lower() for w in ("consigner", "consignee", "vehicle", "freight", "from", "to", "delivery", "loading", "advance", "rate", "box", "ton", "party", "bilty")))
-        ):
+        elif chosen_workflow == "lr":
             reply_content, cards = await handle_conversational_lr_booking(
                 db=db,
                 user=current_user,

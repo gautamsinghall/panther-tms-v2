@@ -76,7 +76,7 @@ export function Header() {
   return (
     <header className="h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between z-20 shrink-0 select-none">
       {/* Left: Mobile Menu Trigger + Organization / Branch Switcher */}
-      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 overflow-hidden">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         {/* Mobile Sidebar Hamburger Trigger (Hidden on Desktop >= 1024px) */}
         <button
           type="button"

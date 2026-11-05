@@ -100,8 +100,11 @@ export function PantherAIPanel() {
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAssistantMsgRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isSubmittingRef = useRef(false);
+  const prevMessagesCountRef = useRef(messages.length);
+  const lastScrolledMsgIdRef = useRef<string | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = messagesContainerRef.current;
@@ -120,12 +123,51 @@ export function PantherAIPanel() {
     }
   }, []);
 
-  // Auto-scroll when messages update, loading state changes, or panel opens
+  // Smoothly scroll to the beginning (top) of a new assistant response
+  const scrollToAssistantTop = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const container = messagesContainerRef.current;
+    const msgEl = lastAssistantMsgRef.current;
+    if (!container || !msgEl) return;
+
+    requestAnimationFrame(() => {
+      if (!messagesContainerRef.current || !lastAssistantMsgRef.current) return;
+      const containerRect = messagesContainerRef.current.getBoundingClientRect();
+      const msgRect = lastAssistantMsgRef.current.getBoundingClientRect();
+      const scrollOffset = msgRect.top - containerRect.top;
+      const targetTop = messagesContainerRef.current.scrollTop + scrollOffset - 12;
+      messagesContainerRef.current.scrollTo({
+        top: Math.max(0, targetTop),
+        behavior,
+      });
+    });
+  }, []);
+
+  // Auto-scroll intelligently:
+  // - When a new assistant response arrives, display the beginning at the top of the chat area
+  // - When user sends a message or when waiting/loading, scroll to bottom
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+
+    const lastMsg = messages[messages.length - 1];
+    const isNewAssistantMsg =
+      !isLoading &&
+      lastMsg?.role === "assistant" &&
+      lastMsg.id !== lastScrolledMsgIdRef.current &&
+      messages.length > 1;
+
+    if (isNewAssistantMsg) {
+      lastScrolledMsgIdRef.current = lastMsg.id;
+      // Slight delay allows markdown & card rendering to compute height before scrolling
+      const timer = setTimeout(() => {
+        scrollToAssistantTop("smooth");
+      }, 50);
+      prevMessagesCountRef.current = messages.length;
+      return () => clearTimeout(timer);
+    } else if (isLoading || lastMsg?.role === "user") {
       scrollToBottom("smooth");
     }
-  }, [isOpen, messages, isLoading, scrollToBottom]);
+    prevMessagesCountRef.current = messages.length;
+  }, [isOpen, messages, isLoading, scrollToAssistantTop, scrollToBottom]);
 
   // Focus textarea only when the panel first opens, without shifting scroll
   useEffect(() => {
@@ -464,11 +506,14 @@ export function PantherAIPanel() {
         ref={messagesContainerRef}
         className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-white dark:bg-[#0F111D] no-scrollbar overscroll-contain"
       >
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
-          >
+        {messages.map((msg, idx) => {
+          const isLatestAssistant = idx === messages.length - 1 && msg.role === "assistant";
+          return (
+            <div
+              key={msg.id}
+              ref={isLatestAssistant ? lastAssistantMsgRef : null}
+              className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+            >
             {msg.role === "user" ? (
               // User Bubble
               <div className="max-w-[85%] rounded-2xl rounded-tr-xs px-4 py-2.5 bg-[#5B50E6] text-white text-xs sm:text-[13px] leading-relaxed shadow-xs">
@@ -997,7 +1042,8 @@ export function PantherAIPanel() {
               </span>
             )}
           </div>
-        ))}
+          );
+        })}
 
         {/* Typing indicator */}
         {isLoading && (

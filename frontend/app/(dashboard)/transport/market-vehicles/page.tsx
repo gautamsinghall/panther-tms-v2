@@ -22,6 +22,7 @@ import {
   Download,
   CheckCircle2,
   Info,
+  Lock,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
@@ -768,23 +769,31 @@ export default function MarketVehiclesPage() {
             </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Company / Market Vehicle Dropdown */}
+                {/* Company / Market Vehicle Locked Field */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Company / Market Vehicle <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 flex items-center justify-between">
+                    <span>
+                      Company / Market Vehicle <span className="text-rose-500">*</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      <Lock className="w-2.5 h-2.5 text-amber-600" /> Locked to Section
+                    </span>
                   </label>
-                  <select
-                    value={formValues.ownership_type}
-                    onChange={(e) =>
-                      setFormValues((prev) => ({ ...prev, ownership_type: e.target.value }))
-                    }
-                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs cursor-pointer"
-                  >
-                    <option value="Market Vehicle">Market Vehicle (External Vendor / Hired)</option>
-                    <option value="Company Vehicle">Company Vehicle (Owned Asset)</option>
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      readOnly
+                      tabIndex={-1}
+                      value="Market Vehicle (External Vendor / Hired)"
+                      aria-label="Ownership Classification"
+                      className="w-full h-10 pl-3.5 pr-9 text-xs sm:text-sm font-semibold rounded-xl border border-slate-200 bg-slate-100/90 text-slate-800 cursor-not-allowed select-none focus:outline-none shadow-2xs"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  </div>
                   <p className="text-[11px] text-slate-500">
-                    Identifies whether vehicle is third-party market hired or internal company asset.
+                    Locked to third-party market hired fleet for this register.
                   </p>
                 </div>
 

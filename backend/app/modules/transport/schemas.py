@@ -221,14 +221,56 @@ class MarketVehicleResponse(MarketVehicleBase):
 # ---------------------------------------------------------------------------
 class CompanyVehicleBase(BaseModel):
     vehicle_number: str = Field(..., min_length=4, max_length=20)
-    vehicle_type: str = Field(..., min_length=2, max_length=50)
+    vehicle_type: str = Field(..., min_length=2, max_length=100)
     capacity_mt: Decimal = Field(default=Decimal("0.000"))
-    chassis_number: Optional[str] = None
-    engine_number: Optional[str] = None
-    registration_date: Optional[date] = None
+    owner_id: Optional[int] = None
+    owner_name: Optional[str] = None
+    owner_phone: Optional[str] = None
     insurance_expiry: Optional[date] = None
     fitness_expiry: Optional[date] = None
+    puc_expiry: Optional[date] = None
     national_permit_expiry: Optional[date] = None
+
+    # Step 1: Vehicle and Owner Details
+    ownership_type: Optional[str] = "Company Vehicle"
+
+    # Step 2: Vehicle Specifications and Registration Details
+    vehicle_description: Optional[str] = None
+    registration_date: Optional[date] = None
+    vehicle_class: Optional[str] = None
+    engine_number: Optional[str] = None
+    chassis_number: Optional[str] = None
+    financier: Optional[str] = None
+    gvw_kg: Optional[Decimal] = None
+    unladen_weight_kg: Optional[Decimal] = None
+    emission_norms: Optional[str] = None
+    color: Optional[str] = None
+    cylinders: Optional[int] = None
+    seating_capacity: Optional[int] = None
+    rc_status: Optional[str] = "ACTIVE"
+
+    # Step 3: Validity Details
+    tax_validity: Optional[date] = None
+    permit_validity: Optional[date] = None
+
+    # STEP 4: Equipment & Maintenance
+    has_jack: Optional[bool] = False
+    has_raad: Optional[bool] = False
+    has_pana: Optional[bool] = False
+    has_stepney: Optional[bool] = False
+    has_tarpaulin_rassi: Optional[bool] = False
+
+    last_service_km: Optional[int] = None
+    last_service_done_at: Optional[str] = None
+    last_service_status: Optional[str] = None
+    driver_at_last_service: Optional[str] = None
+    driver_phone_at_last_service: Optional[str] = None
+    tyre_numbers: Optional[str] = None
+
+    rc_original_status: Optional[str] = None
+    rc_copy_doc: Optional[str] = None
+    last_repair_bill_doc: Optional[str] = None
+
     default_driver_id: Optional[int] = None
     current_odometer_km: int = 0
     is_active: bool = True
@@ -240,12 +282,49 @@ class CompanyVehicleUpdate(BaseModel):
     vehicle_number: Optional[str] = None
     vehicle_type: Optional[str] = None
     capacity_mt: Optional[Decimal] = None
-    chassis_number: Optional[str] = None
-    engine_number: Optional[str] = None
-    registration_date: Optional[date] = None
+    owner_id: Optional[int] = None
+    owner_name: Optional[str] = None
+    owner_phone: Optional[str] = None
     insurance_expiry: Optional[date] = None
     fitness_expiry: Optional[date] = None
+    puc_expiry: Optional[date] = None
     national_permit_expiry: Optional[date] = None
+
+    ownership_type: Optional[str] = None
+    vehicle_description: Optional[str] = None
+    registration_date: Optional[date] = None
+    vehicle_class: Optional[str] = None
+    engine_number: Optional[str] = None
+    chassis_number: Optional[str] = None
+    financier: Optional[str] = None
+    gvw_kg: Optional[Decimal] = None
+    unladen_weight_kg: Optional[Decimal] = None
+    emission_norms: Optional[str] = None
+    color: Optional[str] = None
+    cylinders: Optional[int] = None
+    seating_capacity: Optional[int] = None
+    rc_status: Optional[str] = None
+
+    tax_validity: Optional[date] = None
+    permit_validity: Optional[date] = None
+
+    has_jack: Optional[bool] = None
+    has_raad: Optional[bool] = None
+    has_pana: Optional[bool] = None
+    has_stepney: Optional[bool] = None
+    has_tarpaulin_rassi: Optional[bool] = None
+
+    last_service_km: Optional[int] = None
+    last_service_done_at: Optional[str] = None
+    last_service_status: Optional[str] = None
+    driver_at_last_service: Optional[str] = None
+    driver_phone_at_last_service: Optional[str] = None
+    tyre_numbers: Optional[str] = None
+
+    rc_original_status: Optional[str] = None
+    rc_copy_doc: Optional[str] = None
+    last_repair_bill_doc: Optional[str] = None
+
     default_driver_id: Optional[int] = None
     current_odometer_km: Optional[int] = None
     is_active: Optional[bool] = None
