@@ -224,7 +224,11 @@ class Settings(BaseSettings):
             return "GroqCloud LPU (Qwen 3.8 27B)"
         elif prov == "nvidia":
             return "NVIDIA Hosted API (DiffusionGemma 26B)"
-        return "Google Gemini (OpenAI Compatible)"
+        if "inceptionlabs.ai" in (self.OPENAI_BASE_URL or ""):
+            return "Inception Labs"
+        if "googleapis.com" in (self.OPENAI_BASE_URL or ""):
+            return "Google Gemini (OpenAI Compatible)"
+        return "OpenAI-Compatible API"
 
     @property
     def active_ai_system_name(self) -> str:
@@ -233,7 +237,7 @@ class Settings(BaseSettings):
             return "Panther AI (Groq Qwen 3.8 27B)"
         elif prov == "nvidia":
             return "Panther AI (NVIDIA DiffusionGemma 26B)"
-        return self.AI_SYSTEM_NAME
+        return f"Panther AI ({self.OPENAI_MODEL})"
 
 settings = Settings()
 

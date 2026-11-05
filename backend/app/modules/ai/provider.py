@@ -301,7 +301,7 @@ async def _call_openai(
     max_tokens: int = 1000,
     temperature: float = 0.3,
 ) -> str:
-    """Executes chat completion against OpenAI / Google Gemini endpoint."""
+    """Executes chat completion against OpenAI / Inception Labs / Google Gemini endpoint with auto-retry."""
     headers = {
         "Authorization": f"Bearer {settings.OPENAI_API_KEY.strip()}",
         "Content-Type": "application/json",
@@ -314,32 +314,46 @@ async def _call_openai(
     }
     url = f"{settings.OPENAI_BASE_URL.rstrip('/')}/chat/completions"
 
-    try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(url, headers=headers, json=payload)
-            if response.status_code == 401:
-                raise RuntimeError("AI Provider Authentication Failed: Invalid or expired OPENAI_API_KEY.")
-            if response.status_code == 429:
-                raise RuntimeError("AI Provider Quota Exceeded: Rate limit or credit allowance exhausted.")
-            if response.status_code >= 400:
-                raise RuntimeError(f"AI Provider error ({response.status_code}): {response.text[:200]}")
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                if response.status_code == 429 and attempt < max_retries - 1:
+                    wait_time = 1.0 * (attempt + 1)
+                    retry_header = response.headers.get("retry-after")
+                    if retry_header and retry_header.isdigit():
+                        wait_time = min(float(retry_header), 3.0)
+                    logger.warning(f"AI Provider 429 rate limit. Retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})...")
+                    await asyncio.sleep(wait_time)
+                    continue
 
-            data = response.json()
-            choices = data.get("choices", [])
-            if not choices:
-                raise RuntimeError("AI Provider returned an empty response.")
-            raw_content = choices[0].get("message", {}).get("content") or ""
-            return sanitize_ai_response(raw_content)
+                if response.status_code == 401:
+                    raise RuntimeError("AI Provider Authentication Failed: Invalid or expired OPENAI_API_KEY.")
+                if response.status_code == 429:
+                    raise RuntimeError("AI Provider Quota Exceeded: Rate limit or credit allowance exhausted.")
+                if response.status_code >= 400:
+                    raise RuntimeError(f"AI Provider error ({response.status_code}): {response.text[:200]}")
 
-    except httpx.TimeoutException:
-        raise RuntimeError("AI Provider request timed out. Please try again.")
-    except httpx.ConnectError:
-        raise RuntimeError("Unable to reach AI Provider endpoint. Please check your internet connection.")
-    except Exception as e:
-        if isinstance(e, RuntimeError):
-            raise
-        logger.error(f"Unexpected AI Provider error: {e}")
-        raise RuntimeError(f"AI Provider communication failure: {str(e)}")
+                data = response.json()
+                choices = data.get("choices", [])
+                if not choices:
+                    raise RuntimeError("AI Provider returned an empty response.")
+                raw_content = choices[0].get("message", {}).get("content") or ""
+                return sanitize_ai_response(raw_content)
+
+        except (httpx.TimeoutException, httpx.ConnectError) as net_err:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1.0)
+                continue
+            raise RuntimeError(f"AI Provider network failure: {net_err}")
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            logger.error(f"Unexpected AI Provider error: {e}")
+            raise RuntimeError(f"AI Provider communication failure: {str(e)}")
+
+    raise RuntimeError("AI Provider Quota Exceeded: Rate limit exhausted after retries.")
 
 
 async def _stream_openai(
@@ -347,7 +361,7 @@ async def _stream_openai(
     max_tokens: int = 1000,
     temperature: float = 0.3,
 ) -> AsyncGenerator[str, None]:
-    """Streams tokens from OpenAI / Gemini endpoint via SSE."""
+    """Streams tokens from OpenAI / Inception Labs / Gemini endpoint via SSE with auto-retry."""
     headers = {
         "Authorization": f"Bearer {settings.OPENAI_API_KEY.strip()}",
         "Content-Type": "application/json",
@@ -361,27 +375,41 @@ async def _stream_openai(
     }
     url = f"{settings.OPENAI_BASE_URL.rstrip('/')}/chat/completions"
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        async with client.stream("POST", url, headers=headers, json=payload) as response:
-            if response.status_code != 200:
-                err_text = await response.aread()
-                yield f"[Error: AI Provider returned status {response.status_code}: {err_text.decode('utf-8', errors='ignore')[:150]}]"
-                return
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream("POST", url, headers=headers, json=payload) as response:
+                    if response.status_code == 429 and attempt < max_retries - 1:
+                        await asyncio.sleep(1.0 * (attempt + 1))
+                        continue
+                    if response.status_code != 200:
+                        err_text = await response.aread()
+                        yield f"[Error: AI Provider returned status {response.status_code}: {err_text.decode('utf-8', errors='ignore')[:150]}]"
+                        return
 
-            async for line in response.aiter_lines():
-                if not line or not line.startswith("data: "):
-                    continue
-                data_str = line[6:].strip()
-                if data_str == "[DONE]":
-                    break
-                try:
-                    chunk = json.loads(data_str)
-                    delta = chunk.get("choices", [{}])[0].get("delta", {})
-                    token = delta.get("content")
-                    if token:
-                        yield token
-                except Exception:
-                    continue
+                    async for line in response.aiter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data_str)
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            token = delta.get("content")
+                            if token:
+                                yield token
+                        except Exception:
+                            continue
+                    return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(1.0)
+                continue
+            logger.error(f"Streaming failed: {e}")
+            yield f"[Error: Streaming failed: {str(e)[:150]}]"
+            return
 
 
 async def call_llm(
