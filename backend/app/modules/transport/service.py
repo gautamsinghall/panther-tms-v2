@@ -1502,9 +1502,11 @@ async def create_sim_trip(
             if not driver_name and lr_obj.driver_name:
                 driver_name = lr_obj.driver_name
             if not origin_addr and lr_obj.origin_location:
-                origin_addr = f"{lr_obj.origin_location.name}, {lr_obj.origin_location.city_name or ''}"
+                orig_loc = lr_obj.origin_location
+                origin_addr = f"{getattr(orig_loc, 'city_name', '') or getattr(orig_loc, 'name', '')}, {getattr(orig_loc, 'state', '') or ''}".strip(", ")
             if not dest_addr and lr_obj.destination_location:
-                dest_addr = f"{lr_obj.destination_location.name}, {lr_obj.destination_location.city_name or ''}"
+                dest_loc = lr_obj.destination_location
+                dest_addr = f"{getattr(dest_loc, 'city_name', '') or getattr(dest_loc, 'name', '')}, {getattr(dest_loc, 'state', '') or ''}".strip(", ")
             if not consignor_name and lr_obj.consigner:
                 consignor_name = lr_obj.consigner.name
             if not consignee_name and lr_obj.consignee:
@@ -2174,8 +2176,16 @@ async def track_fastag_vehicle(
             lr_obj = lr_res.scalars().first()
 
             if lr_obj:
-                orig_name = lr_obj.origin_location.name if lr_obj.origin_location else "Origin"
-                dest_name = lr_obj.destination_location.name if lr_obj.destination_location else "Destination"
+                orig_name = (
+                    lr_obj.origin_location.city_name
+                    if lr_obj.origin_location and getattr(lr_obj.origin_location, "city_name", None)
+                    else (getattr(lr_obj.origin_location, "name", None) or "Origin")
+                )
+                dest_name = (
+                    lr_obj.destination_location.city_name
+                    if lr_obj.destination_location and getattr(lr_obj.destination_location, "city_name", None)
+                    else (getattr(lr_obj.destination_location, "name", None) or "Destination")
+                )
                 wps = [orig_name]
                 if lr_obj.via:
                     wps.append(lr_obj.via.strip())

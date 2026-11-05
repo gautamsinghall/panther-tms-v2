@@ -258,6 +258,13 @@ class Location(TenantBase):
 
     issuing_office = relationship("Branch", foreign_keys=[issuing_office_id])
 
+    @property
+    def name(self) -> str:
+        """Display / reference name (City, State)"""
+        if self.city_name and self.state:
+            return f"{self.city_name}, {self.state}"
+        return self.city_name or self.state or self.location_code or "Unknown"
+
 
 class Industry(TenantBase):
     """Industry vertical master (e.g. Steel, Cement, FMCG, Auto)"""
