@@ -101,6 +101,12 @@ interface LRRecord {
   eta?: string;
   particulars?: string;
   remarks?: string;
+  freight_rate?: string | number;
+  freight_amount?: string | number;
+  loading_charges?: string | number;
+  unloading_charges?: string | number;
+  other_charges?: string | number;
+  payment_terms?: string;
   total_freight_amount: string | number;
   advance_amount: string | number;
   balance_amount: string | number;
@@ -641,6 +647,12 @@ export default function LRBookingPage() {
       via: freshData.via || "",
       consigner_id: String(freshData.consigner_id || ""),
       consignee_id: String(freshData.consignee_id || ""),
+      freight_amount: freshData.freight_amount ? String(freshData.freight_amount) : "",
+      advance_amount: freshData.advance_amount ? String(freshData.advance_amount) : "",
+      loading_charges: freshData.loading_charges ? String(freshData.loading_charges) : "",
+      unloading_charges: freshData.unloading_charges ? String(freshData.unloading_charges) : "",
+      other_charges: freshData.other_charges ? String(freshData.other_charges) : "",
+      payment_terms: freshData.payment_terms || "TO_PAY",
       vehicle_number: freshData.vehicle_number || "",
       vehicle_type: freshData.vehicle_type || "",
       package_count: freshData.package_count || 0,
@@ -706,6 +718,12 @@ export default function LRBookingPage() {
       via: "",
       consigner_id: initialConsignerId,
       consignee_id: initialConsigneeId,
+      freight_amount: "",
+      advance_amount: "",
+      loading_charges: "",
+      unloading_charges: "",
+      other_charges: "",
+      payment_terms: "TO_PAY",
       vehicle_number: "", // Intentionally blank: Jobs do not specify a vehicle
       vehicle_type: "",
       eway_bill_number: "",
@@ -822,8 +840,25 @@ export default function LRBookingPage() {
       const totalInvVal = itemsToSave.reduce((sum, i) => sum + (parseFloat(String(i.invoice_value || 0)) || 0), 0);
       const combinedParts = itemsToSave.map((i) => String(i.particulars || "").trim()).filter(Boolean).join("; ");
 
+      const freightAmt = parseFloat(values.freight_amount) || 0;
+      const advAmt = parseFloat(values.advance_amount) || 0;
+      const loadAmt = parseFloat(values.loading_charges) || 0;
+      const unloadAmt = parseFloat(values.unloading_charges) || 0;
+      const otherAmt = parseFloat(values.other_charges) || 0;
+      const totFreight = freightAmt + loadAmt + unloadAmt + otherAmt;
+      const balAmt = totFreight - advAmt;
+
       const payload = {
         ...values,
+        freight_rate: freightAmt,
+        freight_amount: freightAmt,
+        advance_amount: advAmt,
+        loading_charges: loadAmt,
+        unloading_charges: unloadAmt,
+        other_charges: otherAmt,
+        total_freight_amount: totFreight,
+        balance_amount: balAmt,
+        payment_terms: values.payment_terms || "TO_PAY",
         lr_number: values.lr_number ? String(values.lr_number).trim() : undefined,
         job_id: values.job_id ? parseInt(values.job_id, 10) : null,
         booking_status: values.booking_status || "Booked",
@@ -1228,6 +1263,57 @@ export default function LRBookingPage() {
           label: "Container No.",
           type: "text",
           placeholder: "e.g. MSKU-123456-7",
+        },
+      ],
+    },
+    {
+      id: "sec_commercial_freight",
+      title: "Commercial Freight & Billing Terms",
+      description: "Basic freight charges, handling add-ons, driver/transporter advances, and payment terms",
+      columns: 2,
+      fields: [
+        {
+          name: "freight_amount",
+          label: "Basic Freight Amount (₹)",
+          type: "number",
+          placeholder: "e.g. 15000.00",
+          helperText: "Agreed base freight charges for the consignment.",
+        },
+        {
+          name: "advance_amount",
+          label: "Advance Amount (₹)",
+          type: "number",
+          placeholder: "e.g. 5000.00",
+          helperText: "Advance paid at booking.",
+        },
+        {
+          name: "loading_charges",
+          label: "Loading / Handling Charges (₹)",
+          type: "number",
+          placeholder: "0.00",
+        },
+        {
+          name: "unloading_charges",
+          label: "Unloading Charges (₹)",
+          type: "number",
+          placeholder: "0.00",
+        },
+        {
+          name: "other_charges",
+          label: "Other / Statistical Charges (₹)",
+          type: "number",
+          placeholder: "0.00",
+        },
+        {
+          name: "payment_terms",
+          label: "Payment Terms",
+          type: "select",
+          options: [
+            { label: "To Pay (Consignee)", value: "TO_PAY" },
+            { label: "Paid (Consignor)", value: "PAID" },
+            { label: "To Be Billed (TBB)", value: "TBB" },
+          ],
+          defaultValue: "TO_PAY",
         },
       ],
     },

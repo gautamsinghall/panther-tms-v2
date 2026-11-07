@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Tuple
@@ -412,7 +413,7 @@ async def get_master_ledger_summary(
         ),
         company_bank_accounts=schemas.CategoryOverviewStat(
             total_accounts=bank_total_accounts,
-            total_outstanding=bank_net_balance if bank_net_balance > Decimal("0.00") else Decimal("0.00"),
+            total_outstanding=bank_net_balance,
             total_debit=bank_total_debit,
             total_credit=bank_total_credit,
             settled_count=bank_active,

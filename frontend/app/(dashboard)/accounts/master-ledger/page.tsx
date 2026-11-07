@@ -1566,9 +1566,18 @@ export default function MasterLedgerPage() {
                     </div>
                     <div className="flex items-center justify-between text-xs font-bold pt-1.5 border-t border-dashed border-slate-200/90 dark:border-[#303036]">
                       <span className="text-[#101828] dark:text-slate-300">Net Liquid</span>
-                      <span className="text-[#0E9384] dark:text-teal-400 font-extrabold">
-                        {formatCurrency(overview?.company_bank_accounts?.total_outstanding || 0)}
-                      </span>
+                      {(() => {
+                        const calculatedBankNet = bankAccounts.reduce((acc, b) => acc + (b.balance_type === "CR" ? -parseFloat(String(b.current_balance || 0)) : parseFloat(String(b.current_balance || 0))), 0);
+                        const netVal = overview?.company_bank_accounts?.total_outstanding !== undefined && overview?.company_bank_accounts?.total_outstanding !== null && overview.company_bank_accounts.total_outstanding !== 0
+                          ? Number(overview.company_bank_accounts.total_outstanding)
+                          : calculatedBankNet;
+                        const isNegative = netVal < 0;
+                        return (
+                          <span className={cn("font-extrabold", isNegative ? "text-[#B42318] dark:text-rose-400" : "text-[#0E9384] dark:text-teal-400")}>
+                            {isNegative ? `–₹${Math.abs(netVal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatCurrency(netVal)}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

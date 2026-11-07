@@ -578,10 +578,60 @@ export function PantherAIPanel() {
   };
 
   const handleNavigate = (href: string) => {
-    router.push(href);
+    if (!href) return;
+    try {
+      router.push(href);
+    } catch {
+      window.location.href = href;
+    }
+    setTimeout(() => {
+      if (typeof window !== "undefined") {
+        const cur = window.location.pathname + window.location.search;
+        if (cur !== href && href.startsWith("/")) {
+          window.location.href = href;
+        }
+      }
+    }, 120);
     if (window.innerWidth < 640) {
       closeAI();
     }
+  };
+
+  const handleFieldEdit = (field: string) => {
+    setInput(`change ${field} to `);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 50);
+  };
+
+  const handleCancelActiveDraft = async () => {
+    try {
+      await apiClient("/api/v1/ai/chat/clear", { method: "POST" });
+    } catch {
+      // ignore
+    }
+    setActiveDraftInfo(null);
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (!m.cards) return m;
+        return {
+          ...m,
+          cards: m.cards.map((c) => {
+            if (["lr_draft", "job_draft", "hire_challan_draft"].includes(c.card_type)) {
+              return {
+                ...c,
+                card_type: "lr_draft_cancelled",
+                title: "Draft Cancelled",
+                badge: { text: "Cancelled", variant: "neutral" },
+                can_confirm: false,
+                confirmation_token: undefined,
+              };
+            }
+            return c;
+          }),
+        };
+      })
+    );
   };
 
   // Helper to extract fields for draft mini-forms
@@ -600,7 +650,8 @@ export function PantherAIPanel() {
         if (l.includes("consigner")) consigner = m.value;
         if (l.includes("consignee")) consignee = m.value;
         if (l.includes("vehicle")) vehicle = m.value;
-        if (l.includes("freight") || l.includes("hire rate")) rateOrFreight = m.value;
+        if (l.includes("freight") || l.includes("hire rate") || l.includes("bhada") || l.includes("amount")) rateOrFreight = m.value;
+        if (l.includes("weight")) weight = m.value;
         if (l.includes("route")) {
           const parts = m.value.split(/[➔\-\—]/);
           if (parts.length >= 2) {
@@ -1023,11 +1074,13 @@ export function PantherAIPanel() {
                                         {draftValues.from || "Select origin"}
                                       </span>
                                     </div>
-                                    {draftValues.from ? (
-                                      <span className="text-slate-400 text-[11px]">✕</span>
-                                    ) : (
-                                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleFieldEdit("origin")}
+                                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold shrink-0 cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ml-1"
+                                    >
+                                      Edit
+                                    </button>
                                   </div>
                                 </div>
 
@@ -1043,79 +1096,124 @@ export function PantherAIPanel() {
                                         {draftValues.to || "Select destination"}
                                       </span>
                                     </div>
-                                    {draftValues.to ? (
-                                      <span className="text-slate-400 text-[11px]">✕</span>
-                                    ) : (
-                                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleFieldEdit("destination")}
+                                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold shrink-0 cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ml-1"
+                                    >
+                                      Edit
+                                    </button>
                                   </div>
                                 </div>
 
-                                {/* Vehicle or Party Field */}
-                                {card.card_type === "job_draft" ? (
-                                  <>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
-                                        Consigner *
+                                {/* Consigner Field */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
+                                    Consigner *
+                                  </span>
+                                  <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                      <span className="truncate font-medium">
+                                        {draftValues.consigner || "Select consigner"}
                                       </span>
-                                      <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                          <span className="truncate font-medium">
-                                            {draftValues.consigner || "Select consigner"}
-                                          </span>
-                                        </div>
-                                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                      </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
-                                        Consignee *
+                                    <button
+                                      type="button"
+                                      onClick={() => handleFieldEdit("consigner")}
+                                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold shrink-0 cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ml-1"
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Consignee Field */}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
+                                    Consignee *
+                                  </span>
+                                  <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                      <span className="truncate font-medium">
+                                        {draftValues.consignee || "Select consignee"}
                                       </span>
-                                      <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                          <span className="truncate font-medium">
-                                            {draftValues.consignee || "Select consignee"}
-                                          </span>
-                                        </div>
-                                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                      </div>
                                     </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
-                                        Vehicle *
-                                      </span>
-                                      <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                          <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                          <span className="truncate font-medium">
-                                            {draftValues.vehicle || "Select vehicle"}
-                                          </span>
-                                        </div>
-                                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                      </div>
-                                    </div>
-                                    {card.card_type === "lr_draft" && (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
-                                          Consignee *
+                                    <button
+                                      type="button"
+                                      onClick={() => handleFieldEdit("consignee")}
+                                      className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold shrink-0 cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ml-1"
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Vehicle Field (for LR and Hire Challan) */}
+                                {card.card_type !== "job_draft" && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
+                                      Vehicle *
+                                    </span>
+                                    <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                        <span className="truncate font-medium">
+                                          {draftValues.vehicle || "Select vehicle"}
                                         </span>
-                                        <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
-                                          <div className="flex items-center gap-1.5 min-w-0">
-                                            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                            <span className="truncate font-medium">
-                                              {draftValues.consignee || "Select consignee"}
-                                            </span>
-                                          </div>
-                                          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                        </div>
                                       </div>
-                                    )}
-                                  </>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleFieldEdit("vehicle")}
+                                        className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold shrink-0 cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ml-1"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Freight / Rate Field */}
+                                {draftValues.rateOrFreight && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
+                                      Freight
+                                    </span>
+                                    <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
+                                      <span className="truncate font-semibold font-mono text-[11px]">
+                                        {draftValues.rateOrFreight}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleFieldEdit("freight")}
+                                        className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold shrink-0 cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ml-1"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Weight Field */}
+                                {draftValues.weight && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 dark:text-slate-400 font-medium w-16 shrink-0">
+                                      Weight
+                                    </span>
+                                    <div className="flex-1 bg-slate-50 dark:bg-[#1A1E31] border border-slate-200 dark:border-[#2D3452] rounded-xl px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100">
+                                      <span className="truncate font-semibold font-mono text-[11px]">
+                                        {draftValues.weight}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleFieldEdit("weight")}
+                                        className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold shrink-0 cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ml-1"
+                                      >
+                                        Edit
+                                      </button>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
 
@@ -1140,8 +1238,18 @@ export function PantherAIPanel() {
                               <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-[#252B46]">
                                 <button
                                   type="button"
+                                  onClick={handleCancelActiveDraft}
+                                  className="py-2 px-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 font-semibold text-xs transition-colors shadow-2xs cursor-pointer flex items-center justify-center gap-1 shrink-0"
+                                  title="Cancel active draft"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  <span>Cancel Draft</span>
+                                </button>
+
+                                <button
+                                  type="button"
                                   onClick={() => handleNavigate(openFormHref)}
-                                  className="flex-1 py-2 px-3 rounded-xl bg-[#5B50E6] hover:bg-[#4E43D8] text-white font-medium text-xs transition-colors shadow-2xs cursor-pointer text-center"
+                                  className="flex-1 py-2 px-3 rounded-xl bg-[#5B50E6] hover:bg-[#4E43D8] text-white font-medium text-xs transition-colors shadow-2xs cursor-pointer text-center truncate"
                                 >
                                   {openFormLabel}
                                 </button>
@@ -1351,7 +1459,10 @@ export function PantherAIPanel() {
                               {card.action && (
                                 <button
                                   type="button"
-                                  onClick={() => handleNavigate(card.action!.href)}
+                                  onClick={() => {
+                                    const tgt = card.action?.href || msg.navigationSuggestions?.[0]?.href || "";
+                                    if (tgt) handleNavigate(tgt);
+                                  }}
                                   className="w-full py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                                 >
                                   <span>{card.action.label}</span>
@@ -1427,7 +1538,10 @@ export function PantherAIPanel() {
                             {card.action && (
                               <button
                                 type="button"
-                                onClick={() => handleNavigate(card.action!.href)}
+                                onClick={() => {
+                                  const tgt = card.action?.href || msg.navigationSuggestions?.[0]?.href || "";
+                                  if (tgt) handleNavigate(tgt);
+                                }}
                                 className="w-full py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                               >
                                 <span>{card.action.label}</span>

@@ -1328,9 +1328,9 @@ export default function PaymentVoucherPage() {
                       />
                     </div>
                   )}
-                  <div className="md:col-span-2 flex items-start gap-2.5 text-xs text-blue-900 dark:text-blue-200 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/50 rounded-xl p-3">
-                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                    <p className="leading-relaxed font-medium">
+                  <div className="col-span-full flex items-start gap-2.5 text-xs text-slate-800 dark:text-slate-100 bg-slate-100/90 dark:bg-[#1A1D2B] border border-slate-300 dark:border-[#2B2E42] rounded-xl p-3">
+                    <Info className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed font-semibold">
                       Driver advances are booked to Current Assets (receivables from driver) and are settled later against submitted trip expense vouchers.
                     </p>
                   </div>

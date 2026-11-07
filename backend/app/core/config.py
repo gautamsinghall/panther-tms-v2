@@ -140,19 +140,19 @@ class Settings(BaseSettings):
         ),
     )
     AI_ENABLE_LR_CREATION: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices("AI_ENABLE_LR_CREATION"),
-        description="Whether conversational LR creation write operations are enabled. Disabled by default in production for safety."
+        description="Whether conversational LR creation write operations are enabled. Enabled for Level 2 conversational workflows."
     )
     AI_ENABLE_JOB_CREATION: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices("AI_ENABLE_JOB_CREATION"),
-        description="Whether conversational Job creation write operations are enabled. Disabled by default in production for safety."
+        description="Whether conversational Job creation write operations are enabled."
     )
     AI_ENABLE_HC_CREATION: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices("AI_ENABLE_HC_CREATION"),
-        description="Whether conversational Hire Challan creation write operations are enabled. Disabled by default in production for safety."
+        description="Whether conversational Hire Challan creation write operations are enabled. Enabled for Level 2 conversational workflows."
     ) 
 
     # CORS

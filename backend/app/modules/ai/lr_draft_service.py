@@ -167,11 +167,25 @@ def validate_eway_bill_number(ewb: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
+def clean_party_name(name: str) -> str:
+    """Strips conversational noise and prefixes from extracted party names."""
+    if not name or not isinstance(name, str):
+        return ""
+    clean = name.strip()
+    clean = re.sub(
+        r"^(?:the\s+)?(?:consigner|consignor|consignee|sender|receiver|delivery\s+party|from\s+party|to\s+party|party|client|customer|name)\s*(?:is\s+|:\s*|=\s*|-\s*)?",
+        "",
+        clean,
+        flags=re.IGNORECASE,
+    ).strip().strip(" ,;.")
+    return clean
+
+
 def is_valid_party_name(name: str) -> bool:
     """Validates that a string is a plausible person or company name."""
     if not name or not isinstance(name, str):
         return False
-    clean = name.strip()
+    clean = clean_party_name(name)
     lower = clean.lower()
     if len(clean) < 3 or len(clean) > 100:
         return False
@@ -267,7 +281,7 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
 
     # 0. In-Chat Single-Field Edit Command ('change X to Y', 'update X to Y', 'set X as Y')
     m_edit = re.search(
-        r"\b(?:change|update|set|modify|correct)\s+(?:the\s+)?(vehicle(?:\s*number)?|destination|delivery|origin|loading|from|to|consigner|sender|consignee|receiver|weight|goods|cargo|material|particulars|freight|rate|bhada|advance|eway(?:\s*bill)?|ewb|gstin|pincode)\s+(?:to|as|is|=)\s*(.+)$",
+        r"\b(?:change|update|set|modify|correct)\s+(?:the\s+)?(vehicle(?:\s*number)?|truck(?:\s*number)?|destination(?:\s*location)?|delivery(?:\s*location)?|origin(?:\s*location)?|loading(?:\s*location)?|from|to|consigner(?:\s*name)?|consignor(?:\s*name)?|sender(?:\s*name)?|consignee(?:\s*name)?|receiver(?:\s*name)?|delivery\s*party(?:\s*name)?|weight|goods|cargo|material|particulars|freight(?:\s*amount)?|rate|bhada|advance(?:\s*amount)?|eway(?:\s*bill)?|ewb|gstin|pincode)\s+(?:to|as|is|=)\s*(.+)$",
         clean_text,
         re.IGNORECASE,
     )
@@ -277,31 +291,35 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         entities["is_single_edit"] = True
         entities["edited_field_name"] = target_field
 
-        if target_field in ("vehicle", "vehiclenumber"):
+        if target_field in ("vehicle", "vehiclenumber", "truck", "trucknumber"):
             if is_valid_indian_vehicle(target_val):
                 entities["vehicle_number"] = re.sub(r"[^A-Za-z0-9]", "", target_val).upper()
             else:
                 entities["invalid_vehicle"] = target_val
             return entities
 
-        elif target_field in ("destination", "delivery", "to"):
-            if is_valid_party_name(target_val):
-                entities["destination_candidate"] = target_val
+        elif target_field in ("destination", "destinationlocation", "delivery", "deliverylocation", "to"):
+            clean_d = clean_party_name(target_val)
+            if is_valid_party_name(clean_d):
+                entities["destination_candidate"] = clean_d
             return entities
 
-        elif target_field in ("origin", "loading", "from"):
-            if is_valid_party_name(target_val):
-                entities["origin_candidate"] = target_val
+        elif target_field in ("origin", "originlocation", "loading", "loadinglocation", "from"):
+            clean_o = clean_party_name(target_val)
+            if is_valid_party_name(clean_o):
+                entities["origin_candidate"] = clean_o
             return entities
 
-        elif target_field in ("consigner", "sender"):
-            if is_valid_party_name(target_val):
-                entities["consigner_candidate"] = target_val
+        elif target_field in ("consigner", "consignor", "consignername", "consignorname", "sender", "sendername"):
+            clean_c = clean_party_name(target_val)
+            if is_valid_party_name(clean_c):
+                entities["consigner_candidate"] = clean_c
             return entities
 
-        elif target_field in ("consignee", "receiver"):
-            if is_valid_party_name(target_val):
-                entities["consignee_candidate"] = target_val
+        elif target_field in ("consignee", "consigneename", "receiver", "receivername", "deliveryparty", "deliverypartyname"):
+            clean_ce = clean_party_name(target_val)
+            if is_valid_party_name(clean_ce):
+                entities["consignee_candidate"] = clean_ce
             return entities
 
         elif target_field in ("weight",):
@@ -387,13 +405,19 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
             entities["destination_candidate"] = cand_d
     else:
         m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:to|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
-        common_words = {"party", "consigner", "consignee", "vehicle", "freight", "advance", "bilty", "order"}
-        if m_dash_route and m_dash_route.group(1).lower() not in common_words and m_dash_route.group(2).lower() not in common_words:
-            cand_o = m_dash_route.group(1).strip()
-            cand_d = m_dash_route.group(2).strip()
-            if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
-                entities["origin_candidate"] = cand_o
-                entities["destination_candidate"] = cand_d
+        common_words = {
+            "party", "consigner", "consignee", "vehicle", "freight", "advance", "bilty", "order",
+            "name", "test", "change", "update", "set", "modify", "correct", "sender", "receiver",
+            "weight", "rate", "goods", "cargo", "bill", "invoice", "number", "date", "status"
+        }
+        if not re.match(r"^(?:change|update|set|modify|correct)\b", clean_text, re.I):
+            m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:to|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
+            if m_dash_route and m_dash_route.group(1).lower() not in common_words and m_dash_route.group(2).lower() not in common_words:
+                cand_o = m_dash_route.group(1).strip()
+                cand_d = m_dash_route.group(2).strip()
+                if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+                    entities["origin_candidate"] = cand_o
+                    entities["destination_candidate"] = cand_d
 
         m_from = re.search(r"(?:loading|origin|source|from)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)(?=[,;\s]+(?:to|destination|delivery|consigner|consignee|vehicle|freight)|$)", clean_text, re.IGNORECASE)
         if m_from and "origin_candidate" not in entities:
@@ -715,9 +739,12 @@ async def resolve_or_create_consigner(
     db: AsyncSession,
     name: str,
     office_id: Optional[int] = None,
+    allow_provision: bool = False,
 ) -> Tuple[Optional[Consigner], List[Consigner]]:
-    """Finds existing consigner by name; if absent, auto-provisions to prevent booking blockage."""
-    clean_name = name.strip()
+    """Finds existing consigner by name; only auto-provisions if allow_provision=True (on final confirmation)."""
+    clean_name = clean_party_name(name)
+    if not clean_name:
+        return None, []
     query = select(Consigner).where(Consigner.is_active == True)
     if office_id:
         query = query.where(or_(Consigner.issuing_office_id == office_id, Consigner.issuing_office_id.is_(None)))
@@ -735,6 +762,9 @@ async def resolve_or_create_consigner(
 
     if len(matches) == 1:
         return matches[0], []
+
+    if not allow_provision:
+        return None, []
 
     # Auto-provision new consigner master entry
     code = f"CON-{secrets.token_hex(3).upper()}"
@@ -754,9 +784,12 @@ async def resolve_or_create_consignee(
     db: AsyncSession,
     name: str,
     office_id: Optional[int] = None,
+    allow_provision: bool = False,
 ) -> Tuple[Optional[Consignee], List[Consignee]]:
-    """Finds existing consignee by name; if absent, auto-provisions to prevent booking blockage."""
-    clean_name = name.strip()
+    """Finds existing consignee by name; only auto-provisions if allow_provision=True (on final confirmation)."""
+    clean_name = clean_party_name(name)
+    if not clean_name:
+        return None, []
     query = select(Consignee).where(Consignee.is_active == True)
     if office_id:
         query = query.where(or_(Consignee.issuing_office_id == office_id, Consignee.issuing_office_id.is_(None)))
@@ -773,6 +806,9 @@ async def resolve_or_create_consignee(
 
     if len(matches) == 1:
         return matches[0], []
+
+    if not allow_provision:
+        return None, []
 
     code = f"CNE-{secrets.token_hex(3).upper()}"
     new_ce = Consignee(
@@ -837,9 +873,9 @@ async def validate_and_update_draft(
     missing = []
     data = draft.data
 
-    if not data.get("consigner_id"):
+    if not data.get("consigner_id") and not draft.preview_labels.get("consigner_name") and not data.get("consigner_name"):
         missing.append("Consigner")
-    if not data.get("consignee_id"):
+    if not data.get("consignee_id") and not draft.preview_labels.get("consignee_name") and not data.get("consignee_name"):
         missing.append("Consignee")
     if not data.get("vehicle_number"):
         missing.append("Vehicle Number")
@@ -875,14 +911,15 @@ async def validate_and_update_draft(
         balance = total_freight - advance
 
         test_payload = {
-            "consigner_id": data["consigner_id"],
-            "consignee_id": data["consignee_id"],
+            "consigner_id": data.get("consigner_id") or 1,
+            "consignee_id": data.get("consignee_id") or 1,
             "vehicle_number": data["vehicle_number"],
             "vehicle_source": data.get("vehicle_source", "MARKET"),
             "vehicle_type": data.get("vehicle_type"),
             "origin_location_id": data.get("origin_location_id"),
             "destination_location_id": data.get("destination_location_id"),
             "via": draft.preview_labels.get("destination_name"),
+            "freight_rate": freight,
             "freight_amount": freight,
             "advance_amount": advance,
             "total_freight_amount": total_freight,
@@ -896,7 +933,15 @@ async def validate_and_update_draft(
 
         # Validate with LRCreate
         LRCreate(**test_payload)
-        draft.data.update(test_payload)
+        if data.get("consigner_id"):
+            draft.data["consigner_id"] = data["consigner_id"]
+        if data.get("consignee_id"):
+            draft.data["consignee_id"] = data["consignee_id"]
+        draft.data["freight_rate"] = freight
+        draft.data["freight_amount"] = freight
+        draft.data["advance_amount"] = advance
+        draft.data["total_freight_amount"] = total_freight
+        draft.data["balance_amount"] = balance
         draft.is_valid = True
         draft.validation_errors = []
         # Generate single-use confirmation token valid for 15 minutes
@@ -981,6 +1026,20 @@ async def handle_conversational_lr_booking(
 
     feedback_notes = []
 
+    # Snapshot existing values before applying any updates to detect real changes
+    orig_snapshot = {
+        "consigner": draft.preview_labels.get("consigner_name"),
+        "consignee": draft.preview_labels.get("consignee_name"),
+        "vehicle": draft.data.get("vehicle_number"),
+        "origin": draft.preview_labels.get("origin_name"),
+        "destination": draft.preview_labels.get("destination_name"),
+        "freight": draft.data.get("freight_amount"),
+        "advance": draft.data.get("advance_amount"),
+        "weight": draft.data.get("actual_weight_mt"),
+        "particulars": draft.data.get("particulars"),
+        "eway": draft.data.get("eway_bill_number"),
+    }
+
     # 5. Process Vehicle
     if "vehicle_number" in entities:
         v_num = re.sub(r"[^A-Za-z0-9]", "", entities["vehicle_number"]).upper()
@@ -1010,30 +1069,40 @@ async def handle_conversational_lr_booking(
         draft.update_field("goods_value", entities["goods_value"])
     if "eway_bill_number" in entities:
         draft.update_field("eway_bill_number", entities["eway_bill_number"])
-    if entities.get("is_single_edit") and not feedback_notes:
-        feedback_notes.append(f"✅ Updated **{entities.get('edited_field_name', 'field')}** in your draft.")
 
     # 6. Process Consigner
     if "consigner_candidate" in entities:
         cand_c = entities["consigner_candidate"]
-        c_obj, c_ambig = await resolve_or_create_consigner(db, cand_c, office_id=eff_office_id)
+        c_obj, c_ambig = await resolve_or_create_consigner(db, cand_c, office_id=eff_office_id, allow_provision=False)
         if c_obj:
             draft.update_field("consigner_id", c_obj.id, label=c_obj.name)
             draft.preview_labels["consigner_name"] = c_obj.name
+            draft.data["consigner_name"] = c_obj.name
         elif c_ambig:
             opts = ", ".join(m.name for m in c_ambig)
             feedback_notes.append(f"Multiple consigners match '{cand_c}': {opts}. Please clarify which party you intend.")
+        else:
+            clean_c = clean_party_name(cand_c).title()
+            draft.preview_labels["consigner_name"] = clean_c
+            draft.data["consigner_name"] = clean_c
+            draft.data["consigner_id"] = None
 
     # 7. Process Consignee
     if "consignee_candidate" in entities:
         cand_ce = entities["consignee_candidate"]
-        ce_obj, ce_ambig = await resolve_or_create_consignee(db, cand_ce, office_id=eff_office_id)
+        ce_obj, ce_ambig = await resolve_or_create_consignee(db, cand_ce, office_id=eff_office_id, allow_provision=False)
         if ce_obj:
             draft.update_field("consignee_id", ce_obj.id, label=ce_obj.name)
             draft.preview_labels["consignee_name"] = ce_obj.name
+            draft.data["consignee_name"] = ce_obj.name
         elif ce_ambig:
             opts = ", ".join(m.name for m in ce_ambig)
             feedback_notes.append(f"Multiple consignees match '{cand_ce}': {opts}. Please clarify which party you intend.")
+        else:
+            clean_ce = clean_party_name(cand_ce).title()
+            draft.preview_labels["consignee_name"] = clean_ce
+            draft.data["consignee_name"] = clean_ce
+            draft.data["consignee_id"] = None
 
     # 8. Process Locations
     if "origin_candidate" in entities:
@@ -1060,6 +1129,26 @@ async def handle_conversational_lr_booking(
         draft.update_field("chargeable_weight_mt", entities.get("chargeable_weight_mt", entities["actual_weight_mt"]))
     if "particulars" in entities:
         draft.update_field("particulars", entities["particulars"])
+
+    # Verify single edit change
+    if entities.get("is_single_edit") and not feedback_notes:
+        new_snapshot = {
+            "consigner": draft.preview_labels.get("consigner_name"),
+            "consignee": draft.preview_labels.get("consignee_name"),
+            "vehicle": draft.data.get("vehicle_number"),
+            "origin": draft.preview_labels.get("origin_name"),
+            "destination": draft.preview_labels.get("destination_name"),
+            "freight": draft.data.get("freight_amount"),
+            "advance": draft.data.get("advance_amount"),
+            "weight": draft.data.get("actual_weight_mt"),
+            "particulars": draft.data.get("particulars"),
+            "eway": draft.data.get("eway_bill_number"),
+        }
+        has_changed = any(new_snapshot[k] != orig_snapshot[k] for k in orig_snapshot)
+        if has_changed:
+            feedback_notes.append(f"✅ Updated **{entities.get('edited_field_name', 'field')}** in your draft.")
+        else:
+            feedback_notes.append(f"⚠️ Could not update **{entities.get('edited_field_name', 'field')}**. Please provide a valid value.")
 
     # 10. Validate & Update draft state
     await validate_and_update_draft(draft, db, office_id=eff_office_id)
@@ -1237,6 +1326,15 @@ async def handle_conversational_lr_booking(
     if feedback_notes:
         base_msg = "\n\n".join(feedback_notes) + "\n\n" + base_msg
 
+    can_confirm = draft.is_valid
+    if goods_val > 50000:
+        is_ewb_ok = bool(ewb_val and validate_eway_bill_number(str(ewb_val))[0])
+        if not is_ewb_ok:
+            badge = {"text": "Confirmation blocked — E-Way Bill required", "variant": "danger"}
+            can_confirm = False
+            draft.is_valid = False
+            draft.confirmation_token = None
+
     card = StructuredCard(
         card_type="lr_draft",
         title="LR Booking Draft",
@@ -1245,9 +1343,9 @@ async def handle_conversational_lr_booking(
         metrics=metrics,
         items=items,
         draft_id=draft.draft_id,
-        confirmation_token=draft.confirmation_token if draft.is_valid else None,
+        confirmation_token=draft.confirmation_token if can_confirm else None,
         missing_fields=draft.missing_fields,
-        can_confirm=draft.is_valid,
+        can_confirm=can_confirm,
         action={"label": "Open in LR Form", "href": "/transport/lr-booking"},
     )
 

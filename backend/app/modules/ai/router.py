@@ -4,6 +4,7 @@ Provides authenticated AI copilot endpoints, context-aware suggestions, navigati
 and secure read-only operational tools for LRs, Vehicles, Drivers, Tracking, and Master Ledgers.
 """
 from typing import Optional, AsyncGenerator, Tuple, List, Dict, Any
+from decimal import Decimal
 import re
 import urllib.parse
 
@@ -1277,6 +1278,58 @@ async def chat_with_copilot(
     # STEP 3: OPERATIONAL INTENT DISPATCH (READ-ONLY TOOLS)
     # --------------------------------------------------------------------------
     history_dicts = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
+
+    # Anaphoric follow-up guard: when user asks "what about its payment?", "what about its pod?", "what about its status?"
+    # and no LR is present in message or active conversation history
+    lower_msg = last_user_message.strip().lower()
+    is_anaphoric_followup = bool(
+        re.search(r"\b(?:what\s+about\s+(?:its|the|this)|how\s+about\s+(?:its|the|this)|(?:its|this|that|iska|uski|uske)\s+(?:payment|pod|status|balance|advance|details|location|driver))\b", lower_msg)
+        or lower_msg in ("what about its payment?", "what about its payment", "what about its pod?", "what about its pod", "what about its status?", "what about its status")
+    )
+    if is_anaphoric_followup:
+        from app.modules.ai.tools import extract_transport_entities
+        entities_check = extract_transport_entities(last_user_message, conversation_history=history_dicts)
+        if not (entities_check.get("lr_number") or entities_check.get("vehicle_number") or entities_check.get("hc_number")):
+            recent_lrs = []
+            if db:
+                try:
+                    stmt_rec = select(LR).order_by(desc(LR.created_at)).limit(3)
+                    recent_lrs = list((await db.execute(stmt_rec)).scalars().all())
+                except Exception:
+                    pass
+
+            lr_suggestions = [l.lr_number for l in recent_lrs if l.lr_number]
+            sugg_text = f" (Recent LRs: {', '.join(lr_suggestions)})" if lr_suggestions else ""
+            if detected_lang == "hi_devanagari":
+                reply_msg = f"आप किस एलआर (LR) का विवरण देखना चाहते हैं? कृपया एलआर नंबर बताएं{sugg_text}।"
+            elif detected_lang == "hinglish":
+                reply_msg = f"Aap kis LR ka check karna chahte hain? Kripya LR Number batayein{sugg_text}."
+            else:
+                reply_msg = f"Which LR would you like to check? Please provide the LR Number{sugg_text}."
+
+            cards = []
+            if recent_lrs:
+                cards = [StructuredCard(
+                    card_type="lr_list",
+                    title="Select an LR",
+                    subtitle="Which LR would you like to check?",
+                    badge={"text": "Recent LRs", "variant": "neutral"},
+                    items=[{
+                        "primary": f"LR {l.lr_number} • {l.vehicle_number or 'Assigned'}",
+                        "secondary": f"Date: {l.lr_date or 'Recent'} • Freight: ₹{float(l.total_freight_amount or 0):,.2f}",
+                        "status": l.booking_status or "Booked",
+                        "href": f"/transport/lr-booking?lr_number={l.lr_number}",
+                    } for l in recent_lrs],
+                )]
+            return ChatResponse(
+                content=reply_msg,
+                navigation_suggestions=[NavigationSuggestion(title=f"LR {l.lr_number}", href=f"/transport/lr-booking?lr_number={l.lr_number}", module="Transport Operations") for l in recent_lrs],
+                citations=[],
+                cards=cards,
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
     op_intent = classify_operational_intent(last_user_message, conversation_history=history_dicts)
     if op_intent:
         tool_name = op_intent.get("tool")
@@ -1798,17 +1851,17 @@ def _build_lr_idempotent_response(data: dict) -> LRConfirmationResponse:
                 "secondary": f"Office: {off_name} • Confirmed & Booked",
                 "amount": f"₹{freight:,.2f}",
                 "status": "Created",
-                "href": "/transport/lr-booking",
+                "href": f"/transport/lr-booking?lr_number={lr_num}",
             }
         ],
-        action={"label": "View in LR Register", "href": "/transport/lr-booking"},
+        action={"label": f"Open LR {lr_num}", "href": f"/transport/lr-booking?lr_number={lr_num}"},
     )
 
     return LRConfirmationResponse(
         success=True,
         lr_id=lr_id,
         lr_number=lr_num,
-        message=f"Your LR {lr_num} has been created successfully in the transport register.",
+        message=f"Your LR {lr_num} has been created successfully in the transport register. [Open LR {lr_num}](/transport/lr-booking?lr_number={lr_num})",
         card=success_card,
     )
 
@@ -2023,7 +2076,68 @@ async def confirm_lr_draft(
                     detail="Invalid confirmation token.",
                 )
 
-        # 9. Validate against LRCreate Schema
+        # 9. Enforce GST Rule 138 E-Way Bill Requirement
+        goods_val = float(draft.data.get("goods_value") or 0.0)
+        if goods_val > 50000:
+            ewb = draft.data.get("eway_bill_number")
+            if not ewb:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Confirmation blocked — E-Way Bill required: Consignment goods value exceeds ₹50,000 threshold under GST Rule 138.",
+                )
+            from app.modules.ai.lr_draft_service import validate_eway_bill_number
+            is_ewb_ok, _ = validate_eway_bill_number(str(ewb))
+            if not is_ewb_ok:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Confirmation blocked — Valid 12-digit E-Way Bill number required under GST Rule 138.",
+                )
+
+        target_office_id = draft.office_id or (current_office.id if current_office else None)
+
+        # Auto-provision unlinked parties and locations on final confirmation
+        if not draft.data.get("consigner_id"):
+            c_name = draft.preview_labels.get("consigner_name") or draft.data.get("consigner_name")
+            if c_name:
+                from app.modules.ai.lr_draft_service import resolve_or_create_consigner
+                c_obj, _ = await resolve_or_create_consigner(db, c_name, office_id=target_office_id, allow_provision=True)
+                if c_obj:
+                    draft.data["consigner_id"] = c_obj.id
+                    draft.preview_labels["consigner_name"] = c_obj.name
+
+        if not draft.data.get("consignee_id"):
+            ce_name = draft.preview_labels.get("consignee_name") or draft.data.get("consignee_name")
+            if ce_name:
+                from app.modules.ai.lr_draft_service import resolve_or_create_consignee
+                ce_obj, _ = await resolve_or_create_consignee(db, ce_name, office_id=target_office_id, allow_provision=True)
+                if ce_obj:
+                    draft.data["consignee_id"] = ce_obj.id
+                    draft.preview_labels["consignee_name"] = ce_obj.name
+
+        if not draft.data.get("origin_location_id"):
+            orig_name = draft.preview_labels.get("origin_name")
+            if orig_name:
+                from app.modules.ai.lr_draft_service import resolve_or_create_location
+                loc_o = await resolve_or_create_location(db, orig_name, office_id=target_office_id)
+                draft.data["origin_location_id"] = loc_o.id
+
+        if not draft.data.get("destination_location_id"):
+            dest_name = draft.preview_labels.get("destination_name")
+            if dest_name:
+                from app.modules.ai.lr_draft_service import resolve_or_create_location
+                loc_d = await resolve_or_create_location(db, dest_name, office_id=target_office_id)
+                draft.data["destination_location_id"] = loc_d.id
+
+        freight_amt = Decimal(str(draft.data.get("freight_amount") or 0.0))
+        advance_amt = Decimal(str(draft.data.get("advance_amount") or 0.0))
+        if "freight_rate" not in draft.data or not draft.data["freight_rate"]:
+            draft.data["freight_rate"] = freight_amt
+        draft.data["freight_amount"] = freight_amt
+        draft.data["advance_amount"] = advance_amt
+        draft.data["total_freight_amount"] = freight_amt
+        draft.data["balance_amount"] = freight_amt - advance_amt
+
+        # 9.5 Validate against LRCreate Schema
         try:
             lr_create_obj = LRCreate(**draft.data)
         except Exception as e:

@@ -185,7 +185,6 @@ export default function DaybookReportPage() {
         data={entries}
         isLoading={isLoading}
         searchPlaceholder="Search by voucher number or account name..."
-        searchColumn="account_name"
         emptyMessage="No daybook transactions found for the selected period."
       />
 

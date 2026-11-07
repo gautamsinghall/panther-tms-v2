@@ -310,6 +310,11 @@ async def execute_lr_tool(
         route_display = f"{origin_str} → {dest_str}" if origin_str != "N/A" or dest_str != "N/A" else "Standard Route"
         branch_str = lr.issuing_office.name if lr.issuing_office else office_label
 
+        eff_dt = lr.dispatch_date or lr.lr_date
+        dt_str = eff_dt.strftime("%d %b %Y") if eff_dt else "N/A"
+        if dt_str.startswith("0"):
+            dt_str = dt_str[1:]
+
         total_freight_val = float(lr.total_freight_amount or 0.0)
         advance_val = float(lr.advance_amount or 0.0)
         balance_val = float(lr.balance_amount or 0.0)
@@ -382,7 +387,7 @@ async def execute_lr_tool(
         card = StructuredCard(
             card_type="lr_detail",
             title=f"LR Details: {lr.lr_number}",
-            subtitle=f"Branch: {branch_str} • Date: {lr.lr_date}",
+            subtitle=f"Branch: {branch_str} • Date: {dt_str}",
             badge={"text": lr.status or "Booked", "variant": "success" if (lr.status or "").lower() == "delivered" else "primary"},
             metrics=[
                 {"label": "Total Freight", "value": f"₹{total_freight_val:,.2f}"},
@@ -391,7 +396,7 @@ async def execute_lr_tool(
                 {"label": "Terms", "value": lr.payment_terms or "TO_PAY"},
             ],
             items=items,
-            action={"label": f"Open LR {lr.lr_number}", "href": "/transport/lr-booking"},
+            action={"label": f"Open LR {lr.lr_number}", "href": f"/transport/lr-booking?lr_number={lr.lr_number}"},
         )
 
         if field_focus == "status":
@@ -414,7 +419,7 @@ async def execute_lr_tool(
             msg = (
                 f"### 📋 Lorry Receipt Details: **{lr.lr_number}**\n\n"
                 f"- **Status**: **{lr.status or 'Booked'}** ({lr.booking_status or 'Active'})\n"
-                f"- **Booking Date**: {lr.lr_date} | **Branch**: {branch_str}\n"
+                f"- **Booking Date**: {dt_str} | **Branch**: {branch_str}\n"
                 f"- **Route**: **{route_display}**\n"
                 f"- **Consigner (Loading)**: {consigner_str}\n"
                 f"- **Consignee (Delivery)**: {consignee_str}\n"
@@ -429,7 +434,7 @@ async def execute_lr_tool(
             msg = (
                 f"### 📋 एलआर विवरण: **{lr.lr_number}**\n\n"
                 f"- **स्थिति (Status)**: **{lr.status or 'Booked'}**\n"
-                f"- **दिनांक**: {lr.lr_date} | **शाखा**: {branch_str}\n"
+                f"- **दिनांक**: {dt_str} | **शाखा**: {branch_str}\n"
                 f"- **मार्ग (Route)**: **{route_display}**\n"
                 f"- **भेजने वाले (Consigner)**: {consigner_str}\n"
                 f"- **पाने वाले (Consignee)**: {consignee_str}\n"
@@ -444,7 +449,7 @@ async def execute_lr_tool(
             msg = (
                 f"### 📋 Lorry Receipt Details: **{lr.lr_number}**\n\n"
                 f"- **Status**: **{lr.status or 'Booked'}**\n"
-                f"- **Booking Date**: {lr.lr_date} | **Issuing Office**: {branch_str}\n"
+                f"- **Booking Date**: {dt_str} | **Issuing Office**: {branch_str}\n"
                 f"- **Route**: **{route_display}**\n"
                 f"- **Consigner**: {consigner_str}\n"
                 f"- **Consignee**: {consignee_str}\n"
@@ -455,6 +460,8 @@ async def execute_lr_tool(
             )
             if telematics_text:
                 msg += f"- **Current Telematics**: {telematics_text}\n"
+
+        return msg, [card]
 
         return msg, [card]
 
@@ -893,7 +900,7 @@ async def execute_vehicle_tool(
             if clean_q in v["number"].replace(" ", "").replace("-", "").upper() or clean_q in v["type"].upper()
         ]
 
-    matched = all_vehicles[:limit]
+    matched = all_vehicles[:min(limit, 5)]
 
     # Specific vehicle detail lookup
     if matched and (is_detail or (clean_q and len(matched) == 1)):
@@ -998,11 +1005,7 @@ async def execute_vehicle_tool(
         subtitle = "Authorized Company & Market Vehicles"
 
     if not matched:
-        msg = (
-            f"Koi vehicle nahi mila{' query: ' + query if query else ''}."
-            if lang in ("hinglish", "hi_devanagari")
-            else f"No vehicles found{' matching ' + query if query else ''}."
-        )
+        msg = f"No vehicles found matching {query}." if query else "No vehicles found."
         card = StructuredCard(
             card_type="vehicle_list",
             title="Vehicles Registry",
@@ -1034,12 +1037,11 @@ async def execute_vehicle_tool(
         action={"label": action_label, "href": action_href},
     )
 
-    if query and 1 < len(matched) <= 5:
-        did_you_mean = " or ".join(f"**{v['number']}**" for v in matched)
+    if query and len(matched) > 1:
         if lang in ("hinglish", "hi_devanagari"):
-            msg = f"Kya aapka matlab {did_you_mean} se hai? Niche click karke select karein:"
+            msg = f"'{query}' se match karte **{len(matched)} vehicles** mil gaye hain:"
         else:
-            msg = f"Did you mean {did_you_mean}? Please select a vehicle below:"
+            msg = f"Found **{len(matched)} vehicles** matching '{query}':"
     elif lang == "hinglish":
         msg = f"Aapke fleet ke **{len(matched)} vehicles** mil gaye hain. Details niche card mein dekhein."
     elif lang == "hi_devanagari":
@@ -1813,9 +1815,9 @@ async def execute_tracking_tool(
             dest = matched_lr.destination_location.name if matched_lr.destination_location else "Destination"
             context_prefix = f"Consignment **LR {matched_lr.lr_number}** ({orig} → {dest}) is in transit on vehicle **{vehicle_number}**."
         else:
-            msg = f"LR **{lr_number}** nahi mila tracking ke liye." if lang in ("hinglish", "hi_devanagari") else f"No LR records found matching {clean_lr or lr_number}."
-            card = StructuredCard(card_type="tracking", title="LR Not Found", subtitle=f"No matching LR for '{clean_lr or lr_number}'", badge={"text": "Not Found", "variant": "neutral"})
-            return msg, [card]
+            lr_display = lr_number
+            msg = f"LR **{lr_display}** nahi mila tracking ke liye." if lang in ("hinglish", "hi_devanagari") else f"No LR records found matching {lr_display}."
+            return msg, []
 
     # 2. Resolve vehicle from Hire Challan number if supplied
     if not vehicle_number and challan_number:
@@ -2185,7 +2187,7 @@ async def execute_accounting_tool(
                 badge={"text": "0 Results", "variant": "neutral"},
                 action={"label": "Open Master Ledger", "href": "/accounts/master-ledger"},
             )
-            msg = f"No ledger records found for '{party_name}'."
+            msg = f"No accounts found matching '{party_name}'."
             return msg, [card]
 
         first = matched_items[0]
@@ -2217,10 +2219,15 @@ async def execute_accounting_tool(
             tx_cnt = first.get("tx_count") or 1
             rec_str = f"{tx_cnt} records"
 
+            bal_fmt = f"₹{first['balance']:,.2f}"
+            adv_fmt = f"₹{first['debit']:,.2f}"
+            settle_fmt = f"₹{first['credit']:,.2f}"
+            detail_str = f"Current Balance {bal_fmt} {status_text} (Total Advances {adv_fmt}, Settled {settle_fmt})"
+
             card = StructuredCard(
                 card_type="party_ledger",
                 title=f"Driver Ledger: {first['name']} ({drv_code})",
-                subtitle=f"Driver Sub-Ledger • {adv_str}",
+                subtitle=f"Driver Sub-Ledger • {detail_str}",
                 badge={"text": "Advances (Recoverable)" if first["balance_type"] == "DR" else "Payable", "variant": "warning" if first["balance_type"] == "DR" else "success"},
                 metrics=[
                     {"label": "Driver Advances (Recoverable)", "value": f"₹{first['balance']:,.2f} DR"},
@@ -2236,13 +2243,7 @@ async def execute_accounting_tool(
                 action={"label": f"Open Driver Ledger ({first['name']})", "href": f"/accounts/master-ledger?category=DRIVER&entity_id={first.get('id')}"},
             )
 
-            if lang == "hinglish":
-                msg = f"Driver **{first['name']}** ({drv_code}): **{adv_str}**, {rec_str}{last_pv_str}."
-            elif lang == "hi_devanagari":
-                msg = f"ड्राइवर **{first['name']}** ({drv_code}): **{adv_str}**, {rec_str}{last_pv_str}."
-            else:
-                msg = f"Driver **{first['name']}** ({drv_code}): **{adv_str}**, {rec_str}{last_pv_str}."
-
+            msg = f"Driver **{first['name']}** ({drv_code}): {detail_str}, {rec_str}{last_pv_str}."
             return msg, [card]
 
         card = StructuredCard(
@@ -2264,7 +2265,9 @@ async def execute_accounting_tool(
             action={"label": "View Full Statement", "href": "/accounts/master-ledger"},
         )
 
-        if lang == "hinglish":
+        if first["balance"] == 0:
+            msg = f"**{first['name']}** has no pending payments (Current Balance: ₹0.00)."
+        elif lang == "hinglish":
             msg = f"**{first['name']}** ka ledger balance: **₹{first['balance']:,.2f} {first['balance_type']}** ({first['type']}). Niche card mein statement summary dekhein."
         elif lang == "hi_devanagari":
             msg = f"**{first['name']}** का लेज़र बैलेंस: **₹{first['balance']:,.2f} {first['balance_type']}** ({first['type']})। नीचे कार्ड में विवरण देखें।"
@@ -2384,7 +2387,7 @@ async def execute_pod_tool(
     if is_pending and not is_count and not (query or lr_number):
         stmt_pending = (
             select(LR)
-            .options(selectinload(LR.consignee))
+            .options(selectinload(LR.consignee), selectinload(LR.origin_location), selectinload(LR.destination_location))
             .outerjoin(PODRecord, LR.id == PODRecord.lr_id)
             .where(or_(PODRecord.id.is_(None), PODRecord.verification_status != "VERIFIED"))
             .order_by(desc(LR.created_at))
@@ -2394,19 +2397,22 @@ async def execute_pod_tool(
         lrs_pending = list(res_p.scalars().all())
         items = []
         for l in lrs_pending:
-            ce = l.consignee.name if l.consignee else "Client"
-            dt_str = l.created_at.strftime("%Y-%m-%d") if l.created_at else "Recent"
+            orig = l.origin_location.city_name if l.origin_location else "Origin"
+            dest = l.destination_location.city_name if l.destination_location else "Destination"
             items.append({
-                "primary": f"LR {l.lr_number} • {ce}",
-                "secondary": f"Date: {dt_str} • Vehicle: {l.vehicle_number or 'Assigned'}",
-                "status": "POD Pending",
+                "primary": f"LR {l.lr_number} • {orig} → {dest}",
+                "secondary": f"Vehicle: {l.vehicle_number or 'Assigned'} • Status: {l.booking_status or 'In Transit'}",
+                "status": "No POD",
                 "href": f"/transport/pod-records?search={l.lr_number}",
             })
-        msg = f"Found **{len(lrs_pending)} LRs** with pending Proof of Delivery (POD):"
+        msg = f"Found **{len(lrs_pending)} LRs** with no verified Proof of Delivery (POD):\n" + "\n".join(
+            f"• **LR {l.lr_number}** ({l.origin_location.city_name if l.origin_location else 'Origin'} → {l.destination_location.city_name if l.destination_location else 'Destination'}) • Vehicle: {l.vehicle_number or 'Assigned'} — [Open](/transport/pod-records?search={l.lr_number})"
+            for l in lrs_pending
+        )
         card = StructuredCard(
             card_type="pod_list",
-            title=f"Pending PODs ({len(lrs_pending)})",
-            subtitle="Top consignments awaiting verified delivery proof",
+            title=f"LRs With No POD ({len(lrs_pending)})",
+            subtitle="Top consignments without verified delivery proof",
             badge={"text": f"{len(lrs_pending)} Pending", "variant": "warning"},
             metrics=[{"label": "Pending PODs", "value": str(len(lrs_pending))}],
             items=items,
@@ -3165,7 +3171,7 @@ def extract_transport_entities(
         field_focus = "amount"
 
     # 1. Indian vehicle number regex (e.g. DL01AB1111, UP16AB1234, HR55AA1234)
-    vehicle_match = re.search(r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", clean, re.IGNORECASE)
+    vehicle_match = re.search(r"\b(?!(?:LR|GR|HC|INV|JOB|PV|RV|CV|JV))([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", clean, re.IGNORECASE)
     vehicle_number = vehicle_match.group(1).upper() if vehicle_match else None
 
     # 2. LR / GR / Bilty identifier
@@ -3228,7 +3234,8 @@ def extract_transport_entities(
     is_instruction_or_booking = any(p in lower for p in (
         "how do i", "how to", "how can i", "how i", "add a", "adding", "creat", "create",
         "banao", "banani", "kaise", "what can you do", "help", "book lr", "bok lr",
-        "how do i add", "ad vehical", "ad driver", "track my parcel", "track parcel"
+        "how do i add", "ad vehical", "ad driver", "track my parcel", "track parcel",
+        "no pod", "without pod", "which lrs", "which lr", "pending payments for", "payments for"
     )) or bool(re.search(r"[\u0900-\u097F]", clean) and "कैसे" in clean)
     if not is_instruction_or_booking and not (lr_id or hc_id or job_id or inv_id or vehicle_number) and conversation_history:
         has_anaphora = (
@@ -3281,7 +3288,7 @@ def extract_transport_entities(
                         break
                 # If question relates to Vehicle or assigned driver
                 if ("vehicle" in lower or "truck" in lower or "gaadi" in lower or "driver" in lower or field_focus == "driver") and not vehicle_number:
-                    m_prev_veh = re.search(r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", content, re.IGNORECASE)
+                    m_prev_veh = re.search(r"\b(?!(?:LR|GR|HC|INV|JOB|PV|RV|CV|JV))([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", content, re.IGNORECASE)
                     if m_prev_veh:
                         vehicle_number = m_prev_veh.group(1).upper()
                         break
@@ -3342,19 +3349,21 @@ def classify_operational_intent(
         if entities["hc_number"] and entities["hc_number"] != "HC-2026-0001":
             return {"tool": "tracking", "challan_number": entities["hc_number"]}
         return {"tool": "tracking_prompt"}
-        if entities["hc_number"]:
-            return {"tool": "tracking", "challan_number": entities["hc_number"]}
-        return {"tool": "tracking_prompt"}
 
     # Priority Sub-document Filters (must evaluate before generic parent records)
     # POD Intent (checked before generic LR lookup)
     if any(m in lower for m in ("pod", "proof of delivery", "delivery proof")):
+        is_pending = any(w in lower for w in ("pending", "unverified", "baki", "no pod", "without pod", "missing pod"))
+        is_plural_or_list = any(w in lower for w in ("which", "list", "show", "all", "lrs", "bilties"))
         m_pod = re.search(r"\b(?:pod)[#\s\-_/]*([0-9][A-Za-z0-9_-]*)", clean_text, re.IGNORECASE)
         lr_ref = entities.get("lr_number")
-        if not lr_ref:
-            m_lr = re.search(r"\b(?:lr|bilty)[#\s\-_/]*([0-9][A-Za-z0-9_-]*)", clean_text, re.IGNORECASE)
-            lr_ref = m_lr.group(1) if m_lr else None
-        is_pending = "pending" in lower or "unverified" in lower or "baki" in lower
+        if is_pending and (is_plural_or_list or "no pod" in lower or "without pod" in lower):
+            lr_ref = None
+            m_pod = None
+        else:
+            if not lr_ref:
+                m_lr = re.search(r"\b(?:lr|bilty)[#\s\-_/]*([0-9][A-Za-z0-9_-]*)", clean_text, re.IGNORECASE)
+                lr_ref = m_lr.group(1) if m_lr else None
         q = m_pod.group(1) if m_pod else lr_ref
         return {
             "tool": "pod",
@@ -3473,8 +3482,8 @@ def classify_operational_intent(
         if m_party:
             party_name = m_party.group(1).strip()
         else:
-            # 2. English: "ledger / balance of/for Parth"
-            m_party_eng = re.search(r"(?:ledger|khata|account|balance|dues)\s+(?:of|for)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)", clean_text, re.IGNORECASE)
+            # 2. English: "ledger / balance of/for Parth", "pending payments for Haldiram Foods"
+            m_party_eng = re.search(r"(?:ledger|khata|account|balance|dues|payments?|pending\s+payments?)\s+(?:of|for)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)", clean_text, re.IGNORECASE)
             if m_party_eng:
                 party_name = m_party_eng.group(1).strip()
             else:
@@ -3563,8 +3572,15 @@ def classify_operational_intent(
     vehicle_markers = ["vehicle", "vehicles", "gaadi", "gadi", "truck", "trucks", "lorry", "fleet"]
     if any(m in lower for m in vehicle_markers):
         is_list = any(w in lower for w in ("list", "dikhao", "all", "sabhi", "show", "count", "kitne", "kitni", "total"))
-        # A vehicle search requires either a specific vehicle registration number or a listing request
-        if extracted_vehicle or is_list or ("market" in lower or "company" in lower):
+        # Partial prefix or keyword search: "Find vehicle DL01", "vehicle DL01", "search truck HR"
+        m_veh_prefix = re.search(r"\b(?:find|search|lookup|get|show|check)?\s*(?:vehicle|truck|gaadi|gadi|lorry)\s*(?:no\.?|number|#)?\s*([A-Za-z0-9_-]+)\b", clean_text, re.IGNORECASE)
+        veh_cand = None
+        if m_veh_prefix:
+            c = m_veh_prefix.group(1).strip()
+            if c.lower() not in ("list", "all", "details", "info", "aaj", "today", "status", "batao", "dikhao", "number", "no", "form", "add", "ad", "create"):
+                veh_cand = c
+        veh_query = extracted_vehicle or veh_cand
+        if veh_query or is_list or ("market" in lower or "company" in lower):
             v_type = None
             if "market" in lower or "bazar" in lower or "bazaar" in lower or "vendor" in lower:
                 v_type = "market"
@@ -3572,8 +3588,9 @@ def classify_operational_intent(
                 v_type = "company"
             return {
                 "tool": "vehicle",
-                "query": extracted_vehicle,
+                "query": veh_query,
                 "vehicle_type": v_type,
+                "is_detail": False if (veh_query and len(veh_query) < 8) else True,
             }
 
     # 5. Driver Intent

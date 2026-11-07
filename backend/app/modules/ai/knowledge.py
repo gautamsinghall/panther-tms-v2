@@ -20,6 +20,7 @@ TMS_CORE_KNOWLEDGE = """
 - Financials: Freight rate, freight amount, loading charges, unloading charges, total freight, advance, balance.
 - Payment Terms: 'TO_PAY' (Consignee pays), 'PAID' (Consigner paid), or 'TO_BE_BILLED' (Account billing).
 - Multi-item Invoices: Supports list of invoices with Invoice No, Date, Value, and E-Way Bill Number.
+- E-Way Bill Rule (GST Rule 138): Mandatory 12-digit E-Way Bill number is strictly required whenever consignment goods value exceeds ₹50,000. Confirmation is blocked without a valid E-Way Bill.
 - Status Life Cycle: BOOKED -> IN_TRANSIT -> DELIVERED (or CANCELLED / RESERVED).
 
 2. HIRE CHALLAN (Truck Hiring Memo):
