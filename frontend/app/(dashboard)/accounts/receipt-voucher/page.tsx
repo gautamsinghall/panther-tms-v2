@@ -1280,14 +1280,14 @@ export default function ReceiptVoucherPage() {
               ) : clientOpenInvoices.length === 0 ? (
                 <div className="rounded-xl border border-slate-200 dark:border-[#303036] bg-slate-50 dark:bg-[#101013] p-6 text-center">
                   <CheckCircle className="h-8 w-8 text-emerald-500/80 mx-auto mb-2" />
-                  <p className="text-xs font-semibold text-slate-300">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                     {selectedClientId
                       ? "No pending open invoices for this customer!"
                       : "Please select a Billing Client above to view their outstanding invoices."}
                   </p>
                   {selectedClientId && (
                     <p className="text-[11px] text-slate-500 mt-1">
-                      You can record this receipt as a <strong className="text-cyan-400">Customer Advance</strong> or <strong className="text-indigo-400">On Account</strong> above.
+                      You can record this receipt as a <strong className="text-cyan-700 dark:text-cyan-400 font-semibold">Customer Advance</strong> or <strong className="text-indigo-700 dark:text-indigo-400 font-semibold">On Account</strong> above.
                     </p>
                   )}
                 </div>
@@ -1536,12 +1536,12 @@ export default function ReceiptVoucherPage() {
                 Live Tally Double-Entry Preview
               </span>
               <div className="text-xs font-mono space-y-1.5 pt-1">
-                <div className="flex justify-between text-emerald-400">
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
                   <span>Dr. Bank / Cash Account (Funds received)</span>
                   <span>{formatCurrency(parseFloat(amountReceived) || 0)}</span>
                 </div>
                 {(parseFloat(tdsAmount) > 0 || allocatedTotals.sumTds > 0) && (
-                  <div className="flex justify-between text-amber-400">
+                  <div className="flex justify-between text-amber-700 dark:text-amber-400 font-medium">
                     <span>Dr. TDS Receivable ({tdsSection} Tax Credit)</span>
                     <span>
                       {formatCurrency(receiptType === "AGAINST_REF" ? allocatedTotals.sumTds : parseFloat(tdsAmount))}
@@ -1549,7 +1549,7 @@ export default function ReceiptVoucherPage() {
                   </div>
                 )}
                 {(parseFloat(discountAmount) > 0 || allocatedTotals.sumDisc > 0) && (
-                  <div className="flex justify-between text-blue-400">
+                  <div className="flex justify-between text-blue-700 dark:text-blue-400 font-medium">
                     <span>Dr. Consignment Discount Allowed</span>
                     <span>
                       {formatCurrency(receiptType === "AGAINST_REF" ? allocatedTotals.sumDisc : parseFloat(discountAmount))}
@@ -1563,7 +1563,7 @@ export default function ReceiptVoucherPage() {
                       <span>{formatCurrency(allocatedTotals.sumTotal)}</span>
                     </div>
                     {unappliedAdvance > 0 && (
-                      <div className="flex justify-between text-cyan-400">
+                      <div className="flex justify-between text-cyan-700 dark:text-cyan-400 font-medium">
                         <span>Cr. Customer Advances & Unapplied Receipts (Liability)</span>
                         <span>{formatCurrency(unappliedAdvance)}</span>
                       </div>

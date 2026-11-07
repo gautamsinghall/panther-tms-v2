@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Trash2,
@@ -395,6 +395,17 @@ export default function CompanyVehiclesPage() {
     });
     setIsDrawerOpen(true);
   };
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      const veh = searchParams.get("vehicle_number") || "";
+      handleOpenAddDrawer();
+      if (veh) {
+        setFormValues((prev) => ({ ...prev, vehicle_number: veh.toUpperCase() }));
+      }
+    }
+  }, [searchParams]);
 
   // Open Edit Vehicle Drawer
   const handleOpenEditDrawer = (record: CompanyVehicleRecord) => {

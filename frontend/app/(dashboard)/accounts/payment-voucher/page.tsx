@@ -27,6 +27,7 @@ import {
   Truck,
   User,
   Check,
+  Info,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -792,7 +793,7 @@ export default function PaymentVoucherPage() {
         }
         if (pType === "DRIVER_ADVANCE") {
           return (
-            <Badge variant="outline" className="bg-cyan-50 text-cyan-800 border-cyan-200 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800/60 text-[11px] flex items-center gap-1">
+            <Badge variant="outline" className="bg-sky-50 text-sky-800 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800/60 text-[11px] flex items-center gap-1">
               <User className="h-3 w-3" /> Driver Advance
             </Badge>
           );
@@ -1299,7 +1300,10 @@ export default function PaymentVoucherPage() {
                     </label>
                     <select
                       value={selectedDriverId}
-                      onChange={(e) => setSelectedDriverId(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedDriverId(e.target.value);
+                        if (e.target.value) setCustomPartyName("");
+                      }}
                       className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                     >
                       <option value="">-- Choose Company / Market Driver --</option>
@@ -1310,8 +1314,23 @@ export default function PaymentVoucherPage() {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <p className="text-[11px] text-cyan-300/90 bg-cyan-950/30 border border-cyan-800/40 rounded-lg p-2.5 mt-4">
+                  {!selectedDriverId && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 tracking-tight mb-1 font-semibold">
+                        Or Enter Driver Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Driver Ramesh Kumar"
+                        value={customPartyName}
+                        onChange={(e) => setCustomPartyName(e.target.value)}
+                        className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                      />
+                    </div>
+                  )}
+                  <div className="md:col-span-2 flex items-start gap-2.5 text-xs text-blue-900 dark:text-blue-200 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/50 rounded-xl p-3">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed font-medium">
                       Driver advances are booked to Current Assets (receivables from driver) and are settled later against submitted trip expense vouchers.
                     </p>
                   </div>
@@ -1529,7 +1548,7 @@ export default function PaymentVoucherPage() {
                   </p>
                   {selectedVendorId && (
                     <p className="text-[11px] text-slate-500 mt-1">
-                      You can record this payment as a <strong className="text-cyan-400">Supplier Advance</strong> above.
+                      You can record this payment as a <strong className="text-cyan-700 dark:text-cyan-400 font-semibold">Supplier Advance</strong> above.
                     </p>
                   )}
                 </div>
@@ -1775,24 +1794,24 @@ export default function PaymentVoucherPage() {
                       <span>{formatCurrency(allocatedTotals.sumTotal)}</span>
                     </div>
                     {unappliedAdvance > 0 && (
-                      <div className="flex justify-between text-cyan-400">
+                      <div className="flex justify-between text-blue-700 dark:text-blue-400">
                         <span>Dr. Supplier Advances & Prepayments (Asset)</span>
                         <span>{formatCurrency(unappliedAdvance)}</span>
                       </div>
                     )}
                   </>
                 ) : paymentType === "HIRE_CHALLAN" ? (
-                  <div className="flex justify-between text-amber-400">
+                  <div className="flex justify-between text-amber-700 dark:text-amber-400">
                     <span>Dr. Transporter / Vehicle Owner (Hire Challan)</span>
                     <span>{formatCurrency((parseFloat(amountToPay) || 0) + (parseFloat(tdsAmount) || 0))}</span>
                   </div>
                 ) : paymentType === "DRIVER_ADVANCE" ? (
-                  <div className="flex justify-between text-cyan-400">
+                  <div className="flex justify-between text-blue-700 dark:text-blue-400">
                     <span>Dr. Driver Trip Advances (Current Asset)</span>
                     <span>{formatCurrency(parseFloat(amountToPay) || 0)}</span>
                   </div>
                 ) : (
-                  <div className="flex justify-between text-purple-400">
+                  <div className="flex justify-between text-purple-700 dark:text-purple-400">
                     <span>Dr. Business Expense / Payee Ledger</span>
                     <span>{formatCurrency(parseFloat(amountToPay) || 0)}</span>
                   </div>

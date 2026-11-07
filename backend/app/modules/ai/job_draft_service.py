@@ -374,7 +374,7 @@ async def handle_conversational_job_booking(
             title="Job Draft Cancelled",
             badge={"text": "Cancelled", "variant": "neutral"},
             metrics=[],
-            action={"label": "Open Jobs Register", "href": "/transport/job-orders"},
+            can_confirm=False,
         )
         return reply, [cancel_card]
 

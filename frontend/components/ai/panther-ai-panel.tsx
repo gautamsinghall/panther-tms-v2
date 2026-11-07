@@ -26,6 +26,9 @@ import {
   ChevronDown,
   Info,
   RotateCcw,
+  Paperclip,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
@@ -101,6 +104,10 @@ export function PantherAIPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeDraftInfo, setActiveDraftInfo] = useState<{ draft_id: string; missing_fields: string[] } | null>(null);
   const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Restore saved panel size preference
   useEffect(() => {
@@ -296,6 +303,104 @@ export function PantherAIPanel() {
     setError(null);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+    setError(null);
+
+    const userUploadMsg: Message = {
+      id: `user-up-${Date.now()}`,
+      role: "user",
+      content: `📄 Uploaded file: **${file.name}**`,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userUploadMsg]);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await apiClient<{
+        success: boolean;
+        message: string;
+        card?: StructuredCard;
+        missing_fields?: string[];
+      }>("/api/v1/ai/upload-extract", {
+        method: "POST",
+        body: formData,
+      });
+
+      const assistantMsg: Message = {
+        id: `asst-up-${Date.now()}`,
+        role: "assistant",
+        content: res.message || `Extracted details from ${file.name}.`,
+        cards: res.card ? [res.card] : [],
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (err: any) {
+      setError(err?.message || "Failed to extract details from the uploaded document.");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const toggleSpeechRecognition = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-IN";
+      recognition.onstart = () => {
+        setIsListening(true);
+        setError(null);
+      };
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((r: any) => r[0].transcript)
+          .join("");
+        if (transcript) {
+          setInput((prev) => {
+            const trimmed = prev.trim();
+            return trimmed ? `${trimmed} ${transcript}` : transcript;
+          });
+        }
+      };
+      recognition.onerror = (e: any) => {
+        setIsListening(false);
+        if (e.error !== "no-speech") {
+          setError(`Voice input error: ${e.error}`);
+        }
+      };
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err: any) {
+      setIsListening(false);
+      setError(err?.message || "Failed to start speech recognition.");
+    }
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     if (isSubmittingRef.current) return;
     const rawContent = textToSend !== undefined ? textToSend : input;
@@ -362,33 +467,35 @@ export function PantherAIPanel() {
       const isCancellation =
         trimmed.toLowerCase() === "cancel" ||
         trimmed.toLowerCase() === "clear draft" ||
+        trimmed.toLowerCase() === "discard draft" ||
+        trimmed.toLowerCase() === "cancel draft" ||
+        trimmed.toLowerCase() === "cancel lr" ||
+        trimmed.toLowerCase() === "cancel booking" ||
         response.cards?.some(
           (c) =>
             c.title?.toLowerCase().includes("cancelled") ||
             c.badge?.text?.toLowerCase() === "cancelled" ||
             c.card_type === "lr_draft_cancelled"
-        );
+        ) ||
+        response.content.toLowerCase().includes("draft has been cancelled") ||
+        response.content.toLowerCase().includes("draft cancel kar di") ||
+        response.content.toLowerCase().includes("ड्राफ्ट रद्द");
 
       if (isCancellation) {
         setActiveDraftInfo(null);
+        apiClient("/api/v1/ai/chat/clear", { method: "POST" }).catch(() => {});
         setMessages((prev) => {
           const updatedPrev = prev.map((msg) => {
             if (!msg.cards || msg.cards.length === 0) return msg;
-            const updatedCards = msg.cards.map((card) => {
-              if (["lr_draft", "job_draft", "hire_challan_draft"].includes(card.card_type)) {
-                return {
-                  ...card,
-                  title: `${card.title.replace(/• Draft.*/, "").trim()} • Draft (Cancelled)`,
-                  badge: { text: "Cancelled", variant: "neutral" as const },
-                  subtitle: "Cancelled — no LR was created",
-                  can_confirm: false,
-                };
-              }
-              return card;
-            });
-            return { ...msg, cards: updatedCards };
+            const remainingCards = msg.cards.filter(
+              (card) => !["lr_draft", "job_draft", "hire_challan_draft", "lr_draft_cancelled"].includes(card.card_type)
+            );
+            return { ...msg, cards: remainingCards };
           });
-          return [...updatedPrev, assistantMessage];
+          const cleanAssistantCards = (assistantMessage.cards || []).filter(
+            (card) => !["lr_draft", "job_draft", "hire_challan_draft", "lr_draft_cancelled"].includes(card.card_type)
+          );
+          return [...updatedPrev, { ...assistantMessage, cards: cleanAssistantCards }];
         });
       } else {
         const draftCard = response.cards?.find(
@@ -839,6 +946,36 @@ export function PantherAIPanel() {
                               ? "Confirm & Create Hire Challan"
                               : "Confirm & Create LR";
 
+                          const isCancelled =
+                            card.badge?.text?.toLowerCase() === "cancelled" ||
+                            card.title?.toLowerCase().includes("cancelled") ||
+                            card.subtitle?.toLowerCase().includes("cancelled") ||
+                            card.card_type === "lr_draft_cancelled";
+
+                          if (isCancelled) {
+                            return (
+                              <div
+                                key={cIdx}
+                                className="rounded-2xl p-3.5 bg-slate-50 dark:bg-[#141727] border border-slate-200 dark:border-[#252B46] shadow-2xs space-y-2 select-none"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <FileText className="w-4 h-4 text-slate-400" />
+                                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                                      {card.title || "LR Booking • Draft Cancelled"}
+                                    </h4>
+                                  </div>
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 shrink-0">
+                                    Cancelled
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                  Cancelled — no LR was created
+                                </p>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div
                               key={cIdx}
@@ -1136,6 +1273,95 @@ export function PantherAIPanel() {
                           );
                         }
 
+                        // Case D0: Tracking Timeline Card
+                        if (
+                          card.card_type === "tracking_timeline" ||
+                          (card.card_type === "tracking" &&
+                            card.items &&
+                            card.items.length >= 3 &&
+                            card.items[0]?.primary?.startsWith("Origin"))
+                        ) {
+                          return (
+                            <div
+                              key={cIdx}
+                              className="rounded-2xl p-3.5 bg-white dark:bg-[#141727] border border-blue-500/30 dark:border-blue-500/40 shadow-2xs space-y-3"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <Truck className="w-4 h-4 text-blue-500 shrink-0" />
+                                  <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                                    {card.title}
+                                  </h4>
+                                </div>
+                                {card.badge && (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
+                                    {card.badge.text}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Metrics */}
+                              {card.metrics && card.metrics.length > 0 && (
+                                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                  {card.metrics.map((m, mIdx) => (
+                                    <div
+                                      key={mIdx}
+                                      className="p-1.5 rounded-lg bg-slate-50 dark:bg-[#1A1E31] border border-slate-200/60 dark:border-[#2D3452]"
+                                    >
+                                      <div className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                                        {m.label}
+                                      </div>
+                                      <div className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
+                                        {m.value}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Vertical Timeline */}
+                              <div className="relative pl-6 space-y-3 pt-1 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-[#262B44]">
+                                {card.items?.map((it, idx) => {
+                                  const isDone = it.status === "Completed";
+                                  const isCurrent = it.status === "In Progress";
+                                  return (
+                                    <div key={idx} className="relative">
+                                      <div
+                                        className={`absolute -left-6 top-1 w-2.5 h-2.5 rounded-full border-2 ${
+                                          isDone
+                                            ? "bg-emerald-500 border-emerald-500"
+                                            : isCurrent
+                                            ? "bg-blue-500 border-white dark:border-[#141727] ring-2 ring-blue-500 animate-pulse"
+                                            : "bg-white dark:bg-[#1A1E31] border-slate-300 dark:border-slate-600"
+                                        }`}
+                                      />
+                                      <div className="text-xs font-semibold text-slate-900 dark:text-white">
+                                        {it.primary}
+                                      </div>
+                                      {it.secondary && (
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                          {it.secondary}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {card.action && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleNavigate(card.action!.href)}
+                                  className="w-full py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                                >
+                                  <span>{card.action.label}</span>
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+
                         // Case D: General Structured Card (Ledgers, Tracking, Lists)
                         return (
                           <div
@@ -1301,15 +1527,54 @@ export function PantherAIPanel() {
           }}
           className="relative flex items-end bg-white dark:bg-[#141727] rounded-2xl border border-slate-200 dark:border-[#252B46] p-1.5 focus-within:border-[#5B50E6] dark:focus-within:border-[#5B50E6] focus-within:ring-1 focus-within:ring-[#5B50E6] transition-all shadow-2xs"
         >
+          {/* Hidden File Input for document upload */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".pdf,.png,.jpg,.jpeg,.txt,.csv"
+            className="hidden"
+          />
+
+          {/* Paperclip upload button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading || isUploading}
+            title="Attach document or invoice (PDF/Image/Text)"
+            className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-[#1E2235] text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed mb-0.5"
+          >
+            {isUploading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-[#5B50E6]" />
+            ) : (
+              <Paperclip className="w-4 h-4" />
+            )}
+          </button>
+
+          {/* Mic voice input button */}
+          <button
+            type="button"
+            onClick={toggleSpeechRecognition}
+            disabled={isLoading}
+            title={isListening ? "Stop listening" : "Speak to Panther AI"}
+            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 cursor-pointer mb-0.5 ${
+              isListening
+                ? "bg-rose-500 text-white animate-pulse shadow-sm"
+                : "hover:bg-slate-100 dark:hover:bg-[#1E2235] text-slate-400 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </button>
+
           <textarea
             ref={textareaRef}
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Panther AI anything... (Shift+Enter for newline)"
+            placeholder={isListening ? "Listening... speak now" : "Ask Panther AI anything... (Shift+Enter for newline)"}
             disabled={isLoading}
-            className="flex-1 min-h-[36px] max-h-[120px] bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-hidden px-2.5 py-2 leading-relaxed overflow-y-auto"
+            className="flex-1 min-h-[36px] max-h-[120px] bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-hidden px-2 py-2 leading-relaxed overflow-y-auto"
           />
 
           <button

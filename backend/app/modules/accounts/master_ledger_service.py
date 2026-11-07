@@ -1625,14 +1625,24 @@ async def list_driver_ledgers(
     )
 
     if search:
-        s_term = f"%{search.strip()}%"
-        stmt = stmt.where(
-            or_(
-                Driver.name.ilike(s_term),
-                Driver.phone.ilike(s_term),
-                Driver.license_number.ilike(s_term),
-            )
-        )
+        clean_s = re.sub(r"^(?:driver|chalak|sarathi)\s+", "", search.strip(), flags=re.I).strip()
+        s_term = f"%{clean_s}%"
+        conds = [
+            Driver.name.ilike(s_term),
+            Driver.phone.ilike(s_term),
+            Driver.license_number.ilike(s_term),
+        ]
+        # Also match individual tokens if search includes name and code (e.g. "Parth DRV-0001")
+        for tok in clean_s.split():
+            if len(tok) >= 2 and not tok.upper().startswith("DRV"):
+                conds.append(Driver.name.ilike(f"%{tok}%"))
+            m_id = re.search(r"^(?:DRV-?)?(\d+)$", tok, re.I)
+            if m_id:
+                try:
+                    conds.append(Driver.id == int(m_id.group(1)))
+                except ValueError:
+                    pass
+        stmt = stmt.where(or_(*conds))
 
     res = await session.execute(stmt)
     drivers = list(res.scalars().all())
@@ -2052,8 +2062,29 @@ async def list_company_bank_account_ledgers(
     res = await session.execute(stmt)
     accounts = res.scalars().all()
 
+    # Locate canonical Cash-in-hand ledger account
+    cash_acc = (await session.execute(
+        select(Account).where(
+            or_(Account.code == "ACC_CASH", Account.code == "CASH", Account.name.ilike("%Cash-in-hand%"))
+        ).order_by(Account.id.asc()).limit(1)
+    )).scalar_one_or_none()
+
     items: List[schemas.CompanyBankAccountLedgerListItem] = []
+    has_cash_account_row = False
+
     for ba in accounts:
+        is_ba_cash = (
+            "cash" in (ba.bank_name or "").lower() or
+            "cash" in (ba.ledger_name or "").lower() or
+            (ba.account_type or "").upper() == "CASH" or
+            (cash_acc and ba.account_id == cash_acc.id)
+        )
+        target_account_ids = [ba.account_id]
+        if is_ba_cash:
+            has_cash_account_row = True
+            if cash_acc and cash_acc.id not in target_account_ids:
+                target_account_ids.append(cash_acc.id)
+
         # Query ledger entries for debits, credits, and tx counts
         le_q = select(
             func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
@@ -2061,7 +2092,7 @@ async def list_company_bank_account_ledgers(
             func.count(LedgerEntry.id),
             func.max(LedgerEntry.entry_date),
         ).where(
-            LedgerEntry.account_id == ba.account_id,
+            LedgerEntry.account_id.in_(target_account_ids),
             LedgerEntry.is_reversal == False,
         )
         if from_date:
@@ -2082,7 +2113,7 @@ async def list_company_bank_account_ledgers(
                 func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
                 func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
             ).where(
-                LedgerEntry.account_id == ba.account_id,
+                LedgerEntry.account_id.in_(target_account_ids),
                 LedgerEntry.is_reversal == False,
                 LedgerEntry.entry_date < from_date,
             )
@@ -2135,6 +2166,63 @@ async def list_company_bank_account_ledgers(
                 ledger_name=ba.ledger_name,
                 transaction_count=tx_cnt or 0,
                 last_transaction_date=last_dt,
+            )
+        )
+
+    # Ensure Cash-in-hand GL is guaranteed to be included in Bank Accounts tab
+    if not has_cash_account_row and cash_acc:
+        le_cash_q = select(
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
+            func.count(LedgerEntry.id),
+            func.max(LedgerEntry.entry_date),
+        ).where(
+            LedgerEntry.account_id == cash_acc.id,
+            LedgerEntry.is_reversal == False,
+        )
+        if from_date:
+            le_cash_q = le_cash_q.where(LedgerEntry.entry_date >= from_date)
+        if to_date:
+            le_cash_q = le_cash_q.where(LedgerEntry.entry_date <= to_date)
+
+        c_dr, c_cr, c_cnt, c_last_dt = (await session.execute(le_cash_q)).one()
+        c_open = Decimal(str(cash_acc.opening_balance or "0.00"))
+        c_open_dr = c_open if cash_acc.opening_balance_type == "DR" else Decimal("0.00")
+        c_open_cr = c_open if cash_acc.opening_balance_type == "CR" else Decimal("0.00")
+
+        c_net = (c_open_dr + c_dr) - (c_open_cr + c_cr)
+        if c_net >= Decimal("0.00"):
+            c_cur = c_net
+            c_bal_type = "DR"
+        else:
+            c_cur = abs(c_net)
+            c_bal_type = "CR"
+
+        items.append(
+            schemas.CompanyBankAccountLedgerListItem(
+                id=cash_acc.id,
+                bank_name="Cash-in-hand Account",
+                account_number="CASH",
+                account_number_masked="CASH",
+                account_type="CASH",
+                ifsc_code="CASH0000000",
+                branch_name="Main Operating Cash Vault",
+                issuing_office_id=office_id or 1,
+                issuing_office_name="All Offices",
+                issuing_office_code="ALL",
+                opening_balance=c_open,
+                opening_balance_type=cash_acc.opening_balance_type or "DR",
+                total_debit=c_dr,
+                total_credit=c_cr,
+                current_balance=c_cur,
+                balance_type=c_bal_type,
+                status="Active",
+                is_default=False,
+                is_active=True,
+                ledger_id=cash_acc.id,
+                ledger_name=cash_acc.name,
+                transaction_count=c_cnt or 0,
+                last_transaction_date=c_last_dt,
             )
         )
 
@@ -2207,6 +2295,22 @@ async def get_company_bank_account_ledger_detail(
         acc_type = ba.account_type
         br_name = ba.branch_name or ""
 
+    cash_acc = (await session.execute(
+        select(Account).where(
+            or_(Account.code == "ACC_CASH", Account.code == "CASH", Account.name.ilike("%Cash-in-hand%"))
+        ).order_by(Account.id.asc()).limit(1)
+    )).scalar_one_or_none()
+
+    is_cash_detail = (
+        "cash" in (bank_name or "").lower() or
+        "cash" in (ledger_name or "").lower() or
+        (acc_type or "").upper() == "CASH" or
+        (cash_acc and acc_id == cash_acc.id)
+    )
+    target_acc_ids = [acc_id]
+    if is_cash_detail and cash_acc and cash_acc.id not in target_acc_ids:
+        target_acc_ids.append(cash_acc.id)
+
     init_dr = init_open if init_open_type == "DR" else Decimal("0.00")
     init_cr = init_open if init_open_type == "CR" else Decimal("0.00")
 
@@ -2215,7 +2319,7 @@ async def get_company_bank_account_ledger_detail(
             func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")),
             func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")),
         ).where(
-            LedgerEntry.account_id == acc_id,
+            LedgerEntry.account_id.in_(target_acc_ids),
             LedgerEntry.is_reversal == False,
             LedgerEntry.entry_date < from_date,
         )
@@ -2240,7 +2344,7 @@ async def get_company_bank_account_ledger_detail(
             selectinload(LedgerEntry.voucher).selectinload(Voucher.lr),
         )
         .where(
-            LedgerEntry.account_id == acc_id,
+            LedgerEntry.account_id.in_(target_acc_ids),
             LedgerEntry.is_reversal == False,
         )
     )

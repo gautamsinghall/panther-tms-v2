@@ -738,6 +738,8 @@ async def test_api_chat_operational_tool_end_to_end():
     app.dependency_overrides[get_ai_tenant_db] = lambda: mock_db
 
     try:
+        from app.modules.ai.draft_store import lr_draft_store
+        await lr_draft_store.clear_active_draft(tenant.id, user.id, draft_type="lr")
         with patch("app.modules.ai.tools.get_all_lrs", new_callable=AsyncMock, return_value=[mock_lr]):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 res = await ac.post(

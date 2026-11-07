@@ -1034,7 +1034,13 @@ async def execute_vehicle_tool(
         action={"label": action_label, "href": action_href},
     )
 
-    if lang == "hinglish":
+    if query and 1 < len(matched) <= 5:
+        did_you_mean = " or ".join(f"**{v['number']}**" for v in matched)
+        if lang in ("hinglish", "hi_devanagari"):
+            msg = f"Kya aapka matlab {did_you_mean} se hai? Niche click karke select karein:"
+        else:
+            msg = f"Did you mean {did_you_mean}? Please select a vehicle below:"
+    elif lang == "hinglish":
         msg = f"Aapke fleet ke **{len(matched)} vehicles** mil gaye hain. Details niche card mein dekhein."
     elif lang == "hi_devanagari":
         msg = f"आपकी फ्लीट के **{len(matched)} वाहन** मिल गए हैं। विवरण नीचे देखें।"
@@ -1066,6 +1072,12 @@ async def execute_driver_tool(
             badge={"text": "Access Denied", "variant": "danger"},
         )
         return msg, [card]
+
+    # Re-route ledger / balance inquiries to execute_accounting_tool
+    if query and any(w in query.lower() for w in ("ledger", "khata", "balance", "outstanding", "hisab", "hisaab", "advance", "advances", "dues", "rupees")):
+        return await execute_accounting_tool(
+            db=db, user=user, tenant=tenant, party_name=query, lang=lang
+        )
 
     drivers = await get_all_drivers(db)
 
@@ -1774,6 +1786,9 @@ async def execute_tracking_tool(
         return msg, [card]
 
     context_prefix = ""
+    matched_lr = None
+    orig = "Origin"
+    dest = "Destination"
 
     # 1. Resolve vehicle from LR number if supplied
     if not vehicle_number and lr_number:
@@ -1798,8 +1813,8 @@ async def execute_tracking_tool(
             dest = matched_lr.destination_location.name if matched_lr.destination_location else "Destination"
             context_prefix = f"Consignment **LR {matched_lr.lr_number}** ({orig} → {dest}) is in transit on vehicle **{vehicle_number}**."
         else:
-            msg = f"LR **{lr_number}** nahi mila tracking ke liye." if lang in ("hinglish", "hi_devanagari") else f"LR **{lr_number}** could not be found for tracking."
-            card = StructuredCard(card_type="tracking", title="LR Not Found", subtitle=f"No matching LR for '{lr_number}'", badge={"text": "Not Found", "variant": "neutral"})
+            msg = f"LR **{lr_number}** nahi mila tracking ke liye." if lang in ("hinglish", "hi_devanagari") else f"No LR records found matching {clean_lr or lr_number}."
+            card = StructuredCard(card_type="tracking", title="LR Not Found", subtitle=f"No matching LR for '{clean_lr or lr_number}'", badge={"text": "Not Found", "variant": "neutral"})
             return msg, [card]
 
     # 2. Resolve vehicle from Hire Challan number if supplied
@@ -1875,25 +1890,45 @@ async def execute_tracking_tool(
             status_text = "GPS Telemetry"
             variant = "success"
 
-        card = StructuredCard(
-            card_type="tracking",
-            title=f"Vehicle Tracking: {clean_v}",
-            subtitle="Continuous Hardware Telemetry ? Source: Wheelseye GPS",
-            badge={"text": status_text, "variant": variant},
-            metrics=[
-                {"label": "Source", "value": "Wheelseye GPS"},
-                {"label": "Status", "value": status_text},
-                {"label": "Current Speed", "value": f"{speed} km/h"},
-                {"label": "Last Location", "value": location},
-                {"label": "Last Updated", "value": str(raw_ts or "Live")},
-            ],
-            items=[{
-                "primary": f"Location: {location}",
-                "secondary": f"Speed: {speed} km/h ? Updated: {raw_ts or 'Live'}",
-                "status": status_text,
-            }],
-            action={"label": "View GPS Fleet", "href": "/tracking/gps"},
-        )
+        if matched_lr:
+            card = StructuredCard(
+                card_type="tracking",
+                title=f"Tracking: LR {matched_lr.lr_number} • {clean_v}" if clean_v else f"Tracking: LR {matched_lr.lr_number}",
+                subtitle=f"Vehicle: {clean_v} • {status_text}",
+                badge={"text": status_text, "variant": variant},
+                metrics=[
+                    {"label": "LR Number", "value": matched_lr.lr_number},
+                    {"label": "Vehicle", "value": clean_v},
+                    {"label": "Current Speed", "value": f"{speed} km/h"},
+                    {"label": "Last Location", "value": location},
+                ],
+                items=[
+                    {"primary": f"Origin: {orig}", "secondary": "Consignment Booked & Dispatched", "status": "Completed"},
+                    {"primary": f"In Transit • {location}", "secondary": f"Speed: {speed} km/h • Updated: {raw_ts or 'Live'}", "status": "In Progress"},
+                    {"primary": f"Destination: {dest}", "secondary": "Expected for Delivery", "status": "Pending"},
+                ],
+                action={"label": "View GPS Fleet", "href": "/tracking/gps"},
+            )
+        else:
+            card = StructuredCard(
+                card_type="tracking",
+                title=f"Vehicle Tracking: {clean_v}",
+                subtitle="Continuous Hardware Telemetry • Source: Wheelseye GPS",
+                badge={"text": status_text, "variant": variant},
+                metrics=[
+                    {"label": "Source", "value": "Wheelseye GPS"},
+                    {"label": "Status", "value": status_text},
+                    {"label": "Current Speed", "value": f"{speed} km/h"},
+                    {"label": "Last Location", "value": location},
+                    {"label": "Last Updated", "value": str(raw_ts or "Live")},
+                ],
+                items=[{
+                    "primary": f"Location: {location}",
+                    "secondary": f"Speed: {speed} km/h • Updated: {raw_ts or 'Live'}",
+                    "status": status_text,
+                }],
+                action={"label": "View GPS Fleet", "href": "/tracking/gps"},
+            )
         msg = f"Vehicle **{clean_v}** telemetry: **{status_text}** via Wheelseye GPS at **{location}** (Speed: {speed} km/h, Timestamp: {raw_ts or 'Live'})."
         if context_prefix:
             msg = f"{context_prefix}\n\n{msg}"
@@ -2010,20 +2045,40 @@ async def execute_tracking_tool(
 
         return msg, [card]
 
-    # 4. Tracking Unavailable
+    # 4. Tracking Unavailable / Awaiting Pings
     target_name = clean_v or "Requested vehicle"
-    card = StructuredCard(
-        card_type="tracking",
-        title=f"Tracking Status: {target_name}",
-        subtitle="No live telematics returned by configured services",
-        badge={"text": "Tracking Unavailable", "variant": "neutral"},
-        metrics=[
-            {"label": "GPS Status", "value": "Service Unlinked"},
-            {"label": "SIM Trip", "value": "No Active Session"},
-            {"label": "FASTag", "value": "No Toll Hits"},
-        ],
-        action={"label": "Set Up FASTag / GPS", "href": "/tracking/fastag"},
-    )
+    if matched_lr:
+        card = StructuredCard(
+            card_type="tracking",
+            title=f"Tracking: LR {matched_lr.lr_number} • {clean_v}" if clean_v else f"Tracking: LR {matched_lr.lr_number}",
+            subtitle=f"Vehicle: {clean_v} • Consignment Booked & Dispatched",
+            badge={"text": "In Transit", "variant": "warning"},
+            metrics=[
+                {"label": "LR Number", "value": matched_lr.lr_number},
+                {"label": "Vehicle", "value": clean_v},
+                {"label": "Route", "value": f"{orig} → {dest}"},
+                {"label": "Telemetry", "value": "Awaiting Live Ping"},
+            ],
+            items=[
+                {"primary": f"Origin: {orig}", "secondary": "Consignment Booked & Dispatched", "status": "Completed"},
+                {"primary": f"In Transit • Route {orig} → {dest}", "secondary": f"Assigned to Vehicle {clean_v}", "status": "In Progress"},
+                {"primary": f"Destination: {dest}", "secondary": "Expected for Delivery", "status": "Pending"},
+            ],
+            action={"label": "View Tracking Dashboard", "href": "/tracking"},
+        )
+    else:
+        card = StructuredCard(
+            card_type="tracking",
+            title=f"Tracking Status: {target_name}",
+            subtitle="No live telematics returned by configured services",
+            badge={"text": "Tracking Unavailable", "variant": "neutral"},
+            metrics=[
+                {"label": "GPS Status", "value": "Service Unlinked"},
+                {"label": "SIM Trip", "value": "No Active Session"},
+                {"label": "FASTag", "value": "No Toll Hits"},
+            ],
+            action={"label": "Set Up FASTag / GPS", "href": "/tracking/fastag"},
+        )
 
     if lang == "hinglish":
         msg = f"Vehicle **{target_name}** ke liye telematics **Tracking Unavailable** hai. Koi live GPS ping, active SIM session, ya FASTag toll hit record nahi mila."
@@ -2031,6 +2086,9 @@ async def execute_tracking_tool(
         msg = f"वाहन **{target_name}** के लिए टेलीमैटिक्स **ट्रैकिंग अनुपलब्ध (Tracking Unavailable)** है। कोई लाइव GPS, सक्रिय SIM सत्र, या FASTag टोल रिकॉर्ड नहीं मिला।"
     else:
         msg = f"Telematics for **{target_name}** is currently **Tracking Unavailable**. No live GPS positions, active SIM tracking sessions, or FASTag toll checkpoints were found."
+
+    if context_prefix:
+        msg = f"{context_prefix}\n\n{msg}"
 
     return msg, [card]
 
@@ -2104,13 +2162,19 @@ async def execute_accounting_tool(
                 "balance_type": v.balance_type or "CR",
             })
         for d in drivers:
+            cur_bal = float(d.current_balance or 0.0)
+            bal_type = d.balance_type or ("DR" if cur_bal > 0 else "NIL")
             matched_items.append({
+                "id": d.id,
+                "code": d.driver_id,
                 "name": d.name,
                 "type": "Driver",
-                "debit": float(d.total_debit or 0.0),
-                "credit": float(d.total_credit or 0.0),
-                "balance": float(d.outstanding_balance or 0.0),
-                "balance_type": d.balance_type or "CR",
+                "debit": float(d.total_advances or 0.0),
+                "credit": float(d.total_expenses or 0.0),
+                "balance": cur_bal,
+                "balance_type": bal_type,
+                "tx_count": getattr(d, "transaction_count", 0),
+                "last_date": getattr(d, "last_transaction_date", None),
             })
 
         if not matched_items:
@@ -2125,6 +2189,62 @@ async def execute_accounting_tool(
             return msg, [card]
 
         first = matched_items[0]
+
+        # Fetch last payment voucher details for drivers
+        last_pv_str = ""
+        if first["type"] == "Driver":
+            try:
+                from app.tenant_db.models import Voucher
+                pv_stmt = (
+                    select(Voucher)
+                    .where(Voucher.driver_id == first.get("id"), Voucher.is_void == False)
+                    .order_by(desc(Voucher.voucher_date), desc(Voucher.id))
+                    .limit(1)
+                )
+                last_pv = (await db.execute(pv_stmt)).scalar_one_or_none()
+                if last_pv:
+                    dt_fmt = last_pv.voucher_date.strftime("%d %b %Y") if last_pv.voucher_date else "Recent"
+                    if dt_fmt.startswith("0"):
+                        dt_fmt = dt_fmt[1:]
+                    last_pv_str = f", last payment {dt_fmt} ({last_pv.voucher_number}, ₹{float(last_pv.net_amount):,.2f})"
+            except Exception:
+                pass
+
+        if first["type"] == "Driver":
+            drv_code = first.get("code") or f"DRV-{first.get('id', 1):04d}"
+            status_text = "Recoverable" if first["balance_type"] == "DR" else "Payable"
+            adv_str = f"Advances ₹{first['balance']:,.2f} DR ({status_text})" if first["balance_type"] == "DR" else f"Payable ₹{first['balance']:,.2f} CR"
+            tx_cnt = first.get("tx_count") or 1
+            rec_str = f"{tx_cnt} records"
+
+            card = StructuredCard(
+                card_type="party_ledger",
+                title=f"Driver Ledger: {first['name']} ({drv_code})",
+                subtitle=f"Driver Sub-Ledger • {adv_str}",
+                badge={"text": "Advances (Recoverable)" if first["balance_type"] == "DR" else "Payable", "variant": "warning" if first["balance_type"] == "DR" else "success"},
+                metrics=[
+                    {"label": "Driver Advances (Recoverable)", "value": f"₹{first['balance']:,.2f} DR"},
+                    {"label": "Total Disbursed", "value": f"₹{first['debit']:,.2f}"},
+                    {"label": "Total Settled", "value": f"₹{first['credit']:,.2f}"},
+                ],
+                items=[{
+                    "primary": f"{first['name']} ({drv_code})",
+                    "secondary": f"Sub-ledger total: {rec_str}{last_pv_str}",
+                    "amount": f"₹{first['balance']:,.2f} {first['balance_type']}",
+                    "status": "Recoverable" if first["balance_type"] == "DR" else "Payable",
+                }],
+                action={"label": f"Open Driver Ledger ({first['name']})", "href": f"/accounts/master-ledger?category=DRIVER&entity_id={first.get('id')}"},
+            )
+
+            if lang == "hinglish":
+                msg = f"Driver **{first['name']}** ({drv_code}): **{adv_str}**, {rec_str}{last_pv_str}."
+            elif lang == "hi_devanagari":
+                msg = f"ड्राइवर **{first['name']}** ({drv_code}): **{adv_str}**, {rec_str}{last_pv_str}."
+            else:
+                msg = f"Driver **{first['name']}** ({drv_code}): **{adv_str}**, {rec_str}{last_pv_str}."
+
+            return msg, [card]
+
         card = StructuredCard(
             card_type="party_ledger",
             title=f"Ledger: {first['name']}",
@@ -2158,6 +2278,7 @@ async def execute_accounting_tool(
     client_stat = summary.billing_clients
     vendor_stat = summary.vendors
     driver_stat = summary.drivers
+    drv_amt = float(driver_stat.total_outstanding or 0.0)
 
     card = StructuredCard(
         card_type="ledger_summary",
@@ -2167,7 +2288,7 @@ async def execute_accounting_tool(
         metrics=[
             {"label": "Clients Outstanding", "value": f"₹{float(client_stat.total_outstanding or 0.0):,.2f}"},
             {"label": "Vendors Payable", "value": f"₹{float(vendor_stat.total_outstanding or 0.0):,.2f}"},
-            {"label": "Drivers Payable", "value": f"₹{float(driver_stat.total_outstanding or 0.0):,.2f}"},
+            {"label": "Driver Advances (Recoverable)", "value": f"₹{drv_amt:,.2f}"},
         ],
         items=[
             {
@@ -2183,10 +2304,10 @@ async def execute_accounting_tool(
                 "status": "Payable",
             },
             {
-                "primary": "Drivers & Operators",
+                "primary": "Drivers & Operators (Trip Advances)",
                 "secondary": f"{driver_stat.pending_count} pending, {driver_stat.settled_count} settled accounts",
-                "amount": f"₹{float(driver_stat.total_outstanding or 0.0):,.2f}",
-                "status": "Payable",
+                "amount": f"₹{drv_amt:,.2f}",
+                "status": "Recoverable",
             },
         ],
         action={"label": "Open Master Ledger", "href": "/accounts/master-ledger"},
@@ -2197,21 +2318,21 @@ async def execute_accounting_tool(
             f"Aapke active branch ka **Master Ledger Summary** tayyar hai:\n"
             f"- Clients Outstanding: **₹{float(client_stat.total_outstanding or 0.0):,.2f}**\n"
             f"- Vendors Payable: **₹{float(vendor_stat.total_outstanding or 0.0):,.2f}**\n"
-            f"- Drivers Payable: **₹{float(driver_stat.total_outstanding or 0.0):,.2f}**"
+            f"- Driver Advances (Recoverable): **₹{drv_amt:,.2f}**"
         )
     elif lang == "hi_devanagari":
         msg = (
             f"आपकी सक्रिय शाखा का **मास्टर लेज़र सारांश**:\n"
             f"- ग्राहकों का बकाया (Clients Outstanding): **₹{float(client_stat.total_outstanding or 0.0):,.2f}**\n"
             f"- विक्रेताओं की देनदारी (Vendors Payable): **₹{float(vendor_stat.total_outstanding or 0.0):,.2f}**\n"
-            f"- चालकों की देनदारी (Drivers Payable): **₹{float(driver_stat.total_outstanding or 0.0):,.2f}**"
+            f"- चालकों के अग्रिम (Driver Advances Recoverable): **₹{drv_amt:,.2f}**"
         )
     else:
         msg = (
             f"Here is your active branch **Master Ledger Summary**:\n"
             f"- Clients Outstanding: **₹{float(client_stat.total_outstanding or 0.0):,.2f}**\n"
             f"- Vendors Payable: **₹{float(vendor_stat.total_outstanding or 0.0):,.2f}**\n"
-            f"- Drivers Payable: **₹{float(driver_stat.total_outstanding or 0.0):,.2f}**"
+            f"- Driver Advances (Recoverable): **₹{drv_amt:,.2f}**"
         )
 
     return msg, [card]
@@ -2246,6 +2367,50 @@ async def execute_pod_tool(
             subtitle="Missing permission: transport.pod_records.view",
             badge={"text": "Access Denied", "variant": "danger"},
             action={"label": "View Plans & Upgrades", "href": "/settings/billing"},
+        )
+        return msg, [card]
+
+    if not (query or lr_number) and not is_count and not is_pending:
+        msg = "Which LR's POD would you like to check? Please provide the LR Number (e.g., PLPL-0101)."
+        card = StructuredCard(
+            card_type="pod_detail",
+            title="Proof of Delivery (POD)",
+            subtitle="Please specify an LR Number to look up its POD",
+            badge={"text": "LR Required", "variant": "neutral"},
+            action={"label": "View All POD Records", "href": "/transport/pod-records"},
+        )
+        return msg, [card]
+
+    if is_pending and not is_count and not (query or lr_number):
+        stmt_pending = (
+            select(LR)
+            .options(selectinload(LR.consignee))
+            .outerjoin(PODRecord, LR.id == PODRecord.lr_id)
+            .where(or_(PODRecord.id.is_(None), PODRecord.verification_status != "VERIFIED"))
+            .order_by(desc(LR.created_at))
+            .limit(10)
+        )
+        res_p = await db.execute(stmt_pending)
+        lrs_pending = list(res_p.scalars().all())
+        items = []
+        for l in lrs_pending:
+            ce = l.consignee.name if l.consignee else "Client"
+            dt_str = l.created_at.strftime("%Y-%m-%d") if l.created_at else "Recent"
+            items.append({
+                "primary": f"LR {l.lr_number} • {ce}",
+                "secondary": f"Date: {dt_str} • Vehicle: {l.vehicle_number or 'Assigned'}",
+                "status": "POD Pending",
+                "href": f"/transport/pod-records?search={l.lr_number}",
+            })
+        msg = f"Found **{len(lrs_pending)} LRs** with pending Proof of Delivery (POD):"
+        card = StructuredCard(
+            card_type="pod_list",
+            title=f"Pending PODs ({len(lrs_pending)})",
+            subtitle="Top consignments awaiting verified delivery proof",
+            badge={"text": f"{len(lrs_pending)} Pending", "variant": "warning"},
+            metrics=[{"label": "Pending PODs", "value": str(len(lrs_pending))}],
+            items=items,
+            action={"label": "Manage POD Records", "href": "/transport/pod-records"},
         )
         return msg, [card]
 
@@ -2300,6 +2465,28 @@ async def execute_pod_tool(
         return msg, [card]
 
     if not records:
+        if search_term:
+            clean_lr_check = re.sub(r"^(?:pod|lr|bilty|no\.?|#|[\s\-_])+", "", search_term, flags=re.IGNORECASE).strip()
+            res_lr_check = await db.execute(
+                select(LR).where(or_(LR.lr_number.ilike(f"%{clean_lr_check}%"), cast(LR.id, String) == clean_lr_check)).limit(1)
+            )
+            matched_lr_chk = res_lr_check.scalar_one_or_none()
+            if matched_lr_chk:
+                msg = f"POD for LR **{matched_lr_chk.lr_number}** is **Pending** (Awaiting delivery confirmation / driver POD upload)."
+                card = StructuredCard(
+                    card_type="pod_detail",
+                    title=f"POD Pending • LR {matched_lr_chk.lr_number}",
+                    subtitle="Proof of Delivery has not yet been uploaded",
+                    badge={"text": "POD Pending", "variant": "warning"},
+                    metrics=[
+                        {"label": "LR Number", "value": matched_lr_chk.lr_number},
+                        {"label": "POD Status", "value": "Pending Upload"},
+                        {"label": "Vehicle", "value": matched_lr_chk.vehicle_number or "Assigned"},
+                    ],
+                    action={"label": "Upload POD", "href": f"/transport/pod-records?action=upload&lr={matched_lr_chk.lr_number}"},
+                )
+                return msg, [card]
+
         msg = (
             f"Koi POD record nahi mila{' search: ' + search_term if search_term else ''}."
             if lang in ("hinglish", "hi_devanagari")
@@ -2982,14 +3169,28 @@ def extract_transport_entities(
     vehicle_number = vehicle_match.group(1).upper() if vehicle_match else None
 
     # 2. LR / GR / Bilty identifier
-    m_lr_direct = re.search(r"\b((?:lr|gr|bilty)[#\s\-_/]*[0-9][A-Za-z0-9_-]*|(?:lr|gr|bilty)-[A-Za-z0-9_-]+)\b", clean, re.IGNORECASE)
+    m_lr_direct = re.search(r"\b((?:lr|gr|bilty)[-_/\s]?[0-9][A-Za-z0-9_-]*|(?:lr|gr|bilty)-[A-Za-z0-9_-]+)\b", clean, re.IGNORECASE)
     m_lr_num = re.search(r"\b(?:lr|gr|bilty)\s*(?:number|no\.?|num)?\s*[:#-]?\s*([A-Za-z0-9_-]*[0-9][A-Za-z0-9_-]*)", clean, re.IGNORECASE)
     lr_id = None
     if m_lr_direct:
-        lr_id = m_lr_direct.group(1).strip()
-    elif m_lr_num:
-        lr_id = m_lr_num.group(1).strip()
-        
+        cand_id = m_lr_direct.group(1).strip()
+        cand_suffix = re.sub(r"^(?:lr|gr|bilty)[-_/\s]*", "", cand_id, flags=re.I).lower()
+        if cand_suffix and cand_suffix not in ("number", "no", "num", "dikhao", "batao", "list", "status", "details", "info", "karo", "aaj", "today"):
+            lr_id = cand_id
+    if not lr_id and m_lr_num:
+        cand_num = m_lr_num.group(1).strip()
+        if cand_num.lower() not in ("number", "no", "num", "dikhao", "batao", "list", "status", "details", "info", "aaj", "today"):
+            lr_id = cand_num
+
+    # Also handle alphanumeric LRs like "PLPL-0101" when preceded by "LR": e.g. "LR PLPL-0101"
+    if not lr_id:
+        m_lr_alpha = re.search(r"\b(?:lr|gr|bilty)\s*[:#-]?\s*([A-Za-z0-9_-]+)\b", clean, re.IGNORECASE)
+        if m_lr_alpha:
+            cand_alpha = m_lr_alpha.group(1).strip()
+            if cand_alpha.lower() not in ("number", "no", "num", "dikhao", "batao", "list", "status", "details", "info", "aaj", "today", "show", "all", "sab"):
+                if any(c.isdigit() for c in cand_alpha):
+                    lr_id = cand_alpha
+
     if lr_id and vehicle_number and lr_id.upper() == vehicle_number:
         lr_id = None
 
@@ -3036,7 +3237,7 @@ def extract_transport_entities(
                 "this", "that", "its", "iska", "iski", "uske", "us gaadi", "us vehicle",
                 "is gaadi", "is lr", "who is the vendor", "what is the balance", "what is its advance",
                 "is it delivered", "kahan hai", "assigned to this vehicle", "status of this job",
-                "tell me about this", "details of this"
+                "tell me about this", "details of this", "pod", "payment", "driver"
             ))
         )
         if has_anaphora:
@@ -3054,12 +3255,18 @@ def extract_transport_entities(
                     if m_prev_hc:
                         hc_id = m_prev_hc.group(1).strip()
                         break
-                # If question relates to LR or delivery status
-                if ("lr" in lower or "consignment" in lower or "bilty" in lower or field_focus in ("status", "delivered", "consignee", "consigner")) and not lr_id:
-                    m_prev_lr = re.search(r"\b((?:lr|gr|bilty)[#\s\-_/]*[0-9][A-Za-z0-9_-]*|(?:lr|gr|bilty)-[A-Za-z0-9_-]+)\b", content, re.IGNORECASE)
+                # If question relates to LR or delivery status or POD or payment
+                if ("lr" in lower or "consignment" in lower or "bilty" in lower or "pod" in lower or "payment" in lower or field_focus in ("status", "delivered", "consignee", "consigner", "driver", "pod", "balance", "amount")) and not lr_id:
+                    m_prev_lr = re.search(r"\b((?:lr|gr|bilty)[-_/\s]*([A-Za-z0-9_-]+))\b", content, re.IGNORECASE)
                     if m_prev_lr:
-                        lr_id = m_prev_lr.group(1).strip()
-                        break
+                        full_match = m_prev_lr.group(1).strip()
+                        raw_suffix = m_prev_lr.group(2).strip()
+                        if raw_suffix.lower() not in ("number", "no", "num", "dikhao", "batao", "list", "status", "details", "info", "aaj", "today", "show") and any(c.isdigit() for c in raw_suffix):
+                            if full_match.upper().startswith("LR-"):
+                                lr_id = full_match
+                            else:
+                                lr_id = raw_suffix
+                            break
                 # If question relates to Job
                 if ("job" in lower or "order" in lower) and not job_id:
                     m_prev_job = re.search(r"\b((?:job)[#\s\-_/]*[0-9][A-Za-z0-9_-]*|job-[A-Za-z0-9_-]+)\b", content, re.IGNORECASE)
@@ -3261,13 +3468,35 @@ def classify_operational_intent(
     if any(m in lower for m in accounting_markers):
         # Extract party name if specified
         party_name = None
-        m_party = re.search(r"([A-Za-z0-9\s&]+?)\s+(?:ka|ki)\s+(?:ledger|khata|hisab|hisaab)", clean_text, re.IGNORECASE)
+        # 1. Hindi/Hinglish: "Parth ka balance / ledger / khata"
+        m_party = re.search(r"([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)\s+(?:ka|ki|ke)\s+(?:ledger|khata|hisab|hisaab|balance|baki)", clean_text, re.IGNORECASE)
         if m_party:
             party_name = m_party.group(1).strip()
         else:
-            m_party_eng = re.search(r"(?:ledger|khata|account)\s+(?:of|for)\s+([A-Za-z0-9\s&]+)", clean_text, re.IGNORECASE)
+            # 2. English: "ledger / balance of/for Parth"
+            m_party_eng = re.search(r"(?:ledger|khata|account|balance|dues)\s+(?:of|for)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)", clean_text, re.IGNORECASE)
             if m_party_eng:
                 party_name = m_party_eng.group(1).strip()
+            else:
+                # 3. Explicit role prefix: "driver Parth DRV-0001", "vendor Reliance", "client Tata"
+                m_role = re.search(r"\b(?:driver|chalak|sarathi|vendor|supplier|client|customer)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)", clean_text, re.IGNORECASE)
+                if m_role:
+                    party_name = m_role.group(1).strip()
+                else:
+                    # 4. Possessive: "Parth's balance / Parth's ledger"
+                    m_pos = re.search(r"([A-Za-z0-9\-_]+)'s\s+(?:ledger|balance|account|khata)", clean_text, re.IGNORECASE)
+                    if m_pos:
+                        party_name = m_pos.group(1).strip()
+                    else:
+                        # 5. Phrasing like "What is driver Parth's balance" or "Show driver Parth ledger"
+                        m_what = re.search(r"(?:what\s+is|show|get|tell\s+me)\s+(?:the\s+)?(?:driver\s+|vendor\s+|client\s+)?([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)(?:'s)?\s+(?:ledger\s+)?balance", clean_text, re.IGNORECASE)
+                        if m_what:
+                            party_name = m_what.group(1).strip()
+
+        # Clean noise words from party extraction
+        if party_name:
+            party_name = re.sub(r"^(?:driver|chalak|sarathi|vendor|client|customer)\s+", "", party_name, flags=re.I).strip()
+            party_name = re.sub(r"\s+(?:in\s+rupees|rupees|rs\.?|balance|ledger)$", "", party_name, flags=re.I).strip()
 
         # Filter out common stop-words in party extraction
         if party_name and party_name.lower() in ("master", "general", "client", "customer", "customers", "clients", "vendor", "vendors", "driver", "drivers", "mere", "mera", "all", "sab"):

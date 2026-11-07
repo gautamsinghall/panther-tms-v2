@@ -96,6 +96,21 @@ async def get_daybook(
         total_debit += debit
         total_credit += credit
 
+        v_num = e.voucher.voucher_number
+        v_narr = (e.voucher.narration or "").strip()
+        e_narr = (e.narration or "").strip()
+
+        parts = [v_num]
+        if v_narr:
+            parts.append(v_narr)
+        else:
+            parts.append("No narration")
+
+        if e_narr and e_narr != v_narr and e_narr not in parts:
+            parts.append(e_narr)
+
+        combined_narration = " — ".join(parts)
+
         items.append(
             DaybookEntry(
                 id=e.id,
@@ -109,7 +124,7 @@ async def get_daybook(
                 party_name=e.voucher.party_name,
                 debit_amount=debit,
                 credit_amount=credit,
-                narration=e.narration or e.voucher.narration,
+                narration=combined_narration,
                 is_reversal=e.is_reversal,
             )
         )

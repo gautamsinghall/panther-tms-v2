@@ -73,6 +73,11 @@ def is_instructional_inquiry(text: str) -> bool:
     if any(ref in lower for ref in entity_refs) and any(w in lower for w in attr_words):
         return False
 
+    # 2B. Financial / Ledger / Balance queries on a party/driver/account are operational, not instructional
+    if any(w in lower for w in ("balance", "ledger", "khata", "hisab", "hisaab", "outstanding", "dues", "payable", "receivable")) and \
+       any(p in lower for p in ("driver", "vendor", "client", "customer", "parth", "drv-", "bc-", "vend-", "account", "'s balance", "ka balance", "ki balance")):
+        return False
+
     # 3. Broad Hinglish & Hindi query construction patterns
     if "kaise" in lower and any(v in lower for v in ["kare", "karein", "create", "bana", "add", "karta", "karti", "hota", "hoti", "process"]):
         return True
@@ -82,6 +87,7 @@ def is_instructional_inquiry(text: str) -> bool:
         "what is", "what are", "explain", "guide me", "tell me how",
         "steps to", "process to", "process of", "what is the process",
         "procedure", "workflow", "how it works", "purpose of", "use of",
+        "what documents", "documents i need", "documents needed", "required documents",
         "kaise banti", "kaise banta", "kaise banate", "kaise banaye", "kaise banayein",
         "kaise karu", "kaise karoon", "kaise kare", "kaise karein", "kaise karte",
         "kaise hota", "kaise hoti", "kaise add", "kaise perform", "kaise use", "kaise create",
@@ -109,6 +115,56 @@ def is_valid_indian_vehicle(v: str) -> bool:
         return False
     cleaned = re.sub(r"[^A-Za-z0-9]", "", v).upper()
     return bool(re.match(r"^[A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4}$", cleaned))
+
+
+GSTIN_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def validate_indian_gstin(gstin: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validates standard Indian 15-character GSTIN format and Luhn-based checksum.
+    Returns (True, None) if valid, or (False, error_reason) if invalid.
+    """
+    if not gstin or not isinstance(gstin, str):
+        return False, "GSTIN is missing."
+    clean = re.sub(r"[^A-Za-z0-9]", "", gstin).upper()
+    if len(clean) != 15:
+        return False, f"Invalid GSTIN length ({len(clean)} characters). GSTIN must be exactly 15 characters (e.g., 07AAAAA0000A1Z4)."
+    if not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$", clean):
+        return False, f"Invalid GSTIN format '{clean}'. Must follow standard 15-character GST structure."
+    factor = 1
+    total = 0
+    for c in clean[:14]:
+        val = GSTIN_CHARS.index(c)
+        prod = val * factor
+        total += (prod // 36) + (prod % 36)
+        factor = 2 if factor == 1 else 1
+    rem = total % 36
+    check = (36 - rem) % 36
+    expected_char = GSTIN_CHARS[check]
+    if clean[14] != expected_char:
+        return False, f"Invalid GSTIN checksum for '{clean}'. Check digit '{clean[14]}' does not match expected '{expected_char}'."
+    return True, None
+
+
+def validate_indian_pincode(pincode: str) -> Tuple[bool, Optional[str]]:
+    """Validates standard 6-digit Indian postal pincode."""
+    if not pincode or not isinstance(pincode, str):
+        return False, "Pincode is missing."
+    clean = re.sub(r"[^0-9]", "", str(pincode))
+    if not re.match(r"^[1-9][0-9]{5}$", clean):
+        return False, f"Invalid pincode '{pincode}'. Indian postal pincodes must be exactly 6 digits (e.g., 110001)."
+    return True, None
+
+
+def validate_eway_bill_number(ewb: str) -> Tuple[bool, Optional[str]]:
+    """Validates 12-digit Indian E-Way Bill number."""
+    if not ewb or not isinstance(ewb, str):
+        return False, "E-Way Bill number is missing."
+    clean = re.sub(r"[^0-9]", "", str(ewb))
+    if len(clean) != 12:
+        return False, f"Invalid E-Way Bill number '{ewb}'. E-Way Bill numbers must be exactly 12 digits."
+    return True, None
 
 
 def is_valid_party_name(name: str) -> bool:
@@ -201,11 +257,110 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
     """
     Extracts candidate entities from conversational user text.
     Handles:
+    - In-chat single-field edits ('change vehicle to DL01AA1111', 'change destination to Mumbai', 'change weight to 5000 kg')
     - All-in-one comprehensive sentences
     - Step-by-step single-field answers (context-aware of what is currently missing)
+    - Validations for Indian vehicle, GSTIN, pincode, E-Way Bill
     """
     entities: Dict[str, Any] = {}
     clean_text = text.strip()
+
+    # 0. In-Chat Single-Field Edit Command ('change X to Y', 'update X to Y', 'set X as Y')
+    m_edit = re.search(
+        r"\b(?:change|update|set|modify|correct)\s+(?:the\s+)?(vehicle(?:\s*number)?|destination|delivery|origin|loading|from|to|consigner|sender|consignee|receiver|weight|goods|cargo|material|particulars|freight|rate|bhada|advance|eway(?:\s*bill)?|ewb|gstin|pincode)\s+(?:to|as|is|=)\s*(.+)$",
+        clean_text,
+        re.IGNORECASE,
+    )
+    if m_edit:
+        target_field = m_edit.group(1).lower().replace(" ", "")
+        target_val = m_edit.group(2).strip().strip(" ,;.")
+        entities["is_single_edit"] = True
+        entities["edited_field_name"] = target_field
+
+        if target_field in ("vehicle", "vehiclenumber"):
+            if is_valid_indian_vehicle(target_val):
+                entities["vehicle_number"] = re.sub(r"[^A-Za-z0-9]", "", target_val).upper()
+            else:
+                entities["invalid_vehicle"] = target_val
+            return entities
+
+        elif target_field in ("destination", "delivery", "to"):
+            if is_valid_party_name(target_val):
+                entities["destination_candidate"] = target_val
+            return entities
+
+        elif target_field in ("origin", "loading", "from"):
+            if is_valid_party_name(target_val):
+                entities["origin_candidate"] = target_val
+            return entities
+
+        elif target_field in ("consigner", "sender"):
+            if is_valid_party_name(target_val):
+                entities["consigner_candidate"] = target_val
+            return entities
+
+        elif target_field in ("consignee", "receiver"):
+            if is_valid_party_name(target_val):
+                entities["consignee_candidate"] = target_val
+            return entities
+
+        elif target_field in ("weight",):
+            try:
+                num_val = float(re.sub(r"[^0-9.]", "", target_val))
+                if "kg" in target_val.lower() or num_val > 100:
+                    entities["actual_weight_mt"] = round(num_val / 1000.0, 3) if num_val > 100 else num_val
+                else:
+                    entities["actual_weight_mt"] = num_val
+                entities["chargeable_weight_mt"] = entities["actual_weight_mt"]
+            except Exception:
+                pass
+            return entities
+
+        elif target_field in ("freight", "rate", "bhada"):
+            try:
+                num_str = re.sub(r"[^0-9.kK]", "", target_val).lower()
+                val = float(num_str.replace("k", "")) * (1000.0 if "k" in num_str else 1.0)
+                entities["freight_amount"] = val
+            except Exception:
+                pass
+            return entities
+
+        elif target_field in ("advance",):
+            try:
+                num_str = re.sub(r"[^0-9.kK]", "", target_val).lower()
+                val = float(num_str.replace("k", "")) * (1000.0 if "k" in num_str else 1.0)
+                entities["advance_amount"] = val
+            except Exception:
+                pass
+            return entities
+
+        elif target_field in ("goods", "cargo", "material", "particulars"):
+            entities["particulars"] = target_val
+            return entities
+
+        elif target_field in ("ewaybill", "ewb"):
+            is_ewb_ok, _ = validate_eway_bill_number(target_val)
+            if is_ewb_ok:
+                entities["eway_bill_number"] = re.sub(r"[^0-9]", "", target_val)
+            else:
+                entities["invalid_ewb"] = target_val
+            return entities
+
+        elif target_field in ("gstin",):
+            is_gst_ok, _ = validate_indian_gstin(target_val)
+            if is_gst_ok:
+                entities["gstin_candidate"] = target_val.upper()
+            else:
+                entities["invalid_gstin"] = target_val
+            return entities
+
+        elif target_field in ("pincode",):
+            is_pin_ok, _ = validate_indian_pincode(target_val)
+            if is_pin_ok:
+                entities["pincode_candidate"] = target_val
+            else:
+                entities["invalid_pincode"] = target_val
+            return entities
 
     # 1. Vehicle Number
     extracted_v = extract_vehicle_number(clean_text)
@@ -306,7 +461,49 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         except ValueError:
             pass
 
-    # 5. Packages & Weight
+    # 5. Goods Value / Declared Value
+    m_val = re.search(r"(?:goods\s+value|consignment\s+value|value\s+of\s+goods|declared\s+value|cargo\s+value|goods\s+val|value\s*(?:is|:|=))\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
+    if m_val:
+        val_str = m_val.group(1).lower()
+        try:
+            if "k" in val_str:
+                entities["goods_value"] = float(val_str.replace("k", "")) * 1000.0
+            else:
+                entities["goods_value"] = float(val_str)
+        except ValueError:
+            pass
+
+    # 6. E-Way Bill Number
+    m_ewb = re.search(r"(?:eway\s*bill|eway|ewb)(?:\s*(?:no\.?|number|#))?\s*[:=]?\s*([0-9A-Za-z]+)", clean_text, re.IGNORECASE)
+    if m_ewb:
+        ewb_cand = m_ewb.group(1).strip()
+        is_ewb_ok, _ = validate_eway_bill_number(ewb_cand)
+        if is_ewb_ok:
+            entities["eway_bill_number"] = re.sub(r"[^0-9]", "", ewb_cand)
+        else:
+            entities["invalid_ewb"] = ewb_cand
+
+    # 7. GSTIN
+    m_gst = re.search(r"\b(?:gstin|gst\s*(?:no\.?|number)?)\s*[:=]?\s*([0-9A-Za-z]{15})\b", clean_text, re.IGNORECASE)
+    if m_gst:
+        gst_cand = m_gst.group(1).strip().upper()
+        is_gst_ok, _ = validate_indian_gstin(gst_cand)
+        if is_gst_ok:
+            entities["gstin_candidate"] = gst_cand
+        else:
+            entities["invalid_gstin"] = gst_cand
+
+    # 8. Pincode
+    m_pin = re.search(r"\b(?:pincode|pin\s*(?:code)?|postal\s*code)\s*[:=]?\s*([0-9]+)\b", clean_text, re.IGNORECASE)
+    if m_pin:
+        pin_cand = m_pin.group(1).strip()
+        is_pin_ok, _ = validate_indian_pincode(pin_cand)
+        if is_pin_ok:
+            entities["pincode_candidate"] = pin_cand
+        else:
+            entities["invalid_pincode"] = pin_cand
+
+    # 9. Packages & Weight
     m_pkg = re.search(r"([0-9]+)\s*(?:boxes|pkgs|packages|nag|cartons|bags|cases|parcels)", clean_text, re.IGNORECASE)
     if m_pkg:
         try:
@@ -314,29 +511,96 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         except ValueError:
             pass
 
-    m_weight = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:tons|ton|mt|tonnes)", clean_text, re.IGNORECASE)
-    if m_weight:
+    m_weight_kg = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:kg|kgs|kilo|kilograms)", clean_text, re.IGNORECASE)
+    if m_weight_kg:
         try:
-            entities["actual_weight_mt"] = float(m_weight.group(1))
-            entities["chargeable_weight_mt"] = float(m_weight.group(1))
+            kg_val = float(m_weight_kg.group(1))
+            entities["actual_weight_mt"] = round(kg_val / 1000.0, 3)
+            entities["chargeable_weight_mt"] = round(kg_val / 1000.0, 3)
         except ValueError:
             pass
+    else:
+        m_weight = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:tons|ton|mt|tonnes)", clean_text, re.IGNORECASE)
+        if m_weight:
+            try:
+                entities["actual_weight_mt"] = float(m_weight.group(1))
+                entities["chargeable_weight_mt"] = float(m_weight.group(1))
+            except ValueError:
+                pass
 
-    # 6. Particulars / Cargo description
+    # 10. Particulars / Cargo description
     m_cargo = re.search(r"(?:cargo|material|goods|particulars)\s*(?:is|:|=)?\s*([A-Za-z0-9\s&.-]+?)(?=[,;\s]+(?:weight|boxes|pkgs|freight|consigner|consignee)|$)", clean_text, re.IGNORECASE)
     if m_cargo:
         entities["particulars"] = m_cargo.group(1).strip().strip(" ,;.")
 
-    # 7. Contextual Step-by-Step Mapping (if user answered a specific follow-up)
+    # 11. Contextual Step-by-Step Mapping (if user answered a specific follow-up)
     if current_draft:
         missing = current_draft.missing_fields or []
         draft_data = current_draft.data or {}
+
+        # If vehicle was missing and user provided a standalone candidate
+        if any("Vehicle" in m for m in missing) and not entities.get("vehicle_number") and not entities.get("invalid_vehicle"):
+            # Check if text is a single token or short candidate
+            tokens = clean_text.split()
+            if len(tokens) == 1 or (len(tokens) <= 3 and any(w in clean_text.lower() for w in ("vehicle", "truck", "is"))):
+                cand = tokens[-1].strip().upper()
+                if is_valid_indian_vehicle(cand):
+                    entities["vehicle_number"] = cand
+                elif cand not in COMMON_STOP_WORDS and len(cand) >= 3:
+                    entities["invalid_vehicle"] = cand
+
+        # If GSTIN was missing or entered standalone
+        if any("GSTIN" in m for m in missing) or "gstin" in clean_text.lower():
+            m_bare_gst = re.search(r"\b([0-9]{2}[A-Za-z0-9]{13})\b", clean_text)
+            if m_bare_gst and "invalid_gstin" not in entities and "gstin_candidate" not in entities:
+                cand_g = m_bare_gst.group(1).upper()
+                is_g_ok, _ = validate_indian_gstin(cand_g)
+                if is_g_ok:
+                    entities["gstin_candidate"] = cand_g
+                else:
+                    entities["invalid_gstin"] = cand_g
+
+        # If Pincode was missing or entered standalone
+        if any("Pincode" in m for m in missing) or "pincode" in clean_text.lower() or "pin" in clean_text.lower():
+            m_bare_pin = re.search(r"\b([0-9]{1,8})\b", clean_text)
+            if m_bare_pin and "invalid_pincode" not in entities and "pincode_candidate" not in entities:
+                cand_p = m_bare_pin.group(1)
+                is_p_ok, _ = validate_indian_pincode(cand_p)
+                if is_p_ok:
+                    entities["pincode_candidate"] = cand_p
+                else:
+                    entities["invalid_pincode"] = cand_p
+
+        # If E-Way Bill was missing and user enters 12 digits or candidate
+        if any("E-Way Bill" in m for m in missing) and "eway_bill_number" not in entities:
+            m_bare_ewb = re.search(r"\b([0-9]{10,14})\b", clean_text)
+            if m_bare_ewb:
+                cand_e = m_bare_ewb.group(1)
+                is_e_ok, _ = validate_eway_bill_number(cand_e)
+                if is_e_ok:
+                    entities["eway_bill_number"] = cand_e
+                else:
+                    entities["invalid_ewb"] = cand_e
+
+        # If weight is missing and user gave a number
+        if any("Weight" in m for m in missing) and not draft_data.get("actual_weight_mt") and "actual_weight_mt" not in entities:
+            m_num_wt = re.search(r"^([0-9]+(?:\.[0-9]+)?)\s*(?:kg|kgs|mt|tons)?$", clean_text, re.IGNORECASE)
+            if m_num_wt:
+                try:
+                    val = float(m_num_wt.group(1))
+                    if "kg" in clean_text.lower() or val > 100:
+                        entities["actual_weight_mt"] = round(val / 1000.0, 3) if val > 100 else val
+                    else:
+                        entities["actual_weight_mt"] = val
+                    entities["chargeable_weight_mt"] = entities["actual_weight_mt"]
+                except ValueError:
+                    pass
 
         # If user typed a standalone party name without keywords
         is_bare_name = (
             len(clean_text.split()) <= 5
             and is_valid_party_name(clean_text)
-            and not any(k in clean_text.lower() for k in ("from", "to", "freight", "advance", "vehicle", "boxes", "tons"))
+            and not any(k in clean_text.lower() for k in ("from", "to", "freight", "advance", "vehicle", "boxes", "tons", "value", "eway"))
             and not re.search(r"^[0-9]+", clean_text)
             and not extracted_v
         )
@@ -350,6 +614,8 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
                 entities["origin_candidate"] = clean_text
             elif any("Delivery" in m for m in missing) and not draft_data.get("destination_location_id"):
                 entities["destination_candidate"] = clean_text
+            elif any("Goods" in m for m in missing) and not draft_data.get("particulars"):
+                entities["particulars"] = clean_text
 
         # If user gave just a bare number and freight is missing
         if re.match(r"^(?:₹|rs\.?)?\s*[0-9]+(?:\.[0-9]{1,2})?k?$", clean_text, re.IGNORECASE) and not draft_data.get("freight_amount"):
@@ -565,6 +831,7 @@ async def validate_and_update_draft(
 ) -> None:
     """
     Validates draft completeness and constructs LRCreate schema test.
+    Enforces GST Rule 138 E-Way Bill requirement when goods value > ₹50,000.
     If mandatory fields are satisfied, marks draft as valid and generates single-use confirmation token.
     """
     missing = []
@@ -580,6 +847,17 @@ async def validate_and_update_draft(
         missing.append("Loading Location")
     if not data.get("destination_location_id") and not draft.preview_labels.get("destination_name"):
         missing.append("Delivery Location")
+
+    # E-Way Bill Rule: If goods value > ₹50,000, EWB is mandatory under GST Rule 138
+    goods_val = float(data.get("goods_value") or 0.0)
+    if goods_val > 50000:
+        ewb = data.get("eway_bill_number")
+        if not ewb:
+            missing.append("E-Way Bill (Required for goods value > ₹50,000 under GST Rule 138)")
+        else:
+            is_ewb_valid, _ = validate_eway_bill_number(str(ewb))
+            if not is_ewb_valid:
+                missing.append("Valid 12-digit E-Way Bill Number")
 
     draft.missing_fields = missing
 
@@ -610,8 +888,8 @@ async def validate_and_update_draft(
             "total_freight_amount": total_freight,
             "balance_amount": balance,
             "package_count": int(data.get("package_count") or 0),
-            "actual_weight_mt": Decimal(str(data.get("actual_weight_mt") or 0.0)),
-            "chargeable_weight_mt": Decimal(str(data.get("chargeable_weight_mt") or 0.0)),
+            "actual_weight_mt": Decimal(str(data.get("actual_weight_mt") or 1.0)),
+            "chargeable_weight_mt": Decimal(str(data.get("chargeable_weight_mt") or data.get("actual_weight_mt") or 1.0)),
             "particulars": data.get("particulars") or "General Cargo",
             "issuing_office_id": office_id or draft.office_id,
         }
@@ -679,7 +957,6 @@ async def handle_conversational_lr_booking(
             subtitle="Cancelled — no LR was created",
             badge={"text": "Cancelled", "variant": "neutral"},
             can_confirm=False,
-            action={"label": "Book New LR", "href": "/transport/lr-booking"},
         )
         return msg, [card]
 
@@ -719,7 +996,22 @@ async def handle_conversational_lr_booking(
             draft.update_field("vehicle_source", "MARKET")
 
     if "invalid_vehicle" in entities:
-        feedback_notes.append(f"Invalid vehicle number '{entities['invalid_vehicle']}': Please provide a valid Indian registration number (e.g., DL01AA1111).")
+        feedback_notes.append(f"❌ Invalid vehicle number '{entities['invalid_vehicle']}': Indian registration must follow standard format (e.g., DL01AA1111).")
+    if "invalid_gstin" in entities:
+        is_g, err_g = validate_indian_gstin(entities["invalid_gstin"])
+        feedback_notes.append(f"❌ Invalid GSTIN '{entities['invalid_gstin']}': {err_g or 'Checksum validation failed'}. Please provide a valid 15-character GSTIN.")
+    if "invalid_pincode" in entities:
+        is_p, err_p = validate_indian_pincode(entities["invalid_pincode"])
+        feedback_notes.append(f"❌ Invalid pincode '{entities['invalid_pincode']}': {err_p or 'Must be 6 digits'}. Please provide a valid 6-digit postal pincode.")
+    if "invalid_ewb" in entities:
+        is_e, err_e = validate_eway_bill_number(entities["invalid_ewb"])
+        feedback_notes.append(f"❌ Invalid E-Way Bill '{entities['invalid_ewb']}': {err_e or 'Must be 12 digits'}. Please provide a valid 12-digit E-Way Bill number.")
+    if "goods_value" in entities:
+        draft.update_field("goods_value", entities["goods_value"])
+    if "eway_bill_number" in entities:
+        draft.update_field("eway_bill_number", entities["eway_bill_number"])
+    if entities.get("is_single_edit") and not feedback_notes:
+        feedback_notes.append(f"✅ Updated **{entities.get('edited_field_name', 'field')}** in your draft.")
 
     # 6. Process Consigner
     if "consigner_candidate" in entities:
@@ -787,6 +1079,9 @@ async def handle_conversational_lr_booking(
     wt = float(draft.data.get("actual_weight_mt") or 0.0)
     particulars = draft.data.get("particulars") or "General Cargo"
 
+    goods_val = float(draft.data.get("goods_value") or 0.0)
+    ewb_val = draft.data.get("eway_bill_number")
+
     metrics = [
         {"label": "Consigner", "value": c_name or "Pending"},
         {"label": "Consignee", "value": ce_name or "Pending"},
@@ -795,6 +1090,12 @@ async def handle_conversational_lr_booking(
         {"label": "Freight Amount", "value": f"₹{freight_val:,.2f}"},
         {"label": "Balance Due", "value": f"₹{balance_val:,.2f}"},
     ]
+    if wt > 0:
+        metrics.append({"label": "Weight", "value": f"{wt:.2f} MT"})
+    if goods_val > 0:
+        metrics.append({"label": "Goods Value", "value": f"₹{goods_val:,.2f}"})
+    if ewb_val:
+        metrics.append({"label": "E-Way Bill", "value": str(ewb_val)})
 
     items = [
         {
@@ -806,6 +1107,9 @@ async def handle_conversational_lr_booking(
     ]
 
     # 12. Intelligent Response Generation (Form Review vs Selective Follow-up)
+    ewb_line = f"• **E-Way Bill:** {ewb_val}\n" if ewb_val else ""
+    val_line = f"• **Goods Value:** ₹{goods_val:,.2f}\n" if goods_val > 0 else ""
+
     if draft.is_valid:
         # Full Completed Form Review before final submission
         if lang == "hi_devanagari":
@@ -820,9 +1124,10 @@ async def handle_conversational_lr_booking(
                 f"• **अग्रिम भुगतान (Advance):** ₹{advance_val:,.2f}\n"
                 f"• **शेष देय (Balance Due):** ₹{balance_val:,.2f}\n"
                 f"• **पैकेज:** {pkgs} pkgs\n"
-                f"• **वजन:** {wt:.2f} MT ({particulars})\n\n"
-                f"कृपया विवरण की जांच करें और अंतिम रूप देने के लिए "
-                f"**'Confirm & Create LR'** बटन पर क्लिक करें।"
+                f"• **वजन:** {wt:.2f} MT ({particulars})\n"
+                f"{val_line}{ewb_line}\n"
+                f"*(किसी भी विवरण को बदलने के लिए 'change <field> to <new value>' लिखें, या पुष्टि के लिए 'Create LR' टाइप करें/नीचे दिए गए बटन पर क्लिक करें)*\n\n"
+                f"अंतिम रूप देने के लिए **'Confirm & Create LR'** बटन पर क्लिक करें।"
             )
         elif lang == "hinglish":
             base_msg = (
@@ -836,9 +1141,10 @@ async def handle_conversational_lr_booking(
                 f"• **Advance Paid:** ₹{advance_val:,.2f}\n"
                 f"• **Balance Due:** ₹{balance_val:,.2f}\n"
                 f"• **Packages:** {pkgs} pkgs\n"
-                f"• **Weight:** {wt:.2f} MT ({particulars})\n\n"
-                f"Kripya upar summary aur niche draft card review karein. Final submission ke liye "
-                f"**'Confirm & Create LR'** button par click karein."
+                f"• **Weight:** {wt:.2f} MT ({particulars})\n"
+                f"{val_line}{ewb_line}\n"
+                f"*(Kisi bhi field ko edit karne ke liye 'change <field> to <new value>' type karein, ya finalize karne ke liye 'Create LR' type karein)*\n\n"
+                f"Kripya niche draft card review karein aur **'Confirm & Create LR'** button par click karein."
             )
         else:
             base_msg = (
@@ -852,9 +1158,11 @@ async def handle_conversational_lr_booking(
                 f"• **Advance Paid:** ₹{advance_val:,.2f}\n"
                 f"• **Balance Due:** ₹{balance_val:,.2f}\n"
                 f"• **Packages:** {pkgs} pkgs\n"
-                f"• **Weight:** {wt:.2f} MT ({particulars})\n\n"
+                f"• **Weight:** {wt:.2f} MT ({particulars})\n"
+                f"{val_line}{ewb_line}\n"
+                f"*(To modify any field, type 'change <field> to <new value>', or type 'Create LR' to confirm)*\n\n"
                 f"Please review the summary above and the draft card below. "
-                f"Click **'Confirm & Create LR'** to finalize and issue the consignment note."
+                f"Click **'Confirm & Create LR'** or type **'Create LR'** to finalize and issue the consignment note."
             )
         badge = {"text": "Ready to Confirm", "variant": "success"}
     else:
@@ -870,6 +1178,10 @@ async def handle_conversational_lr_booking(
             recorded_lines.append(f"• **Vehicle Number:** {v_num} ({v_source})")
         if freight_val > 0:
             recorded_lines.append(f"• **Freight:** ₹{freight_val:,.2f}")
+        if goods_val > 0:
+            recorded_lines.append(f"• **Goods Value:** ₹{goods_val:,.2f}")
+        if ewb_val:
+            recorded_lines.append(f"• **E-Way Bill:** {ewb_val}")
 
         recorded_block = ""
         if recorded_lines:
@@ -888,6 +1200,14 @@ async def handle_conversational_lr_booking(
                 missing_prompts.append("• What is the **Loading / Origin Location**?")
             elif "Delivery" in mf:
                 missing_prompts.append("• What is the **Delivery / Destination Location**?")
+            elif "E-Way Bill" in mf:
+                missing_prompts.append("• What is the **12-digit E-Way Bill Number**? *(Mandatory under GST Rule 138 because goods value exceeds ₹50,000)*")
+            elif "Weight" in mf:
+                missing_prompts.append("• What is the **Weight** (e.g. 5000 kg or 5 MT)?")
+            elif "Freight" in mf:
+                missing_prompts.append("• What is the agreed **Freight Amount** (e.g. ₹15,000)?")
+            elif "Goods" in mf:
+                missing_prompts.append("• What is the **Goods / Cargo Description** (e.g. Electronics, Cement)?")
 
         missing_block = "👉 **Still Needed:**\n" + "\n".join(missing_prompts)
 
@@ -915,7 +1235,7 @@ async def handle_conversational_lr_booking(
         badge = {"text": "Draft: Incomplete", "variant": "warning"}
 
     if feedback_notes:
-        base_msg = f"{base_msg}\n\n" + "\n".join(feedback_notes)
+        base_msg = "\n\n".join(feedback_notes) + "\n\n" + base_msg
 
     card = StructuredCard(
         card_type="lr_draft",

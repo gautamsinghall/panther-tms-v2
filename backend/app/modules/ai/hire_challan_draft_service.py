@@ -13,8 +13,9 @@ from decimal import Decimal
 from datetime import datetime, timezone, date
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, cast, String
 
+from sqlalchemy.orm import selectinload
 from app.tenant_db.models import (
     User,
     Branch,
@@ -160,9 +161,9 @@ def parse_hc_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
             pass
 
     # 7. Linked LR
-    lr_match = re.search(r"\b(LR-[A-Z0-9\-]+)\b", clean_text, re.I)
-    if lr_match:
-        extracted["lr_number"] = lr_match.group(1).strip()
+    m_lr = re.search(r"\b(?:lr|gr|bilty)[#\s\-_/]*([A-Za-z0-9_-]+)\b", clean_text, re.I)
+    if m_lr:
+        extracted["lr_number"] = m_lr.group(1).strip()
 
     # Contextual step-by-step mapping if responding to specific prompt
     if current_draft:
@@ -357,7 +358,7 @@ async def handle_conversational_hc_booking(
             title="Hire Challan Draft Cancelled",
             badge={"text": "Cancelled", "variant": "neutral"},
             metrics=[],
-            action={"label": "Open Hire Challans", "href": "/transport/hire-challans"},
+            can_confirm=False,
         )
         return reply, [cancel_card]
 
@@ -391,10 +392,24 @@ async def handle_conversational_hc_booking(
         draft.update_field("tds_rate", extracted["tds_rate"])
     if "lr_number" in extracted:
         lr_num = extracted["lr_number"]
-        res_lr = await db.execute(select(LR).where(LR.lr_number == lr_num).limit(1))
+        clean_lr = re.sub(r"^(?:lr|gr|bilty|number|no\.?|#|[\s\-_])+", "", lr_num, flags=re.I).strip()
+        res_lr = await db.execute(
+            select(LR)
+            .options(selectinload(LR.origin_location), selectinload(LR.destination_location))
+            .where(or_(LR.lr_number.ilike(f"%{clean_lr}%"), cast(LR.id, String) == clean_lr))
+            .limit(1)
+        )
         linked_lr = res_lr.scalar_one_or_none()
         if linked_lr:
             draft.update_field("lr_id", linked_lr.id, label=linked_lr.lr_number)
+            if linked_lr.vehicle_number:
+                draft.update_field("vehicle_number", linked_lr.vehicle_number, label=linked_lr.vehicle_number)
+            if linked_lr.origin_location:
+                orig_city = getattr(linked_lr.origin_location, "city_name", None) or getattr(linked_lr.origin_location, "name", "Origin")
+                draft.update_field("from_location", orig_city)
+            if linked_lr.destination_location:
+                dest_city = getattr(linked_lr.destination_location, "city_name", None) or getattr(linked_lr.destination_location, "name", "Destination")
+                draft.update_field("to_location", dest_city)
 
     # 5. Validate and update state
     await validate_and_update_hc_draft(draft, db, office_id=eff_office_id)
@@ -437,6 +452,8 @@ async def handle_conversational_hc_booking(
             )
     else:
         recorded_lines = []
+        if draft.preview_labels.get("lr_id"):
+            recorded_lines.append(f"• **Linked LR:** {draft.preview_labels.get('lr_id')}")
         if v:
             recorded_lines.append(f"• **Vehicle Number:** {v}")
         if route:

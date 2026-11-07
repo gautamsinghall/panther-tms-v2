@@ -524,35 +524,43 @@ export default function MasterLedgerPage() {
       setCompanyVehicles(mergedVehicles);
 
       // 5. Compute / Enhance Overview Summary metrics
-      const bcOutstanding = sumRes?.billing_clients?.total_outstanding ??
-        mergedClients.reduce((sum, c) => sum + (c.balance_type === "DR" ? Number(c.outstanding_balance || 0) : 0), 0);
-      const vendOutstanding = sumRes?.vendors?.total_outstanding ??
-        mergedVendors.reduce((sum, v) => sum + (v.balance_type === "CR" ? Number(v.outstanding_payable || 0) : 0), 0);
-      const drvOutstanding = sumRes?.drivers?.total_outstanding ??
-        mergedDrivers.reduce((sum, d) => sum + (d.balance_type === "DR" ? Number(d.current_balance || 0) : 0), 0);
+      const bcComputed = mergedClients.reduce((sum, c) => sum + (c.balance_type === "DR" ? Number(c.outstanding_balance || 0) : 0), 0);
+      const bcOutstanding = (sumRes?.billing_clients?.total_outstanding && Number(sumRes.billing_clients.total_outstanding) > 0)
+        ? Number(sumRes.billing_clients.total_outstanding)
+        : bcComputed;
+
+      const vendComputed = mergedVendors.reduce((sum, v) => sum + (v.balance_type === "CR" ? Number(v.outstanding_payable || 0) : 0), 0);
+      const vendOutstanding = (sumRes?.vendors?.total_outstanding && Number(sumRes.vendors.total_outstanding) > 0)
+        ? Number(sumRes.vendors.total_outstanding)
+        : vendComputed;
+
+      const drvComputed = mergedDrivers.reduce((sum, d) => sum + (d.balance_type === "DR" ? Number(d.current_balance || 0) : 0), 0);
+      const drvOutstanding = (sumRes?.drivers?.total_outstanding && Number(sumRes.drivers.total_outstanding) > 0)
+        ? Number(sumRes.drivers.total_outstanding)
+        : drvComputed;
 
       setOverview({
         billing_clients: {
           total_accounts: Math.max(sumRes?.billing_clients?.total_accounts || 0, mergedClients.length),
           total_outstanding: bcOutstanding,
-          total_debit: sumRes?.billing_clients?.total_debit || mergedClients.reduce((s, c) => s + Number(c.total_debit || 0), 0),
-          total_credit: sumRes?.billing_clients?.total_credit || mergedClients.reduce((s, c) => s + Number(c.total_credit || 0), 0),
+          total_debit: (sumRes?.billing_clients?.total_debit && Number(sumRes.billing_clients.total_debit) > 0) ? Number(sumRes.billing_clients.total_debit) : mergedClients.reduce((s, c) => s + Number(c.total_debit || 0), 0),
+          total_credit: (sumRes?.billing_clients?.total_credit && Number(sumRes.billing_clients.total_credit) > 0) ? Number(sumRes.billing_clients.total_credit) : mergedClients.reduce((s, c) => s + Number(c.total_credit || 0), 0),
           settled_count: mergedClients.filter((c) => c.balance_type === "NIL" || Number(c.outstanding_balance) === 0).length,
           pending_count: mergedClients.filter((c) => c.balance_type !== "NIL" && Number(c.outstanding_balance) > 0).length,
         },
         vendors: {
           total_accounts: Math.max(sumRes?.vendors?.total_accounts || 0, mergedVendors.length),
           total_outstanding: vendOutstanding,
-          total_debit: sumRes?.vendors?.total_debit || mergedVendors.reduce((s, v) => s + Number(v.total_debit || 0), 0),
-          total_credit: sumRes?.vendors?.total_credit || mergedVendors.reduce((s, v) => s + Number(v.total_credit || 0), 0),
+          total_debit: (sumRes?.vendors?.total_debit && Number(sumRes.vendors.total_debit) > 0) ? Number(sumRes.vendors.total_debit) : mergedVendors.reduce((s, v) => s + Number(v.total_debit || 0), 0),
+          total_credit: (sumRes?.vendors?.total_credit && Number(sumRes.vendors.total_credit) > 0) ? Number(sumRes.vendors.total_credit) : mergedVendors.reduce((s, v) => s + Number(v.total_credit || 0), 0),
           settled_count: mergedVendors.filter((v) => v.balance_type === "NIL" || Number(v.outstanding_payable) === 0).length,
           pending_count: mergedVendors.filter((v) => v.balance_type !== "NIL" && Number(v.outstanding_payable) > 0).length,
         },
         drivers: {
           total_accounts: Math.max(sumRes?.drivers?.total_accounts || 0, mergedDrivers.length),
           total_outstanding: drvOutstanding,
-          total_debit: sumRes?.drivers?.total_debit || mergedDrivers.reduce((s, d) => s + Number(d.total_advances || 0), 0),
-          total_credit: sumRes?.drivers?.total_credit || mergedDrivers.reduce((s, d) => s + Number(d.total_expenses || 0), 0),
+          total_debit: (sumRes?.drivers?.total_debit && Number(sumRes.drivers.total_debit) > 0) ? Number(sumRes.drivers.total_debit) : mergedDrivers.reduce((s, d) => s + Number(d.total_advances || 0), 0),
+          total_credit: (sumRes?.drivers?.total_credit && Number(sumRes.drivers.total_credit) > 0) ? Number(sumRes.drivers.total_credit) : mergedDrivers.reduce((s, d) => s + Number(d.total_expenses || 0), 0),
           settled_count: mergedDrivers.filter((d) => d.balance_type === "NIL" || Number(d.current_balance) === 0).length,
           pending_count: mergedDrivers.filter((d) => d.balance_type !== "NIL" && Number(d.current_balance) > 0).length,
         },
@@ -630,6 +638,11 @@ export default function MasterLedgerPage() {
 
   useEffect(() => {
     loadOverviewAndLists();
+    const handleFocus = () => {
+      loadOverviewAndLists();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   // ----------------------------------------------------------------------------
@@ -1123,6 +1136,9 @@ export default function MasterLedgerPage() {
             onClick: () => {
               setIsRefreshing(true);
               loadOverviewAndLists();
+              if (selectedAccountId && activeCategory) {
+                loadDetailedLedger(activeCategory, selectedAccountId, detailFromDate, detailToDate, detailSearch, detailTxType);
+              }
             },
           }}
           secondaryActions={[
@@ -2543,7 +2559,7 @@ export default function MasterLedgerPage() {
                               "font-bold text-xs",
                               b.balance_type === "DR" ? "text-[#027A48] dark:text-emerald-400" : "text-[#B42318] dark:text-rose-400"
                             )}>
-                              {formatCurrency(b.current_balance)}
+                              {b.balance_type === "CR" && Number(b.current_balance) > 0 ? `-${formatCurrency(b.current_balance)}` : formatCurrency(b.current_balance)}
                             </span>
                             <span className="text-[10px] text-[#98A2B3] ml-1">{b.balance_type}</span>
                           </td>

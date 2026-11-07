@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Trash2, Phone, Pencil, FileText, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -50,6 +51,20 @@ export default function DriversPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<DriverRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [prefillDriver, setPrefillDriver] = useState<{ name: string; phone: string } | null>(null);
+
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      const name = searchParams.get("name") || "";
+      const phone = searchParams.get("phone") || "";
+      setEditingRecord(null);
+      if (name || phone) {
+        setPrefillDriver({ name, phone });
+      }
+      setIsDrawerOpen(true);
+    }
+  }, [searchParams]);
 
   // Confirmation dialog state
   const [deactivatingRecord, setDeactivatingRecord] = useState<DriverRecord | null>(null);
@@ -327,8 +342,8 @@ export default function DriversPage() {
   const initialFormValues = useMemo(() => {
     if (!editingRecord) {
       return {
-        name: "",
-        phone: "",
+        name: prefillDriver?.name || "",
+        phone: prefillDriver?.phone || "",
         license_number: "",
         dl_status: "UNVERIFIED",
         vehicle_classes: "",

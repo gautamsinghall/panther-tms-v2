@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Trash2,
@@ -120,8 +121,23 @@ export default function BillingClientPage() {
     return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
+  const searchParams = useSearchParams();
+  const [prefillName, setPrefillName] = useState<string>("");
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      const name = searchParams.get("name") || "";
+      setEditingRecord(null);
+      if (name) {
+        setPrefillName(name);
+      }
+      setIsDrawerOpen(true);
+    }
+  }, [searchParams]);
+
   const openCreateDrawer = () => {
     setEditingRecord(null);
+    setPrefillName("");
     setIsDrawerOpen(true);
   };
 
@@ -213,7 +229,7 @@ export default function BillingClientPage() {
 
   // Initial values for Form
   const editingInitialValues = useMemo(() => {
-    if (!editingRecord) return defaultInitialValues;
+    if (!editingRecord) return { ...defaultInitialValues, name: prefillName || "" };
     return {
       name: editingRecord.name || "",
       code: editingRecord.code || "",

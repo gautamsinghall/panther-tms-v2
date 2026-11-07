@@ -5,8 +5,9 @@ and secure read-only operational tools for LRs, Vehicles, Drivers, Tracking, and
 """
 from typing import Optional, AsyncGenerator, Tuple, List, Dict, Any
 import re
+import urllib.parse
 
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, status, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +54,9 @@ from app.modules.ai.lr_draft_service import (
     is_lr_booking_intent,
     is_cancel_intent,
     is_instructional_inquiry,
+    is_valid_indian_vehicle,
+    parse_lr_entities_from_text,
+    validate_and_update_draft,
 )
 from app.modules.ai.provider import is_provider_configured, call_llm, stream_llm
 from app.modules.ai.rag import knowledge_engine
@@ -248,10 +252,23 @@ def get_capabilities_list_markdown(lang: str = "en") -> str:
 
 def is_add_vehicle_or_driver_inquiry(text: str) -> Tuple[bool, bool, bool]:
     raw = (text or "").strip().lower()
-    has_how_to = bool(re.search(r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese)\b", raw)) or bool(re.search(r"[\u0900-\u097F]", raw) and "कैसे" in raw)
-    has_add = bool(re.search(r"\b(add|ad|aad|create|creat|register|enter|new|naya|naye|jodein|jode|daalein|daalo)\b", raw))
-    mentions_veh = bool(re.search(r"\b(vehical|vehcle|vechicle|vehicle|vehicles|gadi|gaadi|truck|trucks|lorry|fleet|वाहन|गाड़ी)\b", raw))
-    mentions_drv = bool(re.search(r"\b(driver|drivers|drivr|drver|chalak|sarathi|ड्राइवर|चालक)\b", raw))
+
+    # Guard: Prioritise LR creation / how-to / explanation over vehicle addition.
+    # A message about creating an LR or explaining the LR process is NEVER a vehicle addition request.
+    if is_how_to_lr_inquiry(raw) or bool(
+        re.search(r"\b(create|book|explain|process|documents?)\b.*\b(lr|gr|bilty|consignment)\b", raw)
+    ) or bool(
+        re.search(r"\b(lr|gr|bilty|consignment)\b.*\b(create|book|explain|process|documents?)\b", raw)
+    ):
+        return False, False, False
+
+    # Ignore freight cargo terms like "full truck load", "truck load", "part truck load"
+    raw_cleaned = re.sub(r"\b(full\s+truck\s+load|truck\s+load|part\s+truck\s+load|load\s+of)\b", "", raw)
+
+    has_how_to = bool(re.search(r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese)\b", raw_cleaned)) or bool(re.search(r"[\u0900-\u097F]", raw_cleaned) and "कैसे" in raw_cleaned)
+    has_add = bool(re.search(r"\b(add|ad|aad|register|enter|new|naya|naye|jodein|jode|daalein|daalo)\b", raw_cleaned))
+    mentions_veh = bool(re.search(r"\b(vehical|vehcle|vechicle|vehicle|vehicles|gadi|gaadi|truck|trucks|lorry|fleet|वाहन|गाड़ी)\b", raw_cleaned))
+    mentions_drv = bool(re.search(r"\b(driver|drivers|drivr|drver|chalak|sarathi|ड्राइवर|चालक)\b", raw_cleaned))
 
     if (has_how_to or has_add) and (mentions_veh or mentions_drv):
         # Ensure it is not an operational command with a vehicle registration number e.g. "Add vehicle DL01AA1111"
@@ -367,10 +384,198 @@ def build_add_vehicle_driver_response(mentions_veh: bool, mentions_drv: bool, la
     return content, navs, cards
 
 
+def handle_record_prefill_intent(text: str, lang: str = "en") -> Optional[ChatResponse]:
+    """
+    Handles pre-fill intent for Vehicles, Drivers, and Billing Clients.
+    Prepares form query parameters without silently creating records in the database.
+    """
+    clean_text = (text or "").strip()
+    lower = clean_text.lower()
+
+    # Guard: Conceptual how-to queries are handled separately
+    how_to_pattern = r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese)\b"
+    if re.search(how_to_pattern, lower) or (re.search(r"[\u0900-\u097F]", clean_text) and "कैसे" in clean_text):
+        return None
+
+    # Guard: LR booking takes priority
+    if bool(re.search(r"\b(create|book|creat|bok)\s+(lr|gr|bilty)\b", lower)) or bool(re.search(r"\b(lr|gr|bilty)\s+(create|book|banao)\b", lower)):
+        return None
+
+    # 1. Vehicle Pre-fill
+    is_veh_intent = bool(re.search(r"\b(add|new|register|create|enter|naya|naye)\s+(?:a\s+|an\s+)?(?:new\s+)?(vehicle|truck|gaadi|gadi|fleet|lorry)\b", lower)) or \
+                   bool(re.search(r"\b(vehicle|truck|gaadi|gadi|fleet|lorry)\s+(add|register|create|daalein|jodein)\b", lower))
+    if is_veh_intent:
+        m_v = re.search(r"\b([A-Za-z]{2}\s*[0-9]{1,2}\s*[A-Za-z]{0,3}\s*[0-9]{4})\b", clean_text)
+        if m_v:
+            veh_candidate = re.sub(r"[\s\-_]+", "", m_v.group(1)).upper()
+            if is_valid_indian_vehicle(veh_candidate):
+                card = StructuredCard(
+                    card_type="vehicle_prefill",
+                    title="Add New Vehicle",
+                    subtitle=f"Registration: {veh_candidate}",
+                    badge={"text": "Review & Save", "variant": "warning"},
+                    metrics=[
+                        {"label": "Registration", "value": veh_candidate},
+                        {"label": "Ownership", "value": "Company Vehicle"},
+                        {"label": "Action", "value": "Form Pre-fill"},
+                    ],
+                    items=[
+                        {
+                            "primary": f"Vehicle {veh_candidate}",
+                            "secondary": "Form pre-filled. Review specifications and click save to register in fleet.",
+                            "status": "Ready",
+                            "href": f"/transport/company-vehicles?action=add&vehicle_number={veh_candidate}",
+                        }
+                    ],
+                    action={"label": f"Open Vehicle Form ({veh_candidate})", "href": f"/transport/company-vehicles?action=add&vehicle_number={veh_candidate}"},
+                )
+                if lang == "hi_devanagari":
+                    msg = f"मैंने वाहन **{veh_candidate}** के लिए पंजीकरण फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पैंथर एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
+                elif lang == "hinglish":
+                    msg = f"Maine vehicle **{veh_candidate}** ke liye registration form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Panther AI bina aapke review ke directly database me save nahi karta.)*"
+                else:
+                    msg = f"I have prepared the vehicle registration form for **{veh_candidate}**. Click the button below to review details and save in the transport register.\n\n*(Note: Panther AI does not create records silently without your review.)*"
+
+                return ChatResponse(
+                    content=msg,
+                    navigation_suggestions=[
+                        NavigationSuggestion(title="Company Vehicles", href=f"/transport/company-vehicles?action=add&vehicle_number={veh_candidate}", module="Fleet Management")
+                    ],
+                    citations=[],
+                    cards=[card],
+                    provider_configured=is_provider_configured(),
+                    detected_language=lang,
+                )
+
+        # Check for invalid candidate string after "vehicle"
+        m_tail = re.search(r"\b(?:vehicle|truck|gaadi|gadi)\s+([A-Za-z0-9\-]+)", clean_text, re.I)
+        if m_tail:
+            cand = m_tail.group(1).strip()
+            if cand.lower() not in ("please", "pls", "karo", "form", "karna", "guide", "steps", "details", "info"):
+                if lang == "hi_devanagari":
+                    msg = f"❌ '**{cand}**' एक मान्य भारतीय वाहन पंजीकरण नंबर नहीं है (उदा: DL01AA1111, HR55AL7102)। कृपया सही पंजीकरण नंबर प्रदान करें।"
+                elif lang == "hinglish":
+                    msg = f"❌ '**{cand}**' valid Indian vehicle registration format nahi hai (e.g. DL01AA1111, HR55AL7102). Kripya valid number batayein."
+                else:
+                    msg = f"❌ '**{cand}**' is not a valid Indian vehicle registration format (e.g. DL01AA1111, HR55AL7102). Please provide a valid registration number."
+                return ChatResponse(
+                    content=msg,
+                    navigation_suggestions=[
+                        NavigationSuggestion(title="Company Vehicles", href="/transport/company-vehicles", module="Fleet Management")
+                    ],
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=lang,
+                )
+
+    # 2. Driver Pre-fill
+    is_drv_intent = bool(re.search(r"\b(add|new|register|create|naya|naye)\s+(?:a\s+|an\s+)?(?:new\s+)?(driver|chalak|sarathi)\b", lower)) or \
+                   bool(re.search(r"\b(driver|chalak|sarathi)\s+(add|register|create|jodein)\b", lower))
+    if is_drv_intent:
+        m_ph = re.search(r"\b([6-9][0-9]{9})\b", clean_text)
+        phone = m_ph.group(1) if m_ph else ""
+        name_part = re.sub(r"\b(add|new|register|create|driver|chalak|sarathi|please|pls|karo)\b", "", clean_text, flags=re.I)
+        if phone:
+            name_part = name_part.replace(phone, "")
+        driver_name = re.sub(r"[\s\-_]+", " ", name_part).strip()
+        if driver_name and len(driver_name) >= 2:
+            target_href = f"/transport/drivers?action=add&name={urllib.parse.quote(driver_name)}" + (f"&phone={phone}" if phone else "")
+            card = StructuredCard(
+                card_type="driver_prefill",
+                title="Add New Driver",
+                subtitle=f"Driver: {driver_name}",
+                badge={"text": "Review & Save", "variant": "warning"},
+                metrics=[
+                    {"label": "Driver Name", "value": driver_name},
+                    {"label": "Phone", "value": phone or "To be filled"},
+                    {"label": "Action", "value": "Form Pre-fill"},
+                ],
+                items=[
+                    {
+                        "primary": f"Driver {driver_name}",
+                        "secondary": "Form pre-filled. Review driver KYC & license details and save.",
+                        "status": "Ready",
+                        "href": target_href,
+                    }
+                ],
+                action={"label": f"Open Driver Form ({driver_name})", "href": target_href},
+            )
+            if lang == "hi_devanagari":
+                msg = f"मैंने ड्राइवर **{driver_name}** के लिए फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पैंथर एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
+            elif lang == "hinglish":
+                msg = f"Maine driver **{driver_name}** ke liye form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Panther AI bina aapke review ke directly database me save nahi karta.)*"
+            else:
+                msg = f"I have prepared the driver registration form for **{driver_name}**. Click the button below to review details and save in the transport register.\n\n*(Note: Panther AI does not create records silently without your review.)*"
+
+            return ChatResponse(
+                content=msg,
+                navigation_suggestions=[
+                    NavigationSuggestion(title="Manage Drivers", href=target_href, module="Fleet Management")
+                ],
+                citations=[],
+                cards=[card],
+                provider_configured=is_provider_configured(),
+                detected_language=lang,
+            )
+
+    # 3. Billing Client Pre-fill
+    is_client_intent = bool(re.search(r"\b(add|new|register|create|naya|naye)\s+(?:a\s+|an\s+)?(?:new\s+)?(client|customer|party|billing\s+client)\b", lower)) or \
+                      bool(re.search(r"\b(client|customer|billing\s+client)\s+(add|register|create|jodein)\b", lower))
+    if is_client_intent:
+        name_part = re.sub(r"\b(add|new|register|create|client|customer|party|billing\s+client|please|pls|karo)\b", "", clean_text, flags=re.I)
+        client_name = re.sub(r"[\s\-_]+", " ", name_part).strip()
+        if client_name and len(client_name) >= 2:
+            target_href = f"/general/billing-client?action=add&name={urllib.parse.quote(client_name)}"
+            card = StructuredCard(
+                card_type="client_prefill",
+                title="Add Billing Client",
+                subtitle=f"Client: {client_name}",
+                badge={"text": "Review & Save", "variant": "warning"},
+                metrics=[
+                    {"label": "Client Name", "value": client_name},
+                    {"label": "Action", "value": "Form Pre-fill"},
+                ],
+                items=[
+                    {
+                        "primary": f"Client {client_name}",
+                        "secondary": "Form pre-filled. Enter GSTIN, credit period, and billing address to register.",
+                        "status": "Ready",
+                        "href": target_href,
+                    }
+                ],
+                action={"label": f"Open Client Form ({client_name})", "href": target_href},
+            )
+            if lang == "hi_devanagari":
+                msg = f"मैंने बिलिंग क्लाइंट **{client_name}** के लिए फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पैंथर एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
+            elif lang == "hinglish":
+                msg = f"Maine billing client **{client_name}** ke liye form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Panther AI bina aapke review ke directly database me save nahi karta.)*"
+            else:
+                msg = f"I have prepared the billing client form for **{client_name}**. Click the button below to review details and save in the transport register.\n\n*(Note: Panther AI does not create records silently without your review.)*"
+
+            return ChatResponse(
+                content=msg,
+                navigation_suggestions=[
+                    NavigationSuggestion(title="Billing Clients", href=target_href, module="General Masters")
+                ],
+                citations=[],
+                cards=[card],
+                provider_configured=is_provider_configured(),
+                detected_language=lang,
+            )
+
+    return None
+
+
 def is_how_to_lr_inquiry(text: str) -> bool:
     raw = (text or "").strip().lower()
-    has_how_to = bool(re.search(r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese|process)\b", raw)) or bool(re.search(r"[\u0900-\u097F]", raw) and "कैसे" in raw)
-    mentions_lr = bool(re.search(r"\b(lr|gr|bilty|bility|consignment|एलआर|बिल्टी)\b", raw, re.I))
+    has_how_to = bool(
+        re.search(
+            r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese|process|explain|documents?|requirements?|required)\b",
+            raw,
+        )
+    ) or bool(re.search(r"[\u0900-\u097F]", raw) and ("कैसे" in raw or "प्रक्रिया" in raw or "दस्तावेज" in raw))
+    mentions_lr = bool(re.search(r"\b(lr|gr|bilty|bility|consignment|consignments|एलआर|बिल्टी)\b", raw, re.I))
     has_specific_lr = bool(re.search(r"\b(?:lr|gr|bilty)[#\s\-_/]*[0-9][A-Za-z0-9_-]*\b", raw, re.I))
     return bool(has_how_to and mentions_lr and not has_specific_lr)
 
@@ -387,45 +592,91 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
     cards = [
         StructuredCard(
             card_type="how_to_guide",
-            title="LR Booking Guide",
+            title="LR Booking Guide & Documents",
             subtitle="Transport Operations • LR Booking",
             badge={"text": "Step-by-Step", "variant": "neutral"},
             items=[
                 {"primary": "1. Open LR Booking", "secondary": "Go to Transport Operations → LR Booking"},
-                {"primary": "2. Select Parties", "secondary": "Choose Consigner (Sender) and Consignee (Receiver)"},
+                {"primary": "2. Select Parties", "secondary": "Choose Consigner (Sender) & Consignee (Receiver)"},
                 {"primary": "3. Assign Vehicle & Driver", "secondary": "Select vehicle registration number & driver"},
                 {"primary": "4. Material & Freight", "secondary": "Enter package count, weight & freight rate"},
-                {"primary": "5. Save & Issue LR", "secondary": "Click 'Save LR' to generate official consignment note"},
+                {"primary": "5. Verify Required Documents", "secondary": "GSTIN, Delivery Challan, E-Way Bill (> ₹50k), POD"},
             ],
             action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"}
         )
     ]
     if lang == "hi_devanagari":
         content = (
-            "### 📦 एलआर (LR / Bilty) बनाने का तरीका:\n"
-            "1. **ट्रांसपोर्ट ऑपरेशंस → एलआर बुकिंग (LR Booking)** पेज पर जाएं।\n"
+            "### 📦 एलआर (LR / Bilty) बनाने की प्रक्रिया और आवश्यक दस्तावेज:\n\n"
+            "#### 1. चरणबद्ध प्रक्रिया (Step-by-Step Process):\n"
+            "1. **ट्रांसपोर्ट ऑपरेशंस → एलआर बुकिंग (LR Booking)** (`/transport/lr-booking`) पेज पर जाएं।\n"
             "2. **कंसाइनर (भेजने वाला)** और **कंसाइनी (पाने वाला)** चुनें या नया जोड़ें।\n"
-            "3. **वाहन नंबर (Vehicle Number)** और **ड्राइवर** आवंटित करें।\n"
-            "4. माल का विवरण, पैकेज, वजन और **माल भाड़ा (Freight Rate)** दर्ज करें।\n"
-            "5. **'Save LR'** पर क्लिक करके आधिकारिक एलआर जनरेट करें।"
+            "3. लोडिंग का स्थान (Origin) और डिलीवरी का स्थान (Destination) दर्ज करें।\n"
+            "4. **वाहन नंबर (Vehicle Number)** और **ड्राइवर** आवंटित करें।\n"
+            "5. माल का विवरण, पैकेज की संख्या, वास्तविक वजन और **माल भाड़ा (Freight Rate)** दर्ज करें।\n"
+            "6. **'Save LR'** पर क्लिक करके आधिकारिक एलआर जारी करें।\n\n"
+            "#### 2. अनिवार्य विवरण (Mandatory Fields):\n"
+            "- **कंसाइनर और कंसाइनी** का नाम और पता\n"
+            "- **लोडिंग और डिलीवरी का स्थान (Origin & Destination)**\n"
+            "- **वाहन नंबर (Vehicle Registration Number)** (जैसे DL01AA1111)\n"
+            "- **माल का विवरण, वजन और पैकेज संख्या**\n"
+            "- **भाड़ा दर और भुगतान शर्तें (To Pay / Paid / TBB)**\n\n"
+            "#### 3. आवश्यक दस्तावेज (Documents Required):\n"
+            "- **GSTIN**: कंसाइनर और कंसाइनी दोनों का वैध जीएसटी नंबर\n"
+            "- **डिलीवरी चालान / टैक्स इनवॉइस (Delivery Challan / Tax Invoice)**\n"
+            "- **ई-वे बिल (E-Way Bill)**: ₹50,000 से अधिक मूल्य के माल के लिए अनिवार्य\n"
+            "- **वाहन दस्तावेज**: वैध आरसी (RC), फिटनेस और इंश्योरेंस विवरण\n"
+            "- **FASTag ID**: टोल और स्वचालित ट्रैकिंग के लिए\n"
+            "- **पीओडी (POD - Proof of Delivery)**: डिलीवरी के बाद रिसीवर की मोहर व हस्ताक्षर युक्त पावती"
         )
     elif lang == "hinglish":
         content = (
-            "### 📦 LR (Bilty) Banane Ka Tarika:\n"
-            "1. **Transport Operations → LR Booking** page open karein.\n"
-            "2. **Consigner (Sender)** aur **Consignee (Receiver)** select karein.\n"
-            "3. **Vehicle Number** aur **Driver** select karein.\n"
-            "4. Cargo details, package count, weight aur **Freight Rate** fill karein.\n"
-            "5. **'Save LR'** par click karke LR issue karein."
+            "### 📦 LR (Bilty) Banane Ka Process Aur Zaroori Documents:\n\n"
+            "#### 1. Step-by-Step Process:\n"
+            "1. **Transport Operations → LR Booking** (`/transport/lr-booking`) page open karein.\n"
+            "2. **Consigner (Bhejne wala)** aur **Consignee (Paane wala)** select karein.\n"
+            "3. Loading origin aur delivery destination select karein.\n"
+            "4. **Vehicle Number** aur **Driver** assign karein.\n"
+            "5. Cargo particulars, package count, weight aur **Freight Charges** fill karein.\n"
+            "6. **'Save LR'** par click karke official consignment note issue karein.\n\n"
+            "#### 2. Mandatory Fields:\n"
+            "- **Consigner & Consignee** details aur address\n"
+            "- **Origin & Destination** locations\n"
+            "- **Vehicle Number** (Valid Indian registration format)\n"
+            "- **Cargo Details, Weight & Package Count**\n"
+            "- **Freight Rate & Payment Mode (To Pay / Paid / TBB)**\n\n"
+            "#### 3. Zaroori Documents (Required Documents):\n"
+            "- **GSTIN**: Consigner aur Consignee ka GST number\n"
+            "- **Delivery Challan / Tax Invoice**: Maal ka invoice/challan\n"
+            "- **E-Way Bill**: Goods value > ₹50,000 hone par mandatory\n"
+            "- **Vehicle Documents**: RC, Fitness, aur Insurance details\n"
+            "- **FASTag ID**: Automated toll tracking ke liye\n"
+            "- **Proof of Delivery (POD)**: Delivery confirmation receiver ke signature aur stamp ke saath"
         )
     else:
         content = (
-            "### 📦 How to Create an LR (Lorry Receipt / Bilty):\n"
-            "1. Go to **Transport Operations → LR Booking**.\n"
+            "### 📦 LR (Lorry Receipt / Bilty) Booking Process & Documents:\n\n"
+            "#### 1. Step-by-Step Creation Process:\n"
+            "1. Navigate to **Transport Operations → LR Booking** (`/transport/lr-booking`).\n"
             "2. Select the **Consigner (Sender)** and **Consignee (Receiver)**.\n"
-            "3. Select the assigned **Vehicle Number** and **Driver**.\n"
-            "4. Enter cargo particulars, package count, weight, and **Freight Charges**.\n"
-            "5. Click **'Save LR'** to generate the consignment note."
+            "3. Specify the loading origin and destination delivery point.\n"
+            "4. Assign the vehicle registration number and driver.\n"
+            "5. Enter material specifications: cargo description, package count, and weight.\n"
+            "6. Set freight charges, billing terms (To Pay / Paid / TBB), and any advance paid.\n"
+            "7. Click **'Save LR'** to generate and issue the official consignment note.\n\n"
+            "#### 2. Mandatory Fields:\n"
+            "- **Consigner & Consignee** (names, addresses, and GSTIN)\n"
+            "- **Origin & Destination** (pickup and delivery locations)\n"
+            "- **Vehicle Registration Number** (valid Indian registration)\n"
+            "- **Cargo Particulars** (packages, weight, and material description)\n"
+            "- **Freight Rate & Payment Mode**\n\n"
+            "#### 3. Documents Required:\n"
+            "- **GSTIN** of both Consigner and Consignee\n"
+            "- **Delivery Challan / Tax Invoice** for the cargo\n"
+            "- **E-Way Bill** (mandatory for goods consignment value exceeding ₹50,000)\n"
+            "- **Vehicle Details** (valid RC, Fitness certificate, and Insurance)\n"
+            "- **FASTag ID** (for automated toll tracking)\n"
+            "- **Proof of Delivery (POD)** (signed and stamped by the consignee upon delivery)"
         )
     return content, navs, cards
 
@@ -434,7 +685,7 @@ def is_long_explanatory_message(text: str) -> bool:
     raw = (text or "").strip()
     words = raw.split()
     if len(words) >= 12 or len(raw) >= 60:
-        if re.search(r"\b(explain|overview|details|what\s+is|how\s+does|guide|understand|difference|documentation|workflow)\b", raw, re.I):
+        if re.search(r"\b(explain|overview|details|what\s+is|how\s+does|guide|understand|difference|documentation|workflow|process|documents?)\b", raw, re.I):
             return True
         if raw.count("?") >= 1:
             return True
@@ -442,42 +693,8 @@ def is_long_explanatory_message(text: str) -> bool:
 
 
 def get_lr_explanation_markdown(lang: str = "en") -> str:
-    if lang == "hi_devanagari":
-        return (
-            "### 📦 पैंथर टीएमएस में एलआर (Lorry Receipt / Bilty) बुकिंग का विवरण:\n\n"
-            "- **एलआर क्या है**: लॉरी रसीद (Lorry Receipt) ट्रांसपोर्ट अनुबंध और कंसाइनमेंट नोट होता है जो कंसाइनर, कंसाइनी, मार्ग और भाड़े के शुल्क को वैधानिक रूप देता है।\n"
-            "- **आवश्यक विवरण**:\n"
-            "  1. **कंसाइनर और कंसाइनी**: माल भेजने वाला और प्राप्त करने वाला।\n"
-            "  2. **रूट (Origin & Destination)**: लोडिंग और डिलीवरी शहर।\n"
-            "  3. **वाहन**: आवंटित ट्रांसपोर्ट वाहन नंबर (जैसे DL01AA1111)।\n"
-            "  4. **सामान और भाड़ा**: लोड प्रकार, वजन और माल भाड़ा दर।\n"
-            "- **कार्यप्रणाली**: एलआर बुकिंग के बाद स्वचालित ई-वे बिल सिंक, हायर चालान और फ्लीट ट्रैकिंग की सुविधा मिलती है।\n\n"
-            "नई एलआर बुकिंग शुरू करने के लिए 'Book LR' कहें या नीचे दिए गए बटन पर क्लिक करें।"
-        )
-    elif lang == "hinglish":
-        return (
-            "### 📦 Panther TMS mein LR (Lorry Receipt / Bilty) Booking Ka Overview:\n\n"
-            "- **LR Kya Hai**: Lorry Receipt transport contract aur consignment note hota hai jo consignor, consignee, route aur freight charges ko legalize karta hai.\n"
-            "- **Zaroori Details**:\n"
-            "  1. **Consignor & Consignee**: Mal bhejne wala aur prapt karne wala.\n"
-            "  2. **Origin & Destination**: Loading aur Delivery city.\n"
-            "  3. **Vehicle**: Assigned transport truck registration number (jaise DL01AA1111).\n"
-            "  4. **Material & Freight**: Load type, weight (MT/KG) aur freight rate.\n"
-            "- **Workflow**: LR booking ke baad automatic E-Way Bill sync, Hire Challan generate karne aur trip tracking ki suvidha milti hai.\n\n"
-            "Nayi LR booking shuru karne ke liye 'Book LR' kahein ya niche button par click karein."
-        )
-    return (
-        "### 📦 LR (Lorry Receipt / GR) Booking in Panther TMS:\n\n"
-        "A **Lorry Receipt (LR / Bilty / GR)** is the core legal transport consignment note in Panther TMS. It records the freight contract between consignor, consignee, and the carrier.\n\n"
-        "**Key Requirements for an LR:**\n"
-        "1. **Parties**: Consignor (Sender) and Consignee (Receiver).\n"
-        "2. **Route**: Origin (From) and Destination (To) locations.\n"
-        "3. **Fleet**: Assigned Vehicle registration number (valid Indian registration format, e.g. DL01AA1111).\n"
-        "4. **Cargo & Financials**: Package count, material type, weight (MT/KG), freight rate, and billing client.\n\n"
-        "**Connected Operations:**\n"
-        "Once booked, an LR automatically connects to **E-Way Bill validation, Hire Challan issuance, FASTag/SIM tracking, and Billing Invoicing**.\n\n"
-        "To start a new LR booking, tell me 'Book LR' or click the button below."
-    )
+    content, _, _ = build_how_to_lr_response(lang=lang)
+    return content
 
 router = APIRouter(prefix="/ai", tags=["Panther AI"])
 
@@ -570,7 +787,7 @@ async def chat_with_copilot(
         logger.warning(
             f"HARD RULE 0 BLOCKED: User {current_user.email} (tenant {tenant.id}) attempted to delete {delete_item}: '{last_user_message}'"
         )
-        if db:
+        if db and hasattr(db, "add"):
             try:
                 await log_activity(
                     db=db,
@@ -685,6 +902,31 @@ async def chat_with_copilot(
                 citations=[], cards=cards, provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
+        elif is_cancel or is_job_canc or is_hc_canc:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="job")
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="hire_challan")
+            if detected_lang == "hi_devanagari":
+                reply_content = "आपका सक्रिय ड्राफ्ट रद्द (cancel) कर दिया गया है। जब भी आप नया कंसाइनमेंट या कार्य शुरू करना चाहें, मुझे बताएं।"
+            elif detected_lang == "hinglish":
+                reply_content = "Aapka active draft cancel kar diya gaya hai. Nayi booking ya transport operations ke liye kabhi bhi batayein."
+            else:
+                reply_content = "Your active LR draft has been cancelled. Let me know when you would like to book a new consignment."
+            card = StructuredCard(
+                card_type="lr_draft",
+                title="LR Booking • Draft Cancelled",
+                subtitle="Cancelled — no LR was created",
+                badge={"text": "Cancelled", "variant": "neutral"},
+                can_confirm=False,
+            )
+            return ChatResponse(
+                content=reply_content,
+                navigation_suggestions=[],
+                citations=[],
+                cards=[card],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
 
         # B: Mid-draft question or greeting interrupt: PAUSE DRAFT
         # "While a draft is active, if a message is a greeting or question, PAUSE the draft,
@@ -694,8 +936,8 @@ async def chat_with_copilot(
             is_mid_draft_question = (
                 is_greeting(last_user_message)
                 or is_capabilities_query(last_user_message)
-                or is_add_vehicle_or_driver_inquiry(last_user_message)[0]
                 or is_how_to_lr_inquiry(last_user_message)
+                or is_add_vehicle_or_driver_inquiry(last_user_message)[0]
                 or is_long_explanatory_message(last_user_message)
                 or ("?" in last_user_message)
                 or bool(re.search(r"^(what|how|why|where|when|who|which|can\s+you|kya|kaise|kab|kaha|koun|batao|explain)\b", last_user_message.strip(), re.I))
@@ -712,12 +954,12 @@ async def chat_with_copilot(
                 elif is_capabilities_query(last_user_message):
                     sub_answer = get_capabilities_list_markdown(lang=detected_lang)
                     sub_cards = []
+                elif is_how_to_lr_inquiry(last_user_message):
+                    sub_answer, sub_navs, sub_cards = build_how_to_lr_response(lang=detected_lang)
+                    nav_suggestions.extend(sub_navs)
                 elif is_add_vehicle_or_driver_inquiry(last_user_message)[0]:
                     _, m_veh, m_drv = is_add_vehicle_or_driver_inquiry(last_user_message)
                     sub_answer, sub_navs, sub_cards = build_add_vehicle_driver_response(m_veh, m_drv, lang=detected_lang)
-                    nav_suggestions.extend(sub_navs)
-                elif is_how_to_lr_inquiry(last_user_message):
-                    sub_answer, sub_navs, sub_cards = build_how_to_lr_response(lang=detected_lang)
                     nav_suggestions.extend(sub_navs)
                 elif is_long_explanatory_message(last_user_message):
                     sub_answer = get_lr_explanation_markdown(lang=detected_lang)
@@ -776,7 +1018,19 @@ async def chat_with_copilot(
                     detected_language=detected_lang,
                 )
 
-            # 3A. Add vehicle or driver how-to steps
+            # 3A. LR Booking how-to steps & documents (e.g. "LR kaise banaye?", process & documents needed)
+            if is_how_to_lr_inquiry(last_user_message):
+                content, lr_navs, lr_cards = build_how_to_lr_response(lang=detected_lang)
+                return ChatResponse(
+                    content=content,
+                    navigation_suggestions=lr_navs,
+                    citations=[],
+                    cards=lr_cards,
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 3B. Add vehicle or driver how-to steps
             is_how_to, mentions_veh, mentions_drv = is_add_vehicle_or_driver_inquiry(last_user_message)
             if is_how_to:
                 content, veh_drv_navs, veh_drv_cards = build_add_vehicle_driver_response(mentions_veh, mentions_drv, lang=detected_lang)
@@ -785,18 +1039,6 @@ async def chat_with_copilot(
                     navigation_suggestions=veh_drv_navs,
                     citations=[],
                     cards=veh_drv_cards,
-                    provider_configured=is_provider_configured(),
-                    detected_language=detected_lang,
-                )
-
-            # 3B. LR Booking how-to steps (e.g. "LR kaise banaye?" in Devanagari or English)
-            if is_how_to_lr_inquiry(last_user_message):
-                content, lr_navs, lr_cards = build_how_to_lr_response(lang=detected_lang)
-                return ChatResponse(
-                    content=content,
-                    navigation_suggestions=lr_navs,
-                    citations=[],
-                    cards=lr_cards,
                     provider_configured=is_provider_configured(),
                     detected_language=detected_lang,
                 )
@@ -833,7 +1075,7 @@ async def chat_with_copilot(
                 or bool(re.search(r"\b(lr|gr|bilty)\s+(creat|create|boking|booking|book|bok)\b", last_user_message, re.I))
             )
 
-            if is_booking_trigger and not is_confirming_start:
+            if is_booking_trigger and not is_hc_req and not is_job_req and not is_confirming_start:
                 # Ask first before creating draft!
                 if detected_lang == "hi_devanagari":
                     ask_msg = "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?"
@@ -902,6 +1144,57 @@ async def chat_with_copilot(
                 detected_language=detected_lang,
             )
         elif chosen_workflow == "hc":
+            is_hc_confirm = bool(
+                re.search(
+                    r"^(create\s+(?:hire\s+)?challan|confirm|confirm\s+and\s+create|create\s+it|yes|y|ha|haan|proceed|banao)\b",
+                    last_user_message.strip(),
+                    re.I,
+                )
+            ) or last_user_message.strip().lower() in ("create hire challan", "create challan", "create", "yes", "confirm", "proceed", "ok", "haan", "ha")
+
+            if d_hc and d_hc.is_valid and d_hc.confirmation_token and is_hc_confirm:
+                try:
+                    conf_req = ConfirmHireChallanDraftRequest(
+                        draft_id=d_hc.draft_id,
+                        confirmation_token=d_hc.confirmation_token,
+                    )
+                    conf_res = await confirm_hire_challan_draft(
+                        payload=conf_req,
+                        current_user=current_user,
+                        current_office=current_office,
+                        tenant=tenant,
+                        db=db,
+                    )
+                    if detected_lang == "hi_devanagari":
+                        reply_msg = f"✅ आपका हायर चालान **{conf_res.challan_number}** सफलतापूर्वक तैयार कर दिया गया है!"
+                    elif detected_lang == "hinglish":
+                        reply_msg = f"✅ Aapka Hire Challan **{conf_res.challan_number}** successfully ban gaya hai!"
+                    else:
+                        reply_msg = f"✅ Your Hire Challan **{conf_res.challan_number}** has been issued successfully!"
+                    return ChatResponse(
+                        content=reply_msg,
+                        navigation_suggestions=[
+                            NavigationSuggestion(
+                                title=f"View Challan {conf_res.challan_number}",
+                                href="/transport/hire-challans",
+                                module="Transport Operations",
+                            )
+                        ],
+                        citations=[],
+                        cards=[conf_res.card],
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
+                except HTTPException as he:
+                    return ChatResponse(
+                        content=f"⚠️ {he.detail}",
+                        navigation_suggestions=nav_suggestions,
+                        citations=[],
+                        cards=[],
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
+
             reply_content, cards = await handle_conversational_hc_booking(
                 db=db, user=current_user, tenant=tenant, current_office=current_office,
                 user_text=last_user_message, lang=detected_lang
@@ -912,6 +1205,57 @@ async def chat_with_copilot(
                 detected_language=detected_lang,
             )
         elif chosen_workflow == "lr":
+            is_confirm = bool(
+                re.search(
+                    r"^(create\s+lr|confirm|confirm\s+and\s+create|create\s+it|create\s+this\s+lr|yes|y|ha|haan|proceed|banao|haan\s+bana\s+do|ha\s+create\s+karo|banado|theek\s+hai)\b",
+                    last_user_message.strip(),
+                    re.I,
+                )
+            ) or last_user_message.strip().lower() in ("create lr", "create", "yes", "confirm", "proceed", "ok", "haan", "ha", "banao")
+
+            if existing_d and existing_d.is_valid and existing_d.confirmation_token and is_confirm:
+                try:
+                    conf_req = ConfirmLRDraftRequest(
+                        draft_id=existing_d.draft_id,
+                        confirmation_token=existing_d.confirmation_token,
+                    )
+                    conf_res = await confirm_lr_draft(
+                        payload=conf_req,
+                        current_user=current_user,
+                        current_office=current_office,
+                        tenant=tenant,
+                        db=db,
+                    )
+                    if detected_lang == "hi_devanagari":
+                        reply_msg = f"✅ आपका एलआर **{conf_res.lr_number}** सफलतापूर्वक तैयार कर दिया गया है!\n\nआप नीचे दिए गए कार्ड से इसे सीधे देख सकते हैं या प्रिंट कर सकते हैं।"
+                    elif detected_lang == "hinglish":
+                        reply_msg = f"✅ Aapka LR **{conf_res.lr_number}** successfully ban gaya hai!\n\nAap ise niche diye card se directly open ya print kar sakte hain."
+                    else:
+                        reply_msg = f"✅ Your LR **{conf_res.lr_number}** has been created successfully in the transport register!\n\nYou can view or print it directly using the card below."
+                    return ChatResponse(
+                        content=reply_msg,
+                        navigation_suggestions=[
+                            NavigationSuggestion(
+                                title=f"View LR {conf_res.lr_number}",
+                                href=f"/transport/lr-booking?lr_number={conf_res.lr_number}",
+                                module="Transport Operations",
+                            )
+                        ],
+                        citations=[],
+                        cards=[conf_res.card],
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
+                except HTTPException as he:
+                    return ChatResponse(
+                        content=f"⚠️ {he.detail}",
+                        navigation_suggestions=nav_suggestions,
+                        citations=[],
+                        cards=[],
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
+
             reply_content, cards = await handle_conversational_lr_booking(
                 db=db, user=current_user, tenant=tenant, current_office=current_office,
                 user_text=last_user_message, lang=detected_lang
@@ -921,6 +1265,13 @@ async def chat_with_copilot(
                 citations=[], cards=cards, provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
+
+    # --------------------------------------------------------------------------
+    # STEP 2.5: RECORD PRE-FILL INTENTS (VEHICLE, DRIVER, CLIENT PREFILL)
+    # --------------------------------------------------------------------------
+    prefill_response = handle_record_prefill_intent(last_user_message, lang=detected_lang)
+    if prefill_response:
+        return prefill_response
 
     # --------------------------------------------------------------------------
     # STEP 3: OPERATIONAL INTENT DISPATCH (READ-ONLY TOOLS)
@@ -1339,6 +1690,86 @@ async def clear_chat_session(
     await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="job")
     await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="hire_challan")
     return {"status": "cleared"}
+
+
+@router.post("/upload-extract")
+async def upload_and_extract_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_ai_tenant_db),
+):
+    """
+    Extracts transport and shipment entities from an uploaded document (invoice, LR slip, or e-way bill).
+    Pre-populates the user's active LR draft with extracted fields and flags doubtful values with '⚠️ Verify'.
+    """
+    if not db:
+        raise HTTPException(status_code=503, detail="Database connection unavailable.")
+
+    filename = file.filename or "uploaded_document"
+    raw_bytes = await file.read()
+
+    extracted_text = ""
+    try:
+        extracted_text = raw_bytes.decode("utf-8", errors="ignore")
+    except Exception:
+        extracted_text = ""
+
+    combined_text = f"File: {filename}\n{extracted_text}".strip()
+    extracted_fields = await parse_lr_entities_from_text(combined_text, tenant_id=tenant.id, db=db)
+
+    # Get or create active LR draft
+    active_d_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="lr")
+    draft = await lr_draft_store.get_draft(active_d_id) if active_d_id else None
+    if not draft or draft.is_confirmed:
+        draft = await lr_draft_store.create_draft(
+            tenant_id=tenant.id,
+            user_id=current_user.id,
+            draft_type="lr",
+            office_id=current_office.id if current_office else None,
+        )
+
+    for k, v in extracted_fields.items():
+        if v is not None and not k.startswith("invalid_"):
+            draft.data[k] = v
+
+    is_valid, missing, draft = await validate_and_update_draft(draft, tenant.id, db)
+    await lr_draft_store.save_draft(draft)
+
+    metrics = []
+    if draft.data.get("vehicle_number"):
+        metrics.append({"label": "Vehicle", "value": f"{draft.data['vehicle_number']} ⚠️ Verify"})
+    if draft.data.get("consigner_id"):
+        metrics.append({"label": "Consigner ID", "value": f"{draft.data['consigner_id']} ⚠️ Verify"})
+    if draft.data.get("goods_value"):
+        metrics.append({"label": "Goods Value", "value": f"₹{draft.data['goods_value']:,.2f} ⚠️ Verify"})
+    if draft.data.get("eway_bill_number"):
+        metrics.append({"label": "E-Way Bill", "value": f"{draft.data['eway_bill_number']} ⚠️ Verify"})
+    if draft.data.get("total_freight_amount"):
+        metrics.append({"label": "Freight", "value": f"₹{draft.data['total_freight_amount']:,.2f} ⚠️ Verify"})
+
+    card = StructuredCard(
+        card_type="lr_draft",
+        title=f"LR Draft • Extracted from {filename}",
+        subtitle=f"Draft ID: {draft.draft_id} • Status: {'Complete' if is_valid else 'Incomplete'}",
+        badge={"text": "Extracted", "variant": "warning"},
+        metrics=metrics,
+        can_confirm=is_valid,
+        confirmation_token=draft.confirmation_token if is_valid else None,
+    )
+
+    summary_msg = f"📄 Extracted shipment details from **{filename}**. Active LR draft updated. Please verify extracted fields flagged with ⚠️."
+    return {
+        "success": True,
+        "filename": filename,
+        "extracted_fields": extracted_fields,
+        "draft_id": draft.draft_id,
+        "is_valid": is_valid,
+        "missing_fields": missing,
+        "message": summary_msg,
+        "card": card.model_dump(),
+    }
 
 
 def _build_lr_idempotent_response(data: dict) -> LRConfirmationResponse:

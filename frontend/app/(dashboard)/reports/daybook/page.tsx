@@ -114,7 +114,7 @@ export default function DaybookReportPage() {
             {row.party_name && (
               <span className="font-medium text-[#344054]">Party: {row.party_name} •</span>
             )}
-            <span className="truncate max-w-xs">{row.narration || "No narration"}</span>
+            <span className="truncate max-w-sm sm:max-w-md lg:max-w-2xl" title={row.narration || undefined}>{row.narration || "No narration"}</span>
           </div>
         </div>
       ),
