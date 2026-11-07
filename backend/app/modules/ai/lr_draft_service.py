@@ -93,10 +93,67 @@ def is_instructional_inquiry(text: str) -> bool:
     return any(p in lower for p in inquiry_patterns)
 
 
+COMMON_STOP_WORDS = {
+    "and", "details", "load", "loading", "truck", "vehicle", "the", "is", "for",
+    "or", "yes", "no", "ok", "sure", "hi", "hello", "hey", "from", "to", "with",
+    "all", "draft", "cancel", "bilty", "lr", "gr", "order", "job", "please", "pls",
+    "karo", "karna", "karni", "banao", "booking", "shipment", "transport", "status",
+    "new", "start", "stop", "create", "creat", "book", "bok", "make", "mak", "info",
+    "information", "help", "guide", "process", "kaise", "kya", "kab", "kahan", "kaun"
+}
+
+
+def is_valid_indian_vehicle(v: str) -> bool:
+    """Validates that a string matches standard Indian vehicle registration patterns."""
+    if not v or not isinstance(v, str):
+        return False
+    cleaned = re.sub(r"[^A-Za-z0-9]", "", v).upper()
+    return bool(re.match(r"^[A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4}$", cleaned))
+
+
+def is_valid_party_name(name: str) -> bool:
+    """Validates that a string is a plausible person or company name."""
+    if not name or not isinstance(name, str):
+        return False
+    clean = name.strip()
+    lower = clean.lower()
+    if len(clean) < 3 or len(clean) > 100:
+        return False
+    if not re.search(r"[A-Za-z]", clean):
+        return False
+    if "?" in clean:
+        return False
+    question_starters = ("what", "how", "why", "who", "where", "when", "which", "can you", "could you", "tell me", "kya", "kaise", "kahan", "kaun", "kisko", "kiska")
+    if any(lower.startswith(q) or f" {q} " in lower for q in question_starters):
+        return False
+    words = [w for w in re.split(r"[\s,.-]+", lower) if w]
+    if len(words) == 1 and words[0] in COMMON_STOP_WORDS:
+        return False
+    if all(w in COMMON_STOP_WORDS for w in words):
+        return False
+    return True
+
+
+def is_grounded_in_text(extracted_val: str, text: str) -> bool:
+    """Verifies that the extracted value was actually mentioned by the user and not hallucinated."""
+    clean_val = extracted_val.strip().lower()
+    text_lower = text.strip().lower()
+    if clean_val in text_lower:
+        return True
+    words = [w for w in re.split(r"[\s,.-]+", clean_val) if len(w) > 2]
+    if words and any(w in text_lower for w in words):
+        return True
+    return False
+
+
 def is_lr_booking_intent(text: str) -> bool:
     """Detects active intent to create, book, or update an LR / Bilty draft."""
     lower = text.strip().lower()
     if is_instructional_inquiry(text):
+        return False
+    if "delete" in lower or "remove" in lower:
+        return False
+    if lower in ("hi", "hello", "hey", "namaste", "what can you do", "help"):
         return False
 
     booking_triggers = [
@@ -109,27 +166,35 @@ def is_lr_booking_intent(text: str) -> bool:
         "loading at", "freight is", "book consignment", "create consignment",
         "consignment note", "book shipment", "book a shipment", "create shipment",
         "lorry receipt", "book lorry receipt", "issue lr", "issue bilty",
-        "transport book", "reserve truck", "bilty",
+        "transport book", "reserve truck",
+        # Typo-tolerant booking phrases:
+        "creat lr pls", "creat lr please", "creat lr", "creat lr plz",
+        "create lr pls", "create lr please", "bok lr", "boke lr", "mak lr",
+        "craete lr", "craet lr", "creat bilty", "bok bilty", "book lr pls",
+        "creat gr", "creat gr pls", "bok gr", "book gr", "bilty book", "lr book",
     ]
     if any(t in lower for t in booking_triggers):
         return True
 
     booking_patterns = [
-        r"\b(book|create|new|start|make|raise|issue)\b.*\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b",
-        r"\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b.*\b(book|create|banao|banani|generate|start|karni|karna)\b",
+        r"\b(book|create|creat|bok|boke|make|mak|craete|start|new|raise|issue)\b.*\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b",
+        r"\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b.*\b(book|create|creat|bok|boke|banao|banani|generate|start|karni|karna)\b",
     ]
     return any(bool(re.search(p, lower)) for p in booking_patterns)
 
 
 def is_cancel_intent(text: str) -> bool:
-    """Detects intent to cancel/discard current draft."""
+    """Detects intent to cancel/discard current draft session."""
     lower = text.strip().lower()
+    # HARD RULE 0: Record deletion requests are handled by rule 0, not draft cancel!
+    if "delete" in lower or "remove" in lower:
+        return False
     cancel_triggers = [
         "cancel draft", "clear draft", "discard draft", "draft cancel", "cancel lr draft",
         "cancel lr", "cancel booking", "cancel", "clear", "discard", "abort draft", "abort",
-        "reset draft", "radd karo", "hatao draft", "stop draft", "stop booking",
+        "reset draft", "radd karo", "hatao draft", "stop draft", "stop booking", "cancel it",
     ]
-    return any(t == lower or t in lower for t in cancel_triggers)
+    return any(t == lower or f" {t} " in f" {lower} " for t in cancel_triggers)
 
 
 def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = None) -> Dict[str, Any]:
@@ -144,36 +209,48 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
 
     # 1. Vehicle Number
     extracted_v = extract_vehicle_number(clean_text)
-    if extracted_v:
+    if extracted_v and is_valid_indian_vehicle(extracted_v):
         entities["vehicle_number"] = extracted_v
     else:
         m_v_strict = re.search(r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", clean_text, re.IGNORECASE)
-        if m_v_strict:
+        if m_v_strict and is_valid_indian_vehicle(m_v_strict.group(1)):
             entities["vehicle_number"] = m_v_strict.group(1).upper()
         else:
-            m_inv = re.search(r"\b(?:vehicle|gaadi|truck)\s+(?:is\s+|number\s+)?([A-Za-z0-9_-]{1,5})\b", clean_text, re.IGNORECASE)
-            if m_inv and not re.search(r"^(?:company|market|own|type)$", m_inv.group(1), re.IGNORECASE):
-                entities["invalid_vehicle"] = m_inv.group(1).upper()
+            m_v_explicit = re.search(r"\b(?:vehicle|truck|gaadi|lorry)\s*(?:is|number|no\.?|:|=)?\s*([A-Za-z0-9\-]+)\b", clean_text, re.IGNORECASE)
+            if m_v_explicit:
+                v_cand = m_v_explicit.group(1).strip()
+                if not is_valid_indian_vehicle(v_cand) and v_cand.lower() not in {"is", "number", "loading", "details", "for", "with"}:
+                    entities["invalid_vehicle"] = v_cand
 
     # 2. Route Locations (From / To)
     m_route = re.search(r"\bfrom\s+([A-Za-z\s]+?)\s+to\s+([A-Za-z\s]+?)(?=[,;\s]+(?:consigner|consignee|party|vehicle|truck|gaadi|freight|bhada|cargo|packages|boxes|weight|at|rate|₹|rs)|$)", clean_text, re.IGNORECASE)
     if m_route:
-        entities["origin_candidate"] = m_route.group(1).strip()
-        entities["destination_candidate"] = m_route.group(2).strip()
+        cand_o = m_route.group(1).strip()
+        cand_d = m_route.group(2).strip()
+        if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+            entities["origin_candidate"] = cand_o
+            entities["destination_candidate"] = cand_d
     else:
         m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:to|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
         common_words = {"party", "consigner", "consignee", "vehicle", "freight", "advance", "bilty", "order"}
         if m_dash_route and m_dash_route.group(1).lower() not in common_words and m_dash_route.group(2).lower() not in common_words:
-            entities["origin_candidate"] = m_dash_route.group(1).strip()
-            entities["destination_candidate"] = m_dash_route.group(2).strip()
+            cand_o = m_dash_route.group(1).strip()
+            cand_d = m_dash_route.group(2).strip()
+            if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+                entities["origin_candidate"] = cand_o
+                entities["destination_candidate"] = cand_d
 
         m_from = re.search(r"(?:loading|origin|source|from)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)(?=[,;\s]+(?:to|destination|delivery|consigner|consignee|vehicle|freight)|$)", clean_text, re.IGNORECASE)
         if m_from and "origin_candidate" not in entities:
-            entities["origin_candidate"] = m_from.group(1).strip()
+            cand_o = m_from.group(1).strip()
+            if is_valid_party_name(cand_o):
+                entities["origin_candidate"] = cand_o
 
         m_to = re.search(r"(?:delivery|destination|to)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)(?=[,;\s]+(?:from|origin|loading|consigner|consignee|vehicle|freight)|$)", clean_text, re.IGNORECASE)
         if m_to and "destination_candidate" not in entities:
-            entities["destination_candidate"] = m_to.group(1).strip()
+            cand_d = m_to.group(1).strip()
+            if is_valid_party_name(cand_d):
+                entities["destination_candidate"] = cand_d
 
     # 3. Explicit Consigner & Consignee
     m_consigner = re.search(
@@ -182,7 +259,9 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         re.IGNORECASE,
     )
     if m_consigner:
-        entities["consigner_candidate"] = m_consigner.group(1).strip().strip(" ,;.")
+        cand = m_consigner.group(1).strip().strip(" ,;.")
+        if is_valid_party_name(cand):
+            entities["consigner_candidate"] = cand
 
     m_consignee = re.search(
         r"(?:consignee|receiver|to party|panewala|delivery party)\s+(?:is\s+|:\s*|=)?\s*([A-Za-z0-9\s&.-]+?)(?=[,;\s]+(?:and|consigner|shipper|sender|from party|vehicle|truck|gaadi|from|to|freight|bhada|destination|at)\b|$)",
@@ -190,14 +269,19 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         re.IGNORECASE,
     )
     if m_consignee:
-        entities["consignee_candidate"] = m_consignee.group(1).strip().strip(" ,;.")
+        cand = m_consignee.group(1).strip().strip(" ,;.")
+        if is_valid_party_name(cand):
+            entities["consignee_candidate"] = cand
 
     # Compound Party Pattern: "for <Consignee> from <Consigner>" or "<Consigner> to <Consignee>"
     if "consigner_candidate" not in entities and "consignee_candidate" not in entities:
         m_for_from = re.search(r"\bfor\s+([A-Za-z0-9\s&.-]+?)\s+from\s+([A-Za-z0-9\s&.-]+?)(?=[,;\s]+(?:vehicle|truck|freight|rate)|$)", clean_text, re.IGNORECASE)
         if m_for_from:
-            entities["consignee_candidate"] = m_for_from.group(1).strip().strip(" ,;.")
-            entities["consigner_candidate"] = m_for_from.group(2).strip().strip(" ,;.")
+            ce_cand = m_for_from.group(1).strip().strip(" ,;.")
+            cr_cand = m_for_from.group(2).strip().strip(" ,;.")
+            if is_valid_party_name(ce_cand) and is_valid_party_name(cr_cand):
+                entities["consignee_candidate"] = ce_cand
+                entities["consigner_candidate"] = cr_cand
 
     # 4. Financial Amounts (Freight / Advance)
     m_freight = re.search(r"(?:freight|bhada|rate|charges?|amount)\s*(?:is\s+|:\s*|of\s+|=)?\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
@@ -251,6 +335,7 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         # If user typed a standalone party name without keywords
         is_bare_name = (
             len(clean_text.split()) <= 5
+            and is_valid_party_name(clean_text)
             and not any(k in clean_text.lower() for k in ("from", "to", "freight", "advance", "vehicle", "boxes", "tons"))
             and not re.search(r"^[0-9]+", clean_text)
             and not extracted_v
@@ -284,6 +369,7 @@ async def extract_booking_entities_via_llm(user_text: str, current_missing: List
     """
     Fast LLM entity extraction helper when AI provider is configured.
     Safely times out after 2.5s and returns empty dict on any failure.
+    STRICT GROUNDING: Rejects any LLM-hallucinated name, vehicle, or price not in user text!
     """
     if not is_provider_configured():
         return {}
@@ -310,25 +396,49 @@ async def extract_booking_entities_via_llm(user_text: str, current_missing: List
         data = json.loads(cleaned)
         extracted: Dict[str, Any] = {}
         if data.get("consigner"):
-            extracted["consigner_candidate"] = str(data["consigner"]).strip()
+            val = str(data["consigner"]).strip()
+            if is_valid_party_name(val) and is_grounded_in_text(val, user_text):
+                extracted["consigner_candidate"] = val
         if data.get("consignee"):
-            extracted["consignee_candidate"] = str(data["consignee"]).strip()
+            val = str(data["consignee"]).strip()
+            if is_valid_party_name(val) and is_grounded_in_text(val, user_text):
+                extracted["consignee_candidate"] = val
         if data.get("origin"):
-            extracted["origin_candidate"] = str(data["origin"]).strip()
+            val = str(data["origin"]).strip()
+            if is_valid_party_name(val) and is_grounded_in_text(val, user_text):
+                extracted["origin_candidate"] = val
         if data.get("destination"):
-            extracted["destination_candidate"] = str(data["destination"]).strip()
+            val = str(data["destination"]).strip()
+            if is_valid_party_name(val) and is_grounded_in_text(val, user_text):
+                extracted["destination_candidate"] = val
         if data.get("vehicle_number"):
-            extracted["vehicle_number"] = str(data["vehicle_number"]).strip()
+            val = str(data["vehicle_number"]).strip()
+            if is_valid_indian_vehicle(val) and is_grounded_in_text(val, user_text):
+                extracted["vehicle_number"] = val
         if data.get("freight_amount") is not None:
-            extracted["freight_amount"] = float(data["freight_amount"])
+            try:
+                amt = float(data["freight_amount"])
+                amt_str = str(int(amt))
+                if amt_str in user_text or any(k in user_text.lower() for k in ("freight", "bhada", "rate", "rs", "₹")):
+                    extracted["freight_amount"] = amt
+            except Exception:
+                pass
         if data.get("advance_amount") is not None:
-            extracted["advance_amount"] = float(data["advance_amount"])
+            try:
+                amt = float(data["advance_amount"])
+                amt_str = str(int(amt))
+                if amt_str in user_text or any(k in user_text.lower() for k in ("advance", "peshgi", "advance amount")):
+                    extracted["advance_amount"] = amt
+            except Exception:
+                pass
         if data.get("package_count") is not None:
             extracted["package_count"] = int(data["package_count"])
         if data.get("actual_weight_mt") is not None:
             extracted["actual_weight_mt"] = float(data["actual_weight_mt"])
         if data.get("particulars"):
-            extracted["particulars"] = str(data["particulars"]).strip()
+            val = str(data["particulars"]).strip()
+            if is_grounded_in_text(val, user_text):
+                extracted["particulars"] = val
         return extracted
     except Exception as e:
         logger.debug(f"LLM entity extraction fallback: {e}")
@@ -339,7 +449,7 @@ async def resolve_or_create_consigner(
     db: AsyncSession,
     name: str,
     office_id: Optional[int] = None,
-) -> Consigner:
+) -> Tuple[Optional[Consigner], List[Consigner]]:
     """Finds existing consigner by name; if absent, auto-provisions to prevent booking blockage."""
     clean_name = name.strip()
     query = select(Consigner).where(Consigner.is_active == True)
@@ -352,10 +462,13 @@ async def resolve_or_create_consigner(
     # Exact case-insensitive match
     for m in matches:
         if m.name.lower().strip() == clean_name.lower():
-            return m
+            return m, []
 
-    if matches:
-        return matches[0]
+    if len(matches) > 1:
+        return None, matches
+
+    if len(matches) == 1:
+        return matches[0], []
 
     # Auto-provision new consigner master entry
     code = f"CON-{secrets.token_hex(3).upper()}"
@@ -368,14 +481,14 @@ async def resolve_or_create_consigner(
     db.add(new_c)
     await db.commit()
     await db.refresh(new_c)
-    return new_c
+    return new_c, []
 
 
 async def resolve_or_create_consignee(
     db: AsyncSession,
     name: str,
     office_id: Optional[int] = None,
-) -> Consignee:
+) -> Tuple[Optional[Consignee], List[Consignee]]:
     """Finds existing consignee by name; if absent, auto-provisions to prevent booking blockage."""
     clean_name = name.strip()
     query = select(Consignee).where(Consignee.is_active == True)
@@ -387,10 +500,13 @@ async def resolve_or_create_consignee(
 
     for m in matches:
         if m.name.lower().strip() == clean_name.lower():
-            return m
+            return m, []
 
-    if matches:
-        return matches[0]
+    if len(matches) > 1:
+        return None, matches
+
+    if len(matches) == 1:
+        return matches[0], []
 
     code = f"CNE-{secrets.token_hex(3).upper()}"
     new_ce = Consignee(
@@ -402,7 +518,7 @@ async def resolve_or_create_consignee(
     db.add(new_ce)
     await db.commit()
     await db.refresh(new_ce)
-    return new_ce
+    return new_ce, []
 
 
 async def resolve_or_create_location(
@@ -455,9 +571,9 @@ async def validate_and_update_draft(
     data = draft.data
 
     if not data.get("consigner_id"):
-        missing.append("Consigner (Sender)")
+        missing.append("Consigner")
     if not data.get("consignee_id"):
-        missing.append("Consignee (Receiver)")
+        missing.append("Consignee")
     if not data.get("vehicle_number"):
         missing.append("Vehicle Number")
     if not data.get("origin_location_id") and not draft.preview_labels.get("origin_name"):
@@ -531,11 +647,12 @@ async def handle_conversational_lr_booking(
     """
     # 1. Authorization check
     if not is_user_permitted(user, tenant, "transport", "lr_booking", "create"):
-        msg = (
-            "Aapke paas LR create karne ki permission nahi hai (transport.lr_booking.create required)."
-            if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to create LRs (missing transport.lr_booking.create)."
-        )
+        if lang == "hi_devanagari":
+            msg = "आपके पास एलआर (LR) बनाने की अनुमति नहीं है (transport.lr_booking.create आवश्यक)।"
+        elif lang == "hinglish":
+            msg = "Aapke paas LR create karne ki permission nahi hai (transport.lr_booking.create required)."
+        else:
+            msg = "You do not have permission to create LRs (missing transport.lr_booking.create)."
         card = StructuredCard(
             card_type="lr_draft",
             title="LR Creation Restricted",
@@ -550,15 +667,16 @@ async def handle_conversational_lr_booking(
     # 2. Check Discard / Cancel intent
     if is_cancel_intent(user_text):
         await lr_draft_store.clear_active_draft(tenant.id, user.id, draft_type="lr")
-        msg = (
-            "Aapki active LR draft cancel kar di gayi hai. Nayi LR banane ke liye kabhi bhi batayein."
-            if lang in ("hinglish", "hi_devanagari")
-            else "Your active LR draft has been cancelled. Let me know when you would like to book a new consignment."
-        )
+        if lang == "hi_devanagari":
+            msg = "आपका सक्रिय एलआर ड्राफ्ट रद्द (cancel) कर दिया गया है। जब भी आप नया कंसाइनमेंट बुक करना चाहें, मुझे बताएं।"
+        elif lang == "hinglish":
+            msg = "Aapki active LR draft cancel kar di gayi hai. Nayi LR banane ke liye kabhi bhi batayein."
+        else:
+            msg = "Your active LR draft has been cancelled. Let me know when you would like to book a new consignment."
         card = StructuredCard(
             card_type="lr_draft",
-            title="LR Draft Cancelled",
-            subtitle="Draft session cleared",
+            title="LR Booking • Draft Cancelled",
+            subtitle="Cancelled — no LR was created",
             badge={"text": "Cancelled", "variant": "neutral"},
             can_confirm=False,
             action={"label": "Book New LR", "href": "/transport/lr-booking"},
@@ -601,21 +719,29 @@ async def handle_conversational_lr_booking(
             draft.update_field("vehicle_source", "MARKET")
 
     if "invalid_vehicle" in entities:
-        feedback_notes.append(f"Notice: Vehicle '{entities['invalid_vehicle']}' seems incomplete. Please provide a standard registration number (e.g., DL01AA1111).")
+        feedback_notes.append(f"Invalid vehicle number '{entities['invalid_vehicle']}': Please provide a valid Indian registration number (e.g., DL01AA1111).")
 
     # 6. Process Consigner
     if "consigner_candidate" in entities:
         cand_c = entities["consigner_candidate"]
-        c_obj = await resolve_or_create_consigner(db, cand_c, office_id=eff_office_id)
-        draft.update_field("consigner_id", c_obj.id, label=c_obj.name)
-        draft.preview_labels["consigner_name"] = c_obj.name
+        c_obj, c_ambig = await resolve_or_create_consigner(db, cand_c, office_id=eff_office_id)
+        if c_obj:
+            draft.update_field("consigner_id", c_obj.id, label=c_obj.name)
+            draft.preview_labels["consigner_name"] = c_obj.name
+        elif c_ambig:
+            opts = ", ".join(m.name for m in c_ambig)
+            feedback_notes.append(f"Multiple consigners match '{cand_c}': {opts}. Please clarify which party you intend.")
 
     # 7. Process Consignee
     if "consignee_candidate" in entities:
         cand_ce = entities["consignee_candidate"]
-        ce_obj = await resolve_or_create_consignee(db, cand_ce, office_id=eff_office_id)
-        draft.update_field("consignee_id", ce_obj.id, label=ce_obj.name)
-        draft.preview_labels["consignee_name"] = ce_obj.name
+        ce_obj, ce_ambig = await resolve_or_create_consignee(db, cand_ce, office_id=eff_office_id)
+        if ce_obj:
+            draft.update_field("consignee_id", ce_obj.id, label=ce_obj.name)
+            draft.preview_labels["consignee_name"] = ce_obj.name
+        elif ce_ambig:
+            opts = ", ".join(m.name for m in ce_ambig)
+            feedback_notes.append(f"Multiple consignees match '{cand_ce}': {opts}. Please clarify which party you intend.")
 
     # 8. Process Locations
     if "origin_candidate" in entities:
@@ -682,7 +808,23 @@ async def handle_conversational_lr_booking(
     # 12. Intelligent Response Generation (Form Review vs Selective Follow-up)
     if draft.is_valid:
         # Full Completed Form Review before final submission
-        if lang in ("hinglish", "hi_devanagari"):
+        if lang == "hi_devanagari":
+            base_msg = (
+                f"### 📋 एलआर बुकिंग फॉर्म — समीक्षा और पुष्टि\n\n"
+                f"सभी आवश्यक विवरण सत्यापित हो चुके हैं:\n"
+                f"• **कंसाइनर (भेजने वाला):** {c_name}\n"
+                f"• **कंसाइनी (पाने वाला):** {ce_name}\n"
+                f"• **मार्ग (Route):** {orig_name} → {dest_name}\n"
+                f"• **वाहन (Vehicle):** {v_num} ({v_source} Vehicle)\n"
+                f"• **माल भाड़ा (Freight Amount):** ₹{freight_val:,.2f}\n"
+                f"• **अग्रिम भुगतान (Advance):** ₹{advance_val:,.2f}\n"
+                f"• **शेष देय (Balance Due):** ₹{balance_val:,.2f}\n"
+                f"• **पैकेज:** {pkgs} pkgs\n"
+                f"• **वजन:** {wt:.2f} MT ({particulars})\n\n"
+                f"कृपया विवरण की जांच करें और अंतिम रूप देने के लिए "
+                f"**'Confirm & Create LR'** बटन पर क्लिक करें।"
+            )
+        elif lang == "hinglish":
             base_msg = (
                 f"### 📋 LR Booking Form — Review & Confirmation\n\n"
                 f"Sabhi zaroori details collect aur validate ho chuki hain:\n"
@@ -749,9 +891,16 @@ async def handle_conversational_lr_booking(
 
         missing_block = "👉 **Still Needed:**\n" + "\n".join(missing_prompts)
 
-        if lang in ("hinglish", "hi_devanagari"):
+        if lang == "hi_devanagari":
             base_msg = (
-                f"Main aapki LR booking draft prepare kar raha hoon.\n\n"
+                f"मैं आपकी एलआर (LR) बनाने में मदद करूँगा (ड्राफ्ट तैयार कर रहा हूँ)।\n\n"
+                f"{recorded_block}"
+                f"{missing_block}\n\n"
+                f"*आप शेष विवरण एक साथ या एक-एक करके प्रदान कर सकते हैं।*"
+            )
+        elif lang == "hinglish":
+            base_msg = (
+                f"Main aapki LR create karne mein help karunga (draft prepare kar raha hoon).\n\n"
                 f"{recorded_block}"
                 f"{missing_block}\n\n"
                 f"*Aap baaki bachi details ek sath ya ek-ek karke provide kar sakte hain.*"

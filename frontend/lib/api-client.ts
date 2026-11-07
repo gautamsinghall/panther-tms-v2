@@ -57,6 +57,28 @@ export async function apiClient<T = any>(
     headers["Content-Type"] = "application/json";
   }
 
+  // HARD RULE 0 — NO DELETION IN PANTHER TMS
+  if (options.method === "DELETE" && !endpoint.includes("/ai/")) {
+    const isLr = endpoint.includes("/lr");
+    const isVeh = endpoint.includes("/vehicle");
+    const isDriver = endpoint.includes("/driver");
+    const isBill = endpoint.includes("/invoice") || endpoint.includes("/bill");
+    const isChallan = endpoint.includes("/challan");
+    const item = isLr ? "LR" : isVeh ? "vehicle" : isDriver ? "driver" : isBill ? "bill" : isChallan ? "challan" : "record";
+    const msg = `You cannot delete this ${item}. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this ${item} needs correction or cancellation.`;
+    if (typeof window !== "undefined") {
+      try {
+        const { toast } = await import("@/lib/toast");
+        toast.error(msg);
+      } catch {
+        // fallback
+      }
+    }
+    const error = new Error(msg) as Error & { status: number };
+    error.status = 403;
+    throw error;
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {

@@ -222,15 +222,6 @@ export default function DriversPage() {
         setIsDrawerOpen(true);
       },
     },
-    {
-      label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
-      variant: "danger",
-      hidden: (row) => !row.is_active,
-      onClick: (row) => {
-        setDeactivatingRecord(row);
-      },
-    },
   ];
 
   // Modified Form Sections per final field structure

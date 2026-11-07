@@ -5,6 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   Sparkles,
   Minus,
+  Maximize2,
+  Minimize2,
   X,
   Send,
   ArrowRight,
@@ -77,26 +79,52 @@ interface Message {
   timestamp: Date;
 }
 
+const INITIAL_WELCOME_MESSAGE: Message = {
+  id: "welcome-1",
+  role: "assistant",
+  content:
+    "👋 **Welcome to Panther AI!**\n\nYour intelligent assistant for managing everyday transport operations.\n\nI’m here to make your work easier. Whether you need help with **LR/GR Booking, Hire Challans, Vehicles, Drivers, FASTag, SIM-Based Tracking, or Master Ledgers**, just tell me what you need.\n\nYou can ask questions, get step-by-step guidance, or tell me what you want to do. I'll help you through the process, one step at a time.\n\n🌐 **Speak your way:** English | हिन्दी | Hinglish\n\n**Let's get started! What would you like to do today?**",
+  timestamp: new Date(),
+};
+
 export function PantherAIPanel() {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const { isOpen, closeAI } = usePantherAI();
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome-1",
-      role: "assistant",
-      content:
-        "Hello! I am **Panther AI**, your TMS copilot. You can ask me how to manage **LRs/GRs, Hire Challans, Vehicles, Drivers, FASTag & SIM tracking**, or **Master Ledgers**.\n\nI speak **English, हिन्दी (Devanagari)**, and **Hinglish**! Feel free to talk naturally.",
-      timestamp: new Date(),
-    },
-  ]);
-
+  const [messages, setMessages] = useState<Message[]>([INITIAL_WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isProviderConfigured, setIsProviderConfigured] = useState<boolean | null>(null);
   const [confirmingDraftId, setConfirmingDraftId] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [activeDraftInfo, setActiveDraftInfo] = useState<{ draft_id: string; missing_fields: string[] } | null>(null);
+  const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
+
+  // Restore saved panel size preference
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("panther_ai_panel_expanded");
+      if (saved === "true") {
+        setIsExpanded(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleSize = useCallback(() => {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("panther_ai_panel_expanded", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -206,11 +234,67 @@ export function PantherAIPanel() {
         if (isMounted) setIsProviderConfigured(false);
       }
     }
-    if (isOpen) fetchStatus();
+
+    async function checkDraft() {
+      try {
+        const res = await apiClient<{ draft_id?: string; missing_fields?: string[] }>("/api/v1/ai/lr-draft/active");
+        if (isMounted) {
+          if (res?.draft_id) {
+            setActiveDraftInfo({ draft_id: res.draft_id, missing_fields: res.missing_fields || [] });
+          } else {
+            setActiveDraftInfo(null);
+          }
+        }
+      } catch {
+        if (isMounted) setActiveDraftInfo(null);
+      }
+    }
+
+    if (isOpen) {
+      fetchStatus();
+      checkDraft();
+    }
     return () => {
       isMounted = false;
     };
   }, [isOpen]);
+
+  const hasActiveDraft = Boolean(
+    activeDraftInfo !== null ||
+    messages.some((m) =>
+      m.cards?.some(
+        (c) =>
+          ["lr_draft", "job_draft", "hire_challan_draft"].includes(c.card_type) &&
+          !c.title.toLowerCase().includes("cancelled") &&
+          c.badge?.text?.toLowerCase() !== "cancelled"
+      )
+    )
+  );
+
+  const handleNewChatClick = () => {
+    if (hasActiveDraft) {
+      setShowNewChatConfirm(true);
+    } else {
+      handlePerformNewChat();
+    }
+  };
+
+  const handlePerformNewChat = async () => {
+    setShowNewChatConfirm(false);
+    try {
+      await apiClient("/api/v1/ai/chat/clear", { method: "POST" });
+    } catch {
+      // ignore
+    }
+    setMessages([
+      {
+        ...INITIAL_WELCOME_MESSAGE,
+        timestamp: new Date(),
+      },
+    ]);
+    setActiveDraftInfo(null);
+    setError(null);
+  };
 
   const handleSendMessage = async (textToSend?: string) => {
     if (isSubmittingRef.current) return;
@@ -275,7 +359,46 @@ export function PantherAIPanel() {
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      const isCancellation =
+        trimmed.toLowerCase() === "cancel" ||
+        trimmed.toLowerCase() === "clear draft" ||
+        response.cards?.some(
+          (c) =>
+            c.title?.toLowerCase().includes("cancelled") ||
+            c.badge?.text?.toLowerCase() === "cancelled" ||
+            c.card_type === "lr_draft_cancelled"
+        );
+
+      if (isCancellation) {
+        setActiveDraftInfo(null);
+        setMessages((prev) => {
+          const updatedPrev = prev.map((msg) => {
+            if (!msg.cards || msg.cards.length === 0) return msg;
+            const updatedCards = msg.cards.map((card) => {
+              if (["lr_draft", "job_draft", "hire_challan_draft"].includes(card.card_type)) {
+                return {
+                  ...card,
+                  title: `${card.title.replace(/• Draft.*/, "").trim()} • Draft (Cancelled)`,
+                  badge: { text: "Cancelled", variant: "neutral" as const },
+                  subtitle: "Cancelled — no LR was created",
+                  can_confirm: false,
+                };
+              }
+              return card;
+            });
+            return { ...msg, cards: updatedCards };
+          });
+          return [...updatedPrev, assistantMessage];
+        });
+      } else {
+        const draftCard = response.cards?.find(
+          (c) => ["lr_draft", "job_draft", "hire_challan_draft"].includes(c.card_type) && !c.title.toLowerCase().includes("cancelled")
+        );
+        if (draftCard?.draft_id) {
+          setActiveDraftInfo({ draft_id: draftCard.draft_id, missing_fields: draftCard.missing_fields || [] });
+        }
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
     } catch (err: any) {
       const errorMsg = err?.message || "Failed to reach Panther AI service. Please try again.";
       setError(errorMsg);
@@ -415,10 +538,18 @@ export function PantherAIPanel() {
     <div
       role="dialog"
       aria-label="Panther AI Copilot"
-      className="fixed bottom-18 sm:bottom-[88px] right-3 left-3 sm:left-auto sm:right-6 z-50 sm:w-[410px] h-[calc(100dvh-5.5rem)] sm:h-[580px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-7rem)] rounded-2xl sm:rounded-3xl flex flex-col bg-white dark:bg-[#0F111D] border border-slate-200/90 dark:border-[#1E2235] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-200 animate-in fade-in slide-in-from-bottom-4 motion-reduce:animate-none"
+      className={`fixed bottom-18 sm:bottom-[88px] right-3 left-3 sm:left-auto sm:right-6 z-50 rounded-2xl sm:rounded-3xl flex flex-col bg-white dark:bg-[#0F111D] border border-slate-200/90 dark:border-[#1E2235] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-bottom-4 motion-reduce:animate-none ${
+        isExpanded
+          ? "sm:w-[780px] md:w-[860px] lg:w-[940px] max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-3rem)] h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-7.5rem)]"
+          : "sm:w-[440px] max-w-[calc(100vw-1.5rem)] h-[calc(100dvh-5.5rem)] sm:h-[620px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-7rem)]"
+      }`}
     >
       {/* 1. Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-[#0F111D] border-b border-slate-100 dark:border-[#1C2033] shrink-0">
+      <div
+        onDoubleClick={toggleSize}
+        title="Double click to toggle size"
+        className="flex items-center justify-between px-4 py-3 bg-white dark:bg-[#0F111D] border-b border-slate-100 dark:border-[#1C2033] shrink-0 select-none cursor-default"
+      >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-violet-500/10 dark:bg-violet-500/20 text-[#5B50E6] dark:text-violet-400 flex items-center justify-center shrink-0 border border-violet-500/20 shadow-2xs">
             <Sparkles className="w-4 h-4" />
@@ -442,12 +573,34 @@ export function PantherAIPanel() {
 
           <button
             type="button"
+            onClick={handleNewChatClick}
+            aria-label="New Chat"
+            title="New Chat / Clear Draft"
+            className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={closeAI}
             aria-label="Minimize"
             title="Minimize"
             className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <Minus className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleSize}
+            aria-label={isExpanded ? "Decrease size (Restore)" : "Increase size (Expand)"}
+            title={isExpanded ? "Decrease size (Restore)" : "Increase size (Expand)"}
+            className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            {isExpanded ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
           </button>
           <button
             type="button"
@@ -460,6 +613,41 @@ export function PantherAIPanel() {
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal for New Chat */}
+      {showNewChatConfirm && (
+        <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#161928] border border-slate-200 dark:border-[#252A42] rounded-2xl p-4 shadow-xl max-w-sm w-full space-y-3">
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">Start a new chat?</h4>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                  Start a new chat? Your current LR draft will be cancelled.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-[#252A42]">
+              <button
+                type="button"
+                onClick={() => setShowNewChatConfirm(false)}
+                className="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Keep Draft
+              </button>
+              <button
+                type="button"
+                onClick={handlePerformNewChat}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-2xs cursor-pointer"
+              >
+                Cancel Draft & Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2. Suggested Action Chips Row (Reference Style) */}
       <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-[#1C2033] bg-slate-50/50 dark:bg-[#111322] shrink-0">
@@ -483,13 +671,38 @@ export function PantherAIPanel() {
 
         <button
           type="button"
-          onClick={() => handleSendMessage("Show customer ledger")}
+          onClick={() => handleSendMessage("View Ledger")}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
         >
           <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
           <span>View Ledger</span>
         </button>
       </div>
+
+      {/* Active Draft Session Indicator Banner */}
+      {activeDraftInfo && (
+        <div className="px-3.5 py-2 bg-indigo-50/90 dark:bg-indigo-950/50 border-b border-indigo-200/80 dark:border-indigo-900/60 text-xs text-indigo-900 dark:text-indigo-200 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping inline-block shrink-0" />
+            <span className="truncate text-[11px] font-medium">
+              LR draft session active ({activeDraftInfo.missing_fields?.length || 0} fields needed)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await apiClient("/api/v1/ai/lr-draft/active", { method: "DELETE" });
+              } catch {}
+              setActiveDraftInfo(null);
+              handleSendMessage("cancel");
+            }}
+            className="px-2 py-0.5 rounded text-[10px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0 cursor-pointer"
+          >
+            Discard
+          </button>
+        </div>
+      )}
 
       {/* Setup Mode Notice (If OpenAI Key Not Set) */}
       {isProviderConfigured === false && (
@@ -504,7 +717,7 @@ export function PantherAIPanel() {
       {/* 3. Message Stream Canvas */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 bg-white dark:bg-[#0F111D] no-scrollbar overscroll-contain"
+        className="flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden px-4 py-4 space-y-4 bg-white dark:bg-[#0F111D] no-scrollbar overscroll-contain"
       >
         {messages.map((msg, idx) => {
           const isLatestAssistant = idx === messages.length - 1 && msg.role === "assistant";
@@ -512,12 +725,12 @@ export function PantherAIPanel() {
             <div
               key={msg.id}
               ref={isLatestAssistant ? lastAssistantMsgRef : null}
-              className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+              className={`flex flex-col w-full min-w-0 max-w-full ${msg.role === "user" ? "items-end" : "items-start"}`}
             >
             {msg.role === "user" ? (
               // User Bubble
-              <div className="max-w-[85%] rounded-2xl rounded-tr-xs px-4 py-2.5 bg-[#5B50E6] text-white text-xs sm:text-[13px] leading-relaxed shadow-xs">
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+              <div className="max-w-[85%] rounded-2xl rounded-tr-xs px-4 py-2.5 bg-[#5B50E6] text-white text-xs sm:text-[13px] leading-relaxed shadow-xs break-words [overflow-wrap:anywhere]">
+                <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.content}</div>
                 <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-indigo-200 font-mono">
                   <span>
                     {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -527,14 +740,14 @@ export function PantherAIPanel() {
               </div>
             ) : (
               // Assistant Bubble
-              <div className="flex items-start gap-2.5 max-w-[95%]">
+              <div className="flex items-start gap-2.5 w-full min-w-0 max-w-full">
                 <div className="w-7 h-7 rounded-xl bg-violet-500/10 dark:bg-violet-500/20 text-[#5B50E6] dark:text-violet-400 flex items-center justify-center shrink-0 mt-0.5 border border-violet-500/20 shadow-2xs">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
 
-                <div className="flex-1 rounded-2xl rounded-tl-xs px-4 py-3 bg-slate-50 dark:bg-[#181B2B] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-[#262B44] text-xs sm:text-[13px] leading-relaxed shadow-xs space-y-2">
+                <div className="flex-1 min-w-0 max-w-full rounded-2xl rounded-tl-xs px-4 py-3 bg-slate-50 dark:bg-[#181B2B] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-[#262B44] text-xs sm:text-[13px] leading-relaxed shadow-xs space-y-2 break-words [overflow-wrap:anywhere] overflow-x-hidden">
                   {/* Assistant Text Content */}
-                  <div className="whitespace-pre-wrap space-y-1.5 font-normal">
+                  <div className="whitespace-pre-wrap space-y-1.5 font-normal break-words [overflow-wrap:anywhere] min-w-0">
                     {msg.content.split("\n\n").map((para, pIdx) => {
                       const parts = para.split(/(\*\*.*?\*\*)/g);
                       return (
@@ -1010,9 +1223,9 @@ export function PantherAIPanel() {
                       {msg.navigationSuggestions.map((nav, nIdx) => (
                         <div
                           key={nIdx}
-                          className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white dark:bg-[#141727] border border-slate-200/60 dark:border-[#262B44]"
+                          className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white dark:bg-[#141727] border border-slate-200/60 dark:border-[#262B44] min-w-0 w-full"
                         >
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
                               {nav.title}
                             </p>

@@ -84,7 +84,7 @@ async def resolve_or_create_job_party(
     model_cls,
     query_text: str,
     office_id: Optional[int] = None,
-) -> Any:
+) -> Tuple[Optional[Any], List[Any]]:
     """Resolves party by exact/fuzzy match, or auto-provisions to avoid blocking the user."""
     clean = query_text.strip()
     query = select(model_cls).where(model_cls.is_active == True)
@@ -94,12 +94,14 @@ async def resolve_or_create_job_party(
     res_exact = await db.execute(query.where(func.lower(model_cls.name) == clean.lower()))
     exact = res_exact.scalars().first()
     if exact:
-        return exact
+        return exact, []
 
-    res_like = await db.execute(query.where(model_cls.name.ilike(f"%{clean}%")).limit(1))
-    like_match = res_like.scalars().first()
-    if like_match:
-        return like_match
+    res_like = await db.execute(query.where(model_cls.name.ilike(f"%{clean}%")).limit(5))
+    matches = list(res_like.scalars().all())
+    if len(matches) > 1:
+        return None, matches
+    if len(matches) == 1:
+        return matches[0], []
 
     # Auto-provision
     prefix = "CON" if model_cls == Consigner else "CNE"
@@ -112,7 +114,7 @@ async def resolve_or_create_job_party(
     db.add(new_party)
     await db.commit()
     await db.refresh(new_party)
-    return new_party
+    return new_party, []
 
 
 async def resolve_or_create_job_location(
@@ -240,7 +242,7 @@ async def validate_and_update_job_draft(
 
     # 1. Consigner Check
     if not draft.data.get("consigner_id"):
-        missing.append("Consigner (Sender)")
+        missing.append("Consigner")
     else:
         c = await db.get(Consigner, draft.data["consigner_id"])
         if c:
@@ -248,23 +250,19 @@ async def validate_and_update_job_draft(
 
     # 2. Consignee Check
     if not draft.data.get("consignee_id"):
-        missing.append("Consignee (Receiver)")
+        missing.append("Consignee")
     else:
         ce = await db.get(Consignee, draft.data["consignee_id"])
         if ce:
             draft.preview_labels["consignee"] = f"{ce.name}"
 
-    # 3. Route Labels
-    if not draft.data.get("origin_location_id") and not draft.preview_labels.get("origin"):
-        missing.append("Origin City")
-    elif draft.data.get("origin_location_id"):
+    # 3. Route Labels (Optional for Transport Job)
+    if draft.data.get("origin_location_id"):
         loc_o = await db.get(Location, draft.data["origin_location_id"])
         if loc_o:
             draft.preview_labels["origin"] = f"{loc_o.city_name}"
 
-    if not draft.data.get("destination_location_id") and not draft.preview_labels.get("destination"):
-        missing.append("Destination City")
-    elif draft.data.get("destination_location_id"):
+    if draft.data.get("destination_location_id"):
         loc_d = await db.get(Location, draft.data["destination_location_id"])
         if loc_d:
             draft.preview_labels["destination"] = f"{loc_d.city_name}"
@@ -389,21 +387,30 @@ async def handle_conversational_job_booking(
     )
 
     # 3. Parse Entities
+    feedback_notes: List[str] = []
     extracted = parse_job_entities_from_text(user_text, current_draft=draft)
 
     # 4. Resolve Consigner
     if "consigner" in extracted:
         c_cand = extracted["consigner"]
-        c_obj = await resolve_or_create_job_party(db, Consigner, c_cand, office_id=eff_office_id)
-        draft.update_field("consigner_id", c_obj.id, label=c_obj.name)
-        draft.preview_labels["consigner"] = c_obj.name
+        c_obj, c_matches = await resolve_or_create_job_party(db, Consigner, c_cand, office_id=eff_office_id)
+        if c_obj:
+            draft.update_field("consigner_id", c_obj.id, label=c_obj.name)
+            draft.preview_labels["consigner"] = c_obj.name
+        elif c_matches:
+            opts = ", ".join(m.name for m in c_matches)
+            feedback_notes.append(f"Multiple consigners match '{c_cand}': {opts}. Please clarify.")
 
     # 5. Resolve Consignee
     if "consignee" in extracted:
         ce_cand = extracted["consignee"]
-        ce_obj = await resolve_or_create_job_party(db, Consignee, ce_cand, office_id=eff_office_id)
-        draft.update_field("consignee_id", ce_obj.id, label=ce_obj.name)
-        draft.preview_labels["consignee"] = ce_obj.name
+        ce_obj, ce_matches = await resolve_or_create_job_party(db, Consignee, ce_cand, office_id=eff_office_id)
+        if ce_obj:
+            draft.update_field("consignee_id", ce_obj.id, label=ce_obj.name)
+            draft.preview_labels["consignee"] = ce_obj.name
+        elif ce_matches:
+            opts = ", ".join(m.name for m in ce_matches)
+            feedback_notes.append(f"Multiple consignees match '{ce_cand}': {opts}. Please clarify.")
 
     # 6. Resolve Route Locations
     if "origin_city" in extracted:
@@ -499,7 +506,7 @@ async def handle_conversational_job_booking(
 
         if lang in ("hinglish", "hi_devanagari"):
             reply = (
-                f"Main aapka Transport Job draft prepare kar raha hoon.\n\n"
+                f"Main aapka Transport Job draft bana raha hoon (prepare kar raha hoon).\n\n"
                 f"{recorded_block}"
                 f"{missing_block}\n\n"
                 f"*Aap baaki bachi details ek sath ya ek-ek karke provide kar sakte hain.*"
@@ -511,5 +518,8 @@ async def handle_conversational_job_booking(
                 f"{missing_block}\n\n"
                 f"*You can provide all remaining details together in one message or step-by-step.*"
             )
+
+    if feedback_notes:
+        reply = f"{reply}\n\n" + "\n".join(feedback_notes)
 
     return reply, [card]

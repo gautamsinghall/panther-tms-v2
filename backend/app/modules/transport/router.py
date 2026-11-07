@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form
+from fastapi import APIRouter, Depends, status, UploadFile, File, Query, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException, ForbiddenException, ResourceNotFoundException as NotFoundException
@@ -111,22 +111,26 @@ async def update_vehicle_owner(
     )
     return owner
 
-@router.delete("/vehicle-owners/{id}", status_code=status.HTTP_200_OK)
+@router.delete("/vehicle-owners/{id}", status_code=status.HTTP_403_FORBIDDEN)
 async def delete_vehicle_owner(
     id: int,
-    current_user: User = Depends(require_permission("transport", "vehicle_owners", "delete")),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    await service.delete_vehicle_owner(db, id)
     await log_activity(
         db=db,
         user=current_user,
-        action="VEHICLE_OWNER_DEACTIVATED",
+        action="BLOCKED_DELETE_ATTEMPT",
         module="transport",
         entity_type="VehicleOwner",
         entity_id=str(id),
+        details=f"Blocked attempt to delete vehicle owner ID {id}. Deletion is not allowed in Panther TMS.",
+        status="BLOCKED",
     )
-    return {"message": "Vehicle Owner deactivated."}
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You cannot delete this vehicle owner. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this vehicle owner needs correction or cancellation.",
+    )
 
 # ==============================================================================
 # 2. Drivers
@@ -179,22 +183,26 @@ async def update_driver(
     )
     return drv
 
-@router.delete("/drivers/{id}", status_code=status.HTTP_200_OK)
+@router.delete("/drivers/{id}", status_code=status.HTTP_403_FORBIDDEN)
 async def delete_driver(
     id: int,
-    current_user: User = Depends(require_permission("transport", "drivers", "delete")),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    await service.delete_driver(db, id)
     await log_activity(
         db=db,
         user=current_user,
-        action="DRIVER_DEACTIVATED",
+        action="BLOCKED_DELETE_ATTEMPT",
         module="transport",
         entity_type="Driver",
         entity_id=str(id),
+        details=f"Blocked attempt to delete driver ID {id}. Deletion is not allowed in Panther TMS.",
+        status="BLOCKED",
     )
-    return {"message": "Driver deactivated."}
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You cannot delete this driver. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this driver needs correction or cancellation.",
+    )
 
 # ==============================================================================
 # 3. Market Vehicles
@@ -253,22 +261,26 @@ async def update_market_vehicle(
     )
     return v
 
-@router.delete("/market-vehicles/{id}", status_code=status.HTTP_200_OK)
+@router.delete("/market-vehicles/{id}", status_code=status.HTTP_403_FORBIDDEN)
 async def delete_market_vehicle(
     id: int,
-    current_user: User = Depends(require_permission("transport", "market_vehicles", "delete")),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    await service.delete_market_vehicle(db, id)
     await log_activity(
         db=db,
         user=current_user,
-        action="MARKET_VEHICLE_DEACTIVATED",
+        action="BLOCKED_DELETE_ATTEMPT",
         module="transport",
         entity_type="Vehicle",
         entity_id=str(id),
+        details=f"Blocked attempt to delete market vehicle ID {id}. Deletion is not allowed in Panther TMS.",
+        status="BLOCKED",
     )
-    return {"message": "Market vehicle deactivated."}
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You cannot delete this vehicle. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this vehicle needs correction or cancellation.",
+    )
 
 # ==============================================================================
 # 4. Company Vehicles
@@ -323,24 +335,26 @@ async def update_company_vehicle(
     )
     return v
 
-@router.delete("/company-vehicles/{id}", status_code=status.HTTP_200_OK)
+@router.delete("/company-vehicles/{id}", status_code=status.HTTP_403_FORBIDDEN)
 async def delete_company_vehicle(
     id: int,
-    current_user: User = Depends(require_permission("transport", "company_vehicles", "delete")),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    v = await service.delete_company_vehicle(db, id)
     await log_activity(
         db=db,
         user=current_user,
-        action="COMPANY_VEHICLE_DEACTIVATED",
+        action="BLOCKED_DELETE_ATTEMPT",
         module="transport",
         entity_type="Vehicle",
         entity_id=str(id),
-        entity_identifier=getattr(v, "registration_number", str(id)),
-        details=f"Deactivated company vehicle ID {id}",
+        details=f"Blocked attempt to delete company vehicle ID {id}. Deletion is not allowed in Panther TMS.",
+        status="BLOCKED",
     )
-    return {"message": "Company vehicle deactivated."}
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You cannot delete this vehicle. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this vehicle needs correction or cancellation.",
+    )
 
 # ==============================================================================
 # 5. Jobs & Workflow Transitions
@@ -888,6 +902,31 @@ async def transition_lr_status(
     )
     return _build_lr_response(lr)
 
+@router.delete("/lrs/{id}", status_code=status.HTTP_403_FORBIDDEN)
+async def delete_lr(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    HARD RULE 0 — NO DELETION IN PANTHER TMS.
+    Every delete request is blocked, logged for audit, and rejected with 403 Forbidden.
+    """
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="BLOCKED_DELETE_ATTEMPT",
+        module="transport",
+        entity_type="LR",
+        entity_id=str(id),
+        details=f"Blocked attempt to delete LR ID {id}. Deletion is not allowed in Panther TMS.",
+        status="BLOCKED",
+    )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You cannot delete this LR. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this LR needs correction or cancellation.",
+    )
+
 # ==============================================================================
 # 7. Hire Challans
 # ==============================================================================
@@ -1053,6 +1092,31 @@ async def settle_hire_challan(
         details_json={"settlement_notes": req.settlement_notes, "status": hc.status},
     )
     return _build_hire_challan_response(hc)
+
+@router.delete("/hire-challans/{id}", status_code=status.HTTP_403_FORBIDDEN)
+async def delete_hire_challan(
+    id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    """
+    HARD RULE 0 — NO DELETION IN PANTHER TMS.
+    Every delete request is blocked, logged for audit, and rejected with 403 Forbidden.
+    """
+    await log_activity(
+        db=db,
+        user=current_user,
+        action="BLOCKED_DELETE_ATTEMPT",
+        module="transport",
+        entity_type="HireChallan",
+        entity_id=str(id),
+        details=f"Blocked attempt to delete Hire Challan ID {id}. Deletion is not allowed in Panther TMS.",
+        status="BLOCKED",
+    )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You cannot delete this challan. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this challan needs correction or cancellation.",
+    )
 
 # ==============================================================================
 # 8. Arrival Reports

@@ -709,26 +709,6 @@ export default function CompanyVehiclesPage() {
         handleOpenEditDrawer(row);
       },
     },
-    {
-      label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
-      variant: "danger",
-      onClick: async (row) => {
-        const ok = await confirmModal({
-          title: "Deactivate Vehicle",
-          description: `Are you sure you want to deactivate ${row.vehicle_number}?`,
-          confirmText: "Deactivate",
-          variant: "danger",
-        });
-        if (!ok) return;
-        try {
-          await apiClient(`/api/v1/transport/company-vehicles/${row.id}`, { method: "DELETE" });
-          loadData();
-        } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate vehicle.");
-        }
-      },
-    },
   ];
 
   return (

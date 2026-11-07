@@ -3,7 +3,7 @@ Panther AI API Router.
 Provides authenticated AI copilot endpoints, context-aware suggestions, navigation resolution,
 and secure read-only operational tools for LRs, Vehicles, Drivers, Tracking, and Master Ledgers.
 """
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, Tuple, List, Dict, Any
 import re
 
 from fastapi import APIRouter, Depends, Query, status, HTTPException
@@ -28,7 +28,12 @@ from app.modules.ai.schemas import (
     ConfirmHireChallanDraftRequest,
     HireChallanConfirmationResponse,
     StructuredCard,
+    NavigationSuggestion,
 )
+import logging
+from app.services.activity_logger import log_activity
+
+logger = logging.getLogger("panther_ai_copilot")
 from app.modules.transport.schemas import LRCreate, JobCreate, HireChallanCreate
 from app.modules.ai.job_draft_service import (
     handle_conversational_job_booking,
@@ -78,6 +83,401 @@ from app.modules.ai.tools import (
     execute_fleet_maintenance_tool,
     execute_einvoice_tool,
 )
+
+
+# ==============================================================================
+# COPILOT INTENT & VALIDATION HELPERS (HARD RULE 0 & P0 FIXES)
+# ==============================================================================
+
+def detect_delete_record_request(text: str) -> Optional[str]:
+    """
+    HARD RULE 0 — NO DELETION IN PANTHER TMS.
+    Detects any intent to delete, erase, or permanently remove TMS records.
+    Returns the record item name (e.g. 'LR', 'vehicle', 'bill', 'driver', 'challan', 'record')
+    or None if not a delete request.
+    """
+    raw = (text or "").strip().lower()
+    is_delete_verb = bool(re.search(r"\b(delete|remove|erase|destroy|drop)\b", raw))
+    if not is_delete_verb:
+        if not re.search(r"\b(delete|hatao|mitao)\b", raw):
+            return None
+
+    # Draft cancellations are not database record deletes (e.g., 'cancel draft')
+    if re.search(r"\b(cancel|discard|clear)\s+(draft|booking|chat)\b", raw):
+        return None
+
+    # Determine item name
+    if re.search(r"\b(vehicle|gadi|truck|lorry|gaadi)\b", raw):
+        return "vehicle"
+    elif re.search(r"\b(driver|chalak)\b", raw):
+        return "driver"
+    elif re.search(r"\b(bill|invoice)\b", raw):
+        return "bill"
+    elif re.search(r"\b(challan|hire\s*challan)\b", raw):
+        return "challan"
+    elif re.search(r"\b(job)\b", raw):
+        return "job"
+    elif re.search(r"\b(client|customer|party)\b", raw):
+        return "client"
+    elif re.search(r"\b(vendor)\b", raw):
+        return "vendor"
+    elif re.search(r"\b(lr|gr|bilty|consignment)\b", raw):
+        return "LR"
+    elif re.search(r"\b(everything|all|data|records)\b", raw):
+        return "record"
+    elif re.search(r"^[!\s]*(delete|remove|erase)\b", raw):
+        return "record"
+
+    return "record"
+
+
+def get_blocked_delete_message(item_name: str, lang: str = "en") -> str:
+    """Exact blocked message for HARD RULE 0 across supported languages."""
+    if lang == "hinglish":
+        return f"Aap is {item_name} ko delete nahi kar sakte. Panther TMS me deletion allowed nahi hai. Correction ya cancellation ke liye apne Company Admin se sampark karein."
+    elif lang == "hi_devanagari":
+        return f"आप इस {item_name} को डिलीट नहीं कर सकते। पैंथर टीएमएस (Panther TMS) में डिलीशन की अनुमति नहीं है। सुधार या रद्दीकरण (cancellation) के लिए कृपया अपने कंपनी एडमिन से संपर्क करें।"
+    return f"You cannot delete this {item_name}. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this {item_name} needs correction or cancellation."
+
+
+def is_bulk_pii_request(text: str) -> bool:
+    """Detects requests attempting bulk extraction of customer/vendor phone numbers or emails."""
+    raw = (text or "").strip().lower()
+    has_bulk = bool(re.search(r"\b(all|every|list\s+all|show\s+all|dump|export|entire)\b", raw))
+    has_pii = bool(re.search(r"\b(phone|phones|mobile|mobiles|contact|contacts|email|emails|number|numbers)\b", raw))
+    has_party = bool(re.search(r"\b(customer|customers|client|clients|vendor|vendors|driver|drivers)\b", raw))
+
+    if has_bulk and has_pii:
+        return True
+    if re.search(r"\bshow\s+(all\s+)?(customer|client)\s+(phone|contact|mobile)s?\b", raw):
+        return True
+    if re.search(r"\b(customer|client)\s+phone\s+numbers?\b", raw):
+        return True
+    return False
+
+
+def get_bulk_pii_refusal_message(lang: str = "en") -> str:
+    if lang == "hi_devanagari":
+        return (
+            "गोपनीयता और डेटा सुरक्षा नीति के तहत, पैंथर एआई कोपायलट से सभी ग्राहकों के फ़ोन नंबर या ईमेल पते का बल्क एक्सपोर्ट (एक साथ सूची) देना अनुमत नहीं है। "
+            "अधिकृत संपर्क विवरण देखने के लिए कृपया मास्टर मेनू में बिलिंग क्लाइंट डायरेक्टरी देखें।"
+        )
+    elif lang == "hinglish":
+        return (
+            "Privacy aur data protection ke tehat, Panther AI Copilot se sabhi customers ke phone numbers ya email addresses bulk export karna allowed nahi hai. "
+            "Aap kisi specific customer ka naam batakar unki details dekh sakte hain, ya Billing Clients module me authorized Client Directory check kar sakte hain."
+        )
+    return (
+        "For privacy and data protection, bulk export of customer phone numbers or email addresses is not permitted via Panther AI Copilot. "
+        "You may view an individual customer's details by naming a specific customer, or access the authorized Client Directory under Billing Clients."
+    )
+
+
+def is_greeting(text: str) -> bool:
+    raw = (text or "").strip().lower()
+    raw_clean = re.sub(r"[^\w\s]", "", raw).strip()
+    greetings = {
+        "hi", "hello", "hey", "hola", "namaste", "namaskar", "greetings",
+        "good morning", "good afternoon", "good evening", "good day",
+        "hi panther", "hello panther", "hey panther", "hi there", "hello there",
+        "kese ho", "kaise ho", "kya haal hai", "नमस्ते", "नमस्कार", "प्रणाम"
+    }
+    return raw_clean in greetings or raw_clean.startswith("hi ") or raw_clean.startswith("hello ")
+
+
+def get_greeting_response(lang: str = "en") -> str:
+    if lang == "hi_devanagari":
+        return "नमस्ते! मैं पैंथर एआई कोपायलट (Panther AI Copilot) हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। आज मैं आपकी एलआर बुकिंग, ट्रैकिंग या लेज़र खातों में कैसे मदद कर सकता हूँ?"
+    elif lang == "hinglish":
+        return "Namaste! Main hoon Panther AI Copilot, aapka transport operations assistant. Aaj aapki LR booking, vehicle tracking ya ledger accounts mein kaise madad karoon?"
+    return "Hello! I am Panther AI Copilot, your transport operations assistant. How can I assist you with LR booking, fleet tracking, or master ledgers today?"
+
+
+def is_capabilities_query(text: str) -> bool:
+    raw = (text or "").strip().lower()
+    raw_clean = re.sub(r"[^\w\s]", "", raw).strip()
+    patterns = [
+        r"^what\s+can\s+you\s+do",
+        r"^what\s+do\s+you\s+do",
+        r"^help$",
+        r"^kya\s+kar\s+sakte\s+ho",
+        r"^tum\s+kya\s+karte\s+ho",
+        r"^what\s+are\s+your\s+capabilities",
+        r"^what\s+can\s+panther\s+ai\s+do",
+        r"^how\s+can\s+you\s+help",
+        r"^features$",
+        r"क्या\s+कर\s+सकते",
+    ]
+    return any(re.search(p, raw_clean) for p in patterns)
+
+
+def get_capabilities_list_markdown(lang: str = "en") -> str:
+    if lang == "hi_devanagari":
+        return (
+            "मैं पैंथर टीएमएस (Panther TMS) में आपकी इन चीज़ों में मदद कर सकता हूँ:\n\n"
+            "1. **एलआर और बिल्टी कार्य (LR & GR Operations)**: नई एलआर बुकिंग शुरू करना, स्थिति देखना और कंसाइनमेंट ट्रैक करना।\n"
+            "2. **फ्लीट और ट्रैकिंग (Fleet & Tracking)**: वाहन ट्रैक करना, FASTag टोल प्लाजा स्थिति और सिम आधारित लाइव लोकेशन।\n"
+            "3. **मास्टर लेज़र और खाते (Master Ledger & Accounts)**: ग्राहकों का बकाया (Clients Outstanding), वेंडर्स की देनदारी और चालकों के बैलेंस।\n"
+            "4. **वाहन और ड्राइवर (Vehicles & Drivers)**: कंपनी फ्लीट, मार्केट गाड़ियां और ड्राइवरों के रिकॉर्ड प्रबंधित करना।\n"
+            "5. **चालान और बिलिंग (Challans & Invoices)**: हायर चालान, फ्रेट इनवॉइस, POD और ई-वे बिल देखना।\n"
+            "6. **मार्गदर्शन और नेविगेशन (Guidance & Navigation)**: किसी भी मॉड्यूल के लिए चरण-दर-चरण निर्देश और त्वरित शॉर्टकट।\n\n"
+            "*आज आप क्या करना चाहेंगे?*"
+        )
+    elif lang == "hinglish":
+        return (
+            "Main Panther TMS mein aapki in cheezon mein madad kar sakta hoon:\n\n"
+            "1. **LR & GR Operations**: Nayi LR booking create karna, LR status check karna, consignments track karna.\n"
+            "2. **Fleet & Tracking**: Vehicles track karna, FASTag toll status, SIM-based live tracking.\n"
+            "3. **Master Ledger & Accounts**: Client balances, vendor payables, driver balances aur account summary.\n"
+            "4. **Vehicles & Drivers**: Company vehicles, market vehicles aur driver records manage karna.\n"
+            "5. **Challans & Billing**: Hire Challans, Invoices, PODs aur E-Way Bills dekhna.\n"
+            "6. **Navigation**: Kisi bhi module ke step-by-step guidance aur direct shortcuts.\n\n"
+            "*Aap kis cheez me madad chahte hain?*"
+        )
+    return (
+        "Here is what I can help you with in Panther TMS:\n\n"
+        "1. **LR & GR Operations**: Create and manage LRs/GRs, check consignment status, and track shipments.\n"
+        "2. **Fleet & Tracking**: Track vehicles, FASTag toll crossings, and SIM-based GPS locations.\n"
+        "3. **Master Ledgers & Accounting**: View client receivables, vendor payables, driver balances, and account summaries.\n"
+        "4. **Vehicles & Drivers**: Manage company fleet, market vehicles, driver profiles, and licenses.\n"
+        "5. **Challans & Billing**: Manage Hire Challans, Freight Invoices, PODs, and E-Way Bills.\n"
+        "6. **Step-by-Step Guidance**: Get how-to guidance and quick navigation to any section in Panther TMS.\n\n"
+        "*What would you like to do today?*"
+    )
+
+
+def is_add_vehicle_or_driver_inquiry(text: str) -> Tuple[bool, bool, bool]:
+    raw = (text or "").strip().lower()
+    has_how_to = bool(re.search(r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese)\b", raw)) or bool(re.search(r"[\u0900-\u097F]", raw) and "कैसे" in raw)
+    has_add = bool(re.search(r"\b(add|ad|aad|create|creat|register|enter|new|naya|naye|jodein|jode|daalein|daalo)\b", raw))
+    mentions_veh = bool(re.search(r"\b(vehical|vehcle|vechicle|vehicle|vehicles|gadi|gaadi|truck|trucks|lorry|fleet|वाहन|गाड़ी)\b", raw))
+    mentions_drv = bool(re.search(r"\b(driver|drivers|drivr|drver|chalak|sarathi|ड्राइवर|चालक)\b", raw))
+
+    if (has_how_to or has_add) and (mentions_veh or mentions_drv):
+        # Ensure it is not an operational command with a vehicle registration number e.g. "Add vehicle DL01AA1111"
+        if not re.search(r"\b[a-z]{2}\s*[0-9]{1,2}\s*[a-z]{0,3}\s*[0-9]{4}\b", raw):
+            return True, mentions_veh, mentions_drv
+    return False, False, False
+
+
+def build_add_vehicle_driver_response(mentions_veh: bool, mentions_drv: bool, lang: str = "en") -> Tuple[str, List[NavigationSuggestion], List[StructuredCard]]:
+    navs: List[NavigationSuggestion] = []
+    cards: List[StructuredCard] = []
+    sections = []
+
+    if mentions_veh:
+        navs.append(NavigationSuggestion(
+            title="Company Vehicles",
+            href="/transport/company-vehicles",
+            module="Fleet Management",
+            description="Manage company vehicles and add new fleet records"
+        ))
+        cards.append(StructuredCard(
+            card_type="how_to_guide",
+            title="Add Vehicle Guide",
+            subtitle="Fleet Management • Company Vehicles",
+            badge={"text": "Step-by-Step", "variant": "neutral"},
+            items=[
+                {"primary": "1. Navigate to Fleet", "secondary": "Go to Fleet Management → Company Vehicles"},
+                {"primary": "2. Click '+ Add Vehicle'", "secondary": "Click the button at the top right"},
+                {"primary": "3. Fill Vehicle Details", "secondary": "Enter registration number (e.g. DL01AA1111), vehicle type & capacity"},
+                {"primary": "4. Upload Documents", "secondary": "Attach RC, Fitness, and Insurance expiry dates"},
+                {"primary": "5. Save Record", "secondary": "Click 'Save Vehicle' to finalize entry"},
+            ],
+            action={"label": "Open Company Vehicles", "href": "/transport/company-vehicles"}
+        ))
+        if lang == "hi_devanagari":
+            sections.append(
+                "### 🚚 वाहन (Vehicle) जोड़ने का तरीका:\n"
+                "1. **फ्लीट मैनेजमेंट → कंपनी वाहन (Company Vehicles)** (या मार्केट वाहन) पर जाएं।\n"
+                "2. ऊपर दाईं ओर **'+ Add Vehicle'** बटन पर क्लिक करें।\n"
+                "3. वाहन पंजीकरण नंबर (जैसे DL01AA1111), वाहन का प्रकार और क्षमता दर्ज करें।\n"
+                "4. आरसी (RC), फिटनेस और बीमा (Insurance) की वैधता तिथियां भरें।\n"
+                "5. **'Save Vehicle'** पर क्लिक करके वाहन पंजीकृत करें।"
+            )
+        elif lang == "hinglish":
+            sections.append(
+                "### 🚚 Vehicle Add Karne Ka Tarika:\n"
+                "1. **Fleet Management → Company Vehicles** (ya Market Vehicles) par jayein.\n"
+                "2. Top-right par **'+ Add Vehicle'** button par click karein.\n"
+                "3. Vehicle Registration Number (jaise DL01AA1111), type aur capacity enter karein.\n"
+                "4. RC, Fitness aur Insurance dates fill karein.\n"
+                "5. **'Save Vehicle'** par click karein."
+            )
+        else:
+            sections.append(
+                "### 🚚 How to Add a Vehicle:\n"
+                "1. Go to **Fleet Management → Company Vehicles** (or Market Vehicles).\n"
+                "2. Click the **'+ Add Vehicle'** button in the top right.\n"
+                "3. Enter the Vehicle Registration Number (e.g., DL01AA1111), vehicle type, and capacity.\n"
+                "4. Enter RC, Fitness, and Insurance validity details.\n"
+                "5. Click **'Save Vehicle'** to complete the registration."
+            )
+
+    if mentions_drv:
+        navs.append(NavigationSuggestion(
+            title="Drivers Directory",
+            href="/transport/drivers",
+            module="Fleet Management",
+            description="Manage driver profiles, license verification, and contacts"
+        ))
+        cards.append(StructuredCard(
+            card_type="how_to_guide",
+            title="Add Driver Guide",
+            subtitle="Fleet Management • Drivers",
+            badge={"text": "Step-by-Step", "variant": "neutral"},
+            items=[
+                {"primary": "1. Open Drivers Section", "secondary": "Go to Fleet Management → Drivers"},
+                {"primary": "2. Click '+ Add Driver'", "secondary": "Click the button in the top action bar"},
+                {"primary": "3. Enter Driver Details", "secondary": "Provide full name, mobile number & driving license number"},
+                {"primary": "4. License Validity", "secondary": "Set license expiry date and assign vehicle (optional)"},
+                {"primary": "5. Save Profile", "secondary": "Click 'Save Driver' to register"},
+            ],
+            action={"label": "Open Drivers Directory", "href": "/transport/drivers"}
+        ))
+        if lang == "hi_devanagari":
+            sections.append(
+                "### 👨‍✈️ ड्राइवर (Driver) जोड़ने का तरीका:\n"
+                "1. **फ्लीट मैनेजमेंट → ड्राइवर (Drivers)** पेज खोलें।\n"
+                "2. **'+ Add Driver'** बटन पर क्लिक करें।\n"
+                "3. ड्राइवर का नाम, मोबाइल नंबर और ड्राइविंग लाइसेंस नंबर दर्ज करें।\n"
+                "4. लाइसेंस की वैधता तिथि और आवंटित वाहन चुनें।\n"
+                "5. **'Save Driver'** पर क्लिक करके प्रोफाइल सेव करें।"
+            )
+        elif lang == "hinglish":
+            sections.append(
+                "### 👨‍✈️ Driver Add Karne Ka Tarika:\n"
+                "1. **Fleet Management → Drivers** page open karein.\n"
+                "2. **'+ Add Driver'** button par click karein.\n"
+                "3. Driver ka Name, Mobile Number aur Driving License number enter karein.\n"
+                "4. License expiry date aur assigned vehicle select karein.\n"
+                "5. **'Save Driver'** par click karein."
+            )
+        else:
+            sections.append(
+                "### 👨‍✈️ How to Add a Driver:\n"
+                "1. Navigate to **Fleet Management → Drivers**.\n"
+                "2. Click the **'+ Add Driver'** button.\n"
+                "3. Enter the driver's full name, mobile number, and Driving License (DL) number.\n"
+                "4. Set the license expiry date and assign a vehicle (optional).\n"
+                "5. Click **'Save Driver'** to save the profile."
+            )
+
+    content = "\n\n".join(sections)
+    return content, navs, cards
+
+
+def is_how_to_lr_inquiry(text: str) -> bool:
+    raw = (text or "").strip().lower()
+    has_how_to = bool(re.search(r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese|process)\b", raw)) or bool(re.search(r"[\u0900-\u097F]", raw) and "कैसे" in raw)
+    mentions_lr = bool(re.search(r"\b(lr|gr|bilty|bility|consignment|एलआर|बिल्टी)\b", raw, re.I))
+    has_specific_lr = bool(re.search(r"\b(?:lr|gr|bilty)[#\s\-_/]*[0-9][A-Za-z0-9_-]*\b", raw, re.I))
+    return bool(has_how_to and mentions_lr and not has_specific_lr)
+
+
+def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSuggestion], List[StructuredCard]]:
+    navs = [
+        NavigationSuggestion(
+            title="LR Booking Form",
+            href="/transport/lr-booking",
+            module="Transport Operations",
+            description="Open complete LR booking form"
+        )
+    ]
+    cards = [
+        StructuredCard(
+            card_type="how_to_guide",
+            title="LR Booking Guide",
+            subtitle="Transport Operations • LR Booking",
+            badge={"text": "Step-by-Step", "variant": "neutral"},
+            items=[
+                {"primary": "1. Open LR Booking", "secondary": "Go to Transport Operations → LR Booking"},
+                {"primary": "2. Select Parties", "secondary": "Choose Consigner (Sender) and Consignee (Receiver)"},
+                {"primary": "3. Assign Vehicle & Driver", "secondary": "Select vehicle registration number & driver"},
+                {"primary": "4. Material & Freight", "secondary": "Enter package count, weight & freight rate"},
+                {"primary": "5. Save & Issue LR", "secondary": "Click 'Save LR' to generate official consignment note"},
+            ],
+            action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"}
+        )
+    ]
+    if lang == "hi_devanagari":
+        content = (
+            "### 📦 एलआर (LR / Bilty) बनाने का तरीका:\n"
+            "1. **ट्रांसपोर्ट ऑपरेशंस → एलआर बुकिंग (LR Booking)** पेज पर जाएं।\n"
+            "2. **कंसाइनर (भेजने वाला)** और **कंसाइनी (पाने वाला)** चुनें या नया जोड़ें।\n"
+            "3. **वाहन नंबर (Vehicle Number)** और **ड्राइवर** आवंटित करें।\n"
+            "4. माल का विवरण, पैकेज, वजन और **माल भाड़ा (Freight Rate)** दर्ज करें।\n"
+            "5. **'Save LR'** पर क्लिक करके आधिकारिक एलआर जनरेट करें।"
+        )
+    elif lang == "hinglish":
+        content = (
+            "### 📦 LR (Bilty) Banane Ka Tarika:\n"
+            "1. **Transport Operations → LR Booking** page open karein.\n"
+            "2. **Consigner (Sender)** aur **Consignee (Receiver)** select karein.\n"
+            "3. **Vehicle Number** aur **Driver** select karein.\n"
+            "4. Cargo details, package count, weight aur **Freight Rate** fill karein.\n"
+            "5. **'Save LR'** par click karke LR issue karein."
+        )
+    else:
+        content = (
+            "### 📦 How to Create an LR (Lorry Receipt / Bilty):\n"
+            "1. Go to **Transport Operations → LR Booking**.\n"
+            "2. Select the **Consigner (Sender)** and **Consignee (Receiver)**.\n"
+            "3. Select the assigned **Vehicle Number** and **Driver**.\n"
+            "4. Enter cargo particulars, package count, weight, and **Freight Charges**.\n"
+            "5. Click **'Save LR'** to generate the consignment note."
+        )
+    return content, navs, cards
+
+
+def is_long_explanatory_message(text: str) -> bool:
+    raw = (text or "").strip()
+    words = raw.split()
+    if len(words) >= 12 or len(raw) >= 60:
+        if re.search(r"\b(explain|overview|details|what\s+is|how\s+does|guide|understand|difference|documentation|workflow)\b", raw, re.I):
+            return True
+        if raw.count("?") >= 1:
+            return True
+    return False
+
+
+def get_lr_explanation_markdown(lang: str = "en") -> str:
+    if lang == "hi_devanagari":
+        return (
+            "### 📦 पैंथर टीएमएस में एलआर (Lorry Receipt / Bilty) बुकिंग का विवरण:\n\n"
+            "- **एलआर क्या है**: लॉरी रसीद (Lorry Receipt) ट्रांसपोर्ट अनुबंध और कंसाइनमेंट नोट होता है जो कंसाइनर, कंसाइनी, मार्ग और भाड़े के शुल्क को वैधानिक रूप देता है।\n"
+            "- **आवश्यक विवरण**:\n"
+            "  1. **कंसाइनर और कंसाइनी**: माल भेजने वाला और प्राप्त करने वाला।\n"
+            "  2. **रूट (Origin & Destination)**: लोडिंग और डिलीवरी शहर।\n"
+            "  3. **वाहन**: आवंटित ट्रांसपोर्ट वाहन नंबर (जैसे DL01AA1111)।\n"
+            "  4. **सामान और भाड़ा**: लोड प्रकार, वजन और माल भाड़ा दर।\n"
+            "- **कार्यप्रणाली**: एलआर बुकिंग के बाद स्वचालित ई-वे बिल सिंक, हायर चालान और फ्लीट ट्रैकिंग की सुविधा मिलती है।\n\n"
+            "नई एलआर बुकिंग शुरू करने के लिए 'Book LR' कहें या नीचे दिए गए बटन पर क्लिक करें।"
+        )
+    elif lang == "hinglish":
+        return (
+            "### 📦 Panther TMS mein LR (Lorry Receipt / Bilty) Booking Ka Overview:\n\n"
+            "- **LR Kya Hai**: Lorry Receipt transport contract aur consignment note hota hai jo consignor, consignee, route aur freight charges ko legalize karta hai.\n"
+            "- **Zaroori Details**:\n"
+            "  1. **Consignor & Consignee**: Mal bhejne wala aur prapt karne wala.\n"
+            "  2. **Origin & Destination**: Loading aur Delivery city.\n"
+            "  3. **Vehicle**: Assigned transport truck registration number (jaise DL01AA1111).\n"
+            "  4. **Material & Freight**: Load type, weight (MT/KG) aur freight rate.\n"
+            "- **Workflow**: LR booking ke baad automatic E-Way Bill sync, Hire Challan generate karne aur trip tracking ki suvidha milti hai.\n\n"
+            "Nayi LR booking shuru karne ke liye 'Book LR' kahein ya niche button par click karein."
+        )
+    return (
+        "### 📦 LR (Lorry Receipt / GR) Booking in Panther TMS:\n\n"
+        "A **Lorry Receipt (LR / Bilty / GR)** is the core legal transport consignment note in Panther TMS. It records the freight contract between consignor, consignee, and the carrier.\n\n"
+        "**Key Requirements for an LR:**\n"
+        "1. **Parties**: Consignor (Sender) and Consignee (Receiver).\n"
+        "2. **Route**: Origin (From) and Destination (To) locations.\n"
+        "3. **Fleet**: Assigned Vehicle registration number (valid Indian registration format, e.g. DL01AA1111).\n"
+        "4. **Cargo & Financials**: Package count, material type, weight (MT/KG), freight rate, and billing client.\n\n"
+        "**Connected Operations:**\n"
+        "Once booked, an LR automatically connects to **E-Way Bill validation, Hire Challan issuance, FASTag/SIM tracking, and Billing Invoicing**.\n\n"
+        "To start a new LR booking, tell me 'Book LR' or click the button below."
+    )
 
 router = APIRouter(prefix="/ai", tags=["Panther AI"])
 
@@ -161,6 +561,62 @@ async def chat_with_copilot(
     last_user_message = next((m.content for m in reversed(data.messages) if m.role == "user"), "")
     detected_lang = detect_language(last_user_message)
 
+    # --------------------------------------------------------------------------
+    # STEP 0: HARD RULE 0 — NO DELETION IN PANTHER TMS (HIGHEST PRIORITY)
+    # Intercept any delete request before anything is processed or deleted.
+    # --------------------------------------------------------------------------
+    delete_item = detect_delete_record_request(last_user_message)
+    if delete_item:
+        logger.warning(
+            f"HARD RULE 0 BLOCKED: User {current_user.email} (tenant {tenant.id}) attempted to delete {delete_item}: '{last_user_message}'"
+        )
+        if db:
+            try:
+                await log_activity(
+                    db=db,
+                    user=current_user,
+                    action="BLOCKED_DELETE_ATTEMPT",
+                    module="ai_copilot",
+                    entity_type=delete_item,
+                    details=f"Blocked attempt to delete {delete_item} via AI copilot: '{last_user_message}'",
+                    status="BLOCKED",
+                )
+            except Exception as e:
+                logger.error(f"Failed to log blocked delete attempt: {e}")
+
+        blocked_reply = get_blocked_delete_message(delete_item, lang=detected_lang)
+        return ChatResponse(
+            content=blocked_reply,
+            navigation_suggestions=[],
+            citations=[],
+            cards=[],
+            provider_configured=is_provider_configured(),
+            detected_language=detected_lang,
+        )
+
+    # --------------------------------------------------------------------------
+    # STEP 1: BULK PII EXPORT REFUSAL
+    # Refuse bulk phone/email/contact list dumps across customers.
+    # --------------------------------------------------------------------------
+    if is_bulk_pii_request(last_user_message):
+        refusal_msg = get_bulk_pii_refusal_message(lang=detected_lang)
+        nav_suggestions = [
+            NavigationSuggestion(
+                title="Billing Clients",
+                href="/general/billing-client",
+                module="Masters",
+                description="View authorized billing clients directory"
+            )
+        ]
+        return ChatResponse(
+            content=refusal_msg,
+            navigation_suggestions=nav_suggestions,
+            citations=[],
+            cards=[],
+            provider_configured=is_provider_configured(),
+            detected_language=detected_lang,
+        )
+
     # 1. Retrieve authorized modules for the user's tenant plan & role
     authorized_catalog = get_authorized_navigation_catalog(tenant=tenant, user=current_user)
 
@@ -170,9 +626,10 @@ async def chat_with_copilot(
         authorized_catalog=authorized_catalog,
     )
 
-    # 2.5 Conversational Write Workflows (LR, Job, Hire Challan)
+    # --------------------------------------------------------------------------
+    # STEP 2: CONVERSATIONAL WRITE WORKFLOWS & DRAFT INTERRUPT/PAUSE HANDLING
+    # --------------------------------------------------------------------------
     if db:
-        # Check active drafts across all three workflow types
         active_job_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="job")
         d_job = (await lr_draft_store.get_draft(active_job_id)) if active_job_id else None
         has_active_job = bool(d_job and not d_job.is_confirmed)
@@ -197,25 +654,231 @@ async def chat_with_copilot(
         is_cancel = is_cancel_intent(last_user_message)
         is_inquiry = is_instructional_inquiry(last_user_message)
 
-        chosen_workflow = None
-
-        # Priority 1: Explicit cancellation of an active draft
+        # A: Explicit cancel of active draft
         if is_job_canc and has_active_job:
-            chosen_workflow = "job"
+            reply_content, cards = await handle_conversational_job_booking(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                user_text=last_user_message, lang=detected_lang
+            )
+            return ChatResponse(
+                content=reply_content, navigation_suggestions=nav_suggestions,
+                citations=[], cards=cards, provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
         elif is_hc_canc and has_active_hc:
-            chosen_workflow = "hc"
+            reply_content, cards = await handle_conversational_hc_booking(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                user_text=last_user_message, lang=detected_lang
+            )
+            return ChatResponse(
+                content=reply_content, navigation_suggestions=nav_suggestions,
+                citations=[], cards=cards, provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
         elif is_cancel and has_active_draft:
-            chosen_workflow = "lr"
-        # Priority 2: Explicit new booking intent (not instructional inquiry)
-        elif is_job_req and not is_job_inq:
+            reply_content, cards = await handle_conversational_lr_booking(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                user_text=last_user_message, lang=detected_lang
+            )
+            return ChatResponse(
+                content=reply_content, navigation_suggestions=nav_suggestions,
+                citations=[], cards=cards, provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+        # B: Mid-draft question or greeting interrupt: PAUSE DRAFT
+        # "While a draft is active, if a message is a greeting or question, PAUSE the draft,
+        # answer it, then ask: 'Do you want to continue the draft or cancel it?'
+        # Never store a question or explanation as a draft field."
+        if has_active_draft or has_active_job or has_active_hc:
+            is_mid_draft_question = (
+                is_greeting(last_user_message)
+                or is_capabilities_query(last_user_message)
+                or is_add_vehicle_or_driver_inquiry(last_user_message)[0]
+                or is_how_to_lr_inquiry(last_user_message)
+                or is_long_explanatory_message(last_user_message)
+                or ("?" in last_user_message)
+                or bool(re.search(r"^(what|how|why|where|when|who|which|can\s+you|kya|kaise|kab|kaha|koun|batao|explain)\b", last_user_message.strip(), re.I))
+            )
+
+            # Check if user explicitly wants to continue
+            is_continue_command = bool(re.search(r"^(continue|resume|aage|carry\s*on|continue draft)\b", last_user_message.strip(), re.I))
+
+            if is_mid_draft_question and not is_continue_command:
+                # Answer the query without touching or polluting the draft
+                if is_greeting(last_user_message):
+                    sub_answer = get_greeting_response(lang=detected_lang)
+                    sub_cards = []
+                elif is_capabilities_query(last_user_message):
+                    sub_answer = get_capabilities_list_markdown(lang=detected_lang)
+                    sub_cards = []
+                elif is_add_vehicle_or_driver_inquiry(last_user_message)[0]:
+                    _, m_veh, m_drv = is_add_vehicle_or_driver_inquiry(last_user_message)
+                    sub_answer, sub_navs, sub_cards = build_add_vehicle_driver_response(m_veh, m_drv, lang=detected_lang)
+                    nav_suggestions.extend(sub_navs)
+                elif is_how_to_lr_inquiry(last_user_message):
+                    sub_answer, sub_navs, sub_cards = build_how_to_lr_response(lang=detected_lang)
+                    nav_suggestions.extend(sub_navs)
+                elif is_long_explanatory_message(last_user_message):
+                    sub_answer = get_lr_explanation_markdown(lang=detected_lang)
+                    sub_cards = []
+                else:
+                    # General paused draft answer
+                    if detected_lang == "hi_devanagari":
+                        sub_answer = f"'{last_user_message}' के संबंध में: आपका सक्रिय ड्राफ्ट बिना किसी बदलाव के सुरक्षित रोक (pause) दिया गया है।"
+                    elif detected_lang == "hinglish":
+                        sub_answer = f"Aapke prashna ka uttar: '{last_user_message}'. Aapka draft session surakshit pause kiya gaya hai."
+                    else:
+                        sub_answer = f"Regarding '{last_user_message}': Your active draft has been paused without saving this inquiry."
+                    sub_cards = []
+
+                if detected_lang == "hi_devanagari":
+                    pause_prompt = "\n\nक्या आप ड्राफ्ट जारी रखना (continue) चाहते हैं या इसे रद्द (cancel) करना चाहते हैं?"
+                elif detected_lang == "hinglish":
+                    pause_prompt = "\n\nKya aap draft continue karna chahte hain ya cancel karna chahte hain?"
+                else:
+                    pause_prompt = "\n\nDo you want to continue the draft or cancel it?"
+                full_reply = sub_answer + pause_prompt
+                return ChatResponse(
+                    content=full_reply,
+                    navigation_suggestions=nav_suggestions,
+                    citations=[],
+                    cards=sub_cards,
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+        # C: When NO active draft exists: Validate Intent BEFORE starting
+        if not (has_active_draft or has_active_job or has_active_hc):
+            # 1. Greeting: return greeting only
+            if is_greeting(last_user_message):
+                return ChatResponse(
+                    content=get_greeting_response(lang=detected_lang),
+                    navigation_suggestions=nav_suggestions,
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 2. Capabilities inquiry
+            if is_capabilities_query(last_user_message):
+                return ChatResponse(
+                    content=get_capabilities_list_markdown(lang=detected_lang),
+                    navigation_suggestions=[
+                        NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
+                        NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
+                        NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger", module="Accounts"),
+                    ],
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 3A. Add vehicle or driver how-to steps
+            is_how_to, mentions_veh, mentions_drv = is_add_vehicle_or_driver_inquiry(last_user_message)
+            if is_how_to:
+                content, veh_drv_navs, veh_drv_cards = build_add_vehicle_driver_response(mentions_veh, mentions_drv, lang=detected_lang)
+                return ChatResponse(
+                    content=content,
+                    navigation_suggestions=veh_drv_navs,
+                    citations=[],
+                    cards=veh_drv_cards,
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 3B. LR Booking how-to steps (e.g. "LR kaise banaye?" in Devanagari or English)
+            if is_how_to_lr_inquiry(last_user_message):
+                content, lr_navs, lr_cards = build_how_to_lr_response(lang=detected_lang)
+                return ChatResponse(
+                    content=content,
+                    navigation_suggestions=lr_navs,
+                    citations=[],
+                    cards=lr_cards,
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 4. Long explanatory message about LR: explanation only, no draft
+            if is_long_explanatory_message(last_user_message):
+                return ChatResponse(
+                    content=get_lr_explanation_markdown(lang=detected_lang),
+                    navigation_suggestions=[
+                        NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations")
+                    ],
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 5. Starting a new LR booking:
+            # Check if assistant previously asked "Do you want to start a new LR booking?"
+            # and user is confirming with "yes", "sure", "proceed", "start"
+            prev_asst_msg = next((m.content for m in reversed(data.messages[:-1]) if m.role == "assistant"), "")
+            asked_start_booking = (
+                "Do you want to start a new LR booking?" in prev_asst_msg
+                or "Kya aap nayi LR booking start karna chahte hain?" in prev_asst_msg
+                or "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?" in prev_asst_msg
+            )
+            is_confirming_start = asked_start_booking and bool(
+                re.search(r"^(yes|y|ha|haan|sure|start|proceed|ok|okay|karo|start karo|shuru karo|हाँ|हां|शुरू करो)\b", last_user_message.strip(), re.I)
+            )
+
+            is_booking_trigger = (
+                is_booking
+                or bool(re.search(r"\b(creat|create|boking|booking|book|bok)\s+(lr|gr|bilty)\b", last_user_message, re.I))
+                or bool(re.search(r"\b(lr|gr|bilty)\s+(creat|create|boking|booking|book|bok)\b", last_user_message, re.I))
+            )
+
+            if is_booking_trigger and not is_confirming_start:
+                # Ask first before creating draft!
+                if detected_lang == "hi_devanagari":
+                    ask_msg = "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?"
+                elif detected_lang == "hinglish":
+                    ask_msg = "Kya aap nayi LR booking start karna chahte hain?"
+                else:
+                    ask_msg = "Do you want to start a new LR booking?"
+                navs = [
+                    NavigationSuggestion(
+                        title="LR Booking Form",
+                        href="/transport/lr-booking",
+                        module="Transport Operations",
+                        description="Open full manual LR booking form"
+                    )
+                ]
+                cards = [
+                    StructuredCard(
+                        card_type="lr_booking_prompt",
+                        title="Start LR Booking",
+                        subtitle="Conversational LR Creation",
+                        badge={"text": "Ready", "variant": "neutral"},
+                        items=[
+                            {"primary": "Start Booking", "secondary": "Reply 'Yes' to proceed step by step, or click Open below to use the form."},
+                        ],
+                        action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"},
+                    )
+                ]
+                return ChatResponse(
+                    content=ask_msg,
+                    navigation_suggestions=navs,
+                    citations=[],
+                    cards=cards,
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+        # D: Route to active draft continuation or confirmed start
+        chosen_workflow = None
+        if is_job_req and not is_job_inq:
             chosen_workflow = "job"
         elif is_hc_req and not is_hc_inq:
             chosen_workflow = "hc"
-        elif is_booking and not is_inquiry:
+        elif (is_booking and not is_inquiry) or (not (has_active_job or has_active_hc or has_active_draft) and locals().get("is_confirming_start")):
             chosen_workflow = "lr"
-        # Priority 3: Seamless continuation of an active draft
-        # Allows user to provide fields one-by-one or in compound answers without dropping context
-        elif not (is_job_inq or is_hc_inq or is_inquiry):
+        elif has_active_draft or has_active_job or has_active_hc:
             active_list = []
             if has_active_job and d_job:
                 active_list.append(("job", getattr(d_job, "updated_at", "")))
@@ -225,66 +888,72 @@ async def chat_with_copilot(
                 active_list.append(("lr", getattr(existing_d, "updated_at", "")))
 
             if active_list:
-                # Select the most recently updated active draft
                 active_list.sort(key=lambda x: str(x[1]), reverse=True)
                 chosen_workflow = active_list[0][0]
 
         if chosen_workflow == "job":
             reply_content, cards = await handle_conversational_job_booking(
-                db=db,
-                user=current_user,
-                tenant=tenant,
-                current_office=current_office,
-                user_text=last_user_message,
-                lang=detected_lang,
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                user_text=last_user_message, lang=detected_lang
             )
             return ChatResponse(
-                content=reply_content,
-                navigation_suggestions=nav_suggestions,
-                citations=[],
-                cards=cards,
-                provider_configured=is_provider_configured(),
+                content=reply_content, navigation_suggestions=nav_suggestions,
+                citations=[], cards=cards, provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
         elif chosen_workflow == "hc":
             reply_content, cards = await handle_conversational_hc_booking(
-                db=db,
-                user=current_user,
-                tenant=tenant,
-                current_office=current_office,
-                user_text=last_user_message,
-                lang=detected_lang,
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                user_text=last_user_message, lang=detected_lang
             )
             return ChatResponse(
-                content=reply_content,
-                navigation_suggestions=nav_suggestions,
-                citations=[],
-                cards=cards,
-                provider_configured=is_provider_configured(),
+                content=reply_content, navigation_suggestions=nav_suggestions,
+                citations=[], cards=cards, provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
         elif chosen_workflow == "lr":
             reply_content, cards = await handle_conversational_lr_booking(
-                db=db,
-                user=current_user,
-                tenant=tenant,
-                current_office=current_office,
-                user_text=last_user_message,
-                lang=detected_lang,
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                user_text=last_user_message, lang=detected_lang
             )
             return ChatResponse(
-                content=reply_content,
-                navigation_suggestions=nav_suggestions,
+                content=reply_content, navigation_suggestions=nav_suggestions,
+                citations=[], cards=cards, provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+    # --------------------------------------------------------------------------
+    # STEP 3: OPERATIONAL INTENT DISPATCH (READ-ONLY TOOLS)
+    # --------------------------------------------------------------------------
+    history_dicts = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
+    op_intent = classify_operational_intent(last_user_message, conversation_history=history_dicts)
+    if op_intent:
+        tool_name = op_intent.get("tool")
+        if tool_name == "tracking_prompt":
+            if detected_lang == "hi_devanagari":
+                tracking_msg = "कंसाइनमेंट ट्रैक करने के लिए कृपया अपना **एलआर नंबर** (जैसे LR-2026-0012) या **वाहन पंजीकरण नंबर** (जैसे DL01AA1111) बताएं।"
+            elif detected_lang == "hinglish":
+                tracking_msg = "Track karne ke liye kripya apna **LR Number** (jaise LR-2026-0012) ya **Vehicle Number** (jaise DL01AA1111) batayein."
+            else:
+                tracking_msg = "To track your shipment, please provide the **LR Number** (e.g., LR-2026-0012) or **Vehicle Registration Number** (e.g., DL01AA1111)."
+            tracking_cards = [
+                StructuredCard(
+                    card_type="tracking_prompt",
+                    title="Live Fleet & Shipment Tracking",
+                    subtitle="FASTag • SIM GPS • LR Tracking",
+                    badge={"text": "Awaiting Number", "variant": "neutral"},
+                    action={"label": "Open Tracking Dashboard", "href": "/transport/tracking"},
+                )
+            ]
+            return ChatResponse(
+                content=tracking_msg,
+                navigation_suggestions=[NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management")],
                 citations=[],
-                cards=cards,
+                cards=tracking_cards,
                 provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
 
-    # 3. Operational Intent Dispatch (Read-Only AI Tools)
-    history_dicts = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
-    op_intent = classify_operational_intent(last_user_message, conversation_history=history_dicts)
-    if op_intent:
         if not db:
             reply_content = (
                 "Operational database is currently connecting or unavailable."
@@ -293,90 +962,51 @@ async def chat_with_copilot(
             )
             cards = []
         else:
-            tool_name = op_intent.get("tool")
             cards = []
             if tool_name == "client":
                 reply_content, cards = await execute_client_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    is_count=op_intent.get("is_count", False),
-                    limit=6,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), is_count=op_intent.get("is_count", False),
+                    limit=6, lang=detected_lang,
                 )
             elif tool_name == "vendor":
                 reply_content, cards = await execute_vendor_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    is_count=op_intent.get("is_count", False),
-                    limit=6,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), is_count=op_intent.get("is_count", False),
+                    limit=6, lang=detected_lang,
                 )
             elif tool_name == "job":
                 reply_content, cards = await execute_job_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    is_detail=op_intent.get("is_detail", False),
-                    is_today=op_intent.get("is_today", False),
-                    is_count=op_intent.get("is_count", False),
-                    is_latest=op_intent.get("is_latest", False),
-                    field_focus=op_intent.get("field_focus"),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), is_detail=op_intent.get("is_detail", False),
+                    is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False),
+                    is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
+                    limit=5, lang=detected_lang,
                 )
             elif tool_name == "lr":
                 reply_content, cards = await execute_lr_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    vehicle_number=op_intent.get("vehicle_number"),
-                    status_filter=op_intent.get("status_filter"),
-                    is_detail=op_intent.get("is_detail", False),
-                    is_latest=op_intent.get("is_latest", False),
-                    field_focus=op_intent.get("field_focus"),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
+                    status_filter=op_intent.get("status_filter"), is_detail=op_intent.get("is_detail", False),
+                    is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
+                    limit=5, lang=detected_lang,
                 )
             elif tool_name == "hire_challan":
                 reply_content, cards = await execute_hire_challan_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    vehicle_number=op_intent.get("vehicle_number"),
-                    is_latest=op_intent.get("is_latest", False),
-                    field_focus=op_intent.get("field_focus"),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
+                    is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
+                    limit=5, lang=detected_lang,
                 )
             elif tool_name == "invoice":
                 reply_content, cards = await execute_invoice_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    is_latest=op_intent.get("is_latest", False),
-                    field_focus=op_intent.get("field_focus"),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), is_latest=op_intent.get("is_latest", False),
+                    field_focus=op_intent.get("field_focus"), limit=5, lang=detected_lang,
                 )
             elif tool_name == "tracking":
                 reply_content, cards = await execute_tracking_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
+                    db=db, user=current_user, tenant=tenant,
                     vehicle_number=op_intent.get("vehicle_number"),
                     lr_number=op_intent.get("lr_number"),
                     challan_number=op_intent.get("challan_number"),
@@ -384,99 +1014,54 @@ async def chat_with_copilot(
                 )
             elif tool_name == "accounting":
                 reply_content, cards = await execute_accounting_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    party_name=op_intent.get("party_name"),
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    party_name=op_intent.get("party_name"), lang=detected_lang,
                 )
             elif tool_name == "vehicle":
                 reply_content, cards = await execute_vehicle_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    query=op_intent.get("query"),
-                    vehicle_type=op_intent.get("vehicle_type"),
-                    is_detail=op_intent.get("is_detail", False),
-                    field_focus=op_intent.get("field_focus"),
-                    limit=6,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
+                    vehicle_type=op_intent.get("vehicle_type"), is_detail=op_intent.get("is_detail", False),
+                    field_focus=op_intent.get("field_focus"), limit=6, lang=detected_lang,
                 )
             elif tool_name == "driver":
                 reply_content, cards = await execute_driver_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    query=op_intent.get("query"),
-                    limit=6,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
+                    limit=6, lang=detected_lang,
                 )
             elif tool_name == "pod":
                 reply_content, cards = await execute_pod_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    lr_number=op_intent.get("lr_number"),
-                    is_pending=op_intent.get("is_pending", False),
-                    is_count=op_intent.get("is_count", False),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), lr_number=op_intent.get("lr_number"),
+                    is_pending=op_intent.get("is_pending", False), is_count=op_intent.get("is_count", False),
+                    limit=5, lang=detected_lang,
                 )
             elif tool_name == "eway_bill":
                 reply_content, cards = await execute_eway_bill_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    query=op_intent.get("query"),
-                    vehicle_number=op_intent.get("vehicle_number"),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
+                    limit=5, lang=detected_lang,
                 )
             elif tool_name == "branch":
                 reply_content, cards = await execute_branch_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    query=op_intent.get("query"),
-                    is_count=op_intent.get("is_count", False),
-                    limit=10,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
+                    is_count=op_intent.get("is_count", False), limit=10, lang=detected_lang,
                 )
             elif tool_name == "consigner_consignee":
                 reply_content, cards = await execute_consigner_consignee_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    current_office=current_office,
-                    party_type=op_intent.get("party_type", "consigner"),
-                    query=op_intent.get("query"),
-                    is_count=op_intent.get("is_count", False),
-                    limit=6,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    party_type=op_intent.get("party_type", "consigner"), query=op_intent.get("query"),
+                    is_count=op_intent.get("is_count", False), limit=6, lang=detected_lang,
                 )
             elif tool_name == "fleet_maintenance":
                 reply_content, cards = await execute_fleet_maintenance_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    vehicle_number=op_intent.get("vehicle_number"),
-                    doc_type=op_intent.get("doc_type"),
-                    is_expiry_check=op_intent.get("is_expiry_check", False),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant,
+                    vehicle_number=op_intent.get("vehicle_number"), doc_type=op_intent.get("doc_type"),
+                    is_expiry_check=op_intent.get("is_expiry_check", False), lang=detected_lang,
                 )
             elif tool_name == "einvoice":
                 reply_content, cards = await execute_einvoice_tool(
-                    db=db,
-                    user=current_user,
-                    tenant=tenant,
-                    query=op_intent.get("query"),
-                    limit=5,
-                    lang=detected_lang,
+                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
+                    limit=5, lang=detected_lang,
                 )
             else:
                 reply_content, cards = ("I couldn't process this operational request.", [])
@@ -591,6 +1176,22 @@ async def stream_chat_with_copilot(
     """
     last_user_msg = next((m.content for m in reversed(data.messages) if m.role == "user"), "")
     detected_lang = detect_language(last_user_msg)
+
+    # HARD RULE 0 check for streaming
+    delete_item = detect_delete_record_request(last_user_msg)
+    if delete_item:
+        blocked_reply = get_blocked_delete_message(delete_item, lang=detected_lang)
+        async def block_stream():
+            yield f"data: {blocked_reply}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(block_stream(), media_type="text/event-stream")
+
+    if is_bulk_pii_request(last_user_msg):
+        refusal_msg = get_bulk_pii_refusal_message(lang=detected_lang)
+        async def refusal_stream():
+            yield f"data: {refusal_msg}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(refusal_stream(), media_type="text/event-stream")
 
     # Operational intent check
     stream_history = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
@@ -726,6 +1327,18 @@ async def discard_active_lr_draft(
     """Discards active LR draft for the authenticated user and tenant."""
     cleared = await lr_draft_store.clear_active_draft(tenant.id, current_user.id)
     return {"cleared": cleared}
+
+
+@router.post("/chat/clear")
+async def clear_chat_session(
+    current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    """Clears all active conversational drafts (LR, Job, Hire Challan) for the authenticated user."""
+    await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+    await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="job")
+    await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="hire_challan")
+    return {"status": "cleared"}
 
 
 def _build_lr_idempotent_response(data: dict) -> LRConfirmationResponse:

@@ -1143,11 +1143,12 @@ async def execute_client_tool(
 ) -> Tuple[str, List[StructuredCard]]:
     """Retrieves registered billing clients with exact counts and branch scoping."""
     if not is_user_permitted(user, tenant, "general", "billing_clients", "view") and not is_user_permitted(user, tenant, "accounts", "master_ledger", "view"):
-        msg = (
-            "Aapke paas Billing Clients dekhne ki permission nahi hai."
-            if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view billing clients."
-        )
+        if lang == "hi_devanagari":
+            msg = "आपके पास बिलिंग क्लाइंट देखने की अनुमति नहीं है।"
+        elif lang == "hinglish":
+            msg = "Aapke paas Billing Clients dekhne ki permission nahi hai."
+        else:
+            msg = "You do not have permission to view billing clients."
         card = StructuredCard(
             card_type="client_list",
             title="Billing Clients Access Restricted",
@@ -1156,7 +1157,34 @@ async def execute_client_tool(
         )
         return msg, [card]
 
+    # Re-route ledger / balance inquiries to execute_accounting_tool
+    if query and any(w in query.lower() for w in ("ledger", "khata", "balance", "outstanding", "hisab", "hisaab")):
+        return await execute_accounting_tool(
+            db=db, user=user, tenant=tenant, current_office=current_office, lang=lang
+        )
+
     office_id = current_office.id if current_office and user.role != "COMPANY_ADMIN" else None
+
+    # Bulk PII Protection (Reject bulk phone / contact / email dumps)
+    if query:
+        q_lower = query.strip().lower()
+        if any(p in q_lower for p in ("phone", "mobile", "contact", "email", "number", "numbers")):
+            msg = (
+                "Privacy aur security policy ke tehat bulk customer phone numbers ya contact details share karna restricted hai. "
+                "Aap kisi specific customer ka naam batakar unki details dekh sakte hain, ya Billing Clients Master me profile check kar sakte hain."
+                if lang in ("hinglish", "hi_devanagari")
+                else "Bulk export of customer phone numbers or contact details is restricted for privacy and data security. "
+                "You can look up contact details for one specific customer by name, or view client profiles in the Billing Clients Master."
+            )
+            card = StructuredCard(
+                card_type="client_list",
+                title="Privacy Protection: Contact Details Restricted",
+                subtitle="Bulk contact export is disabled for customer privacy",
+                badge={"text": "Restricted", "variant": "neutral"},
+                action={"label": "Open Billing Clients Master", "href": "/general/billing-client"},
+            )
+            return msg, [card]
+
     clients = await list_billing_clients(db, office_id=office_id, include_unassigned=True)
     active_clients = [c for c in clients if getattr(c, "is_active", True) is not False]
 
@@ -2995,20 +3023,28 @@ def extract_transport_entities(
         inv_id = m_inv_num.group(1).strip()
 
     # 6. Follow-up Context Resolution (Anaphora & Pronouns)
-    if not (lr_id or hc_id or job_id or inv_id or vehicle_number) and conversation_history:
+    BOT_EXAMPLE_IDS = {"LR-2026-0012", "LR12345", "DL01AA1111", "HC-2026-0001", "INV-2026-0001"}
+    is_instruction_or_booking = any(p in lower for p in (
+        "how do i", "how to", "how can i", "how i", "add a", "adding", "creat", "create",
+        "banao", "banani", "kaise", "what can you do", "help", "book lr", "bok lr",
+        "how do i add", "ad vehical", "ad driver", "track my parcel", "track parcel"
+    )) or bool(re.search(r"[\u0900-\u097F]", clean) and "कैसे" in clean)
+    if not is_instruction_or_booking and not (lr_id or hc_id or job_id or inv_id or vehicle_number) and conversation_history:
         has_anaphora = (
             field_focus is not None
-            or is_detail
             or any(w in lower for w in (
-                "this", "that", "the", "its", "iska", "iski", "uske", "is ", "iss ", "yeh ", "ye ",
-                "who is the vendor", "what is the balance", "what is its advance", "is it delivered",
-                "kahan hai", "assigned to this vehicle", "status of this job", "tell me about this", "details"
+                "this", "that", "its", "iska", "iski", "uske", "us gaadi", "us vehicle",
+                "is gaadi", "is lr", "who is the vendor", "what is the balance", "what is its advance",
+                "is it delivered", "kahan hai", "assigned to this vehicle", "status of this job",
+                "tell me about this", "details of this"
             ))
-            or any(k in lower for k in ("hc", "challan", "lr", "bilty", "job", "invoice", "vehicle", "gaadi", "truck"))
         )
         if has_anaphora:
             is_detail = True
             for prev_msg in reversed(conversation_history):
+                # NEVER extract IDs from assistant messages or examples! Only user input!
+                if prev_msg.get("role") != "user":
+                    continue
                 content = prev_msg.get("content", "")
                 if not content:
                     continue
@@ -3068,18 +3104,40 @@ def classify_operational_intent(
     clean_text = text.strip()
     lower = clean_text.lower()
 
-    # Extract transport entities and follow-up context first
+    # P1 GUARD: Conceptual 'how-to' questions must NEVER execute operational record searches!
+    # A question starting with 'How do I', 'How to', 'How can I', 'kaise' must NEVER run a record search
+    # and must NEVER reuse an old LR/vehicle ID.
+    how_to_pattern = r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese)\b"
+    if re.search(how_to_pattern, lower) or (re.search(r"[\u0900-\u097F]", clean_text) and "कैसे" in clean_text):
+        return None
+
+    # Typo add vehicle / driver inquiry guard
+    has_typo_add = bool(re.search(r"\b(add|ad|aad|create|creat)\s+(vehical|vehcle|vechicle|vehicle|driver|drivr|drver|chalak)\b", lower))
+    if has_typo_add and not re.search(r"\b[A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4}\b", clean_text, re.I):
+        return None
+
+    # Typo LR/GR booking guard
+    if bool(re.search(r"\b(creat|create|craet|craete|bok|book|boking|booking|make|mak)\s+(lr|gr|bilty|bility|consignment)\b", lower)) or \
+       bool(re.search(r"\b(lr|gr|bilty|bility)\s+(creat|create|craet|craete|bok|book|boking|booking|make|mak|banao|banaye|banana)\b", lower)):
+        return None
+
+    # Extract transport entities and follow-up context
     entities = extract_transport_entities(clean_text, conversation_history=conversation_history)
     extracted_vehicle = entities["vehicle_number"]
 
     # 1. Tracking Intent (by vehicle, LR number, or Challan number)
     if entities["is_track"]:
-        if entities["vehicle_number"]:
+        # Never search bot's own examples from an earlier turn
+        if entities["vehicle_number"] and entities["vehicle_number"] != "DL01AA1111":
             return {"tool": "tracking", "vehicle_number": entities["vehicle_number"]}
-        if entities["lr_number"]:
+        if entities["lr_number"] and entities["lr_number"] not in ("LR-2026-0012", "LR12345"):
             return {"tool": "tracking", "lr_number": entities["lr_number"]}
+        if entities["hc_number"] and entities["hc_number"] != "HC-2026-0001":
+            return {"tool": "tracking", "challan_number": entities["hc_number"]}
+        return {"tool": "tracking_prompt"}
         if entities["hc_number"]:
             return {"tool": "tracking", "challan_number": entities["hc_number"]}
+        return {"tool": "tracking_prompt"}
 
     # Priority Sub-document Filters (must evaluate before generic parent records)
     # POD Intent (checked before generic LR lookup)
@@ -3193,6 +3251,33 @@ def classify_operational_intent(
     count_markers = ("kitni", "kitne", "kitna", "how many", "count", "total", "number of", "mere", "meri", "hamare", "list", "dikhao", "batao", "कितने", "कितनी", "कितना", "कुल", "संख्या")
     is_count = any(w in lower for w in count_markers)
 
+    # 2. Accounting / Master Ledger Intent (Evaluated before generic party directories)
+    accounting_markers = [
+        "ledger", "khata", "hisab", "hisaab", "pending payment", "pending payments",
+        "outstanding", "balance", "kitne paise", "baki hai", "dues", "receivable", "payable",
+        "view ledger", "show ledger", "customer ledger", "client ledger", "vendor ledger",
+        "driver ledger", "master ledger", "खाता", "लेज़र", "बकाया"
+    ]
+    if any(m in lower for m in accounting_markers):
+        # Extract party name if specified
+        party_name = None
+        m_party = re.search(r"([A-Za-z0-9\s&]+?)\s+(?:ka|ki)\s+(?:ledger|khata|hisab|hisaab)", clean_text, re.IGNORECASE)
+        if m_party:
+            party_name = m_party.group(1).strip()
+        else:
+            m_party_eng = re.search(r"(?:ledger|khata|account)\s+(?:of|for)\s+([A-Za-z0-9\s&]+)", clean_text, re.IGNORECASE)
+            if m_party_eng:
+                party_name = m_party_eng.group(1).strip()
+
+        # Filter out common stop-words in party extraction
+        if party_name and party_name.lower() in ("master", "general", "client", "customer", "customers", "clients", "vendor", "vendors", "driver", "drivers", "mere", "mera", "all", "sab"):
+            party_name = None
+
+        return {
+            "tool": "accounting",
+            "party_name": party_name,
+        }
+
     # 0A. Client / Customer Intent
     client_markers = ["client", "clients", "billing client", "billing clients", "grahak", "customer", "customers", "क्लाइंट", "ग्राहक"]
     if any(m in lower for m in client_markers):
@@ -3216,31 +3301,6 @@ def classify_operational_intent(
             "tool": "job",
             "is_count": is_count,
             "is_today": "aaj" in lower or "today" in lower,
-        }
-
-    # 2. Accounting / Ledger Intent
-    accounting_markers = [
-        "ledger", "khata", "hisab", "hisaab", "pending payment", "pending payments",
-        "outstanding", "balance", "kitne paise", "baki hai", "dues", "receivable", "payable",
-    ]
-    if any(m in lower for m in accounting_markers):
-        # Extract party name if specified
-        party_name = None
-        m_party = re.search(r"([A-Za-z0-9\s&]+?)\s+(?:ka|ki)\s+(?:ledger|khata|hisab|hisaab)", clean_text, re.IGNORECASE)
-        if m_party:
-            party_name = m_party.group(1).strip()
-        else:
-            m_party_eng = re.search(r"(?:ledger|khata|account)\s+(?:of|for)\s+([A-Za-z0-9\s&]+)", clean_text, re.IGNORECASE)
-            if m_party_eng:
-                party_name = m_party_eng.group(1).strip()
-
-        # Filter out common stop-words in party extraction
-        if party_name and party_name.lower() in ("master", "general", "client", "vendor", "driver", "mere", "mera", "all"):
-            party_name = None
-
-        return {
-            "tool": "accounting",
-            "party_name": party_name,
         }
 
     # 3. LR / GR Intent (Read-Only Search)
@@ -3273,27 +3333,32 @@ def classify_operational_intent(
     # 4. Vehicle Intent
     vehicle_markers = ["vehicle", "vehicles", "gaadi", "gadi", "truck", "trucks", "lorry", "fleet"]
     if any(m in lower for m in vehicle_markers):
-        v_type = None
-        if "market" in lower or "bazar" in lower or "bazaar" in lower or "vendor" in lower:
-            v_type = "market"
-        elif "company" in lower or "own" in lower:
-            v_type = "company"
-        return {
-            "tool": "vehicle",
-            "query": extracted_vehicle,
-            "vehicle_type": v_type,
-        }
+        is_list = any(w in lower for w in ("list", "dikhao", "all", "sabhi", "show", "count", "kitne", "kitni", "total"))
+        # A vehicle search requires either a specific vehicle registration number or a listing request
+        if extracted_vehicle or is_list or ("market" in lower or "company" in lower):
+            v_type = None
+            if "market" in lower or "bazar" in lower or "bazaar" in lower or "vendor" in lower:
+                v_type = "market"
+            elif "company" in lower or "own" in lower:
+                v_type = "company"
+            return {
+                "tool": "vehicle",
+                "query": extracted_vehicle,
+                "vehicle_type": v_type,
+            }
 
     # 5. Driver Intent
     driver_markers = ["driver", "drivers", "chalak", "sarathi", "ड्राइवर", "चालक", "सारथी"]
     if any(m in lower for m in driver_markers):
+        is_drv_list = any(w in lower for w in ("list", "dikhao", "all", "sabhi", "show", "count", "kitne", "kitni", "total"))
         d_match = re.search(r"(?:driver|chalak)\s+([A-Za-z]+)", clean_text, re.IGNORECASE)
-        driver_name = d_match.group(1).strip() if d_match and d_match.group(1).lower() not in ("list", "dikhao", "search", "details", "master") else None
-        return {
-            "tool": "driver",
-            "query": driver_name,
-            "is_count": is_count,
-        }
+        driver_name = d_match.group(1).strip() if d_match and d_match.group(1).lower() not in ("list", "dikhao", "search", "details", "master", "add", "ad", "create") else None
+        if driver_name or is_drv_list or is_count:
+            return {
+                "tool": "driver",
+                "query": driver_name,
+                "is_count": is_count,
+            }
 
     # 6. POD (Proof of Delivery) Intent
     if any(m in lower for m in ("pod", "proof of delivery", "delivery proof")):

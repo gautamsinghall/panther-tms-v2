@@ -210,7 +210,7 @@ async def validate_and_update_hc_draft(
             mv = res_mv.scalar_one_or_none()
             if mv:
                 draft.data["market_vehicle_id"] = mv.id
-                draft.data["owner_id"] = mv.vendor_id
+                draft.data["owner_id"] = getattr(mv, "owner_id", None)
                 draft.preview_labels["vehicle_source"] = "Market Vehicle"
             else:
                 draft.preview_labels["vehicle_source"] = "Market Vehicle (New)"

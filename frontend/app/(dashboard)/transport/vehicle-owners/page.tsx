@@ -123,28 +123,7 @@ export default function VehicleOwnersPage() {
     },
   ];
 
-  const actions: RowAction<VehicleOwnerRecord>[] = [
-    {
-      label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
-      variant: "danger",
-      onClick: async (row) => {
-        const ok = await confirmModal({
-          title: "Deactivate Vehicle Owner",
-          description: `Are you sure you want to deactivate ${row.name}?`,
-          confirmText: "Deactivate",
-          variant: "danger",
-        });
-        if (!ok) return;
-        try {
-          await apiClient(`/api/v1/transport/vehicle-owners/${row.id}`, { method: "DELETE" });
-          loadData();
-        } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate vehicle owner.");
-        }
-      },
-    },
-  ];
+  const actions: RowAction<VehicleOwnerRecord>[] = [];
 
   const formSections: FormSectionDef[] = [
     {
