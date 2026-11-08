@@ -230,15 +230,19 @@ def get_authorized_navigation_catalog(
                 continue
 
             # RBAC check for employees
-            if not is_admin and user and user.custom_role and user.custom_role.permissions:
-                has_perm = any(
-                    p.module.replace("-", "_").lower() == mod_id.replace("-", "_").lower()
-                    and p.feature.lower() in (feat_id.lower(), "all", "*")
-                    and p.is_allowed
-                    for p in user.custom_role.permissions
-                )
-                if not has_perm and mod_id not in ("home", "profile"):
-                    continue
+            if not is_admin:
+                if not user or not user.custom_role or not user.custom_role.permissions:
+                    if mod_id not in ("home", "profile"):
+                        continue
+                else:
+                    has_perm = any(
+                        p.module.replace("-", "_").lower() == mod_id.replace("-", "_").lower()
+                        and p.feature.lower() in (feat_id.lower(), "all", "*")
+                        and p.is_allowed
+                        for p in user.custom_role.permissions
+                    )
+                    if not has_perm and mod_id not in ("home", "profile"):
+                        continue
 
             allowed_items.append(it)
 

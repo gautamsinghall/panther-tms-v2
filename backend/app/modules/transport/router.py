@@ -812,9 +812,18 @@ async def search_lrs(
 async def get_lr(
     id: int,
     current_user: User = Depends(get_current_user),
+    current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
+    _ensure_lr_view_access(current_user)
     lr = await service.get_lr_by_id(db, id)
+    user_role = (current_user.role or "").upper().strip()
+    if user_role not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+        if current_office and lr.issuing_office_id and lr.issuing_office_id != current_office.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="LR not found in your assigned issuing office.",
+            )
     return _build_lr_response(lr)
 
 @router.post("/lrs", response_model=LRResponse, status_code=status.HTTP_201_CREATED)

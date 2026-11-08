@@ -30,7 +30,7 @@ import {
   MicOff,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import { getActiveOffice } from "@/lib/auth";
+import { getActiveOffice, getStoredAuth, getStoredNavigation } from "@/lib/auth";
 import { usePantherAI } from "./panther-ai-context";
 
 interface NavigationSuggestion {
@@ -264,6 +264,62 @@ export function PantherAIPanel() {
       isMounted = false;
     };
   }, [isOpen]);
+
+  // Listen for office changes to clear/re-fetch active drafts
+  useEffect(() => {
+    const handleOfficeChanged = () => {
+      setActiveDraftInfo(null);
+      apiClient<{ draft_id?: string; missing_fields?: string[] }>("/api/v1/ai/lr-draft/active")
+        .then((res) => {
+          if (res?.draft_id) {
+            setActiveDraftInfo({ draft_id: res.draft_id, missing_fields: res.missing_fields || [] });
+          } else {
+            setActiveDraftInfo(null);
+          }
+        })
+        .catch(() => setActiveDraftInfo(null));
+    };
+
+    window.addEventListener("panther_office_changed", handleOfficeChanged);
+    return () => {
+      window.removeEventListener("panther_office_changed", handleOfficeChanged);
+    };
+  }, []);
+
+  const canAccessModule = useCallback((modId: string, featId?: string) => {
+    const auth = getStoredAuth();
+    if (!auth || !auth.user) return true;
+    const role = (auth.user.role || "").toUpperCase();
+    if (["COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"].includes(role)) {
+      return true;
+    }
+    const nav = getStoredNavigation();
+    if (!nav || !Array.isArray(nav) || nav.length === 0) {
+      return false;
+    }
+    const group = nav.find((g: any) => g.id === modId);
+    if (!group) return false;
+    if (!featId) return true;
+    return Boolean(group.items?.some((it: any) => it.feature === featId || it.href?.includes(featId)));
+  }, []);
+
+  const isNavPermitted = useCallback((href: string) => {
+    if (!href) return false;
+    const auth = getStoredAuth();
+    if (!auth || !auth.user) return true;
+    const role = (auth.user.role || "").toUpperCase();
+    if (["COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"].includes(role)) return true;
+    const nav = getStoredNavigation();
+    if (!nav || !Array.isArray(nav)) return false;
+    const cleanHref = href.split("?")[0].split("#")[0];
+    return nav.some((g: any) =>
+      g.items?.some((it: any) => {
+        if (!it.href) return false;
+        const itClean = it.href.split("?")[0].split("#")[0];
+        return cleanHref === itClean || cleanHref.startsWith(`${itClean}/`);
+      })
+    );
+  }, []);
 
   const hasActiveDraft = Boolean(
     activeDraftInfo !== null ||
@@ -807,34 +863,49 @@ export function PantherAIPanel() {
       )}
 
       {/* 2. Suggested Action Chips Row (Reference Style) */}
-      <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-[#1C2033] bg-slate-50/50 dark:bg-[#111322] shrink-0">
-        <button
-          type="button"
-          onClick={() => handleSendMessage("Mujhe LR book karni hai")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
-        >
-          <Layers className="w-3.5 h-3.5 text-[#5B50E6] dark:text-violet-400" />
-          <span>Book LR</span>
-        </button>
+      {(() => {
+        const canBookLr = canAccessModule("transport", "lr_booking");
+        const canTrack = canAccessModule("tracking") || canAccessModule("transport", "lr_booking");
+        const canLedger = canAccessModule("accounts", "master_ledger");
+        if (!canBookLr && !canTrack && !canLedger) return null;
 
-        <button
-          type="button"
-          onClick={() => handleSendMessage("Track shipment")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
-        >
-          <Truck className="w-3.5 h-3.5 text-blue-500" />
-          <span>Track Shipment</span>
-        </button>
+        return (
+          <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-[#1C2033] bg-slate-50/50 dark:bg-[#111322] shrink-0">
+            {canBookLr && (
+              <button
+                type="button"
+                onClick={() => handleSendMessage("Mujhe LR book karni hai")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
+              >
+                <Layers className="w-3.5 h-3.5 text-[#5B50E6] dark:text-violet-400" />
+                <span>Book LR</span>
+              </button>
+            )}
 
-        <button
-          type="button"
-          onClick={() => handleSendMessage("View Ledger")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
-        >
-          <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
-          <span>View Ledger</span>
-        </button>
-      </div>
+            {canTrack && (
+              <button
+                type="button"
+                onClick={() => handleSendMessage("Track shipment")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
+              >
+                <Truck className="w-3.5 h-3.5 text-blue-500" />
+                <span>Track Shipment</span>
+              </button>
+            )}
+
+            {canLedger && (
+              <button
+                type="button"
+                onClick={() => handleSendMessage("View Ledger")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
+              >
+                <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
+                <span>View Ledger</span>
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Active Draft Session Indicator Banner */}
       {activeDraftInfo && (
@@ -1455,7 +1526,7 @@ export function PantherAIPanel() {
                                 })}
                               </div>
 
-                              {card.action && (
+                              {card.action && isNavPermitted(card.action.href) && (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1473,6 +1544,10 @@ export function PantherAIPanel() {
                         }
 
                         // Case D: General Structured Card (Ledgers, Tracking, Lists)
+                        if (card.card_type === "lr_booking_prompt" && !canAccessModule("transport", "lr_booking")) {
+                          return null;
+                        }
+
                         return (
                           <div
                             key={cIdx}
@@ -1513,10 +1588,10 @@ export function PantherAIPanel() {
                                   <div
                                     key={itIdx}
                                     onClick={() => {
-                                      if (it.href) handleNavigate(it.href);
+                                      if (it.href && isNavPermitted(it.href)) handleNavigate(it.href);
                                     }}
                                     className={`p-2 rounded-xl bg-slate-50 dark:bg-[#1A1E31] border border-slate-200/60 dark:border-[#2D3452] text-xs ${
-                                      it.href
+                                      it.href && isNavPermitted(it.href)
                                         ? "cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-100/80 dark:hover:bg-[#20253d] transition-all"
                                         : ""
                                     }`}
@@ -1541,7 +1616,7 @@ export function PantherAIPanel() {
                               </div>
                             )}
 
-                            {card.action && (
+                            {card.action && isNavPermitted(card.action.href) && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1561,36 +1636,40 @@ export function PantherAIPanel() {
                   )}
 
                   {/* Navigation Suggestions */}
-                  {msg.navigationSuggestions && msg.navigationSuggestions.length > 0 && (
-                    <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-[#262B44] space-y-1.5">
-                      <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
-                        Authorized Navigation:
-                      </span>
-                      {msg.navigationSuggestions.map((nav, nIdx) => (
-                        <div
-                          key={nIdx}
-                          className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white dark:bg-[#141727] border border-slate-200/60 dark:border-[#262B44] min-w-0 w-full"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
-                              {nav.title}
-                            </p>
-                            <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
-                              {nav.module} • {nav.href}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleNavigate(nav.href)}
-                            className="px-2.5 py-1 bg-[#5B50E6] hover:bg-[#4E43D8] text-white rounded-lg text-[10px] font-semibold transition-colors shrink-0 cursor-pointer shadow-2xs flex items-center gap-1"
+                  {(() => {
+                    const permittedSuggestions = (msg.navigationSuggestions || []).filter((nav) => isNavPermitted(nav.href));
+                    if (permittedSuggestions.length === 0) return null;
+                    return (
+                      <div className="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-[#262B44] space-y-1.5">
+                        <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500">
+                          Authorized Navigation:
+                        </span>
+                        {permittedSuggestions.map((nav, nIdx) => (
+                          <div
+                            key={nIdx}
+                            className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white dark:bg-[#141727] border border-slate-200/60 dark:border-[#262B44] min-w-0 w-full"
                           >
-                            <span>Open</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
+                                {nav.title}
+                              </p>
+                              <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
+                                {nav.module} • {nav.href}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleNavigate(nav.href)}
+                              className="px-2.5 py-1 bg-[#5B50E6] hover:bg-[#4E43D8] text-white rounded-lg text-[10px] font-semibold transition-colors shrink-0 cursor-pointer shadow-2xs flex items-center gap-1"
+                            >
+                              <span>Open</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

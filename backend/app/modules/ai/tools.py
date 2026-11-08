@@ -152,6 +152,29 @@ def get_effective_office_id(user: User, current_office: Optional[Branch]) -> Opt
     return current_office.id if current_office else -1
 
 
+def format_user_office_label(current_office: Optional[Branch] = None, user: Optional[User] = None) -> str:
+    """Formats issuing office label e.g. 'MUM Mumbai' or 'DEL Delhi'."""
+    if current_office:
+        code = (current_office.code or "").strip()
+        name = (current_office.name or "").strip()
+        if code and name and not name.upper().startswith(code.upper()):
+            return f"{code} {name}"
+        return name or code or "assigned office"
+    if user and getattr(user, "office_assignments", None):
+        names = []
+        for a in user.office_assignments:
+            if a.office and a.office.is_active:
+                c = (a.office.code or "").strip()
+                n = (a.office.name or "").strip()
+                if c and n and not n.upper().startswith(c.upper()):
+                    names.append(f"{c} {n}")
+                else:
+                    names.append(n or c)
+        if names:
+            return ", ".join(names)
+    return "your assigned office"
+
+
 # ==============================================================================
 # READ-ONLY TMS TOOLS
 # ==============================================================================
@@ -176,18 +199,13 @@ async def execute_lr_tool(
     and telematics breakdown for that consignment.
     """
     if not is_user_permitted(user, tenant, "transport", "lr_booking", "view"):
+        office_str = format_user_office_label(current_office, user)
         msg = (
-            "Aapke paas LR records dekhne ki permission nahi hai."
+            f"Aapke paas LRs dekhne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
             if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view LR records."
+            else f"You don't have access to view LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="lr_detail" if is_detail else "lr_list",
-            title="LR Access Restricted",
-            subtitle="Missing permission: transport.lr_booking.view",
-            badge={"text": "Access Denied", "variant": "danger"},
-        )
-        return msg, [card]
+        return msg, []
 
     eff_office_id = get_effective_office_id(user, current_office)
     if eff_office_id == -1:
@@ -240,7 +258,7 @@ async def execute_lr_tool(
             .limit(limit)
         )
         if eff_office_id and eff_office_id != -1:
-            stmt = stmt.where(or_(LR.issuing_office_id == eff_office_id, LR.issuing_office_id.is_(None)))
+            stmt = stmt.where(LR.issuing_office_id == eff_office_id)
         res = await db.execute(stmt)
         lrs = list(res.scalars().unique().all())
 
@@ -284,10 +302,17 @@ async def execute_lr_tool(
         lrs = [lr for lr in lrs if (lr.status or "").lower() == status_filter.lower()]
 
     if not lrs:
+        if clean_term or search_term:
+            msg = (
+                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                if lang in ("hinglish", "hi_devanagari")
+                else "I couldn't find that record in your tenant / issuing office."
+            )
+            return msg, []
         msg = (
-            f"Koi LR record nahi mila{' search: ' + search_term if search_term else ''}."
+            f"Koi LR record nahi mila."
             if lang in ("hinglish", "hi_devanagari")
-            else f"No LR records found{' matching ' + search_term if search_term else ''}."
+            else f"No LR records found."
         )
         card = StructuredCard(
             card_type="lr_detail" if is_detail else "lr_list",
@@ -618,18 +643,13 @@ async def execute_hire_challan_tool(
 ) -> Tuple[str, List[StructuredCard]]:
     """Retrieves Hire Challan (truck hiring memo) records and full operational details."""
     if not is_user_permitted(user, tenant, "transport", "hire_challan", "view"):
+        office_str = format_user_office_label(current_office, user)
         msg = (
-            "Aapke paas Hire Challan records dekhne ki permission nahi hai."
+            f"Aapke paas Hire Challan records dekhne ki permission nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
             if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view Hire Challan records."
+            else f"You don't have access to view Hire Challans. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="hire_challan_detail",
-            title="Hire Challan Access Restricted",
-            subtitle="Missing permission: transport.hire_challan.view",
-            badge={"text": "Access Denied", "variant": "danger"},
-        )
-        return msg, [card]
+        return msg, []
 
     eff_office_id = get_effective_office_id(user, current_office)
     search_term = query or vehicle_number
@@ -662,7 +682,7 @@ async def execute_hire_challan_tool(
         )
 
     if eff_office_id and eff_office_id != -1:
-        stmt = stmt.where(or_(HireChallan.issuing_office_id == eff_office_id, HireChallan.issuing_office_id.is_(None)))
+        stmt = stmt.where(HireChallan.issuing_office_id == eff_office_id)
 
     res = await db.execute(stmt)
     challans = list(res.scalars().all())
@@ -693,10 +713,17 @@ async def execute_hire_challan_tool(
         challans = list(res_all.scalars().all())
 
     if not challans:
+        if clean_term or search_term:
+            msg = (
+                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                if lang in ("hinglish", "hi_devanagari")
+                else "I couldn't find that record in your tenant / issuing office."
+            )
+            return msg, []
         msg = (
-            f"Koi Hire Challan record nahi mila{' search: ' + search_term if search_term else ''}."
+            "Koi Hire Challan record nahi mila."
             if lang in ("hinglish", "hi_devanagari")
-            else f"No Hire Challan records found{' matching ' + search_term if search_term else ''}."
+            else "No Hire Challan records found."
         )
         card = StructuredCard(
             card_type="hire_challan_detail",
@@ -834,6 +861,7 @@ async def execute_vehicle_tool(
     db: AsyncSession,
     user: User,
     tenant: Tenant,
+    current_office: Optional[Branch] = None,
     query: Optional[str] = None,
     vehicle_type: Optional[str] = None,
     is_detail: bool = False,
@@ -852,17 +880,11 @@ async def execute_vehicle_tool(
         msg = (
             "Aapke paas Vehicles dekhne ki permission nahi hai."
             if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view vehicle records."
+            else "You don't have access to view Vehicles. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="vehicle_detail" if is_detail else "vehicle_list",
-            title="Vehicle Access Restricted",
-            subtitle="Missing permission: transport.company_vehicles / market_vehicles",
-            badge={"text": "Access Denied", "variant": "danger"},
-            action={"label": "View Plans & Upgrades", "href": "/settings/billing"},
-        )
-        return msg, [card]
+        return msg, []
 
+    eff_office_id = get_effective_office_id(user, current_office)
     all_vehicles = []
     should_include_company = can_company and vehicle_type != "market"
     should_include_market = can_market and vehicle_type != "company"
@@ -893,14 +915,16 @@ async def execute_vehicle_tool(
                 "href": "/transport/market-vehicles",
             })
 
-    # Also search distinct vehicle numbers used on LRs
+    # Also search distinct vehicle numbers used on LRs within office scope
     seen_numbers = {v["number"].replace(" ", "").replace("-", "").upper() for v in all_vehicles}
     try:
         stmt_lr_v = (
             select(LR.vehicle_number)
             .where(LR.vehicle_number.isnot(None), LR.vehicle_number != "")
-            .distinct()
         )
+        if eff_office_id and eff_office_id != -1:
+            stmt_lr_v = stmt_lr_v.where(LR.issuing_office_id == eff_office_id)
+        stmt_lr_v = stmt_lr_v.distinct()
         res_lr_v = await db.execute(stmt_lr_v)
         for v_num in res_lr_v.scalars().all():
             if not v_num:
@@ -1032,7 +1056,14 @@ async def execute_vehicle_tool(
         subtitle = "Authorized Company & Market Vehicles"
 
     if not matched:
-        msg = f"No vehicles found matching {query}." if query else "No vehicles found."
+        if query:
+            msg = (
+                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                if lang in ("hinglish", "hi_devanagari")
+                else "I couldn't find that record in your tenant / issuing office."
+            )
+            return msg, []
+        msg = "No vehicles found."
         card = StructuredCard(
             card_type="vehicle_list",
             title="Vehicles Registry",
@@ -1096,15 +1127,9 @@ async def execute_driver_tool(
         msg = (
             "Aapke paas Driver records dekhne ki permission nahi hai."
             if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view driver records."
+            else "You don't have access to view Drivers. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="driver_list",
-            title="Driver Access Restricted",
-            subtitle="Missing permission: transport.drivers.view",
-            badge={"text": "Access Denied", "variant": "danger"},
-        )
-        return msg, [card]
+        return msg, []
 
     # Re-route ledger / balance inquiries to execute_accounting_tool
     if query and any(w in query.lower() for w in ("ledger", "khata", "balance", "outstanding", "hisab", "hisaab", "advance", "advances", "dues", "rupees")):
@@ -1126,10 +1151,17 @@ async def execute_driver_tool(
     matched = drivers[:limit]
 
     if not matched:
+        if query:
+            msg = (
+                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                if lang in ("hinglish", "hi_devanagari")
+                else "I couldn't find that record in your tenant / issuing office."
+            )
+            return msg, []
         msg = (
-            f"Koi driver record nahi mila{' query: ' + query if query else ''}."
+            "Koi driver record nahi mila."
             if lang in ("hinglish", "hi_devanagari")
-            else f"No drivers found{' matching ' + query if query else ''}."
+            else "No drivers found."
         )
         card = StructuredCard(
             card_type="driver_list",
@@ -1245,6 +1277,14 @@ async def execute_client_tool(
     total_count = len(active_clients)
     matched = active_clients[:limit]
 
+    if total_count == 0 and query:
+        msg = (
+            "Mujhe aapke tenant / issuing office me wo record nahi mila."
+            if lang in ("hinglish", "hi_devanagari")
+            else "I couldn't find that record in your tenant / issuing office."
+        )
+        return msg, []
+
     items = [
         {
             "primary": c.name or "Client",
@@ -1328,6 +1368,14 @@ async def execute_vendor_tool(
 
     total_count = len(active_vendors)
     matched = active_vendors[:limit]
+
+    if total_count == 0 and query:
+        msg = (
+            "Mujhe aapke tenant / issuing office me wo record nahi mila."
+            if lang in ("hinglish", "hi_devanagari")
+            else "I couldn't find that record in your tenant / issuing office."
+        )
+        return msg, []
 
     items = [
         {
@@ -1432,7 +1480,7 @@ async def execute_invoice_tool(
         )
 
     if eff_office_id and eff_office_id != -1:
-        stmt = stmt.where(or_(Voucher.issuing_office_id == eff_office_id, Voucher.issuing_office_id.is_(None)))
+        stmt = stmt.where(Voucher.issuing_office_id == eff_office_id)
 
     res = await db.execute(stmt)
     invoices = list(res.scalars().all())
@@ -1468,10 +1516,17 @@ async def execute_invoice_tool(
         invoices = list(res_all.scalars().all())
 
     if not invoices:
+        if clean_inv or query:
+            msg = (
+                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                if lang in ("hinglish", "hi_devanagari")
+                else "I couldn't find that record in your tenant / issuing office."
+            )
+            return msg, []
         msg = (
-            f"Koi Transport Invoice record nahi mila{' search: ' + query if query else ''}."
+            "Koi Transport Invoice record nahi mila."
             if lang in ("hinglish", "hi_devanagari")
-            else f"No Transport Invoice records found{' matching ' + query if query else ''}."
+            else "No Transport Invoice records found."
         )
         card = StructuredCard(
             card_type="invoice_detail",
@@ -1580,19 +1635,13 @@ async def execute_job_tool(
 ) -> Tuple[str, List[StructuredCard]]:
     """Retrieves transport jobs with exact counts, branch scoping, and full detail lookups."""
     if not is_user_permitted(user, tenant, "transport", "jobs", "view"):
+        office_str = format_user_office_label(current_office, user)
         msg = (
-            "Aapke paas Transport Job records dekhne ki permission nahi hai."
+            f"Aapke paas Transport Job records dekhne ki permission nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
             if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view transport job records."
+            else f"You don't have access to view Jobs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="job_detail" if is_detail else "job_list",
-            title="Jobs Access Restricted",
-            subtitle="Missing permission: transport.jobs.view",
-            badge={"text": "Access Denied", "variant": "danger"},
-            action={"label": "View Plans & Upgrades", "href": "/settings/billing"},
-        )
-        return msg, [card]
+        return msg, []
 
     clean_job = re.sub(r"^(?:transport\s+job|job\s+order|job|number|no\.?|#|[\s\-_])+", "", query, flags=re.IGNORECASE).strip() if query else None
     stmt = (
@@ -1619,7 +1668,7 @@ async def execute_job_tool(
         ))
 
     if current_office and user.role != "COMPANY_ADMIN":
-        stmt = stmt.where(or_(Job.issuing_office_id == current_office.id, Job.issuing_office_id.is_(None)))
+        stmt = stmt.where(Job.issuing_office_id == current_office.id)
 
     if is_today:
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1654,7 +1703,14 @@ async def execute_job_tool(
         jobs = list(res_all.scalars().all())
 
     if not jobs and (clean_job or query or is_detail):
-        msg = f"Koi Transport Job nahi mila{' query: ' + query if query else ''}." if lang in ("hinglish", "hi_devanagari") else f"No Transport Job records found{' matching ' + query if query else ''}."
+        if clean_job or query:
+            msg = (
+                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                if lang in ("hinglish", "hi_devanagari")
+                else "I couldn't find that record in your tenant / issuing office."
+            )
+            return msg, []
+        msg = "No Transport Job records found."
         card = StructuredCard(
             card_type="job_detail",
             title="Transport Job Search",
@@ -1794,6 +1850,7 @@ async def execute_tracking_tool(
     db: AsyncSession,
     user: User,
     tenant: Tenant,
+    current_office: Optional[Branch] = None,
     vehicle_number: Optional[str] = None,
     lr_number: Optional[str] = None,
     challan_number: Optional[str] = None,
@@ -1802,22 +1859,18 @@ async def execute_tracking_tool(
     """
     Retrieves authorized GPS, FASTag, or SIM tracking telemetry.
     Supports tracking by vehicle registration, LR number, or Hire Challan number.
+    Strictly scopes consignment tracking to the user's tenant and assigned office.
     """
-    if not is_user_permitted(user, tenant, "tracking", "tracking", "view"):
+    can_track = is_user_permitted(user, tenant, "tracking", "tracking", "view") or is_user_permitted(user, tenant, "transport", "lr_booking", "view")
+    if not can_track:
         msg = (
-            "Aapke plan mein Tracking module entitled nahi hai ya permission missing hai."
+            "Aapke paas tracking telemetry dekhne ka access nahi hai."
             if lang in ("hinglish", "hi_devanagari")
-            else "Tracking is not enabled on your plan or you lack permission to view telemetry."
+            else "You don't have access to track shipments. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="tracking",
-            title="Tracking Unavailable",
-            subtitle="Module entitlement locked or permission missing (tracking.tracking.view)",
-            badge={"text": "Locked", "variant": "danger"},
-            action={"label": "View Plans & Upgrades", "href": "/settings/billing"},
-        )
-        return msg, [card]
+        return msg, []
 
+    eff_office_id = get_effective_office_id(user, current_office)
     context_prefix = ""
     matched_lr = None
     orig = "Origin"
@@ -1828,7 +1881,7 @@ async def execute_tracking_tool(
         clean_lr = re.sub(r"^(?:lr|gr|bilty|number|no\.?|#|[\s\-_])+", "", lr_number, flags=re.IGNORECASE).strip()
         lr_stmt = (
             select(LR)
-            .options(selectinload(LR.origin_location), selectinload(LR.destination_location))
+            .options(selectinload(LR.origin_location), selectinload(LR.destination_location), selectinload(LR.issuing_office))
             .where(
                 or_(
                     LR.lr_number.ilike(f"%{clean_lr}%"),
@@ -1836,8 +1889,10 @@ async def execute_tracking_tool(
                     cast(LR.id, String) == clean_lr,
                 )
             )
-            .limit(1)
         )
+        if eff_office_id and eff_office_id != -1:
+            lr_stmt = lr_stmt.where(LR.issuing_office_id == eff_office_id)
+        lr_stmt = lr_stmt.limit(1)
         res_lr = await db.execute(lr_stmt)
         matched_lr = res_lr.scalar_one_or_none()
         if matched_lr:
@@ -1846,11 +1901,15 @@ async def execute_tracking_tool(
             dest = matched_lr.destination_location.name if matched_lr.destination_location else "Destination"
             context_prefix = f"Consignment **LR {matched_lr.lr_number}** ({orig} → {dest}) is in transit on vehicle **{vehicle_number}**."
         else:
-            lr_display = lr_number
-            if lang == "hi_devanagari":
-                msg = f"LR {lr_display} के लिए कोई रिकॉर्ड नहीं मिला।"
-            else:
-                msg = f"No LR records found matching {lr_display}."
+            if eff_office_id and eff_office_id != -1:
+                msg = (
+                    "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                    if lang in ("hinglish", "hi_devanagari")
+                    else "I couldn't find that record in your tenant / issuing office."
+                )
+                return msg, []
+            # For admin with consolidated all-office view when record truly does not exist
+            msg = f"No LR records found matching {lr_number}."
             return msg, []
 
     # 2. Resolve vehicle from Hire Challan number if supplied
@@ -1865,17 +1924,26 @@ async def execute_tracking_tool(
                     cast(HireChallan.id, String) == clean_hc,
                 )
             )
-            .limit(1)
         )
+        if eff_office_id and eff_office_id != -1:
+            hc_stmt = hc_stmt.where(HireChallan.issuing_office_id == eff_office_id)
+        hc_stmt = hc_stmt.limit(1)
         res_hc = await db.execute(hc_stmt)
         matched_hc = res_hc.scalar_one_or_none()
         if matched_hc:
             vehicle_number = matched_hc.vehicle_number
             context_prefix = f"Hire Challan **{matched_hc.challan_number}** (Driver: {matched_hc.driver_name or 'Hired'}) is on vehicle **{vehicle_number}**."
         else:
-            msg = f"Hire Challan **{challan_number}** nahi mila tracking ke liye." if lang in ("hinglish", "hi_devanagari") else f"Hire Challan **{challan_number}** could not be found for tracking."
-            card = StructuredCard(card_type="tracking", title="Challan Not Found", subtitle=f"No matching Challan for '{challan_number}'", badge={"text": "Not Found", "variant": "neutral"})
-            return msg, [card]
+            if eff_office_id and eff_office_id != -1:
+                msg = (
+                    "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                    if lang in ("hinglish", "hi_devanagari")
+                    else "I couldn't find that record in your tenant / issuing office."
+                )
+                return msg, []
+            # For admin with consolidated all-office view when record truly does not exist
+            msg = f"No LR records found matching {lr_number}."
+            return msg, []
 
     clean_v = clean_vehicle_number(vehicle_number) if vehicle_number else None
     now_utc = datetime.now(timezone.utc)
@@ -1883,7 +1951,10 @@ async def execute_tracking_tool(
     # 3. If vehicle specified directly, check if currently assigned to an active LR
     if not context_prefix and clean_v:
         try:
-            active_lr_stmt = select(LR).where(LR.vehicle_number.ilike(f"%{clean_v}%")).order_by(desc(LR.created_at)).limit(1)
+            active_lr_stmt = select(LR).where(LR.vehicle_number.ilike(f"%{clean_v}%"))
+            if eff_office_id and eff_office_id != -1:
+                active_lr_stmt = active_lr_stmt.where(LR.issuing_office_id == eff_office_id)
+            active_lr_stmt = active_lr_stmt.order_by(desc(LR.created_at)).limit(1)
             res_alr = await db.execute(active_lr_stmt)
             alr = res_alr.scalar_one_or_none()
             if alr:
@@ -2145,15 +2216,9 @@ async def execute_accounting_tool(
         msg = (
             "Aapke paas Master Ledger dekhne ki permission nahi hai."
             if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view Master Ledger accounts."
+            else "You don't have access to view accounts ledger. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="ledger_summary",
-            title="Accounting Access Restricted",
-            subtitle="Missing permission: accounts.master_ledger.view",
-            badge={"text": "Access Denied", "variant": "danger"},
-        )
-        return msg, [card]
+        return msg, []
 
     eff_office_id = get_effective_office_id(user, current_office)
     if eff_office_id == -1:
@@ -2214,15 +2279,12 @@ async def execute_accounting_tool(
             })
 
         if not matched_items:
-            card = StructuredCard(
-                card_type="party_ledger",
-                title=f"Ledger: {party_name}",
-                subtitle="No accounts found matching name in active office scope",
-                badge={"text": "0 Results", "variant": "neutral"},
-                action={"label": "Open Master Ledger", "href": "/accounts/master-ledger"},
+            msg = (
+                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                if lang in ("hinglish", "hi_devanagari")
+                else "I couldn't find that record in your tenant / issuing office."
             )
-            msg = f"No accounts found matching '{party_name}'."
-            return msg, [card]
+            return msg, []
 
         first = matched_items[0]
 
@@ -2393,19 +2455,13 @@ async def execute_pod_tool(
     Directs actions to /transport/pod-records.
     """
     if not is_user_permitted(user, tenant, "transport", "pod_records", "view"):
+        office_str = format_user_office_label(current_office, user)
         msg = (
-            "Aapke paas POD records dekhne ki permission nahi hai."
+            f"Aapke paas POD records dekhne ki permission nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
             if lang in ("hinglish", "hi_devanagari")
-            else "You do not have permission to view POD records."
+            else f"You don't have access to view POD records. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
         )
-        card = StructuredCard(
-            card_type="pod_detail",
-            title="POD Access Restricted",
-            subtitle="Missing permission: transport.pod_records.view",
-            badge={"text": "Access Denied", "variant": "danger"},
-            action={"label": "View Plans & Upgrades", "href": "/settings/billing"},
-        )
-        return msg, [card]
+        return msg, []
 
     if not (query or lr_number) and not is_count and not is_pending:
         msg = "Which LR's POD would you like to check? Please provide the LR Number (e.g., PLPL-0101)."
@@ -2430,7 +2486,7 @@ async def execute_pod_tool(
             .limit(10)
         )
         if eff_office_id and eff_office_id != -1:
-            stmt_pending = stmt_pending.where(or_(LR.issuing_office_id == eff_office_id, LR.issuing_office_id.is_(None)))
+            stmt_pending = stmt_pending.where(LR.issuing_office_id == eff_office_id)
         res_p = await db.execute(stmt_pending)
         lrs_pending = list(res_p.scalars().all())
         items = []
@@ -2467,7 +2523,7 @@ async def execute_pod_tool(
     )
 
     if eff_office_id and eff_office_id != -1:
-        stmt = stmt.where(or_(LR.issuing_office_id == eff_office_id, LR.issuing_office_id.is_(None)))
+        stmt = stmt.where(LR.issuing_office_id == eff_office_id)
 
     if is_pending:
         stmt = stmt.where(or_(PODRecord.verification_status != "VERIFIED", PODRecord.verification_status == "PENDING"))
@@ -2510,9 +2566,10 @@ async def execute_pod_tool(
     if not records:
         if search_term:
             clean_lr_check = re.sub(r"^(?:pod|lr|bilty|no\.?|#|[\s\-_])+", "", search_term, flags=re.IGNORECASE).strip()
-            res_lr_check = await db.execute(
-                select(LR).where(or_(LR.lr_number.ilike(f"%{clean_lr_check}%"), cast(LR.id, String) == clean_lr_check)).limit(1)
-            )
+            lr_chk_stmt = select(LR).where(or_(LR.lr_number.ilike(f"%{clean_lr_check}%"), cast(LR.id, String) == clean_lr_check))
+            if eff_office_id and eff_office_id != -1:
+                lr_chk_stmt = lr_chk_stmt.where(LR.issuing_office_id == eff_office_id)
+            res_lr_check = await db.execute(lr_chk_stmt.limit(1))
             matched_lr_chk = res_lr_check.scalar_one_or_none()
             if matched_lr_chk:
                 msg = f"POD for LR **{matched_lr_chk.lr_number}** is **Pending** (Awaiting delivery confirmation / driver POD upload)."
@@ -2529,6 +2586,13 @@ async def execute_pod_tool(
                     action={"label": "Upload POD", "href": f"/transport/pod-records?action=upload&lr={matched_lr_chk.lr_number}"},
                 )
                 return msg, [card]
+            else:
+                msg = (
+                    "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                    if lang in ("hinglish", "hi_devanagari")
+                    else "I couldn't find that record in your tenant / issuing office."
+                )
+                return msg, []
 
         msg = (
             f"Koi POD record nahi mila{' search: ' + search_term if search_term else ''}."

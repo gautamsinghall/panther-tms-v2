@@ -30,6 +30,7 @@ from app.modules.transport.schemas import JobCreate
 from app.modules.ai.schemas import StructuredCard, ChatMessage
 from app.modules.ai.draft_store import lr_draft_store, AIDraft
 from app.modules.ai.provider import is_provider_configured, call_llm
+from app.modules.ai.tools import is_user_permitted, format_user_office_label
 
 logger = logging.getLogger("panther.ai.job_draft")
 
@@ -358,6 +359,17 @@ async def handle_conversational_job_booking(
     - Avoids re-asking for details already provided.
     - Presents completed form for user review before final submission.
     """
+    # 1. Authorization check
+    if not is_user_permitted(user, tenant, "transport", "jobs", "create"):
+        office_str = format_user_office_label(current_office, user)
+        if lang == "hi_devanagari":
+            msg = f"आपके पास जॉब (Job) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
+        elif lang == "hinglish":
+            msg = f"Aapke paas Jobs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+        else:
+            msg = f"You don't have access to create Jobs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+        return msg, []
+
     eff_office_id = current_office.id if current_office else None
     office_name = current_office.name if current_office else "Main Logistics Hub"
 

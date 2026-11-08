@@ -71,6 +71,9 @@ from app.modules.ai.knowledge import (
 from app.modules.ai.privacy import sanitize_chat_history_for_external_llm, anonymize_system_context
 from app.modules.ai.tools import (
     classify_operational_intent,
+    is_user_permitted,
+    format_user_office_label,
+    get_effective_office_id,
     execute_lr_tool,
     execute_vehicle_tool,
     execute_driver_tool,
@@ -763,6 +766,67 @@ async def get_context_suggestions(
     )
 
 
+async def log_blocked_rbac_attempt(
+    db: Optional[AsyncSession],
+    user: User,
+    action: str,
+    module: str,
+    missing_permission: str,
+    raw_message: str,
+    current_office: Optional[Branch] = None,
+    record_number: Optional[str] = None,
+):
+    """Logs blocked RBAC and isolation attempts in the audit trail (Requirement 6)."""
+    if not db or not hasattr(db, "add"):
+        return
+    try:
+        await log_activity(
+            db=db,
+            user=user,
+            action=action,
+            module=module,
+            entity_type="rbac_block",
+            entity_identifier=record_number,
+            office_id=current_office.id if current_office else None,
+            office_name=current_office.name if current_office else None,
+            office_code=current_office.code if current_office else None,
+            details=f"Blocked unauthorized action '{action}' (missing: {missing_permission}). Query: '{raw_message}'",
+            details_json={
+                "attempted_action": action,
+                "missing_permission": missing_permission,
+                "raw_message": raw_message,
+                "record_number": record_number,
+                "office_id": current_office.id if current_office else None,
+            },
+            status="BLOCKED",
+        )
+    except Exception as e:
+        logger.error(f"Failed to log blocked RBAC attempt: {e}")
+
+
+def filter_nav_suggestions(
+    suggestions: List[NavigationSuggestion],
+    authorized_catalog: List[Dict[str, Any]],
+    user: User,
+) -> List[NavigationSuggestion]:
+    """Filters navigation suggestions to only authorized pages for this user."""
+    user_role = (user.role or "").upper().strip()
+    if user_role in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+        return suggestions
+    allowed_routes = set()
+    for m in authorized_catalog:
+        for it in m.get("items", []):
+            if "href" in it:
+                allowed_routes.add(it["href"])
+                allowed_routes.add(it["href"].split("?")[0])
+    filtered = []
+    for s in suggestions:
+        clean_base = s.href.split("?")[0]
+        if s.href in allowed_routes or clean_base in allowed_routes:
+            filtered.append(s)
+    return filtered
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_copilot(
     data: ChatRequest,
@@ -848,16 +912,26 @@ async def chat_with_copilot(
     # STEP 2: CONVERSATIONAL WRITE WORKFLOWS & DRAFT INTERRUPT/PAUSE HANDLING
     # --------------------------------------------------------------------------
     if db:
+        # Rescope drafts immediately on office switch (Requirement 5)
         active_job_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="job")
         d_job = (await lr_draft_store.get_draft(active_job_id)) if active_job_id else None
+        if d_job and not d_job.is_confirmed and current_office and d_job.office_id and d_job.office_id != current_office.id:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="job")
+            d_job = None
         has_active_job = bool(d_job and not d_job.is_confirmed)
 
         active_hc_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="hire_challan")
         d_hc = (await lr_draft_store.get_draft(active_hc_id)) if active_hc_id else None
+        if d_hc and not d_hc.is_confirmed and current_office and d_hc.office_id and d_hc.office_id != current_office.id:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="hire_challan")
+            d_hc = None
         has_active_hc = bool(d_hc and not d_hc.is_confirmed)
 
         active_d_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="lr")
         existing_d = (await lr_draft_store.get_draft(active_d_id)) if active_d_id else None
+        if existing_d and not existing_d.is_confirmed and current_office and existing_d.office_id and existing_d.office_id != current_office.id:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+            existing_d = None
         has_active_draft = bool(existing_d and not existing_d.is_confirmed)
 
         is_job_req = is_job_booking_intent(last_user_message)
@@ -1006,13 +1080,14 @@ async def chat_with_copilot(
 
             # 2. Capabilities inquiry
             if is_capabilities_query(last_user_message):
+                caps_navs = filter_nav_suggestions([
+                    NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
+                    NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
+                    NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger", module="Accounts"),
+                ], authorized_catalog, current_user)
                 return ChatResponse(
                     content=get_capabilities_list_markdown(lang=detected_lang),
-                    navigation_suggestions=[
-                        NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
-                        NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
-                        NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger", module="Accounts"),
-                    ],
+                    navigation_suggestions=caps_navs,
                     citations=[],
                     cards=[],
                     provider_configured=is_provider_configured(),
@@ -1022,6 +1097,11 @@ async def chat_with_copilot(
             # 3A. LR Booking how-to steps & documents (e.g. "LR kaise banaye?", process & documents needed)
             if is_how_to_lr_inquiry(last_user_message):
                 content, lr_navs, lr_cards = build_how_to_lr_response(lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
+                    lr_navs = []
+                    lr_cards = []
+                else:
+                    lr_navs = filter_nav_suggestions(lr_navs, authorized_catalog, current_user)
                 return ChatResponse(
                     content=content,
                     navigation_suggestions=lr_navs,
@@ -1035,6 +1115,7 @@ async def chat_with_copilot(
             is_how_to, mentions_veh, mentions_drv = is_add_vehicle_or_driver_inquiry(last_user_message)
             if is_how_to:
                 content, veh_drv_navs, veh_drv_cards = build_add_vehicle_driver_response(mentions_veh, mentions_drv, lang=detected_lang)
+                veh_drv_navs = filter_nav_suggestions(veh_drv_navs, authorized_catalog, current_user)
                 return ChatResponse(
                     content=content,
                     navigation_suggestions=veh_drv_navs,
@@ -1046,16 +1127,72 @@ async def chat_with_copilot(
 
             # 4. Long explanatory message about LR: explanation only, no draft
             if is_long_explanatory_message(last_user_message):
+                exp_navs = filter_nav_suggestions([
+                    NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations")
+                ], authorized_catalog, current_user)
                 return ChatResponse(
                     content=get_lr_explanation_markdown(lang=detected_lang),
-                    navigation_suggestions=[
-                        NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations")
-                    ],
+                    navigation_suggestions=exp_navs,
                     citations=[],
                     cards=[],
                     provider_configured=is_provider_configured(),
                     detected_language=detected_lang,
                 )
+
+            # Write Authorization Checks (Requirement 3: Check permission BEFORE every action)
+            if is_job_req and not is_job_inq and not is_job_canc:
+                if not is_user_permitted(current_user, tenant, "transport", "jobs", "create"):
+                    await log_blocked_rbac_attempt(
+                        db=db,
+                        user=current_user,
+                        action="BLOCKED_CREATE_JOB",
+                        module="transport",
+                        missing_permission="transport.jobs.create",
+                        raw_message=last_user_message,
+                        current_office=current_office,
+                    )
+                    office_str = format_user_office_label(current_office, current_user)
+                    if detected_lang == "hi_devanagari":
+                        msg = f"आपके पास जॉब (Job) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
+                    elif detected_lang == "hinglish":
+                        msg = f"Aapke paas Jobs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+                    else:
+                        msg = f"You don't have access to create Jobs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                    return ChatResponse(
+                        content=msg,
+                        navigation_suggestions=[],
+                        citations=[],
+                        cards=[],
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
+
+            if is_hc_req and not is_hc_inq and not is_hc_canc:
+                if not is_user_permitted(current_user, tenant, "transport", "hire_challan", "create"):
+                    await log_blocked_rbac_attempt(
+                        db=db,
+                        user=current_user,
+                        action="BLOCKED_CREATE_HIRE_CHALLAN",
+                        module="transport",
+                        missing_permission="transport.hire_challan.create",
+                        raw_message=last_user_message,
+                        current_office=current_office,
+                    )
+                    office_str = format_user_office_label(current_office, current_user)
+                    if detected_lang == "hi_devanagari":
+                        msg = f"आपके पास हायर चालान (Hire Challan) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
+                    elif detected_lang == "hinglish":
+                        msg = f"Aapke paas Hire Challans create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+                    else:
+                        msg = f"You don't have access to create Hire Challans. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                    return ChatResponse(
+                        content=msg,
+                        navigation_suggestions=[],
+                        citations=[],
+                        cards=[],
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
 
             # 5. Starting a new LR booking:
             # Check if assistant previously asked "Do you want to start a new LR booking?"
@@ -1084,6 +1221,34 @@ async def chat_with_copilot(
                     "actual_weight_mt", "particulars"
                 )
             )
+
+            # Enforce LR creation permission before showing any prompt or draft
+            if (is_booking_trigger or is_booking or has_booking_details or has_active_draft or is_confirming_start) and not is_inquiry and not is_cancel and not is_job_req and not is_hc_req:
+                if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
+                    await log_blocked_rbac_attempt(
+                        db=db,
+                        user=current_user,
+                        action="BLOCKED_CREATE_LR",
+                        module="transport",
+                        missing_permission="transport.lr_booking.create",
+                        raw_message=last_user_message,
+                        current_office=current_office,
+                    )
+                    office_str = format_user_office_label(current_office, current_user)
+                    if detected_lang == "hi_devanagari":
+                        msg = f"आपके पास एलआर (LR) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
+                    elif detected_lang == "hinglish":
+                        msg = f"Aapke paas LRs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+                    else:
+                        msg = f"You don't have access to create LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                    return ChatResponse(
+                        content=msg,
+                        navigation_suggestions=[],
+                        citations=[],
+                        cards=[],
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
 
             if is_booking_trigger and not is_hc_req and not is_job_req and not is_confirming_start and not has_booking_details:
                 # Ask first before creating draft ONLY when user has not given any booking details yet!
@@ -1296,13 +1461,43 @@ async def chat_with_copilot(
         or lower_msg in ("what about its payment?", "what about its payment", "what about its pod?", "what about its pod", "what about its status?", "what about its status")
     )
     if is_anaphoric_followup:
+        if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "view"):
+            await log_blocked_rbac_attempt(
+                db=db,
+                user=current_user,
+                action="BLOCKED_VIEW_LR",
+                module="transport",
+                missing_permission="transport.lr_booking.view",
+                raw_message=last_user_message,
+                current_office=current_office,
+            )
+            office_str = format_user_office_label(current_office, current_user)
+            if detected_lang == "hi_devanagari":
+                msg = f"आपके पास एलआर (LR) देखने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
+            elif detected_lang == "hinglish":
+                msg = f"Aapke paas LRs dekhne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+            else:
+                msg = f"You don't have access to view LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+            return ChatResponse(
+                content=msg,
+                navigation_suggestions=[],
+                citations=[],
+                cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
         from app.modules.ai.tools import extract_transport_entities
         entities_check = extract_transport_entities(last_user_message, conversation_history=history_dicts)
         if not (entities_check.get("lr_number") or entities_check.get("vehicle_number") or entities_check.get("hc_number")):
             recent_lrs = []
             if db:
                 try:
-                    stmt_rec = select(LR).order_by(desc(LR.created_at)).limit(3)
+                    eff_office_id = get_effective_office_id(current_user, current_office)
+                    stmt_rec = select(LR)
+                    if eff_office_id and eff_office_id != -1:
+                        stmt_rec = stmt_rec.where(LR.issuing_office_id == eff_office_id)
+                    stmt_rec = stmt_rec.order_by(desc(LR.created_at)).limit(3)
                     recent_lrs = list((await db.execute(stmt_rec)).scalars().all())
                 except Exception:
                     pass
@@ -1343,6 +1538,30 @@ async def chat_with_copilot(
     if op_intent:
         tool_name = op_intent.get("tool")
         if tool_name == "tracking_prompt":
+            if not is_user_permitted(current_user, tenant, "tracking", "tracking", "view") and not is_user_permitted(current_user, tenant, "transport", "lr_booking", "view"):
+                await log_blocked_rbac_attempt(
+                    db=db,
+                    user=current_user,
+                    action="BLOCKED_TRACKING",
+                    module="tracking",
+                    missing_permission="tracking.tracking.view",
+                    raw_message=last_user_message,
+                    current_office=current_office,
+                )
+                msg = (
+                    "Aapke paas tracking telemetry dekhne ka access nahi hai. Kripya apne Company Admin se sampark karein."
+                    if detected_lang in ("hinglish", "hi_devanagari")
+                    else "You don't have access to track shipments. Please contact your Company Admin if you need access."
+                )
+                return ChatResponse(
+                    content=msg,
+                    navigation_suggestions=[],
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
             if detected_lang == "hi_devanagari":
                 tracking_msg = "कंसाइनमेंट ट्रैक करने के लिए कृपया अपना **एलआर नंबर** (जैसे LR-2026-0012) या **वाहन पंजीकरण नंबर** (जैसे DL01AA1111) बताएं।"
             elif detected_lang == "hinglish":
@@ -1377,105 +1596,176 @@ async def chat_with_copilot(
         else:
             cards = []
             if tool_name == "client":
-                reply_content, cards = await execute_client_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), is_count=op_intent.get("is_count", False),
-                    limit=6, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "general", "billing_client", "view") and not is_user_permitted(current_user, tenant, "accounts", "master_ledger", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_CLIENT", "general", "general.billing_client.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Billing Clients. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_client_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), is_count=op_intent.get("is_count", False),
+                        limit=6, lang=detected_lang,
+                    )
             elif tool_name == "vendor":
-                reply_content, cards = await execute_vendor_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), is_count=op_intent.get("is_count", False),
-                    limit=6, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "general", "vendor", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_VENDOR", "general", "general.vendor.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Vendors. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_vendor_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), is_count=op_intent.get("is_count", False),
+                        limit=6, lang=detected_lang,
+                    )
             elif tool_name == "job":
-                reply_content, cards = await execute_job_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), is_detail=op_intent.get("is_detail", False),
-                    is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False),
-                    is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
-                    limit=5, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "transport", "jobs", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_JOB", "transport", "transport.jobs.view", last_user_message, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    reply_content, cards = (f"You don't have access to view Jobs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_job_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), is_detail=op_intent.get("is_detail", False),
+                        is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False),
+                        is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
+                        limit=5, lang=detected_lang,
+                    )
             elif tool_name == "lr":
-                reply_content, cards = await execute_lr_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
-                    status_filter=op_intent.get("status_filter"), is_detail=op_intent.get("is_detail", False),
-                    is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
-                    limit=5, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_LR", "transport", "transport.lr_booking.view", last_user_message, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    reply_content, cards = (f"You don't have access to view LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_lr_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
+                        status_filter=op_intent.get("status_filter"), is_detail=op_intent.get("is_detail", False),
+                        is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
+                        limit=5, lang=detected_lang,
+                    )
             elif tool_name == "hire_challan":
-                reply_content, cards = await execute_hire_challan_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
-                    is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
-                    limit=5, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "transport", "hire_challan", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_HIRE_CHALLAN", "transport", "transport.hire_challan.view", last_user_message, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    reply_content, cards = (f"You don't have access to view Hire Challans. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_hire_challan_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
+                        is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"),
+                        limit=5, lang=detected_lang,
+                    )
             elif tool_name == "invoice":
-                reply_content, cards = await execute_invoice_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), is_latest=op_intent.get("is_latest", False),
-                    field_focus=op_intent.get("field_focus"), limit=5, lang=detected_lang,
-                )
+                can_inv = is_user_permitted(current_user, tenant, "accounts", "transport_invoice", "view") or is_user_permitted(current_user, tenant, "accounts", "vouchers", "view") or is_user_permitted(current_user, tenant, "transport", "lr_booking", "view")
+                if not can_inv:
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_INVOICE", "accounts", "accounts.transport_invoice.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Invoices. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_invoice_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), is_latest=op_intent.get("is_latest", False),
+                        field_focus=op_intent.get("field_focus"), limit=5, lang=detected_lang,
+                    )
             elif tool_name == "tracking":
-                reply_content, cards = await execute_tracking_tool(
-                    db=db, user=current_user, tenant=tenant,
-                    vehicle_number=op_intent.get("vehicle_number"),
-                    lr_number=op_intent.get("lr_number"),
-                    challan_number=op_intent.get("challan_number"),
-                    lang=detected_lang,
-                )
+                can_track = is_user_permitted(current_user, tenant, "tracking", "tracking", "view") or is_user_permitted(current_user, tenant, "transport", "lr_booking", "view")
+                if not can_track:
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_TRACKING", "tracking", "tracking.tracking.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to track shipments. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_tracking_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        vehicle_number=op_intent.get("vehicle_number"),
+                        lr_number=op_intent.get("lr_number"),
+                        challan_number=op_intent.get("challan_number"),
+                        lang=detected_lang,
+                    )
             elif tool_name == "accounting":
-                reply_content, cards = await execute_accounting_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    party_name=op_intent.get("party_name"), lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "accounts", "master_ledger", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_LEDGER", "accounts", "accounts.master_ledger.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view accounts ledger. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_accounting_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        party_name=op_intent.get("party_name"), lang=detected_lang,
+                    )
             elif tool_name == "vehicle":
-                reply_content, cards = await execute_vehicle_tool(
-                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
-                    vehicle_type=op_intent.get("vehicle_type"), is_detail=op_intent.get("is_detail", False),
-                    field_focus=op_intent.get("field_focus"), limit=6, lang=detected_lang,
-                )
+                can_veh = is_user_permitted(current_user, tenant, "transport", "company_vehicles", "view") or is_user_permitted(current_user, tenant, "transport", "market_vehicles", "view")
+                if not can_veh:
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_VEHICLES", "transport", "transport.company_vehicles.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Vehicles. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_vehicle_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office, query=op_intent.get("query"),
+                        vehicle_type=op_intent.get("vehicle_type"), is_detail=op_intent.get("is_detail", False),
+                        field_focus=op_intent.get("field_focus"), limit=6, lang=detected_lang,
+                    )
             elif tool_name == "driver":
-                reply_content, cards = await execute_driver_tool(
-                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
-                    limit=6, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "transport", "drivers", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_DRIVERS", "transport", "transport.drivers.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Drivers. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_driver_tool(
+                        db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
+                        limit=6, lang=detected_lang,
+                    )
             elif tool_name == "pod":
-                reply_content, cards = await execute_pod_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), lr_number=op_intent.get("lr_number"),
-                    is_pending=op_intent.get("is_pending", False), is_count=op_intent.get("is_count", False),
-                    limit=5, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "transport", "pod_records", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_POD", "transport", "transport.pod_records.view", last_user_message, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    reply_content, cards = (f"You don't have access to view POD records. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_pod_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), lr_number=op_intent.get("lr_number"),
+                        is_pending=op_intent.get("is_pending", False), is_count=op_intent.get("is_count", False),
+                        limit=5, lang=detected_lang,
+                    )
             elif tool_name == "eway_bill":
-                reply_content, cards = await execute_eway_bill_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
-                    limit=5, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "transport", "eway_bill", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_EWAY", "transport", "transport.eway_bill.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view E-Way Bills. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_eway_bill_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"),
+                        limit=5, lang=detected_lang,
+                    )
             elif tool_name == "branch":
-                reply_content, cards = await execute_branch_tool(
-                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
-                    is_count=op_intent.get("is_count", False), limit=10, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "company", "branches", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_BRANCHES", "company", "company.branches.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Branches. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_branch_tool(
+                        db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
+                        is_count=op_intent.get("is_count", False), limit=10, lang=detected_lang,
+                    )
             elif tool_name == "consigner_consignee":
-                reply_content, cards = await execute_consigner_consignee_tool(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    party_type=op_intent.get("party_type", "consigner"), query=op_intent.get("query"),
-                    is_count=op_intent.get("is_count", False), limit=6, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "general", "consigner", "view") and not is_user_permitted(current_user, tenant, "general", "consignee", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_PARTIES", "general", "general.consigner.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Consigners/Consignees. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_consigner_consignee_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        party_type=op_intent.get("party_type", "consigner"), query=op_intent.get("query"),
+                        is_count=op_intent.get("is_count", False), limit=6, lang=detected_lang,
+                    )
             elif tool_name == "fleet_maintenance":
-                reply_content, cards = await execute_fleet_maintenance_tool(
-                    db=db, user=current_user, tenant=tenant,
-                    vehicle_number=op_intent.get("vehicle_number"), doc_type=op_intent.get("doc_type"),
-                    is_expiry_check=op_intent.get("is_expiry_check", False), lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "fleet", "vehicle_health", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_FLEET", "fleet", "fleet.vehicle_health.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view Fleet Maintenance. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_fleet_maintenance_tool(
+                        db=db, user=current_user, tenant=tenant,
+                        vehicle_number=op_intent.get("vehicle_number"), doc_type=op_intent.get("doc_type"),
+                        is_expiry_check=op_intent.get("is_expiry_check", False), lang=detected_lang,
+                    )
             elif tool_name == "einvoice":
-                reply_content, cards = await execute_einvoice_tool(
-                    db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
-                    limit=5, lang=detected_lang,
-                )
+                if not is_user_permitted(current_user, tenant, "einvoicing", "generate_irn", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_EINVOICE", "einvoicing", "einvoicing.generate_irn.view", last_user_message, current_office)
+                    reply_content, cards = ("You don't have access to view E-Invoicing. Please contact your Company Admin if you need access.", [])
+                else:
+                    reply_content, cards = await execute_einvoice_tool(
+                        db=db, user=current_user, tenant=tenant, query=op_intent.get("query"),
+                        limit=5, lang=detected_lang,
+                    )
             else:
                 reply_content, cards = ("I couldn't process this operational request.", [])
 
@@ -1615,37 +1905,108 @@ async def stream_chat_with_copilot(
         else:
             tool_name = op_intent.get("tool")
             if tool_name == "client":
-                msg, _ = await execute_client_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "general", "billing_client", "view") and not is_user_permitted(current_user, tenant, "accounts", "master_ledger", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_CLIENT", "general", "general.billing_client.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Billing Clients. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_client_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
             elif tool_name == "vendor":
-                msg, _ = await execute_vendor_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "general", "vendor", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_VENDOR", "general", "general.vendor.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Vendors. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_vendor_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
             elif tool_name == "job":
-                msg, _ = await execute_job_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_detail=op_intent.get("is_detail", False), is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "transport", "jobs", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_JOB", "transport", "transport.jobs.view", last_user_msg, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    msg = f"You don't have access to view Jobs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_job_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_detail=op_intent.get("is_detail", False), is_today=op_intent.get("is_today", False), is_count=op_intent.get("is_count", False), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "lr":
-                msg, _ = await execute_lr_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), status_filter=op_intent.get("status_filter"), is_detail=op_intent.get("is_detail", False), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_LR", "transport", "transport.lr_booking.view", last_user_msg, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    msg = f"You don't have access to view LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_lr_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), status_filter=op_intent.get("status_filter"), is_detail=op_intent.get("is_detail", False), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "hire_challan":
-                msg, _ = await execute_hire_challan_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "transport", "hire_challan", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_HIRE_CHALLAN", "transport", "transport.hire_challan.view", last_user_msg, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    msg = f"You don't have access to view Hire Challans. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_hire_challan_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "invoice":
-                msg, _ = await execute_invoice_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
+                can_inv = is_user_permitted(current_user, tenant, "accounts", "transport_invoice", "view") or is_user_permitted(current_user, tenant, "accounts", "vouchers", "view") or is_user_permitted(current_user, tenant, "transport", "lr_booking", "view")
+                if not can_inv:
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_INVOICE", "accounts", "accounts.transport_invoice.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Invoices. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_invoice_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), is_latest=op_intent.get("is_latest", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "tracking":
-                msg, _ = await execute_tracking_tool(db, current_user, tenant, vehicle_number=op_intent.get("vehicle_number"), lr_number=op_intent.get("lr_number"), challan_number=op_intent.get("challan_number"), lang=detected_lang)
+                can_track = is_user_permitted(current_user, tenant, "tracking", "tracking", "view") or is_user_permitted(current_user, tenant, "transport", "lr_booking", "view")
+                if not can_track:
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_TRACKING", "tracking", "tracking.tracking.view", last_user_msg, current_office)
+                    msg = "You don't have access to track shipments. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_tracking_tool(db, current_user, tenant, current_office=current_office, vehicle_number=op_intent.get("vehicle_number"), lr_number=op_intent.get("lr_number"), challan_number=op_intent.get("challan_number"), lang=detected_lang)
             elif tool_name == "accounting":
-                msg, _ = await execute_accounting_tool(db, current_user, tenant, current_office, party_name=op_intent.get("party_name"), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "accounts", "master_ledger", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_LEDGER", "accounts", "accounts.master_ledger.view", last_user_msg, current_office)
+                    msg = "You don't have access to view accounts ledger. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_accounting_tool(db, current_user, tenant, current_office, party_name=op_intent.get("party_name"), lang=detected_lang)
             elif tool_name == "vehicle":
-                msg, _ = await execute_vehicle_tool(db, current_user, tenant, query=op_intent.get("query"), vehicle_type=op_intent.get("vehicle_type"), is_detail=op_intent.get("is_detail", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
+                can_veh = is_user_permitted(current_user, tenant, "transport", "company_vehicles", "view") or is_user_permitted(current_user, tenant, "transport", "market_vehicles", "view")
+                if not can_veh:
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_VEHICLES", "transport", "transport.company_vehicles.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Vehicles. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_vehicle_tool(db, current_user, tenant, current_office=current_office, query=op_intent.get("query"), vehicle_type=op_intent.get("vehicle_type"), is_detail=op_intent.get("is_detail", False), field_focus=op_intent.get("field_focus"), lang=detected_lang)
             elif tool_name == "driver":
-                msg, _ = await execute_driver_tool(db, current_user, tenant, query=op_intent.get("query"), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "transport", "drivers", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_DRIVERS", "transport", "transport.drivers.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Drivers. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_driver_tool(db, current_user, tenant, query=op_intent.get("query"), lang=detected_lang)
             elif tool_name == "pod":
-                msg, _ = await execute_pod_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), lr_number=op_intent.get("lr_number"), is_pending=op_intent.get("is_pending", False), is_count=op_intent.get("is_count", False), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "transport", "pod_records", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_POD", "transport", "transport.pod_records.view", last_user_msg, current_office)
+                    office_str = format_user_office_label(current_office, current_user)
+                    msg = f"You don't have access to view POD records. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_pod_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), lr_number=op_intent.get("lr_number"), is_pending=op_intent.get("is_pending", False), is_count=op_intent.get("is_count", False), lang=detected_lang)
             elif tool_name == "eway_bill":
-                msg, _ = await execute_eway_bill_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "transport", "eway_bill", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_EWAY", "transport", "transport.eway_bill.view", last_user_msg, current_office)
+                    msg = "You don't have access to view E-Way Bills. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_eway_bill_tool(db, current_user, tenant, current_office, query=op_intent.get("query"), vehicle_number=op_intent.get("vehicle_number"), lang=detected_lang)
             elif tool_name == "branch":
-                msg, _ = await execute_branch_tool(db, current_user, tenant, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "company", "branches", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_BRANCHES", "company", "company.branches.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Branches. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_branch_tool(db, current_user, tenant, query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
             elif tool_name == "consigner_consignee":
-                msg, _ = await execute_consigner_consignee_tool(db, current_user, tenant, current_office, party_type=op_intent.get("party_type", "consigner"), query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "general", "consigner", "view") and not is_user_permitted(current_user, tenant, "general", "consignee", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_PARTIES", "general", "general.consigner.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Consigners/Consignees. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_consigner_consignee_tool(db, current_user, tenant, current_office, party_type=op_intent.get("party_type", "consigner"), query=op_intent.get("query"), is_count=op_intent.get("is_count", False), lang=detected_lang)
             elif tool_name == "fleet_maintenance":
-                msg, _ = await execute_fleet_maintenance_tool(db, current_user, tenant, vehicle_number=op_intent.get("vehicle_number"), doc_type=op_intent.get("doc_type"), is_expiry_check=op_intent.get("is_expiry_check", False), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "fleet", "vehicle_health", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_FLEET", "fleet", "fleet.vehicle_health.view", last_user_msg, current_office)
+                    msg = "You don't have access to view Fleet Maintenance. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_fleet_maintenance_tool(db, current_user, tenant, vehicle_number=op_intent.get("vehicle_number"), doc_type=op_intent.get("doc_type"), is_expiry_check=op_intent.get("is_expiry_check", False), lang=detected_lang)
             elif tool_name == "einvoice":
-                msg, _ = await execute_einvoice_tool(db, current_user, tenant, query=op_intent.get("query"), lang=detected_lang)
+                if not is_user_permitted(current_user, tenant, "einvoicing", "generate_irn", "view"):
+                    await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_EINVOICE", "einvoicing", "einvoicing.generate_irn.view", last_user_msg, current_office)
+                    msg = "You don't have access to view E-Invoicing. Please contact your Company Admin if you need access."
+                else:
+                    msg, _ = await execute_einvoice_tool(db, current_user, tenant, query=op_intent.get("query"), lang=detected_lang)
             else:
                 msg = "Processed operational request."
 
@@ -1713,15 +2074,24 @@ async def stream_chat_with_copilot(
 @router.get("/lr-draft/active")
 async def get_active_lr_draft(
     current_user: User = Depends(get_current_user),
+    current_office: Optional[Branch] = Depends(get_current_office),
     tenant: Tenant = Depends(get_current_tenant),
 ):
     """Retrieves current unconfirmed LR draft for the authenticated user and tenant."""
+    if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
+        return {"draft": None}
+
     draft_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id)
     if not draft_id:
         return {"draft": None}
     draft = await lr_draft_store.get_draft(draft_id)
     if not draft or draft.is_confirmed:
         return {"draft": None}
+
+    eff_office_id = get_effective_office_id(current_user, current_office)
+    if eff_office_id is not None and eff_office_id != -1 and draft.office_id and draft.office_id != eff_office_id:
+        return {"draft": None}
+
     return {
         "draft_id": draft.draft_id,
         "is_valid": draft.is_valid,
@@ -2103,6 +2473,14 @@ async def confirm_lr_draft(
                 )
 
         target_office_id = draft.office_id or (current_office.id if current_office else None)
+        user_role = (current_user.role or "").upper().strip()
+        if user_role not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+            allowed_ids = {a.office_id for a in (current_user.office_assignments or []) if a.office and a.office.is_active}
+            if target_office_id and allowed_ids and target_office_id not in allowed_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied. You do not have permission to create records for office ID {target_office_id}.",
+                )
 
         # Auto-provision unlinked parties and locations on final confirmation
         if not draft.data.get("consigner_id"):
@@ -2162,6 +2540,14 @@ async def confirm_lr_draft(
         # 10. Execute authoritative create_lr service with auto_commit=False for single atomic transaction
         from app.modules.transport.service import create_lr
         target_office_id = draft.office_id or (current_office.id if current_office else None)
+        user_role = (current_user.role or "").upper().strip()
+        if user_role not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+            allowed_ids = {a.office_id for a in (current_user.office_assignments or []) if a.office and a.office.is_active}
+            if target_office_id and allowed_ids and target_office_id not in allowed_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied. You do not have permission to create records for office ID {target_office_id}.",
+                )
         try:
             lr = await create_lr(
                 db=db,
@@ -2375,6 +2761,14 @@ async def confirm_job_draft(
         # 9. Execute authoritative create_job service with auto_commit=False
         from app.modules.transport.service import create_job
         target_office_id = draft.office_id or (current_office.id if current_office else None)
+        user_role = (current_user.role or "").upper().strip()
+        if user_role not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+            allowed_ids = {a.office_id for a in (current_user.office_assignments or []) if a.office and a.office.is_active}
+            if target_office_id and allowed_ids and target_office_id not in allowed_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied. You do not have permission to create records for office ID {target_office_id}.",
+                )
         try:
             job = await create_job(
                 db=db,
@@ -2589,6 +2983,14 @@ async def confirm_hire_challan_draft(
         # 10. Execute authoritative create_hire_challan service with auto_commit=False
         from app.modules.transport.service import create_hire_challan
         target_office_id = draft.office_id or (current_office.id if current_office else None)
+        user_role = (current_user.role or "").upper().strip()
+        if user_role not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+            allowed_ids = {a.office_id for a in (current_user.office_assignments or []) if a.office and a.office.is_active}
+            if target_office_id and allowed_ids and target_office_id not in allowed_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied. You do not have permission to create records for office ID {target_office_id}.",
+                )
         try:
             hc = await create_hire_challan(
                 db=db,

@@ -36,7 +36,7 @@ import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { getActiveOffice, OfficeSummary, getStoredAuth } from "@/lib/auth";
+import { getActiveOffice, OfficeSummary, getStoredAuth, getStoredNavigation } from "@/lib/auth";
 import {
   QuickCreateConsignerModal,
   QuickCreateConsigneeModal,
@@ -234,7 +234,25 @@ export default function LRBookingPage() {
     ranges: SeriesRangeItem[];
   } | null>(null);
 
+  const isPermitted = useMemo(() => {
+    if (typeof window === "undefined") return true;
+    const auth = getStoredAuth();
+    if (!auth || !auth.user) return true;
+    const role = (auth.user.role || "").toUpperCase();
+    if (["COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"].includes(role)) return true;
+    const nav = getStoredNavigation();
+    if (!nav || !Array.isArray(nav)) return false;
+    return nav.some((g: any) =>
+      g.items?.some((it: any) => it.href === "/transport/lr-booking" || (g.id === "transport" && it.feature === "lr_booking"))
+    );
+  }, []);
+
   const loadData = useCallback(async (targetOffice?: OfficeSummary | null) => {
+    if (!isPermitted) {
+      setIsLoading(false);
+      setIsSeriesLoading(false);
+      return;
+    }
     setIsLoading(true);
     setIsSeriesLoading(true);
     setIsError(false);
@@ -1835,6 +1853,23 @@ export default function LRBookingPage() {
     formSetFieldValueRef.current?.(field, String(newLoc.id));
     setQuickLocationTarget(null);
   };
+
+  if (!isPermitted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center mb-4 text-rose-600 dark:text-rose-400">
+          <Lock className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Access Denied</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-6">
+          You don&apos;t have access to LR Booking. Please contact your Company Admin if you need access.
+        </p>
+        <Button onClick={() => router.push("/")} variant="outline">
+          Return to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

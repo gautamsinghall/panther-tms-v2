@@ -29,7 +29,7 @@ from app.tenant_db.models import (
 from app.modules.transport.schemas import LRCreate
 from app.modules.ai.schemas import StructuredCard, ChatMessage
 from app.modules.ai.draft_store import LRDraft, lr_draft_store, AIDraft
-from app.modules.ai.tools import extract_vehicle_number, is_user_permitted
+from app.modules.ai.tools import extract_vehicle_number, is_user_permitted, format_user_office_label
 from app.modules.ai.provider import is_provider_configured, call_llm
 
 logger = logging.getLogger("panther.ai.lr_draft")
@@ -1120,20 +1120,14 @@ async def handle_conversational_lr_booking(
     """
     # 1. Authorization check
     if not is_user_permitted(user, tenant, "transport", "lr_booking", "create"):
+        office_str = format_user_office_label(current_office, user)
         if lang == "hi_devanagari":
-            msg = "आपके पास एलआर (LR) बनाने की अनुमति नहीं है (transport.lr_booking.create आवश्यक)।"
+            msg = f"आपके पास एलआर (LR) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
         elif lang == "hinglish":
-            msg = "Aapke paas LR create karne ki permission nahi hai (transport.lr_booking.create required)."
+            msg = f"Aapke paas LRs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
         else:
-            msg = "You do not have permission to create LRs (missing transport.lr_booking.create)."
-        card = StructuredCard(
-            card_type="lr_draft",
-            title="LR Creation Restricted",
-            subtitle="Missing authorization: transport.lr_booking.create",
-            badge={"text": "Access Denied", "variant": "danger"},
-            can_confirm=False,
-        )
-        return msg, [card]
+            msg = f"You don't have access to create LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+        return msg, []
 
     eff_office_id = current_office.id if current_office else None
 
