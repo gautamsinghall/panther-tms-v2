@@ -44,6 +44,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { canAccessRoute } from "@/lib/permissions";
 
 // Indian Rupees Number to Words
 function numberToWords(num: number): string {
@@ -1046,12 +1047,17 @@ export default function PurchasesPage() {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
-              <strong>Series Warning:</strong> No sequence series is configured for Purchase Bills (NP/GP). Please configure under Settings &gt; Series Master.
+              <strong>Series Warning:</strong> No sequence series is configured for Purchase Bills (NP/GP).{" "}
+              {canAccessRoute("/settings/series-master")
+                ? "Please configure under Settings > Series Master."
+                : "Please contact your Company Admin to configure document series."}
             </span>
           </div>
-          <Button variant="outline" size="sm" onClick={() => window.open("/settings/series-master", "_blank")}>
-            Configure Series
-          </Button>
+          {canAccessRoute("/settings/series-master") && (
+            <Button variant="outline" size="sm" onClick={() => window.open("/settings/series-master", "_blank")}>
+              Configure Series
+            </Button>
+          )}
         </div>
       )}
 

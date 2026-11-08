@@ -12,7 +12,7 @@ from app.auth.schemas import (
     LoginRequest, TokenResponse, RefreshTokenRequest,
     UserResponse, TenantContextResponse
 )
-from app.auth.service import authenticate_user, refresh_user_token
+from app.auth.service import authenticate_user, refresh_user_token, get_user_office_context
 from app.auth.navigation import (
     ALL_NAVIGATION_MODULES,
     PLAN_TIERS,
@@ -68,12 +68,15 @@ async def get_me(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    offices_list, active_summary = await service.get_user_office_context(db, current_user)
+    offices_list, active_summary = await get_user_office_context(db, current_user)
+    custom_role_name = current_user.custom_role.name if getattr(current_user, 'custom_role', None) else None
+    display_designation = custom_role_name or ("Company Admin" if current_user.role == "COMPANY_ADMIN" else "Employee")
     return UserResponse(
         id=current_user.id,
         email=current_user.email,
         full_name=current_user.full_name,
         role=current_user.role,
+        designation=display_designation,
         is_active=current_user.is_active,
         created_at=current_user.created_at,
         tenant=TenantContextResponse(

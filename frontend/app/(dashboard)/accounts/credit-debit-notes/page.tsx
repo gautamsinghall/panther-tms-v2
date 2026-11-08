@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
+import { canAccessRoute } from "@/lib/permissions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormActionBar } from "@/components/ui/form-action-bar";
 import { ColumnDef, RowAction } from "@/types/table";
@@ -707,17 +708,21 @@ export default function CreditDebitNotesPage() {
                 : !creditSeries?.configured
                 ? "No sequence series is configured for Credit Notes (CN)."
                 : "No sequence series is configured for Debit Notes (DN)."}
-              {" Please configure under Settings > Series Master."}
+              {canAccessRoute("/settings/series-master")
+                ? " Please configure under Settings > Series Master."
+                : " Please contact your Company Admin to configure document series."}
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open("/settings/series-master", "_blank")}
-            className="border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
-          >
-            Configure Series
-          </Button>
+          {canAccessRoute("/settings/series-master") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open("/settings/series-master", "_blank")}
+              className="border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+            >
+              Configure Series
+            </Button>
+          )}
         </div>
       )}
 

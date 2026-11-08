@@ -37,6 +37,7 @@ import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getActiveOffice, OfficeSummary, getStoredAuth, getStoredNavigation } from "@/lib/auth";
+import { canAccessRoute } from "@/lib/permissions";
 import {
   QuickCreateConsignerModal,
   QuickCreateConsigneeModal,
@@ -1069,9 +1070,9 @@ export default function LRBookingPage() {
               formSetFieldValueRef.current?.("lr_number", nextVal);
             }
           },
-          onAddNew: () => openInNewTab("/settings/series-master"),
-          addNewLabel: "+ Manage LR Series",
-          addNewTitle: "Configure Series Batches in Settings",
+          onAddNew: canAccessRoute("/settings/series-master") ? () => openInNewTab("/settings/series-master") : undefined,
+          addNewLabel: canAccessRoute("/settings/series-master") ? "+ Manage LR Series" : undefined,
+          addNewTitle: canAccessRoute("/settings/series-master") ? "Configure Series Batches in Settings" : undefined,
         },
         {
           name: "lr_number",
@@ -1887,17 +1888,23 @@ export default function LRBookingPage() {
         <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>
-            <span>Manual series must be configured in Series Master before LRs can be booked.</span>
+            <span>
+              {canAccessRoute("/settings/series-master")
+                ? "Manual series must be configured in Series Master before LRs can be booked."
+                : "Manual series must be configured by your Company Admin before LRs can be booked."}
+            </span>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => router.push("/settings/series-master")}
-            className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
-          >
-            Configure LR Series
-          </Button>
+          {canAccessRoute("/settings/series-master") && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/settings/series-master")}
+              className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
+            >
+              Configure LR Series
+            </Button>
+          )}
         </div>
       )}
 
@@ -2025,19 +2032,24 @@ export default function LRBookingPage() {
               <div>
                 <h4 className="text-sm font-bold text-rose-950 dark:text-rose-100">LR Series Not Configured</h4>
                 <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
-                  No active series configured for Lorry Receipt in this issuing office ({activeOfficeDisplay}). LR numbers cannot be generated and this entry cannot be saved until you setup or import the default series template.
+                  No active series configured for Lorry Receipt in this issuing office ({activeOfficeDisplay}). LR numbers cannot be generated and this entry cannot be saved until{" "}
+                  {canAccessRoute("/settings/series-master")
+                    ? "you setup or import the default series template in Settings."
+                    : "your Company Admin sets up the series in Series Master."}
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => openInNewTab("/settings/series-master")}
-              className="bg-white dark:bg-[#161218] text-rose-700 dark:text-rose-300 border-rose-300 dark:border-[#5C2731] hover:bg-rose-50 dark:hover:bg-[#26161D] text-xs shrink-0 font-semibold"
-            >
-              Setup Series in Settings
-            </Button>
+            {canAccessRoute("/settings/series-master") && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => openInNewTab("/settings/series-master")}
+                className="bg-white dark:bg-[#161218] text-rose-700 dark:text-rose-300 border-rose-300 dark:border-[#5C2731] hover:bg-rose-50 dark:hover:bg-[#26161D] text-xs shrink-0 font-semibold"
+              >
+                Setup Series in Settings
+              </Button>
+            )}
           </div>
         )}
 

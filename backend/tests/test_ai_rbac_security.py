@@ -295,3 +295,140 @@ async def test_hard_rule_0_delete_blocked(setup_rbac_test_db):
         lr_still_exists = await db.get(LR, 1)
         assert lr_still_exists is not None
         assert lr_still_exists.lr_number == "DEL-LR-2026-0001"
+
+
+def test_permission_matching_wildcard_and_hyphenation():
+    """Validates _matches_permission handles wildcard features, wildcards in custom roles, and hyphen/underscore variants."""
+    from app.auth.dependencies import _matches_permission
+
+    # Wildcard in user permission (p_feat='*')
+    assert _matches_permission(
+        req_mod="accounts",
+        req_feat="master_ledger",
+        req_perm="view",
+        p_mod="accounts",
+        p_feat="*",
+        p_perm="view",
+        p_allowed=True,
+    ) is True
+
+    # Hyphenated vs underscore feature name
+    assert _matches_permission(
+        req_mod="accounts",
+        req_feat="master_ledger",
+        req_perm="view",
+        p_mod="accounts",
+        p_feat="master-ledger",
+        p_perm="view",
+        p_allowed=True,
+    ) is True
+
+    # Wildcard in request feature
+    assert _matches_permission(
+        req_mod="accounts",
+        req_feat="*",
+        req_perm="view",
+        p_mod="accounts",
+        p_feat="master_ledger",
+        p_perm="view",
+        p_allowed=True,
+    ) is True
+
+    # Module mismatch
+    assert _matches_permission(
+        req_mod="transport",
+        req_feat="lr_booking",
+        req_perm="view",
+        p_mod="accounts",
+        p_feat="*",
+        p_perm="view",
+        p_allowed=True,
+    ) is False
+
+
+@pytest.mark.asyncio
+async def test_activity_log_scoping_for_single_office_employee(setup_rbac_test_db):
+    """
+    Verifies that when a single-office employee requests activity logs without an office filter
+    or with office_id='all', the query automatically scopes to their assigned office instead of
+    raising 403 'Consolidated multi-office access is restricted'.
+    """
+    from app.services.activity_logger import query_activity_logs, log_activity
+    from app.core.errors import ForbiddenException
+
+    session_maker = setup_rbac_test_db
+    async with session_maker() as db:
+        user_mum = await db.get(User, 10)  # Assigned to MUM (102)
+
+        # Log an activity for MUM and one for DEL
+        await log_activity(
+            db=db,
+            user=user_mum,
+            action="VOUCHER_CREATE",
+            module="accounts",
+            entity_type="Voucher",
+            entity_id="V-1",
+            office_id=102,
+            office_name="MUM Mumbai",
+            commit=True,
+        )
+
+        user_del = await db.get(User, 20)  # Assigned to DEL (101)
+        await log_activity(
+            db=db,
+            user=user_del,
+            action="LR_CREATE",
+            module="transport",
+            entity_type="LR",
+            entity_id="LR-1",
+            office_id=101,
+            office_name="DEL Delhi",
+            commit=True,
+        )
+
+        # Query with office_id="all" should NOT throw 403 for MUM employee, but scope to office 102
+        records, count = await query_activity_logs(
+            db=db,
+            current_user=user_mum,
+            office_id="all",
+        )
+        assert count >= 1
+        assert all(r.office_id == 102 for r in records)
+
+        # Query with unauthorized office (101) MUST throw ForbiddenException
+        with pytest.raises(ForbiddenException) as exc_info:
+            await query_activity_logs(
+                db=db,
+                current_user=user_mum,
+                office_id="101",
+            )
+        assert "forbidden" in exc_info.value.message.lower()
+
+
+def test_token_response_schema_user_auth_summary():
+    """Verifies TokenResponse includes user UserAuthSummary with role and designation."""
+    from app.auth.schemas import TokenResponse, UserAuthSummary
+
+    user_summary = UserAuthSummary(
+        id=42,
+        email="akash@example.com",
+        full_name="akash",
+        role="EMPLOYEE",
+        designation="Operations Director",
+        is_active=True,
+    )
+    token_resp = TokenResponse(
+        access_token="fake.access.token",
+        refresh_token="fake.refresh.token",
+        token_type="bearer",
+        expires_in=3600,
+        tenant_id="demo123456",
+        company_code="DEMOLOGISTICS",
+        tenant_name="Demo Logistics Pvt Ltd",
+        user=user_summary,
+    )
+    assert token_resp.user is not None
+    assert token_resp.user.email == "akash@example.com"
+    assert token_resp.user.role == "EMPLOYEE"
+    assert token_resp.user.designation == "Operations Director"
+

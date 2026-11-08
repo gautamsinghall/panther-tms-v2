@@ -350,10 +350,6 @@ async def query_activity_logs(
             # Filter by specific office selected by admin
             stmt = stmt.where(UserActivity.office_id == target_office_id)
     else:
-        # Employee authorization enforcement
-        if is_all_requested:
-            raise ForbiddenException("Consolidated multi-office access is restricted to Company Administrators.")
-
         # Load assigned active offices
         assigned_ids = []
         if current_user.office_assignments:
@@ -382,7 +378,7 @@ async def query_activity_logs(
                 )
             stmt = stmt.where(UserActivity.office_id == target_office_id)
         else:
-            # Strict isolation: only logs matching employee's assigned offices
+            # Automatically scope to employee's assigned office(s) so records agree with KPI stats
             if len(assigned_ids) == 1:
                 stmt = stmt.where(UserActivity.office_id == assigned_ids[0])
             else:

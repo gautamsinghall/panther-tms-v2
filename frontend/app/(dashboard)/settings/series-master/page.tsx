@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { toast, confirmModal } from "@/lib/toast";
 import {
@@ -33,7 +34,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { apiClient } from "@/lib/api-client";
-import { getActiveOffice, getAssignedOffices } from "@/lib/auth";
+import { getActiveOffice, getAssignedOffices, getStoredAuth, getStoredNavigation } from "@/lib/auth";
 
 interface SeriesMasterItem {
   id: number;
@@ -277,10 +278,28 @@ export default function SeriesMasterPage() {
   const [finYear, setFinYear] = useState("2026-2027");
   const [seriesMode, setSeriesMode] = useState<"AUTOMATIC" | "MANUAL">("AUTOMATIC");
   const [isDefault, setIsDefault] = useState(true);
+  const router = useRouter();
+  const isPermitted = useMemo(() => {
+    if (typeof window === "undefined") return true;
+    const auth = getStoredAuth();
+    if (!auth || !auth.user) return true;
+    const role = (auth.user.role || "").toUpperCase().trim();
+    if (["COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"].includes(role)) return true;
+    const nav = getStoredNavigation();
+    if (!nav || !Array.isArray(nav)) return false;
+    return nav.some((g: any) =>
+      g.items?.some((it: any) => it.href === "/settings/series-master" || (g.id === "settings" && it.feature === "series_master"))
+    );
+  }, []);
+
   const [selectedCatId, setSelectedCatId] = useState<number | undefined>(undefined);
   const [isActive, setIsActive] = useState(true);
 
   const loadData = async (targetOffice?: string) => {
+    if (!isPermitted) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -818,6 +837,23 @@ export default function SeriesMasterPage() {
   }`;
   const selectedOfficeBranch = branchList.find((b) => b.id === issuingOfficeId);
   const selectedOfficeCode = selectedOfficeBranch?.code || "";
+
+  if (!isPermitted || (error && (error.toLowerCase().includes("access denied") || error.toLowerCase().includes("missing permission")))) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center mb-4 text-rose-600 dark:text-rose-400">
+          <Lock className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Access Denied</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-6">
+          You do not have permission to configure Document Series. Please contact your Company Admin if you need access.
+        </p>
+        <Button onClick={() => router.push("/")} variant="outline">
+          Return to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

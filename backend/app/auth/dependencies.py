@@ -233,10 +233,10 @@ def _matches_permission(
     m_p = p_mod.replace("-", "_").lower().strip()
 
     # Feature normalization
-    f_req = req_feat.lower().strip()
-    f_p = p_feat.lower().strip()
+    f_req = req_feat.replace("-", "_").lower().strip()
+    f_p = p_feat.replace("-", "_").lower().strip()
 
-    if req_feat in ("*", "all", "general", "any"):
+    if f_req in ("*", "all", "general", "any") or f_p in ("*", "all", "general", "any"):
         return m_req == m_p or m_req in ("*", "all") or m_p in ("*", "all")
 
     # Direct exact match

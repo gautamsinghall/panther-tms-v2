@@ -33,6 +33,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
+import { canAccessRoute } from "@/lib/permissions";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { getActiveOffice } from "@/lib/auth";
@@ -927,17 +928,23 @@ export default function TransportInvoicePage() {
         <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Series Master Sequence Required:</span>
-            <span>Document series must be configured in Series Master before Transport Invoices can be generated.</span>
+            <span>
+              {canAccessRoute("/settings/series-master")
+                ? "Document series must be configured in Series Master before Transport Invoices can be generated."
+                : "Document series must be configured by your Company Admin before Transport Invoices can be generated."}
+            </span>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => router.push("/settings/series-master")}
-            className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
-          >
-            Configure TI Series
-          </Button>
+          {canAccessRoute("/settings/series-master") && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/settings/series-master")}
+              className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
+            >
+              Configure TI Series
+            </Button>
+          )}
         </div>
       )}
 

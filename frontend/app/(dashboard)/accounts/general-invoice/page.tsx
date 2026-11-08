@@ -35,6 +35,7 @@ import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { canAccessRoute } from "@/lib/permissions";
 
 // Number to Words Converter for Indian Rupees
 function numberToWords(num: number): string {
@@ -982,17 +983,23 @@ export default function GeneralInvoicePage() {
         <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Series Sequence Required:</span>
-            <span>Manual or automatic series must be configured in Series Master before General Invoices can be recorded.</span>
+            <span>
+              {canAccessRoute("/settings/series-master")
+                ? "Manual or automatic series must be configured in Series Master before General Invoices can be recorded."
+                : "Manual or automatic series must be configured by your Company Admin before General Invoices can be recorded."}
+            </span>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => router.push("/settings/series-master")}
-            className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
-          >
-            Configure GI Series
-          </Button>
+          {canAccessRoute("/settings/series-master") && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/settings/series-master")}
+              className="text-xs bg-white dark:bg-[#1A1823] text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/80 hover:bg-amber-100 dark:hover:bg-amber-900/50 shrink-0"
+            >
+              Configure GI Series
+            </Button>
+          )}
         </div>
       )}
 

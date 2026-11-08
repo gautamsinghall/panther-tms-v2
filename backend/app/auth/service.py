@@ -7,7 +7,7 @@ from app.core.errors import UnauthorizedException, AppException
 from app.core.security import verify_password, create_access_token, create_refresh_token, decode_token
 from app.control.models import Tenant
 from app.tenant_db.models import User, Role
-from app.auth.schemas import LoginRequest, TokenResponse, RefreshTokenRequest, OfficeSummary
+from app.auth.schemas import LoginRequest, TokenResponse, RefreshTokenRequest, OfficeSummary, UserAuthSummary
 from app.auth.navigation import build_user_navigation
 
 async def authenticate_user(
@@ -45,6 +45,17 @@ async def authenticate_user(
     tenant_id_str = tenant.tenant_id
     company_code_str = tenant.company_code
 
+    custom_role_name = user.custom_role.name if getattr(user, 'custom_role', None) else None
+    display_designation = custom_role_name or ("Company Admin" if user.role == "COMPANY_ADMIN" else "Employee")
+    user_summary = UserAuthSummary(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name or user.email.split("@")[0],
+        role=user.role,
+        designation=display_designation,
+        is_active=user.is_active,
+    )
+
     access_token = create_access_token(
         subject=str(user.id),
         tenant_id=tenant_id_str,
@@ -53,6 +64,7 @@ async def authenticate_user(
         extra_claims={
             "email": user.email,
             "full_name": user.full_name,
+            "designation": display_designation,
             "tenant_id": tenant_id_str,
             "company_code": company_code_str,
         }
@@ -99,6 +111,7 @@ async def authenticate_user(
         tenant_id=tenant_id_str,
         company_code=company_code_str,
         tenant_name=tenant.company_name,
+        user=user_summary,
         assigned_offices=offices_list,
         active_office=active_office_summary,
         navigation=navigation,
@@ -196,7 +209,7 @@ async def refresh_user_token(
         raise UnauthorizedException("Token tenant mismatch.")
 
     user_id = int(payload.get("sub"))
-    stmt = select(User).where(User.id == user_id)
+    stmt = select(User).options(selectinload(User.custom_role)).where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
@@ -211,6 +224,17 @@ async def refresh_user_token(
         else:
             raise UnauthorizedException("User not found or inactive.")
 
+    custom_role_name = user.custom_role.name if getattr(user, 'custom_role', None) else None
+    display_designation = custom_role_name or ("Company Admin" if user.role == "COMPANY_ADMIN" else "Employee")
+    user_summary = UserAuthSummary(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name or user.email.split("@")[0],
+        role=user.role,
+        designation=display_designation,
+        is_active=user.is_active,
+    )
+
     new_access_token = create_access_token(
         subject=str(user.id),
         tenant_id=tenant_id_str,
@@ -219,6 +243,7 @@ async def refresh_user_token(
         extra_claims={
             "email": user.email,
             "full_name": user.full_name,
+            "designation": display_designation,
             "tenant_id": tenant_id_str,
             "company_code": company_code_str,
         }
@@ -240,6 +265,7 @@ async def refresh_user_token(
         tenant_id=tenant_id_str,
         company_code=company_code_str,
         tenant_name=tenant.company_name,
+        user=user_summary,
         assigned_offices=offices_list,
         active_office=active_office_summary,
     )

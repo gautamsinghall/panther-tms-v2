@@ -89,7 +89,8 @@ export default function ChangePasswordPage() {
             <Input
               label="Current Password"
               type="password"
-              placeholder="••••••••••••"
+              placeholder="Enter current password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
@@ -98,7 +99,8 @@ export default function ChangePasswordPage() {
             <Input
               label="New Password (min 8 characters)"
               type="password"
-              placeholder="••••••••••••"
+              placeholder="Enter new password"
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
@@ -107,7 +109,8 @@ export default function ChangePasswordPage() {
             <Input
               label="Confirm New Password"
               type="password"
-              placeholder="••••••••••••"
+              placeholder="Confirm new password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required

@@ -34,6 +34,7 @@ export function Header() {
     userName: string;
     userEmail: string;
     role: string;
+    designation?: string;
     tenantId: string;
     companyCode: string;
     companyName: string;
@@ -57,7 +58,8 @@ export function Header() {
       setAuthData({
         userName: auth.user.full_name || "Workspace User",
         userEmail: auth.user.email || "",
-        role: auth.user.role || "COMPANY_ADMIN",
+        role: auth.user.role || "EMPLOYEE",
+        designation: auth.user.designation,
         tenantId: auth.tenantId || "",
         companyCode: auth.companyCode || "",
         companyName: auth.tenantName || auth.companyCode || "Workspace",
@@ -71,6 +73,14 @@ export function Header() {
     clearStoredAuth();
     router.push("/login");
   };
+
+  const displayRole =
+    authData?.designation ||
+    (authData?.role === "COMPANY_ADMIN"
+      ? "Company Admin"
+      : authData?.role === "EMPLOYEE"
+      ? "Employee"
+      : authData?.role || "User");
 
   return (
     <header className="h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-2 z-20 shrink-0 select-none">
@@ -173,9 +183,7 @@ export function Header() {
           trigger={
             <button
               type="button"
-              aria-label={`User account: ${authData?.userName || "User"}, role: ${
-                authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "Admin"
-              }`}
+              aria-label={`User account: ${authData?.userName || "User"}, role: ${displayRole}`}
               className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer select-none shrink-0"
             >
               <div
@@ -190,7 +198,7 @@ export function Header() {
                 </p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight flex items-center gap-1.5 font-mono mt-0.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 inline-block align-middle mr-0.5" aria-hidden="true" />
-                  <span className="whitespace-nowrap">{authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "User"}</span>
+                  <span className="whitespace-nowrap">{displayRole}</span>
                 </p>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block shrink-0" aria-hidden="true" />

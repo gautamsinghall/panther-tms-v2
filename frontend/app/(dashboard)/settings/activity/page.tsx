@@ -148,8 +148,12 @@ export default function UserActivityLogPage() {
       setGlobalOffice(active);
 
       // If non-admin, lock filter to active office id
-      if (!adminRole && active?.id && active.id !== 0) {
-        setSelectedOfficeId(String(active.id));
+      if (!adminRole) {
+        if (active?.id && active.id !== 0) {
+          setSelectedOfficeId(String(active.id));
+        } else if (auth?.assignedOffices && auth.assignedOffices.length > 0) {
+          setSelectedOfficeId(String(auth.assignedOffices[0].id));
+        }
       } else if (active?.id && active.id !== 0) {
         // Company admin switched global office to specific branch
         setSelectedOfficeId(String(active.id));
@@ -165,7 +169,16 @@ export default function UserActivityLogPage() {
       const customEvent = e as CustomEvent<OfficeSummary>;
       if (customEvent.detail) {
         setGlobalOffice(customEvent.detail);
-        if (customEvent.detail.id && customEvent.detail.id !== 0) {
+        const auth = getStoredAuth();
+        const currentRole = (auth?.user?.role || "").toUpperCase();
+        const isAdmin = currentRole.includes("ADMIN") || currentRole === "OWNER";
+        if (!isAdmin) {
+          if (customEvent.detail.id && customEvent.detail.id !== 0) {
+            setSelectedOfficeId(String(customEvent.detail.id));
+          } else if (auth?.assignedOffices && auth.assignedOffices.length > 0) {
+            setSelectedOfficeId(String(auth.assignedOffices[0].id));
+          }
+        } else if (customEvent.detail.id && customEvent.detail.id !== 0) {
           setSelectedOfficeId(String(customEvent.detail.id));
         } else {
           setSelectedOfficeId("all");

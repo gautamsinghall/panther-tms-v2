@@ -3,6 +3,7 @@ export interface StoredUser {
   email: string;
   full_name: string;
   role: string;
+  designation?: string;
   is_active?: boolean;
 }
 
@@ -280,6 +281,41 @@ export async function login(
   const tenantId = result.tenant_id || "demo123456";
   const finalCode = result.company_code || cleanCompanyCode;
 
+  let userObj: StoredUser;
+  if (result.user) {
+    userObj = {
+      id: result.user.id || 1,
+      email: result.user.email || email,
+      full_name: result.user.full_name || email.split("@")[0],
+      role: result.user.role || "EMPLOYEE",
+      designation: result.user.designation,
+      is_active: result.user.is_active ?? true,
+    };
+  } else {
+    let decodedRole = "EMPLOYEE";
+    let decodedName = email.split("@")[0];
+    let decodedDesignation: string | undefined = undefined;
+    if (result.access_token) {
+      try {
+        const parts = result.access_token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+          if (payload.role) decodedRole = payload.role;
+          if (payload.full_name) decodedName = payload.full_name;
+          if (payload.designation) decodedDesignation = payload.designation;
+        }
+      } catch {}
+    }
+    userObj = {
+      id: 1,
+      email,
+      full_name: decodedName,
+      role: decodedRole,
+      designation: decodedDesignation,
+      is_active: true,
+    };
+  }
+
   const authData: StoredAuth = {
     accessToken: result.access_token,
     refreshToken: result.refresh_token,
@@ -287,12 +323,7 @@ export async function login(
     tenantId: tenantId,
     companyCode: finalCode,
     tenantName: result.tenant_name || result.tenant?.company_name || `${finalCode} Workspace`,
-    user: result.user || {
-      id: 1,
-      email,
-      full_name: "Operations Manager",
-      role: "COMPANY_ADMIN",
-    },
+    user: userObj,
     assignedOffices: result.assigned_offices || [],
     activeOffice: result.active_office || (result.assigned_offices && result.assigned_offices[0]) || null,
     navigation: Array.isArray(result.navigation) ? result.navigation : [],

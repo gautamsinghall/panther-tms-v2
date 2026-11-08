@@ -19,6 +19,16 @@ class OfficeSummary(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserAuthSummary(BaseModel):
+    id: int
+    email: str
+    full_name: str
+    role: str
+    designation: Optional[str] = None
+    is_active: bool = True
+
+    model_config = ConfigDict(from_attributes=True)
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
@@ -27,6 +37,7 @@ class TokenResponse(BaseModel):
     tenant_id: str
     company_code: str
     tenant_name: str
+    user: Optional[UserAuthSummary] = None
     assigned_offices: List[OfficeSummary] = []
     active_office: Optional[OfficeSummary] = None
     navigation: Optional[List[Dict[str, Any]]] = None
@@ -45,6 +56,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     role: str
+    designation: Optional[str] = None
     is_active: bool
     created_at: datetime
     tenant: TenantContextResponse

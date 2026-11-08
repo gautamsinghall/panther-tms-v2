@@ -2,7 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus,
   Trash2,
@@ -15,6 +15,7 @@ import {
   Clock,
   Coins,
   Check,
+  Lock,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -24,9 +25,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusBadge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Form } from "@/components/forms/form";
+import { Button } from "@/components/ui/button";
 import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
+import { getStoredAuth, getStoredNavigation } from "@/lib/auth";
 import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from "@/lib/countries";
 
 export interface BillingClientRecord {
@@ -74,10 +77,24 @@ const defaultInitialValues = {
 };
 
 export default function BillingClientPage() {
+  const router = useRouter();
   const [data, setData] = useState<BillingClientRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const isPermitted = useMemo(() => {
+    if (typeof window === "undefined") return true;
+    const auth = getStoredAuth();
+    if (!auth || !auth.user) return true;
+    const role = (auth.user.role || "").toUpperCase().trim();
+    if (["COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"].includes(role)) return true;
+    const nav = getStoredNavigation();
+    if (!nav || !Array.isArray(nav)) return false;
+    return nav.some((g: any) =>
+      g.items?.some((it: any) => it.href === "/general/billing-client" || (g.id === "general" && it.feature === "billing_client"))
+    );
+  }, []);
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -94,6 +111,10 @@ export default function BillingClientPage() {
   const [isDeactivating, setIsDeactivating] = useState(false);
 
   const loadData = async () => {
+    if (!isPermitted) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -109,6 +130,10 @@ export default function BillingClientPage() {
   };
 
   useEffect(() => {
+    if (!isPermitted) {
+      setIsLoading(false);
+      return;
+    }
     loadData();
     if (typeof window !== "undefined" && window.location.search.includes("add=true")) {
       setEditingRecord(null);
@@ -119,12 +144,13 @@ export default function BillingClientPage() {
     };
     window.addEventListener("panther_office_changed", handleOfficeChange);
     return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
-  }, []);
+  }, [isPermitted]);
 
   const searchParams = useSearchParams();
   const [prefillName, setPrefillName] = useState<string>("");
 
   useEffect(() => {
+    if (!isPermitted) return;
     if (searchParams.get("action") === "add") {
       const name = searchParams.get("name") || "";
       setEditingRecord(null);
@@ -133,9 +159,10 @@ export default function BillingClientPage() {
       }
       setIsDrawerOpen(true);
     }
-  }, [searchParams]);
+  }, [searchParams, isPermitted]);
 
   const openCreateDrawer = () => {
+    if (!isPermitted) return;
     setEditingRecord(null);
     setPrefillName("");
     setIsDrawerOpen(true);
@@ -614,6 +641,23 @@ export default function BillingClientPage() {
       },
     },
   ];
+
+  if (!isPermitted || (isError && errorMessage?.toLowerCase().includes("access denied"))) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center mb-4 text-rose-600 dark:text-rose-400">
+          <Lock className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Access Denied</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-6">
+          You do not have permission to view or manage Billing Clients. Please contact your Company Admin if you need access.
+        </p>
+        <Button onClick={() => router.push("/")} variant="outline">
+          Return to Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
