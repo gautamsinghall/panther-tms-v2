@@ -23,7 +23,6 @@ import {
   PieChart as PieIcon,
   Wrench,
   Fuel,
-  CreditCard,
   Calendar,
   ExternalLink,
   Activity,
@@ -33,10 +32,7 @@ import {
   Home,
   BookOpen,
   Filter,
-  Zap,
   Map,
-  Radio,
-  Navigation,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -173,179 +169,6 @@ function FunnelRow({
   );
 }
 
-interface QuickActionCandidate {
-  id: string;
-  title: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  colorTheme: {
-    border: string;
-    bg: string;
-    hoverBg: string;
-    text: string;
-    iconColor: string;
-  };
-}
-
-const QUICK_ACTION_CANDIDATES: QuickActionCandidate[] = [
-  {
-    id: "lr-booking",
-    title: "Book GR/LR",
-    href: "/transport/lr-booking",
-    icon: FileText,
-    colorTheme: {
-      border: "border-indigo-100/90",
-      bg: "bg-indigo-50/60",
-      hoverBg: "hover:bg-indigo-100/70",
-      text: "text-indigo-700",
-      iconColor: "text-indigo-600",
-    },
-  },
-  {
-    id: "transport-invoice",
-    title: "Create Invoice",
-    href: "/accounts/transport-invoice",
-    icon: Receipt,
-    colorTheme: {
-      border: "border-emerald-100/90",
-      bg: "bg-emerald-50/60",
-      hoverBg: "hover:bg-emerald-100/70",
-      text: "text-emerald-700",
-      iconColor: "text-emerald-600",
-    },
-  },
-  {
-    id: "jobs",
-    title: "New Trip Order",
-    href: "/transport/jobs",
-    icon: Truck,
-    colorTheme: {
-      border: "border-amber-100/90",
-      bg: "bg-amber-50/60",
-      hoverBg: "hover:bg-amber-100/70",
-      text: "text-amber-700",
-      iconColor: "text-amber-600",
-    },
-  },
-  {
-    id: "lr-register",
-    title: "Generate Report",
-    href: "/transport-reports/lr-register",
-    icon: BarChart3,
-    colorTheme: {
-      border: "border-blue-100/90",
-      bg: "bg-blue-50/60",
-      hoverBg: "hover:bg-blue-100/70",
-      text: "text-blue-700",
-      iconColor: "text-blue-600",
-    },
-  },
-  {
-    id: "fastag-tracking",
-    title: "FASTag Tracking",
-    href: "/tracking/fastag",
-    icon: Navigation,
-    colorTheme: {
-      border: "border-sky-100/90",
-      bg: "bg-sky-50/60",
-      hoverBg: "hover:bg-sky-100/70",
-      text: "text-sky-700",
-      iconColor: "text-sky-600",
-    },
-  },
-  {
-    id: "sim-tracking",
-    title: "SIM Based Tracking",
-    href: "/tracking/sim",
-    icon: Radio,
-    colorTheme: {
-      border: "border-purple-100/90",
-      bg: "bg-purple-50/60",
-      hoverBg: "hover:bg-purple-100/70",
-      text: "text-purple-700",
-      iconColor: "text-purple-600",
-    },
-  },
-  {
-    id: "pod-records",
-    title: "Verify POD Records",
-    href: "/transport/pod-records",
-    icon: CheckCircle2,
-    colorTheme: {
-      border: "border-teal-100/90",
-      bg: "bg-teal-50/60",
-      hoverBg: "hover:bg-teal-100/70",
-      text: "text-teal-700",
-      iconColor: "text-teal-600",
-    },
-  },
-  {
-    id: "eway-bill",
-    title: "Update E-Way Bills",
-    href: "/transport/eway-bill",
-    icon: FileSpreadsheet,
-    colorTheme: {
-      border: "border-cyan-100/90",
-      bg: "bg-cyan-50/60",
-      hoverBg: "hover:bg-cyan-100/70",
-      text: "text-cyan-700",
-      iconColor: "text-cyan-600",
-    },
-  },
-  {
-    id: "documents",
-    title: "Vehicle Documents",
-    href: "/fleet/documents",
-    icon: ShieldCheck,
-    colorTheme: {
-      border: "border-amber-100/90",
-      bg: "bg-amber-50/60",
-      hoverBg: "hover:bg-amber-100/70",
-      text: "text-amber-700",
-      iconColor: "text-amber-600",
-    },
-  },
-  {
-    id: "service",
-    title: "Fleet Service & Repair",
-    href: "/fleet/service",
-    icon: Wrench,
-    colorTheme: {
-      border: "border-slate-200",
-      bg: "bg-slate-50",
-      hoverBg: "hover:bg-slate-100",
-      text: "text-slate-700",
-      iconColor: "text-slate-600",
-    },
-  },
-  {
-    id: "payment-voucher",
-    title: "Payment Voucher",
-    href: "/accounts/payment-voucher",
-    icon: CreditCard,
-    colorTheme: {
-      border: "border-rose-100/90",
-      bg: "bg-rose-50/60",
-      hoverBg: "hover:bg-rose-100/70",
-      text: "text-rose-700",
-      iconColor: "text-rose-600",
-    },
-  },
-  {
-    id: "daybook",
-    title: "Financial Daybook",
-    href: "/reports/daybook",
-    icon: BookOpen,
-    colorTheme: {
-      border: "border-violet-100/90",
-      bg: "bg-violet-50/60",
-      hoverBg: "hover:bg-violet-100/70",
-      text: "text-violet-700",
-      iconColor: "text-violet-600",
-    },
-  },
-];
-
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
   const [chartPeriod, setChartPeriod] = useState<"Daily" | "Weekly" | "Monthly">("Monthly");
@@ -477,10 +300,6 @@ export default function DashboardPage() {
     },
     [isAdmin, navGroups]
   );
-
-  const permittedQuickActions = useMemo(() => {
-    return QUICK_ACTION_CANDIDATES.filter((action) => canAccessRoute(action.href)).slice(0, 4);
-  }, [canAccessRoute]);
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -1144,60 +963,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Row 4: Dedicated Quick Actions Bar */}
-          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#303036]">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Zap className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900 dark:text-white">Quick Actions</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Frequently used operations</p>
-                </div>
-              </div>
-            </div>
 
-            {permittedQuickActions.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
-                {permittedQuickActions.map((action) => {
-                  const IconComp = action.icon;
-                  return (
-                    <Link
-                      key={action.id}
-                      href={getWorkspaceUrl(action.href)}
-                      className={cn(
-                        "rounded-xl border p-3 flex flex-col justify-between group transition-all duration-150 select-none shadow-2xs min-h-[90px]",
-                        action.colorTheme.border,
-                        action.colorTheme.bg,
-                        action.colorTheme.hoverBg,
-                        action.colorTheme.text,
-                        "dark:!bg-[#131317] dark:hover:!bg-[#202025] dark:!border-[#303036] dark:hover:!border-[#42424A] dark:shadow-none"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/60 dark:bg-white/[0.04] border border-white/80 dark:border-white/[0.06] shrink-0 transition-colors">
-                          <IconComp className={cn("w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-105", action.colorTheme.iconColor)} />
-                        </div>
-                        <ArrowRight className={cn("w-3.5 h-3.5 group-hover:translate-x-1 transition-all shrink-0 opacity-70 group-hover:opacity-100", action.colorTheme.iconColor)} />
-                      </div>
-                      <span className="text-xs font-semibold text-slate-800 dark:!text-[#F5F5F7] tracking-tight mt-2 line-clamp-1">{action.title}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="py-6 px-4 rounded-xl border border-dashed border-slate-200 dark:border-[#303036] bg-slate-50/70 dark:bg-[#131317] text-center flex flex-col items-center justify-center mt-3">
-                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-[#202025] text-slate-400 flex items-center justify-center mb-2">
-                  <ShieldCheck className="w-4 h-4 text-slate-400" />
-                </div>
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No Quick Actions Available</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xs">
-                  No permitted operational actions are available for your current role.
-                </p>
-              </div>
-            )}
-          </div>
         </div>
       )}
 
