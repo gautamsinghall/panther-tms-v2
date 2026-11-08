@@ -887,7 +887,7 @@ export default function ReceiptVoucherPage() {
           title="Total Received"
           value={formatCurrency(kpis.totalReceipts)}
           subtext="Net funds credited into Bank/Cash"
-          badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount} receipts)</span>}
+          badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount}{" "}receipts)</span>}
           icon={<Wallet className="h-4 w-4" />}
         />
         <KpiCard

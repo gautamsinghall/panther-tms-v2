@@ -1076,8 +1076,17 @@ async def chat_with_copilot(
                 or bool(re.search(r"\b(lr|gr|bilty)\s+(creat|create|boking|booking|book|bok)\b", last_user_message, re.I))
             )
 
-            if is_booking_trigger and not is_hc_req and not is_job_req and not is_confirming_start:
-                # Ask first before creating draft!
+            parsed_booking_entities = parse_lr_entities_from_text(last_user_message)
+            has_booking_details = any(
+                k in parsed_booking_entities for k in (
+                    "consigner_candidate", "consignee_candidate", "origin_candidate",
+                    "destination_candidate", "vehicle_number", "freight_amount",
+                    "actual_weight_mt", "particulars"
+                )
+            )
+
+            if is_booking_trigger and not is_hc_req and not is_job_req and not is_confirming_start and not has_booking_details:
+                # Ask first before creating draft ONLY when user has not given any booking details yet!
                 if detected_lang == "hi_devanagari":
                     ask_msg = "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?"
                 elif detected_lang == "hinglish":
@@ -1119,7 +1128,7 @@ async def chat_with_copilot(
             chosen_workflow = "job"
         elif is_hc_req and not is_hc_inq:
             chosen_workflow = "hc"
-        elif (is_booking and not is_inquiry) or (not (has_active_job or has_active_hc or has_active_draft) and locals().get("is_confirming_start")):
+        elif (is_booking and not is_inquiry) or (not (has_active_job or has_active_hc or has_active_draft) and (locals().get("is_confirming_start") or locals().get("has_booking_details"))):
             chosen_workflow = "lr"
         elif has_active_draft or has_active_job or has_active_hc:
             active_list = []
@@ -2136,6 +2145,10 @@ async def confirm_lr_draft(
         draft.data["advance_amount"] = advance_amt
         draft.data["total_freight_amount"] = freight_amt
         draft.data["balance_amount"] = freight_amt - advance_amt
+        pkgs_val = int(draft.data.get("package_count") or 0)
+        if pkgs_val <= 0:
+            pkgs_val = 1 if (draft.data.get("actual_weight") or draft.data.get("chargeable_weight") or draft.data.get("particulars")) else 1
+        draft.data["package_count"] = pkgs_val
 
         # 9.5 Validate against LRCreate Schema
         try:

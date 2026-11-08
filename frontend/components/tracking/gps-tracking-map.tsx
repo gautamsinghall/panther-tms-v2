@@ -344,6 +344,7 @@ export function GPSTrackingMap({
     const map = new gmaps.Map(mapContainerRef.current, {
       center: initialCenter,
       zoom: vehicleRef.current?.latitude ? 13 : 11,
+      backgroundColor: isDark ? "#121319" : "#f1f5f9",
       mapTypeId: gmaps.MapTypeId.ROADMAP,
       mapTypeControl: false,
       streetViewControl: false,
@@ -387,27 +388,35 @@ export function GPSTrackingMap({
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    if (!document.getElementById("gps-tracking-map-style")) {
-      const style = document.createElement("style");
-      style.id = "gps-tracking-map-style";
-      style.innerHTML = `
-        .leaflet-div-icon {
-          background: transparent !important;
-          border: none !important;
-        }
-        .custom-selected-truck-wrapper {
-          background: transparent !important;
-          border: none !important;
-          transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
-        }
-        @keyframes truckPulse {
-          0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.8; }
-          70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
-          100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
-        }
-      `;
+    const styleId = "gps-tracking-map-style";
+    let style = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
       document.head.appendChild(style);
     }
+    style.innerHTML = `
+      .leaflet-container {
+        background: ${isDark ? "#121319 !important" : "#f1f5f9 !important"};
+      }
+      .leaflet-tile {
+        background: ${isDark ? "#121319" : "#f1f5f9"};
+      }
+      .leaflet-div-icon {
+        background: transparent !important;
+        border: none !important;
+      }
+      .custom-selected-truck-wrapper {
+        background: transparent !important;
+        border: none !important;
+        transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+      }
+      @keyframes truckPulse {
+        0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.8; }
+        70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+        100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+      }
+    `;
 
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link");
@@ -834,9 +843,23 @@ export function GPSTrackingMap({
   };
 
   return (
-    <div className={`relative w-full h-full min-h-[450px] bg-slate-100 dark:bg-[#171922] overflow-hidden ${className}`}>
+    <div className={`relative w-full h-full min-h-[450px] bg-slate-100 dark:bg-[#121319] overflow-hidden ${className}`}>
       {/* Map DOM Container */}
-      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full z-0" />
+      <div
+        ref={mapContainerRef}
+        style={{ backgroundColor: isDark ? "#121319" : "#f1f5f9" }}
+        className="absolute inset-0 w-full h-full z-0"
+      />
+
+      {/* Loading Skeleton / Backdrop Overlay */}
+      {!isMapReady && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-100 dark:bg-[#121319] transition-opacity duration-300">
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-white/80 dark:bg-[#1C1D26]/80 backdrop-blur-md border border-slate-200 dark:border-[#2D2E3A] shadow-sm">
+            <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Loading map...</span>
+          </div>
+        </div>
+      )}
 
       {/* Floating Map Controls (Top Right - Matching Reference Screenshot) */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">

@@ -459,7 +459,7 @@ export function DataTable<T extends Record<string, any>>({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-white dark:bg-[#17171B] p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 dark:border-[#303036] shadow-2xs">
             {/* Search Input */}
             {searchable && (
-              <div className="relative w-full sm:max-w-sm flex-1">
+              <div className="relative w-full sm:max-w-md flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="text"
@@ -674,7 +674,7 @@ export function DataTable<T extends Record<string, any>>({
                 {actions.length > 0 && (
                   <th
                     className={cn(
-                      "text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono",
+                      "text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.3)]",
                       cellPaddingClass,
                       actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
                     )}
@@ -702,7 +702,7 @@ export function DataTable<T extends Record<string, any>>({
                       </td>
                     ))}
                     {actions.length > 0 && (
-                      <td className={cn(cellPaddingClass, actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right")}>
+                      <td className={cn(cellPaddingClass, "sticky right-0 bg-white dark:bg-[#17171B] z-10", actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right")}>
                         <Skeleton className={cn("h-4 rounded", actionLayout === "inline" ? "w-16 mx-auto" : "w-6 ml-auto")} />
                       </td>
                     )}
@@ -808,6 +808,7 @@ export function DataTable<T extends Record<string, any>>({
                         <td
                           className={cn(
                             cellPaddingClass,
+                            "sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.3)]",
                             actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
                           )}
                         >
@@ -886,7 +887,11 @@ export function DataTable<T extends Record<string, any>>({
               <span className="font-semibold text-slate-900 dark:text-white font-mono">
                 {Math.min(validPage * pageSize, totalItems)}
               </span>{" "}
-              of <span className="font-semibold text-slate-900 dark:text-white font-mono">{totalItems}</span> records
+              of{" "}
+              <span className="font-semibold text-slate-900 dark:text-white font-mono">
+                {totalItems}
+              </span>{" "}
+              records
             </div>
 
             {/* Page Buttons & Page Size */}

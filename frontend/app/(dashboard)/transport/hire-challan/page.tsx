@@ -1507,9 +1507,9 @@ export default function HireChallansPage() {
           </div>
           {activeSeriesRange && (
             <div className="flex items-center justify-between text-[11px] pt-1 border-t border-indigo-100 dark:border-[#272A42] text-slate-600 dark:text-slate-400">
-              <span>{activeSeriesRange.used_count} vouchers recorded</span>
+              <span>{activeSeriesRange.used_count}{" "}vouchers recorded</span>
               <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-900/60">
-                {activeSeriesRange.available_count} leaves available
+                {activeSeriesRange.available_count}{" "}leaves available
               </span>
             </div>
           )}

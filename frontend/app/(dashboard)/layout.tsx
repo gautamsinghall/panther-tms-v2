@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { getStoredAuth, getActiveOffice, OfficeSummary } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -12,11 +12,24 @@ import { FileEdit, ArrowRight } from "lucide-react";
 import { PantherAIProvider, PantherAILauncher, PantherAIPanel } from "@/components/ai";
 
 function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { activeTab, isFormOpen, formTabInfo, setActiveTab, closeFormTab } = useWorkspaceTabs();
   const [officeKey, setOfficeKey] = useState<string>(() => {
     const off = getActiveOffice();
     return off?.id !== undefined ? String(off.id) : "default";
   });
+
+  // Reset scroll position to top on in-app navigation
+  useEffect(() => {
+    const mainCanvas = document.getElementById("workspace-main-canvas");
+    if (mainCanvas) {
+      mainCanvas.scrollTop = 0;
+    }
+    const formCanvas = document.getElementById("workspace-form-canvas");
+    if (formCanvas) {
+      formCanvas.scrollTop = 0;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const handleOfficeChange = (e: Event) => {
@@ -46,7 +59,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
         key={officeKey}
         id="workspace-main-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 sm:p-6 lg:p-7 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
           activeTab === "form" ? "hidden" : "block"
         )}
       >
@@ -102,7 +115,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
       <div
         id="workspace-form-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 sm:p-6 lg:p-7 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
           activeTab === "form" ? "block" : "hidden"
         )}
       />

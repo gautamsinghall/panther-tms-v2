@@ -973,7 +973,7 @@ export default function PaymentVoucherPage() {
           title="Total Disbursed"
           value={formatCurrency(kpis.totalPayments)}
           subtext="Total bank & cash disbursements"
-          badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount} vouchers)</span>}
+          badge={<span className="text-[11px] text-slate-500 font-medium">({kpis.totalCount}{" "}vouchers)</span>}
           icon={<Wallet className="h-4 w-4" />}
         />
         <KpiCard

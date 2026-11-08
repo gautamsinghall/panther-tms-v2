@@ -167,17 +167,53 @@ def validate_eway_bill_number(ewb: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
+def strip_field_label(val: str, field_type: Optional[str] = None) -> str:
+    """
+    Strips field label words, prefixes, and noise from extracted field values.
+    Ensures values like 'Destination Mumbai', 'Destination: Mumbai', 'To Mumbai'
+    and 'Mumbai' all store 'Mumbai' only, with no label noise.
+    """
+    if not val or not isinstance(val, str):
+        return ""
+    clean = val.strip().strip(" ,;:\'\"-=")
+    if not clean:
+        return ""
+
+    label_patterns = {
+        "destination": r"^(?:the\s+)?(?:destination(?:\s+(?:location|city|point))?|delivery(?:\s+(?:location|city|point))?|to(?:\s+(?:location|city|point))?|dest(?:\s+(?:location|city|point))?)\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?",
+        "origin": r"^(?:the\s+)?(?:origin(?:\s+(?:location|city|point))?|loading(?:\s+(?:location|city|point))?|from(?:\s+(?:location|city|point))?|source(?:\s+(?:location|city|point))?)\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?",
+        "consigner": r"^(?:the\s+)?(?:consigner|consignor|shipper|sender|from\s+party|bhejne\s*wala|client|customer)\s*(?:is\s+|:\s*|=\s*|[-]\s*)?",
+        "consignee": r"^(?:the\s+)?(?:consignee|receiver|to\s+party|panewala|delivery\s+party|client|customer)\s*(?:is\s+|:\s*|=\s*|[-]\s*)?",
+        "vehicle": r"^(?:the\s+)?(?:vehicle(?:\s*(?:number|no\.?))?|truck(?:\s*(?:number|no\.?))?|gaadi(?:\s*(?:number|no\.?))?|lorry(?:\s*(?:number|no\.?))?)\s*(?:is\s+|:\s*|=\s*|[-]\s*)?",
+        "goods": r"^(?:the\s+)?(?:goods(?:\s*(?:name|type|description))?|cargo(?:\s*(?:name|type|description))?|material(?:\s*(?:name|type|description))?|particulars)\s*(?:is\s+|:\s*|=\s*|[-]\s*)?",
+        "freight": r"^(?:the\s+)?(?:freight(?:\s*(?:amount|rate))?|bhada|rate|charges?|amount)\s*(?:is\s+|of\s+|:\s*|=\s*|[-]\s*)?",
+        "advance": r"^(?:the\s+)?(?:advance(?:\s*amount)?|peshgi)\s*(?:is\s+|of\s+|:\s*|=\s*|[-]\s*)?",
+        "weight": r"^(?:the\s+)?(?:weight|wgt|actual\s+weight)\s*(?:is\s+|of\s+|:\s*|=\s*|[-]\s*)?",
+    }
+
+    if field_type and field_type in label_patterns:
+        clean = re.sub(label_patterns[field_type], "", clean, flags=re.IGNORECASE).strip().strip(" ,;:\'\"-=")
+
+    generic_prefix = (
+        r"^(?:the\s+)?(?:destination|delivery|origin|loading|consigner|consignor|consignee|sender|receiver|"
+        r"party|client|customer|vehicle|truck|goods|cargo|material|particulars|freight|advance|weight)\s*(?:is\s+|at\s+|to\s+|from\s+|:\s*|=\s*|[-]\s*)?"
+    )
+    subbed = re.sub(generic_prefix, "", clean, flags=re.IGNORECASE).strip().strip(" ,;:\'\"-=")
+    if subbed:
+        clean = subbed
+
+    # Strip any dangling leading copula or preposition like 'is ', 'the ', 'at ', 'to ', 'from '
+    clean = re.sub(r"^(?:is\s+|are\s+|was\s+|at\s+|of\s+|the\s+|to\s+|from\s+)+", "", clean, flags=re.IGNORECASE).strip().strip(" ,;:\'\"-=")
+
+    return clean
+
+
 def clean_party_name(name: str) -> str:
     """Strips conversational noise and prefixes from extracted party names."""
     if not name or not isinstance(name, str):
         return ""
     clean = name.strip()
-    clean = re.sub(
-        r"^(?:the\s+)?(?:consigner|consignor|consignee|sender|receiver|delivery\s+party|from\s+party|to\s+party|party|client|customer|name)\s*(?:is\s+|:\s*|=\s*|-\s*)?",
-        "",
-        clean,
-        flags=re.IGNORECASE,
-    ).strip().strip(" ,;.")
+    clean = strip_field_label(clean)
     return clean
 
 
@@ -185,7 +221,7 @@ def is_valid_party_name(name: str) -> bool:
     """Validates that a string is a plausible person or company name."""
     if not name or not isinstance(name, str):
         return False
-    clean = clean_party_name(name)
+    clean = strip_field_label(name)
     lower = clean.lower()
     if len(clean) < 3 or len(clean) > 100:
         return False
@@ -230,7 +266,9 @@ def is_lr_booking_intent(text: str) -> bool:
         "book lr", "create lr", "new lr", "lr booking", "make an lr",
         "book an lr", "create an lr", "lr banani hai", "lr book karni hai",
         "ek lr banao", "ek lr create karo", "lr bana do", "bana do lr",
+        "lr banana hai", "lr banana", "ek lr banana hai", "ek lr banani hai",
         "bilty banani hai", "bilty banao", "bilty create karo", "bilty book",
+        "bilty banana hai", "bilty banana", "ek bilty banana hai",
         "create bilty", "book bilty", "new bilty", "start lr booking",
         "start lr draft", "consigner is", "consignee is", "delivery to",
         "loading at", "freight is", "book consignment", "create consignment",
@@ -247,8 +285,8 @@ def is_lr_booking_intent(text: str) -> bool:
         return True
 
     booking_patterns = [
-        r"\b(book|create|creat|bok|boke|make|mak|craete|start|new|raise|issue)\b.*\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b",
-        r"\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b.*\b(book|create|creat|bok|boke|banao|banani|generate|start|karni|karna)\b",
+        r"\b(book|create|creat|bok|boke|make|mak|craete|start|new|raise|issue|banana|banao)\b.*\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b",
+        r"\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b.*\b(book|create|creat|bok|boke|banao|banani|banana|generate|start|karni|karna)\b",
     ]
     return any(bool(re.search(p, lower)) for p in booking_patterns)
 
@@ -292,40 +330,42 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         entities["edited_field_name"] = target_field
 
         if target_field in ("vehicle", "vehiclenumber", "truck", "trucknumber"):
-            if is_valid_indian_vehicle(target_val):
-                entities["vehicle_number"] = re.sub(r"[^A-Za-z0-9]", "", target_val).upper()
+            clean_v = strip_field_label(target_val, "vehicle")
+            if is_valid_indian_vehicle(clean_v):
+                entities["vehicle_number"] = re.sub(r"[^A-Za-z0-9]", "", clean_v).upper()
             else:
-                entities["invalid_vehicle"] = target_val
+                entities["invalid_vehicle"] = clean_v
             return entities
 
         elif target_field in ("destination", "destinationlocation", "delivery", "deliverylocation", "to"):
-            clean_d = clean_party_name(target_val)
+            clean_d = strip_field_label(target_val, "destination")
             if is_valid_party_name(clean_d):
                 entities["destination_candidate"] = clean_d
             return entities
 
         elif target_field in ("origin", "originlocation", "loading", "loadinglocation", "from"):
-            clean_o = clean_party_name(target_val)
+            clean_o = strip_field_label(target_val, "origin")
             if is_valid_party_name(clean_o):
                 entities["origin_candidate"] = clean_o
             return entities
 
         elif target_field in ("consigner", "consignor", "consignername", "consignorname", "sender", "sendername"):
-            clean_c = clean_party_name(target_val)
+            clean_c = strip_field_label(target_val, "consigner")
             if is_valid_party_name(clean_c):
                 entities["consigner_candidate"] = clean_c
             return entities
 
         elif target_field in ("consignee", "consigneename", "receiver", "receivername", "deliveryparty", "deliverypartyname"):
-            clean_ce = clean_party_name(target_val)
+            clean_ce = strip_field_label(target_val, "consignee")
             if is_valid_party_name(clean_ce):
                 entities["consignee_candidate"] = clean_ce
             return entities
 
         elif target_field in ("weight",):
+            clean_w = strip_field_label(target_val, "weight")
             try:
-                num_val = float(re.sub(r"[^0-9.]", "", target_val))
-                if "kg" in target_val.lower() or num_val > 100:
+                num_val = float(re.sub(r"[^0-9.]", "", clean_w))
+                if "kg" in clean_w.lower() or num_val > 100:
                     entities["actual_weight_mt"] = round(num_val / 1000.0, 3) if num_val > 100 else num_val
                 else:
                     entities["actual_weight_mt"] = num_val
@@ -335,8 +375,9 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
             return entities
 
         elif target_field in ("freight", "rate", "bhada"):
+            clean_f = strip_field_label(target_val, "freight")
             try:
-                num_str = re.sub(r"[^0-9.kK]", "", target_val).lower()
+                num_str = re.sub(r"[^0-9.kK]", "", clean_f).lower()
                 val = float(num_str.replace("k", "")) * (1000.0 if "k" in num_str else 1.0)
                 entities["freight_amount"] = val
             except Exception:
@@ -344,8 +385,9 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
             return entities
 
         elif target_field in ("advance",):
+            clean_a = strip_field_label(target_val, "advance")
             try:
-                num_str = re.sub(r"[^0-9.kK]", "", target_val).lower()
+                num_str = re.sub(r"[^0-9.kK]", "", clean_a).lower()
                 val = float(num_str.replace("k", "")) * (1000.0 if "k" in num_str else 1.0)
                 entities["advance_amount"] = val
             except Exception:
@@ -353,209 +395,317 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
             return entities
 
         elif target_field in ("goods", "cargo", "material", "particulars"):
-            entities["particulars"] = target_val
+            entities["particulars"] = strip_field_label(target_val, "goods")
             return entities
 
         elif target_field in ("ewaybill", "ewb"):
-            is_ewb_ok, _ = validate_eway_bill_number(target_val)
+            clean_ewb = strip_field_label(target_val)
+            is_ewb_ok, _ = validate_eway_bill_number(clean_ewb)
             if is_ewb_ok:
-                entities["eway_bill_number"] = re.sub(r"[^0-9]", "", target_val)
+                entities["eway_bill_number"] = re.sub(r"[^0-9]", "", clean_ewb)
             else:
-                entities["invalid_ewb"] = target_val
+                entities["invalid_ewb"] = clean_ewb
             return entities
 
         elif target_field in ("gstin",):
-            is_gst_ok, _ = validate_indian_gstin(target_val)
+            clean_gst = strip_field_label(target_val).upper()
+            is_gst_ok, _ = validate_indian_gstin(clean_gst)
             if is_gst_ok:
-                entities["gstin_candidate"] = target_val.upper()
+                entities["gstin_candidate"] = clean_gst
             else:
-                entities["invalid_gstin"] = target_val
+                entities["invalid_gstin"] = clean_gst
             return entities
 
         elif target_field in ("pincode",):
-            is_pin_ok, _ = validate_indian_pincode(target_val)
+            clean_pin = strip_field_label(target_val)
+            is_pin_ok, _ = validate_indian_pincode(clean_pin)
             if is_pin_ok:
-                entities["pincode_candidate"] = target_val
+                entities["pincode_candidate"] = clean_pin
             else:
-                entities["invalid_pincode"] = target_val
+                entities["invalid_pincode"] = clean_pin
             return entities
 
-    # 1. Vehicle Number
-    extracted_v = extract_vehicle_number(clean_text)
-    if extracted_v and is_valid_indian_vehicle(extracted_v):
-        entities["vehicle_number"] = extracted_v
-    else:
-        m_v_strict = re.search(r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", clean_text, re.IGNORECASE)
-        if m_v_strict and is_valid_indian_vehicle(m_v_strict.group(1)):
-            entities["vehicle_number"] = m_v_strict.group(1).upper()
-        else:
-            m_v_explicit = re.search(r"\b(?:vehicle|truck|gaadi|lorry)\s*(?:is|number|no\.?|:|=)?\s*([A-Za-z0-9\-]+)\b", clean_text, re.IGNORECASE)
-            if m_v_explicit:
-                v_cand = m_v_explicit.group(1).strip()
-                if not is_valid_indian_vehicle(v_cand) and v_cand.lower() not in {"is", "number", "loading", "details", "for", "with"}:
+    # Delimited segment parsing for multi-field messages (comma, semicolon, newline)
+    # Pre-process thousands separators in numbers (e.g. 1,500.00 -> 1500.00)
+    norm_text = re.sub(r"(\d),(\d)", r"\1\2", clean_text)
+    if re.search(r"[,;\n]", norm_text):
+        segments = [p.strip() for p in re.split(r"[,;\n]+", norm_text) if p.strip()]
+        for seg in segments:
+            # Consigner
+            m_c = re.match(r"^(?:the\s+)?(?:consigner|consignor|shipper|sender|from\s+party|bhejne\s*wala)\b\s*(?:is\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
+            if m_c and "consigner_candidate" not in entities:
+                c_cand = strip_field_label(m_c.group(1), "consigner")
+                if is_valid_party_name(c_cand):
+                    entities["consigner_candidate"] = c_cand
+                continue
+            # Consignee
+            m_ce = re.match(r"^(?:the\s+)?(?:consignee|receiver|to\s+party|panewala|delivery\s+party)\b\s*(?:is\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
+            if m_ce and "consignee_candidate" not in entities:
+                ce_cand = strip_field_label(m_ce.group(1), "consignee")
+                if is_valid_party_name(ce_cand):
+                    entities["consignee_candidate"] = ce_cand
+                continue
+            # Origin
+            m_o = re.match(r"^(?:the\s+)?(?:origin|source|loading(?:\s+(?:location|city))?|from(?:\s+(?:location|city))?)\b\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
+            if m_o and "origin_candidate" not in entities:
+                o_cand = strip_field_label(m_o.group(1), "origin")
+                if is_valid_party_name(o_cand):
+                    entities["origin_candidate"] = o_cand
+                continue
+            # Destination
+            m_d = re.match(r"^(?:the\s+)?(?:destination|dest|delivery(?:\s+(?:location|city))?|to(?:\s+(?:location|city))?)\b\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
+            if m_d and "destination_candidate" not in entities:
+                d_cand = strip_field_label(m_d.group(1), "destination")
+                if is_valid_party_name(d_cand):
+                    entities["destination_candidate"] = d_cand
+                continue
+            # Goods
+            m_g = re.match(r"^(?:the\s+)?(?:goods|cargo|material|particulars)\b\s*(?:is\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
+            if m_g and "particulars" not in entities:
+                g_cand = strip_field_label(m_g.group(1), "goods")
+                if g_cand:
+                    entities["particulars"] = g_cand
+                continue
+            # Vehicle
+            m_v = re.match(r"^(?:the\s+)?(?:vehicle(?:\s*(?:number|no\.?))?|truck(?:\s*(?:number|no\.?))?|gaadi|lorry)\b\s*(?:is\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
+            if m_v and "vehicle_number" not in entities:
+                v_cand = strip_field_label(m_v.group(1), "vehicle")
+                if is_valid_indian_vehicle(v_cand):
+                    entities["vehicle_number"] = re.sub(r"[^A-Za-z0-9]", "", v_cand).upper()
+                else:
                     entities["invalid_vehicle"] = v_cand
+                continue
+            # Freight
+            m_f = re.match(r"^(?:the\s+)?(?:freight(?:\s*(?:amount|rate))?|bhada|rate)\b\s*[:=]?\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]+)?k?)$", seg, re.I)
+            if m_f and "freight_amount" not in entities:
+                try:
+                    val_str = m_f.group(1).lower()
+                    entities["freight_amount"] = float(val_str.replace("k", "")) * (1000.0 if "k" in val_str else 1.0)
+                except Exception:
+                    pass
+                continue
+            # Weight
+            m_w = re.match(r"^(?:the\s+)?(?:weight|wgt)\b\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)\s*(kg|kgs|mt|tons?|tonnes?)?$", seg, re.I)
+            if m_w and "actual_weight_mt" not in entities:
+                try:
+                    w_num = float(m_w.group(1))
+                    unit = (m_w.group(2) or "").lower()
+                    if "kg" in unit or (not unit and w_num > 100):
+                        entities["actual_weight_mt"] = round(w_num / 1000.0, 3)
+                    else:
+                        entities["actual_weight_mt"] = w_num
+                    entities["chargeable_weight_mt"] = entities["actual_weight_mt"]
+                except Exception:
+                    pass
+                continue
+
+    # Lookahead pattern for boundary detection across unsegmented text
+    LOOKAHEAD = (
+        r"(?=[,;\n]+|\s+(?:and\s+)?(?:consigner|consignor|shipper|sender|from\s+party|bhejne\s*wala|"
+        r"consignee|receiver|to\s+party|delivery\s+party|panewala|"
+        r"origin|source|loading|from|"
+        r"destination|dest|delivery|to|"
+        r"vehicle|truck|gaadi|lorry|"
+        r"goods|cargo|material|particulars|"
+        r"weight|wgt|boxes|pkgs|packages|cartons|"
+        r"freight|bhada|rate|charges?|advance|peshgi|"
+        r"eway|ewb|gstin|pincode)\b|$)"
+    )
+
+    # 1. Vehicle Number
+    if "vehicle_number" not in entities:
+        extracted_v = extract_vehicle_number(clean_text)
+        if extracted_v and is_valid_indian_vehicle(extracted_v):
+            entities["vehicle_number"] = extracted_v
+        else:
+            m_v_strict = re.search(r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", clean_text, re.IGNORECASE)
+            if m_v_strict and is_valid_indian_vehicle(m_v_strict.group(1)):
+                entities["vehicle_number"] = m_v_strict.group(1).upper()
+            else:
+                m_v_explicit = re.search(r"\b(?:vehicle|truck|gaadi|lorry)\s*(?:is|number|no\.?|:|=)?\s*([A-Za-z0-9\-]+)\b", clean_text, re.IGNORECASE)
+                if m_v_explicit:
+                    v_cand = strip_field_label(m_v_explicit.group(1), "vehicle")
+                    if not is_valid_indian_vehicle(v_cand) and v_cand.lower() not in {"is", "number", "loading", "details", "for", "with"}:
+                        entities["invalid_vehicle"] = v_cand
 
     # 2. Route Locations (From / To)
-    m_route = re.search(r"\bfrom\s+([A-Za-z\s]+?)\s+to\s+([A-Za-z\s]+?)(?=[,;\s]+(?:consigner|consignee|party|vehicle|truck|gaadi|freight|bhada|cargo|packages|boxes|weight|at|rate|₹|rs)|$)", clean_text, re.IGNORECASE)
-    if m_route:
-        cand_o = m_route.group(1).strip()
-        cand_d = m_route.group(2).strip()
-        if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
-            entities["origin_candidate"] = cand_o
-            entities["destination_candidate"] = cand_d
-    else:
-        m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:to|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
-        common_words = {
-            "party", "consigner", "consignee", "vehicle", "freight", "advance", "bilty", "order",
-            "name", "test", "change", "update", "set", "modify", "correct", "sender", "receiver",
-            "weight", "rate", "goods", "cargo", "bill", "invoice", "number", "date", "status"
-        }
-        if not re.match(r"^(?:change|update|set|modify|correct)\b", clean_text, re.I):
-            m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:to|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
-            if m_dash_route and m_dash_route.group(1).lower() not in common_words and m_dash_route.group(2).lower() not in common_words:
-                cand_o = m_dash_route.group(1).strip()
-                cand_d = m_dash_route.group(2).strip()
-                if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+    if "origin_candidate" not in entities or "destination_candidate" not in entities:
+        m_route = re.search(r"\bfrom\s+([A-Za-z\s]+?)\s+to\s+([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
+        if m_route:
+            cand_o = strip_field_label(m_route.group(1), "origin")
+            cand_d = strip_field_label(m_route.group(2), "destination")
+            if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+                entities.setdefault("origin_candidate", cand_o)
+                entities.setdefault("destination_candidate", cand_d)
+        else:
+            common_words = {
+                "party", "consigner", "consignee", "vehicle", "freight", "advance", "bilty", "order",
+                "name", "test", "change", "update", "set", "modify", "correct", "sender", "receiver",
+                "weight", "rate", "goods", "cargo", "bill", "invoice", "number", "date", "status"
+            }
+            if not re.match(r"^(?:change|update|set|modify|correct)\b", clean_text, re.I):
+                m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:to|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
+                if m_dash_route and m_dash_route.group(1).lower() not in common_words and m_dash_route.group(2).lower() not in common_words:
+                    cand_o = strip_field_label(m_dash_route.group(1), "origin")
+                    cand_d = strip_field_label(m_dash_route.group(2), "destination")
+                    if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+                        entities.setdefault("origin_candidate", cand_o)
+                        entities.setdefault("destination_candidate", cand_d)
+
+            m_from = re.search(r"\b(?:loading|origin|source|from)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
+            if m_from and "origin_candidate" not in entities:
+                cand_o = strip_field_label(m_from.group(1), "origin")
+                if is_valid_party_name(cand_o):
                     entities["origin_candidate"] = cand_o
+
+            m_to = re.search(r"\b(?:delivery|destination|dest|to)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
+            if m_to and "destination_candidate" not in entities:
+                cand_d = strip_field_label(m_to.group(1), "destination")
+                if is_valid_party_name(cand_d):
                     entities["destination_candidate"] = cand_d
 
-        m_from = re.search(r"(?:loading|origin|source|from)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)(?=[,;\s]+(?:to|destination|delivery|consigner|consignee|vehicle|freight)|$)", clean_text, re.IGNORECASE)
-        if m_from and "origin_candidate" not in entities:
-            cand_o = m_from.group(1).strip()
-            if is_valid_party_name(cand_o):
-                entities["origin_candidate"] = cand_o
-
-        m_to = re.search(r"(?:delivery|destination|to)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)(?=[,;\s]+(?:from|origin|loading|consigner|consignee|vehicle|freight)|$)", clean_text, re.IGNORECASE)
-        if m_to and "destination_candidate" not in entities:
-            cand_d = m_to.group(1).strip()
-            if is_valid_party_name(cand_d):
-                entities["destination_candidate"] = cand_d
-
     # 3. Explicit Consigner & Consignee
-    m_consigner = re.search(
-        r"(?:consigner|shipper|sender|from party|bhejne wala)\s+(?:is\s+|:\s*|=)?\s*([A-Za-z0-9\s&.-]+?)(?=[,;\s]+(?:and|consignee|receiver|to party|vehicle|truck|gaadi|to|from|freight|bhada|delivery|loading|at)\b|$)",
-        clean_text,
-        re.IGNORECASE,
-    )
-    if m_consigner:
-        cand = m_consigner.group(1).strip().strip(" ,;.")
-        if is_valid_party_name(cand):
-            entities["consigner_candidate"] = cand
+    if "consigner_candidate" not in entities:
+        m_consigner = re.search(
+            r"\b(?:consigner|shipper|sender|from party|bhejne wala)\s+(?:is\s+|:\s*|=)?\s*([A-Za-z0-9\s&.-]+?)" + LOOKAHEAD,
+            clean_text,
+            re.IGNORECASE,
+        )
+        if m_consigner:
+            cand = strip_field_label(m_consigner.group(1), "consigner")
+            if is_valid_party_name(cand):
+                entities["consigner_candidate"] = cand
 
-    m_consignee = re.search(
-        r"(?:consignee|receiver|to party|panewala|delivery party)\s+(?:is\s+|:\s*|=)?\s*([A-Za-z0-9\s&.-]+?)(?=[,;\s]+(?:and|consigner|shipper|sender|from party|vehicle|truck|gaadi|from|to|freight|bhada|destination|at)\b|$)",
-        clean_text,
-        re.IGNORECASE,
-    )
-    if m_consignee:
-        cand = m_consignee.group(1).strip().strip(" ,;.")
-        if is_valid_party_name(cand):
-            entities["consignee_candidate"] = cand
+    if "consignee_candidate" not in entities:
+        m_consignee = re.search(
+            r"\b(?:consignee|receiver|to party|panewala|delivery party)\s+(?:is\s+|:\s*|=)?\s*([A-Za-z0-9\s&.-]+?)" + LOOKAHEAD,
+            clean_text,
+            re.IGNORECASE,
+        )
+        if m_consignee:
+            cand = strip_field_label(m_consignee.group(1), "consignee")
+            if is_valid_party_name(cand):
+                entities["consignee_candidate"] = cand
 
     # Compound Party Pattern: "for <Consignee> from <Consigner>" or "<Consigner> to <Consignee>"
     if "consigner_candidate" not in entities and "consignee_candidate" not in entities:
         m_for_from = re.search(r"\bfor\s+([A-Za-z0-9\s&.-]+?)\s+from\s+([A-Za-z0-9\s&.-]+?)(?=[,;\s]+(?:vehicle|truck|freight|rate)|$)", clean_text, re.IGNORECASE)
         if m_for_from:
-            ce_cand = m_for_from.group(1).strip().strip(" ,;.")
-            cr_cand = m_for_from.group(2).strip().strip(" ,;.")
+            ce_cand = strip_field_label(m_for_from.group(1), "consignee")
+            cr_cand = strip_field_label(m_for_from.group(2), "consigner")
             if is_valid_party_name(ce_cand) and is_valid_party_name(cr_cand):
                 entities["consignee_candidate"] = ce_cand
                 entities["consigner_candidate"] = cr_cand
 
     # 4. Financial Amounts (Freight / Advance)
-    m_freight = re.search(r"(?:freight|bhada|rate|charges?|amount)\s*(?:is\s+|:\s*|of\s+|=)?\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
-    if m_freight:
-        val_str = m_freight.group(1).lower()
-        try:
-            if "k" in val_str:
-                entities["freight_amount"] = float(val_str.replace("k", "")) * 1000.0
-            else:
-                entities["freight_amount"] = float(val_str)
-        except ValueError:
-            pass
-
-    m_advance = re.search(r"(?:advance|peshgi)\s*(?:is\s+|:\s*|of\s+|=)?\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
-    if m_advance:
-        val_str = m_advance.group(1).lower()
-        try:
-            if "k" in val_str:
-                entities["advance_amount"] = float(val_str.replace("k", "")) * 1000.0
-            else:
-                entities["advance_amount"] = float(val_str)
-        except ValueError:
-            pass
-
-    # 5. Goods Value / Declared Value
-    m_val = re.search(r"(?:goods\s+value|consignment\s+value|value\s+of\s+goods|declared\s+value|cargo\s+value|goods\s+val|value\s*(?:is|:|=))\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
-    if m_val:
-        val_str = m_val.group(1).lower()
-        try:
-            if "k" in val_str:
-                entities["goods_value"] = float(val_str.replace("k", "")) * 1000.0
-            else:
-                entities["goods_value"] = float(val_str)
-        except ValueError:
-            pass
-
-    # 6. E-Way Bill Number
-    m_ewb = re.search(r"(?:eway\s*bill|eway|ewb)(?:\s*(?:no\.?|number|#))?\s*[:=]?\s*([0-9A-Za-z]+)", clean_text, re.IGNORECASE)
-    if m_ewb:
-        ewb_cand = m_ewb.group(1).strip()
-        is_ewb_ok, _ = validate_eway_bill_number(ewb_cand)
-        if is_ewb_ok:
-            entities["eway_bill_number"] = re.sub(r"[^0-9]", "", ewb_cand)
-        else:
-            entities["invalid_ewb"] = ewb_cand
-
-    # 7. GSTIN
-    m_gst = re.search(r"\b(?:gstin|gst\s*(?:no\.?|number)?)\s*[:=]?\s*([0-9A-Za-z]{15})\b", clean_text, re.IGNORECASE)
-    if m_gst:
-        gst_cand = m_gst.group(1).strip().upper()
-        is_gst_ok, _ = validate_indian_gstin(gst_cand)
-        if is_gst_ok:
-            entities["gstin_candidate"] = gst_cand
-        else:
-            entities["invalid_gstin"] = gst_cand
-
-    # 8. Pincode
-    m_pin = re.search(r"\b(?:pincode|pin\s*(?:code)?|postal\s*code)\s*[:=]?\s*([0-9]+)\b", clean_text, re.IGNORECASE)
-    if m_pin:
-        pin_cand = m_pin.group(1).strip()
-        is_pin_ok, _ = validate_indian_pincode(pin_cand)
-        if is_pin_ok:
-            entities["pincode_candidate"] = pin_cand
-        else:
-            entities["invalid_pincode"] = pin_cand
-
-    # 9. Packages & Weight
-    m_pkg = re.search(r"([0-9]+)\s*(?:boxes|pkgs|packages|nag|cartons|bags|cases|parcels)", clean_text, re.IGNORECASE)
-    if m_pkg:
-        try:
-            entities["package_count"] = int(m_pkg.group(1))
-        except ValueError:
-            pass
-
-    m_weight_kg = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:kg|kgs|kilo|kilograms)", clean_text, re.IGNORECASE)
-    if m_weight_kg:
-        try:
-            kg_val = float(m_weight_kg.group(1))
-            entities["actual_weight_mt"] = round(kg_val / 1000.0, 3)
-            entities["chargeable_weight_mt"] = round(kg_val / 1000.0, 3)
-        except ValueError:
-            pass
-    else:
-        m_weight = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:tons|ton|mt|tonnes)", clean_text, re.IGNORECASE)
-        if m_weight:
+    if "freight_amount" not in entities:
+        m_freight = re.search(r"(?:freight|bhada|rate|charges?|amount)\s*(?:is\s+|:\s*|of\s+|=)?\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
+        if m_freight:
+            val_str = m_freight.group(1).lower()
             try:
-                entities["actual_weight_mt"] = float(m_weight.group(1))
-                entities["chargeable_weight_mt"] = float(m_weight.group(1))
+                if "k" in val_str:
+                    entities["freight_amount"] = float(val_str.replace("k", "")) * 1000.0
+                else:
+                    entities["freight_amount"] = float(val_str)
             except ValueError:
                 pass
 
+    if "advance_amount" not in entities:
+        m_advance = re.search(r"(?:advance|peshgi)\s*(?:is\s+|:\s*|of\s+|=)?\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
+        if m_advance:
+            val_str = m_advance.group(1).lower()
+            try:
+                if "k" in val_str:
+                    entities["advance_amount"] = float(val_str.replace("k", "")) * 1000.0
+                else:
+                    entities["advance_amount"] = float(val_str)
+            except ValueError:
+                pass
+
+    # 5. Goods Value / Declared Value
+    if "goods_value" not in entities:
+        m_val = re.search(r"(?:goods\s+value|consignment\s+value|value\s+of\s+goods|declared\s+value|cargo\s+value|goods\s+val|value\s*(?:is|:|=))\s*(?:₹\s*|rs\.?\s*)?([0-9]+(?:\.[0-9]{1,2})?k?)", clean_text, re.IGNORECASE)
+        if m_val:
+            val_str = m_val.group(1).lower()
+            try:
+                if "k" in val_str:
+                    entities["goods_value"] = float(val_str.replace("k", "")) * 1000.0
+                else:
+                    entities["goods_value"] = float(val_str)
+            except ValueError:
+                pass
+
+    # 6. E-Way Bill Number
+    if "eway_bill_number" not in entities:
+        m_ewb = re.search(r"(?:eway\s*bill|eway|ewb)(?:\s*(?:no\.?|number|#))?\s*[:=]?\s*([0-9A-Za-z]+)", clean_text, re.IGNORECASE)
+        if m_ewb:
+            ewb_cand = strip_field_label(m_ewb.group(1))
+            is_ewb_ok, _ = validate_eway_bill_number(ewb_cand)
+            if is_ewb_ok:
+                entities["eway_bill_number"] = re.sub(r"[^0-9]", "", ewb_cand)
+            else:
+                entities["invalid_ewb"] = ewb_cand
+
+    # 7. GSTIN
+    if "gstin_candidate" not in entities:
+        m_gst = re.search(r"\b(?:gstin|gst\s*(?:no\.?|number)?)\s*[:=]?\s*([0-9A-Za-z]{15})\b", clean_text, re.IGNORECASE)
+        if m_gst:
+            gst_cand = strip_field_label(m_gst.group(1)).upper()
+            is_gst_ok, _ = validate_indian_gstin(gst_cand)
+            if is_gst_ok:
+                entities["gstin_candidate"] = gst_cand
+            else:
+                entities["invalid_gstin"] = gst_cand
+
+    # 8. Pincode
+    if "pincode_candidate" not in entities:
+        m_pin = re.search(r"\b(?:pincode|pin\s*(?:code)?|postal\s*code)\s*[:=]?\s*([0-9]+)\b", clean_text, re.IGNORECASE)
+        if m_pin:
+            pin_cand = strip_field_label(m_pin.group(1))
+            is_pin_ok, _ = validate_indian_pincode(pin_cand)
+            if is_pin_ok:
+                entities["pincode_candidate"] = pin_cand
+            else:
+                entities["invalid_pincode"] = pin_cand
+
+    # 9. Packages & Weight
+    if "package_count" not in entities:
+        m_pkg = re.search(r"([0-9]+)\s*(?:box(?:es)?|pkgs?|packages?|nag|cartons?|bags?|cases?|parcels?)", clean_text, re.IGNORECASE)
+        if m_pkg:
+            try:
+                entities["package_count"] = int(m_pkg.group(1))
+            except ValueError:
+                pass
+
+    if "actual_weight_mt" not in entities:
+        m_weight_kg = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:kg|kgs|kilo|kilograms)", clean_text, re.IGNORECASE)
+        if m_weight_kg:
+            try:
+                kg_val = float(m_weight_kg.group(1))
+                entities["actual_weight_mt"] = round(kg_val / 1000.0, 3)
+                entities["chargeable_weight_mt"] = round(kg_val / 1000.0, 3)
+            except ValueError:
+                pass
+        else:
+            m_weight = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(?:tons|ton|mt|tonnes)", clean_text, re.IGNORECASE)
+            if m_weight:
+                try:
+                    entities["actual_weight_mt"] = float(m_weight.group(1))
+                    entities["chargeable_weight_mt"] = float(m_weight.group(1))
+                except ValueError:
+                    pass
+
     # 10. Particulars / Cargo description
-    m_cargo = re.search(r"(?:cargo|material|goods|particulars)\s*(?:is|:|=)?\s*([A-Za-z0-9\s&.-]+?)(?=[,;\s]+(?:weight|boxes|pkgs|freight|consigner|consignee)|$)", clean_text, re.IGNORECASE)
-    if m_cargo:
-        entities["particulars"] = m_cargo.group(1).strip().strip(" ,;.")
+    if "particulars" not in entities:
+        m_cargo = re.search(r"\b(?:cargo|material|goods|particulars)\s*(?:is|:|=)?\s*([A-Za-z0-9\s&.-]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
+        if m_cargo:
+            cand_g = strip_field_label(m_cargo.group(1), "goods")
+            if cand_g:
+                entities["particulars"] = cand_g
+
+    # Default package count to 1 if weight is present and packages were not mentioned
+    if entities.get("actual_weight_mt") and "package_count" not in entities:
+        entities["package_count"] = 1
 
     # 11. Contextual Step-by-Step Mapping (if user answered a specific follow-up)
     if current_draft:
@@ -564,10 +714,9 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
 
         # If vehicle was missing and user provided a standalone candidate
         if any("Vehicle" in m for m in missing) and not entities.get("vehicle_number") and not entities.get("invalid_vehicle"):
-            # Check if text is a single token or short candidate
             tokens = clean_text.split()
             if len(tokens) == 1 or (len(tokens) <= 3 and any(w in clean_text.lower() for w in ("vehicle", "truck", "is"))):
-                cand = tokens[-1].strip().upper()
+                cand = strip_field_label(tokens[-1], "vehicle").upper()
                 if is_valid_indian_vehicle(cand):
                     entities["vehicle_number"] = cand
                 elif cand not in COMMON_STOP_WORDS and len(cand) >= 3:
@@ -577,7 +726,7 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         if any("GSTIN" in m for m in missing) or "gstin" in clean_text.lower():
             m_bare_gst = re.search(r"\b([0-9]{2}[A-Za-z0-9]{13})\b", clean_text)
             if m_bare_gst and "invalid_gstin" not in entities and "gstin_candidate" not in entities:
-                cand_g = m_bare_gst.group(1).upper()
+                cand_g = strip_field_label(m_bare_gst.group(1)).upper()
                 is_g_ok, _ = validate_indian_gstin(cand_g)
                 if is_g_ok:
                     entities["gstin_candidate"] = cand_g
@@ -588,7 +737,7 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         if any("Pincode" in m for m in missing) or "pincode" in clean_text.lower() or "pin" in clean_text.lower():
             m_bare_pin = re.search(r"\b([0-9]{1,8})\b", clean_text)
             if m_bare_pin and "invalid_pincode" not in entities and "pincode_candidate" not in entities:
-                cand_p = m_bare_pin.group(1)
+                cand_p = strip_field_label(m_bare_pin.group(1))
                 is_p_ok, _ = validate_indian_pincode(cand_p)
                 if is_p_ok:
                     entities["pincode_candidate"] = cand_p
@@ -599,7 +748,7 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         if any("E-Way Bill" in m for m in missing) and "eway_bill_number" not in entities:
             m_bare_ewb = re.search(r"\b([0-9]{10,14})\b", clean_text)
             if m_bare_ewb:
-                cand_e = m_bare_ewb.group(1)
+                cand_e = strip_field_label(m_bare_ewb.group(1))
                 is_e_ok, _ = validate_eway_bill_number(cand_e)
                 if is_e_ok:
                     entities["eway_bill_number"] = cand_e
@@ -622,24 +771,24 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
 
         # If user typed a standalone party name without keywords
         is_bare_name = (
-            len(clean_text.split()) <= 5
+            len(clean_text.split()) <= 6
             and is_valid_party_name(clean_text)
-            and not any(k in clean_text.lower() for k in ("from", "to", "freight", "advance", "vehicle", "boxes", "tons", "value", "eway"))
+            and not any(k in clean_text.lower() for k in ("freight", "advance", "boxes", "tons", "value", "eway"))
             and not re.search(r"^[0-9]+", clean_text)
-            and not extracted_v
+            and not extract_vehicle_number(clean_text)
         )
 
         if is_bare_name:
-            if any("Consigner" in m for m in missing) and not draft_data.get("consigner_id"):
-                entities["consigner_candidate"] = clean_text
-            elif any("Consignee" in m for m in missing) and not draft_data.get("consignee_id"):
-                entities["consignee_candidate"] = clean_text
-            elif any("Loading" in m for m in missing) and not draft_data.get("origin_location_id"):
-                entities["origin_candidate"] = clean_text
-            elif any("Delivery" in m for m in missing) and not draft_data.get("destination_location_id"):
-                entities["destination_candidate"] = clean_text
-            elif any("Goods" in m for m in missing) and not draft_data.get("particulars"):
-                entities["particulars"] = clean_text
+            if any("Consigner" in m for m in missing) and not draft_data.get("consigner_id") and "consigner_candidate" not in entities:
+                entities["consigner_candidate"] = strip_field_label(clean_text, "consigner")
+            elif any("Consignee" in m for m in missing) and not draft_data.get("consignee_id") and "consignee_candidate" not in entities:
+                entities["consignee_candidate"] = strip_field_label(clean_text, "consignee")
+            elif any("Loading" in m for m in missing) and not draft_data.get("origin_location_id") and "origin_candidate" not in entities:
+                entities["origin_candidate"] = strip_field_label(clean_text, "origin")
+            elif any("Delivery" in m for m in missing) and not draft_data.get("destination_location_id") and "destination_candidate" not in entities:
+                entities["destination_candidate"] = strip_field_label(clean_text, "destination")
+            elif any("Goods" in m for m in missing) and not draft_data.get("particulars") and "particulars" not in entities:
+                entities["particulars"] = strip_field_label(clean_text, "goods")
 
         # If user gave just a bare number and freight is missing
         if re.match(r"^(?:₹|rs\.?)?\s*[0-9]+(?:\.[0-9]{1,2})?k?$", clean_text, re.IGNORECASE) and not draft_data.get("freight_amount"):
@@ -829,7 +978,8 @@ async def resolve_or_create_location(
     office_id: Optional[int] = None,
 ) -> Location:
     """Finds existing location by city; if absent, auto-provisions to prevent booking blockage."""
-    clean_city = city.strip()
+    clean_city = strip_field_label(city, "destination")
+    clean_city = strip_field_label(clean_city, "origin").strip()
     query = select(Location).where(Location.is_active == True)
     if office_id:
         query = query.where(or_(Location.issuing_office_id == office_id, Location.issuing_office_id.is_(None)))
@@ -1144,11 +1294,41 @@ async def handle_conversational_lr_booking(
             "particulars": draft.data.get("particulars"),
             "eway": draft.data.get("eway_bill_number"),
         }
+        edited_field = entities.get("edited_field_name", "field")
+        field_key_map = {
+            "consigner": "consigner", "consignername": "consigner", "sender": "consigner", "sendername": "consigner",
+            "consignee": "consignee", "consigneename": "consignee", "receiver": "consignee", "receivername": "consignee", "deliveryparty": "consignee", "deliverypartyname": "consignee",
+            "vehicle": "vehicle", "vehiclenumber": "vehicle", "truck": "vehicle", "trucknumber": "vehicle",
+            "origin": "origin", "originlocation": "origin", "loading": "origin", "loadinglocation": "origin", "from": "origin",
+            "destination": "destination", "destinationlocation": "destination", "delivery": "destination", "deliverylocation": "destination", "to": "destination",
+            "freight": "freight", "rate": "freight", "bhada": "freight", "freightamount": "freight",
+            "advance": "advance", "advanceamount": "advance",
+            "weight": "weight",
+            "particulars": "particulars", "goods": "particulars", "cargo": "particulars", "material": "particulars",
+            "eway": "eway", "ewaybill": "eway", "ewb": "eway",
+        }
+        target_key = field_key_map.get(edited_field, "field")
+        field_display_names = {
+            "consigner": "Consigner",
+            "consignee": "Consignee",
+            "vehicle": "Vehicle",
+            "origin": "Origin",
+            "destination": "Destination",
+            "freight": "Freight",
+            "advance": "Advance",
+            "weight": "Weight",
+            "particulars": "Goods",
+            "eway": "E-Way Bill",
+        }
+        display_name = field_display_names.get(target_key, edited_field.title())
         has_changed = any(new_snapshot[k] != orig_snapshot[k] for k in orig_snapshot)
+
         if has_changed:
-            feedback_notes.append(f"✅ Updated **{entities.get('edited_field_name', 'field')}** in your draft.")
+            feedback_notes.append(f"✅ Updated **{edited_field}** in your draft.")
+        elif target_key in new_snapshot and new_snapshot[target_key]:
+            feedback_notes.append(f"{display_name} is already {new_snapshot[target_key]}.")
         else:
-            feedback_notes.append(f"⚠️ Could not update **{entities.get('edited_field_name', 'field')}**. Please provide a valid value.")
+            feedback_notes.append(f"⚠️ Could not update **{edited_field}**. Please provide a valid value.")
 
     # 10. Validate & Update draft state
     await validate_and_update_draft(draft, db, office_id=eff_office_id)

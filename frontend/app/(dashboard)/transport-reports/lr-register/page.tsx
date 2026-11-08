@@ -251,6 +251,8 @@ export default function LRRegisterPage() {
   const loadData = async (fDate = fromDate, tDate = toDate, custId = selectedCustomer) => {
     if (fDate && tDate && fDate > tDate) {
       setDateValidationError("From Date cannot be later than To Date.");
+      setIsLoading(false);
+      setIsSubmitting(false);
       return;
     }
     setDateValidationError(null);
@@ -718,71 +720,71 @@ export default function LRRegisterPage() {
       {/* ---------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 print:grid-cols-5 print:gap-2">
         {/* 1. Total Bookings */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-[#241A3A] border border-purple-200 dark:border-[#3B2B5F] flex items-center justify-center shrink-0 text-[#7F56D9] dark:text-[#9D7CF7]">
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 flex items-center gap-3 shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-50 dark:bg-[#241A3A] border border-purple-200 dark:border-[#3B2B5F] flex items-center justify-center shrink-0 text-[#7F56D9] dark:text-[#9D7CF7]">
             <FileText className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Bookings</div>
-            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight flex items-baseline">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Total Bookings</div>
+            <div className="text-base sm:text-lg xl:text-xl font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight flex items-baseline flex-wrap gap-x-1 tabular-nums">
               <span>{totals.count.toLocaleString("en-IN")}</span>
-              <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1.5">LRs</span>
+              <span className="text-xs font-normal text-slate-500 dark:text-slate-400">LRs</span>
             </div>
           </div>
         </div>
 
         {/* 2. Total Weight */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 flex items-center gap-3 shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
             {/* Metric Weight Icon */}
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M7 10h10l2 10H5l2-10z" />
               <path d="M12 4a3 3 0 0 0-3 3v3h6V7a3 3 0 0 0-3-3z" />
             </svg>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Weight</div>
-            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight flex items-baseline">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Total Weight</div>
+            <div className="text-base sm:text-lg xl:text-xl font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight tabular-nums flex items-baseline flex-wrap gap-x-1">
               <span>{totals.weight.toLocaleString("en-IN", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</span>
-              <span className="text-xs font-normal text-slate-500 dark:text-slate-400 font-sans ml-1.5">MT</span>
+              <span className="text-xs font-normal text-slate-500 dark:text-slate-400 font-sans">MT</span>
             </div>
           </div>
         </div>
 
         {/* 3. Total Freight */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 flex items-center gap-3 shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
             <Truck className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Freight</div>
-            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Total Freight</div>
+            <div className="text-base sm:text-lg xl:text-xl font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight tabular-nums truncate">
               {formatCurrency(totals.freight)}
             </div>
           </div>
         </div>
 
         {/* 4. Total Advance */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 flex items-center gap-3 shadow-sm min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
             <Wallet className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Advance</div>
-            <div className="text-xl sm:text-[22px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono tracking-tight">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Total Advance</div>
+            <div className="text-base sm:text-lg xl:text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono tracking-tight tabular-nums truncate">
               {formatCurrency(totals.advance)}
             </div>
           </div>
         </div>
 
         {/* 5. Total Balance */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm sm:col-span-2 lg:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 flex items-center gap-3 shadow-sm sm:col-span-2 lg:col-span-1 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
             <Scale className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Balance</div>
-            <div className="text-xl sm:text-[22px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono tracking-tight">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">Total Balance</div>
+            <div className="text-base sm:text-lg xl:text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono tracking-tight tabular-nums truncate">
               {formatCurrency(totals.balance)}
             </div>
           </div>
@@ -801,7 +803,7 @@ export default function LRRegisterPage() {
               Booking Records
             </h2>
             <span className="px-2 py-0.5 text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#1C1D26] border border-slate-200 dark:border-[#2D2E3A] rounded-md font-medium">
-              {totalEntries} records
+              {totalEntries}{" "}records
             </span>
           </div>
 
@@ -818,7 +820,7 @@ export default function LRRegisterPage() {
                   setCurrentPage(1);
                 }}
                 placeholder="Search GR, customer, vehicle..."
-                className="h-9 w-52 sm:w-64 pl-9 pr-7 text-xs bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#635BFF] focus:border-[#635BFF] transition-colors"
+                className="h-9 w-56 sm:w-64 lg:w-72 pl-9 pr-7 text-xs bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#635BFF] focus:border-[#635BFF] transition-colors"
               />
               {searchTerm && (
                 <button

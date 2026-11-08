@@ -184,13 +184,15 @@ export default function DaybookReportPage() {
         columns={columns}
         data={entries}
         isLoading={isLoading}
+        isError={Boolean(error)}
+        errorMessage={error || undefined}
         searchPlaceholder="Search by voucher number or account name..."
         emptyMessage="No daybook transactions found for the selected period."
       />
 
       {/* Summary Footer */}
-      <div className="flex items-center justify-between p-4 bg-[#F8FAFC] border border-[#E4E7EC] rounded-xl text-sm font-semibold text-[#172033]">
-        <span>Total Postings ({entries.length} records)</span>
+      <div className="flex items-center justify-between p-4 bg-[#F8FAFC] dark:bg-[#17171B] border border-[#E4E7EC] dark:border-[#303036] rounded-xl text-sm font-semibold text-[#172033] dark:text-white">
+        <span>Total Postings ({entries.length}{" "}records)</span>
         <div className="flex items-center gap-8 font-mono">
           <div>
             <span className="text-xs text-[#667085] mr-2">Total Debit:</span>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -617,6 +617,7 @@ function isGroupActive(group: NavGroup, pathname: string): boolean {
 }
 
 export function Sidebar() {
+  const router = useRouter();
   const pathname = usePathname();
   const { isFormOpen, closeFormTab, setActiveTab, isMobileNavOpen, closeMobileNav } = useWorkspaceTabs();
 
@@ -864,7 +865,7 @@ export function Sidebar() {
                 <img
                   src="/panther-logo.png"
                   alt="PantherTMS Logo"
-                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200"
+                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200 dark:brightness-0 dark:invert dark:opacity-95"
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -903,7 +904,7 @@ export function Sidebar() {
                   <img
                     src="/panther-logo.png"
                     alt="PantherTMS Logo"
-                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200"
+                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200 dark:brightness-0 dark:invert dark:opacity-95"
                   />
                 </Link>
               </Tooltip>
@@ -931,7 +932,7 @@ export function Sidebar() {
         variants={navListVariants}
         initial={hasEntered ? false : "hidden"}
         animate="visible"
-        className="flex-1 overflow-y-auto py-3 px-2 space-y-1 custom-sidebar-scroll"
+        className="flex-1 overflow-y-auto py-3 pb-16 px-2 space-y-1 custom-sidebar-scroll"
       >
         {isLoadingNav && navGroups.length === 0 ? (
           <div className="py-2 px-1 space-y-2 animate-pulse">
@@ -1077,11 +1078,12 @@ export function Sidebar() {
                                 return;
                               }
                               if (isFormOpen) {
-                                closeFormTab(true);
+                                closeFormTab(false);
                               }
                               if (normalizedPathname === sub.href) {
                                 setActiveTab("list");
                               }
+                              router.push(`${tenantPrefix}${sub.href}`);
                             }}
                             className={cn(
                               "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-all duration-150 select-none",
@@ -1216,7 +1218,7 @@ export function Sidebar() {
                   <img
                     src="/panther-logo.png"
                     alt="PantherTMS Logo"
-                    className="h-8 w-auto max-w-[36px] object-contain shrink-0 drop-shadow-xs"
+                    className="h-8 w-auto max-w-[36px] object-contain shrink-0 drop-shadow-xs dark:brightness-0 dark:invert dark:opacity-95"
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -1241,7 +1243,7 @@ export function Sidebar() {
               </div>
 
               {/* Navigation List inside Mobile Drawer */}
-              <div className="flex-1 overflow-y-auto py-3 px-2 space-y-1 custom-sidebar-scroll">
+              <div className="flex-1 overflow-y-auto py-3 pb-16 px-2 space-y-1 custom-sidebar-scroll">
                 {navGroups.map((group) => {
                   const isExpanded = expandedGroups[group.id] ?? false;
                   const hasActiveChild = isGroupActive(group, normalizedPathname);
@@ -1295,11 +1297,12 @@ export function Sidebar() {
                                   }
                                   closeMobileNav();
                                   if (isFormOpen) {
-                                    closeFormTab(true);
+                                    closeFormTab(false);
                                   }
                                   if (normalizedPathname === sub.href) {
                                     setActiveTab("list");
                                   }
+                                  router.push(`${tenantPrefix}${sub.href}`);
                                 }}
                                 className={cn(
                                   "group relative flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors",

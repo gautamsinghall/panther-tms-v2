@@ -74,9 +74,9 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between z-20 shrink-0 select-none">
-      {/* Left: Mobile Menu Trigger + Organization / Branch Switcher */}
-      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+    <header className="h-16 border-b border-slate-200/80 dark:border-[#22232E] bg-white/95 dark:bg-[#101013]/95 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between gap-2 z-20 shrink-0 select-none">
+      {/* Zone 1: Left - Mobile Menu Trigger + Organization + Branch Switcher */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink-0">
         {/* Mobile Sidebar Hamburger Trigger (Hidden on Desktop >= 1024px) */}
         <button
           type="button"
@@ -88,43 +88,38 @@ export function Header() {
         </button>
 
         {authData && (
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] hover:border-slate-300 hover:bg-slate-100/60 transition-all duration-150 shadow-2xs cursor-pointer group min-w-0 shrink">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] hover:border-slate-300 hover:bg-slate-100/60 transition-all duration-150 shadow-2xs cursor-pointer group shrink-0">
             <Building2 className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0" />
-            <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] group-hover:text-slate-900 transition-colors truncate hidden sm:inline max-w-[160px] md:max-w-none">
+            <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] group-hover:text-slate-900 transition-colors truncate hidden sm:inline max-w-[110px] xl:max-w-[150px]">
               {authData.companyName}
             </span>
             {authData.companyCode ? (
               <span className="text-[10px] sm:text-xs font-mono font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/70 dark:border-indigo-800/60 group-hover:border-indigo-300 uppercase tracking-wider shrink-0">
                 {authData.companyCode}
               </span>
-            ) : (
-              <span className="sm:hidden text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate max-w-[80px]">
-                {authData.companyName}
-              </span>
-            )}
+            ) : null}
           </div>
         )}
 
         <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden sm:block shrink-0" />
 
-        <div className="min-w-0 shrink-0">
+        <div className="shrink-0">
           <OfficeSwitcher />
         </div>
 
-        <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden lg:block shrink-0" />
+        <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden xl:block shrink-0" />
 
-        <div className="hidden lg:block shrink-0">
+        <div className="hidden xl:block shrink-0">
           <StatusBadge status="ACTIVE" />
         </div>
       </div>
 
-      {/* Center / Right: Global Search, Notifications & User Profile Menu */}
-      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        {/* Interactive Global Search Trigger for Desktop */}
+      {/* Zone 2: Center - Global Search Command Palette (Shrinks dynamically, never overlaps) */}
+      <div className="hidden md:flex flex-1 min-w-[200px] max-w-[380px] mx-2 items-center">
         <button
           type="button"
           onClick={() => setIsCommandPaletteOpen(true)}
-          className="hidden md:flex items-center gap-2.5 px-3 h-9 rounded-xl border border-slate-200/90 dark:border-[#303036] bg-slate-50/70 dark:bg-[#17171B] hover:bg-white dark:hover:bg-[#1E1E24] hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 w-56 lg:w-[420px] transition-all text-left cursor-pointer group select-none ring-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none"
+          className="w-full flex items-center gap-2.5 px-3 h-9 rounded-xl border border-slate-200/90 dark:border-[#303036] bg-slate-50/70 dark:bg-[#17171B] hover:bg-white dark:hover:bg-[#1E1E24] hover:border-slate-300 hover:shadow-xs text-xs text-slate-400 transition-all text-left cursor-pointer group select-none ring-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none"
           style={{ outline: "none" }}
           title="Search records (Ctrl + K)"
         >
@@ -136,7 +131,10 @@ export function Header() {
             Ctrl K
           </kbd>
         </button>
+      </div>
 
+      {/* Zone 3: Right - Search trigger for mobile, AI, Controls, Profile */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         {/* Mobile Search Icon Trigger */}
         <button
           type="button"
@@ -149,19 +147,19 @@ export function Header() {
         </button>
 
         {/* Action Controls: Notifications, Theme Switch & Panther AI */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             type="button"
             onClick={toggleAI}
             aria-label="Open Panther AI (Ctrl+/)"
             title="Open Panther AI Copilot (Ctrl+/)"
-            className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition-colors cursor-pointer select-none"
+            className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition-colors cursor-pointer select-none shrink-0"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
             <span className="hidden sm:inline">Panther AI</span>
           </button>
           <NotificationsPopover />
-          <div className="hidden sm:block">
+          <div className="hidden sm:block shrink-0">
             <ThemeToggle />
           </div>
         </div>
@@ -177,7 +175,7 @@ export function Header() {
               aria-label={`User account: ${authData?.userName || "User"}, role: ${
                 authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "Admin"
               }`}
-              className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer select-none"
+              className="flex items-center gap-2 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer select-none shrink-0"
             >
               <div
                 aria-hidden="true"
@@ -189,9 +187,9 @@ export function Header() {
                 <p className="text-xs font-semibold text-slate-900 dark:text-[#F5F5F7] leading-tight">
                   {authData?.userName || "User"}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight flex items-center gap-1 font-mono mt-0.5">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden="true" />
-                  <span>{authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "User"}</span>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight flex items-center gap-1.5 font-mono mt-0.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 inline-block align-middle mr-0.5" aria-hidden="true" />
+                  <span className="whitespace-nowrap">{authData?.role === "COMPANY_ADMIN" ? "Company Admin" : authData?.role || "User"}</span>
                 </p>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block shrink-0" aria-hidden="true" />

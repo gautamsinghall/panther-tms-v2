@@ -388,8 +388,12 @@ def build_system_prompt(
         lang_prompt = "CRITICAL: The user has asked in HINDI (Devanagari script). You MUST reply in respectful HINDI using Devanagari script."
         lang_rule = "The user's query is in HINDI (Devanagari). Your entire response must be written respectfully in HINDI (Devanagari script)."
     else:
-        lang_prompt = "CRITICAL: The user has asked in HINGLISH (Hindi in Roman script). You MUST reply in friendly, conversational HINGLISH using Roman script."
-        lang_rule = "The user's query is in HINGLISH. Your response should be in natural, conversational Hinglish (Hindi written using Roman script)." 
+        lang_prompt = (
+            "CRITICAL LANGUAGE RULE: The user has asked in ROMAN HINGLISH (Hindi written using the English/Latin alphabet, e.g. 'mujhe ek LR banana hai'). "
+            "You MUST reply strictly in conversational ROMAN HINGLISH using the Latin/Roman alphabet (A-Z). "
+            "ABSOLUTELY NEVER use Devanagari script (क, ख, ग, etc.). Every single word must be written in the Latin alphabet."
+        )
+        lang_rule = "The user's query is in ROMAN HINGLISH. Your response MUST be written strictly in conversational Hinglish using Roman script (A-Z only). NEVER use Devanagari script." 
 
     return f"""{lang_prompt}
 

@@ -320,7 +320,7 @@ async def execute_lr_tool(
         balance_val = float(lr.balance_amount or 0.0)
         freight_rate_val = float(lr.freight_rate or 0.0)
 
-        pkg_cnt = lr.package_count or 0
+        pkg_cnt = lr.package_count or (1 if (lr.actual_weight_mt or lr.chargeable_weight_mt) else 0)
         actual_wt = float(lr.actual_weight_mt or 0.0)
         chargeable_wt = float(lr.chargeable_weight_mt or 0.0)
         packing_str = lr.packing_method.name if lr.packing_method else (lr.load_type or "General Cargo")
@@ -893,6 +893,33 @@ async def execute_vehicle_tool(
                 "href": "/transport/market-vehicles",
             })
 
+    # Also search distinct vehicle numbers used on LRs
+    seen_numbers = {v["number"].replace(" ", "").replace("-", "").upper() for v in all_vehicles}
+    try:
+        stmt_lr_v = (
+            select(LR.vehicle_number)
+            .where(LR.vehicle_number.isnot(None), LR.vehicle_number != "")
+            .distinct()
+        )
+        res_lr_v = await db.execute(stmt_lr_v)
+        for v_num in res_lr_v.scalars().all():
+            if not v_num:
+                continue
+            norm_num = v_num.replace(" ", "").replace("-", "").upper()
+            if norm_num not in seen_numbers:
+                seen_numbers.add(norm_num)
+                all_vehicles.append({
+                    "number": v_num,
+                    "type": "Commercial Truck",
+                    "source": "Market",
+                    "capacity": "N/A",
+                    "owner": "Market / Consignment",
+                    "is_active": True,
+                    "href": f"/transport/lr-booking?search={v_num}",
+                })
+    except Exception as e:
+        logger.debug(f"Vehicle search LR error: {e}")
+
     clean_q = query.strip().upper().replace(" ", "").replace("-", "") if query else None
     if clean_q:
         all_vehicles = [
@@ -903,7 +930,7 @@ async def execute_vehicle_tool(
     matched = all_vehicles[:min(limit, 5)]
 
     # Specific vehicle detail lookup
-    if matched and (is_detail or (clean_q and len(matched) == 1)):
+    if matched and (is_detail or (clean_q and len(matched) == 1 and len(clean_q) >= 8)):
         target = matched[0]
         v_num = target["number"]
 
@@ -1037,11 +1064,15 @@ async def execute_vehicle_tool(
         action={"label": action_label, "href": action_href},
     )
 
-    if query and len(matched) > 1:
+    if query and len(matched) >= 1:
         if lang in ("hinglish", "hi_devanagari"):
-            msg = f"'{query}' se match karte **{len(matched)} vehicles** mil gaye hain:"
+            header = f"'{query}' se match karte **{len(matched)} vehicles** mil gaye hain:\n"
         else:
-            msg = f"Found **{len(matched)} vehicles** matching '{query}':"
+            header = f"Found **{len(matched)} vehicles** matching '{query}':\n"
+        lines = [header]
+        for v in matched:
+            lines.append(f"• **{v['number']}** ({v['source']} • {v['type']}) — [View]({v['href']})")
+        msg = "\n".join(lines)
     elif lang == "hinglish":
         msg = f"Aapke fleet ke **{len(matched)} vehicles** mil gaye hain. Details niche card mein dekhein."
     elif lang == "hi_devanagari":
@@ -1816,7 +1847,10 @@ async def execute_tracking_tool(
             context_prefix = f"Consignment **LR {matched_lr.lr_number}** ({orig} → {dest}) is in transit on vehicle **{vehicle_number}**."
         else:
             lr_display = lr_number
-            msg = f"LR **{lr_display}** nahi mila tracking ke liye." if lang in ("hinglish", "hi_devanagari") else f"No LR records found matching {lr_display}."
+            if lang == "hi_devanagari":
+                msg = f"LR {lr_display} के लिए कोई रिकॉर्ड नहीं मिला।"
+            else:
+                msg = f"No LR records found matching {lr_display}."
             return msg, []
 
     # 2. Resolve vehicle from Hire Challan number if supplied
@@ -2384,6 +2418,8 @@ async def execute_pod_tool(
         )
         return msg, [card]
 
+    eff_office_id = get_effective_office_id(user, current_office)
+
     if is_pending and not is_count and not (query or lr_number):
         stmt_pending = (
             select(LR)
@@ -2393,6 +2429,8 @@ async def execute_pod_tool(
             .order_by(desc(LR.created_at))
             .limit(10)
         )
+        if eff_office_id and eff_office_id != -1:
+            stmt_pending = stmt_pending.where(or_(LR.issuing_office_id == eff_office_id, LR.issuing_office_id.is_(None)))
         res_p = await db.execute(stmt_pending)
         lrs_pending = list(res_p.scalars().all())
         items = []
@@ -2405,22 +2443,21 @@ async def execute_pod_tool(
                 "status": "No POD",
                 "href": f"/transport/pod-records?search={l.lr_number}",
             })
-        msg = f"Found **{len(lrs_pending)} LRs** with no verified Proof of Delivery (POD):\n" + "\n".join(
+        office_label = f" ({current_office.name or 'Active Branch'})" if current_office and eff_office_id and eff_office_id != -1 else ""
+        msg = f"Found **{len(lrs_pending)} LRs** with no verified Proof of Delivery (POD){office_label}:\n" + "\n".join(
             f"• **LR {l.lr_number}** ({l.origin_location.city_name if l.origin_location else 'Origin'} → {l.destination_location.city_name if l.destination_location else 'Destination'}) • Vehicle: {l.vehicle_number or 'Assigned'} — [Open](/transport/pod-records?search={l.lr_number})"
             for l in lrs_pending
         )
         card = StructuredCard(
             card_type="pod_list",
             title=f"LRs With No POD ({len(lrs_pending)})",
-            subtitle="Top consignments without verified delivery proof",
+            subtitle=f"Top consignments without verified delivery proof{office_label}",
             badge={"text": f"{len(lrs_pending)} Pending", "variant": "warning"},
             metrics=[{"label": "Pending PODs", "value": str(len(lrs_pending))}],
             items=items,
             action={"label": "Manage POD Records", "href": "/transport/pod-records"},
         )
         return msg, [card]
-
-    eff_office_id = get_effective_office_id(user, current_office)
     stmt = (
         select(PODRecord)
         .options(selectinload(PODRecord.lr))
@@ -3341,12 +3378,11 @@ def classify_operational_intent(
 
     # 1. Tracking Intent (by vehicle, LR number, or Challan number)
     if entities["is_track"]:
-        # Never search bot's own examples from an earlier turn
-        if entities["vehicle_number"] and entities["vehicle_number"] != "DL01AA1111":
+        if entities["vehicle_number"]:
             return {"tool": "tracking", "vehicle_number": entities["vehicle_number"]}
-        if entities["lr_number"] and entities["lr_number"] not in ("LR-2026-0012", "LR12345"):
+        if entities["lr_number"]:
             return {"tool": "tracking", "lr_number": entities["lr_number"]}
-        if entities["hc_number"] and entities["hc_number"] != "HC-2026-0001":
+        if entities["hc_number"]:
             return {"tool": "tracking", "challan_number": entities["hc_number"]}
         return {"tool": "tracking_prompt"}
 

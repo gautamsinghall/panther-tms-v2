@@ -327,6 +327,9 @@ export default function ProformaInvoicePage() {
         columns={columns}
         data={data}
         isLoading={isLoading}
+        isError={Boolean(errorMessage)}
+        errorMessage={errorMessage || undefined}
+        onRetry={() => loadData(true)}
         searchPlaceholder="Search proforma by number or party..."
         searchColumn="party_name"
         actions={actions}

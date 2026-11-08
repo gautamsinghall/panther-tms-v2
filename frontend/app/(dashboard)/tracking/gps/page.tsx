@@ -559,7 +559,7 @@ export default function GPSTrackingPage() {
               <>
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Vehicles</h2>
                 <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  {filteredVehicles.length} vehicles
+                  {filteredVehicles.length}{" "}vehicles
                 </span>
               </>
             ) : (

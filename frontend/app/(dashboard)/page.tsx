@@ -88,17 +88,17 @@ function MetricKpiCard({
   barHeights,
 }: MetricKpiProps) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] hover:shadow-[0_4px_20px_rgba(23,36,67,0.06)] transition-all flex flex-col justify-between">
+    <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] hover:shadow-[0_4px_20px_rgba(23,36,67,0.06)] transition-all flex flex-col justify-between overflow-hidden">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-3.5 min-w-0">
           <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs", iconBg)}>
             {icon}
           </div>
-          <div>
-            <div className="text-xs font-semibold text-slate-500 tracking-tight">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-slate-500 dark:text-[#898991] tracking-tight truncate">
               {title}
             </div>
-            <div className="text-2xl font-bold text-slate-900 mt-0.5 tracking-tight font-sans">
+            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight font-sans truncate">
               {value}
             </div>
           </div>
@@ -116,19 +116,19 @@ function MetricKpiCard({
         </div>
       </div>
 
-      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#303036] flex items-center gap-2">
         <span
           className={cn(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold shrink-0",
-            trendDir === "up" && "bg-emerald-50 border-emerald-200/70 text-emerald-700",
-            trendDir === "down" && "bg-rose-50 border-rose-200/70 text-rose-700",
-            trendDir === "neutral" && "bg-slate-50 border-slate-200/80 text-slate-500"
+            trendDir === "up" && "bg-emerald-50 border-emerald-200/70 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300",
+            trendDir === "down" && "bg-rose-50 border-rose-200/70 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300",
+            trendDir === "neutral" && "bg-slate-50 border-slate-200/80 text-slate-500 dark:bg-[#1C1C22] dark:border-[#303036] dark:text-slate-400"
           )}
         >
           <span>{trendDir === "up" ? "↗" : trendDir === "down" ? "↘" : "—"}</span>
           <span>{trend}</span>
         </span>
-        <span className="text-[11px] text-slate-500 truncate font-medium">
+        <span className="text-[11px] text-slate-500 dark:text-[#898991] font-medium line-clamp-1 leading-snug break-normal">
           {subtext}
         </span>
       </div>
@@ -992,11 +992,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Row 3: Top Freight Corridors, Recent Movements & Quick Actions */}
+          {/* Row 3: Top Freight Corridors & Recent Consignments Movements */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left: Top Freight Corridors (~25% width / 3 cols) */}
-            <div className="lg:col-span-3 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
-              <div className="flex items-center justify-between pb-3">
+            {/* Left: Top Freight Corridors (~42% width / 5 cols) */}
+            <div className="lg:col-span-5 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-3 gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-800/40 text-purple-600 dark:text-[#C5A5FF] flex items-center justify-center shrink-0">
                     <MapPin className="w-4 h-4" />
@@ -1027,15 +1027,15 @@ export default function DashboardPage() {
                   {businessData.top_corridors.map((corr: any, idx: number) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/70 dark:bg-[#131317] border border-slate-200/80 dark:border-[#303036] hover:bg-slate-50 dark:hover:bg-[#202025] transition-colors shadow-2xs gap-2"
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 dark:bg-[#131317] border border-slate-200/80 dark:border-[#303036] hover:bg-slate-50 dark:hover:bg-[#202025] transition-colors shadow-2xs gap-3"
                     >
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-slate-900 dark:text-[#F5F5F7] flex items-center gap-1 truncate">
-                          <span className="truncate">{corr.origin}</span>
-                          <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate">{corr.destination}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-slate-900 dark:text-[#F5F5F7] flex flex-wrap items-center gap-1.5 leading-snug">
+                          <span className="font-bold">{corr.origin}</span>
+                          <ArrowRight className="w-3 h-3 text-slate-400 shrink-0 inline" />
+                          <span className="font-bold">{corr.destination}</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-[#898991] mt-0.5 font-mono">
+                        <div className="text-[11px] text-slate-500 dark:text-[#898991] mt-1 font-mono">
                           {corr.trip_count} Consignments
                         </div>
                       </div>
@@ -1056,18 +1056,18 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Center: Recent Consignment Movements (~50% width / 6 cols) */}
-            <div className="lg:col-span-6 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
-              <div className="flex items-center justify-between pb-3">
-                <div className="flex items-center gap-3">
+            {/* Right: Recent Consignment Movements (~58% width / 7 cols) */}
+            <div className="lg:col-span-7 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-3 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-800/40 text-blue-600 dark:text-[#C5A5FF] flex items-center justify-center shrink-0">
                     <FileText className="w-4 h-4" />
                   </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900 dark:text-[#F5F5F7]">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-slate-900 dark:text-[#F5F5F7] truncate">
                       Recent Consignment Movements
                     </h2>
-                    <p className="text-xs text-slate-500 dark:text-[#898991] mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-[#898991] mt-0.5 truncate">
                       Latest generated LRs and dispatch status
                     </p>
                   </div>
@@ -1076,7 +1076,7 @@ export default function DashboardPage() {
                 {canAccessRoute("/transport/lr-booking") && (
                   <Link
                     href={getWorkspaceUrl("/transport/lr-booking")}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-[#C5A5FF] dark:hover:text-[#F5F5F7] flex items-center gap-1 group"
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-[#C5A5FF] dark:hover:text-[#F5F5F7] flex items-center gap-1 group shrink-0"
                   >
                     <span>View All</span>
                     <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -1106,10 +1106,10 @@ export default function DashboardPage() {
                             <VehiclePlate vehicleNumber={lr.vehicle_number} />
                           </td>
                           <td className="py-2.5 px-2.5 text-slate-600 dark:text-[#CACAD0]">
-                            <span className="inline-flex items-center gap-1 font-medium truncate max-w-[180px]" title={`${lr.origin_city || "Origin"} → ${lr.destination_city || "Destination"}`}>
-                              <span className="truncate">{lr.origin_city || "Origin"}</span>
+                            <span className="inline-flex items-center gap-1.5 font-medium min-w-[140px]" title={`${lr.origin_city || "Origin"} → ${lr.destination_city || "Destination"}`}>
+                              <span className="font-semibold text-slate-900 dark:text-[#F5F5F7]">{lr.origin_city || "Origin"}</span>
                               <ArrowRight className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                              <span className="truncate">{lr.destination_city || "Destination"}</span>
+                              <span className="font-semibold text-slate-900 dark:text-[#F5F5F7]">{lr.destination_city || "Destination"}</span>
                             </span>
                           </td>
                           <td className="py-2.5 px-2.5 font-mono font-bold text-right text-slate-900 dark:text-[#F5F5F7] tabular-nums whitespace-nowrap">
@@ -1142,64 +1142,61 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Right: Quick Actions (~25% width / 3 cols) */}
-            <div className="lg:col-span-3 bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] flex flex-col justify-between">
-              <div className="pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                    <Zap className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-slate-900">Quick Actions</h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Frequently used operations
-                    </p>
-                  </div>
+          {/* Row 4: Dedicated Quick Actions Bar */}
+          <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#303036]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-800/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white">Quick Actions</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Frequently used operations</p>
                 </div>
               </div>
+            </div>
 
-              {/* Dynamic Action Cards */}
-              {permittedQuickActions.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 pt-2">
-                  {permittedQuickActions.map((action) => {
-                    const IconComp = action.icon;
-                    return (
-                      <Link
-                        key={action.id}
-                        href={getWorkspaceUrl(action.href)}
-                        className={cn(
-                          "rounded-xl border p-3 flex items-center justify-between group transition-all duration-150 select-none shadow-2xs",
-                          action.colorTheme.border,
-                          action.colorTheme.bg,
-                          action.colorTheme.hoverBg,
-                          action.colorTheme.text,
-                          "dark:!bg-[#131317] dark:hover:!bg-[#202025] dark:!border-[#303036] dark:hover:!border-[#42424A] dark:shadow-none"
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/60 dark:bg-white/[0.04] border border-white/80 dark:border-white/[0.06] shrink-0 transition-colors">
-                            <IconComp className={cn("w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-105", action.colorTheme.iconColor)} />
-                          </div>
-                          <span className="text-xs font-semibold text-slate-800 dark:!text-[#F5F5F7] truncate tracking-tight">{action.title}</span>
+            {permittedQuickActions.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
+                {permittedQuickActions.map((action) => {
+                  const IconComp = action.icon;
+                  return (
+                    <Link
+                      key={action.id}
+                      href={getWorkspaceUrl(action.href)}
+                      className={cn(
+                        "rounded-xl border p-3 flex flex-col justify-between group transition-all duration-150 select-none shadow-2xs min-h-[90px]",
+                        action.colorTheme.border,
+                        action.colorTheme.bg,
+                        action.colorTheme.hoverBg,
+                        action.colorTheme.text,
+                        "dark:!bg-[#131317] dark:hover:!bg-[#202025] dark:!border-[#303036] dark:hover:!border-[#42424A] dark:shadow-none"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/60 dark:bg-white/[0.04] border border-white/80 dark:border-white/[0.06] shrink-0 transition-colors">
+                          <IconComp className={cn("w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-105", action.colorTheme.iconColor)} />
                         </div>
                         <ArrowRight className={cn("w-3.5 h-3.5 group-hover:translate-x-1 transition-all shrink-0 opacity-70 group-hover:opacity-100", action.colorTheme.iconColor)} />
-                      </Link>
-                    );
-                  })}
+                      </div>
+                      <span className="text-xs font-semibold text-slate-800 dark:!text-[#F5F5F7] tracking-tight mt-2 line-clamp-1">{action.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-6 px-4 rounded-xl border border-dashed border-slate-200 dark:border-[#303036] bg-slate-50/70 dark:bg-[#131317] text-center flex flex-col items-center justify-center mt-3">
+                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-[#202025] text-slate-400 flex items-center justify-center mb-2">
+                  <ShieldCheck className="w-4 h-4 text-slate-400" />
                 </div>
-              ) : (
-                <div className="py-6 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 text-center flex flex-col items-center justify-center my-auto">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
-                    <ShieldCheck className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <p className="text-xs font-semibold text-slate-700">No Quick Actions Available</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5 max-w-xs">
-                    No permitted operational actions are available for your current role.
-                  </p>
-                </div>
-              )}
-            </div>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No Quick Actions Available</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xs">
+                  No permitted operational actions are available for your current role.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

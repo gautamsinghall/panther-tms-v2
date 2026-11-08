@@ -398,7 +398,7 @@ export default function LoginPage() {
       {/* 100% UNCHANGED: 4K Video Backdrop, AuthNavbar, Left Product Marketing     */}
       {/* column with 4 feature cards, Glassmorphic Login card & Enterprise footer. */}
       {/* ========================================================================= */}
-      <div className="hidden lg:flex min-h-screen xl:h-screen w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-hidden xl:overflow-hidden">
+      <div className="hidden lg:flex min-h-screen w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-hidden">
         {/* Full-screen fixed video backdrop with poster frame and dark gradient scrim */}
         <VideoBackdrop />
 
@@ -499,12 +499,12 @@ export default function LoginPage() {
 
           {/* Right Column: Desktop Liquid Glass Login Panel */}
           <div className="w-full lg:w-[42%] xl:w-[38%] flex justify-end z-20 py-0 animate-liquid-fade-panel">
-            <div className="w-full max-w-[440px] xl:max-w-[450px]">
+            <div className="w-full max-w-[440px] xl:max-w-[460px]">
               <div
                 onMouseMove={handleMouseMove}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                className="liquid-glass-panel rounded-[32px] p-9 space-y-5 relative"
+                className="liquid-glass-panel rounded-[32px] p-6 sm:p-7 xl:p-8 space-y-4 sm:space-y-4.5 relative"
               >
                 {/* Dynamic neutral reflection / subtle glint */}
                 <div
@@ -689,8 +689,8 @@ export default function LoginPage() {
                   </div>
 
                   {/* Demo Workspace Card */}
-                  <div className="liquid-glass-inset rounded-2xl p-4 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
+                  <div className="liquid-glass-inset rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 min-h-fit overflow-visible">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
                         <Sparkles className="w-4 h-4 text-white" />
                       </div>
@@ -698,7 +698,7 @@ export default function LoginPage() {
                         <h3 className="text-xs font-bold text-white leading-snug">
                           Try the demo workspace
                         </h3>
-                        <p className="text-[11px] text-white/60 leading-tight">
+                        <p className="text-[11px] text-white/70 leading-normal">
                           Pre-configured sandbox for evaluation.
                         </p>
                       </div>
@@ -707,9 +707,9 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={fillDemo}
-                      className="liquid-glass-pill hover:bg-white/20 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-white/25 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap shrink-0 group/demo"
+                      className="liquid-glass-pill hover:bg-white/20 text-white px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-white/25 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap shrink-0 group/demo"
                     >
-                      <span>Use demo credentials</span>
+                      <span>Use demo</span>
                       <ArrowRight className="w-3.5 h-3.5 group-hover/demo:translate-x-0.5 transition-transform" />
                     </button>
                   </div>

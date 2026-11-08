@@ -803,7 +803,7 @@ export default function HCRegisterPage() {
               Challan Records
             </h2>
             <span className="px-2 py-0.5 text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#1C1D26] border border-slate-200 dark:border-[#2D2E3A] rounded-md font-medium">
-              {totalEntries} records
+              {totalEntries}{" "}records
             </span>
           </div>
 
@@ -820,7 +820,7 @@ export default function HCRegisterPage() {
                   setCurrentPage(1);
                 }}
                 placeholder="Search HC, vehicle, owner, route..."
-                className="h-9 w-52 sm:w-64 pl-9 pr-7 text-xs bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#635BFF] focus:border-[#635BFF] transition-colors"
+                className="h-9 w-56 sm:w-64 lg:w-72 pl-9 pr-7 text-xs bg-slate-50 dark:bg-[#0D0E12] border border-slate-200 dark:border-[#2B2C37] rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#635BFF] focus:border-[#635BFF] transition-colors"
               />
               {searchTerm && (
                 <button

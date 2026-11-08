@@ -9,9 +9,20 @@ import { cn } from "@/lib/utils";
 
 export function OfficeSwitcher() {
   const router = useRouter();
-  const [offices, setOffices] = useState<OfficeSummary[]>([]);
-  const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [offices, setOffices] = useState<OfficeSummary[]>(() => {
+    if (typeof window === "undefined") return [];
+    return getStoredAuth()?.assignedOffices || [];
+  });
+  const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(() => {
+    if (typeof window === "undefined") return null;
+    return getActiveOffice();
+  });
+  const [isAdmin, setIsAdmin] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const auth = getStoredAuth();
+    const userRole = (auth?.user?.role || "").toUpperCase().trim();
+    return userRole.includes("ADMIN") || userRole === "OWNER";
+  });
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -138,6 +149,11 @@ export function OfficeSwitcher() {
   };
 
   if (!activeOffice && offices.length === 0) {
+    if (isLoading) {
+      return (
+        <div className="h-8 w-28 rounded-lg bg-slate-100 dark:bg-white/5 animate-pulse shrink-0" />
+      );
+    }
     if (isAdmin) {
       return (
         <button

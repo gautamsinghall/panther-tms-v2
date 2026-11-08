@@ -1513,7 +1513,14 @@ export function PantherAIPanel() {
                                 {card.items.map((it, itIdx) => (
                                   <div
                                     key={itIdx}
-                                    className="p-2 rounded-xl bg-slate-50 dark:bg-[#1A1E31] border border-slate-200/60 dark:border-[#2D3452] text-xs"
+                                    onClick={() => {
+                                      if (it.href) handleNavigate(it.href);
+                                    }}
+                                    className={`p-2 rounded-xl bg-slate-50 dark:bg-[#1A1E31] border border-slate-200/60 dark:border-[#2D3452] text-xs ${
+                                      it.href
+                                        ? "cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-100/80 dark:hover:bg-[#20253d] transition-all"
+                                        : ""
+                                    }`}
                                   >
                                     <div className="flex items-center justify-between gap-1">
                                       <span className="font-semibold text-slate-900 dark:text-white truncate">
@@ -1686,7 +1693,7 @@ export function PantherAIPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Listening... speak now" : "Ask Panther AI anything... (Shift+Enter for newline)"}
+            placeholder={isListening ? "Listening... speak now" : "Ask Panther AI... (Shift+Enter for newline)"}
             disabled={isLoading}
             className="flex-1 min-h-[36px] max-h-[120px] bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-hidden px-2 py-2 leading-relaxed overflow-y-auto"
           />

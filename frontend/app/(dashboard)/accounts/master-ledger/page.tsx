@@ -1222,7 +1222,7 @@ export default function MasterLedgerPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[#667085] dark:text-slate-400">Accounts</span>
                       <span className="font-semibold text-[#101828] dark:text-slate-200">
-                        {overview?.billing_clients?.total_accounts || billingClients.length} clients
+                        {overview?.billing_clients?.total_accounts || billingClients.length}{" "}clients
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
@@ -1262,11 +1262,11 @@ export default function MasterLedgerPage() {
                 className="group cursor-pointer relative bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-2xs hover:border-[#B54708] dark:hover:border-amber-500 hover:shadow-[0_10px_25px_-5px_rgba(181,71,8,0.12)] transition-all duration-200 flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-11 h-11 rounded-xl bg-[#FFFAEB] dark:bg-amber-950/60 border border-[#FEDF89] dark:border-amber-800 flex items-center justify-center text-[#B54708] dark:text-amber-400 group-hover:scale-105 transition-transform">
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div className="w-11 h-11 rounded-xl bg-[#FFFAEB] dark:bg-amber-950/60 border border-[#FEDF89] dark:border-amber-800 flex items-center justify-center text-[#B54708] dark:text-amber-400 group-hover:scale-105 transition-transform shrink-0">
                       <Truck className="w-5 h-5" />
                     </div>
-                    <Badge variant="warning" className="text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap">
+                    <Badge variant="warning" className="text-[11px] font-semibold px-2 py-0.5 whitespace-nowrap shrink-0">
                       Current Liab • Cr
                     </Badge>
                   </div>
@@ -1299,7 +1299,7 @@ export default function MasterLedgerPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[#667085] dark:text-slate-400">Accounts</span>
                       <span className="font-semibold text-[#101828] dark:text-slate-200">
-                        {overview?.vendors?.total_accounts || vendors.length} vendors
+                        {overview?.vendors?.total_accounts || vendors.length}{" "}vendors
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
@@ -1376,7 +1376,7 @@ export default function MasterLedgerPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[#667085] dark:text-slate-400">Accounts</span>
                       <span className="font-semibold text-[#101828] dark:text-slate-200">
-                        {overview?.drivers?.total_accounts || drivers.length} drivers
+                        {overview?.drivers?.total_accounts || drivers.length}{" "}drivers
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
@@ -1453,7 +1453,7 @@ export default function MasterLedgerPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[#667085] dark:text-slate-400">Total Fleet</span>
                       <span className="font-semibold text-[#101828] dark:text-slate-200">
-                        {overview?.company_vehicles?.total_accounts || companyVehicles.length} vehicles
+                        {overview?.company_vehicles?.total_accounts || companyVehicles.length}{" "}vehicles
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
@@ -1643,28 +1643,28 @@ export default function MasterLedgerPage() {
                   </div>
 
                   {/* 4 Financial Metric Mini-Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-[#303036]">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-3 pt-3 border-t border-slate-100 dark:border-[#303036]">
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
                       <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">Tax Accounts</span>
-                      <span className="text-xs font-bold text-[#101828] dark:text-white mt-0.5 block truncate">
-                        {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length} ledgers
+                      <span className="text-xs font-bold text-[#101828] dark:text-white mt-0.5 block tabular-nums">
+                        {overview?.duties_and_taxes?.total_accounts || dutiesAndTaxes.length}{" "}ledgers
                       </span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
                       <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">Output Tax (Cr)</span>
-                      <span className="text-xs font-bold text-[#B42318] dark:text-rose-400 mt-0.5 block truncate">
+                      <span className="text-[11px] xl:text-xs font-bold font-mono text-[#B42318] dark:text-rose-400 mt-0.5 block tabular-nums leading-tight break-all sm:break-normal">
                         {formatCurrency(overview?.duties_and_taxes?.total_credit || 0)}
                       </span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60">
                       <span className="text-[10px] text-[#667085] dark:text-slate-400 block truncate">ITC &amp; TDS Paid</span>
-                      <span className="text-xs font-bold text-[#027A48] dark:text-emerald-400 mt-0.5 block truncate">
+                      <span className="text-[11px] xl:text-xs font-bold font-mono text-[#027A48] dark:text-emerald-400 mt-0.5 block tabular-nums leading-tight break-all sm:break-normal">
                         {formatCurrency(overview?.duties_and_taxes?.total_debit || 0)}
                       </span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-[#F5F3FF] dark:bg-purple-950/30 border border-[#DDD6FE] dark:border-purple-800">
                       <span className="text-[10px] text-[#7C3AED] dark:text-purple-300 font-medium block truncate">Net Payable</span>
-                      <span className="text-xs font-extrabold text-[#7C3AED] dark:text-purple-400 mt-0.5 block truncate">
+                      <span className="text-[11px] xl:text-xs font-extrabold font-mono text-[#7C3AED] dark:text-purple-400 mt-0.5 block tabular-nums leading-tight break-all sm:break-normal">
                         {formatCurrency(overview?.duties_and_taxes?.total_outstanding || 0)}
                       </span>
                     </div>
@@ -1696,23 +1696,23 @@ export default function MasterLedgerPage() {
                     Automatic hierarchy verification for corporate statutory reporting and TallyPrime XML export.
                   </p>
 
-                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#667085] dark:text-slate-400">Primary Groups:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {overview?.hierarchy?.primary_groups_count ?? hierarchyStats.primary_groups} Active
+                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-[#101013] border border-slate-100 dark:border-[#303036]/60 text-[11px] space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[#667085] dark:text-slate-400 whitespace-nowrap">Primary Groups:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        {overview?.hierarchy?.primary_groups_count ?? hierarchyStats.primary_groups}{" "}Active
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#667085] dark:text-slate-400">Groups in Primary:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {overview?.hierarchy?.groups_count ?? hierarchyStats.groups} Verified
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[#667085] dark:text-slate-400 whitespace-nowrap">Groups in Primary:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        {overview?.hierarchy?.groups_count ?? hierarchyStats.groups}{" "}Verified
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#667085] dark:text-slate-400">Subgroups in Group:</span>
-                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                        {overview?.hierarchy?.subgroups_count ?? hierarchyStats.subgroups} Bound
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[#667085] dark:text-slate-400 whitespace-nowrap">Subgroups in Group:</span>
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
+                        {overview?.hierarchy?.subgroups_count ?? hierarchyStats.subgroups}{" "}Bound
                       </span>
                     </div>
                   </div>
@@ -2113,7 +2113,7 @@ export default function MasterLedgerPage() {
                             <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               {client.last_transaction_date ? formatDate(client.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
-                                {client.transaction_count} vouchers
+                                {client.transaction_count}{" "}vouchers
                               </div>
                             </td>
                             <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
@@ -2231,7 +2231,7 @@ export default function MasterLedgerPage() {
                             <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               {vendor.last_transaction_date ? formatDate(vendor.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
-                                {vendor.transaction_count} entries
+                                {vendor.transaction_count}{" "}entries
                               </div>
                             </td>
                             <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
@@ -2348,7 +2348,7 @@ export default function MasterLedgerPage() {
                             <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               {driver.last_transaction_date ? formatDate(driver.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
-                                {driver.transaction_count} records
+                                {driver.transaction_count}{" "}records
                               </div>
                             </td>
                             <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
@@ -2478,7 +2478,7 @@ export default function MasterLedgerPage() {
                             <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
                               {veh.last_transaction_date ? formatDate(veh.last_transaction_date) : "No activity"}
                               <div className="text-[10px] text-[#98A2B3]">
-                                {veh.transaction_count} entries • Ops: {formatCurrency(veh.total_operational_expense)}
+                                {veh.transaction_count}{" "}entries • Ops:{" "}{formatCurrency(veh.total_operational_expense)}
                               </div>
                             </td>
                             <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
@@ -2569,7 +2569,7 @@ export default function MasterLedgerPage() {
                               b.balance_type === "DR" ? "text-[#027A48] dark:text-emerald-400" : "text-[#B42318] dark:text-rose-400"
                             )}>
                               {b.balance_type === "CR" && Number(b.current_balance) > 0 ? `-${formatCurrency(b.current_balance)}` : formatCurrency(b.current_balance)}
-                            </span>
+                            </span>{" "}
                             <span className="text-[10px] text-[#98A2B3] ml-1">{b.balance_type}</span>
                           </td>
                           <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
@@ -2675,7 +2675,7 @@ export default function MasterLedgerPage() {
                                 {tax.last_transaction_date ? formatDate(tax.last_transaction_date) : "No vouchers"}
                               </div>
                               <div className="text-[10px] text-[#98A2B3]">
-                                {tax.transaction_count} voucher lines
+                                {tax.transaction_count}{" "}voucher lines
                               </div>
                             </td>
                             <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
@@ -3124,7 +3124,7 @@ export default function MasterLedgerPage() {
                       {detailedLedger.opening_balance_type === "CR" ? formatCurrency(detailedLedger.opening_balance) : "—"}
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-[#101828] dark:text-white">
-                      {formatCurrency(detailedLedger.opening_balance)} {detailedLedger.opening_balance_type}
+                      {formatCurrency(detailedLedger.opening_balance)}{" "}{detailedLedger.opening_balance_type}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <span className="text-[10px] font-medium text-[#667085]">b/f</span>
@@ -3183,7 +3183,7 @@ export default function MasterLedgerPage() {
                           {Number(tx.credit_amount) > 0 ? formatCurrency(tx.credit_amount) : "—"}
                         </td>
                         <td className="py-3 px-4 text-right font-mono font-bold text-[#101828] dark:text-white">
-                          {formatCurrency(tx.running_balance)}
+                          {formatCurrency(tx.running_balance)}{" "}
                           <span className="text-[10px] font-semibold text-[#667085] dark:text-slate-400 ml-1">
                             {tx.balance_type}
                           </span>
@@ -3229,7 +3229,7 @@ export default function MasterLedgerPage() {
                       {formatCurrency(detailedLedger.total_credit)}
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-extrabold text-[#4F46E5] dark:text-indigo-400 text-sm">
-                      {formatCurrency(detailedLedger.closing_balance)} {detailedLedger.closing_balance_type}
+                      {formatCurrency(detailedLedger.closing_balance)}{" "}{detailedLedger.closing_balance_type}
                     </td>
                     <td colSpan={2} className="print:hidden"></td>
                   </tr>

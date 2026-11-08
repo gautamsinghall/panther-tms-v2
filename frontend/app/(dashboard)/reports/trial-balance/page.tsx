@@ -201,8 +201,8 @@ export default function TrialBalancePage() {
       {tbData && flatAccounts.length > 0 && (
         <div className={`p-4 rounded-xl border flex items-center justify-between ${
           tbData.is_balanced
-            ? "bg-[#ECFDF3] border-[#A6F4C5] text-[#027A48]"
-            : "bg-[#FEF3F2] border-[#FECDCA] text-[#B42318]"
+            ? "bg-[#ECFDF3] border-[#A6F4C5] text-[#027A48] dark:bg-emerald-950/40 dark:border-emerald-800/60 dark:text-emerald-300"
+            : "bg-[#FEF3F2] border-[#FECDCA] text-[#B42318] dark:bg-rose-950/40 dark:border-rose-800/60 dark:text-rose-300"
         }`}>
           <div className="flex items-center gap-3">
             {tbData.is_balanced ? (

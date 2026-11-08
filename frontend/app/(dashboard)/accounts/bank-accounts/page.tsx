@@ -731,7 +731,7 @@ export default function CompanyBankAccountsPage() {
 
                       {/* Opening Balance */}
                       <td className="py-3.5 px-4 text-right font-mono text-xs text-gray-600 dark:text-gray-300">
-                        {formatCurrency(acc.opening_balance)}
+                        {formatCurrency(acc.opening_balance)}{" "}
                         <span className="ml-1 text-[10px] font-semibold text-gray-400">
                           {acc.opening_balance_type}
                         </span>
@@ -747,7 +747,7 @@ export default function CompanyBankAccountsPage() {
                             ? "text-amber-700 dark:text-amber-400"
                             : "text-gray-600 dark:text-gray-400"
                         )}>
-                          {formatCurrency(acc.current_balance)}
+                          {formatCurrency(acc.current_balance)}{" "}
                           <span className="ml-1 text-xs font-normal text-gray-500">
                             {acc.balance_type}
                           </span>
