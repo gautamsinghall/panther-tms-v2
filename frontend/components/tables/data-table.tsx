@@ -201,11 +201,12 @@ export function DataTable<T extends Record<string, any>>({
   };
 
   const activeColumns = useMemo(() => {
-    if (!enableColumnToggle) return columns;
-    return columns.filter((col, idx) => {
-      const k = (col.key || col.id || `col-${idx}`) as string;
-      return visibleColumns[k] !== false;
-    });
+    const colsWithKey = columns.map((col, idx) => ({
+      ...col,
+      _stableKey: (col.key || col.id || `col-${idx}`) as string,
+    }));
+    if (!enableColumnToggle) return colsWithKey;
+    return colsWithKey.filter((col) => visibleColumns[col._stableKey] !== false);
   }, [columns, visibleColumns, enableColumnToggle]);
 
 
@@ -631,7 +632,7 @@ export function DataTable<T extends Record<string, any>>({
                 )}
 
                 {activeColumns.map((col, cIdx) => {
-                  const colKey = (col.key || col.id || `col-${cIdx}`) as string;
+                  const colKey = col._stableKey || (col.key || col.id || `col-${cIdx}`) as string;
                   const isSorted = sortKey === colKey;
                   return (
                     <th
@@ -697,7 +698,7 @@ export function DataTable<T extends Record<string, any>>({
                       </td>
                     )}
                     {activeColumns.map((c, idx) => (
-                      <td key={(c.key || c.id || `col-${idx}`) as string} className={cellPaddingClass}>
+                      <td key={c._stableKey || (c.key || c.id || `col-${idx}`) as string} className={cellPaddingClass}>
                         <Skeleton className="h-4 w-3/4 rounded" />
                       </td>
                     ))}
@@ -785,14 +786,14 @@ export function DataTable<T extends Record<string, any>>({
                       )}
 
                       {/* Data Columns */}
-                      {columns.map((col, cIdx) => {
-                        const colKey = (col.key || col.id || `col-${cIdx}`) as string;
+                      {activeColumns.map((col, cIdx) => {
+                        const colKey = col._stableKey || (col.key || col.id || `col-${cIdx}`) as string;
                         return (
                           <td
                             key={colKey}
-                            style={{ width: col.width }}
+                            style={{ width: col.width, minWidth: col.minWidth || col.width }}
                             className={cn(
-                              "text-xs sm:text-[13px] text-slate-800 font-medium",
+                              "text-xs sm:text-[13px] text-slate-800 dark:text-[#F5F5F7] font-medium",
                               cellPaddingClass,
                               col.align === "right" || col.isNumeric ? "text-right tabular-nums font-mono" : "",
                               col.align === "center" ? "text-center" : ""
