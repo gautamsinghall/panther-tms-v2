@@ -865,7 +865,7 @@ export function Sidebar() {
                 <img
                   src="/panther-logo.png"
                   alt="PantherTMS Logo"
-                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200 dark:brightness-0 dark:invert dark:opacity-95"
+                  className="h-9 w-auto max-w-[52px] object-contain shrink-0 drop-shadow-xs transition-transform duration-200"
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -904,7 +904,7 @@ export function Sidebar() {
                   <img
                     src="/panther-logo.png"
                     alt="PantherTMS Logo"
-                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200 dark:brightness-0 dark:invert dark:opacity-95"
+                    className="h-8 w-auto max-w-[34px] object-contain drop-shadow-xs transition-transform duration-200"
                   />
                 </Link>
               </Tooltip>
@@ -1218,7 +1218,7 @@ export function Sidebar() {
                   <img
                     src="/panther-logo.png"
                     alt="PantherTMS Logo"
-                    className="h-8 w-auto max-w-[36px] object-contain shrink-0 drop-shadow-xs dark:brightness-0 dark:invert dark:opacity-95"
+                    className="h-8 w-auto max-w-[36px] object-contain shrink-0 drop-shadow-xs"
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
