@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Sun,
   Moon,
-  Sparkles,
   Menu,
 } from "lucide-react";
 import { usePantherAI } from "@/components/ai";
@@ -153,9 +152,11 @@ export function Header() {
             onClick={toggleAI}
             aria-label="Open Panther AI (Ctrl+/)"
             title="Open Panther AI Copilot (Ctrl+/)"
-            className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 transition-colors cursor-pointer select-none shrink-0"
+            className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200/80 dark:border-blue-800/60 transition-colors cursor-pointer select-none shrink-0"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
+            <div className="w-4 h-4 rounded-full overflow-hidden bg-[#0B2A5B] shrink-0 flex items-center justify-center">
+              <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
+            </div>
             <span className="hidden sm:inline">Panther AI</span>
           </button>
           <NotificationsPopover />

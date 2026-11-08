@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  Sparkles,
   Minus,
   Maximize2,
   Minimize2,
@@ -709,8 +708,8 @@ export function PantherAIPanel() {
         className="flex items-center justify-between px-4 py-3 bg-white dark:bg-[#0F111D] border-b border-slate-100 dark:border-[#1C2033] shrink-0 select-none cursor-default"
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-violet-500/10 dark:bg-violet-500/20 text-[#5B50E6] dark:text-violet-400 flex items-center justify-center shrink-0 border border-violet-500/20 shadow-2xs">
-            <Sparkles className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-[#0B2A5B] flex items-center justify-center shrink-0 shadow-2xs">
+            <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
           </div>
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-none">
@@ -899,8 +898,8 @@ export function PantherAIPanel() {
             ) : (
               // Assistant Bubble
               <div className="flex items-start gap-2.5 w-full min-w-0 max-w-full">
-                <div className="w-7 h-7 rounded-xl bg-violet-500/10 dark:bg-violet-500/20 text-[#5B50E6] dark:text-violet-400 flex items-center justify-center shrink-0 mt-0.5 border border-violet-500/20 shadow-2xs">
-                  <Sparkles className="w-3.5 h-3.5" />
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-[#0B2A5B] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
                 </div>
 
                 <div className="flex-1 min-w-0 max-w-full rounded-2xl rounded-tl-xs px-4 py-3 bg-slate-50 dark:bg-[#181B2B] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-[#262B44] text-xs sm:text-[13px] leading-relaxed shadow-xs space-y-2 break-words [overflow-wrap:anywhere] overflow-x-hidden">
@@ -1608,11 +1607,11 @@ export function PantherAIPanel() {
         {/* Typing indicator */}
         {isLoading && (
           <div className="flex items-start gap-2.5 max-w-[95%]">
-            <div className="w-7 h-7 rounded-xl bg-violet-500/10 dark:bg-violet-500/20 text-[#5B50E6] dark:text-violet-400 flex items-center justify-center shrink-0 mt-0.5 border border-violet-500/20 shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5" />
+            <div className="w-8 h-8 rounded-full overflow-hidden bg-[#0B2A5B] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+              <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
             </div>
             <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-[#181B2B] rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-[#262B44] text-xs text-slate-500 dark:text-slate-400 shadow-2xs">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#5B50E6] dark:text-violet-400" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
               <span className="font-medium">Panther AI is typing...</span>
             </div>
           </div>
