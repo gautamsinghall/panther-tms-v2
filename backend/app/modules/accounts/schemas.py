@@ -163,6 +163,9 @@ class PurchaseBillCreate(BaseModel):
     vehicle_number: Optional[str] = None
     cost_center: Optional[str] = None
     attachment_url: Optional[str] = None
+    tds_section: Optional[str] = None  # e.g., "194C", "194J"
+    tds_rate: Optional[Decimal] = Decimal("0.00")
+    tds_amount: Optional[Decimal] = Decimal("0.00")
     items: List[PurchaseBillItemCreate] = []
     narration: Optional[str] = None
 

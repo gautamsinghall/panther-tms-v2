@@ -143,6 +143,33 @@ async def get_all_vehicle_owners(db: AsyncSession) -> List[VehicleOwner]:
 async def create_vehicle_owner(db: AsyncSession, data: VehicleOwnerCreate) -> VehicleOwner:
     owner = VehicleOwner(**data.model_dump())
     db.add(owner)
+    await db.flush()
+
+    # Ensure matching Vendor exists in general_vendors
+    from app.tenant_db.models import Vendor
+    v_cand = (await db.execute(select(Vendor).where(Vendor.name.ilike(owner.name)))).scalars().first()
+    if not v_cand and owner.pan:
+        v_cand = (await db.execute(select(Vendor).where(Vendor.pan == owner.pan))).scalars().first()
+    if not v_cand:
+        v_cand = Vendor(
+            name=owner.name,
+            phone=owner.phone,
+            pan=owner.pan,
+            state=owner.state,
+            city=owner.city,
+            address=owner.address,
+            industry="Transporter / Fleet Owner",
+            account_status="Active",
+            is_active=True,
+        )
+        db.add(v_cand)
+        await db.flush()
+    from app.modules.accounts.master_ledger_service import get_or_create_party_account
+    v_acc = await get_or_create_party_account(db, "VENDOR", v_cand.id, v_cand.name, v_cand.pan)
+    if not v_acc.vehicle_owner_id:
+        v_acc.vehicle_owner_id = owner.id
+        await db.flush()
+
     await db.commit()
     await db.refresh(owner)
     return owner
@@ -835,6 +862,36 @@ async def create_hire_challan(db: AsyncSession, data: HireChallanCreate, office_
 
     hc = HireChallan(**hc_dict)
     db.add(hc)
+    await db.flush()
+
+    if hc.owner_id:
+        owner = await db.get(VehicleOwner, hc.owner_id)
+        if owner:
+            from app.tenant_db.models import Vendor
+            v_cand = (await db.execute(select(Vendor).where(Vendor.name.ilike(owner.name)))).scalars().first()
+            if not v_cand and owner.pan:
+                v_cand = (await db.execute(select(Vendor).where(Vendor.pan == owner.pan))).scalars().first()
+            if not v_cand:
+                v_cand = Vendor(
+                    name=owner.name,
+                    phone=owner.phone,
+                    pan=owner.pan,
+                    state=owner.state,
+                    city=owner.city,
+                    address=owner.address,
+                    industry="Transporter / Fleet Owner",
+                    account_status="Active",
+                    issuing_office_id=target_office_id,
+                    is_active=True,
+                )
+                db.add(v_cand)
+                await db.flush()
+            from app.modules.accounts.master_ledger_service import get_or_create_party_account
+            v_acc = await get_or_create_party_account(db, "VENDOR", v_cand.id, v_cand.name, v_cand.pan)
+            if not v_acc.vehicle_owner_id:
+                v_acc.vehicle_owner_id = owner.id
+                await db.flush()
+
     if auto_commit:
         await db.commit()
         await db.refresh(hc)

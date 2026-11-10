@@ -23,6 +23,9 @@ interface PurchaseRegisterItem {
   sgst_amount: number;
   igst_amount: number;
   total_tax: number;
+  tds_rate?: number;
+  tds_amount?: number;
+  tax_label?: string;
   net_amount: number;
 }
 
@@ -128,13 +131,26 @@ export default function PurchaseRegisterPage() {
     },
     {
       key: "total_tax",
-      header: "GST Tax (₹)",
+      header: "Tax / TDS (₹)",
       align: "right",
       isNumeric: true,
       cell: (row) => (
-        <span className="font-mono text-xs text-amber-700">
-          {formatCurrency(Number(row.total_tax))}
-        </span>
+        <div>
+          {row.tds_amount && Number(row.tds_amount) > 0 ? (
+            <div>
+              <span className="font-mono text-xs font-semibold text-amber-700">
+                {formatCurrency(Number(row.tds_amount))}
+              </span>
+              <span className="text-[10px] text-[#667085] block font-sans">
+                {row.tax_label || `TDS (${row.tds_rate || 20}%)`}
+              </span>
+            </div>
+          ) : (
+            <span className="font-mono text-xs text-amber-700">
+              {formatCurrency(Number(row.total_tax))}
+            </span>
+          )}
+        </div>
       ),
     },
     {

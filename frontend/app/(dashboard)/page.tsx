@@ -84,35 +84,38 @@ function MetricKpiCard({
   barHeights,
 }: MetricKpiProps) {
   return (
-    <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] hover:shadow-[0_4px_20px_rgba(23,36,67,0.06)] transition-all flex flex-col justify-between overflow-hidden">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3.5 min-w-0">
-          <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs", iconBg)}>
+    <div className="bg-white dark:bg-[#17171B] rounded-2xl border border-slate-200/90 dark:border-[#303036] p-4 2xl:p-5 shadow-[0_2px_12px_rgba(23,36,67,0.03)] hover:shadow-[0_4px_20px_rgba(23,36,67,0.06)] transition-all flex flex-col justify-between">
+      <div>
+        {/* Top Row: Icon + Sparkline */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className={cn("w-10 h-10 2xl:w-11 2xl:h-11 rounded-xl flex items-center justify-center shrink-0 shadow-2xs", iconBg)}>
             {icon}
           </div>
-          <div className="min-w-0">
-            <div className="text-xs font-semibold text-slate-500 dark:text-[#898991] tracking-tight truncate">
-              {title}
-            </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight font-sans truncate">
-              {value}
-            </div>
+
+          {/* Mini Sparkline Bar Chart */}
+          <div className="flex items-end gap-1 h-7 shrink-0 pl-1">
+            {barHeights.map((h, i) => (
+              <div
+                key={i}
+                className={cn("w-1.5 rounded-full transition-all", barsColor)}
+                style={{ height: `${Math.min(h, 24)}px` }}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Mini Sparkline Bar Chart */}
-        <div className="flex items-end gap-1 h-8 self-center shrink-0 pl-2">
-          {barHeights.map((h, i) => (
-            <div
-              key={i}
-              className={cn("w-1.5 rounded-full transition-all", barsColor)}
-              style={{ height: `${h}px` }}
-            />
-          ))}
+        {/* Text Container: Full width available without horizontal competition */}
+        <div className="min-w-0">
+          <div className="text-xs font-semibold text-slate-500 dark:text-[#898991] tracking-tight leading-snug line-clamp-2">
+            {title}
+          </div>
+          <div className="text-xl 2xl:text-2xl font-bold text-slate-900 dark:text-white mt-1 tracking-tight font-sans whitespace-nowrap overflow-visible">
+            {value}
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-[#303036] flex items-center gap-2">
+      <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-[#303036] flex items-center gap-2">
         <span
           className={cn(
             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold shrink-0",

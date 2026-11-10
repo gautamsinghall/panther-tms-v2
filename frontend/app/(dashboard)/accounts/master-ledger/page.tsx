@@ -2026,17 +2026,17 @@ export default function MasterLedgerPage() {
             <div className="overflow-x-auto">
               {/* Category 1: Billing Clients Table */}
               {activeCategory === "BILLING_CLIENT" && (
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-4">Billing Client</th>
-                      <th className="py-3 px-4">Account Code</th>
-                      <th className="py-3 px-4 text-right">Opening Balance</th>
-                      <th className="py-3 px-4 text-right">Total Debit</th>
-                      <th className="py-3 px-4 text-right">Total Credit</th>
-                      <th className="py-3 px-4 text-right">Outstanding Balance</th>
-                      <th className="py-3 px-4">Last Activity</th>
-                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Billing Client</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Account Code</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Opening Balance</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Debit</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Credit</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Outstanding Balance</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2116,7 +2116,7 @@ export default function MasterLedgerPage() {
                                 {client.transaction_count}{" "}vouchers
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2144,17 +2144,17 @@ export default function MasterLedgerPage() {
 
               {/* Category 2: Vendors Table */}
               {activeCategory === "VENDOR" && (
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-4">Vendor / Supplier</th>
-                      <th className="py-3 px-4">Vendor Code</th>
-                      <th className="py-3 px-4 text-right">Opening Balance</th>
-                      <th className="py-3 px-4 text-right">Total Debit (Paid)</th>
-                      <th className="py-3 px-4 text-right">Total Credit (Billed)</th>
-                      <th className="py-3 px-4 text-right">Outstanding Payable</th>
-                      <th className="py-3 px-4">Last Activity</th>
-                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Vendor / Supplier</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Vendor Code</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Opening Balance</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Debit (Paid)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Credit (Billed)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Outstanding Payable</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2234,7 +2234,7 @@ export default function MasterLedgerPage() {
                                 {vendor.transaction_count}{" "}entries
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2262,17 +2262,17 @@ export default function MasterLedgerPage() {
 
               {/* Category 3: Drivers Table */}
               {activeCategory === "DRIVER" && (
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-4">Driver Name</th>
-                      <th className="py-3 px-4">Driver ID / Contact</th>
-                      <th className="py-3 px-4">License / DL Status</th>
-                      <th className="py-3 px-4 text-right">Total Advances</th>
-                      <th className="py-3 px-4 text-right">Settled Expenses</th>
-                      <th className="py-3 px-4 text-right">Current Balance</th>
-                      <th className="py-3 px-4">Last Activity</th>
-                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Driver Name</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Driver ID / Contact</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">License / DL Status</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Advances</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Settled Expenses</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Current Balance</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2351,7 +2351,7 @@ export default function MasterLedgerPage() {
                                 {driver.transaction_count}{" "}records
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2379,17 +2379,17 @@ export default function MasterLedgerPage() {
 
               {/* Category: Company Vehicles Table (Fixed Assets / Tangible Fleet PPE) */}
               {activeCategory === "COMPANY_VEHICLE" && (
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-4">Company Vehicle</th>
-                      <th className="py-3 px-4">Account Code</th>
-                      <th className="py-3 px-4 text-right">Opening Balance</th>
-                      <th className="py-3 px-4 text-right">Additions (Dr)</th>
-                      <th className="py-3 px-4 text-right">Depreciation (Cr)</th>
-                      <th className="py-3 px-4 text-right">Book Value (WDV)</th>
-                      <th className="py-3 px-4">Last Activity</th>
-                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Company Vehicle</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Account Code</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Opening Balance</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Additions (Dr)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Depreciation (Cr)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Book Value (WDV)</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2481,7 +2481,7 @@ export default function MasterLedgerPage() {
                                 {veh.transaction_count}{" "}entries • Ops:{" "}{formatCurrency(veh.total_operational_expense)}
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2509,17 +2509,17 @@ export default function MasterLedgerPage() {
 
               {/* Category 4: Company Bank Accounts Table */}
               {activeCategory === "COMPANY_BANK_ACCOUNT" && (
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-4">Bank Name &amp; Details</th>
-                      <th className="py-3 px-4">Account Number</th>
-                      <th className="py-3 px-4">Branch / IFSC</th>
-                      <th className="py-3 px-4">Issuing Office</th>
-                      <th className="py-3 px-4 text-right">Inflows (Dr)</th>
-                      <th className="py-3 px-4 text-right">Outflows (Cr)</th>
-                      <th className="py-3 px-4 text-right">Current Balance</th>
-                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Bank Name &amp; Details</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Account Number</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Branch / IFSC</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Issuing Office</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Inflows (Dr)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Outflows (Cr)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Current Balance</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2572,7 +2572,7 @@ export default function MasterLedgerPage() {
                             </span>{" "}
                             <span className="text-[10px] text-[#98A2B3] ml-1">{b.balance_type}</span>
                           </td>
-                          <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
                             <Button
                               size="sm"
                               variant="outline"
@@ -2599,17 +2599,17 @@ export default function MasterLedgerPage() {
 
               {/* Category 5: Duties & Taxes Table */}
               {activeCategory === "DUTIES_AND_TAXES" && (
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036] text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-4">Tax Ledger Name</th>
-                      <th className="py-3 px-4">Account Code</th>
-                      <th className="py-3 px-4">Subgroup / Group</th>
-                      <th className="py-3 px-4 text-right">Total Debit (ITC / Paid)</th>
-                      <th className="py-3 px-4 text-right">Total Credit (Liability)</th>
-                      <th className="py-3 px-4 text-right">Current Balance</th>
-                      <th className="py-3 px-4">Activity</th>
-                      <th className="py-3 px-4 text-right w-36 min-w-[130px] whitespace-nowrap">Actions</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Tax Ledger Name</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Account Code</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Subgroup / Group</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Debit (ITC / Paid)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Credit (Liability)</th>
+                      <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Current Balance</th>
+                      <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Activity</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2678,7 +2678,7 @@ export default function MasterLedgerPage() {
                                 {tax.transaction_count}{" "}voucher lines
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-right whitespace-nowrap w-36 min-w-[130px]">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"

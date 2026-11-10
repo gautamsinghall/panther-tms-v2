@@ -25,6 +25,7 @@ from app.tenant_db.models import (
     SubgroupInGroup,
     CompanyBankAccount,
     CompanyVehicle,
+    VehicleOwner,
 )
 from app.modules.accounts import schemas
 
@@ -1190,6 +1191,136 @@ async def get_billing_client_ledger_detail(
 # 3. Vendor Ledger Listing & Detailed Statement
 # ------------------------------------------------------------------------------
 
+async def ensure_unified_creditor_vendors(session: AsyncSession) -> None:
+    """
+    Ensures every trade creditor account under Sundry Creditors (CREDITORS)
+    and every Vehicle Owner registered in transport operations has a matching
+    and synchronized Vendor master entry in general_vendors, with Account.vendor_id
+    and Voucher.vendor_id linked.
+    """
+    # shortcut: creditor sync runs on query access rather than a background event stream, upgrade to CDC/event listener when write volume exceeds 500 tx/s
+    cred_grp_res = await session.execute(
+        select(GroupInPrimary.id).where(
+            or_(
+                GroupInPrimary.code == "CREDITORS",
+                GroupInPrimary.name.ilike("%Creditor%"),
+            )
+        )
+    )
+    cred_grp_ids = list(cred_grp_res.scalars().all())
+
+    acc_conditions = [Account.vehicle_owner_id.isnot(None)]
+    if cred_grp_ids:
+        acc_conditions.append(Account.group_id.in_(cred_grp_ids))
+
+    acc_stmt = select(Account).where(
+        or_(*acc_conditions),
+        Account.is_active == True,
+    )
+    accs = list((await session.execute(acc_stmt)).scalars().all())
+
+    v_stmt = select(Vendor)
+    all_vendors = list((await session.execute(v_stmt)).scalars().all())
+    vendor_by_id = {v.id: v for v in all_vendors}
+    vendor_by_name = {v.name.strip().lower(): v for v in all_vendors if v.name}
+    vendor_by_pan = {v.pan.strip().upper(): v for v in all_vendors if v.pan}
+
+    vo_stmt = select(VehicleOwner).where(VehicleOwner.is_active == True)
+    all_owners = list((await session.execute(vo_stmt)).scalars().all())
+    owner_by_id = {vo.id: vo for vo in all_owners}
+    owner_by_name = {vo.name.strip().lower(): vo for vo in all_owners if vo.name}
+
+    modified = False
+
+    # 1. Sync accounts to vendors
+    for acc in accs:
+        v = vendor_by_id.get(acc.vendor_id) if acc.vendor_id else None
+        if not v and acc.name:
+            v = vendor_by_name.get(acc.name.strip().lower())
+        if not v and acc.name:
+            vo = owner_by_id.get(acc.vehicle_owner_id) if acc.vehicle_owner_id else owner_by_name.get(acc.name.strip().lower())
+            v = Vendor(
+                name=acc.name,
+                pan=(vo.pan if vo else None),
+                phone=(vo.phone if vo else None),
+                state=(vo.state if vo else None),
+                city=(vo.city if vo else None),
+                address=(vo.address if vo else None),
+                industry="Transporter / Fleet Owner" if (acc.vehicle_owner_id or (acc.code and "TRP" in acc.code.upper())) else "Creditor / Supplier",
+                account_status="Active",
+                is_active=True,
+            )
+            session.add(v)
+            await session.flush()
+            vendor_by_id[v.id] = v
+            vendor_by_name[v.name.strip().lower()] = v
+            if v.pan:
+                vendor_by_pan[v.pan.strip().upper()] = v
+            modified = True
+
+        if v:
+            if acc.vendor_id != v.id:
+                acc.vendor_id = v.id
+                modified = True
+            if not acc.vehicle_owner_id and acc.name and acc.name.strip().lower() in owner_by_name:
+                acc.vehicle_owner_id = owner_by_name[acc.name.strip().lower()].id
+                modified = True
+
+    # 2. Sync vehicle owners to vendors and creditor accounts
+    for vo in all_owners:
+        v = vendor_by_name.get(vo.name.strip().lower())
+        if not v and vo.pan:
+            v = vendor_by_pan.get(vo.pan.strip().upper())
+        if not v:
+            v = Vendor(
+                name=vo.name,
+                pan=vo.pan,
+                phone=vo.phone,
+                state=vo.state,
+                city=vo.city,
+                address=vo.address,
+                industry="Transporter / Fleet Owner",
+                account_status="Active",
+                is_active=True,
+            )
+            session.add(v)
+            await session.flush()
+            vendor_by_id[v.id] = v
+            vendor_by_name[v.name.strip().lower()] = v
+            if v.pan:
+                vendor_by_pan[v.pan.strip().upper()] = v
+            modified = True
+
+        v_acc = await get_or_create_party_account(session, "VENDOR", v.id, v.name, v.pan)
+        if not v_acc.vehicle_owner_id or v_acc.vehicle_owner_id != vo.id:
+            v_acc.vehicle_owner_id = vo.id
+            modified = True
+
+    # 3. Link vouchers missing vendor_id
+    if vendor_by_name or vendor_by_id:
+        acc_ids = [a.id for a in accs]
+        v_upd_stmt = select(Voucher).where(
+            Voucher.vendor_id.is_(None),
+            Voucher.is_void == False,
+        )
+        unlinked_vouchers = list((await session.execute(v_upd_stmt)).scalars().all())
+        for uv in unlinked_vouchers:
+            matched_v = None
+            if uv.party_name and uv.party_name.strip().lower() in vendor_by_name:
+                matched_v = vendor_by_name[uv.party_name.strip().lower()]
+            elif uv.account_id in acc_ids:
+                for a in accs:
+                    if a.id == uv.account_id and a.vendor_id:
+                        matched_v = vendor_by_id.get(a.vendor_id)
+                        break
+            if matched_v:
+                uv.vendor_id = matched_v.id
+                modified = True
+
+    if modified:
+        await session.flush()
+
+
 async def list_vendor_ledgers(
     session: AsyncSession,
     office_id: Optional[int] = None,
@@ -1201,6 +1332,8 @@ async def list_vendor_ledgers(
     total payables/credits (Purchases & confirmed Hire Challans), total debits (Payments),
     and outstanding payable balance.
     """
+    await ensure_unified_creditor_vendors(session)
+
     stmt = (
         select(Vendor)
         .options(selectinload(Vendor.issuing_office))
@@ -1228,7 +1361,41 @@ async def list_vendor_ledgers(
     res = await session.execute(stmt)
     vendors = list(res.scalars().all())
 
-    # Fetch all vouchers relevant to vendors
+    # Map accounts
+    acc_stmt = select(Account).where(Account.vendor_id.is_not(None))
+    acc_res = await session.execute(acc_stmt)
+    acc_map = {acc.vendor_id: acc for acc in acc_res.scalars().all()}
+
+    # Fetch all double-entry ledger entries grouped by account_id
+    le_stmt = (
+        select(
+            LedgerEntry.account_id,
+            func.coalesce(func.sum(LedgerEntry.debit_amount), Decimal("0.00")).label("sum_debit"),
+            func.coalesce(func.sum(LedgerEntry.credit_amount), Decimal("0.00")).label("sum_credit"),
+            func.max(LedgerEntry.entry_date).label("last_date"),
+            func.count(LedgerEntry.id).label("tx_count"),
+        )
+        .join(Voucher, LedgerEntry.voucher_id == Voucher.id)
+        .where(Voucher.is_void == False)
+    )
+    if office_id:
+        if include_unassigned:
+            le_stmt = le_stmt.where(or_(Voucher.issuing_office_id == office_id, Voucher.issuing_office_id.is_(None)))
+        else:
+            le_stmt = le_stmt.where(Voucher.issuing_office_id == office_id)
+    le_stmt = le_stmt.group_by(LedgerEntry.account_id)
+    le_res = await session.execute(le_stmt)
+    ledger_map = {
+        row.account_id: (
+            Decimal(str(row.sum_debit)),
+            Decimal(str(row.sum_credit)),
+            row.last_date,
+            row.tx_count,
+        )
+        for row in le_res.all()
+    }
+
+    # Fetch all vouchers relevant to vendors as fallback
     v_stmt = (
         select(Voucher)
         .where(Voucher.is_void == False)
@@ -1257,69 +1424,78 @@ async def list_vendor_ledgers(
     hc_res = await session.execute(hc_stmt)
     hire_challans = list(hc_res.scalars().all())
 
-    # Map accounts
-    acc_stmt = select(Account).where(Account.vendor_id.is_not(None))
-    acc_res = await session.execute(acc_stmt)
-    acc_map = {acc.vendor_id: acc for acc in acc_res.scalars().all()}
-
     items: List[schemas.VendorLedgerListItem] = []
     for vendor in vendors:
         v_acc = acc_map.get(vendor.id)
         open_bal = Decimal(str(v_acc.opening_balance if v_acc else "0.00"))
         open_type = v_acc.opening_balance_type if v_acc else "CR"
+        init_dr = open_bal if open_type == "DR" else Decimal("0.00")
+        init_cr = open_bal if open_type == "CR" else Decimal("0.00")
 
-        total_debit = Decimal("0.00")   # Payments, Debit Notes
-        total_credit = Decimal("0.00")  # Purchase bills, Hire liabilities
-        last_date: Optional[date] = None
-        tx_count = 0
+        if v_acc and v_acc.id in ledger_map:
+            # Use exact double-entry ledger entries for full parity with Trial Balance and O/S Creditor
+            txn_dr, txn_cr, last_date, tx_count = ledger_map[v_acc.id]
+            total_debit = init_dr + txn_dr
+            total_credit = init_cr + txn_cr
+            net_payable = total_credit - total_debit
+        else:
+            total_debit = Decimal("0.00")   # Payments, Debit Notes
+            total_credit = Decimal("0.00")  # Purchase bills, Hire liabilities
+            last_date = None
+            tx_count = 0
 
-        # Match vouchers
-        for v in vouchers:
-            is_match = (
-                v.vendor_id == vendor.id
-                or (v.party_name and v.party_name.strip().lower() == vendor.name.strip().lower())
-            )
-            if is_match:
-                tx_count += 1
-                amt = Decimal(str(v.net_amount or "0.00"))
-                if not last_date or (v.voucher_date and v.voucher_date > last_date):
-                    last_date = v.voucher_date
+            # Match vouchers
+            for v in vouchers:
+                is_match = (
+                    v.vendor_id == vendor.id
+                    or (v.party_name and v.party_name.strip().lower() == vendor.name.strip().lower())
+                )
+                if is_match:
+                    tx_count += 1
+                    amt = Decimal(str(v.net_amount or "0.00"))
+                    if not last_date or (v.voucher_date and v.voucher_date > last_date):
+                        last_date = v.voucher_date
 
-                # Payment, ATH, BTH, Debit Note = Debit (-DR, reduces payable)
-                if v.voucher_type in [
-                    VoucherType.PAYMENT_VOUCHER.value,
-                    VoucherType.PAYMENT_ATH.value,
-                    VoucherType.PAYMENT_BTH.value,
-                    "ATH_PAYMENT",
-                    "BTH_PAYMENT",
-                    VoucherType.DEBIT_NOTE.value,
-                ]:
-                    total_debit += amt
-                # Purchase, Credit Note = Credit (+CR to Vendor payable)
-                elif v.voucher_type in [
-                    VoucherType.NORMAL_PURCHASE.value,
-                    VoucherType.GENERAL_PURCHASE.value,
-                    VoucherType.CREDIT_NOTE.value,
-                ]:
-                    total_credit += amt
+                    # Payment, ATH, BTH, Debit Note = Debit (-DR, reduces payable)
+                    if v.voucher_type in [
+                        VoucherType.PAYMENT_VOUCHER.value,
+                        VoucherType.PAYMENT_ATH.value,
+                        VoucherType.PAYMENT_BTH.value,
+                        "ATH_PAYMENT",
+                        "BTH_PAYMENT",
+                        VoucherType.DEBIT_NOTE.value,
+                    ]:
+                        total_debit += amt
+                    # Purchase, Credit Note = Credit (+CR to Vendor payable)
+                    elif v.voucher_type in [
+                        VoucherType.NORMAL_PURCHASE.value,
+                        VoucherType.GENERAL_PURCHASE.value,
+                        VoucherType.CREDIT_NOTE.value,
+                    ]:
+                        total_credit += amt
 
-        # Match confirmed Hire Challans for this vendor
-        for hc in hire_challans:
-            is_hc_match = (
-                (hc.owner and hc.owner.name.strip().lower() == vendor.name.strip().lower())
-                or (hc.vendor_ref_no and hc.vendor_ref_no.strip().lower() == vendor.name.strip().lower())
-            )
-            if is_hc_match:
-                tx_count += 1
-                # The freight payable amount
-                hc_payable = Decimal(str(hc.net_payable_amount or hc.hire_rate or "0.00"))
-                total_credit += hc_payable
-                if not last_date or (hc.challan_date and hc.challan_date > last_date):
-                    last_date = hc.challan_date
+            # Match confirmed Hire Challans for this vendor (excluding ones already billed via voucher)
+            for hc in hire_challans:
+                is_hc_match = (
+                    (hc.owner and hc.owner.name.strip().lower() == vendor.name.strip().lower())
+                    or (hc.vendor_ref_no and hc.vendor_ref_no.strip().lower() == vendor.name.strip().lower())
+                )
+                already_billed = any(
+                    v.hire_challan_id == hc.id
+                    or (v.reference_number and v.reference_number.strip().lower() == hc.challan_number.strip().lower())
+                    for v in vouchers
+                )
+                if is_hc_match and not already_billed:
+                    tx_count += 1
+                    # The freight payable amount
+                    hc_payable = Decimal(str(hc.net_payable_amount or hc.hire_rate or "0.00"))
+                    total_credit += hc_payable
+                    if not last_date or (hc.challan_date and hc.challan_date > last_date):
+                        last_date = hc.challan_date
 
-        # Net outstanding payable
-        net_opening = open_bal if open_type == "CR" else -open_bal
-        net_payable = net_opening + total_credit - total_debit
+            # Net outstanding payable
+            net_opening = open_bal if open_type == "CR" else -open_bal
+            net_payable = net_opening + total_credit - total_debit
 
         if net_payable > Decimal("0.00"):
             bal_type = "CR"
@@ -1331,11 +1507,13 @@ async def list_vendor_ledgers(
             bal_type = "NIL"
             outstanding_abs = Decimal("0.00")
 
+        v_code = (v_acc.code if (v_acc and v_acc.code) else f"VEND-{vendor.id:04d}")
+
         items.append(
             schemas.VendorLedgerListItem(
                 id=vendor.id,
                 name=vendor.name,
-                code=f"VEND-{vendor.id:04d}",
+                code=v_code,
                 phone=vendor.phone,
                 email=vendor.email,
                 gstin=vendor.gstin,

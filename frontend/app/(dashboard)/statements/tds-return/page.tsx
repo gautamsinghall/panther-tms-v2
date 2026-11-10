@@ -235,7 +235,11 @@ export default function TDSReturnPage() {
             <div className="text-xl font-bold font-mono text-[#027A48] mt-1">
               ₹{Number(data.total_tax_deposited).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[11px] text-[#027A48] block mt-1 font-medium">Challan verified</span>
+            {Number(data.total_tax_deposited) > 0 ? (
+              <span className="text-[11px] text-[#027A48] block mt-1 font-medium">Challan verified</span>
+            ) : (
+              <span className="text-[11px] text-amber-700 block mt-1 font-medium">Pending deposit</span>
+            )}
           </Card>
         </div>
       )}

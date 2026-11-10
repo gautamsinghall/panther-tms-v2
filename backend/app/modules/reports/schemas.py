@@ -265,6 +265,9 @@ class PurchaseRegisterItem(BaseModel):
     sgst_amount: Decimal
     igst_amount: Decimal
     total_tax: Decimal
+    tds_rate: Optional[Decimal] = Decimal("0.00")
+    tds_amount: Optional[Decimal] = Decimal("0.00")
+    tax_label: Optional[str] = None
     net_amount: Decimal
 
 
@@ -277,6 +280,7 @@ class PurchaseRegisterResponse(BaseModel):
     total_sgst: Decimal
     total_igst: Decimal
     total_tax: Decimal
+    total_tds: Optional[Decimal] = Decimal("0.00")
     total_net_amount: Decimal
     purchase_count: int
 

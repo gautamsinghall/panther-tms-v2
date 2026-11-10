@@ -175,7 +175,9 @@ export default function TruckPnLPage() {
     },
     {
       key: "actions",
-      header: "Drilldown",
+      header: "Actions",
+      align: "center",
+      minWidth: "120px",
       cell: (row) => (
         <Button
           size="sm"

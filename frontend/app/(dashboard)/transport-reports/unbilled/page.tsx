@@ -64,7 +64,7 @@ export default function UnbilledReportsPage() {
       key: "consigner",
       header: "Billing Party / Consigner",
       cell: (row) => (
-        <span className="text-[#344054]">
+        <span className="text-[#344054] truncate max-w-[160px] inline-block" title={row.consigner_name || "N/A"}>
           {row.consigner_name || "N/A"}
         </span>
       ),
@@ -74,7 +74,7 @@ export default function UnbilledReportsPage() {
       header: "Consignee / Destination",
       cell: (row) => (
         <div>
-          <div className="font-medium text-[#344054]">
+          <div className="font-medium text-[#344054] truncate max-w-[160px]" title={row.consignee_name || "N/A"}>
             {row.consignee_name || "N/A"}
           </div>
           <div className="text-xs text-[#667085]">
@@ -116,6 +116,24 @@ export default function UnbilledReportsPage() {
       key: "status",
       header: "LR Lifecycle",
       cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "center",
+      minWidth: "100px",
+      cell: (row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-xs h-7 px-2.5 font-medium hover:border-[#635BFF] hover:text-[#635BFF]"
+          onClick={() => {
+            window.location.href = `/transport/lr-booking?lr=${row.lr_number}`;
+          }}
+        >
+          View LR
+        </Button>
+      ),
     },
   ];
 

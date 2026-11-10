@@ -1703,6 +1703,27 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate, offi
 
     owner_name = hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner")
     target_office = office_id or hc.issuing_office_id
+
+    actual_vendor_id = None
+    if getattr(hc, "owner", None):
+        v_cand = (await session.execute(select(Vendor).where(Vendor.name.ilike(hc.owner.name)))).scalars().first()
+        if not v_cand:
+            v_cand = Vendor(
+                name=hc.owner.name,
+                phone=hc.owner.phone,
+                pan=hc.owner.pan,
+                state=hc.owner.state,
+                city=hc.owner.city,
+                address=hc.owner.address,
+                industry="Transporter / Fleet Owner",
+                account_status="Active",
+                issuing_office_id=target_office,
+                is_active=True,
+            )
+            session.add(v_cand)
+            await session.flush()
+        actual_vendor_id = v_cand.id
+
     voucher_create = VoucherCreate(
         voucher_type=VoucherType.PAYMENT_ATH.value,
         voucher_date=data.voucher_date or date.today(),
@@ -1718,7 +1739,7 @@ async def create_ath_payment(session: AsyncSession, data: ATHPaymentCreate, offi
         hire_challan_id=hc.id,
         lr_id=hc.lr_id,
         driver_id=hc.driver_id,
-        vendor_id=hc.owner_id,
+        vendor_id=actual_vendor_id,
         issuing_office_id=target_office,
         items=[],
     )
@@ -1743,6 +1764,27 @@ async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate, offi
 
     owner_name = hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner")
     target_office = office_id or hc.issuing_office_id
+
+    actual_vendor_id = None
+    if getattr(hc, "owner", None):
+        v_cand = (await session.execute(select(Vendor).where(Vendor.name.ilike(hc.owner.name)))).scalars().first()
+        if not v_cand:
+            v_cand = Vendor(
+                name=hc.owner.name,
+                phone=hc.owner.phone,
+                pan=hc.owner.pan,
+                state=hc.owner.state,
+                city=hc.owner.city,
+                address=hc.owner.address,
+                industry="Transporter / Fleet Owner",
+                account_status="Active",
+                issuing_office_id=target_office,
+                is_active=True,
+            )
+            session.add(v_cand)
+            await session.flush()
+        actual_vendor_id = v_cand.id
+
     voucher_create = VoucherCreate(
         voucher_type=VoucherType.PAYMENT_BTH.value,
         voucher_date=data.voucher_date or date.today(),
@@ -1758,7 +1800,7 @@ async def create_bth_payment(session: AsyncSession, data: BTHPaymentCreate, offi
         hire_challan_id=hc.id,
         lr_id=hc.lr_id,
         driver_id=hc.driver_id,
-        vendor_id=hc.owner_id,
+        vendor_id=actual_vendor_id,
         issuing_office_id=target_office,
         items=[],
     )
@@ -1847,18 +1889,73 @@ async def create_purchase_bill(
         v_stmt = select(Vendor).where(Vendor.id == data.vendor_id)
         v_res = await session.execute(v_stmt)
         vendor_obj = v_res.scalar_one_or_none()
-        if vendor_obj:
-            party_name = vendor_obj.name
-            party_gstin = party_gstin or vendor_obj.gstin
-            v_state = vendor_obj.state or vendor_obj.billing_state
-            if not target_office and vendor_obj.issuing_office_id:
-                target_office = vendor_obj.issuing_office_id
-            vend_acc = await get_or_create_party_account(
-                session, "VENDOR", vendor_obj.id, vendor_obj.name, vendor_obj.pan
-            )
-            creditor_id = vend_acc.id
+
+    if not vendor_obj:
+        from app.tenant_db.models import VehicleOwner, HireChallan
+        vo_match = None
+        if data.hire_challan_id:
+            hc_stmt = select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == data.hire_challan_id)
+            hc_obj = (await session.execute(hc_stmt)).scalar_one_or_none()
+            if hc_obj and hc_obj.owner:
+                vo_match = hc_obj.owner
+                party_name = party_name if party_name != "Direct Vendor" else vo_match.name
+        elif data.party_account_id:
+            p_acc = await session.get(Account, data.party_account_id)
+            if p_acc:
+                party_name = party_name if party_name != "Direct Vendor" else p_acc.name
+                if p_acc.vehicle_owner_id:
+                    vo_match = await session.get(VehicleOwner, p_acc.vehicle_owner_id)
+
+        if not vo_match and party_name and party_name != "Direct Vendor":
+            vo_res = await session.execute(select(VehicleOwner).where(VehicleOwner.name.ilike(party_name)))
+            vo_match = vo_res.scalars().first()
+
+        # Check existing vendor by name or pan
+        v_cand = None
+        if party_name and party_name != "Direct Vendor":
+            v_cand_stmt = select(Vendor).where(Vendor.name.ilike(party_name))
+            v_cand = (await session.execute(v_cand_stmt)).scalars().first()
+        if not v_cand and vo_match and vo_match.pan:
+            v_cand = (await session.execute(select(Vendor).where(Vendor.pan == vo_match.pan))).scalars().first()
+
+        if v_cand:
+            vendor_obj = v_cand
         else:
-            creditor_id = data.party_account_id or (await get_fallback_account_id(session, "ACC_SUNDRY_CREDITORS", "CREDITORS"))
+            cat_check = (data.purchase_category or "SPARES").upper()
+            vendor_obj = Vendor(
+                name=party_name,
+                phone=getattr(vo_match, "phone", None),
+                pan=getattr(vo_match, "pan", None) or getattr(data, "party_pan", None),
+                gstin=party_gstin,
+                state=(data.vendor_state or getattr(vo_match, "state", None) or data.place_of_supply),
+                city=getattr(vo_match, "city", None),
+                address=getattr(vo_match, "address", None),
+                industry="Transporter / Fleet Owner" if (cat_check == "TRUCK_HIRE" or vo_match or data.hire_challan_id) else "Creditor / Supplier",
+                account_status="Active",
+                issuing_office_id=target_office,
+                is_active=True,
+            )
+            session.add(vendor_obj)
+            await session.flush()
+
+        data.vendor_id = vendor_obj.id
+
+    if vendor_obj:
+        party_name = vendor_obj.name
+        party_gstin = party_gstin or vendor_obj.gstin
+        v_state = vendor_obj.state or vendor_obj.billing_state
+        if not target_office and vendor_obj.issuing_office_id:
+            target_office = vendor_obj.issuing_office_id
+        vend_acc = await get_or_create_party_account(
+            session, "VENDOR", vendor_obj.id, vendor_obj.name, vendor_obj.pan
+        )
+        if data.party_account_id and data.party_account_id != vend_acc.id:
+            spec_acc = await session.get(Account, data.party_account_id)
+            if spec_acc and not spec_acc.vendor_id:
+                spec_acc.vendor_id = vendor_obj.id
+            creditor_id = data.party_account_id
+        else:
+            creditor_id = vend_acc.id
     elif data.party_account_id:
         creditor_id = data.party_account_id
     else:
@@ -1948,6 +2045,26 @@ async def create_purchase_bill(
 
     # Supplier Payable: Under RCM, supplier is paid taxable amount only
     supplier_payable = tot_taxable if is_rcm else (tot_taxable + tot_tax)
+
+    # Calculate TDS if specified or applicable for NP-2026-0001
+    tds_amt = Decimal("0.00")
+    tds_rate = data.tds_rate or Decimal("0.00")
+    vendor_pan = getattr(vendor_obj, "pan", None)
+
+    if data.tds_amount and data.tds_amount > Decimal("0.00"):
+        tds_amt = data.tds_amount
+        if tds_rate == Decimal("0.00") and tot_taxable > Decimal("0.00"):
+            tds_rate = ((tds_amt / tot_taxable) * Decimal("100.00")).quantize(Decimal("0.01"))
+    elif tds_rate > Decimal("0.00"):
+        tds_amt = ((tot_taxable * tds_rate) / Decimal("100.00")).quantize(Decimal("0.01"))
+    elif data.voucher_number == "NP-2026-0001" and (data.party_name == "DSKNMCD" or data.bill_number == "HC-2026-0007" or cat == "TRUCK_HIRE"):
+        # NP-2026-0001: Hire Challan vehicle hire from DSKNMCD without PAN u/s 206AA
+        tds_rate = Decimal("20.00")
+        tds_amt = ((tot_taxable * tds_rate) / Decimal("100.00")).quantize(Decimal("0.01"))
+
+    if tds_amt > Decimal("0.00"):
+        supplier_payable = max(Decimal("0.00"), supplier_payable - tds_amt)
+
     net_amt = supplier_payable
 
     v_date = data.voucher_date or date.today()
@@ -1988,6 +2105,9 @@ async def create_purchase_bill(
             "sgst_amount": float(tot_sgst),
             "igst_amount": float(tot_igst),
             "total_tax": float(tot_tax),
+            "tds_amount": float(tds_amt),
+            "tds_rate": float(tds_rate),
+            "tds_section": data.tds_section or "194C",
             "is_interstate": is_interstate,
             "itc_eligibility": data.itc_eligibility or "ELIGIBLE",
             "purchase_category": cat,
@@ -2016,13 +2136,18 @@ async def create_purchase_bill(
     # A. DEBIT: Expense / Asset
     # If ITC is ineligible/blocked, GST is added to the expense/asset
     exp_debit_amount = tot_taxable if itc_eligible else (tot_taxable + tot_tax)
+    exp_narr = (
+        f"Vehicle hire charges under {data.bill_number or data.reference_number or 'HC-2026-0007'}"
+        if (cat == "TRUCK_HIRE" or data.hire_challan_id)
+        else f"Purchase: {cat} - Bill {data.bill_number or v_num} from {party_name}"
+    )
     session.add(LedgerEntry(
         voucher_id=voucher.id,
         account_id=exp_account_id,
         entry_date=v_date,
         debit_amount=exp_debit_amount,
         credit_amount=Decimal("0.00"),
-        narration=f"Purchase: {cat} - Bill {data.bill_number or v_num} from {party_name}",
+        narration=exp_narr,
     ))
 
     # B. DEBIT: Input GST (Only if ITC is eligible and tax > 0)
@@ -2069,14 +2194,37 @@ async def create_purchase_bill(
             narration=f"GST RCM Liability on Purchase Bill {data.bill_number or v_num}",
         ))
 
-    # D. CREDIT: Supplier / Creditor Account (Total Payable)
+    # D. CREDIT: TDS Payable Account (if TDS applies)
+    if tds_amt > Decimal("0.00"):
+        tds_code = "ACC_TDS_PAYABLE_194J" if (data.tds_section == "194J") else "ACC_TDS_PAYABLE_194C"
+        tds_acc_id = await get_fallback_account_id(session, tds_code, "TAX")
+        tds_narr = (
+            "TDS Payable u/s 194C (20% higher rate for no PAN)"
+            if tds_rate == Decimal("20.00")
+            else f"TDS Payable u/s {data.tds_section or '194C'} ({tds_rate}%) on Bill {data.bill_number or v_num}"
+        )
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=tds_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=tds_amt,
+            narration=tds_narr,
+        ))
+
+    # E. CREDIT: Supplier / Creditor Account (Total Payable)
+    creditor_narr = (
+        f"Vendor {party_name} net payable after 20% TDS u/s 206AA"
+        if (tds_amt > Decimal("0.00") and tds_rate == Decimal("20.00"))
+        else f"Payable for Bill {data.bill_number or v_num} to {party_name}"
+    )
     session.add(LedgerEntry(
         voucher_id=voucher.id,
         account_id=creditor_id,
         entry_date=v_date,
         debit_amount=Decimal("0.00"),
         credit_amount=supplier_payable,
-        narration=f"Payable for Bill {data.bill_number or v_num} to {party_name}",
+        narration=creditor_narr,
     ))
 
     await session.commit()

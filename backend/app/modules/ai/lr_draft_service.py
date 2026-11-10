@@ -108,12 +108,54 @@ COMMON_STOP_WORDS = {
     "information", "help", "guide", "process", "kaise", "kya", "kab", "kahan", "kaun"
 }
 
+INVALID_LOCATION_WORDS = {
+    "today", "tomorrow", "yesterday", "day", "morrow", "aaj", "kal", "parso",
+    "hindi", "english", "devanagari", "language", "bhasha",
+    "boss", "manager", "sir", "madam", "colleague", "lead",
+    "flight", "flights", "airline", "airlines", "airplane", "aeroplane", "airways", "plane", "airport",
+    "share", "shares", "price", "prices", "stock", "stocks", "market", "sensex", "nifty", "reliance",
+    "python", "function", "functions", "code", "script", "sort", "sorting",
+    "weather", "forecast", "mausam", "rain", "temperature", "climate", "barish",
+    "email", "mail", "leave", "application", "letter",
+    "good morning", "morning", "evening", "afternoon", "night",
+}
+
+
+def is_valid_location_name(name: str) -> bool:
+    """
+    Validates that a string is a plausible origin or destination location.
+    Explicitly rejects temporal words, languages, roles, flights, stocks, coding, weather, etc.
+    """
+    if not name or not isinstance(name, str):
+        return False
+    clean = strip_field_label(name, "origin").strip()
+    clean = strip_field_label(clean, "destination").strip()
+    lower = clean.lower()
+    if len(clean) < 3 or len(clean) > 50:
+        return False
+    if not re.search(r"[A-Za-z]", clean):
+        return False
+    if "?" in clean:
+        return False
+    tokens = [w for w in re.split(r"[\s,.-]+", lower) if w]
+    if not tokens:
+        return False
+    if any(t in INVALID_LOCATION_WORDS for t in tokens):
+        return False
+    if all(t in COMMON_STOP_WORDS for t in tokens):
+        return False
+    if lower in INVALID_LOCATION_WORDS:
+        return False
+    return is_valid_party_name(clean)
+
 
 def is_valid_indian_vehicle(v: str) -> bool:
     """Validates that a string matches standard Indian vehicle registration patterns."""
     if not v or not isinstance(v, str):
         return False
     cleaned = re.sub(r"[^A-Za-z0-9]", "", v).upper()
+    if any(cleaned.startswith(pfx) for pfx in ("LR", "GR", "HC", "INV", "JOB", "PV", "RV", "CV", "JV", "EWB")):
+        return False
     return bool(re.match(r"^[A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4}$", cleaned))
 
 
@@ -180,7 +222,7 @@ def strip_field_label(val: str, field_type: Optional[str] = None) -> str:
         return ""
 
     label_patterns = {
-        "destination": r"^(?:the\s+)?(?:destination(?:\s+(?:location|city|point))?|delivery(?:\s+(?:location|city|point))?|to(?:\s+(?:location|city|point))?|dest(?:\s+(?:location|city|point))?)\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?",
+        "destination": r"^(?:the\s+)?(?:destination(?:\s+(?:location|city|point))?|delivery(?:\s+(?:location|city|point))?|\bto\b(?:\s+(?:location|city|point))?|dest(?:\s+(?:location|city|point))?)\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?",
         "origin": r"^(?:the\s+)?(?:origin(?:\s+(?:location|city|point))?|loading(?:\s+(?:location|city|point))?|from(?:\s+(?:location|city|point))?|source(?:\s+(?:location|city|point))?)\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?",
         "consigner": r"^(?:the\s+)?(?:consigner|consignor|shipper|sender|from\s+party|bhejne\s*wala|client|customer)\s*(?:is\s+|:\s*|=\s*|[-]\s*)?",
         "consignee": r"^(?:the\s+)?(?:consignee|receiver|to\s+party|panewala|delivery\s+party|client|customer)\s*(?:is\s+|:\s*|=\s*|[-]\s*)?",
@@ -233,7 +275,9 @@ def is_valid_party_name(name: str) -> bool:
     if any(lower.startswith(q) or f" {q} " in lower for q in question_starters):
         return False
     words = [w for w in re.split(r"[\s,.-]+", lower) if w]
-    if len(words) == 1 and words[0] in COMMON_STOP_WORDS:
+    if len(words) == 1 and (words[0] in COMMON_STOP_WORDS or words[0] in INVALID_LOCATION_WORDS):
+        return False
+    if any(w in INVALID_LOCATION_WORDS for w in words):
         return False
     if all(w in COMMON_STOP_WORDS for w in words):
         return False
@@ -339,13 +383,13 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
 
         elif target_field in ("destination", "destinationlocation", "delivery", "deliverylocation", "to"):
             clean_d = strip_field_label(target_val, "destination")
-            if is_valid_party_name(clean_d):
+            if is_valid_location_name(clean_d):
                 entities["destination_candidate"] = clean_d
             return entities
 
         elif target_field in ("origin", "originlocation", "loading", "loadinglocation", "from"):
             clean_o = strip_field_label(target_val, "origin")
-            if is_valid_party_name(clean_o):
+            if is_valid_location_name(clean_o):
                 entities["origin_candidate"] = clean_o
             return entities
 
@@ -449,14 +493,14 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
             m_o = re.match(r"^(?:the\s+)?(?:origin|source|loading(?:\s+(?:location|city))?|from(?:\s+(?:location|city))?)\b\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
             if m_o and "origin_candidate" not in entities:
                 o_cand = strip_field_label(m_o.group(1), "origin")
-                if is_valid_party_name(o_cand):
+                if is_valid_location_name(o_cand):
                     entities["origin_candidate"] = o_cand
                 continue
             # Destination
             m_d = re.match(r"^(?:the\s+)?(?:destination|dest|delivery(?:\s+(?:location|city))?|to(?:\s+(?:location|city))?)\b\s*(?:is\s+|at\s+|:\s*|=\s*|[-]\s*)?(.*)$", seg, re.I)
             if m_d and "destination_candidate" not in entities:
                 d_cand = strip_field_label(m_d.group(1), "destination")
-                if is_valid_party_name(d_cand):
+                if is_valid_location_name(d_cand):
                     entities["destination_candidate"] = d_cand
                 continue
             # Goods
@@ -518,7 +562,7 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         if extracted_v and is_valid_indian_vehicle(extracted_v):
             entities["vehicle_number"] = extracted_v
         else:
-            m_v_strict = re.search(r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", clean_text, re.IGNORECASE)
+            m_v_strict = re.search(r"\b(?!(?:LR|GR|HC|INV|JOB|PV|RV|CV|JV|EWB))([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b", clean_text, re.IGNORECASE)
             if m_v_strict and is_valid_indian_vehicle(m_v_strict.group(1)):
                 entities["vehicle_number"] = m_v_strict.group(1).upper()
             else:
@@ -529,12 +573,13 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
                         entities["invalid_vehicle"] = v_cand
 
     # 2. Route Locations (From / To)
-    if "origin_candidate" not in entities or "destination_candidate" not in entities:
-        m_route = re.search(r"\bfrom\s+([A-Za-z\s]+?)\s+to\s+([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
+    has_flight = bool(re.search(r"\b(flight|flights|airline|airlines|airplane|aeroplane|airport)\b", clean_text, re.I))
+    if not has_flight and ("origin_candidate" not in entities or "destination_candidate" not in entities):
+        m_route = re.search(r"\bfrom\s+([A-Za-z\s]+?)\s+\bto\b\s+([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
         if m_route:
             cand_o = strip_field_label(m_route.group(1), "origin")
             cand_d = strip_field_label(m_route.group(2), "destination")
-            if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+            if is_valid_location_name(cand_o) and is_valid_location_name(cand_d):
                 entities.setdefault("origin_candidate", cand_o)
                 entities.setdefault("destination_candidate", cand_d)
         else:
@@ -542,26 +587,26 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
                 "party", "consigner", "consignee", "vehicle", "freight", "advance", "bilty", "order",
                 "name", "test", "change", "update", "set", "modify", "correct", "sender", "receiver",
                 "weight", "rate", "goods", "cargo", "bill", "invoice", "number", "date", "status"
-            }
+            } | INVALID_LOCATION_WORDS
             if not re.match(r"^(?:change|update|set|modify|correct)\b", clean_text, re.I):
-                m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:to|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
+                m_dash_route = re.search(r"\b([A-Za-z]{3,20})\s*(?:\bto\b|-|➔|->)\s*([A-Za-z]{3,20})\b", clean_text, re.IGNORECASE)
                 if m_dash_route and m_dash_route.group(1).lower() not in common_words and m_dash_route.group(2).lower() not in common_words:
                     cand_o = strip_field_label(m_dash_route.group(1), "origin")
                     cand_d = strip_field_label(m_dash_route.group(2), "destination")
-                    if is_valid_party_name(cand_o) and is_valid_party_name(cand_d):
+                    if is_valid_location_name(cand_o) and is_valid_location_name(cand_d):
                         entities.setdefault("origin_candidate", cand_o)
                         entities.setdefault("destination_candidate", cand_d)
 
             m_from = re.search(r"\b(?:loading|origin|source|from)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
             if m_from and "origin_candidate" not in entities:
                 cand_o = strip_field_label(m_from.group(1), "origin")
-                if is_valid_party_name(cand_o):
+                if is_valid_location_name(cand_o):
                     entities["origin_candidate"] = cand_o
 
-            m_to = re.search(r"\b(?:delivery|destination|dest|to)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
+            m_to = re.search(r"\b(?:delivery|destination|dest|\bto\b)\s+(?:at\s+|is\s+|:\s*)?([A-Za-z\s]+?)" + LOOKAHEAD, clean_text, re.IGNORECASE)
             if m_to and "destination_candidate" not in entities:
                 cand_d = strip_field_label(m_to.group(1), "destination")
-                if is_valid_party_name(cand_d):
+                if is_valid_location_name(cand_d):
                     entities["destination_candidate"] = cand_d
 
     # 3. Explicit Consigner & Consignee

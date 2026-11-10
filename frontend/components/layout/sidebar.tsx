@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -603,8 +603,30 @@ function normalizeNavGroups(groups: NavGroup[]): NavGroup[] {
   });
 }
 
+function getGroupRoute(group: NavGroup): string {
+  if (group.id === "home") return "/";
+  if (group.id === "transport") return "/transport";
+  if (group.id === "tracking") return "/tracking/fastag";
+  if (group.id === "accounts") return "/accounts";
+  if (group.id === "reports") return "/reports/trial-balance";
+  if (group.id === "settings") return "/settings/series-master";
+  if (group.id === "transport-reports") return "/transport-reports/lr-register";
+  if (group.id === "general") return "/general/billing-client";
+  if (group.id === "einvoicing") return "/einvoicing/generate-irn";
+  if (group.id === "statements") return "/statements/gst-output";
+  if (group.id === "fleet") return "/fleet/trip-expense";
+  if (group.id === "api_center") return "/api-center/fastag";
+  if (group.id === "company") return "/company/branches";
+  if (group.id === "profile") return "/profile/account";
+  if (group.id === "misc") return "/misc/primary-group";
+  return group.items?.[0]?.href || `/${group.id}`;
+}
+
 function isGroupActive(group: NavGroup, pathname: string): boolean {
-  if (!pathname || pathname === "/") return false;
+  if (!pathname) return false;
+  if (pathname === "/") {
+    return group.id === "home";
+  }
   return (
     Boolean(
       group.items?.some(
@@ -617,7 +639,6 @@ function isGroupActive(group: NavGroup, pathname: string): boolean {
 }
 
 export function Sidebar() {
-  const router = useRouter();
   const pathname = usePathname();
   const { isFormOpen, closeFormTab, setActiveTab, isMobileNavOpen, closeMobileNav } = useWorkspaceTabs();
 
@@ -655,7 +676,17 @@ export function Sidebar() {
     }
     return true;
   });
-  const [tenantPrefix, setTenantPrefix] = useState("");
+  const [tenantPrefix, setTenantPrefix] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const auth = getStoredAuth();
+      if (auth?.tenantId) return `/${auth.tenantId}`;
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      if (parts.length > 0 && (/^[a-z0-9]{10}$/.test(parts[0]) || parts[0] === "demo123456" || parts[0] === "demo")) {
+        return `/${parts[0]}`;
+      }
+    }
+    return "";
+  });
 
   useEffect(() => {
     const auth = getStoredAuth();
@@ -668,6 +699,30 @@ export function Sidebar() {
       }
     }
   }, []);
+
+  const resolveUrl = (path: string): string => {
+    if (!path || path === "#") return "#";
+    const clean = path.startsWith("/") ? path : `/${path}`;
+    let prefix = tenantPrefix;
+    if (!prefix && typeof window !== "undefined") {
+      const auth = getStoredAuth();
+      if (auth?.tenantId) {
+        prefix = `/${auth.tenantId}`;
+      } else {
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        if (parts.length > 0 && (/^[a-z0-9]{10}$/.test(parts[0]) || parts[0] === "demo123456" || parts[0] === "demo")) {
+          prefix = `/${parts[0]}`;
+        }
+      }
+    }
+    if (prefix) {
+      if (clean === "/") return prefix;
+      if (!clean.startsWith(prefix)) {
+        return `${prefix}${clean}`;
+      }
+    }
+    return clean;
+  };
 
   const normalizedPathname = pathname
     ? pathname.replace(/^\/[a-z0-9]{10}/, "").replace(/^\/demo123456/, "").replace(/^\/demo/, "") || "/"
@@ -766,12 +821,15 @@ export function Sidebar() {
     };
   }, [normalizedPathname]);
 
-  // Keep only the active module group open when navigating
+  // Ensure the active module group is open when navigating
   useEffect(() => {
     if (normalizedPathname && navGroups.length > 0) {
       navGroups.forEach((g) => {
         if (isGroupActive(g, normalizedPathname)) {
-          setExpandedGroups({ [g.id]: true });
+          setExpandedGroups((prev) => ({
+            ...prev,
+            [g.id]: true,
+          }));
         }
       });
     }
@@ -838,12 +896,12 @@ export function Sidebar() {
         width: { duration: shouldReduceMotion ? 0 : 0.24, ease: EASE_CUBIC },
       }}
       className={cn(
-        "hidden lg:flex relative flex-col border-r border-slate-200/80 bg-white select-none z-30 shrink-0 h-screen overflow-hidden",
+        "hidden lg:flex relative flex-col border-r border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] select-none z-30 shrink-0 h-screen overflow-hidden",
         "will-change-[width]"
       )}
     >
       {/* Brand Header — Clean Transparent Enterprise Logo & Workspace Identity */}
-      <div className="flex h-16 items-center justify-between px-3 border-b border-slate-200/80 bg-white shrink-0">
+      <div className="flex h-16 items-center justify-between px-3 border-b border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] shrink-0">
         <AnimatePresence mode="wait" initial={false}>
           {!isCollapsed ? (
             <motion.div
@@ -855,7 +913,7 @@ export function Sidebar() {
               className="flex items-center min-w-0 flex-1 overflow-hidden"
             >
               <Link
-                href={tenantPrefix || "/"}
+                href={resolveUrl("/")}
                 onClick={() => {
                   if (isFormOpen) closeFormTab(true);
                   setActiveTab("list");
@@ -869,14 +927,14 @@ export function Sidebar() {
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-bold tracking-tight text-slate-900 transition-colors truncate">
-                      Panther<span className="text-indigo-600">TMS</span>
+                    <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white transition-colors truncate">
+                      Panther<span className="text-indigo-600 dark:text-indigo-400">TMS</span>
                     </span>
-                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600">
+                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#1E1E26] border border-slate-200 dark:border-[#2E2E38] text-slate-600 dark:text-slate-300">
                       v2.0
                     </span>
                   </div>
-                  <span className="block text-[11px] text-slate-500 font-medium tracking-tight truncate">
+                  <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight truncate">
                     Panther Digital Solutions
                   </span>
                 </div>
@@ -893,7 +951,7 @@ export function Sidebar() {
             >
               <Tooltip content="PantherTMS v2.0" side="right">
                 <Link
-                  href={tenantPrefix || "/"}
+                  href={resolveUrl("/")}
                   onClick={() => {
                     if (isFormOpen) closeFormTab(true);
                     setActiveTab("list");
@@ -967,11 +1025,25 @@ export function Sidebar() {
               >
                 {isCollapsed ? (
                   <Tooltip content={group.title} side="right">
-                    <button
-                      type="button"
-                      onClick={() => {
+                    <Link
+                      href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
+                      onClick={(e) => {
+                        if (group.is_locked) {
+                          e.preventDefault();
+                          setPlanGate({
+                            featureName: group.title,
+                            requiredPlan: group.required_plan || "BUSINESS",
+                          });
+                          return;
+                        }
+                        if (isFormOpen) {
+                          closeFormTab(false);
+                        }
                         setIsCollapsed(false);
-                        toggleGroup(group.id);
+                        setExpandedGroups((prev) => ({
+                          ...prev,
+                          [group.id]: true,
+                        }));
                       }}
                       className={cn(
                         "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
@@ -991,31 +1063,50 @@ export function Sidebar() {
                       {hasActiveChild && (
                         <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
                       )}
-                    </button>
+                    </Link>
                   </Tooltip>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(group.id)}
+                  <div
                     className={cn(
-                      "group flex w-full items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer select-none",
+                      "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none",
                       hasActiveChild
                         ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
                         : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
                     )}
-                    aria-label={group.title}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1">
+                    <Link
+                      href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
+                      onClick={(e) => {
+                        if (group.is_locked) {
+                          e.preventDefault();
+                          setPlanGate({
+                            featureName: group.title,
+                            requiredPlan: group.required_plan || "BUSINESS",
+                          });
+                          return;
+                        }
+                        if (isFormOpen) {
+                          closeFormTab(false);
+                        }
+                        setExpandedGroups((prev) => ({
+                          ...prev,
+                          [group.id]: true,
+                        }));
+                      }}
+                      className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5 cursor-pointer"
+                      aria-label={group.title}
+                    >
                       <span className={cn(
                         "shrink-0 transition-all duration-150",
-                        hasActiveChild ? "text-indigo-600" : "text-slate-500"
+                        hasActiveChild ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"
                       )}>
                         {icon}
                       </span>
-                      <span className="text-xs font-semibold text-slate-800 truncate">
+                      <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">
                         {group.title}
                       </span>
-                    </div>
+                    </Link>
+
                     <div className="flex items-center gap-1.5 shrink-0 ml-1">
                       {group.is_locked && (
                         <span
@@ -1025,15 +1116,26 @@ export function Sidebar() {
                           <Lock className="w-2.5 h-2.5 shrink-0" />
                         </span>
                       )}
-                      <motion.span
-                        className="text-slate-400 shrink-0 inline-flex items-center justify-center"
-                        animate={{ rotate: isExpanded ? 90 : 0 }}
-                        transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleGroup(group.id);
+                        }}
+                        className="p-1 -m-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-[#2A2A34] transition-colors cursor-pointer inline-flex items-center justify-center"
+                        aria-label={`Toggle ${group.title} submenu`}
                       >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </motion.span>
+                        <motion.span
+                          className="inline-flex items-center justify-center"
+                          animate={{ rotate: isExpanded ? 90 : 0 }}
+                          transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </motion.span>
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 )}
 
                 {/* Sub items — Accordion with Staggered Linear Inset Pill Active State */}
@@ -1058,7 +1160,7 @@ export function Sidebar() {
                           opacity: { duration: shouldReduceMotion ? 0 : 0.12 },
                         },
                       }}
-                      className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 ml-4 my-0.5 relative"
+                      className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 dark:border-[#22232E] ml-4 my-0.5 relative"
                     >
                       {group.items?.map((sub) => {
                         const isActive = normalizedPathname === sub.href;
@@ -1067,7 +1169,7 @@ export function Sidebar() {
                         return (
                           <Link
                             key={sub.href}
-                            href={sub.is_locked ? "#" : `${tenantPrefix}${sub.href}`}
+                            href={sub.is_locked ? "#" : resolveUrl(sub.href)}
                             onClick={(e) => {
                               if (sub.is_locked) {
                                 e.preventDefault();
@@ -1083,7 +1185,6 @@ export function Sidebar() {
                               if (normalizedPathname === sub.href) {
                                 setActiveTab("list");
                               }
-                              router.push(`${tenantPrefix}${sub.href}`);
                             }}
                             className={cn(
                               "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-all duration-150 select-none",
@@ -1207,7 +1308,7 @@ export function Sidebar() {
               {/* Drawer Top Header with Brand & Close Button */}
               <div className="flex h-16 items-center justify-between px-4 border-b border-slate-200/80 dark:border-[#22232E] bg-white dark:bg-[#101013] shrink-0">
                 <Link
-                  href={tenantPrefix || "/"}
+                  href={resolveUrl("/")}
                   onClick={() => {
                     closeMobileNav();
                     if (isFormOpen) closeFormTab(true);
@@ -1251,17 +1352,36 @@ export function Sidebar() {
 
                   return (
                     <div key={`mobile-${group.id}`} className="space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(group.id)}
+                      <div
                         className={cn(
-                          "w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer",
+                          "w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150",
                           hasActiveChild
                             ? "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40"
                             : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100/70 dark:hover:bg-[#1C1C22]"
                         )}
                       >
-                        <span className="flex items-center gap-2.5 min-w-0">
+                        <Link
+                          href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
+                          onClick={(e) => {
+                            if (group.is_locked) {
+                              e.preventDefault();
+                              setPlanGate({
+                                featureName: group.title,
+                                requiredPlan: group.required_plan || "BUSINESS",
+                              });
+                              return;
+                            }
+                            closeMobileNav();
+                            if (isFormOpen) {
+                              closeFormTab(false);
+                            }
+                            setExpandedGroups((prev) => ({
+                              ...prev,
+                              [group.id]: true,
+                            }));
+                          }}
+                          className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                        >
                           <span className={cn(
                             "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-slate-500 dark:text-[#CACAD0] bg-slate-100/80 dark:bg-[#1A1A20]",
                             hasActiveChild && "text-indigo-600 dark:text-indigo-400 bg-indigo-100/70 dark:bg-indigo-900/60"
@@ -1269,12 +1389,23 @@ export function Sidebar() {
                             {icon}
                           </span>
                           <span className="truncate">{group.title}</span>
-                        </span>
-                        <ChevronRight className={cn(
-                          "w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200",
-                          isExpanded && "rotate-90 text-indigo-600 dark:text-indigo-400"
-                        )} />
-                      </button>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleGroup(group.id);
+                          }}
+                          className="p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                          aria-label={`Toggle ${group.title} submenu`}
+                        >
+                          <ChevronRight className={cn(
+                            "w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200",
+                            isExpanded && "rotate-90 text-indigo-600 dark:text-indigo-400"
+                          )} />
+                        </button>
+                      </div>
 
                       {isExpanded && (
                         <div className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 dark:border-[#22232E] ml-4 my-0.5">
@@ -1285,7 +1416,7 @@ export function Sidebar() {
                             return (
                               <Link
                                 key={`mobile-sub-${sub.href}`}
-                                href={sub.is_locked ? "#" : `${tenantPrefix}${sub.href}`}
+                                href={sub.is_locked ? "#" : resolveUrl(sub.href)}
                                 onClick={(e) => {
                                   if (sub.is_locked) {
                                     e.preventDefault();
@@ -1302,7 +1433,6 @@ export function Sidebar() {
                                   if (normalizedPathname === sub.href) {
                                     setActiveTab("list");
                                   }
-                                  router.push(`${tenantPrefix}${sub.href}`);
                                 }}
                                 className={cn(
                                   "group relative flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors",

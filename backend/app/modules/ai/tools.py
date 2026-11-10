@@ -63,7 +63,7 @@ from app.modules.accounts.master_ledger_service import (
 
 # Vehicle regex matching Indian registration plates (e.g. UP16AB1234, DL-01-AB-1234, MH 12 DE 1432)
 VEHICLE_REGEX = re.compile(
-    r"\b([A-Z]{2}[-\s]?[0-9]{1,2}(?:[-\s]?[A-Z]{1,3})?[-\s]?[0-9]{3,4})\b",
+    r"\b(?!(?:LR|GR|HC|INV|JOB|PV|RV|CV|JV|EWB))([A-Z]{2}[-\s]?[0-9]{1,2}(?:[-\s]?[A-Z]{1,3})?[-\s]?[0-9]{3,4})\b",
     re.IGNORECASE,
 )
 
@@ -1353,6 +1353,12 @@ async def execute_vendor_tool(
         )
         return msg, [card]
 
+    # Re-route ledger / balance inquiries to execute_accounting_tool
+    if query and any(w in query.lower() for w in ("ledger", "khata", "balance", "outstanding", "hisab", "hisaab", "payment", "payments", "dues", "rupees")):
+        return await execute_accounting_tool(
+            db=db, user=user, tenant=tenant, current_office=current_office, party_name=query, lang=lang
+        )
+
     office_id = current_office.id if current_office and user.role != "COMPANY_ADMIN" else None
     vendors = await list_vendors(db, office_id=office_id, include_unassigned=True)
     active_vendors = [v for v in vendors if getattr(v, "is_active", True) is not False]
@@ -1877,7 +1883,7 @@ async def execute_tracking_tool(
     dest = "Destination"
 
     # 1. Resolve vehicle from LR number if supplied
-    if not vehicle_number and lr_number:
+    if lr_number:
         clean_lr = re.sub(r"^(?:lr|gr|bilty|number|no\.?|#|[\s\-_])+", "", lr_number, flags=re.IGNORECASE).strip()
         lr_stmt = (
             select(LR)
@@ -1891,24 +1897,31 @@ async def execute_tracking_tool(
             )
         )
         if eff_office_id and eff_office_id != -1:
-            lr_stmt = lr_stmt.where(LR.issuing_office_id == eff_office_id)
-        lr_stmt = lr_stmt.limit(1)
-        res_lr = await db.execute(lr_stmt)
-        matched_lr = res_lr.scalar_one_or_none()
+            lr_stmt_scoped = lr_stmt.where(LR.issuing_office_id == eff_office_id)
+            res_lr = await db.execute(lr_stmt_scoped.limit(1))
+            matched_lr = res_lr.scalar_one_or_none()
+            if not matched_lr and (user.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+                res_lr = await db.execute(lr_stmt.limit(1))
+                matched_lr = res_lr.scalar_one_or_none()
+        else:
+            res_lr = await db.execute(lr_stmt.limit(1))
+            matched_lr = res_lr.scalar_one_or_none()
+
         if matched_lr:
             vehicle_number = matched_lr.vehicle_number
             orig = matched_lr.origin_location.name if matched_lr.origin_location else "Origin"
             dest = matched_lr.destination_location.name if matched_lr.destination_location else "Destination"
             context_prefix = f"Consignment **LR {matched_lr.lr_number}** ({orig} → {dest}) is in transit on vehicle **{vehicle_number}**."
         else:
-            if eff_office_id and eff_office_id != -1:
-                msg = (
-                    "Mujhe aapke tenant / issuing office me wo record nahi mila."
-                    if lang in ("hinglish", "hi_devanagari")
-                    else "I couldn't find that record in your tenant / issuing office."
-                )
-                return msg, []
-            # For admin with consolidated all-office view when record truly does not exist
+            if eff_office_id and eff_office_id != -1 and (user.role or "").upper().strip() not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
+                res_other = await db.execute(lr_stmt.limit(1))
+                if res_other.scalar_one_or_none():
+                    msg = (
+                        "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                        if lang in ("hinglish", "hi_devanagari")
+                        else "I couldn't find that record in your tenant / issuing office."
+                    )
+                    return msg, []
             msg = f"No LR records found matching {lr_number}."
             return msg, []
 
@@ -2259,7 +2272,7 @@ async def execute_accounting_tool(
                 "type": "Vendor",
                 "debit": float(v.total_debit or 0.0),
                 "credit": float(v.total_credit or 0.0),
-                "balance": float(v.outstanding_balance or 0.0),
+                "balance": float(getattr(v, "outstanding_payable", None) or getattr(v, "outstanding_balance", None) or 0.0),
                 "balance_type": v.balance_type or "CR",
             })
         for d in drivers:
@@ -3298,6 +3311,27 @@ def extract_transport_entities(
                 if any(c.isdigit() for c in cand_alpha):
                     lr_id = cand_alpha
 
+    # Handle Track / tracking + number without explicit 'LR' prefix
+    if not lr_id and is_track:
+        m_track_target = re.search(
+            r"\b(?:track|tracking)\s+(?:lr\s*[:#-]?\s*|gr\s*[:#-]?\s*|bilty\s*[:#-]?\s*|consignment\s*[:#-]?\s*|shipment\s*[:#-]?\s*)?([A-Za-z0-9_-]+)\b",
+            clean,
+            re.IGNORECASE,
+        )
+        if m_track_target:
+            cand_target = m_track_target.group(1).strip()
+            ignored_tokens = (
+                "my", "the", "a", "an", "status", "live", "parcel", "shipment",
+                "consignment", "order", "vehicle", "truck", "gaadi", "all", "here"
+            )
+            if cand_target.lower() not in ignored_tokens:
+                if not (vehicle_number and cand_target.upper() == vehicle_number):
+                    if any(c.isdigit() for c in cand_target):
+                        lr_id = cand_target
+
+    if lr_id and is_track:
+        vehicle_number = None
+
     if lr_id and vehicle_number and lr_id.upper() == vehicle_number:
         lr_id = None
 
@@ -3440,12 +3474,12 @@ def classify_operational_intent(
     entities = extract_transport_entities(clean_text, conversation_history=conversation_history)
     extracted_vehicle = entities["vehicle_number"]
 
-    # 1. Tracking Intent (by vehicle, LR number, or Challan number)
+    # 1. Tracking Intent (by LR number first, then vehicle or Challan number)
     if entities["is_track"]:
-        if entities["vehicle_number"]:
-            return {"tool": "tracking", "vehicle_number": entities["vehicle_number"]}
         if entities["lr_number"]:
             return {"tool": "tracking", "lr_number": entities["lr_number"]}
+        if entities["vehicle_number"]:
+            return {"tool": "tracking", "vehicle_number": entities["vehicle_number"]}
         if entities["hc_number"]:
             return {"tool": "tracking", "challan_number": entities["hc_number"]}
         return {"tool": "tracking_prompt"}

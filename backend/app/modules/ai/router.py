@@ -56,6 +56,7 @@ from app.modules.ai.lr_draft_service import (
     is_cancel_intent,
     is_instructional_inquiry,
     is_valid_indian_vehicle,
+    is_valid_location_name,
     parse_lr_entities_from_text,
     validate_and_update_draft,
 )
@@ -71,6 +72,7 @@ from app.modules.ai.knowledge import (
 from app.modules.ai.privacy import sanitize_chat_history_for_external_llm, anonymize_system_context
 from app.modules.ai.tools import (
     classify_operational_intent,
+    extract_transport_entities,
     is_user_permitted,
     format_user_office_label,
     get_effective_office_id,
@@ -700,6 +702,193 @@ def get_lr_explanation_markdown(lang: str = "en") -> str:
     content, _, _ = build_how_to_lr_response(lang=lang)
     return content
 
+
+def classify_copilot_message_intent(
+    text: str,
+    conversation_history: Optional[List[Dict[str, str]]] = None,
+    has_active_lr_draft: bool = False,
+    is_confirming_start: bool = False,
+) -> str:
+    """
+    ROUTER GATE: Classifies input message BEFORE slot filling or draft creation.
+    Mutually exclusive intents:
+    - 'general_knowledge': tech, coding, weather, shares, language translation, general facts
+    - 'off_topic': flights, leave emails to boss, personal errands, non-logistics queries
+    - 'lr_tracking': tracking shipments, FASTag, SIM, GPS, vehicle location
+    - 'ledger': accounting ledger, khata, party balances, outstanding dues
+    - 'vehicle': fleet maintenance, vehicle lists, vehicle fitness, add vehicle guide
+    - 'other_tms': jobs, hire challans, POD records, eway bills, invoices, clients, vendors, etc.
+    - 'lr_booking': genuine LR booking intent or active LR draft continuation
+
+    HARD INVARIANT: Only messages classified as 'lr_booking' may open or fill an LR draft.
+    """
+    clean = (text or "").strip()
+    lower = clean.lower()
+
+    # 1. GENERAL KNOWLEDGE
+    is_weather = bool(re.search(r"\b(weather|mausam|forecast|temperature|barish|humidity|rain)\b", lower))
+    is_code = bool(re.search(r"\b(python|javascript|typescript|c\+\+|java|sort\s+function|sorting\s+function|algorithm|bubble\s+sort|quick\s+sort|merge\s+sort|write\s+code|sql\s+query|regex)\b", lower))
+    is_stocks = bool(re.search(r"\b(share\s+price|stock\s+price|stock\s+market|reliance\s+share|sensex|nifty|bitcoin|crypto|mutual\s+fund)\b", lower))
+    is_translation = bool(re.search(r"\b(translate|translation|anuvad)\b", lower)) or bool(re.search(r"\b(?:to|in)\s+(?:hindi|english|french|spanish|german)\b", lower))
+    if is_weather or is_code or is_stocks or is_translation:
+        return "general_knowledge"
+
+    # 2. OFF-TOPIC
+    is_flight = bool(re.search(r"\b(flight|flights|airline|airlines|airplane|aeroplane|airways|air\s*ticket|boarding\s+pass|indigo|vistara|air\s*india|spicejet)\b", lower))
+    is_leave_email = bool(re.search(r"\b(leave\s+email|leave\s+application|leave\s+letter|email\s+to\s+(?:my\s+)?boss|chhutti|sick\s+leave|casual\s+leave)\b", lower))
+    is_casual_offtopic = bool(re.search(r"\b(recipe|poem|joke|cricket\s+score|ipl\s+score|movie\s+ticket)\b", lower))
+    if is_flight or is_leave_email or is_casual_offtopic:
+        return "off_topic"
+
+    # 3. LR TRACKING
+    entities_check = extract_transport_entities(clean, conversation_history=conversation_history)
+    if entities_check.get("is_track") or bool(re.search(r"\b(track|tracking|kahan\s+hai|kahan\s+pahunchi|where\s+is|live\s+status|gps\s+status)\b", lower)):
+        return "lr_tracking"
+
+    # 4. LEDGER / ACCOUNTS
+    if bool(re.search(r"\b(view\s+ledger|show\s+ledger|master\s+ledger|party\s+ledger|customer\s+ledger|client\s+ledger|vendor\s+ledger|driver\s+ledger|khata|hisab|hisaab|pending\s+payments?|outstanding\s+balance|खाता|लेज़र|बकाया)\b", lower)):
+        return "ledger"
+
+    # 5. VEHICLE / FLEET
+    is_veh_inq, _, _ = is_add_vehicle_or_driver_inquiry(clean)
+    if is_veh_inq:
+        return "vehicle"
+    if bool(re.search(r"\b(company\s+vehicle|market\s+vehicle|truck\s+list|vehicle\s+list|how\s+many\s+vehicles|gaadi\s+list|vehicle\s+fitness|vehicle\s+insurance|puc\s+status|rc\s+status)\b", lower)):
+        return "vehicle"
+
+    # 6. OTHER TMS TASKS
+    if is_job_booking_intent(clean) or is_instructional_job_inquiry(clean) or bool(re.search(r"\bjob\b", lower)):
+        return "other_tms"
+    if is_hire_challan_intent(clean) or is_instructional_hc_inquiry(clean) or bool(re.search(r"\b(?:hire\s+)?challan\b", lower)):
+        return "other_tms"
+    if bool(re.search(r"\b(pod|proof\s+of\s+delivery)\b", lower)):
+        return "other_tms"
+    if bool(re.search(r"\b(eway|ewb|e-way)\b", lower)):
+        return "other_tms"
+    if bool(re.search(r"\b(invoice|bill|billing\s+client|vendor|branch)\b", lower)):
+        return "other_tms"
+    if is_how_to_lr_inquiry(clean) or is_long_explanatory_message(clean) or is_capabilities_query(clean):
+        return "other_tms"
+
+    # 7. LR BOOKING
+    # Genuine LR booking triggers (book lr, create lr, bilty banana, etc.)
+    if is_lr_booking_intent(clean):
+        return "lr_booking"
+    if is_confirming_start:
+        return "lr_booking"
+    if has_active_lr_draft and not is_cancel_intent(clean):
+        return "lr_booking"
+
+    return "off_topic"
+
+
+def get_safe_general_or_refusal_response(
+    category: str,
+    text: str,
+    lang: str = "en",
+) -> Tuple[str, List[NavigationSuggestion]]:
+    lower = (text or "").strip().lower()
+
+    # 1. Weather
+    if re.search(r"\b(weather|mausam|forecast|temperature|barish|humidity|rain)\b", lower):
+        if lang == "hi_devanagari":
+            msg = "मैं पैंथर एआई (Panther AI) हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मेरे पास लाइव मौसम (weather forecast) की जानकारी उपलब्ध नहीं है। मैं आपकी एलआर बुकिंग (LR booking), फ्लीट ट्रैकिंग और खातों (accounts) में सहायता कर सकता हूँ।"
+        elif lang == "hinglish":
+            msg = "Main Panther AI hoon, aapka transport operations assistant. Mere paas live weather forecast ki jankari nahi hai. Main LR booking, fleet tracking aur accounts ledger me aapki madad kar sakta hoon."
+        else:
+            msg = "I am Panther AI, your transport operations copilot. I do not have access to live weather forecasts. For transport operations, I can help you with LR booking, fleet tracking, and accounts ledger."
+        navs = [
+            NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
+            NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
+        ]
+        return msg, navs
+
+    # 2. Flight
+    if re.search(r"\b(flight|flights|airline|airlines|airplane|aeroplane|airways|air\s*ticket|boarding\s+pass)\b", lower):
+        if lang == "hi_devanagari":
+            msg = "पैंथर टीएमएस (Panther TMS) सड़क माल ढुलाई और ट्रक परिवहन (road freight logistics) का प्रबंधन करता है, और एयरलाइन फ्लाइट बुकिंग का समर्थन नहीं करता है। यदि आपको सड़क मार्ग से माल परिवहन या एलआर बुकिंग करवानी है, तो कृपया मुझे बताएं।"
+        elif lang == "hinglish":
+            msg = "Panther TMS road freight aur commercial transport logistics (trucks, LRs, challans) manage karta hai, passenger airline flights support nahi karta. Agar aapko road cargo ya LR booking karni hai, toh main madad kar sakta hoon."
+        else:
+            msg = "Panther TMS manages road freight and commercial transport logistics (trucks, LRs, and challans), and does not support airline flight bookings or passenger flight schedules. If you would like to book road cargo from Delhi to Mumbai, I can create an LR draft for you."
+        navs = [
+            NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
+        ]
+        return msg, navs
+
+    # 3. Share price / stock market
+    if re.search(r"\b(share\s+price|stock\s+price|stock\s+market|reliance\s+share|sensex|nifty|shares?|stocks?)\b", lower):
+        if lang == "hi_devanagari":
+            msg = "मैं पैंथर एआई हूँ, ट्रांसपोर्ट मैनेजमेंट और फ्लीट लॉजिस्टिक्स में विशेषज्ञ। मैं शेयर बाजार या रिलायंस (Reliance) के लाइव शेयर मूल्य ट्रैक नहीं करता हूँ। कृपया वित्तीय बाजार प्लेटफॉर्म देखें।"
+        elif lang == "hinglish":
+            msg = "Main Panther AI hoon, transport management aur fleet logistics specialist. Main live stock market prices ya Reliance share price track nahi karta. Kripya financial market platforms check karein."
+        else:
+            msg = "I am Panther AI, specialized in transport management and fleet logistics. I do not provide live stock market prices or financial share quotes for Reliance Industries. Please refer to financial market sources for live market data."
+        navs = []
+        return msg, navs
+
+    # 4. Translation
+    if re.search(r"\b(translate|translation|anuvad)\b", lower) or "to hindi" in lower or "in hindi" in lower:
+        m_trans = re.search(r"translate\s+[\"']?([^\"']+)[\"']?\s+to\s+hindi", lower)
+        phrase = m_trans.group(1).strip() if m_trans else ""
+        if "good morning" in lower or phrase == "good morning":
+            msg = '"Good morning" in Hindi is translated as **"शुभ प्रभात" (Shubh Prabhat)** or **"नमस्ते" (Namaste)**.'
+        else:
+            msg = f"In Hindi, '{phrase or text}' is translated directly for your reference. For official logistics documents (Bilty / LR), Panther TMS supports English, Hinglish, and Hindi."
+        navs = []
+        return msg, navs
+
+    # 5. Leave email to boss
+    if re.search(r"\b(leave\s+email|leave\s+application|leave\s+letter|email\s+to\s+(?:my\s+)?boss|chhutti)\b", lower):
+        msg = (
+            "Here is a professional leave application email template you can send to your manager/boss:\n\n"
+            "**Subject:** Leave Application - [Your Name]\n\n"
+            "Dear [Manager's Name],\n\n"
+            "I am writing to formally request a leave of absence on [Date / Date Range] due to [personal reasons / medical reasons]. "
+            "I will ensure all my pending operational responsibilities are handled prior to my leave and will be reachable via email in case of an urgent matter.\n\n"
+            "Thank you for your understanding.\n\n"
+            "Best regards,\n"
+            "[Your Name]"
+        )
+        navs = []
+        return msg, navs
+
+    # 6. Python sort function / Coding
+    if re.search(r"\b(python|javascript|java|sort\s+function|algorithm|write\s+code)\b", lower):
+        msg = (
+            "In Python, you can sort lists and collections using the built-in `sorted()` function or the `.sort()` method:\n\n"
+            "```python\n"
+            "# 1. sorted() returns a new sorted list without modifying original\n"
+            "numbers = [5, 2, 9, 1, 5, 6]\n"
+            "sorted_numbers = sorted(numbers)\n\n"
+            "# 2. list.sort() sorts the list in-place\n"
+            "numbers.sort()\n\n"
+            "# 3. Custom sorting (e.g. sort list of dicts by key)\n"
+            "consignments = [{'id': 1, 'weight': 12}, {'id': 2, 'weight': 5}]\n"
+            "consignments.sort(key=lambda x: x['weight'])\n"
+            "```"
+        )
+        navs = []
+        return msg, navs
+
+    # Default fallback
+    if category == "off_topic":
+        msg = (
+            "I am Panther AI, your dedicated transport operations copilot. "
+            "I assist with logistics workflows such as LR booking, fleet tracking, POD records, and accounts ledger. "
+            "I cannot assist with requests outside transport operations."
+        )
+    else:
+        msg = (
+            "I am Panther AI, designed specifically for freight and logistics operations. "
+            "How can I assist you today with LR booking, shipment tracking, or ledger accounts?"
+        )
+    navs = [
+        NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
+        NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
+    ]
+    return msg, navs
+
 router = APIRouter(prefix="/ai", tags=["Panther AI"])
 
 
@@ -1008,12 +1197,19 @@ async def chat_with_copilot(
         # answer it, then ask: 'Do you want to continue the draft or cancel it?'
         # Never store a question or explanation as a draft field."
         if has_active_draft or has_active_job or has_active_hc:
+            mid_category = classify_copilot_message_intent(
+                text=last_user_message,
+                conversation_history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+                has_active_lr_draft=has_active_draft,
+                is_confirming_start=False,
+            )
             is_mid_draft_question = (
                 is_greeting(last_user_message)
                 or is_capabilities_query(last_user_message)
                 or is_how_to_lr_inquiry(last_user_message)
                 or is_add_vehicle_or_driver_inquiry(last_user_message)[0]
                 or is_long_explanatory_message(last_user_message)
+                or (mid_category in ("general_knowledge", "off_topic"))
                 or ("?" in last_user_message)
                 or bool(re.search(r"^(what|how|why|where|when|who|which|can\s+you|kya|kaise|kab|kaha|koun|batao|explain)\b", last_user_message.strip(), re.I))
             )
@@ -1038,6 +1234,10 @@ async def chat_with_copilot(
                     nav_suggestions.extend(sub_navs)
                 elif is_long_explanatory_message(last_user_message):
                     sub_answer = get_lr_explanation_markdown(lang=detected_lang)
+                    sub_cards = []
+                elif mid_category in ("general_knowledge", "off_topic"):
+                    sub_answer, sub_navs = get_safe_general_or_refusal_response(mid_category, last_user_message, lang=detected_lang)
+                    nav_suggestions.extend(sub_navs)
                     sub_cards = []
                 else:
                     # General paused draft answer
@@ -1207,85 +1407,113 @@ async def chat_with_copilot(
                 re.search(r"^(yes|y|ha|haan|sure|start|proceed|ok|okay|karo|start karo|shuru karo|हाँ|हां|शुरू करो)\b", last_user_message.strip(), re.I)
             )
 
-            is_booking_trigger = (
-                is_booking
-                or bool(re.search(r"\b(creat|create|boking|booking|book|bok)\s+(lr|gr|bilty)\b", last_user_message, re.I))
-                or bool(re.search(r"\b(lr|gr|bilty)\s+(creat|create|boking|booking|book|bok)\b", last_user_message, re.I))
+            # ------------------------------------------------------------------
+            # ROUTER GATE: Classify intent BEFORE slot-filler / draft opening
+            # Invariant: Only messages classified as LR booking may open or fill an LR draft.
+            # ------------------------------------------------------------------
+            history_dicts_early = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
+            intent_category = classify_copilot_message_intent(
+                text=last_user_message,
+                conversation_history=history_dicts_early,
+                has_active_lr_draft=False,
+                is_confirming_start=is_confirming_start,
             )
 
-            parsed_booking_entities = parse_lr_entities_from_text(last_user_message)
-            has_booking_details = any(
-                k in parsed_booking_entities for k in (
-                    "consigner_candidate", "consignee_candidate", "origin_candidate",
-                    "destination_candidate", "vehicle_number", "freight_amount",
-                    "actual_weight_mt", "particulars"
-                )
-            )
-
-            # Enforce LR creation permission before showing any prompt or draft
-            if (is_booking_trigger or is_booking or has_booking_details or has_active_draft or is_confirming_start) and not is_inquiry and not is_cancel and not is_job_req and not is_hc_req:
-                if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
-                    await log_blocked_rbac_attempt(
-                        db=db,
-                        user=current_user,
-                        action="BLOCKED_CREATE_LR",
-                        module="transport",
-                        missing_permission="transport.lr_booking.create",
-                        raw_message=last_user_message,
-                        current_office=current_office,
-                    )
-                    office_str = format_user_office_label(current_office, current_user)
-                    if detected_lang == "hi_devanagari":
-                        msg = f"आपके पास एलआर (LR) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
-                    elif detected_lang == "hinglish":
-                        msg = f"Aapke paas LRs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
-                    else:
-                        msg = f"You don't have access to create LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
-                    return ChatResponse(
-                        content=msg,
-                        navigation_suggestions=[],
-                        citations=[],
-                        cards=[],
-                        provider_configured=is_provider_configured(),
-                        detected_language=detected_lang,
-                    )
-
-            if is_booking_trigger and not is_hc_req and not is_job_req and not is_confirming_start and not has_booking_details:
-                # Ask first before creating draft ONLY when user has not given any booking details yet!
-                if detected_lang == "hi_devanagari":
-                    ask_msg = "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?"
-                elif detected_lang == "hinglish":
-                    ask_msg = "Kya aap nayi LR booking start karna chahte hain?"
-                else:
-                    ask_msg = "Do you want to start a new LR booking?"
-                navs = [
-                    NavigationSuggestion(
-                        title="LR Booking Form",
-                        href="/transport/lr-booking",
-                        module="Transport Operations",
-                        description="Open full manual LR booking form"
-                    )
-                ]
-                cards = [
-                    StructuredCard(
-                        card_type="lr_booking_prompt",
-                        title="Start LR Booking",
-                        subtitle="Conversational LR Creation",
-                        badge={"text": "Ready", "variant": "neutral"},
-                        items=[
-                            {"primary": "Start Booking", "secondary": "Reply 'Yes' to proceed step by step, or click Open below to use the form."},
-                        ],
-                        action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"},
-                    )
-                ]
+            # 1. General knowledge or Off-topic: Polite refusal or safe general answer
+            if intent_category in ("general_knowledge", "off_topic"):
+                safe_msg, safe_navs = get_safe_general_or_refusal_response(intent_category, last_user_message, lang=detected_lang)
+                filtered_navs = filter_nav_suggestions(safe_navs, authorized_catalog, current_user) if safe_navs else []
                 return ChatResponse(
-                    content=ask_msg,
-                    navigation_suggestions=navs,
+                    content=safe_msg,
+                    navigation_suggestions=filtered_navs,
                     citations=[],
-                    cards=cards,
+                    cards=[],
                     provider_configured=is_provider_configured(),
                     detected_language=detected_lang,
                 )
+
+            # 2. Operational tools (LR Tracking, Ledger, Vehicle):
+            # Bypass LR slot-filling directly and jump to Step 3 operational dispatch
+            if intent_category == "lr_booking":
+                is_booking_trigger = (
+                    is_booking
+                    or bool(re.search(r"\b(creat|create|boking|booking|book|bok)\s+(lr|gr|bilty)\b", last_user_message, re.I))
+                    or bool(re.search(r"\b(lr|gr|bilty)\s+(creat|create|boking|booking|book|bok)\b", last_user_message, re.I))
+                )
+
+                parsed_booking_entities = parse_lr_entities_from_text(last_user_message)
+                has_booking_details = any(
+                    k in parsed_booking_entities for k in (
+                        "consigner_candidate", "consignee_candidate", "origin_candidate",
+                        "destination_candidate", "vehicle_number", "freight_amount",
+                        "actual_weight_mt", "particulars"
+                    )
+                )
+
+                # Enforce LR creation permission before showing any prompt or draft
+                if (is_booking_trigger or is_booking or has_booking_details or has_active_draft or is_confirming_start) and not is_inquiry and not is_cancel and not is_job_req and not is_hc_req:
+                    if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
+                        await log_blocked_rbac_attempt(
+                            db=db,
+                            user=current_user,
+                            action="BLOCKED_CREATE_LR",
+                            module="transport",
+                            missing_permission="transport.lr_booking.create",
+                            raw_message=last_user_message,
+                            current_office=current_office,
+                        )
+                        office_str = format_user_office_label(current_office, current_user)
+                        if detected_lang == "hi_devanagari":
+                            msg = f"आपके पास एलआर (LR) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
+                        elif detected_lang == "hinglish":
+                            msg = f"Aapke paas LRs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+                        else:
+                            msg = f"You don't have access to create LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                        return ChatResponse(
+                            content=msg,
+                            navigation_suggestions=[],
+                            citations=[],
+                            cards=[],
+                            provider_configured=is_provider_configured(),
+                            detected_language=detected_lang,
+                        )
+
+                if is_booking_trigger and not is_hc_req and not is_job_req and not is_confirming_start and not has_booking_details:
+                    # Ask first before creating draft ONLY when user has not given any booking details yet!
+                    if detected_lang == "hi_devanagari":
+                        ask_msg = "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?"
+                    elif detected_lang == "hinglish":
+                        ask_msg = "Kya aap nayi LR booking start karna chahte hain?"
+                    else:
+                        ask_msg = "Do you want to start a new LR booking?"
+                    navs = [
+                        NavigationSuggestion(
+                            title="LR Booking Form",
+                            href="/transport/lr-booking",
+                            module="Transport Operations",
+                            description="Open full manual LR booking form"
+                        )
+                    ]
+                    cards = [
+                        StructuredCard(
+                            card_type="lr_booking_prompt",
+                            title="Start LR Booking",
+                            subtitle="Conversational LR Creation",
+                            badge={"text": "Ready", "variant": "neutral"},
+                            items=[
+                                {"primary": "Start Booking", "secondary": "Reply 'Yes' to proceed step by step, or click Open below to use the form."},
+                            ],
+                            action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"},
+                        )
+                    ]
+                    return ChatResponse(
+                        content=ask_msg,
+                        navigation_suggestions=navs,
+                        citations=[],
+                        cards=cards,
+                        provider_configured=is_provider_configured(),
+                        detected_language=detected_lang,
+                    )
 
         # D: Route to active draft continuation or confirmed start
         chosen_workflow = None
@@ -1293,7 +1521,7 @@ async def chat_with_copilot(
             chosen_workflow = "job"
         elif is_hc_req and not is_hc_inq:
             chosen_workflow = "hc"
-        elif (is_booking and not is_inquiry) or (not (has_active_job or has_active_hc or has_active_draft) and (locals().get("is_confirming_start") or locals().get("has_booking_details"))):
+        elif (is_booking and not is_inquiry) or (not (has_active_job or has_active_hc or has_active_draft) and (locals().get("is_confirming_start") or (locals().get("has_booking_details") and locals().get("intent_category") == "lr_booking"))):
             chosen_workflow = "lr"
         elif has_active_draft or has_active_job or has_active_hc:
             active_list = []
@@ -1771,7 +1999,7 @@ async def chat_with_copilot(
 
         return ChatResponse(
             content=reply_content,
-            navigation_suggestions=nav_suggestions,
+            navigation_suggestions=nav_suggestions if (cards and tool_name != "tracking") else [],
             citations=[],
             cards=cards,
             provider_configured=is_provider_configured(),

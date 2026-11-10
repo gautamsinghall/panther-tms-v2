@@ -356,6 +356,8 @@ async def list_vendors(
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
 ) -> List[Vendor]:
+    from app.modules.accounts.master_ledger_service import ensure_unified_creditor_vendors
+    await ensure_unified_creditor_vendors(db)
     return await _get_all(db, Vendor, office_id=office_id, include_unassigned=include_unassigned)
 
 async def get_vendor(db: AsyncSession, vid: int) -> Vendor:

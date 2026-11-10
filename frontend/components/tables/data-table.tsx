@@ -614,13 +614,13 @@ export function DataTable<T extends Record<string, any>>({
         )}
 
         <div ref={tableContainerRef} className="overflow-x-auto [webkit-overflow-scrolling:touch] custom-scrollbar">
-          <table className={cn("w-full text-left border-collapse", tableClassName)}>
+          <table className={cn("w-full text-left border-separate border-spacing-0", tableClassName)}>
             {/* Sticky Header */}
             <thead className="sticky top-0 z-10 bg-slate-50/90 border-b border-slate-200/80 backdrop-blur-xs">
               <tr>
                 {/* Select All Checkbox Column */}
                 {selectable && (
-                  <th className={cn("w-9 text-center", checkboxPaddingClass)}>
+                  <th className={cn("w-9 text-center border-b border-slate-200/80 dark:border-[#2B2C37]", checkboxPaddingClass)}>
                     <input
                       type="checkbox"
                       checked={allCurrentPageSelected}
@@ -634,16 +634,22 @@ export function DataTable<T extends Record<string, any>>({
                 {activeColumns.map((col, cIdx) => {
                   const colKey = col._stableKey || (col.key || col.id || `col-${cIdx}`) as string;
                   const isSorted = sortKey === colKey;
+                  const isActionsCol =
+                    col.key === "actions" ||
+                    col.key === "action" ||
+                    (typeof col.header === "string" && col.header.toLowerCase() === "actions") ||
+                    (typeof (col as any).label === "string" && (col as any).label.toLowerCase() === "actions");
                   return (
                     <th
                       key={colKey}
-                      style={{ width: col.width, minWidth: col.minWidth || col.width }}
+                      style={{ width: col.width, minWidth: isActionsCol ? (col.minWidth || "80px") : (col.minWidth || col.width) }}
                       className={cn(
-                        "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none font-mono whitespace-nowrap",
+                        "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none font-mono whitespace-nowrap border-b border-slate-200/80 dark:border-[#2B2C37]",
                         cellPaddingClass,
                         col.align === "right" || col.isNumeric ? "text-right" : "",
                         col.align === "center" ? "text-center" : "",
-                        col.sortable ? "cursor-pointer hover:text-slate-900 dark:hover:text-white" : ""
+                        col.sortable ? "cursor-pointer hover:text-slate-900 dark:hover:text-white" : "",
+                        isActionsCol && "sticky right-0 z-20 bg-slate-50 dark:bg-[#17171B] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)]"
                       )}
                       onClick={() => col.sortable && handleSort(colKey)}
                     >
@@ -675,9 +681,9 @@ export function DataTable<T extends Record<string, any>>({
                 {actions.length > 0 && (
                   <th
                     className={cn(
-                      "text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.3)]",
+                      "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono sticky right-0 bg-slate-50 dark:bg-[#17171B] z-20 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/80 dark:border-[#2B2C37]",
                       cellPaddingClass,
-                      actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
+                      actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right"
                     )}
                   >
                     Actions
@@ -693,17 +699,31 @@ export function DataTable<T extends Record<string, any>>({
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={`skel-${idx}`} className="bg-white">
                     {selectable && (
-                      <td className={cn("text-center", checkboxPaddingClass)}>
+                      <td className={cn("text-center border-b border-slate-100 dark:border-[#22232E]", checkboxPaddingClass)}>
                         <Skeleton className="w-4 h-4 rounded mx-auto" />
                       </td>
                     )}
-                    {activeColumns.map((c, idx) => (
-                      <td key={c._stableKey || (c.key || c.id || `col-${idx}`) as string} className={cellPaddingClass}>
-                        <Skeleton className="h-4 w-3/4 rounded" />
-                      </td>
-                    ))}
+                    {activeColumns.map((c, idx) => {
+                      const isActionsCol =
+                        c.key === "actions" ||
+                        c.key === "action" ||
+                        (typeof c.header === "string" && c.header.toLowerCase() === "actions") ||
+                        (typeof (c as any).label === "string" && (c as any).label.toLowerCase() === "actions");
+                      return (
+                        <td
+                          key={c._stableKey || (c.key || c.id || `col-${idx}`) as string}
+                          className={cn(
+                            cellPaddingClass,
+                            "border-b border-slate-100 dark:border-[#22232E]",
+                            isActionsCol && "sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)]"
+                          )}
+                        >
+                          <Skeleton className="h-4 w-3/4 rounded" />
+                        </td>
+                      );
+                    })}
                     {actions.length > 0 && (
-                      <td className={cn(cellPaddingClass, "sticky right-0 bg-white dark:bg-[#17171B] z-10", actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right")}>
+                      <td className={cn(cellPaddingClass, "sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-100 dark:border-[#22232E]", actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right")}>
                         <Skeleton className={cn("h-4 rounded", actionLayout === "inline" ? "w-16 mx-auto" : "w-6 ml-auto")} />
                       </td>
                     )}
@@ -788,15 +808,22 @@ export function DataTable<T extends Record<string, any>>({
                       {/* Data Columns */}
                       {activeColumns.map((col, cIdx) => {
                         const colKey = col._stableKey || (col.key || col.id || `col-${cIdx}`) as string;
+                        const isActionsCol =
+                          col.key === "actions" ||
+                          col.key === "action" ||
+                          (typeof col.header === "string" && col.header.toLowerCase() === "actions") ||
+                          (typeof (col as any).label === "string" && (col as any).label.toLowerCase() === "actions");
                         return (
                           <td
                             key={colKey}
-                            style={{ width: col.width, minWidth: col.minWidth || col.width }}
+                            style={{ width: col.width, minWidth: isActionsCol ? (col.minWidth || "80px") : (col.minWidth || col.width) }}
                             className={cn(
-                              "text-xs sm:text-[13px] text-slate-800 dark:text-[#F5F5F7] font-medium",
+                              "text-xs sm:text-[13px] text-slate-800 dark:text-[#F5F5F7] font-medium border-b border-slate-100 dark:border-[#22232E]",
                               cellPaddingClass,
                               col.align === "right" || col.isNumeric ? "text-right tabular-nums font-mono" : "",
-                              col.align === "center" ? "text-center" : ""
+                              col.align === "center" ? "text-center" : "",
+                              isActionsCol &&
+                                "sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)]"
                             )}
                           >
                             {col.cell ? col.cell(row, rIndex) : col.render ? col.render(row, rIndex) : (row[colKey] ?? "-")}
@@ -809,8 +836,8 @@ export function DataTable<T extends Record<string, any>>({
                         <td
                           className={cn(
                             cellPaddingClass,
-                            "sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.3)]",
-                            actionLayout === "inline" ? "w-28 text-center" : "w-12 text-right"
+                            "sticky right-0 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E] z-10 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-100 dark:border-[#22232E]",
+                            actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right"
                           )}
                         >
                           {actionLayout === "inline" ? (

@@ -572,6 +572,9 @@ async def lifespan(app: FastAPI):
                         async with t_session_maker() as t_session:
                             from app.modules.misc.tally_chart_of_accounts import seed_indian_accounting_chart_of_accounts
                             await seed_indian_accounting_chart_of_accounts(t_session)
+                            from app.modules.accounts.master_ledger_service import ensure_unified_creditor_vendors
+                            await ensure_unified_creditor_vendors(t_session)
+                            await t_session.commit()
                     except Exception as s_err:
                         print(f"Notice: Tally chart of accounts seeding on {t_db}: {s_err}")
                 except Exception as t_err:

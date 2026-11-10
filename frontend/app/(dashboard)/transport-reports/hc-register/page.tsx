@@ -24,6 +24,7 @@ import {
   FileSpreadsheet,
   IndianRupee,
   CreditCard,
+  Eye,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -80,18 +81,18 @@ interface ColumnConfig {
 }
 
 const AVAILABLE_COLUMNS: ColumnConfig[] = [
-  { key: "challan_number", label: "HC No.", defaultVisible: true, minWidth: "130px" },
-  { key: "challan_date", label: "Date", defaultVisible: true, minWidth: "110px" },
-  { key: "issuing_office_name", label: "Issuing Office", defaultVisible: true, minWidth: "120px" },
-  { key: "status", label: "Status", defaultVisible: true, minWidth: "100px" },
-  { key: "vehicle_number", label: "Vehicle No.", defaultVisible: true, minWidth: "120px" },
-  { key: "owner_name", label: "Owner / Vendor", defaultVisible: true, minWidth: "180px" },
-  { key: "driver_name", label: "Driver", defaultVisible: true, minWidth: "140px" },
-  { key: "from_location", label: "From", defaultVisible: true, minWidth: "130px" },
-  { key: "to_location", label: "To", defaultVisible: true, minWidth: "130px" },
-  { key: "hire_rate", label: "Hire Rate", defaultVisible: true, align: "right", minWidth: "110px" },
-  { key: "advance_amount", label: "Advance", defaultVisible: true, align: "right", minWidth: "110px" },
-  { key: "balance_amount", label: "Balance Due", defaultVisible: true, align: "right", minWidth: "110px" },
+  { key: "challan_number", label: "HC No.", defaultVisible: true, minWidth: "125px" },
+  { key: "challan_date", label: "Date", defaultVisible: true, minWidth: "105px" },
+  { key: "issuing_office_name", label: "Issuing Office", defaultVisible: true, minWidth: "110px" },
+  { key: "status", label: "Status", defaultVisible: true, minWidth: "95px" },
+  { key: "vehicle_number", label: "Vehicle No.", defaultVisible: true, minWidth: "115px" },
+  { key: "owner_name", label: "Owner / Vendor", defaultVisible: true, minWidth: "150px" },
+  { key: "driver_name", label: "Driver", defaultVisible: true, minWidth: "120px" },
+  { key: "from_location", label: "From", defaultVisible: true, minWidth: "110px" },
+  { key: "to_location", label: "To", defaultVisible: true, minWidth: "110px" },
+  { key: "hire_rate", label: "Hire Rate", defaultVisible: true, align: "right", minWidth: "105px" },
+  { key: "advance_amount", label: "Advance", defaultVisible: true, align: "right", minWidth: "105px" },
+  { key: "balance_amount", label: "Balance Due", defaultVisible: true, align: "right", minWidth: "105px" },
   // Additional toggleable columns from Hire Challan section
   { key: "driver_phone", label: "Driver Phone", defaultVisible: false, minWidth: "120px" },
   { key: "vendor_ref_no", label: "Vendor Ref No.", defaultVisible: false, minWidth: "130px" },
@@ -103,6 +104,7 @@ const AVAILABLE_COLUMNS: ColumnConfig[] = [
   { key: "detention_charge", label: "Detention Charge", defaultVisible: false, align: "right", minWidth: "120px" },
   { key: "mamul_charges", label: "Mamul Charges", defaultVisible: false, align: "right", minWidth: "110px" },
   { key: "remarks", label: "Remarks", defaultVisible: false, minWidth: "160px" },
+  { key: "actions", label: "Actions", defaultVisible: true, minWidth: "90px", align: "center" },
 ];
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -722,13 +724,17 @@ export default function HCRegisterPage() {
       {/* ---------------------------------------------------------------------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 print:grid-cols-5 print:gap-2">
         {/* 1. Total Challans */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-[#241A3A] border border-purple-200 dark:border-[#3B2B5F] flex items-center justify-center shrink-0 text-[#7F56D9] dark:text-[#9D7CF7]">
-            <FileText className="w-5 h-5" />
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 2xl:p-4 flex flex-col justify-between shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-snug break-words">
+              Total Challans
+            </div>
+            <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg bg-purple-50 dark:bg-[#241A3A] border border-purple-200 dark:border-[#3B2B5F] flex items-center justify-center shrink-0 text-[#7F56D9] dark:text-[#9D7CF7]">
+              <FileText className="w-4 h-4 2xl:w-4.5 2xl:h-4.5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Challans</div>
-            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 tracking-tight flex items-baseline">
+          <div className="mt-2.5">
+            <div className="text-[15px] 2xl:text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-baseline">
               <span>{totals.count.toLocaleString("en-IN")}</span>
               <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1.5">HCs</span>
             </div>
@@ -736,53 +742,69 @@ export default function HCRegisterPage() {
         </div>
 
         {/* 2. Total Hire Rate */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
-            <Truck className="w-5 h-5" />
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 2xl:p-4 flex flex-col justify-between shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-snug break-words">
+              Total Hire Rate
+            </div>
+            <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+              <Truck className="w-4 h-4 2xl:w-4.5 2xl:h-4.5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Hire Rate</div>
-            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight">
+          <div className="mt-2.5">
+            <div className="text-[15px] 2xl:text-xl font-bold text-slate-900 dark:text-white font-sans tabular-nums tracking-tight whitespace-nowrap overflow-visible">
               {formatCurrency(totals.hireRate)}
             </div>
           </div>
         </div>
 
         {/* 3. Net Payable */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
-            <IndianRupee className="w-5 h-5" />
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 2xl:p-4 flex flex-col justify-between shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-snug break-words">
+              Net Payable
+            </div>
+            <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+              <IndianRupee className="w-4 h-4 2xl:w-4.5 2xl:h-4.5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Net Payable</div>
-            <div className="text-xl sm:text-[22px] font-bold text-slate-900 dark:text-white mt-0.5 font-mono tracking-tight">
+          <div className="mt-2.5">
+            <div className="text-[15px] 2xl:text-xl font-bold text-slate-900 dark:text-white font-sans tabular-nums tracking-tight whitespace-nowrap overflow-visible">
               {formatCurrency(totals.netPayable)}
             </div>
           </div>
         </div>
 
         {/* 4. Total Advance Paid */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
-            <Wallet className="w-5 h-5" />
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 2xl:p-4 flex flex-col justify-between shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-snug break-words">
+              Total Advance
+            </div>
+            <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+              <Wallet className="w-4 h-4 2xl:w-4.5 2xl:h-4.5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Advance</div>
-            <div className="text-xl sm:text-[22px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono tracking-tight">
+          <div className="mt-2.5">
+            <div className="text-[15px] 2xl:text-xl font-bold text-emerald-600 dark:text-emerald-400 font-sans tabular-nums tracking-tight whitespace-nowrap overflow-visible">
               {formatCurrency(totals.advance)}
             </div>
           </div>
         </div>
 
         {/* 5. Total Balance Due */}
-        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3.5 sm:p-4 flex items-center gap-3.5 shadow-sm sm:col-span-2 lg:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
-            <Scale className="w-5 h-5" />
+        <div className="bg-white dark:bg-[#121319] rounded-xl border border-slate-200 dark:border-[#22232E] p-3 sm:p-3.5 2xl:p-4 flex flex-col justify-between shadow-sm sm:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-snug break-words">
+              Balance Due
+            </div>
+            <div className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-lg bg-slate-50 dark:bg-[#181D28] border border-slate-200 dark:border-[#273245] flex items-center justify-center shrink-0 text-slate-600 dark:text-slate-300">
+              <Scale className="w-4 h-4 2xl:w-4.5 2xl:h-4.5" />
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Balance Due</div>
+          <div className="mt-2.5">
             <div className={cn(
-              "text-xl sm:text-[22px] font-bold mt-0.5 font-mono tracking-tight",
+              "text-[15px] 2xl:text-xl font-bold font-sans tabular-nums tracking-tight whitespace-nowrap overflow-visible",
               totals.balance > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
             )}>
               {formatCurrency(totals.balance)}
@@ -967,35 +989,40 @@ export default function HCRegisterPage() {
         {/* Table Container with Horizontal Scroll                               */}
         {/* -------------------------------------------------------------------- */}
         <div ref={tableContainerRef} className="overflow-x-auto min-w-full">
-          <table className="w-full text-xs text-left border-collapse">
+          <table className="w-full text-xs text-left border-separate border-spacing-0">
             <thead className="bg-slate-100 dark:bg-[#101116] text-slate-600 dark:text-slate-400 select-none border-b border-slate-200 dark:border-[#22232E]">
               <tr>
                 {AVAILABLE_COLUMNS.map((col) => {
                   if (!visibleColumns[col.key]) return null;
                   const isSorted = sortKey === col.key;
                   const isFirstSticky = col.key === "challan_number";
+                  const isActions = col.key === "actions";
                   return (
                     <th
                       key={col.key}
-                      onClick={() => handleSort(col.key)}
+                      onClick={() => !isActions && handleSort(col.key)}
                       style={{ minWidth: col.minWidth }}
                       className={cn(
-                        "py-3 px-3.5 font-medium tracking-normal cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap",
+                        "py-3 px-3.5 font-medium tracking-normal transition-colors whitespace-nowrap border-b border-slate-200 dark:border-[#22232E]",
+                        !isActions && "cursor-pointer hover:text-slate-900 dark:hover:text-white",
                         col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
                         isFirstSticky && "sticky left-0 z-20 bg-slate-100 dark:bg-[#101116]",
-                        isFirstSticky && canScrollHorizontally && scrollPosition > 10 && "shadow-[3px_0_6px_-2px_rgba(0,0,0,0.35)]"
+                        isFirstSticky && canScrollHorizontally && scrollPosition > 10 && "shadow-[3px_0_6px_-2px_rgba(0,0,0,0.35)]",
+                        isActions && "sticky right-0 z-20 bg-slate-100 dark:bg-[#101116] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.15)] text-center print:hidden"
                       )}
                     >
-                      <div className={cn("inline-flex items-center gap-1", col.align === "right" && "justify-end")}>
+                      <div className={cn("inline-flex items-center gap-1", col.align === "right" && "justify-end", isActions && "justify-center")}>
                         <span>{col.label}</span>
-                        {isSorted ? (
-                          sortOrder === "asc" ? (
-                            <ChevronUp className="w-3.5 h-3.5 text-slate-900 dark:text-white font-bold" />
+                        {!isActions && (
+                          isSorted ? (
+                            sortOrder === "asc" ? (
+                              <ChevronUp className="w-3.5 h-3.5 text-slate-900 dark:text-white font-bold" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-900 dark:text-white font-bold" />
+                            )
                           ) : (
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-900 dark:text-white font-bold" />
+                            <ArrowUpDown className="w-3 h-3 text-slate-400 dark:text-slate-600 opacity-70" />
                           )
-                        ) : (
-                          <ArrowUpDown className="w-3 h-3 text-slate-400 dark:text-slate-600 opacity-70" />
                         )}
                       </div>
                     </th>
@@ -1012,8 +1039,15 @@ export default function HCRegisterPage() {
                   <tr key={idx} className="animate-pulse bg-white dark:bg-[#121319]">
                     {AVAILABLE_COLUMNS.map((col) => {
                       if (!visibleColumns[col.key]) return null;
+                      if (col.key === "actions") {
+                        return (
+                          <td key={col.key} className="py-3 px-3.5 sticky right-0 z-10 bg-white dark:bg-[#121319] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.1)] text-center border-b border-slate-200 dark:border-[#1C1D26] print:hidden">
+                            <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-14 mx-auto" />
+                          </td>
+                        );
+                      }
                       return (
-                        <td key={col.key} className="py-3 px-3.5">
+                        <td key={col.key} className="py-3 px-3.5 border-b border-slate-200 dark:border-[#1C1D26]">
                           <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-20" />
                         </td>
                       );
@@ -1257,8 +1291,27 @@ export default function HCRegisterPage() {
                     )}
 
                     {visibleColumns["remarks"] && (
-                      <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400 max-w-[200px] truncate" title={row.remarks || ""}>
+                      <td className="py-3 px-3.5 text-slate-600 dark:text-slate-400 max-w-[200px] truncate border-b border-slate-200/60 dark:border-[#1C1D26]" title={row.remarks || ""}>
                         {row.remarks || "-"}
+                      </td>
+                    )}
+
+                    {visibleColumns["actions"] && (
+                      <td
+                        className={cn(
+                          "py-3 px-3.5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors bg-white dark:bg-[#121319] group-hover:bg-slate-50/90 dark:group-hover:bg-[#161720]",
+                          "shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/60 dark:border-[#1C1D26] print:hidden"
+                        )}
+                      >
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenChallanView(row)}
+                          className="h-7 px-2.5 text-xs gap-1 hover:border-[#635BFF] hover:text-[#635BFF] cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View</span>
+                        </Button>
                       </td>
                     )}
                   </tr>

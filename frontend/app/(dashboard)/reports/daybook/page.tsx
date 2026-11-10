@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 import { Download, Printer, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
+import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@/types/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -114,7 +115,7 @@ export default function DaybookReportPage() {
             {row.party_name && (
               <span className="font-medium text-[#344054]">Party: {row.party_name} •</span>
             )}
-            <span className="truncate max-w-sm sm:max-w-md lg:max-w-2xl" title={row.narration || undefined}>{row.narration || "No narration"}</span>
+            <span className="truncate max-w-xs sm:max-w-sm lg:max-w-md" title={row.narration || undefined}>{row.narration || "No narration"}</span>
           </div>
         </div>
       ),
@@ -139,6 +140,25 @@ export default function DaybookReportPage() {
         <span className="font-mono text-xs font-medium text-emerald-600">
           {Number(row.credit_amount) > 0 ? formatCurrency(Number(row.credit_amount)) : <span className="text-slate-400 dark:text-slate-600 font-normal">-</span>}
         </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "center",
+      cell: (row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-xs h-7 px-2.5 font-medium hover:border-indigo-300 hover:text-indigo-600"
+          onClick={() => {
+            if (row.voucher_number) {
+              toast.info(`Viewing ${row.voucher_type.replace(/_/g, " ")}: ${row.voucher_number}`);
+            }
+          }}
+        >
+          View
+        </Button>
       ),
     },
   ];

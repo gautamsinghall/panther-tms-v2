@@ -278,7 +278,7 @@ export default function IssuingOfficesPage() {
           </div>
           <div className="text-xs text-slate-500 flex items-center gap-1">
             <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-            <span className="truncate max-w-[280px]">
+            <span className="truncate max-w-[200px] sm:max-w-[240px]">
               {row.address ? `${row.address}, ` : ""}
               {row.city || "—"}, {row.state || "—"} {row.pincode || ""}
             </span>
@@ -340,8 +340,10 @@ export default function IssuingOfficesPage() {
       ),
     },
     {
-      key: "id",
+      key: "actions",
       header: "Actions",
+      minWidth: "120px",
+      align: "center",
       cell: (row) => (
         <div className="flex items-center gap-1">
           <Button
