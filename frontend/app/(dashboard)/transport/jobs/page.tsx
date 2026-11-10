@@ -274,7 +274,7 @@ export default function JobsPage() {
     },
     {
       key: "cargo",
-      header: "Estimated Weight / Packages",
+      header: "Estimated Weight",
       isNumeric: true,
       cell: (row) => (
         <div>

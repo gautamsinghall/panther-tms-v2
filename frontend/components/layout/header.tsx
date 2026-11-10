@@ -12,10 +12,10 @@ import {
   Sun,
   Moon,
   Menu,
+  Calendar,
 } from "lucide-react";
 import { usePantherAI } from "@/components/ai";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
-import { StatusBadge } from "@/components/ui/badge";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { NotificationsPopover } from "@/components/layout/notifications-popover";
 import { OfficeSwitcher } from "@/components/layout/office-switcher";
@@ -38,6 +38,12 @@ export function Header() {
     tenantId: string;
     companyCode: string;
     companyName: string;
+  } | null>(null);
+  const [dateInfo, setDateInfo] = useState<{
+    dayOfWeek: string;
+    formattedDate: string;
+    financialYear: string;
+    fullTitle: string;
   } | null>(null);
 
   // Global Ctrl+K / Cmd+K keyboard shortcut listener
@@ -67,6 +73,26 @@ export function Header() {
     } else {
       setAuthData(null);
     }
+  }, []);
+
+  useEffect(() => {
+    const now = new Date();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const fullDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const day = now.getDate();
+    const startYear = month >= 3 ? year : year - 1;
+    const endYear = startYear + 1;
+
+    setDateInfo({
+      dayOfWeek: days[now.getDay()],
+      formattedDate: `${day} ${months[month]} ${year}`,
+      financialYear: `FY ${startYear}-${String(endYear).slice(-2)}`,
+      fullTitle: `${fullDays[now.getDay()]}, ${day} ${fullMonths[month]} ${year} • Financial Year: ${startYear}-${endYear} (1 Apr ${startYear} – 31 Mar ${endYear})`,
+    });
   }, []);
 
   const handleLogout = () => {
@@ -116,11 +142,29 @@ export function Header() {
           <OfficeSwitcher />
         </div>
 
-        <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden xl:block shrink-0" />
-
-        <div className="hidden xl:block shrink-0">
-          <StatusBadge status="ACTIVE" />
-        </div>
+        {/* Current Date & Financial Year Badge */}
+        {dateInfo && (
+          <>
+            <div className="h-4 w-[1px] bg-slate-200 dark:bg-white/10 hidden sm:block shrink-0" />
+            <div
+              className="hidden sm:flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-150 shadow-2xs shrink-0 select-none cursor-default group"
+              title={dateInfo.fullTitle}
+            >
+              <div className="hidden lg:flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0" />
+                <span className="hidden xl:inline">{dateInfo.dayOfWeek}, </span>
+                <span>{dateInfo.formattedDate}</span>
+              </div>
+              <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-white/10 hidden lg:block shrink-0" />
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider hidden sm:inline lg:hidden">FY</span>
+                <span className="text-[10px] sm:text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200/70 dark:border-emerald-800/60 tracking-tight shrink-0">
+                  {dateInfo.financialYear}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Zone 2: Center - Global Search Command Palette (Shrinks dynamically, never overlaps) */}

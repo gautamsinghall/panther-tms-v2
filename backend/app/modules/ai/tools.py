@@ -201,11 +201,19 @@ async def execute_lr_tool(
     if not is_user_permitted(user, tenant, "transport", "lr_booking", "view"):
         office_str = format_user_office_label(current_office, user)
         msg = (
-            f"Aapke paas LRs dekhne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+            f"Aapke paas LRs dekhne ki permission nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
             if lang in ("hinglish", "hi_devanagari")
-            else f"You don't have access to view LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+            else f"You don't have access or permission to view LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
         )
-        return msg, []
+        card = StructuredCard(
+            card_type="access_denied",
+            title="Consignment Notes (LRs)",
+            subtitle="Access Denied",
+            badge={"text": "Access Denied", "variant": "danger"},
+            items=[],
+            action={"label": "LR Booking", "href": "/transport/lr-booking"},
+        )
+        return msg, [card]
 
     eff_office_id = get_effective_office_id(user, current_office)
     if eff_office_id == -1:
@@ -647,9 +655,16 @@ async def execute_hire_challan_tool(
         msg = (
             f"Aapke paas Hire Challan records dekhne ki permission nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
             if lang in ("hinglish", "hi_devanagari")
-            else f"You don't have access to view Hire Challans. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+            else f"You don't have access or permission to view Hire Challans. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
         )
-        return msg, []
+        card = StructuredCard(
+            card_type="access_denied",
+            title="Hire Challan",
+            badge={"text": "Access Denied", "variant": "danger"},
+            items=[],
+            action={"label": "Hire Challan", "href": "/transport/hire-challan"},
+        )
+        return msg, [card]
 
     eff_office_id = get_effective_office_id(user, current_office)
     search_term = query or vehicle_number
@@ -714,17 +729,35 @@ async def execute_hire_challan_tool(
 
     if not challans:
         if clean_term or search_term:
+            term = clean_term or search_term
             msg = (
-                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                f"Mujhe aapke tenant / issuing office me record '{term}' nahi mila."
                 if lang in ("hinglish", "hi_devanagari")
-                else "I couldn't find that record in your tenant / issuing office."
+                else f"No Hire Challan found matching '{term}' in your tenant / issuing office."
             )
-            return msg, []
+            card = StructuredCard(
+                card_type="hire_challan_detail" if is_detail else "hire_challan_list",
+                title="Hire Challan Search",
+                subtitle="No matching records found in active office scope",
+                badge={"text": "0 Results", "variant": "neutral"},
+                items=[],
+                action={"label": "Hire Challan", "href": "/transport/hire-challan"},
+            )
+            return msg, [card]
         msg = (
             "Koi Hire Challan record nahi mila."
             if lang in ("hinglish", "hi_devanagari")
             else "No Hire Challan records found."
         )
+        card = StructuredCard(
+            card_type="hire_challan_list",
+            title="Hire Challans",
+            subtitle="No records found in active office scope",
+            badge={"text": "0 Results", "variant": "neutral"},
+            items=[],
+            action={"label": "Hire Challan", "href": "/transport/hire-challan"},
+        )
+        return msg, [card]
         card = StructuredCard(
             card_type="hire_challan_detail",
             title="Hire Challan Search",
@@ -1058,17 +1091,26 @@ async def execute_vehicle_tool(
     if not matched:
         if query:
             msg = (
-                "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                f"Mujhe aapke tenant / issuing office me '{query}' se match karta koi vehicle nahi mila."
                 if lang in ("hinglish", "hi_devanagari")
-                else "I couldn't find that record in your tenant / issuing office."
+                else f"No vehicle records found matching '{query}'."
             )
-            return msg, []
+            card = StructuredCard(
+                card_type="vehicle_list",
+                title="Vehicle Search",
+                subtitle=subtitle,
+                badge={"text": "0 Results", "variant": "neutral"},
+                items=[],
+                action={"label": action_label, "href": action_href},
+            )
+            return msg, [card]
         msg = "No vehicles found."
         card = StructuredCard(
             card_type="vehicle_list",
             title="Vehicles Registry",
             subtitle=subtitle,
             badge={"text": "0 Results", "variant": "neutral"},
+            items=[],
             action={"label": action_label, "href": action_href},
         )
         return msg, [card]
@@ -2219,6 +2261,7 @@ async def execute_accounting_tool(
     tenant: Tenant,
     current_office: Optional[Branch],
     party_name: Optional[str] = None,
+    target_role: Optional[str] = None,
     lang: str = "en",
 ) -> Tuple[str, List[StructuredCard]]:
     """
@@ -2256,29 +2299,20 @@ async def execute_accounting_tool(
         vendors = await list_vendor_ledgers(db, office_id=eff_office_id, search=party_name)
         drivers = await list_driver_ledgers(db, office_id=eff_office_id, search=party_name)
 
-        matched_items = []
-        for c in clients:
-            matched_items.append({
-                "name": c.name,
-                "type": "Billing Client",
-                "debit": float(c.total_debit or 0.0),
-                "credit": float(c.total_credit or 0.0),
-                "balance": float(c.outstanding_balance or 0.0),
-                "balance_type": c.balance_type or "DR",
-            })
-        for v in vendors:
-            matched_items.append({
-                "name": v.name,
-                "type": "Vendor",
-                "debit": float(v.total_debit or 0.0),
-                "credit": float(v.total_credit or 0.0),
-                "balance": float(getattr(v, "outstanding_payable", None) or getattr(v, "outstanding_balance", None) or 0.0),
-                "balance_type": v.balance_type or "CR",
-            })
+        if len(drivers) > 1 and (target_role == "driver" or (not clients and not vendors)):
+            exact = [d for d in drivers if (d.name or "").lower() == party_name.lower() or (getattr(d, "driver_id", "") or "").lower() == party_name.lower()]
+            if len(exact) == 1:
+                drivers = exact
+            else:
+                opts = ", ".join([f"{d.name} ({getattr(d, 'driver_id', '') or f'DRV-{d.id:04d}'})" for d in drivers[:5]])
+                msg = f"Multiple drivers match '{party_name}': {opts}. Please specify the driver ID to view the exact ledger."
+                return msg, []
+
+        driver_items = []
         for d in drivers:
             cur_bal = float(d.current_balance or 0.0)
             bal_type = d.balance_type or ("DR" if cur_bal > 0 else "NIL")
-            matched_items.append({
+            driver_items.append({
                 "id": d.id,
                 "code": d.driver_id,
                 "name": d.name,
@@ -2290,6 +2324,35 @@ async def execute_accounting_tool(
                 "tx_count": getattr(d, "transaction_count", 0),
                 "last_date": getattr(d, "last_transaction_date", None),
             })
+
+        client_items = []
+        for c in clients:
+            client_items.append({
+                "name": c.name,
+                "type": "Billing Client",
+                "debit": float(c.total_debit or 0.0),
+                "credit": float(c.total_credit or 0.0),
+                "balance": float(c.outstanding_balance or 0.0),
+                "balance_type": c.balance_type or "DR",
+            })
+
+        vendor_items = []
+        for v in vendors:
+            vendor_items.append({
+                "name": v.name,
+                "type": "Vendor",
+                "debit": float(v.total_debit or 0.0),
+                "credit": float(v.total_credit or 0.0),
+                "balance": float(getattr(v, "outstanding_payable", None) or getattr(v, "outstanding_balance", None) or 0.0),
+                "balance_type": v.balance_type or "CR",
+            })
+
+        if target_role == "driver" or (drivers and not clients and not vendors):
+            matched_items = driver_items + client_items + vendor_items
+        elif target_role == "vendor" or (vendors and not clients and not drivers):
+            matched_items = vendor_items + client_items + driver_items
+        else:
+            matched_items = client_items + vendor_items + driver_items
 
         if not matched_items:
             msg = (
@@ -2352,7 +2415,7 @@ async def execute_accounting_tool(
                 action={"label": f"Open Driver Ledger ({first['name']})", "href": f"/accounts/master-ledger?category=DRIVER&entity_id={first.get('id')}"},
             )
 
-            msg = f"Driver **{first['name']}** ({drv_code}): {detail_str}, {rec_str}{last_pv_str}."
+            msg = f"Driver {first['name']} ({drv_code}): Current Balance {bal_fmt} {status_text} (Total Advances {adv_fmt}, Settled {settle_fmt}, {rec_str}{last_pv_str})."
             return msg, [card]
 
         card = StructuredCard(
@@ -2472,9 +2535,16 @@ async def execute_pod_tool(
         msg = (
             f"Aapke paas POD records dekhne ki permission nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
             if lang in ("hinglish", "hi_devanagari")
-            else f"You don't have access to view POD records. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+            else f"You don't have access or permission to view POD records. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
         )
-        return msg, []
+        card = StructuredCard(
+            card_type="access_denied",
+            title="Proof of Delivery (POD)",
+            badge={"text": "Access Denied", "variant": "danger"},
+            items=[],
+            action={"label": "View POD Records", "href": "/transport/pod-records"},
+        )
+        return msg, [card]
 
     if not (query or lr_number) and not is_count and not is_pending:
         msg = "Which LR's POD would you like to check? Please provide the LR Number (e.g., PLPL-0101)."
@@ -3606,48 +3676,76 @@ def classify_operational_intent(
         "ledger", "khata", "hisab", "hisaab", "pending payment", "pending payments",
         "outstanding", "balance", "kitne paise", "baki hai", "dues", "receivable", "payable",
         "view ledger", "show ledger", "customer ledger", "client ledger", "vendor ledger",
-        "driver ledger", "master ledger", "खाता", "लेज़र", "बकाया"
+        "driver ledger", "master ledger", "advance", "driver advance", "advance balance",
+        "driver balance", "driver's advance", "driver's balance", "खाता", "लेज़र", "बकाया"
     ]
     if any(m in lower for m in accounting_markers):
         # Extract party name if specified
         party_name = None
-        # 1. Hindi/Hinglish: "Parth ka balance / ledger / khata"
-        m_party = re.search(r"([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)\s+(?:ka|ki|ke)\s+(?:ledger|khata|hisab|hisaab|balance|baki)", clean_text, re.IGNORECASE)
-        if m_party:
-            party_name = m_party.group(1).strip()
+        # 1. Possessive first: "Parth's driver advance balance", "Parth's balance", "Parth's ledger"
+        m_pos = re.search(
+            r"([A-Za-z0-9\-_]+)'s\s+(?:(?:driver|vendor|client|customer|advance|outstanding)\s+)*(?:ledger|balance|account|khata|advance)",
+            clean_text,
+            re.IGNORECASE,
+        )
+        if m_pos:
+            party_name = m_pos.group(1).strip()
         else:
-            # 2. English: "ledger / balance of/for Parth", "pending payments for Haldiram Foods"
-            m_party_eng = re.search(r"(?:ledger|khata|account|balance|dues|payments?|pending\s+payments?)\s+(?:of|for)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)", clean_text, re.IGNORECASE)
-            if m_party_eng:
-                party_name = m_party_eng.group(1).strip()
+            # 2. Hindi/Hinglish: "Parth ka balance / ledger / khata"
+            m_party = re.search(
+                r"([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)\s+(?:ka|ki|ke)\s+(?:(?:driver|vendor|client|customer|advance)\s+)*(?:ledger|khata|hisab|hisaab|balance|baki|advance)",
+                clean_text,
+                re.IGNORECASE,
+            )
+            if m_party:
+                party_name = m_party.group(1).strip()
             else:
-                # 3. Explicit role prefix: "driver Parth DRV-0001", "vendor Reliance", "client Tata"
-                m_role = re.search(r"\b(?:driver|chalak|sarathi|vendor|supplier|client|customer)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)", clean_text, re.IGNORECASE)
-                if m_role:
-                    party_name = m_role.group(1).strip()
+                # 3. English: "ledger / balance of/for Parth", "driver advance of/for Parth"
+                m_party_eng = re.search(
+                    r"(?:ledger|khata|account|balance|dues|payments?|pending\s+payments?|advance|driver\s+advance)\s+(?:of|for)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)",
+                    clean_text,
+                    re.IGNORECASE,
+                )
+                if m_party_eng:
+                    party_name = m_party_eng.group(1).strip()
                 else:
-                    # 4. Possessive: "Parth's balance / Parth's ledger"
-                    m_pos = re.search(r"([A-Za-z0-9\-_]+)'s\s+(?:ledger|balance|account|khata)", clean_text, re.IGNORECASE)
-                    if m_pos:
-                        party_name = m_pos.group(1).strip()
+                    # 4. Phrasing like "What is driver Parth's balance" or "Show driver Parth ledger"
+                    m_what = re.search(
+                        r"(?:what\s+is|show|get|tell\s+me)\s+(?:the\s+)?(?:driver\s+|vendor\s+|client\s+)?([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)(?:'s)?\s+(?:ledger\s+|advance\s+)?balance",
+                        clean_text,
+                        re.IGNORECASE,
+                    )
+                    if m_what:
+                        party_name = m_what.group(1).strip()
                     else:
-                        # 5. Phrasing like "What is driver Parth's balance" or "Show driver Parth ledger"
-                        m_what = re.search(r"(?:what\s+is|show|get|tell\s+me)\s+(?:the\s+)?(?:driver\s+|vendor\s+|client\s+)?([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)(?:'s)?\s+(?:ledger\s+)?balance", clean_text, re.IGNORECASE)
-                        if m_what:
-                            party_name = m_what.group(1).strip()
+                        # 5. Explicit role prefix: "driver Parth DRV-0001", "vendor Reliance", "client Tata"
+                        m_role = re.search(
+                            r"\b(?:driver|chalak|sarathi|vendor|supplier|client|customer)\s+([A-Za-z0-9\-_]+(?:\s+[A-Za-z0-9\-_]+)?)",
+                            clean_text,
+                            re.IGNORECASE,
+                        )
+                        if m_role:
+                            cand = m_role.group(1).strip()
+                            if cand.lower() not in ("advance", "balance", "ledger", "account", "khata", "dues", "payment", "payments", "outstanding"):
+                                party_name = cand
 
         # Clean noise words from party extraction
         if party_name:
             party_name = re.sub(r"^(?:driver|chalak|sarathi|vendor|client|customer)\s+", "", party_name, flags=re.I).strip()
-            party_name = re.sub(r"\s+(?:in\s+rupees|rupees|rs\.?|balance|ledger)$", "", party_name, flags=re.I).strip()
+            party_name = re.sub(r"\s+(?:in\s+rupees|rupees|rs\.?|balance|ledger|advance)$", "", party_name, flags=re.I).strip()
 
         # Filter out common stop-words in party extraction
-        if party_name and party_name.lower() in ("master", "general", "client", "customer", "customers", "clients", "vendor", "vendors", "driver", "drivers", "mere", "mera", "all", "sab"):
+        if party_name and party_name.lower() in (
+            "master", "general", "client", "customer", "customers", "clients",
+            "vendor", "vendors", "driver", "drivers", "mere", "mera", "all", "sab",
+            "advance", "balance", "ledger", "account", "khata", "dues", "payment", "payments", "outstanding"
+        ):
             party_name = None
 
         return {
             "tool": "accounting",
             "party_name": party_name,
+            "target_role": "driver" if any(w in lower for w in ("driver", "chalak", "advance")) else None,
         }
 
     # 0A. Client / Customer Intent

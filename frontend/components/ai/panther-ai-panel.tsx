@@ -945,7 +945,7 @@ export function PantherAIPanel() {
       {/* 3. Message Stream Canvas */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden px-4 py-4 space-y-4 bg-white dark:bg-[#0F111D] no-scrollbar overscroll-contain"
+        className="flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 space-y-4 bg-white dark:bg-[#0F111D] no-scrollbar overscroll-contain"
       >
         {messages.map((msg, idx) => {
           const isLatestAssistant = idx === messages.length - 1 && msg.role === "assistant";
@@ -1713,7 +1713,7 @@ export function PantherAIPanel() {
           </div>
         )}
 
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-6 shrink-0" />
       </div>
 
       {/* 5. Sticky Composer Area */}

@@ -156,6 +156,7 @@ export default function EmailSettingsPage() {
                   placeholder="postmaster@mg.panthertms.in"
                   value={smtpUsername}
                   onChange={(e) => setSmtpUsername(e.target.value)}
+                  autoComplete="off"
                 />
                 <Input
                   label="SMTP Password / App Secret"
@@ -163,6 +164,7 @@ export default function EmailSettingsPage() {
                   placeholder="••••••••••••"
                   value={smtpPassword}
                   onChange={(e) => setSmtpPassword(e.target.value)}
+                  autoComplete="new-password"
                 />
               </div>
 

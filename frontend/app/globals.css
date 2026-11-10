@@ -215,12 +215,75 @@ button:focus-visible,
 }
 
 /* ==========================================================================
-   Complete Browser Autofill Fix (Prevent White/Yellow Boxes on Saved Credentials)
+   Complete Browser Autofill Fix (Prevent Grey / Yellow Boxes on Autofilled Fields)
    ========================================================================== */
+/* Light Mode (Default): Clean white background matching theme inputs, slate-900 text */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  transition: background-color 5000000s ease-in-out 0s, color 5000000s ease-in-out 0s !important;
+  background-color: #ffffff !important;
+  border-radius: inherit !important;
+}
+
+input:autofill,
+input:autofill:hover,
+input:autofill:focus,
+textarea:autofill,
+select:autofill {
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  filter: none !important;
+  transition: background-color 5000000s ease-in-out 0s, color 5000000s ease-in-out 0s !important;
+}
+
+/* Dark Mode: Deep dark background matching #0E0F15 dark inputs, white text */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active,
+.dark textarea:-webkit-autofill,
+.dark textarea:-webkit-autofill:hover,
+.dark textarea:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill:active,
+.dark select:-webkit-autofill,
+.dark select:-webkit-autofill:hover,
+.dark select:-webkit-autofill:focus,
+.dark select:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 1000px #0E0F15 inset !important;
+  box-shadow: 0 0 0 1000px #0E0F15 inset !important;
+  transition: background-color 5000000s ease-in-out 0s, color 5000000s ease-in-out 0s !important;
+  background-color: #0E0F15 !important;
+  border-radius: inherit !important;
+}
+
+.dark input:autofill,
+.dark input:autofill:hover,
+.dark input:autofill:focus,
+.dark textarea:autofill,
+.dark select:autofill {
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  filter: none !important;
+  transition: background-color 5000000s ease-in-out 0s, color 5000000s ease-in-out 0s !important;
+}
+
+/* Frosted glass inputs on the dedicated auth/login card */
 .liquid-glass-input-wrapper input:-webkit-autofill,
 .liquid-glass-input-wrapper input:-webkit-autofill:hover,
 .liquid-glass-input-wrapper input:-webkit-autofill:focus,
@@ -232,15 +295,6 @@ input:-webkit-autofill:active,
   transition: background-color 5000000s ease-in-out 0s, color 5000000s ease-in-out 0s !important;
   background-color: transparent !important;
   border-radius: inherit !important;
-}
-
-input:autofill,
-input:autofill:hover,
-input:autofill:focus {
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff !important;
-  filter: none !important;
-  transition: background-color 5000000s ease-in-out 0s, color 5000000s ease-in-out 0s !important;
 }
 
 /* Hide all scrollbars globally across all browsers while maintaining smooth scrolling (except for .show-scrollbar) */

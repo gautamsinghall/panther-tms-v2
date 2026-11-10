@@ -703,6 +703,263 @@ def get_lr_explanation_markdown(lang: str = "en") -> str:
     return content
 
 
+PAGE_METADATA = {
+    "/transport/lr-booking": {
+        "title": "LR Booking",
+        "description": "You can view existing Lorry Receipts (LRs), search consignment notes, create new LR bookings, track consignment status, and print or download bilty documents.",
+    },
+    "/transport/tracking": {
+        "title": "Live Tracking",
+        "description": "You can monitor live vehicle locations, track active LR consignments, inspect GPS and SIM tracking pings, and view FASTag toll crossing checkpoints.",
+    },
+    "/transport/company-vehicles": {
+        "title": "Vehicle Master",
+        "description": "You can view existing vehicles, search vehicle records, and access the available vehicle management actions.",
+    },
+    "/transport/market-vehicles": {
+        "title": "Vehicle Master",
+        "description": "You can view existing vehicles, search vehicle records, and access the available vehicle management actions.",
+    },
+    "/transport/drivers": {
+        "title": "Driver Master",
+        "description": "You can view driver profiles, search driver records, verify license numbers, and manage driver contact details.",
+    },
+    "/transport/hire-challans": {
+        "title": "Hire Challans",
+        "description": "You can view truck hiring memos (Hire Challans), track hired vehicle freight and advances, create new hire challans, and settle vendor balances.",
+    },
+    "/transport/hire-challan": {
+        "title": "Hire Challan",
+        "description": "You can view truck hiring memos (Hire Challans), track hired vehicle freight and advances, create new hire challans, and settle vendor balances.",
+    },
+    "/transport/pod-records": {
+        "title": "POD Records",
+        "description": "You can view Proof of Delivery (POD) records, track pending and unverified PODs, upload delivery acknowledgment scans, and verify receiver signatures.",
+    },
+    "/transport/transport-jobs": {
+        "title": "Transport Jobs",
+        "description": "You can view commercial transport job orders, manage multi-order dispatching, and track job statuses.",
+    },
+    "/accounts/master-ledger": {
+        "title": "Master Ledger",
+        "description": "You can view accounts ledgers, check billing client receivables, vendor payables, and driver advance balances.",
+    },
+    "/accounts/payment-vouchers": {
+        "title": "Payment Vouchers",
+        "description": "You can view payment vouchers, record driver advances, record vendor hiring settlements, and view payment histories.",
+    },
+    "/accounts/vouchers": {
+        "title": "Payment Vouchers",
+        "description": "You can view payment vouchers, record driver advances, record vendor hiring settlements, and view payment histories.",
+    },
+    "/general/billing-client": {
+        "title": "Billing Clients",
+        "description": "You can view registered billing clients, search customer accounts, inspect GSTIN details, and manage client credit terms.",
+    },
+    "/general/billing-clients": {
+        "title": "Billing Clients",
+        "description": "You can view registered billing clients, search customer accounts, inspect GSTIN details, and manage client credit terms.",
+    },
+    "/dashboard": {
+        "title": "Dashboard",
+        "description": "You can view operational KPI metrics, daily consignment trends, active branch activities, and high-level transport operations summaries.",
+    },
+}
+
+
+def is_current_page_query(text: str) -> Optional[str]:
+    """
+    Detects if user is asking about the currently open page.
+    Returns:
+    - 'which_page': 'Which page am I in?', 'What page is currently open?', 'Kaunse page par hoon'
+    - 'what_page_does': 'What does this page do?', 'What can I do here?', 'Is page ka kya kaam hai'
+    - None if not a page inquiry.
+    """
+    lower = (text or "").strip().lower()
+    if bool(re.search(r"\b(which\s+page\s+am\s+i|what\s+page\s+is\s+currently\s+open|what\s+page\s+am\s+i|where\s+am\s+i|which\s+page\s+is\s+this|current\s+page|kaunsa\s+page|kis\s+page)\b", lower)):
+        return "which_page"
+    if bool(re.search(r"\b(what\s+does\s+this\s+page\s+do|what\s+can\s+i\s+do\s+here|how\s+can\s+i\s+perform\s+this\s+operation|what\s+is\s+this\s+page\s+for|is\s+page\s+ka\s+kya\s+kaam\s+hai|yahan\s+kya\s+kar\s+sakte\s+hain|is\s+page\s+par\s+kya\s+hota\s+hai)\b", lower)):
+        return "what_page_does"
+    return None
+
+
+def get_page_awareness_response(page_context: Optional[str], query_type: str, lang: str = "en") -> str:
+    meta = None
+    if page_context:
+        clean_ctx = page_context.strip().split("?")[0].rstrip("/")
+        if clean_ctx in PAGE_METADATA:
+            meta = PAGE_METADATA[clean_ctx]
+        else:
+            for path, m in PAGE_METADATA.items():
+                if path.endswith(clean_ctx) or clean_ctx.endswith(path) or (path != "/dashboard" and path in clean_ctx):
+                    meta = m
+                    break
+
+    if not meta:
+        if lang in ("hinglish", "hi_devanagari"):
+            return "Mujhe abhi aapka currently open page determine karne me asuvidha ho rahi hai. Kripya aap jo section dekh rahe hain uska naam batayein, aur main aapko guide kar dunga."
+        return "I cannot determine your currently open page right now. Please tell me the section you are viewing, and I can guide you."
+
+    title = meta["title"]
+    description = meta["description"]
+
+    if query_type == "which_page":
+        if lang == "hi_devanagari":
+            return f"आप वर्तमान में पैंथर टीएमएस (Panther TMS) में {title} पेज पर हैं।"
+        elif lang == "hinglish":
+            return f"Aap abhi Panther TMS me {title} page par hain."
+        else:
+            return f"You are currently on the {title} page in Panther TMS."
+    else:
+        if lang == "hi_devanagari":
+            return f"आप {title} पेज पर हैं। {description}"
+        elif lang == "hinglish":
+            return f"Aap {title} page par hain. {description}"
+        else:
+            return f"You are on the {title} page. {description}"
+
+
+def get_tms_navigation_response(text: str, lang: str = "en") -> Optional[Tuple[str, List[NavigationSuggestion]]]:
+    lower = (text or "").strip().lower()
+
+    # 1. LR booking navigation
+    if bool(re.search(r"\b(where\s+can\s+i\s+find|where\s+is|how\s+do\s+i\s+open|how\s+to\s+open|kahan\s+hai|kidhar\s+hai)\b.*\b(lr\s+booking|consignment\s+notes?|bilty)\b", lower)) or \
+       bool(re.search(r"\b(lr\s+booking|bilty)\b.*\b(page|section|kahan|kidhar)\b", lower)):
+        msg = "You can access the LR booking page under **Transport Operations** at [LR Booking](/transport/lr-booking)."
+        navs = [NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations")]
+        return msg, navs
+
+    # 2. Vehicle Master navigation
+    if bool(re.search(r"\b(where\s+can\s+i\s+find|where\s+is|how\s+do\s+i\s+open|how\s+to\s+open|kahan\s+hai|kidhar\s+hai|how\s+to\s+find)\b.*\b(vehicle\s+master|truck\s+master|company\s+vehicles?|market\s+vehicles?)\b", lower)) or \
+       bool(re.search(r"\b(vehicle\s+master|truck\s+master)\b", lower)):
+        msg = "You can access the Vehicle Master under **Transport Operations** at [Company Vehicles](/transport/company-vehicles) for company-owned trucks and [Market Vehicles](/transport/market-vehicles) for market/hired trucks."
+        navs = [
+            NavigationSuggestion(title="Company Vehicles", href="/transport/company-vehicles", module="Transport Operations"),
+            NavigationSuggestion(title="Market Vehicles", href="/transport/market-vehicles", module="Transport Operations"),
+        ]
+        return msg, navs
+
+    # 3. Driver balances / Driver ledger navigation
+    if bool(re.search(r"\b(where\s+can\s+i\s+view|where\s+can\s+i\s+find|where\s+to\s+see|how\s+to\s+check|kahan\s+dekh\s+sakte\s+hain|kidhar\s+hai)\b.*\b(driver\s+balances?|driver\s+advances?|driver\s+ledgers?)\b", lower)):
+        msg = "You can view driver balances and advances in the **Master Ledger** filtered by drivers at [Driver Ledger](/accounts/master-ledger?category=DRIVER)."
+        navs = [NavigationSuggestion(title="Driver Ledger", href="/accounts/master-ledger?category=DRIVER", module="Accounts & Finance")]
+        return msg, navs
+
+    # 4. Payment vouchers navigation
+    if bool(re.search(r"\b(which\s+section\s+contains|where\s+can\s+i\s+find|where\s+are|how\s+do\s+i\s+open|kahan\s+hai|kidhar\s+hai)\b.*\b(payment\s+vouchers?|vouchers?|advance\s+vouchers?)\b", lower)):
+        msg = "Payment vouchers are located in the **Accounts & Finance** section under [Payment Vouchers](/accounts/payment-vouchers)."
+        navs = [NavigationSuggestion(title="Payment Vouchers", href="/accounts/payment-vouchers", module="Accounts & Finance")]
+        return msg, navs
+
+    # 5. Live Tracking navigation
+    if bool(re.search(r"\b(where\s+can\s+i\s+track|where\s+is\s+tracking|where\s+to\s+track|how\s+to\s+open\s+tracking)\b", lower)):
+        msg = "You can track vehicles and consignments under **Transport Operations** at [Live Tracking](/transport/tracking)."
+        navs = [NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Transport Operations")]
+        return msg, navs
+
+    # 6. POD navigation
+    if bool(re.search(r"\b(where\s+can\s+i\s+find|where\s+are|how\s+to\s+open)\b.*\b(pod|proof\s+of\s+delivery)\b", lower)):
+        msg = "You can view and upload Proof of Delivery records at [POD Records](/transport/pod-records)."
+        navs = [NavigationSuggestion(title="POD Records", href="/transport/pod-records", module="Transport Operations")]
+        return msg, navs
+
+    return None
+
+
+def get_tms_guidance_response(text: str, lang: str = "en") -> Optional[Tuple[str, List[NavigationSuggestion]]]:
+    lower = (text or "").strip().lower()
+
+    # 1. How do I create an LR?
+    if bool(re.search(r"\b(how\s+(?:do\s+i|can\s+i|to)\s+(?:create|book|make)\s+(?:an?\s+)?(?:lr|gr|bilty|consignment)|lr\s+kaise\s+(?:banaye|banti|banao))\b", lower)):
+        msg = (
+            "To create an LR (Lorry Receipt) in Panther TMS:\n\n"
+            "1. Navigate to **Transport Operations** → [LR Booking](/transport/lr-booking).\n"
+            "2. Click **Create New LR** (or simply tell me: *'book LR from [Origin] to [Destination]'*).\n"
+            "3. Select or enter the **Consigner (Sender)** and **Consignee (Receiver)**.\n"
+            "4. Specify the **Origin (Loading)** and **Destination (Delivery)** locations.\n"
+            "5. Assign a **Vehicle Number** (Company or Market truck) and Driver.\n"
+            "6. Enter cargo details (packages, actual/chargeable weight, and goods description).\n"
+            "7. Enter commercial terms (freight amount, payment basis: To Pay, Paid, or TBB, and any advance).\n"
+            "8. Click **Save & Generate LR** to assign the official series number."
+        )
+        navs = [NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations")]
+        return msg, navs
+
+    # 2. How do I add a new vehicle?
+    if bool(re.search(r"\b(how\s+(?:do\s+i|can\s+i|to)\s+add\s+(?:a\s+)?(?:new\s+)?vehicle|gadi\s+kaise\s+add\s+kare)\b", lower)):
+        msg = (
+            "To add a new vehicle in Panther TMS:\n\n"
+            "1. Determine whether the vehicle is company-owned or hired from the market.\n"
+            "2. For company-owned fleet, go to [Company Vehicles](/transport/company-vehicles) and click **+ Add Company Vehicle**.\n"
+            "3. For market/vendor trucks, go to [Market Vehicles](/transport/market-vehicles) and click **+ Add Market Vehicle**.\n"
+            "4. Enter the vehicle registration number (e.g., DL01AB1234), vehicle type (e.g., 32ft Container, Taurus), and carrying capacity (MT).\n"
+            "5. Optionally upload RC, fitness certificate, insurance, and permit validity dates.\n"
+            "6. Save the record to make the truck available for LR and Hire Challan assignment."
+        )
+        navs = [
+            NavigationSuggestion(title="Company Vehicles", href="/transport/company-vehicles", module="Transport Operations"),
+            NavigationSuggestion(title="Market Vehicles", href="/transport/market-vehicles", module="Transport Operations"),
+        ]
+        return msg, navs
+
+    # 3. How do I check a driver's advance?
+    if bool(re.search(r"\b(how\s+(?:do\s+i|can\s+i|to)\s+check\s+(?:a\s+)?driver(?:'s)?\s+advance|driver\s+advance\s+kaise\s+check\s+kare)\b", lower)):
+        msg = (
+            "To check a driver's advance balance in Panther TMS:\n\n"
+            "1. Go to **Accounts & Finance** → [Master Ledger](/accounts/master-ledger).\n"
+            "2. Select the **Drivers** tab (or filter by Category: Driver).\n"
+            "3. Search for the driver by name or Driver ID (e.g., Parth or DRV-0001).\n"
+            "4. View the **Driver Advances (Recoverable)** balance, total disbursements, and expense settlements.\n"
+            "5. Click on the driver row to open the complete itemized transaction history.\n\n"
+            "Alternatively, you can ask me directly: *'What is [Driver Name]'s driver advance balance?'*"
+        )
+        navs = [NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger?category=DRIVER", module="Accounts & Finance")]
+        return msg, navs
+
+    # 4. Explain the View Ledger section
+    if bool(re.search(r"\b(explain\s+(?:the\s+)?(?:view\s+)?ledger\s+(?:section)?|what\s+is\s+(?:the\s+)?master\s+ledger|ledger\s+kya\s+hai)\b", lower)):
+        msg = (
+            "The **View Ledger (Master Ledger)** in Panther TMS is the central accounting hub for transport operations:\n\n"
+            "- **Billing Clients Sub-Ledger**: Tracks customer freight receivables, unbilled consignments, invoices, and credit balances.\n"
+            "- **Vendors & Suppliers Sub-Ledger**: Tracks market vehicle owners, transporter hire charges, advance payments, and balance dues.\n"
+            "- **Drivers Sub-Ledger**: Tracks driver trip advances (recoverable from expense settlements and diesel vouchers), settled trip expenses, and net driver balances.\n\n"
+            "You can open the ledger anytime at [Master Ledger](/accounts/master-ledger)."
+        )
+        navs = [NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger", module="Accounts & Finance")]
+        return msg, navs
+
+    # 5. How can I track an LR?
+    if bool(re.search(r"\b(how\s+(?:do\s+i|can\s+i|to)\s+track\s+(?:an?\s+)?(?:lr|consignment|shipment)|lr\s+kaise\s+track\s+kare)\b", lower)):
+        msg = (
+            "To track an LR in Panther TMS:\n\n"
+            "1. Go to **Transport Operations** → [Live Tracking](/transport/tracking).\n"
+            "2. Enter the **LR Number** (e.g., PLPL-0101) or assigned **Vehicle Number** in the search bar.\n"
+            "3. View real-time status across GPS location, FASTag toll plaza crossings, and SIM tower pings.\n"
+            "4. Review the chronological milestone timeline from booking, dispatch, in-transit checkpoints, to delivery.\n\n"
+            "You can also ask me directly in chat: *'Track LR [LR Number]'*."
+        )
+        navs = [NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Transport Operations")]
+        return msg, navs
+
+    # 6. What is the process for creating a Hire Challan?
+    if bool(re.search(r"\b(process\s+for\s+creating\s+(?:a\s+)?hire\s+challan|how\s+(?:do\s+i|can\s+i|to)\s+create\s+(?:a\s+)?hire\s+challan|hire\s+challan\s+kaise\s+(?:banaye|banta))\b", lower)):
+        msg = (
+            "To create a Hire Challan (truck hiring memo) in Panther TMS:\n\n"
+            "1. Navigate to **Transport Operations** → [Hire Challans](/transport/hire-challans).\n"
+            "2. Click **+ Create Hire Challan**.\n"
+            "3. Select the hired market vehicle and vehicle supplier/owner.\n"
+            "4. Enter driver details (name, mobile phone number, license).\n"
+            "5. Specify the transit route (Loading Point to Unloading Point).\n"
+            "6. Enter commercials: agreed hiring rate, advance amount paid, and balance payable.\n"
+            "7. Link the consignment notes (LRs) being carried on this truck.\n"
+            "8. Save to generate the official Hire Challan and disburse the advance."
+        )
+        navs = [NavigationSuggestion(title="Hire Challans", href="/transport/hire-challans", module="Transport Operations")]
+        return msg, navs
+
+    return None
+
+
 def classify_copilot_message_intent(
     text: str,
     conversation_history: Optional[List[Dict[str, str]]] = None,
@@ -712,20 +969,44 @@ def classify_copilot_message_intent(
     """
     ROUTER GATE: Classifies input message BEFORE slot filling or draft creation.
     Mutually exclusive intents:
-    - 'general_knowledge': tech, coding, weather, shares, language translation, general facts
+    - 'page_awareness': current page inquiries ('Which page am I in?', 'What can I do here?')
+    - 'tms_navigation': navigation queries to specific TMS pages
+    - 'tms_guidance': conceptual operational help on TMS workflows
+    - 'delete_request': Hard Rule 0 deletion blocks
+    - 'greeting': friendly user greetings
+    - 'cancel': draft cancellation
+    - 'general_knowledge': tech, coding, weather, shares, language translation
     - 'off_topic': flights, leave emails to boss, personal errands, non-logistics queries
     - 'lr_tracking': tracking shipments, FASTag, SIM, GPS, vehicle location
     - 'ledger': accounting ledger, khata, party balances, outstanding dues
-    - 'vehicle': fleet maintenance, vehicle lists, vehicle fitness, add vehicle guide
+    - 'vehicle': vehicle lookups, vehicle lists, vehicle fitness, add vehicle guide
     - 'other_tms': jobs, hire challans, POD records, eway bills, invoices, clients, vendors, etc.
     - 'lr_booking': genuine LR booking intent or active LR draft continuation
-
-    HARD INVARIANT: Only messages classified as 'lr_booking' may open or fill an LR draft.
     """
     clean = (text or "").strip()
     lower = clean.lower()
 
-    # 1. GENERAL KNOWLEDGE
+    # 1. Page awareness
+    if is_current_page_query(clean):
+        return "page_awareness"
+
+    # 2. TMS Navigation
+    if get_tms_navigation_response(clean) is not None:
+        return "tms_navigation"
+
+    # 3. TMS Guidance
+    if get_tms_guidance_response(clean) is not None:
+        return "tms_guidance"
+
+    # 4. HARD RULE 0 & Greetings & Cancel
+    if detect_delete_record_request(clean):
+        return "delete_request"
+    if is_greeting(clean):
+        return "greeting"
+    if is_cancel_intent(clean):
+        return "cancel"
+
+    # 5. GENERAL KNOWLEDGE (Confirmed Off-topic)
     is_weather = bool(re.search(r"\b(weather|mausam|forecast|temperature|barish|humidity|rain)\b", lower))
     is_code = bool(re.search(r"\b(python|javascript|typescript|c\+\+|java|sort\s+function|sorting\s+function|algorithm|bubble\s+sort|quick\s+sort|merge\s+sort|write\s+code|sql\s+query|regex)\b", lower))
     is_stocks = bool(re.search(r"\b(share\s+price|stock\s+price|stock\s+market|reliance\s+share|sensex|nifty|bitcoin|crypto|mutual\s+fund)\b", lower))
@@ -733,30 +1014,43 @@ def classify_copilot_message_intent(
     if is_weather or is_code or is_stocks or is_translation:
         return "general_knowledge"
 
-    # 2. OFF-TOPIC
+    # 6. OFF-TOPIC (Confirmed Off-topic)
     is_flight = bool(re.search(r"\b(flight|flights|airline|airlines|airplane|aeroplane|airways|air\s*ticket|boarding\s+pass|indigo|vistara|air\s*india|spicejet)\b", lower))
     is_leave_email = bool(re.search(r"\b(leave\s+email|leave\s+application|leave\s+letter|email\s+to\s+(?:my\s+)?boss|chhutti|sick\s+leave|casual\s+leave)\b", lower))
     is_casual_offtopic = bool(re.search(r"\b(recipe|poem|joke|cricket\s+score|ipl\s+score|movie\s+ticket)\b", lower))
     if is_flight or is_leave_email or is_casual_offtopic:
         return "off_topic"
 
-    # 3. LR TRACKING
+    # 7. LR TRACKING
     entities_check = extract_transport_entities(clean, conversation_history=conversation_history)
     if entities_check.get("is_track") or bool(re.search(r"\b(track|tracking|kahan\s+hai|kahan\s+pahunchi|where\s+is|live\s+status|gps\s+status)\b", lower)):
         return "lr_tracking"
 
-    # 4. LEDGER / ACCOUNTS
-    if bool(re.search(r"\b(view\s+ledger|show\s+ledger|master\s+ledger|party\s+ledger|customer\s+ledger|client\s+ledger|vendor\s+ledger|driver\s+ledger|khata|hisab|hisaab|pending\s+payments?|outstanding\s+balance|खाता|लेज़र|बकाया)\b", lower)):
+    # 8. Check Operational Intent (e.g. accounting, vehicle, lr, pod, etc.)
+    op_intent = classify_operational_intent(clean, conversation_history=conversation_history)
+    if op_intent:
+        tool_name = op_intent.get("tool")
+        if tool_name == "accounting":
+            return "ledger"
+        elif tool_name == "vehicle":
+            return "vehicle"
+        elif tool_name == "tracking":
+            return "lr_tracking"
+        else:
+            return "other_tms"
+
+    # 9. LEDGER / ACCOUNTS (explicit keywords)
+    if bool(re.search(r"\b(view\s+ledger|show\s+ledger|master\s+ledger|party\s+ledger|customer\s+ledger|client\s+ledger|vendor\s+ledger|driver\s+ledger|driver\s+advance|advance\s+balance|driver\s+balance|khata|hisab|hisaab|pending\s+payments?|outstanding\s+balance|खाता|लेज़र|बकाया)\b", lower)):
         return "ledger"
 
-    # 5. VEHICLE / FLEET
+    # 10. VEHICLE / FLEET
     is_veh_inq, _, _ = is_add_vehicle_or_driver_inquiry(clean)
     if is_veh_inq:
         return "vehicle"
-    if bool(re.search(r"\b(company\s+vehicle|market\s+vehicle|truck\s+list|vehicle\s+list|how\s+many\s+vehicles|gaadi\s+list|vehicle\s+fitness|vehicle\s+insurance|puc\s+status|rc\s+status)\b", lower)):
+    if bool(re.search(r"\b(find\s+vehicle|search\s+vehicle|company\s+vehicle|market\s+vehicle|truck\s+list|vehicle\s+list|how\s+many\s+vehicles|gaadi\s+list|vehicle\s+fitness|vehicle\s+insurance|puc\s+status|rc\s+status)\b", lower)):
         return "vehicle"
 
-    # 6. OTHER TMS TASKS
+    # 11. OTHER TMS TASKS
     if is_job_booking_intent(clean) or is_instructional_job_inquiry(clean) or bool(re.search(r"\bjob\b", lower)):
         return "other_tms"
     if is_hire_challan_intent(clean) or is_instructional_hc_inquiry(clean) or bool(re.search(r"\b(?:hire\s+)?challan\b", lower)):
@@ -770,8 +1064,7 @@ def classify_copilot_message_intent(
     if is_how_to_lr_inquiry(clean) or is_long_explanatory_message(clean) or is_capabilities_query(clean):
         return "other_tms"
 
-    # 7. LR BOOKING
-    # Genuine LR booking triggers (book lr, create lr, bilty banana, etc.)
+    # 12. LR BOOKING
     if is_lr_booking_intent(clean):
         return "lr_booking"
     if is_confirming_start:
@@ -810,7 +1103,7 @@ def get_safe_general_or_refusal_response(
         elif lang == "hinglish":
             msg = "Panther TMS road freight aur commercial transport logistics (trucks, LRs, challans) manage karta hai, passenger airline flights support nahi karta. Agar aapko road cargo ya LR booking karni hai, toh main madad kar sakta hoon."
         else:
-            msg = "Panther TMS manages road freight and commercial transport logistics (trucks, LRs, and challans), and does not support airline flight bookings or passenger flight schedules. If you would like to book road cargo from Delhi to Mumbai, I can create an LR draft for you."
+            msg = "Panther TMS manages road freight and commercial transport logistics (trucks, LRs, and challans), and does not support airline flight bookings or passenger flight schedules. For transport operations, I can help you book road cargo, track shipments, or view accounts."
         navs = [
             NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
         ]
@@ -827,62 +1120,47 @@ def get_safe_general_or_refusal_response(
         navs = []
         return msg, navs
 
-    # 4. Translation
+    # 4. Translation (REFUSAL ONLY - no translations or Hindi text)
     if re.search(r"\b(translate|translation|anuvad)\b", lower) or "to hindi" in lower or "in hindi" in lower:
-        m_trans = re.search(r"translate\s+[\"']?([^\"']+)[\"']?\s+to\s+hindi", lower)
-        phrase = m_trans.group(1).strip() if m_trans else ""
-        if "good morning" in lower or phrase == "good morning":
-            msg = '"Good morning" in Hindi is translated as **"शुभ प्रभात" (Shubh Prabhat)** or **"नमस्ते" (Namaste)**.'
+        if lang == "hi_devanagari":
+            msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं भाषा अनुवाद (translation) में सहायता नहीं कर सकता। मैं आपकी एलआर बुकिंग, फ्लीट ट्रैकिंग और खातों में सहायता कर सकता हूँ।"
+        elif lang == "hinglish":
+            msg = "Main Panther AI hoon, aapka transport operations copilot. Main general language translation provide nahi karta. Main LR booking, fleet tracking aur accounts ledger me aapki madad kar sakta hoon."
         else:
-            msg = f"In Hindi, '{phrase or text}' is translated directly for your reference. For official logistics documents (Bilty / LR), Panther TMS supports English, Hinglish, and Hindi."
+            msg = "I am Panther AI, your dedicated transport operations copilot. I cannot assist with general language translation requests. I can help you with transport operations such as LR booking, shipment tracking, vehicle records, and accounts."
         navs = []
         return msg, navs
 
-    # 5. Leave email to boss
+    # 5. Leave email to boss (REFUSAL ONLY - no email templates)
     if re.search(r"\b(leave\s+email|leave\s+application|leave\s+letter|email\s+to\s+(?:my\s+)?boss|chhutti)\b", lower):
-        msg = (
-            "Here is a professional leave application email template you can send to your manager/boss:\n\n"
-            "**Subject:** Leave Application - [Your Name]\n\n"
-            "Dear [Manager's Name],\n\n"
-            "I am writing to formally request a leave of absence on [Date / Date Range] due to [personal reasons / medical reasons]. "
-            "I will ensure all my pending operational responsibilities are handled prior to my leave and will be reachable via email in case of an urgent matter.\n\n"
-            "Thank you for your understanding.\n\n"
-            "Best regards,\n"
-            "[Your Name]"
-        )
+        if lang == "hi_devanagari":
+            msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं व्यक्तिगत पत्र या लीव ईमेल लिखने में सहायता नहीं कर सकता। मैं आपकी एलआर बुकिंग, फ्लीट ट्रैकिंग और खातों में सहायता कर सकता हूँ।"
+        elif lang == "hinglish":
+            msg = "Main Panther AI hoon, aapka transport operations copilot. Main personal leave emails ya general content writing me sahayata nahi kar sakta. Main LR booking, fleet tracking aur accounts me madad kar sakta hoon."
+        else:
+            msg = "I am Panther AI, your dedicated transport operations copilot. I cannot assist with drafting leave emails or general writing requests. I can help you with logistics workflows like LR booking, fleet tracking, and accounts ledger."
         navs = []
         return msg, navs
 
-    # 6. Python sort function / Coding
-    if re.search(r"\b(python|javascript|java|sort\s+function|algorithm|write\s+code)\b", lower):
-        msg = (
-            "In Python, you can sort lists and collections using the built-in `sorted()` function or the `.sort()` method:\n\n"
-            "```python\n"
-            "# 1. sorted() returns a new sorted list without modifying original\n"
-            "numbers = [5, 2, 9, 1, 5, 6]\n"
-            "sorted_numbers = sorted(numbers)\n\n"
-            "# 2. list.sort() sorts the list in-place\n"
-            "numbers.sort()\n\n"
-            "# 3. Custom sorting (e.g. sort list of dicts by key)\n"
-            "consignments = [{'id': 1, 'weight': 12}, {'id': 2, 'weight': 5}]\n"
-            "consignments.sort(key=lambda x: x['weight'])\n"
-            "```"
-        )
+    # 6. Python sort function / Coding (REFUSAL ONLY - no code examples or explanation)
+    if re.search(r"\b(python|javascript|typescript|c\+\+|java|sort\s+function|sorting\s+function|algorithm|bubble\s+sort|quick\s+sort|merge\s+sort|write\s+code|sql\s+query|regex)\b", lower):
+        if lang == "hi_devanagari":
+            msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं प्रोग्रामिंग या कोडिंग कार्यों में सहायता नहीं कर सकता। मैं आपकी एलआर बुकिंग, फ्लीट ट्रैकिंग और खातों में सहायता कर सकता हूँ।"
+        elif lang == "hinglish":
+            msg = "Main Panther AI hoon, aapka transport operations copilot. Main software programming ya coding requests me help nahi kar sakta. Main LR booking, fleet tracking aur accounts me madad kar sakta hoon."
+        else:
+            msg = "I am Panther AI, your transport operations copilot. I can help with LR booking, fleet tracking, driver and vehicle records, and accounts. I cannot help with general coding or unrelated writing requests."
         navs = []
         return msg, navs
 
     # Default fallback
-    if category == "off_topic":
-        msg = (
-            "I am Panther AI, your dedicated transport operations copilot. "
-            "I assist with logistics workflows such as LR booking, fleet tracking, POD records, and accounts ledger. "
-            "I cannot assist with requests outside transport operations."
-        )
+    if lang == "hi_devanagari":
+        msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं एलआर बुकिंग, फ्लीट ट्रैकिंग, ड्राइवर व वाहन रिकॉर्ड और खातों में सहायता कर सकता हूँ। मैं ट्रांसपोर्ट ऑपरेशंस के बाहर के अनुरोधों में सहायता नहीं कर सकता।"
+    elif lang == "hinglish":
+        msg = "Main Panther AI hoon, aapka transport operations copilot. Main LR booking, fleet tracking, driver aur vehicle records, aur accounts me madad kar sakta hoon. Main transport operations ke bahar ke requests me help nahi kar sakta."
     else:
-        msg = (
-            "I am Panther AI, designed specifically for freight and logistics operations. "
-            "How can I assist you today with LR booking, shipment tracking, or ledger accounts?"
-        )
+        msg = "I am Panther AI, your transport operations copilot. I can help with LR booking, fleet tracking, driver and vehicle records, and accounts. I cannot help with general coding or unrelated writing requests."
+    return msg, []
     navs = [
         NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
         NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
@@ -1205,6 +1483,9 @@ async def chat_with_copilot(
             )
             is_mid_draft_question = (
                 is_greeting(last_user_message)
+                or is_current_page_query(last_user_message) is not None
+                or get_tms_navigation_response(last_user_message) is not None
+                or get_tms_guidance_response(last_user_message) is not None
                 or is_capabilities_query(last_user_message)
                 or is_how_to_lr_inquiry(last_user_message)
                 or is_add_vehicle_or_driver_inquiry(last_user_message)[0]
@@ -1219,8 +1500,23 @@ async def chat_with_copilot(
 
             if is_mid_draft_question and not is_continue_command:
                 # Answer the query without touching or polluting the draft
+                is_page_q = is_current_page_query(last_user_message)
+                tms_nav_tuple = get_tms_navigation_response(last_user_message, lang=detected_lang)
+                tms_guide_tuple = get_tms_guidance_response(last_user_message, lang=detected_lang)
+
                 if is_greeting(last_user_message):
                     sub_answer = get_greeting_response(lang=detected_lang)
+                    sub_cards = []
+                elif is_page_q:
+                    sub_answer = get_page_awareness_response(data.page_context, is_page_q, lang=detected_lang)
+                    sub_cards = []
+                elif tms_nav_tuple:
+                    sub_answer, sub_navs = tms_nav_tuple
+                    nav_suggestions.extend(sub_navs)
+                    sub_cards = []
+                elif tms_guide_tuple:
+                    sub_answer, sub_navs = tms_guide_tuple
+                    nav_suggestions.extend(sub_navs)
                     sub_cards = []
                 elif is_capabilities_query(last_user_message):
                     sub_answer = get_capabilities_list_markdown(lang=detected_lang)
@@ -1265,6 +1561,29 @@ async def chat_with_copilot(
                     detected_language=detected_lang,
                 )
 
+        # Slot-filling for active LR draft
+        if has_active_draft and existing_d:
+            parsed_slot_entities = parse_lr_entities_from_text(last_user_message, current_draft=existing_d)
+            has_slot_field = any(k in parsed_slot_entities for k in (
+                "consigner_candidate", "consignee_candidate", "origin_candidate",
+                "destination_candidate", "vehicle_number", "freight_amount",
+                "actual_weight_mt", "particulars", "advance_amount", "goods_value",
+                "eway_bill_number", "gstin_candidate", "pincode_candidate", "is_single_edit"
+            ))
+            if has_slot_field and not is_cancel and not is_greeting(last_user_message):
+                reply_content, cards = await handle_conversational_lr_booking(
+                    db=db, user=current_user, tenant=tenant, current_office=current_office,
+                    user_text=last_user_message, lang=detected_lang
+                )
+                return ChatResponse(
+                    content=reply_content,
+                    navigation_suggestions=nav_suggestions,
+                    citations=[],
+                    cards=cards,
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
         # C: When NO active draft exists: Validate Intent BEFORE starting
         if not (has_active_draft or has_active_job or has_active_hc):
             # 1. Greeting: return greeting only
@@ -1272,6 +1591,44 @@ async def chat_with_copilot(
                 return ChatResponse(
                     content=get_greeting_response(lang=detected_lang),
                     navigation_suggestions=nav_suggestions,
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 2. Page awareness
+            q_page = is_current_page_query(last_user_message)
+            if q_page:
+                return ChatResponse(
+                    content=get_page_awareness_response(data.page_context, q_page, lang=detected_lang),
+                    navigation_suggestions=nav_suggestions,
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 3. TMS Navigation
+            nav_tuple = get_tms_navigation_response(last_user_message, lang=detected_lang)
+            if nav_tuple:
+                nav_msg, nav_items = nav_tuple
+                return ChatResponse(
+                    content=nav_msg,
+                    navigation_suggestions=nav_items,
+                    citations=[],
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+            # 4. TMS Guidance
+            guidance_tuple = get_tms_guidance_response(last_user_message, lang=detected_lang)
+            if guidance_tuple:
+                g_msg, g_navs = guidance_tuple
+                return ChatResponse(
+                    content=g_msg,
+                    navigation_suggestions=g_navs,
                     citations=[],
                     cards=[],
                     provider_configured=is_provider_configured(),
@@ -1415,7 +1772,7 @@ async def chat_with_copilot(
             intent_category = classify_copilot_message_intent(
                 text=last_user_message,
                 conversation_history=history_dicts_early,
-                has_active_lr_draft=False,
+                has_active_lr_draft=has_active_draft,
                 is_confirming_start=is_confirming_start,
             )
 
@@ -1912,7 +2269,9 @@ async def chat_with_copilot(
                 else:
                     reply_content, cards = await execute_accounting_tool(
                         db=db, user=current_user, tenant=tenant, current_office=current_office,
-                        party_name=op_intent.get("party_name"), lang=detected_lang,
+                        party_name=op_intent.get("party_name"),
+                        target_role=op_intent.get("target_role"),
+                        lang=detected_lang,
                     )
             elif tool_name == "vehicle":
                 can_veh = is_user_permitted(current_user, tenant, "transport", "company_vehicles", "view") or is_user_permitted(current_user, tenant, "transport", "market_vehicles", "view")
@@ -2184,7 +2543,7 @@ async def stream_chat_with_copilot(
                     await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_LEDGER", "accounts", "accounts.master_ledger.view", last_user_msg, current_office)
                     msg = "You don't have access to view accounts ledger. Please contact your Company Admin if you need access."
                 else:
-                    msg, _ = await execute_accounting_tool(db, current_user, tenant, current_office, party_name=op_intent.get("party_name"), lang=detected_lang)
+                    msg, _ = await execute_accounting_tool(db, current_user, tenant, current_office, party_name=op_intent.get("party_name"), target_role=op_intent.get("target_role"), lang=detected_lang)
             elif tool_name == "vehicle":
                 can_veh = is_user_permitted(current_user, tenant, "transport", "company_vehicles", "view") or is_user_permitted(current_user, tenant, "transport", "market_vehicles", "view")
                 if not can_veh:

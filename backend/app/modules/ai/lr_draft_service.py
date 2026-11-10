@@ -271,8 +271,14 @@ def is_valid_party_name(name: str) -> bool:
         return False
     if "?" in clean:
         return False
-    question_starters = ("what", "how", "why", "who", "where", "when", "which", "can you", "could you", "tell me", "kya", "kaise", "kahan", "kaun", "kisko", "kiska")
+    question_starters = (
+        "what", "how", "why", "who", "where", "when", "which", "can you", "could you",
+        "tell me", "explain", "show", "find", "search", "track", "lookup", "check",
+        "kya", "kaise", "kahan", "kaun", "kisko", "kiska", "batao", "samjhao"
+    )
     if any(lower.startswith(q) or f" {q} " in lower for q in question_starters):
+        return False
+    if is_instructional_inquiry(clean):
         return False
     words = [w for w in re.split(r"[\s,.-]+", lower) if w]
     if len(words) == 1 and (words[0] in COMMON_STOP_WORDS or words[0] in INVALID_LOCATION_WORDS):
@@ -332,7 +338,16 @@ def is_lr_booking_intent(text: str) -> bool:
         r"\b(book|create|creat|bok|boke|make|mak|craete|start|new|raise|issue|banana|banao)\b.*\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b",
         r"\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b.*\b(book|create|creat|bok|boke|banao|banani|banana|generate|start|karni|karna)\b",
     ]
-    return any(bool(re.search(p, lower)) for p in booking_patterns)
+    if any(bool(re.search(p, lower)) for p in booking_patterns):
+        return True
+
+    # Multi-entity detection: combined message with multiple booking keys (e.g. Consigner X, Consignee Y, Origin A, Destination B...)
+    parsed = parse_lr_entities_from_text(text)
+    booking_keys = [k for k in ("consigner_candidate", "consignee_candidate", "origin_candidate", "destination_candidate", "vehicle_number", "freight_amount", "actual_weight_mt") if k in parsed]
+    if len(booking_keys) >= 2 and ("consigner_candidate" in parsed or "consignee_candidate" in parsed or "origin_candidate" in parsed or "destination_candidate" in parsed):
+        return True
+
+    return False
 
 
 def is_cancel_intent(text: str) -> bool:
@@ -824,13 +839,34 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         )
 
         if is_bare_name:
-            if any("Consigner" in m for m in missing) and not draft_data.get("consigner_id") and "consigner_candidate" not in entities:
+            is_loc = is_valid_location_name(clean_text) and any(w in clean_text.lower() for w in (
+                "delhi", "mumbai", "kolkata", "chennai", "bangalore", "bengaluru", "hyderabad",
+                "pune", "ahmedabad", "jaipur", "surat", "lucknow", "kanpur", "nagpur", "indore",
+                "thane", "bhopal", "visakhapatnam", "patna", "vadodara", "ghaziabad", "ludhiana",
+                "agra", "nashik", "faridabad", "meerut", "rajkot", "varanasi", "srinagar", "aurangabad",
+                "dhanbad", "amritsar", "navi mumbai", "allahabad", "prayagraj", "ranchi", "howrah",
+                "coimbatore", "jabalpur", "gwalior", "vijayawada", "jodhpur", "madurai", "raipur",
+                "kota", "guwahati", "chandigarh", "solapur", "hubli", "dharwad", "bareilly", "moradabad",
+                "mysore", "gurgaon", "gurugram", "aligarh", "jalandhar", "tiruchirappalli", "bhubaneswar",
+                "salem", "mira-bhayandar", "warangal", "thiruvananthapuram", "bhiwandi", "saharanpur",
+                "guntur", "amravati", "bikaner", "noida", "jamshedpur", "bhilai", "cuttack", "firozabad",
+                "kochi", "nellore", "bhavnagar", "dehradun", "durgapur", "asansol", "rourkela", "nanded",
+                "kolhapur", "ajmer", "akola", "gulbarga", "jamnagar", "ujjain", "loni", "siliguri",
+                "jhansi", "ulhasnagar", "jammu", "sangli-miraj", "mangalore", "erode", "belgaum",
+                "ambattur", "tirunelveli", "malegaon", "gaya", "jalgaon", "udaipur", "maheshtala"
+            ))
+            if is_loc:
+                if any("Loading" in m or "Origin" in m for m in missing) and not draft_data.get("origin_location_id") and "origin_candidate" not in entities:
+                    entities["origin_candidate"] = strip_field_label(clean_text, "origin")
+                elif any("Delivery" in m or "Destination" in m for m in missing) and not draft_data.get("destination_location_id") and "destination_candidate" not in entities:
+                    entities["destination_candidate"] = strip_field_label(clean_text, "destination")
+            elif any("Consigner" in m for m in missing) and not draft_data.get("consigner_id") and "consigner_candidate" not in entities:
                 entities["consigner_candidate"] = strip_field_label(clean_text, "consigner")
             elif any("Consignee" in m for m in missing) and not draft_data.get("consignee_id") and "consignee_candidate" not in entities:
                 entities["consignee_candidate"] = strip_field_label(clean_text, "consignee")
-            elif any("Loading" in m for m in missing) and not draft_data.get("origin_location_id") and "origin_candidate" not in entities:
+            elif any("Loading" in m or "Origin" in m for m in missing) and not draft_data.get("origin_location_id") and "origin_candidate" not in entities:
                 entities["origin_candidate"] = strip_field_label(clean_text, "origin")
-            elif any("Delivery" in m for m in missing) and not draft_data.get("destination_location_id") and "destination_candidate" not in entities:
+            elif any("Delivery" in m or "Destination" in m for m in missing) and not draft_data.get("destination_location_id") and "destination_candidate" not in entities:
                 entities["destination_candidate"] = strip_field_label(clean_text, "destination")
             elif any("Goods" in m for m in missing) and not draft_data.get("particulars") and "particulars" not in entities:
                 entities["particulars"] = strip_field_label(clean_text, "goods")
