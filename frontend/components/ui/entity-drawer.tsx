@@ -134,7 +134,7 @@ export function EntityDrawer({
 
   if (!isOpen) return null;
 
-  const maxWidthClass = "max-w-5xl";
+  const maxWidthClass = "max-w-[1440px]";
 
   const formViewContent = (
     <div

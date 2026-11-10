@@ -17,8 +17,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  MapPin,
-  Calendar,
   FileCheck,
   Activity,
   Layers,
@@ -40,24 +38,6 @@ interface ApiCenterData {
   has_gsp_secret_override?: boolean;
   platform_gsp_configured: boolean;
   platform_gsp_base_url: string;
-}
-
-interface GSTVerificationResult {
-  success: boolean;
-  message?: string;
-  gstin?: string;
-  pan?: string;
-  legal_name?: string;
-  trade_name?: string;
-  incorporation_date?: string;
-  legal_status?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  state_code?: string;
-  pincode?: string;
-  country?: string;
-  raw_data?: any;
 }
 
 interface TaxTransactionItem {
@@ -90,10 +70,8 @@ export default function GSTApiPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCounterLoading, setIsCounterLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showRawJson, setShowRawJson] = useState(false);
 
   // Configuration Form Fields
   const [isGstActive, setIsGstActive] = useState(true);
@@ -113,10 +91,6 @@ export default function GSTApiPage() {
     transactions: [],
   });
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState("");
-
-  // Interactive Sandbox / Testing
-  const [testGstin, setTestGstin] = useState("27AAACT2727Q1ZW");
-  const [verificationResult, setVerificationResult] = useState<GSTVerificationResult | null>(null);
 
   // Feedback notifications
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -202,55 +176,6 @@ export default function GSTApiPage() {
     }
   };
 
-  const handleVerifyGstin = async () => {
-    const clean = testGstin.trim().toUpperCase();
-    if (!clean || clean.length !== 15) {
-      setFeedback({
-        type: "error",
-        message: "Please enter a valid 15-character alphanumeric GSTIN to verify.",
-      });
-      return;
-    }
-
-    try {
-      setIsVerifying(true);
-      setVerificationResult(null);
-      setFeedback(null);
-
-      const res = await apiClient.post<any>("/api/v1/profile/api-center/test-gst", {
-        gstin: clean,
-        gsp_client_id: gspClientIdOverride.trim() || undefined,
-        gsp_client_secret:
-          gspClientSecretOverride && !gspClientSecretOverride.startsWith("••")
-            ? gspClientSecretOverride.trim()
-            : undefined,
-        gsp_base_url: gspBaseUrlOverride.trim() || undefined,
-      });
-
-      if (res && res.success) {
-        setVerificationResult(res.details || res);
-        setFeedback({
-          type: "success",
-          message: `GSTIN ${clean} verified! Taxpayer details retrieved successfully.`,
-        });
-      } else {
-        setVerificationResult(res?.details || null);
-        setFeedback({
-          type: "error",
-          message: res?.message || "GSTIN lookup failed. Check GSTIN validity.",
-        });
-      }
-      fetchCounter();
-    } catch (err: any) {
-      setFeedback({
-        type: "error",
-        message: err?.message || "Error verifying GSTIN against gateway.",
-      });
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
   const filteredTransactions = (counterData.transactions || []).filter((tx) => {
     if (!ledgerSearchTerm) return true;
     const q = ledgerSearchTerm.toLowerCase();
@@ -263,7 +188,7 @@ export default function GSTApiPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16">
+    <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
       {/* Page Header with Refresh Counter Action */}
       <PageHeader
         title="API Center"
@@ -543,162 +468,13 @@ export default function GSTApiPage() {
         </div>
       </Card>
 
-      {/* Interactive Verification Sandbox */}
-      <Card className="p-6 border-slate-200 shadow-2xs space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-              <Zap className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Live GST Verification Sandbox</h3>
-              <p className="text-xs text-slate-500">
-                Test any 15-digit GSTIN to preview taxpayer data returned by the API gateway.
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-            Action: TP Search
-          </span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Input
-              value={testGstin}
-              onChange={(e) => setTestGstin(e.target.value.toUpperCase())}
-              placeholder="e.g. 27AAACT2727Q1ZW"
-              maxLength={15}
-              className="font-mono text-sm font-semibold tracking-wider uppercase h-10"
-            />
-            <span className="text-[10px] text-slate-400 mt-1 block">
-              15-character alphanumeric GSTIN (Format: 2-digit state + 10-char PAN + 3-char entity code)
-            </span>
-          </div>
-
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            onClick={handleVerifyGstin}
-            disabled={isVerifying || !isGstActive}
-            className="h-10 px-5 gap-2 text-xs font-semibold cursor-pointer shrink-0"
-          >
-            {isVerifying ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Verifying...</span>
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4" />
-                <span>Verify GSTIN</span>
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Verification Result Display */}
-        {verificationResult && (
-          <div className="mt-4 p-5 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between pb-3 border-b border-emerald-200/80">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span className="font-bold text-xs uppercase tracking-wider text-emerald-950">
-                  Taxpayer Profile Verified
-                </span>
-              </div>
-              <span className="font-mono text-xs font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-                {verificationResult.gstin}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-              <div>
-                <span className="text-slate-500 block text-[11px]">Trade / Operating Name</span>
-                <span className="font-bold text-slate-900 mt-0.5 block">
-                  {verificationResult.trade_name || verificationResult.legal_name || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Legal Registered Entity</span>
-                <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {verificationResult.legal_name || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Income Tax PAN</span>
-                <span className="font-mono font-bold text-indigo-700 mt-0.5 block">
-                  {verificationResult.pan || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Constitution of Business</span>
-                <span className="font-medium text-slate-800 mt-0.5 block">
-                  {verificationResult.legal_status || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Registration Date</span>
-                <span className="font-mono text-slate-800 mt-0.5 block flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-slate-400" />
-                  {verificationResult.incorporation_date || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">State &amp; State Code</span>
-                <span className="font-medium text-slate-800 mt-0.5 block">
-                  {verificationResult.state} {verificationResult.state_code ? `(${verificationResult.state_code})` : ""}
-                </span>
-              </div>
-
-              <div className="md:col-span-2 lg:col-span-3">
-                <span className="text-slate-500 block text-[11px]">Principal Registered Address</span>
-                <span className="font-medium text-slate-800 mt-0.5 block flex items-start gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
-                  <span>
-                    {verificationResult.address ? `${verificationResult.address}, ` : ""}
-                    {verificationResult.city ? `${verificationResult.city}, ` : ""}
-                    {verificationResult.state ? `${verificationResult.state} ` : ""}
-                    {verificationResult.pincode ? `- ${verificationResult.pincode}` : ""}
-                  </span>
-                </span>
-              </div>
-            </div>
-
-            {/* Toggle Raw JSON */}
-            <div className="pt-2 border-t border-emerald-200/60">
-              <button
-                type="button"
-                onClick={() => setShowRawJson(!showRawJson)}
-                className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 cursor-pointer"
-              >
-                <span>{showRawJson ? "Hide Raw Response Payload" : "View Raw Response Payload"}</span>
-                {showRawJson ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-
-              {showRawJson && (
-                <pre className="mt-2 p-3 bg-slate-900 text-emerald-400 rounded-lg text-[10px] font-mono overflow-x-auto max-h-60">
-                  {JSON.stringify(verificationResult, null, 2)}
-                </pre>
-              )}
-            </div>
-          </div>
-        )}
-      </Card>
-
       {/* Query History & Audit Ledger Table (matching FASTag and SIM tracking) */}
       <Card className="p-6 border-slate-200 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
             <h3 className="font-bold text-sm text-slate-900">GST Verification Ledger &amp; Audit History</h3>
             <p className="text-xs text-slate-500">
-              Complete audit trail of all GSTIN queries executed from forms and the API Center sandbox.
+              Complete audit trail of all GSTIN queries executed across the workspace.
             </p>
           </div>
 
@@ -719,7 +495,7 @@ export default function GSTApiPage() {
             <Layers className="w-8 h-8 mx-auto mb-2 text-slate-300" />
             <p className="text-xs font-semibold text-slate-600">No GST queries recorded yet</p>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Queries executed from forms or the sandbox above will automatically appear in this ledger.
+              Queries executed from forms across the workspace will automatically appear in this ledger.
             </p>
           </div>
         ) : (

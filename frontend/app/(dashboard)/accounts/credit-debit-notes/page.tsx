@@ -689,7 +689,7 @@ export default function CreditDebitNotesPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-[1440px] mx-auto">
       {/* Header */}
       <PageHeader
         title="Credit &amp; Debit Notes"

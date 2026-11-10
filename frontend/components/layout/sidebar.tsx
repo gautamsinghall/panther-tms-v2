@@ -798,7 +798,7 @@ export function Sidebar() {
             }
           });
           if (Object.keys(expanded).length > 0) {
-            setExpandedGroups(expanded);
+            setExpandedGroups((prev) => ({ ...prev, ...expanded }));
           }
         }
       } catch (err: any) {
@@ -819,21 +819,27 @@ export function Sidebar() {
     return () => {
       isMounted = false;
     };
-  }, [normalizedPathname]);
+  }, []);
 
   // Ensure the active module group is open when navigating
   useEffect(() => {
     if (normalizedPathname && navGroups.length > 0) {
+      let needsUpdate = false;
+      const updates: Record<string, boolean> = {};
       navGroups.forEach((g) => {
-        if (isGroupActive(g, normalizedPathname)) {
-          setExpandedGroups((prev) => ({
-            ...prev,
-            [g.id]: true,
-          }));
+        if (isGroupActive(g, normalizedPathname) && !expandedGroups[g.id]) {
+          updates[g.id] = true;
+          needsUpdate = true;
         }
       });
+      if (needsUpdate) {
+        setExpandedGroups((prev) => ({
+          ...prev,
+          ...updates,
+        }));
+      }
     }
-  }, [normalizedPathname, navGroups]);
+  }, [normalizedPathname, navGroups, expandedGroups]);
 
   const toggleGroup = (id: string) => {
     setExpandedGroups((prev) => ({
@@ -862,20 +868,17 @@ export function Sidebar() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: shouldReduceMotion ? 0 : 0.038,
-        delayChildren: shouldReduceMotion ? 0 : 0.08,
+        duration: 0.1,
       },
     },
   };
 
   const navItemVariants: Variants = {
-    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 10 },
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
       transition: {
-        duration: shouldReduceMotion ? 0 : 0.28,
-        ease: EASE_CUBIC,
+        duration: 0.1,
       },
     },
   };
@@ -1189,109 +1192,83 @@ export function Sidebar() {
                   </Link>
                 )}
 
-                {/* Sub items — Accordion with Staggered Linear Inset Pill Active State */}
-                <AnimatePresence initial={false}>
-                  {!isCollapsed && isExpanded && (
-                    <motion.div
-                      key={`submenu-${group.id}`}
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{
-                        height: "auto",
-                        opacity: 1,
-                        transition: {
-                          height: { duration: shouldReduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] },
-                          opacity: { duration: shouldReduceMotion ? 0 : 0.18, delay: 0.04 },
-                        },
-                      }}
-                      exit={{
-                        height: 0,
-                        opacity: 0,
-                        transition: {
-                          height: { duration: shouldReduceMotion ? 0 : 0.18, ease: [0.16, 1, 0.3, 1] },
-                          opacity: { duration: shouldReduceMotion ? 0 : 0.12 },
-                        },
-                      }}
-                      className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 dark:border-[#22232E] ml-4 my-0.5 relative"
-                    >
-                      {group.items?.map((sub) => {
-                        const isActive = normalizedPathname === sub.href;
-                        const SubIcon = getSubItemIcon(sub);
-
-                        return (
-                          <Link
-                            key={sub.href}
-                            href={sub.is_locked ? "#" : resolveUrl(sub.href)}
-                            onClick={(e) => {
-                              if (sub.is_locked) {
-                                e.preventDefault();
-                                setPlanGate({
-                                  featureName: sub.title,
-                                  requiredPlan: sub.required_plan || group.required_plan || "BUSINESS",
-                                });
-                                return;
-                              }
-                              if (isFormOpen) {
-                                closeFormTab(false);
-                              }
-                              setActiveTab("list");
-                            }}
-                            className={cn(
-                              "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-all duration-150 select-none",
-                              sub.is_locked
-                                ? "text-slate-400 opacity-80 cursor-not-allowed"
-                                : isActive
-                                ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
-                                : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100/80 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7]"
-                            )}
-                          >
-                            {/* Slim Animated Vertical Accent Indicator (Linear style) */}
-                            {isActive && !sub.is_locked && (
-                              <motion.span
-                                layoutId="sidebarActiveIndicator"
-                                className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.35)]"
-                                transition={{
-                                  type: "spring",
-                                  stiffness: 400,
-                                  damping: 35,
-                                }}
-                              />
-                            )}
-
-                            <span className="truncate flex items-center gap-2 min-w-0">
-                              <span
-                                className={cn(
-                                  "shrink-0 transition-all duration-150",
-                                  sub.is_locked
-                                    ? "text-slate-300"
-                                    : isActive
-                                    ? "text-indigo-600 scale-105"
-                                    : "text-slate-400"
-                                )}
-                              >
-                                <SubIcon className="w-3.5 h-3.5" />
-                              </span>
-                              <span className="truncate">{sub.title}</span>
-                              {sub.is_locked && (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase animate-in fade-in-0 duration-150">
-                                  <Lock className="w-2 h-2" />
-                                  {formatPlanName(sub.required_plan || group.required_plan)}
-                                </span>
-                              )}
-                            </span>
-                            {isActive && !sub.is_locked && (
-                              <motion.span
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs"
-                              />
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </motion.div>
+                {/* Sub items — Accordion with Smooth CSS Grid Transition */}
+                <div
+                  className={cn(
+                    "grid transition-[grid-template-rows,opacity] duration-150 ease-out",
+                    !isCollapsed && isExpanded
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0 pointer-events-none"
                   )}
-                </AnimatePresence>
+                >
+                  <div className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 dark:border-[#22232E] ml-4 my-0.5 relative">
+                    {group.items?.map((sub) => {
+                      const isActive = normalizedPathname === sub.href;
+                      const SubIcon = getSubItemIcon(sub);
+
+                      return (
+                        <Link
+                          key={sub.href}
+                          href={sub.is_locked ? "#" : resolveUrl(sub.href)}
+                          onClick={(e) => {
+                            if (sub.is_locked) {
+                              e.preventDefault();
+                              setPlanGate({
+                                featureName: sub.title,
+                                requiredPlan: sub.required_plan || group.required_plan || "BUSINESS",
+                              });
+                              return;
+                            }
+                            if (isFormOpen) {
+                              closeFormTab(false);
+                            }
+                            setActiveTab("list");
+                          }}
+                          className={cn(
+                            "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-colors duration-100 select-none",
+                            sub.is_locked
+                              ? "text-slate-400 opacity-80 cursor-not-allowed"
+                              : isActive
+                              ? "bg-indigo-50/90 text-indigo-700 font-semibold border border-indigo-200/60 shadow-2xs"
+                              : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100/80 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7]"
+                          )}
+                        >
+                          {/* Slim Vertical Accent Indicator */}
+                          {isActive && !sub.is_locked && (
+                            <span
+                              className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.35)]"
+                            />
+                          )}
+
+                          <span className="truncate flex items-center gap-2 min-w-0">
+                            <span
+                              className={cn(
+                                "shrink-0 transition-transform duration-100",
+                                sub.is_locked
+                                  ? "text-slate-300"
+                                  : isActive
+                                  ? "text-indigo-600 scale-105"
+                                  : "text-slate-400"
+                              )}
+                            >
+                              <SubIcon className="w-3.5 h-3.5" />
+                            </span>
+                            <span className="truncate">{sub.title}</span>
+                            {sub.is_locked && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 uppercase">
+                                <Lock className="w-2 h-2" />
+                                {formatPlanName(sub.required_plan || group.required_plan)}
+                              </span>
+                            )}
+                          </span>
+                          {isActive && !sub.is_locked && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs" />
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               </motion.div>
             );
           })

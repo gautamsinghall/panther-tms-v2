@@ -263,7 +263,7 @@ export default function CompanyDetailsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 max-w-[1440px] mx-auto pb-12">
       <PageHeader
         title="Company Details & Global Branding"
         description="Corporate profile, brand identity, signing authority, and default issuing office."

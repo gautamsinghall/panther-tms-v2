@@ -217,7 +217,7 @@ export function WorkspaceTabBar() {
           type="button"
           onClick={() => setActiveTab("list")}
           className={cn(
-            "group relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-t-lg transition-all border-t border-l border-r cursor-pointer shrink-0",
+            "group relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-t-lg transition-colors duration-100 border-t border-l border-r cursor-pointer shrink-0",
             activeTab === "list"
               ? "bg-[#F8FAFC] text-slate-900 border-slate-200/90 shadow-2xs -mb-px z-10 font-bold"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border-transparent"
@@ -244,7 +244,7 @@ export function WorkspaceTabBar() {
           <div
             onClick={() => setActiveTab("form")}
             className={cn(
-              "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-all border-t border-l border-r cursor-pointer shrink-0 animate-in fade-in slide-in-from-left-2 duration-150",
+              "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-colors duration-100 border-t border-l border-r cursor-pointer shrink-0",
               activeTab === "form"
                 ? "bg-[#F8FAFC] text-indigo-700 border-slate-200/90 shadow-2xs -mb-px z-10 font-bold"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border-transparent"
@@ -284,7 +284,7 @@ export function WorkspaceTabBar() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-all border-t border-l border-r cursor-pointer shrink-0 animate-in fade-in slide-in-from-left-2 duration-150",
+                "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-colors duration-100 border-t border-l border-r cursor-pointer shrink-0",
                 isCurrentMaster
                   ? "bg-[#F8FAFC] text-indigo-700 border-slate-200/90 shadow-2xs -mb-px z-10 font-bold"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border-transparent"

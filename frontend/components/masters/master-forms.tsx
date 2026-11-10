@@ -803,7 +803,7 @@ export function MasterFormView({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 pb-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-75">
+    <div className="w-full max-w-[1440px] mx-auto space-y-6 pb-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-75">
       {/* Top Header Card with Breadcrumb & Context Navigation */}
       <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-4 sm:p-6 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -880,7 +880,7 @@ export function MasterTabsContainer() {
             key={tab.id}
             id={`workspace-master-canvas-${tab.id}`}
             className={cn(
-              "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
+              "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative",
               isActive ? "block" : "hidden"
             )}
           >

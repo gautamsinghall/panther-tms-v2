@@ -17,8 +17,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  MapPin,
-  Calendar,
   FileCheck,
   Activity,
   Layers,
@@ -40,24 +38,6 @@ interface ApiCenterData {
   has_gsp_secret_override?: boolean;
   platform_gsp_configured: boolean;
   platform_gsp_base_url: string;
-}
-
-interface PANVerificationResult {
-  success: boolean;
-  message?: string;
-  pan?: string;
-  gstin?: string;
-  legal_name?: string;
-  trade_name?: string;
-  incorporation_date?: string;
-  legal_status?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  state_code?: string;
-  pincode?: string;
-  country?: string;
-  raw_data?: any;
 }
 
 interface TaxTransactionItem {
@@ -86,53 +66,12 @@ interface TaxCounterData {
   transactions: TaxTransactionItem[];
 }
 
-const INDIAN_STATES_CODES = [
-  { code: "01", name: "Jammu & Kashmir" },
-  { code: "02", name: "Himachal Pradesh" },
-  { code: "03", name: "Punjab" },
-  { code: "04", name: "Chandigarh" },
-  { code: "05", name: "Uttarakhand" },
-  { code: "06", name: "Haryana" },
-  { code: "07", name: "Delhi" },
-  { code: "08", name: "Rajasthan" },
-  { code: "09", name: "Uttar Pradesh" },
-  { code: "10", name: "Bihar" },
-  { code: "11", name: "Sikkim" },
-  { code: "12", name: "Arunachal Pradesh" },
-  { code: "13", name: "Nagaland" },
-  { code: "14", name: "Manipur" },
-  { code: "15", name: "Mizoram" },
-  { code: "16", name: "Tripura" },
-  { code: "17", name: "Meghalaya" },
-  { code: "18", name: "Assam" },
-  { code: "19", name: "West Bengal" },
-  { code: "20", name: "Jharkhand" },
-  { code: "21", name: "Odisha" },
-  { code: "22", name: "Chhattisgarh" },
-  { code: "23", name: "Madhya Pradesh" },
-  { code: "24", name: "Gujarat" },
-  { code: "26", name: "Dadra & Nagar Haveli and Daman & Diu" },
-  { code: "27", name: "Maharashtra" },
-  { code: "29", name: "Karnataka" },
-  { code: "30", name: "Goa" },
-  { code: "31", name: "Lakshadweep" },
-  { code: "32", name: "Kerala" },
-  { code: "33", name: "Tamil Nadu" },
-  { code: "34", name: "Puducherry" },
-  { code: "35", name: "Andaman & Nicobar Islands" },
-  { code: "36", name: "Telangana" },
-  { code: "37", name: "Andhra Pradesh" },
-  { code: "38", name: "Ladakh" },
-];
-
 export default function PANApiPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCounterLoading, setIsCounterLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showRawJson, setShowRawJson] = useState(false);
 
   // Configuration Form Fields
   const [isPanActive, setIsPanActive] = useState(true);
@@ -152,11 +91,6 @@ export default function PANApiPage() {
     transactions: [],
   });
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState("");
-
-  // Interactive Sandbox / Testing
-  const [testPan, setTestPan] = useState("AAACT2727Q");
-  const [testStateCode, setTestStateCode] = useState("27");
-  const [verificationResult, setVerificationResult] = useState<PANVerificationResult | null>(null);
 
   // Feedback notifications
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -242,56 +176,6 @@ export default function PANApiPage() {
     }
   };
 
-  const handleVerifyPan = async () => {
-    const clean = testPan.trim().toUpperCase();
-    if (!clean || clean.length !== 10) {
-      setFeedback({
-        type: "error",
-        message: "Please enter a valid 10-character alphanumeric PAN to verify.",
-      });
-      return;
-    }
-
-    try {
-      setIsVerifying(true);
-      setVerificationResult(null);
-      setFeedback(null);
-
-      const res = await apiClient.post<any>("/api/v1/profile/api-center/test-pan", {
-        pan: clean,
-        state_cd: testStateCode || "07",
-        gsp_client_id: gspClientIdOverride.trim() || undefined,
-        gsp_client_secret:
-          gspClientSecretOverride && !gspClientSecretOverride.startsWith("••")
-            ? gspClientSecretOverride.trim()
-            : undefined,
-        gsp_base_url: gspBaseUrlOverride.trim() || undefined,
-      });
-
-      if (res && res.success) {
-        setVerificationResult(res.details || res);
-        setFeedback({
-          type: "success",
-          message: `PAN ${clean} verified! Taxpayer details retrieved successfully.`,
-        });
-      } else {
-        setVerificationResult(res?.details || null);
-        setFeedback({
-          type: "error",
-          message: res?.message || "PAN lookup failed. Check PAN validity and State code.",
-        });
-      }
-      fetchCounter();
-    } catch (err: any) {
-      setFeedback({
-        type: "error",
-        message: err?.message || "Error verifying PAN against gateway.",
-      });
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
   const filteredTransactions = (counterData.transactions || []).filter((tx) => {
     if (!ledgerSearchTerm) return true;
     const q = ledgerSearchTerm.toLowerCase();
@@ -304,7 +188,7 @@ export default function PANApiPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16">
+    <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
       {/* Page Header with Refresh Action */}
       <PageHeader
         title="API Center"
@@ -584,187 +468,13 @@ export default function PANApiPage() {
         </div>
       </Card>
 
-      {/* Interactive Verification Sandbox */}
-      <Card className="p-6 border-slate-200 shadow-2xs space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              <Zap className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Live PAN Verification Sandbox</h3>
-              <p className="text-xs text-slate-500">
-                Test any 10-character PAN with state jurisdiction code to preview taxpayer data returned by the gateway.
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-            Action: TPBYPAN Search
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Permanent Account Number (PAN)
-            </label>
-            <Input
-              value={testPan}
-              onChange={(e) => setTestPan(e.target.value.toUpperCase())}
-              placeholder="e.g. AAACT2727Q"
-              maxLength={10}
-              className="font-mono text-sm font-semibold tracking-wider uppercase h-10"
-            />
-            <span className="text-[10px] text-slate-400 mt-1 block">
-              10-character alphanumeric PAN (Format: 5 letters + 4 digits + 1 letter)
-            </span>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              State Jurisdiction Code <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={testStateCode}
-              onChange={(e) => setTestStateCode(e.target.value)}
-              className="w-full h-10 px-3 text-xs font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
-            >
-              {INDIAN_STATES_CODES.map((st) => (
-                <option key={st.code} value={st.code}>
-                  {st.code} - {st.name}
-                </option>
-              ))}
-            </select>
-            <span className="text-[10px] text-slate-400 mt-1 block">
-              Required by government PAN query gateway
-            </span>
-          </div>
-        </div>
-
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            onClick={handleVerifyPan}
-            disabled={isVerifying || !isPanActive}
-            className="h-10 px-5 gap-2 text-xs font-semibold cursor-pointer"
-          >
-            {isVerifying ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Verifying...</span>
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4" />
-                <span>Verify PAN</span>
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Verification Result Display */}
-        {verificationResult && (
-          <div className="mt-4 p-5 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between pb-3 border-b border-indigo-200/80">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span className="font-bold text-xs uppercase tracking-wider text-indigo-950">
-                  Taxpayer Profile Verified
-                </span>
-              </div>
-              <span className="font-mono text-xs font-bold text-indigo-900 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-300">
-                {verificationResult.pan}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-              <div>
-                <span className="text-slate-500 block text-[11px]">Trade / Operating Name</span>
-                <span className="font-bold text-slate-900 mt-0.5 block">
-                  {verificationResult.trade_name || verificationResult.legal_name || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Legal Registered Entity</span>
-                <span className="font-semibold text-slate-800 mt-0.5 block">
-                  {verificationResult.legal_name || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Associated Primary GSTIN</span>
-                <span className="font-mono font-bold text-emerald-700 mt-0.5 block">
-                  {verificationResult.gstin || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Constitution of Business</span>
-                <span className="font-medium text-slate-800 mt-0.5 block">
-                  {verificationResult.legal_status || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">Registration Date</span>
-                <span className="font-mono text-slate-800 mt-0.5 block flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-slate-400" />
-                  {verificationResult.incorporation_date || "—"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-slate-500 block text-[11px]">State &amp; State Code</span>
-                <span className="font-medium text-slate-800 mt-0.5 block">
-                  {verificationResult.state} {verificationResult.state_code ? `(${verificationResult.state_code})` : ""}
-                </span>
-              </div>
-
-              <div className="md:col-span-2 lg:col-span-3">
-                <span className="text-slate-500 block text-[11px]">Principal Registered Address</span>
-                <span className="font-medium text-slate-800 mt-0.5 block flex items-start gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
-                  <span>
-                    {verificationResult.address ? `${verificationResult.address}, ` : ""}
-                    {verificationResult.city ? `${verificationResult.city}, ` : ""}
-                    {verificationResult.state ? `${verificationResult.state} ` : ""}
-                    {verificationResult.pincode ? `- ${verificationResult.pincode}` : ""}
-                  </span>
-                </span>
-              </div>
-            </div>
-
-            {/* Toggle Raw JSON */}
-            <div className="pt-2 border-t border-indigo-200/60">
-              <button
-                type="button"
-                onClick={() => setShowRawJson(!showRawJson)}
-                className="text-[11px] font-semibold text-indigo-800 hover:text-indigo-950 flex items-center gap-1 cursor-pointer"
-              >
-                <span>{showRawJson ? "Hide Raw Response Payload" : "View Raw Response Payload"}</span>
-                {showRawJson ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-
-              {showRawJson && (
-                <pre className="mt-2 p-3 bg-slate-900 text-emerald-400 rounded-lg text-[10px] font-mono overflow-x-auto max-h-60">
-                  {JSON.stringify(verificationResult, null, 2)}
-                </pre>
-              )}
-            </div>
-          </div>
-        )}
-      </Card>
-
       {/* Query History & Audit Ledger Table (matching FASTag and SIM tracking) */}
       <Card className="p-6 border-slate-200 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
             <h3 className="font-bold text-sm text-slate-900">PAN Verification Ledger &amp; Audit History</h3>
             <p className="text-xs text-slate-500">
-              Complete audit trail of all PAN queries executed from forms and the API Center sandbox.
+              Complete audit trail of all PAN queries executed across the workspace.
             </p>
           </div>
 
@@ -785,7 +495,7 @@ export default function PANApiPage() {
             <Layers className="w-8 h-8 mx-auto mb-2 text-slate-300" />
             <p className="text-xs font-semibold text-slate-600">No PAN queries recorded yet</p>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Queries executed from forms or the sandbox above will automatically appear in this ledger.
+              Queries executed from forms across the workspace will automatically appear in this ledger.
             </p>
           </div>
         ) : (

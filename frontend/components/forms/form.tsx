@@ -193,7 +193,7 @@ export function Form({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("w-full max-w-5xl space-y-6 mx-auto pb-6", className)}>
+    <form onSubmit={handleSubmit} className={cn("w-full max-w-[1440px] space-y-6 mx-auto pb-6", className)}>
       {sections.map((section, sIndex) => {
         const gridCols = {
           1: "grid-cols-1",

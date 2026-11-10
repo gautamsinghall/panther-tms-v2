@@ -828,7 +828,7 @@ export default function CompanyVehiclesPage() {
         description="Register technical specs, ownership, regulatory validities, and maintenance equipment."
         size="xl"
       >
-        <form onSubmit={handleSubmit} className="w-full max-w-5xl space-y-6 mx-auto pb-12">
+        <form onSubmit={handleSubmit} className="w-full max-w-[1440px] space-y-6 mx-auto pb-12">
           {/* ===================================================================== */}
           {/* 1. VEHICLE AND OWNER DETAILS                                          */}
           {/* ===================================================================== */}
@@ -1925,7 +1925,7 @@ export default function CompanyVehiclesPage() {
         size="lg"
       >
         {detailsRecord && (
-          <div className="w-full max-w-4xl space-y-6 mx-auto pb-12">
+          <div className="w-full max-w-[1440px] space-y-6 mx-auto pb-12">
             {/* Header Plate & Badge Card */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-wrap items-center justify-between gap-4 shadow-2xs">
               <div className="space-y-1.5">

@@ -40,17 +40,11 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
       if (formCanvas) {
         formCanvas.scrollTop = 0;
       }
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
     } else if (activeTab.startsWith("master-")) {
       const masterCanvas = document.getElementById(`workspace-master-canvas-${activeTab}`);
       if (masterCanvas) {
         masterCanvas.scrollTop = 0;
       }
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
     }
   }, [activeTab]);
 
@@ -82,7 +76,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
         key={officeKey}
         id="workspace-main-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative",
           activeTab === "list" ? "block" : "hidden"
         )}
       >
@@ -138,7 +132,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
       <div
         id="workspace-form-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative",
           activeTab === "form" ? "block" : "hidden"
         )}
       />

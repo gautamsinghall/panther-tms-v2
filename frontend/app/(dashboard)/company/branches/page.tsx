@@ -376,7 +376,7 @@ export default function IssuingOfficesPage() {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 max-w-[1440px] mx-auto pb-12">
       <PageHeader
         title="Issuing Offices / Branches"
         description="Manage company branches, registered addresses, state GSTINs, and bank accounts."
