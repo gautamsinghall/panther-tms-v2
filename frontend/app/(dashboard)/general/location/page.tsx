@@ -70,67 +70,71 @@ export default function LocationPage() {
     return data.filter((item) => {
       if (statusFilter === "ACTIVE" && !item.is_active) return false;
       if (statusFilter === "INACTIVE" && item.is_active) return false;
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase().trim();
+        const matchesCity = item.city_name?.toLowerCase().includes(q);
+        const matchesState = item.state?.toLowerCase().includes(q);
+        const matchesCountry = item.country?.toLowerCase().includes(q);
+        const matchesPin = item.pincode?.toLowerCase().includes(q);
+        const matchesAddress = item.address?.toLowerCase().includes(q);
+        if (!matchesCity && !matchesState && !matchesCountry && !matchesPin && !matchesAddress) return false;
+      }
       return true;
     });
-  }, [data, statusFilter]);
+  }, [data, statusFilter, searchTerm]);
 
   const columns: ColumnDef<LocationRecord>[] = [
     {
       key: "city_name",
-      header: "City / Hub",
+      header: "City / Terminal Name",
       sortable: true,
       cell: (row) => (
-        <span className="font-semibold text-[#101828] flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-[#4F46E5]" />
+        <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+          <MapPin className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
           {row.city_name}
         </span>
       ),
     },
     {
       key: "state",
-      header: "State / Country",
+      header: "State / UT",
       sortable: true,
       cell: (row) => (
-        <span className="text-xs text-[#344054]">
-          {row.state}, {row.country}
+        <span className="text-xs text-slate-700 dark:text-slate-300">
+          {row.state || "-"}
         </span>
       ),
     },
     {
-      key: "location_code",
-      header: "Hub Code",
+      key: "country",
+      header: "Country",
       sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs text-[#667085]">
-          {row.location_code || "-"}
+        <span className="text-xs text-slate-600 dark:text-slate-400">
+          {row.country || "India"}
         </span>
       ),
     },
     {
       key: "pincode",
       header: "Pincode",
+      sortable: true,
       cell: (row) => (
-        <span className="font-mono text-xs text-[#344054]">
+        <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
           {row.pincode || "-"}
         </span>
       ),
     },
     {
-      key: "pickup_drop",
-      header: "Capabilities",
+      key: "address",
+      header: "Full Address / Landmark",
       cell: (row) => (
-        <div className="flex items-center gap-1.5 text-xs">
-          {row.is_pickup_point && (
-            <span className="bg-[#ECFDF3] text-[#027A48] border border-[#A6F4C5] px-2 py-0.5 rounded-[4px] text-[11px] font-medium">
-              Pickup
-            </span>
-          )}
-          {row.is_drop_point && (
-            <span className="bg-[#EFF8FF] text-[#175CD3] border border-[#BFDBFE] px-2 py-0.5 rounded-[4px] text-[11px] font-medium">
-              Drop
-            </span>
-          )}
-        </div>
+        <span
+          className="text-xs text-slate-600 dark:text-slate-400 max-w-[280px] truncate block"
+          title={row.address || undefined}
+        >
+          {row.address || "-"}
+        </span>
       ),
     },
     {
@@ -340,7 +344,7 @@ export default function LocationPage() {
       <FilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by city, state, code..."
+        searchPlaceholder="Search by city, state, pincode..."
         filters={[
           {
             id: "status",
