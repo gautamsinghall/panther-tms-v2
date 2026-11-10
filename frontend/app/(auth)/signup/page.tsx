@@ -32,6 +32,7 @@ import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
 import { getApiBaseUrl } from "@/lib/auth";
 import { AuthNavbar } from "@/components/layout/auth-navbar";
+import { VideoBackdrop } from "@/components/auth/VideoBackdrop";
 
 interface PlanOption {
   code: string;
@@ -348,47 +349,31 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900 relative">
-      {/* Clean neutral ambient background with subtle radial glow and right-side freight truck atmosphere */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        {/* Subtle center ambient glow */}
-        <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-indigo-500/[0.03] rounded-full blur-3xl" />
-
-        {/* Upper-right faded freight truck background matching reference */}
-        <div className="absolute top-0 right-0 w-[55vw] max-w-[900px] h-[580px] pointer-events-none overflow-hidden opacity-75">
-          <img
-            src="/logistics-truck-bg.jpg"
-            alt=""
-            className="w-full h-full object-cover object-[68%_38%]"
-          />
-          {/* Edge gradients to dissolve seamlessly into background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#F8FAFC] via-[#F8FAFC]/55 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#F8FAFC] via-transparent to-[#F8FAFC]/20" />
-          <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#F8FAFC] via-[#F8FAFC]/60 to-transparent" />
-        </div>
-      </div>
+    <div className="min-h-screen w-full flex flex-col justify-between bg-[#060813] text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-hidden">
+      {/* Full-screen fixed video backdrop with dark tint overlays */}
+      <VideoBackdrop />
 
       {/* ========================================================================= */}
       {/* TOP HEADER BAR                                                            */}
       {/* ========================================================================= */}
-      <AuthNavbar mode="signup" />
+      <AuthNavbar mode="signup" theme="dark" />
 
       {/* ========================================================================= */}
       {/* MAIN CONTENT AREA: Viewport optimized                                    */}
       {/* ========================================================================= */}
       <main className="flex-1 flex flex-col px-4 sm:px-8 lg:px-10 xl:px-12 py-3 lg:py-5 max-w-[1640px] w-full mx-auto relative z-10 min-h-0">
         {/* Workflow Title & Stepper Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2.5 lg:mb-4 border-b border-slate-200/70 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-2.5 lg:mb-4 border-b border-white/10 shrink-0">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-400 font-mono">
               <Layers className="w-3.5 h-3.5" />
               <span>Workspace Provisioning</span>
             </div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900 leading-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-white leading-tight">
               {step === 1 && (
                 <span>
                   Select{" "}
-                  <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-600 bg-clip-text text-transparent font-extrabold">
+                  <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-indigo-300 bg-clip-text text-transparent font-extrabold">
                     Subscription Plan
                   </span>
                 </span>
@@ -398,7 +383,7 @@ export default function SignupPage() {
                   {selectedPlan === "CUSTOM" ? (
                     <span>
                       Custom Plan{" "}
-                      <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent font-extrabold">
+                      <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent font-extrabold">
                         Feature Activation
                       </span>
                     </span>
@@ -411,7 +396,7 @@ export default function SignupPage() {
                 <span>Setting Up Your Workspace</span>
               )}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            <p className="text-xs sm:text-sm text-white/70 mt-0.5">
               {step === 1 && "Choose the subscription edition that matches your active fleet capacity and business needs."}
               {step === 2 && (selectedPlan === "CUSTOM"
                 ? "Custom modules require administrative setup. Contact the concerned authority to activate this plan."
@@ -423,22 +408,22 @@ export default function SignupPage() {
           <div className="flex items-center gap-3 sm:gap-5 flex-wrap">
             {/* Step Indicator */}
             <div className="flex items-center gap-2.5 text-xs sm:text-sm font-medium">
-              <div className={`flex items-center gap-1.5 ${step === 1 ? "text-slate-900 font-bold" : step > 1 ? "text-indigo-600 font-semibold" : "text-slate-400"}`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 1 ? "bg-[#1D4ED8] text-white shadow-2xs" : step > 1 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
+              <div className={`flex items-center gap-1.5 ${step === 1 ? "text-white font-bold" : step > 1 ? "text-indigo-400 font-semibold" : "text-white/40"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 1 ? "bg-indigo-600 text-white shadow-xs" : step > 1 ? "bg-indigo-500/20 text-indigo-300 border border-indigo-400/30" : "bg-white/10 text-white/50"}`}>
                   {step > 1 ? "✓" : "1"}
                 </span>
                 <span>Plan</span>
               </div>
-              <span className={`w-4 h-px ${step > 1 ? "bg-indigo-600" : "bg-slate-200"}`} />
-              <div className={`flex items-center gap-1.5 ${step === 2 ? "text-slate-900 font-bold" : step > 2 ? "text-indigo-600 font-semibold" : "text-slate-400"}`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 2 ? "bg-[#1D4ED8] text-white shadow-2xs" : step > 2 ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-slate-200 text-slate-500"}`}>
+              <span className={`w-4 h-px ${step > 1 ? "bg-indigo-500" : "bg-white/15"}`} />
+              <div className={`flex items-center gap-1.5 ${step === 2 ? "text-white font-bold" : step > 2 ? "text-indigo-400 font-semibold" : "text-white/40"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 2 ? "bg-indigo-600 text-white shadow-xs" : step > 2 ? "bg-indigo-500/20 text-indigo-300 border border-indigo-400/30" : "bg-white/10 text-white/50"}`}>
                   {step > 2 ? "✓" : "2"}
                 </span>
                 <span>{selectedPlan === "CUSTOM" ? "Contact Authority" : "Workspace"}</span>
               </div>
-              <span className={`w-4 h-px ${step > 2 ? "bg-indigo-600" : "bg-slate-200"}`} />
-              <div className={`flex items-center gap-1.5 ${step === 3 ? "text-slate-900 font-bold" : "text-slate-400"}`}>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 3 ? "bg-[#1D4ED8] text-white shadow-2xs" : "bg-slate-200 text-slate-500"}`}>
+              <span className={`w-4 h-px ${step > 2 ? "bg-indigo-500" : "bg-white/15"}`} />
+              <div className={`flex items-center gap-1.5 ${step === 3 ? "text-white font-bold" : "text-white/40"}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${step === 3 ? "bg-indigo-600 text-white shadow-xs" : "bg-white/10 text-white/50"}`}>
                   3
                 </span>
                 <span>Provisioning</span>
@@ -447,21 +432,21 @@ export default function SignupPage() {
 
             {/* Billing Toggle (Shown on Step 1) */}
             {step === 1 && (
-              <div className="flex items-center bg-white/90 backdrop-blur-xs p-1 rounded-full border border-slate-200 shadow-2xs text-xs">
+              <div className="flex items-center bg-black/40 backdrop-blur-md p-1 rounded-full border border-white/15 text-xs">
                 <button
                   type="button"
                   onClick={() => setBillingCycle("MONTHLY")}
-                  className={`px-3.5 py-1 rounded-full font-semibold transition-all cursor-pointer ${billingCycle === "MONTHLY" ? "bg-[#2563EB] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                  className={`px-3.5 py-1 rounded-full font-semibold transition-all cursor-pointer ${billingCycle === "MONTHLY" ? "bg-indigo-600 text-white shadow-xs" : "text-white/70 hover:text-white"}`}
                 >
                   Monthly
                 </button>
                 <button
                   type="button"
                   onClick={() => setBillingCycle("YEARLY")}
-                  className={`px-3 py-1 rounded-full font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${billingCycle === "YEARLY" ? "bg-[#2563EB] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`}
+                  className={`px-3 py-1 rounded-full font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${billingCycle === "YEARLY" ? "bg-indigo-600 text-white shadow-xs" : "text-white/70 hover:text-white"}`}
                 >
                   Yearly
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200/80">
+                  <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.2 rounded-full border border-emerald-400/30">
                     -17%
                   </span>
                 </button>
@@ -471,8 +456,8 @@ export default function SignupPage() {
         </div>
 
         {error && (
-          <div className="p-3 mb-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2.5 shrink-0 animate-in fade-in-0 duration-200">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <div className="p-3 mb-2 bg-rose-500/20 border border-rose-400/30 text-rose-200 rounded-xl text-xs flex items-center gap-2.5 shrink-0 animate-in fade-in-0 duration-200">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span className="font-medium">{error}</span>
           </div>
         )}
@@ -483,89 +468,89 @@ export default function SignupPage() {
             {/* 1. FREE STARTER CARD */}
             <div
               onClick={() => setSelectedPlan("FREE")}
-              className={`relative bg-white rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${selectedPlan === "FREE"
-                  ? "border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg"
-                  : "border-slate-200/90 shadow-sm hover:border-slate-300 hover:shadow-md"
+              className={`relative bg-[#0D1326]/80 backdrop-blur-xl rounded-2xl border p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer ${selectedPlan === "FREE"
+                  ? "border-emerald-500/80 ring-2 ring-emerald-500/30 shadow-[0_0_25px_rgba(16,185,129,0.2)]"
+                  : "border-white/12 hover:border-white/25 shadow-lg"
                 }`}
             >
               <div className="space-y-4">
                 {/* Icon & Title */}
                 <div className="flex items-start justify-between">
-                  <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                     <Package className="w-6 h-6" />
                   </div>
-                  <div className="flex gap-1 opacity-20">
-                    <div className="w-2 h-2 rounded-full bg-emerald-600" />
-                    <div className="w-2 h-2 rounded-full bg-emerald-600" />
+                  <div className="flex gap-1 opacity-30">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Free Starter</h2>
-                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
+                  <h2 className="font-bold text-xl text-white tracking-tight">Free Starter</h2>
+                  <p className="text-xs text-white/60 mt-1 leading-snug min-h-[34px]">
                     Basic TMS operations for single-truck owner operators.
                   </p>
                 </div>
 
                 {/* Price */}
                 <div className="pt-2 flex items-baseline gap-1">
-                  <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">₹0</span>
-                  <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                  <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">₹0</span>
+                  <span className="text-xs sm:text-sm text-white/60 font-medium">/mo</span>
                 </div>
 
                 {/* Limits Row */}
-                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                <div className="space-y-2 pt-1 border-t border-white/10 text-xs">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Users className="w-3.5 h-3.5 text-emerald-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <Users className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Team Users</span>
                     </div>
-                    <span className="font-bold text-slate-900">1 User</span>
+                    <span className="font-bold text-white">1 User</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Truck className="w-3.5 h-3.5 text-emerald-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <Truck className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Fleet Vehicles</span>
                     </div>
-                    <span className="font-bold text-slate-900">2 Vehicles</span>
+                    <span className="font-bold text-white">2 Vehicles</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <FileText className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Monthly Vouchers & Invoices</span>
                     </div>
-                    <span className="font-bold text-slate-900">10 Vouchers & Invoices/mo</span>
+                    <span className="font-bold text-white">10 Vouchers & Invoices/mo</span>
                   </div>
                 </div>
 
                 {/* Included Modules */}
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="space-y-2 pt-2 border-t border-white/10">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 block">
                     INCLUDED MODULES
                   </span>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
+                  <ul className="space-y-1.5 text-xs text-white/80">
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>10 LR Max - Per Month</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>10 HC Max - Per Month</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>10 Vouchers & Entries / Mo</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>10 Masters & 10 Ledgers</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>2 Max Vehicle Registration</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span>Standard PDF Document Exports</span>
                     </li>
                   </ul>
@@ -581,7 +566,7 @@ export default function SignupPage() {
                     setSelectedPlan("FREE");
                     setStep(2);
                   }}
-                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                 >
                   <span>Choose Free Starter</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -592,7 +577,7 @@ export default function SignupPage() {
             {/* 2. PRO FLEET CARD (MOST POPULAR) */}
             <div
               onClick={() => setSelectedPlan("PRO")}
-              className={`relative bg-white rounded-2xl border-2 border-indigo-500 ring-4 ring-indigo-500/10 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-indigo-500/10 transition-all duration-200 cursor-pointer ${selectedPlan === "PRO" ? "-translate-y-1" : "hover:-translate-y-0.5"
+              className={`relative bg-[#0D1326]/90 backdrop-blur-xl rounded-2xl border-2 border-indigo-500 ring-4 ring-indigo-500/20 p-5 sm:p-6 flex flex-col justify-between shadow-2xl shadow-indigo-500/20 transition-all duration-200 cursor-pointer ${selectedPlan === "PRO" ? "-translate-y-1" : "hover:-translate-y-0.5"
                 }`}
             >
               {/* Floating Top Badge */}
@@ -605,14 +590,14 @@ export default function SignupPage() {
               <div className="space-y-4">
                 {/* Icon & Title */}
                 <div className="flex items-start justify-between">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
                     <BarChart3 className="w-6 h-6" />
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Pro Fleet</h2>
-                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
+                  <h2 className="font-bold text-xl text-white tracking-tight">Pro Fleet</h2>
+                  <p className="text-xs text-white/60 mt-1 leading-snug min-h-[34px]">
                     Complete operations & double-entry transport accounting.
                   </p>
                 </div>
@@ -621,78 +606,78 @@ export default function SignupPage() {
                 <div className="pt-2 flex items-center justify-between">
                   <div className="flex flex-col">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                      <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
                         ₹5,000
                       </span>
-                      <span className="text-xs sm:text-sm text-slate-500 font-medium">/mo</span>
+                      <span className="text-xs sm:text-sm text-white/60 font-medium">/mo</span>
                     </div>
-                    <span className="text-[11px] text-indigo-600 font-medium">
+                    <span className="text-[11px] text-indigo-300 font-medium">
                       {billingCycle === "YEARLY" ? "₹60,000 billed annually" : "₹5,000 billed monthly"}
                     </span>
                   </div>
                   {/* Purple Mini Sparklines */}
-                  <div className="flex items-end gap-1 h-7 opacity-35">
-                    <div className="w-1.5 h-3 bg-indigo-500 rounded-xs" />
-                    <div className="w-1.5 h-5 bg-indigo-500 rounded-xs" />
-                    <div className="w-1.5 h-4 bg-indigo-500 rounded-xs" />
-                    <div className="w-1.5 h-6 bg-indigo-500 rounded-xs" />
-                    <div className="w-1.5 h-7 bg-indigo-500 rounded-xs" />
+                  <div className="flex items-end gap-1 h-7 opacity-50">
+                    <div className="w-1.5 h-3 bg-indigo-400 rounded-xs" />
+                    <div className="w-1.5 h-5 bg-indigo-400 rounded-xs" />
+                    <div className="w-1.5 h-4 bg-indigo-400 rounded-xs" />
+                    <div className="w-1.5 h-6 bg-indigo-400 rounded-xs" />
+                    <div className="w-1.5 h-7 bg-indigo-400 rounded-xs" />
                   </div>
                 </div>
 
                 {/* Limits Row */}
-                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                <div className="space-y-2 pt-1 border-t border-white/10 text-xs">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Users className="w-3.5 h-3.5 text-indigo-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <Users className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Team Users</span>
                     </div>
-                    <span className="font-bold text-slate-900">5 Users</span>
+                    <span className="font-bold text-white">5 Users</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <Truck className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Fleet Vehicles</span>
                     </div>
-                    <span className="font-bold text-slate-900">20 Vehicles</span>
+                    <span className="font-bold text-white">20 Vehicles</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <FileText className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Monthly Vouchers & Invoices</span>
                     </div>
-                    <span className="font-bold text-slate-900">200 Vouchers & Invoices/mo</span>
+                    <span className="font-bold text-white">200 Vouchers & Invoices/mo</span>
                   </div>
                 </div>
 
                 {/* Included Modules */}
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="space-y-2 pt-2 border-t border-white/10">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 block">
                     INCLUDED MODULES
                   </span>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
+                  <ul className="space-y-1.5 text-xs text-white/80">
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0 font-bold" />
-                      <span className="font-bold text-slate-900">Everything in Free Starter</span>
+                      <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0 font-bold" />
+                      <span className="font-bold text-white">Everything in Free Starter</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                       <span>Full Double-Entry Accounting</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                       <span>Vouchers & Freight Invoicing</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                       <span>Transport Operational Registers</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                       <span>Bank & Cash Reconciliation</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                       <span>Automated Daily Cloud Backups</span>
                     </li>
                   </ul>
@@ -708,7 +693,7 @@ export default function SignupPage() {
                     setSelectedPlan("PRO");
                     setStep(2);
                   }}
-                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 hover:from-indigo-400 hover:to-indigo-500 text-white flex items-center justify-center gap-1.5 shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px transition-all cursor-pointer"
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-400/40 hover:from-indigo-400 hover:to-indigo-500 text-white flex items-center justify-center gap-1.5 shadow-[0_2px_12px_rgba(79,70,229,0.4)] hover:-translate-y-px transition-all cursor-pointer"
                 >
                   <span>Choose Pro Fleet</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -719,7 +704,7 @@ export default function SignupPage() {
             {/* 3. ENTERPRISE SCALE CARD (ENTERPRISE TIER) */}
             <div
               onClick={() => setSelectedPlan("ENTERPRISE")}
-              className={`relative bg-[#0B132B] rounded-2xl border border-slate-700/80 p-5 sm:p-6 flex flex-col justify-between shadow-2xl text-white transition-all duration-200 cursor-pointer ${selectedPlan === "ENTERPRISE"
+              className={`relative bg-[#0B132B]/95 backdrop-blur-xl rounded-2xl border border-slate-700/80 p-5 sm:p-6 flex flex-col justify-between shadow-2xl text-white transition-all duration-200 cursor-pointer ${selectedPlan === "ENTERPRISE"
                   ? "ring-2 ring-blue-500/80 -translate-y-1"
                   : "hover:-translate-y-0.5 hover:border-slate-600"
                 }`}
@@ -848,7 +833,7 @@ export default function SignupPage() {
             {/* 4. CUSTOM PLAN CARD */}
             <div
               onClick={() => setSelectedPlan("CUSTOM")}
-              className={`relative bg-white rounded-2xl border-2 border-violet-500/80 ring-4 ring-violet-500/10 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-violet-500/10 transition-all duration-200 cursor-pointer ${selectedPlan === "CUSTOM" ? "-translate-y-1" : "hover:-translate-y-0.5"
+              className={`relative bg-[#0D1326]/80 backdrop-blur-xl rounded-2xl border-2 border-violet-500/60 ring-4 ring-violet-500/15 p-5 sm:p-6 flex flex-col justify-between shadow-xl shadow-violet-500/10 transition-all duration-200 cursor-pointer ${selectedPlan === "CUSTOM" ? "-translate-y-1" : "hover:-translate-y-0.5"
                 }`}
             >
               {/* Floating Top Badge */}
@@ -861,19 +846,19 @@ export default function SignupPage() {
               <div className="space-y-4">
                 {/* Icon & Title */}
                 <div className="flex items-start justify-between">
-                  <div className="w-11 h-11 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600">
+                  <div className="w-11 h-11 rounded-xl bg-violet-500/20 border border-violet-400/30 flex items-center justify-center text-violet-400">
                     <SlidersHorizontal className="w-6 h-6" />
                   </div>
-                  <div className="flex gap-1 opacity-30">
-                    <div className="w-2 h-2 rounded-full bg-violet-600" />
-                    <div className="w-2 h-2 rounded-full bg-violet-600" />
-                    <div className="w-2 h-2 rounded-full bg-violet-600" />
+                  <div className="flex gap-1 opacity-40">
+                    <div className="w-2 h-2 rounded-full bg-violet-400" />
+                    <div className="w-2 h-2 rounded-full bg-violet-400" />
+                    <div className="w-2 h-2 rounded-full bg-violet-400" />
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="font-bold text-xl text-slate-900 tracking-tight">Custom Plan</h2>
-                  <p className="text-xs text-slate-500 mt-1 leading-snug min-h-[34px]">
+                  <h2 className="font-bold text-xl text-white tracking-tight">Custom Plan</h2>
+                  <p className="text-xs text-white/60 mt-1 leading-snug min-h-[34px]">
                     Tailored TMS modules & enterprise workflows. Contact authority to activate custom features.
                   </p>
                 </div>
@@ -882,69 +867,69 @@ export default function SignupPage() {
                 <div className="pt-2 flex items-center justify-between">
                   <div className="flex flex-col">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                      <span className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
                         Custom
                       </span>
                     </div>
-                    <span className="text-[11px] text-violet-600 font-medium">
+                    <span className="text-[11px] text-violet-300 font-medium">
                       Contact authority for feature configuration
                     </span>
                   </div>
                   {/* Violet Mini Bars */}
-                  <div className="flex items-end gap-1 h-7 opacity-35">
-                    <div className="w-1.5 h-6 bg-violet-500 rounded-xs" />
-                    <div className="w-1.5 h-3 bg-violet-500 rounded-xs" />
-                    <div className="w-1.5 h-7 bg-violet-500 rounded-xs" />
-                    <div className="w-1.5 h-4 bg-violet-500 rounded-xs" />
-                    <div className="w-1.5 h-5 bg-violet-500 rounded-xs" />
+                  <div className="flex items-end gap-1 h-7 opacity-50">
+                    <div className="w-1.5 h-6 bg-violet-400 rounded-xs" />
+                    <div className="w-1.5 h-3 bg-violet-400 rounded-xs" />
+                    <div className="w-1.5 h-7 bg-violet-400 rounded-xs" />
+                    <div className="w-1.5 h-4 bg-violet-400 rounded-xs" />
+                    <div className="w-1.5 h-5 bg-violet-400 rounded-xs" />
                   </div>
                 </div>
 
                 {/* Limits Row */}
-                <div className="space-y-2 pt-1 border-t border-slate-100 text-xs">
+                <div className="space-y-2 pt-1 border-t border-white/10 text-xs">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Users className="w-3.5 h-3.5 text-violet-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <Users className="w-3.5 h-3.5 text-violet-400" />
                       <span>Team Users</span>
                     </div>
-                    <span className="font-bold text-slate-900">Custom Allocation</span>
+                    <span className="font-bold text-white">Custom Allocation</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Truck className="w-3.5 h-3.5 text-violet-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <Truck className="w-3.5 h-3.5 text-violet-400" />
                       <span>Fleet Vehicles</span>
                     </div>
-                    <span className="font-bold text-slate-900">Tailored Capacity</span>
+                    <span className="font-bold text-white">Tailored Capacity</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <FileText className="w-3.5 h-3.5 text-violet-600" />
+                    <div className="flex items-center gap-2 text-white/60">
+                      <FileText className="w-3.5 h-3.5 text-violet-400" />
                       <span>Monthly Vouchers & Invoices</span>
                     </div>
-                    <span className="font-bold text-slate-900">Volume On-Demand</span>
+                    <span className="font-bold text-white">Volume On-Demand</span>
                   </div>
                 </div>
 
                 {/* Included Modules */}
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="space-y-2 pt-2 border-t border-white/10">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 block">
                     CUSTOM PLAN DETAILS
                   </span>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
+                  <ul className="space-y-1.5 text-xs text-white/80">
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0 font-bold" />
-                      <span className="font-bold text-slate-900">Tailored TMS module configuration</span>
+                      <Check className="w-3.5 h-3.5 text-violet-400 shrink-0 font-bold" />
+                      <span className="font-bold text-white">Tailored TMS module configuration</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                       <span>Dedicated enterprise workflow design</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                       <span>Direct support & provisioning</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                       <span>Contact authority to activate features</span>
                     </li>
                   </ul>
@@ -960,7 +945,7 @@ export default function SignupPage() {
                     setSelectedPlan("CUSTOM");
                     setStep(2);
                   }}
-                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/25 transition-all cursor-pointer"
+                  className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl bg-violet-600 hover:bg-violet-500 text-white flex items-center justify-center gap-1.5 shadow-md shadow-violet-600/25 transition-all cursor-pointer"
                 >
                   <span>Choose Custom Plan</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -972,17 +957,17 @@ export default function SignupPage() {
 
         {/* STEP 2: ACCOUNT DETAILS (Aligned with Login styling) */}
         {step === 2 && (
-          <div className="max-w-lg mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-5 my-auto w-full transition-all">
-            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+          <div className="max-w-lg mx-auto bg-[#0D1326]/90 backdrop-blur-2xl rounded-3xl border border-white/15 p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] space-y-5 my-auto w-full transition-all text-white">
+            <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
               <div>
-                <h2 className="text-xl font-bold tracking-tight text-slate-900">Workspace Details</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Configure your company tenant and master administrator.</p>
+                <h2 className="text-xl font-bold tracking-tight text-white">Workspace Details</h2>
+                <p className="text-xs text-white/60 mt-0.5">Configure your company tenant and master administrator.</p>
               </div>
               <div className="text-right">
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full border font-mono shadow-2xs ${
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full border font-mono ${
                   selectedPlan === "CUSTOM"
-                    ? "text-violet-700 bg-violet-50 border-violet-200/80"
-                    : "text-indigo-700 bg-indigo-50 border-indigo-200/80"
+                    ? "text-violet-300 bg-violet-500/20 border-violet-400/30"
+                    : "text-indigo-300 bg-indigo-500/20 border-indigo-400/30"
                 }`}>
                   {selectedPlan} Plan
                 </span>
@@ -992,30 +977,30 @@ export default function SignupPage() {
             {/* If Custom Plan is selected: ONLY show the boxed contact notification & actions, NO form inputs */}
             {selectedPlan === "CUSTOM" ? (
               <div className="space-y-5">
-                <div className="p-4 sm:p-5 bg-violet-50/80 border border-violet-200/90 rounded-2xl space-y-3">
+                <div className="p-4 sm:p-5 bg-violet-950/40 border border-violet-500/30 rounded-2xl space-y-3">
                   <div className="flex items-start gap-3.5">
-                    <div className="w-9 h-9 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0 mt-0.5">
+                    <div className="w-9 h-9 rounded-xl bg-violet-500/20 border border-violet-400/30 flex items-center justify-center text-violet-300 shrink-0 mt-0.5">
                       <Headset className="w-5 h-5" />
                     </div>
                     <div className="space-y-1.5 flex-1">
-                      <h3 className="text-xs font-bold text-violet-950 uppercase tracking-wide">
+                      <h3 className="text-xs font-bold text-violet-200 uppercase tracking-wide">
                         CUSTOM FEATURE ACTIVATION
                       </h3>
-                      <p className="text-xs text-violet-800 leading-relaxed">
+                      <p className="text-xs text-white/80 leading-relaxed">
                         Custom plan modules and enterprise workflows require administrative configuration. Please contact the concerned authority or our support team to activate specific features for your organization.
                       </p>
                       <div className="pt-1 flex flex-wrap items-center gap-3 text-xs">
                         <a
                           href="mailto:support@panthertms.com?subject=Custom%20TMS%20Plan%20Feature%20Activation"
-                          className="inline-flex items-center gap-1.5 font-semibold text-violet-700 hover:text-violet-900 hover:underline"
+                          className="inline-flex items-center gap-1.5 font-semibold text-violet-300 hover:text-white hover:underline"
                         >
                           <Mail className="w-3.5 h-3.5" />
                           <span>support@panthertms.com</span>
                         </a>
-                        <span className="text-violet-300">•</span>
+                        <span className="text-white/30">•</span>
                         <a
                           href="mailto:support@panthertms.com?subject=Contact%20Concerned%20Authority%20-%20Custom%20Plan"
-                          className="inline-flex items-center gap-1.5 text-violet-700 font-medium hover:text-violet-900 hover:underline"
+                          className="inline-flex items-center gap-1.5 text-violet-300 font-medium hover:text-white hover:underline"
                         >
                           <Building2 className="w-3.5 h-3.5" />
                           <span>Contact Concerned Authority</span>
@@ -1030,13 +1015,13 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-2xs transition-all cursor-pointer"
+                    className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-white/20 bg-white/10 text-white hover:bg-white/15 shadow-2xs transition-all cursor-pointer"
                   >
                     Back to Plans
                   </button>
                   <a
                     href="mailto:support@panthertms.com?subject=Custom%20TMS%20Plan%20Feature%20Activation%20Request&body=Hello%20PantherTMS%20Team%2C%0A%0AI%20would%20like%20to%20request%20a%20Custom%20TMS%20Plan%20for%20my%20organization.%0A%0ACompany%20Name%3A%20%0AContact%20Number%3A%20%0ARequired%20Modules%3A%20%0A%0AThank%20you."
-                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white bg-violet-600 hover:bg-violet-700 active:bg-violet-800 shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white bg-violet-600 hover:bg-violet-500 active:bg-violet-700 shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <Mail className="w-4 h-4" />
                     <span>Contact Concerned Authority</span>
@@ -1048,11 +1033,11 @@ export default function SignupPage() {
               <form onSubmit={handleInitiateSignup} className="space-y-4">
                 {/* Company Name */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                  <label className="block text-xs font-semibold text-white/90 tracking-tight">
                     Registered company name
                   </label>
                   <div className="relative flex items-center">
-                    <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                    <div className="absolute left-3.5 pointer-events-none text-white/40">
                       <Building2 className="w-4 h-4" />
                     </div>
                     <input
@@ -1061,7 +1046,7 @@ export default function SignupPage() {
                       value={companyName}
                       onChange={(e) => handleCompanyChange(e.target.value)}
                       placeholder="Apex Fast Freight Pvt Ltd"
-                      className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                      className="w-full pl-10 pr-3.5 py-2.5 text-sm text-white placeholder:text-white/40 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -1069,15 +1054,15 @@ export default function SignupPage() {
                 {/* Company Code */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    <label className="block text-xs font-semibold text-white/90 tracking-tight">
                       Company Code (Unique Login Identifier)
                     </label>
-                    <span className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">
+                    <span className="text-[10px] text-white/40 font-mono tracking-wider uppercase">
                       Letters Only [A-Z]
                     </span>
                   </div>
                   <div className="relative flex items-center">
-                    <div className="absolute left-3.5 pointer-events-none text-indigo-600 font-mono text-xs font-bold">
+                    <div className="absolute left-3.5 pointer-events-none text-indigo-400 font-mono text-xs font-bold">
                       #
                     </div>
                     <input
@@ -1086,10 +1071,10 @@ export default function SignupPage() {
                       value={companyCode}
                       onChange={(e) => setCompanyCode(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
                       placeholder="APEXFREIGHT"
-                      className="w-full pl-9 pr-3.5 py-2.5 text-sm font-bold font-mono tracking-wider text-indigo-700 placeholder:text-slate-300 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all uppercase"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-sm font-bold font-mono tracking-wider text-indigo-300 placeholder:text-white/30 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all uppercase"
                     />
                   </div>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-white/60">
                     Strictly uppercase alphabets only. You and your team will use this code + email + password to log in.
                   </p>
                 </div>
@@ -1097,11 +1082,11 @@ export default function SignupPage() {
                 {/* Administrator Name & Email */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    <label className="block text-xs font-semibold text-white/90 tracking-tight">
                       Admin full name
                     </label>
                     <div className="relative flex items-center">
-                      <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                      <div className="absolute left-3.5 pointer-events-none text-white/40">
                         <User className="w-4 h-4" />
                       </div>
                       <input
@@ -1110,17 +1095,17 @@ export default function SignupPage() {
                         value={adminName}
                         onChange={(e) => setAdminName(e.target.value)}
                         placeholder="Rahul Verma"
-                        className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm text-white placeholder:text-white/40 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    <label className="block text-xs font-semibold text-white/90 tracking-tight">
                       Admin work email
                     </label>
                     <div className="relative flex items-center">
-                      <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                      <div className="absolute left-3.5 pointer-events-none text-white/40">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input
@@ -1129,7 +1114,7 @@ export default function SignupPage() {
                         value={adminEmail}
                         onChange={(e) => setAdminEmail(e.target.value)}
                         placeholder="admin@apexfreight.com"
-                        className="w-full pl-10 pr-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                        className="w-full pl-10 pr-3.5 py-2.5 text-sm text-white placeholder:text-white/40 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -1138,15 +1123,15 @@ export default function SignupPage() {
                 {/* Password */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-slate-700 tracking-tight">
+                    <label className="block text-xs font-semibold text-white/90 tracking-tight">
                       Admin password (Min 8 characters)
                     </label>
-                    <span className="text-[11px] text-slate-400 select-none">
+                    <span className="text-[11px] text-white/40 select-none">
                       Security compliant
                     </span>
                   </div>
                   <div className="relative flex items-center">
-                    <div className="absolute left-3.5 pointer-events-none text-slate-400">
+                    <div className="absolute left-3.5 pointer-events-none text-white/40">
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
@@ -1155,14 +1140,14 @@ export default function SignupPage() {
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
                       placeholder="••••••••••••"
-                      className="w-full pl-10 pr-3.5 py-2.5 text-sm font-mono text-slate-900 placeholder:text-slate-400 rounded-xl border border-slate-200 bg-white shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all"
+                      className="w-full pl-10 pr-3.5 py-2.5 text-sm font-mono text-white placeholder:text-white/40 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Tenant Isolation Badge */}
-                <div className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl text-xs text-slate-600 flex items-center gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="p-3 bg-white/[0.04] border border-white/10 rounded-xl text-xs text-white/70 flex items-center gap-2.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>
                     Data isolation enforced with dedicated company schema and automated daily backups.
                   </span>
@@ -1174,14 +1159,14 @@ export default function SignupPage() {
                     type="button"
                     onClick={() => setStep(1)}
                     disabled={isLoading}
-                    className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                    className="w-1/3 h-11 text-xs font-semibold rounded-xl border border-white/20 bg-white/10 text-white hover:bg-white/15 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                   >
                     Back
                   </button>
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 shadow-[0_1px_2px_rgba(79,70,229,0.22),0_0_0_1px_rgba(79,70,229,0.10)] hover:from-indigo-400 hover:to-indigo-500 hover:shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
+                    className="w-2/3 h-11 text-xs font-semibold rounded-xl text-white bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-400/40 shadow-[0_2px_12px_rgba(79,70,229,0.4)] hover:from-indigo-400 hover:to-indigo-500 hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
                   >
                     {isLoading ? (
                       <>
@@ -1208,72 +1193,72 @@ export default function SignupPage() {
 
         {/* STEP 3: PROVISIONING / SUCCESS */}
         {step === 3 && (
-          <div className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200/90 p-7 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center space-y-5 my-auto w-full">
+          <div className="max-w-md mx-auto bg-[#0D1326]/90 backdrop-blur-2xl rounded-3xl border border-white/15 p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] text-center space-y-5 my-auto w-full text-white">
             {!provisionComplete ? (
               <div className="space-y-4 py-2">
                 <div className="relative w-16 h-16 mx-auto">
-                  <div className="absolute inset-0 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
-                  <Database className="w-6 h-6 text-indigo-600 absolute inset-0 m-auto" />
+                  <div className="absolute inset-0 rounded-full border-4 border-white/15 border-t-indigo-400 animate-spin" />
+                  <Database className="w-6 h-6 text-indigo-400 absolute inset-0 m-auto" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Setting Up Your Workspace</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Please wait while we initialize your transport ecosystem.</p>
+                  <h3 className="text-lg font-bold text-white">Setting Up Your Workspace</h3>
+                  <p className="text-xs text-white/60 mt-0.5">Please wait while we initialize your transport ecosystem.</p>
                 </div>
-                <div className="p-3 bg-indigo-50/90 rounded-xl border border-indigo-100 text-xs font-mono text-indigo-700 shadow-2xs">
+                <div className="p-3 bg-indigo-500/15 rounded-xl border border-indigo-400/30 text-xs font-mono text-indigo-300 shadow-2xs">
                   {provisioningStatus}
                 </div>
               </div>
             ) : (
               <div className="space-y-5 py-2">
-                <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-2xs">
+                <div className="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center mx-auto shadow-2xs">
                   <CheckCircle2 className="w-7 h-7" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold tracking-tight text-slate-900">Workspace Ready!</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Your company workspace <span className="font-semibold text-slate-900">{companyName}</span> has been initialized.
+                  <h3 className="text-xl font-bold tracking-tight text-white">Workspace Ready!</h3>
+                  <p className="text-xs text-white/70 mt-1">
+                    Your company workspace <span className="font-semibold text-white">{companyName}</span> has been initialized.
                   </p>
                 </div>
 
-                <div className="p-3.5 bg-slate-50/90 border border-slate-200/80 rounded-xl space-y-2 text-left text-xs font-mono">
+                <div className="p-3.5 bg-white/[0.04] border border-white/10 rounded-xl space-y-2 text-left text-xs font-mono">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-sans">Company Code:</span>
-                    <span className="font-bold text-indigo-700 tracking-wider text-sm">{companyCode}</span>
+                    <span className="text-white/60 font-sans">Company Code:</span>
+                    <span className="font-bold text-indigo-300 tracking-wider text-sm">{companyCode}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-sans">Tenant ID:</span>
-                    <span className="font-semibold text-slate-800">{tenantId}</span>
+                    <span className="text-white/60 font-sans">Tenant ID:</span>
+                    <span className="font-semibold text-white/90">{tenantId}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-sans">Plan:</span>
-                    <span className="font-semibold text-slate-900">{selectedPlan}</span>
+                    <span className="text-white/60 font-sans">Plan:</span>
+                    <span className="font-semibold text-white">{selectedPlan}</span>
                   </div>
                   {selectedPlan === "CUSTOM" && (
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-500 font-sans">Custom Plan:</span>
-                      <span className="font-semibold text-violet-700">Contact authority for feature activation</span>
+                      <span className="text-white/60 font-sans">Custom Plan:</span>
+                      <span className="font-semibold text-violet-300">Contact authority for feature activation</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-sans">Admin Email:</span>
-                    <span className="font-semibold text-slate-900">{adminEmail}</span>
+                    <span className="text-white/60 font-sans">Admin Email:</span>
+                    <span className="font-semibold text-white">{adminEmail}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-sans">Workspace Schema:</span>
-                    <span className="text-emerald-600 font-semibold">panther_tenant_{companyCode ? companyCode.toLowerCase() : "companycode"}</span>
+                    <span className="text-white/60 font-sans">Workspace Schema:</span>
+                    <span className="text-emerald-400 font-semibold">panther_tenant_{companyCode ? companyCode.toLowerCase() : "companycode"}</span>
                   </div>
                 </div>
 
-                <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl text-left text-xs text-indigo-900 space-y-1">
-                  <p className="font-semibold">Save Your Company Code:</p>
-                  <p className="text-[11px] text-indigo-700 font-sans">
-                    You and your team will use Company Code <strong className="font-mono text-indigo-900 font-bold">{companyCode}</strong> + Work Email to log in to PantherTMS.
+                <div className="p-3 bg-indigo-500/15 border border-indigo-400/30 rounded-xl text-left text-xs text-indigo-200 space-y-1">
+                  <p className="font-semibold text-white">Save Your Company Code:</p>
+                  <p className="text-[11px] text-indigo-200 font-sans">
+                    You and your team will use Company Code <strong className="font-mono text-white font-bold">{companyCode}</strong> + Work Email to log in to PantherTMS.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  className="w-full h-11 text-xs font-semibold rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-700/40 text-white shadow-[0_1px_2px_rgba(79,70,229,0.22),0_0_0_1px_rgba(79,70,229,0.10)] hover:from-indigo-400 hover:to-indigo-500 hover:shadow-[0_2px_8px_rgba(79,70,229,0.28)] hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full h-11 text-xs font-semibold rounded-xl bg-gradient-to-b from-indigo-500 to-indigo-600 border border-indigo-400/40 text-white shadow-[0_2px_12px_rgba(79,70,229,0.4)] hover:from-indigo-400 hover:to-indigo-500 hover:-translate-y-px active:from-indigo-600 active:to-indigo-700 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
                   onClick={() => router.push(`/login?company_code=${companyCode}&email=${encodeURIComponent(adminEmail)}`)}
                 >
                   <span>Go to Login</span>
@@ -1286,46 +1271,46 @@ export default function SignupPage() {
       </main>
 
       {/* ========================================================================= */}
-      {/* ENTERPRISE TRUST FOOTER: Replicated from reference                         */}
+      {/* ENTERPRISE TRUST FOOTER                                                   */}
       {/* ========================================================================= */}
-      <footer className="w-full border-t border-slate-200/70 bg-white/60 backdrop-blur-xs py-3 px-6 lg:px-12 flex flex-wrap items-center justify-between gap-4 z-20 shrink-0 max-w-[1640px] mx-auto">
+      <footer className="w-full border-t border-white/10 bg-transparent py-3 px-6 lg:px-12 flex flex-wrap items-center justify-between gap-4 z-20 shrink-0 max-w-[1640px] mx-auto text-white/70">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+          <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <div className="text-left leading-tight">
-            <div className="text-xs font-bold text-slate-800">Tenant-isolated architecture</div>
-            <div className="text-[11px] text-slate-500">Complete data isolation for your business</div>
+            <div className="text-xs font-bold text-white">Tenant-isolated architecture</div>
+            <div className="text-[11px] text-white/60">Complete data isolation for your business</div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
+          <div className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400 shrink-0">
             <Lock className="w-4 h-4" />
           </div>
           <div className="text-left leading-tight">
-            <div className="text-xs font-bold text-slate-800">256-bit SSL encrypted</div>
-            <div className="text-[11px] text-slate-500">Bank-grade security for all data</div>
+            <div className="text-xs font-bold text-white">256-bit SSL encrypted</div>
+            <div className="text-[11px] text-white/60">Bank-grade security for all data</div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
+          <div className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400 shrink-0">
             <Server className="w-4 h-4" />
           </div>
           <div className="text-left leading-tight">
-            <div className="text-xs font-bold text-slate-800">Multi-tier RBAC security</div>
-            <div className="text-[11px] text-slate-500">Role-based access control</div>
+            <div className="text-xs font-bold text-white">Multi-tier RBAC security</div>
+            <div className="text-[11px] text-white/60">Role-based access control</div>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+          <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
             <Headset className="w-4 h-4" />
           </div>
           <div className="text-left leading-tight">
-            <div className="text-xs font-bold text-slate-800">24/7 Support</div>
-            <div className="text-[11px] text-slate-500">Dedicated enterprise support</div>
+            <div className="text-xs font-bold text-white">24/7 Support</div>
+            <div className="text-[11px] text-white/60">Dedicated enterprise support</div>
           </div>
         </div>
       </footer>

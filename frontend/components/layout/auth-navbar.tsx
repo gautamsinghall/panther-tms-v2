@@ -25,7 +25,7 @@ export function AuthNavbar({
   const pathname = usePathname();
 
   const isSignup = mode ? mode === "signup" : pathname?.startsWith("/signup");
-  const isDark = theme ? theme === "dark" : !isSignup;
+  const isDark = theme ? theme === "dark" : true;
 
   const resolvedPrompt =
     promptText ?? (isSignup ? "Already have an account?" : "New to PantherTMS?");
