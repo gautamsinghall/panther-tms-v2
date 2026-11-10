@@ -63,6 +63,35 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
     },
     getSections: () => [
       {
+        id: "tax_compliance",
+        title: "Tax, GST & Regulatory Compliance",
+        description: "Indian Goods & Services Tax (GSTIN), Permanent Account Number (PAN), and statutory TDS rate. Enter to auto-populate company details.",
+        columns: 3,
+        fields: [
+          {
+            name: "gstin",
+            label: "GSTIN (15 Digits)",
+            type: "gstin",
+            placeholder: "27AAACT1234F1Z5",
+            helperText: "15-digit alphanumeric Indian GST identifier",
+          },
+          {
+            name: "pan",
+            label: "PAN (10 Digits)",
+            type: "pan",
+            placeholder: "AAACT1234F",
+            helperText: "10-digit Income Tax PAN",
+          },
+          {
+            name: "tds_rate",
+            label: "TDS Deduction Rate (%)",
+            type: "number",
+            placeholder: "e.g. 1.00 or 2.00",
+            defaultValue: 0,
+          },
+        ],
+      },
+      {
         id: "corporate_info",
         title: "Corporate & Contact Information",
         description: "Primary client identity, trade name, and key contact details for dispatch and billing.",
@@ -101,33 +130,6 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
             type: "email",
             placeholder: "accounts.payable@clientcompany.com",
             colSpan: 2,
-          },
-        ],
-      },
-      {
-        id: "tax_compliance",
-        title: "Tax, GST & Regulatory Compliance",
-        description: "Indian Goods & Services Tax (GSTIN), Permanent Account Number (PAN), and statutory TDS rate.",
-        columns: 3,
-        fields: [
-          {
-            name: "gstin",
-            label: "GSTIN (15 Digits)",
-            placeholder: "27AAACT1234F1Z5",
-            helperText: "15-digit alphanumeric Indian GST identifier",
-          },
-          {
-            name: "pan",
-            label: "PAN (10 Digits)",
-            placeholder: "AAACT1234F",
-            helperText: "10-digit Income Tax PAN",
-          },
-          {
-            name: "tds_rate",
-            label: "TDS Deduction Rate (%)",
-            type: "number",
-            placeholder: "e.g. 1.00 or 2.00",
-            defaultValue: 0,
           },
         ],
       },
@@ -288,9 +290,21 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
       {
         id: "general_info",
         title: "Consigner Information",
-        description: "Primary shipper profile, location, and GST compliance details",
+        description: "Primary shipper profile, location, and GST compliance details. Enter GSTIN or PAN to autofill details.",
         columns: 2,
         fields: [
+          {
+            name: "gstin",
+            label: "GSTIN",
+            type: "gstin",
+            placeholder: "22AAACJ1234F1Z1",
+          },
+          {
+            name: "pan",
+            label: "PAN",
+            type: "pan",
+            placeholder: "e.g. AACJ1234F",
+          },
           {
             name: "name",
             label: "Consigner Name",
@@ -321,16 +335,6 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
             type: "email",
             placeholder: "logistics@company.com",
             colSpan: 2,
-          },
-          {
-            name: "gstin",
-            label: "GSTIN",
-            placeholder: "22AAACJ1234F1Z1",
-          },
-          {
-            name: "pan",
-            label: "PAN",
-            placeholder: "e.g. AACJ1234F",
           },
           {
             name: "pincode",
@@ -382,9 +386,21 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
       {
         id: "general_info",
         title: "Consignee Information",
-        description: "Primary receiver profile, delivery location, and GST compliance details",
+        description: "Primary receiver profile, delivery location, and GST compliance details. Enter GSTIN or PAN to autofill details.",
         columns: 2,
         fields: [
+          {
+            name: "gstin",
+            label: "GSTIN",
+            type: "gstin",
+            placeholder: "27AAACL1234F1Z9",
+          },
+          {
+            name: "pan",
+            label: "PAN",
+            type: "pan",
+            placeholder: "e.g. AACL1234F",
+          },
           {
             name: "name",
             label: "Consignee Name",
@@ -415,16 +431,6 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
             type: "email",
             placeholder: "site.stores@company.com",
             colSpan: 2,
-          },
-          {
-            name: "gstin",
-            label: "GSTIN",
-            placeholder: "27AAACL1234F1Z9",
-          },
-          {
-            name: "pan",
-            label: "PAN",
-            placeholder: "e.g. AACL1234F",
           },
           {
             name: "pincode",
@@ -476,9 +482,15 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
       {
         id: "owner_info",
         title: "Owner Details",
-        description: "Truck owner profile, contact, and settlements banking records",
+        description: "Truck owner profile, contact, and settlements banking records. Enter PAN to auto-populate owner details.",
         columns: 2,
         fields: [
+          {
+            name: "pan_number",
+            label: "PAN Number",
+            type: "pan",
+            placeholder: "e.g. ABCDE1234F",
+          },
           {
             name: "owner_name",
             label: "Owner Name / Transport Firm",
@@ -490,11 +502,6 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
             label: "Mobile / Phone Number",
             placeholder: "e.g. 9820098200",
             required: true,
-          },
-          {
-            name: "pan_number",
-            label: "PAN Number",
-            placeholder: "e.g. ABCDE1234F",
           },
           {
             name: "bank_name",
@@ -557,6 +564,12 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
         columns: 2,
         fields: [
           {
+            name: "pan_no",
+            label: "PAN Number",
+            type: "pan",
+            placeholder: "e.g. ABCDE1234F",
+          },
+          {
             name: "name",
             label: "Driver Full Name",
             placeholder: "e.g. Ramesh Kumar",
@@ -572,11 +585,6 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
             name: "aadhar_no",
             label: "Aadhar Number (12 Digits)",
             placeholder: "e.g. 1234 5678 9012",
-          },
-          {
-            name: "pan_no",
-            label: "PAN Number",
-            placeholder: "e.g. ABCDE1234F",
           },
           {
             name: "address",

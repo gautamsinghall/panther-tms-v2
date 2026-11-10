@@ -257,6 +257,18 @@ export default function ConsigneePage() {
       columns: 2,
       fields: [
         {
+          name: "gstin",
+          label: "GSTIN",
+          placeholder: "27AAACT2727Q1ZW",
+          type: "gstin",
+        },
+        {
+          name: "pan",
+          label: "PAN",
+          placeholder: "e.g. AAACT2727Q",
+          type: "pan",
+        },
+        {
           name: "name",
           label: "Consignee Name",
           placeholder: "e.g. Tata Motors Ltd",
@@ -286,16 +298,6 @@ export default function ConsigneePage() {
           type: "email",
           placeholder: "contact@company.com",
           colSpan: 2,
-        },
-        {
-          name: "gstin",
-          label: "GSTIN",
-          placeholder: "27AAACT2727Q1ZW",
-        },
-        {
-          name: "pan",
-          label: "PAN",
-          placeholder: "e.g. AAACT2727Q",
         },
         {
           name: "pincode",

@@ -19,6 +19,8 @@ async def run_migration():
         "ewb_password VARCHAR(255)",
         "ewb_gstin VARCHAR(20)",
         "is_ewb_active BOOLEAN DEFAULT TRUE",
+        "is_gst_active BOOLEAN DEFAULT TRUE",
+        "is_pan_active BOOLEAN DEFAULT TRUE",
         "gsp_client_id_override VARCHAR(255)",
         "gsp_client_secret_override VARCHAR(255)",
         "gsp_base_url_override VARCHAR(255)",
@@ -31,6 +33,24 @@ async def run_migration():
             async with t_engine.begin() as t_conn:
                 for col in columns:
                     await t_conn.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col};"))
+                await t_conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS tax_api_transactions (
+                        id SERIAL PRIMARY KEY,
+                        api_type VARCHAR(10) NOT NULL,
+                        query_value VARCHAR(50) NOT NULL,
+                        state_code VARCHAR(10),
+                        trade_name VARCHAR(255),
+                        legal_name VARCHAR(255),
+                        status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+                        source VARCHAR(50) DEFAULT 'API_CENTER',
+                        description VARCHAR(255),
+                        counter_after INTEGER NOT NULL DEFAULT 1,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+                    );
+                """))
+                await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_api_type ON tax_api_transactions (api_type);"))
+                await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_query_value ON tax_api_transactions (query_value);"))
+                await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_created_at ON tax_api_transactions (created_at);"))
             print(f"Successfully migrated {t_db}")
         except Exception as e:
             print(f"Error migrating {t_db}: {e}")

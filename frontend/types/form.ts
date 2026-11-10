@@ -8,7 +8,7 @@ export interface FormFieldOption {
 export interface FormFieldDef {
   name: string;
   label: string;
-  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "pincode" | "custom";
+  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "pincode" | "gstin" | "pan" | "custom";
   placeholder?: string;
   required?: boolean;
   options?: FormFieldOption[]; // for select

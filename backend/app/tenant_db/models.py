@@ -102,11 +102,13 @@ class CompanySetting(TenantBase):
     issuing_office = Column(String(255), nullable=True)
     default_issuing_office_id = Column(Integer, nullable=True)
 
-    # API Center & E-Way Bill Integration
+    # API Center, E-Way Bill, GST & PAN Integration
     ewb_username = Column(String(100), nullable=True)
     ewb_password = Column(String(255), nullable=True)
     ewb_gstin = Column(String(20), nullable=True)
     is_ewb_active = Column(Boolean, default=True, nullable=False)
+    is_gst_active = Column(Boolean, default=True, nullable=False)
+    is_pan_active = Column(Boolean, default=True, nullable=False)
     gsp_client_id_override = Column(String(255), nullable=True)
     gsp_client_secret_override = Column(String(255), nullable=True)
     gsp_base_url_override = Column(String(255), nullable=True)
@@ -1205,6 +1207,26 @@ class SimWalletTransaction(TenantBase):
     amount = Column(Numeric(10, 2), nullable=False, default=8.50)
     balance_after = Column(Numeric(10, 2), nullable=False)
     description = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+
+class TaxApiTransaction(TenantBase):
+    """
+    Stores tenant-specific audit ledger transactions and lookup counter records
+    for GST and PAN API verifications in API Center (matching FASTag and SIM tracking pattern).
+    """
+    __tablename__ = "tax_api_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    api_type = Column(String(10), nullable=False, index=True)  # "GST" or "PAN"
+    query_value = Column(String(50), nullable=False, index=True)  # GSTIN or PAN
+    state_code = Column(String(10), nullable=True)
+    trade_name = Column(String(255), nullable=True)
+    legal_name = Column(String(255), nullable=True)
+    status = Column(String(20), nullable=False, default="SUCCESS")  # "SUCCESS" or "FAILED"
+    source = Column(String(50), nullable=True, default="API_CENTER")  # "API_CENTER", "BILLING_CLIENT", "VENDOR", etc.
+    description = Column(String(255), nullable=True)
+    counter_after = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
 

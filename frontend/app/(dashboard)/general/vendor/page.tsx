@@ -278,88 +278,33 @@ export default function VendorMasterPage() {
       id: "gst_details",
       title: "GST Details",
       description: "Indian Goods & Services Tax (GSTIN), PAN with issuing state, TAN, and TDS declarations.",
-      columns: 3,
+      columns: 2,
       fields: [
-        {
-          name: "pan",
-          label: "PAN No. & State",
-          type: "custom",
-          colSpan: 2,
-          customRender: ({ value, onChange, values, setFieldValue }) => (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-              <div className="relative flex-1 flex items-center">
-                <input
-                  type="text"
-                  value={value || ""}
-                  maxLength={10}
-                  placeholder="PAN No. (e.g. AAACT1234F)"
-                  onChange={(e) => {
-                    const up = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                    onChange(up);
-                  }}
-                  className="w-full h-10 px-3.5 pr-20 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs uppercase"
-                />
-                <div className="absolute right-1.5 flex items-center">
-                  <FetchButton
-                    title="Fetch PAN details"
-                    onClick={() => {
-                      toast.info("PAN auto-verification integration will be connected with Income Tax API in API Center.");
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="w-full sm:w-44">
-                <input
-                  type="text"
-                  value={values.pan_state || ""}
-                  placeholder="State / UT"
-                  onChange={(e) => setFieldValue("pan_state", e.target.value)}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
-                />
-              </div>
-            </div>
-          ),
-        },
-        {
-          name: "tan_no",
-          label: "TAN No",
-          placeholder: "e.g. MUMA12345B",
-          helperText: "10-digit Tax Deduction and Collection Account Number",
-        },
         {
           name: "gstin",
           label: "GST No.",
-          type: "custom",
-          colSpan: 2,
-          customRender: ({ value, onChange }) => (
-            <div className="relative flex items-center w-full">
-              <input
-                type="text"
-                value={value || ""}
-                maxLength={15}
-                placeholder="GSTIN (e.g. 27AAACT1234F1Z5)"
-                onChange={(e) => {
-                  const up = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                  onChange(up);
-                }}
-                className="w-full h-10 px-3.5 pr-20 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs uppercase"
-              />
-              <div className="absolute right-1.5 flex items-center">
-                <FetchButton
-                  title="Fetch GST details"
-                  onClick={() => {
-                    toast.info("GST portal auto-verification integration will be connected in API Center.");
-                  }}
-                />
-              </div>
-            </div>
-          ),
+          type: "gstin",
+          placeholder: "27AAACT1234F1Z5",
+          colSpan: 1,
+        },
+        {
+          name: "pan",
+          label: "PAN No. & State",
+          type: "pan",
+          placeholder: "e.g. AAACT1234F",
+          colSpan: 1,
         },
         {
           name: "billing_state",
           label: "Billing State",
           type: "state",
           placeholder: "Select State / UT",
+        },
+        {
+          name: "tan_no",
+          label: "TAN No",
+          placeholder: "e.g. MUMA12345B",
+          helperText: "10-digit Tax Deduction and Collection Account Number",
         },
         {
           name: "gst_exempt",

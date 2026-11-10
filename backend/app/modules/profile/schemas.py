@@ -211,7 +211,7 @@ class MonthlyPnLResponse(BaseModel):
     branch_count: int = 1
 
 
-# API Center & E-Way Bill Schemas
+# API Center, E-Way Bill, GST & PAN Schemas
 class ApiCenterSettingResponse(BaseModel):
     id: Optional[int] = 1
     ewb_username: Optional[str] = None
@@ -219,6 +219,8 @@ class ApiCenterSettingResponse(BaseModel):
     has_ewb_password: bool = False
     ewb_gstin: Optional[str] = None
     is_ewb_active: bool = True
+    is_gst_active: bool = True
+    is_pan_active: bool = True
     gsp_client_id_override: Optional[str] = None
     gsp_base_url_override: Optional[str] = None
     has_gsp_secret_override: bool = False
@@ -246,6 +248,8 @@ class ApiCenterSettingUpdate(BaseModel):
     ewb_password: Optional[str] = None
     ewb_gstin: Optional[str] = None
     is_ewb_active: Optional[bool] = True
+    is_gst_active: Optional[bool] = True
+    is_pan_active: Optional[bool] = True
     gsp_client_id_override: Optional[str] = None
     gsp_client_secret_override: Optional[str] = None
     gsp_base_url_override: Optional[str] = None
@@ -257,6 +261,100 @@ class ApiCenterSettingUpdate(BaseModel):
     wheelseye_api_token: Optional[str] = None
     wheelseye_base_url: Optional[str] = None
     is_wheelseye_active: Optional[bool] = None
+
+
+class GSTLookupResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    gstin: Optional[str] = None
+    pan: Optional[str] = None
+    legal_name: Optional[str] = None
+    trade_name: Optional[str] = None
+    incorporation_date: Optional[str] = None
+    legal_status: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    state_code: Optional[str] = None
+    pincode: Optional[str] = None
+    country: Optional[str] = "India"
+    billing_state: Optional[str] = None
+    raw_data: Optional[Dict[str, Any]] = None
+
+
+class PANLookupResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    pan: Optional[str] = None
+    gstin: Optional[str] = None
+    legal_name: Optional[str] = None
+    trade_name: Optional[str] = None
+    incorporation_date: Optional[str] = None
+    legal_status: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    state_code: Optional[str] = None
+    pincode: Optional[str] = None
+    country: Optional[str] = "India"
+    billing_state: Optional[str] = None
+    raw_data: Optional[Dict[str, Any]] = None
+
+
+class GSTTestRequest(BaseModel):
+    gstin: str
+    gsp_client_id: Optional[str] = None
+    gsp_client_secret: Optional[str] = None
+    gsp_base_url: Optional[str] = None
+
+
+class GSTTestResponse(BaseModel):
+    success: bool
+    message: str
+    gstin: Optional[str] = None
+    legal_name: Optional[str] = None
+    trade_name: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+class PANTestRequest(BaseModel):
+    pan: str
+    state_cd: Optional[str] = "07"
+    gsp_client_id: Optional[str] = None
+    gsp_client_secret: Optional[str] = None
+    gsp_base_url: Optional[str] = None
+
+
+class PANTestResponse(BaseModel):
+    success: bool
+    message: str
+    pan: Optional[str] = None
+    gstin: Optional[str] = None
+    legal_name: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+class TaxApiTransactionItem(BaseModel):
+    id: int
+    api_type: str
+    query_value: str
+    state_code: Optional[str] = None
+    trade_name: Optional[str] = None
+    legal_name: Optional[str] = None
+    status: str
+    source: Optional[str] = "API_CENTER"
+    description: Optional[str] = None
+    counter_after: int = 1
+    created_at: str
+
+
+class TaxApiCounterResponse(BaseModel):
+    total_lookups: int = 0
+    successful_lookups: int = 0
+    failed_lookups: int = 0
+    is_active: bool = True
+    pricing_notice: str = "Real-time government taxpayer verification and automated master records population."
+    transactions: List[TaxApiTransactionItem] = []
 
 
 class WheelsEyeTestRequest(BaseModel):

@@ -184,6 +184,18 @@ export default function GroupCompanyPage() {
       columns: 2,
       fields: [
         {
+          name: "gstin",
+          label: "GSTIN",
+          placeholder: "27AAACT2727Q1ZW",
+          type: "gstin",
+        },
+        {
+          name: "pan",
+          label: "PAN",
+          placeholder: "AAACT2727Q",
+          type: "pan",
+        },
+        {
           name: "company_name",
           label: "Operating Trade Name",
           placeholder: "e.g. Panther Logistics South Ltd",
@@ -195,16 +207,6 @@ export default function GroupCompanyPage() {
           label: "Legal Registered Name",
           placeholder: "e.g. Panther Logistics South Private Limited",
           colSpan: 2,
-        },
-        {
-          name: "gstin",
-          label: "GSTIN",
-          placeholder: "27AAACT2727Q1ZW",
-        },
-        {
-          name: "pan",
-          label: "PAN",
-          placeholder: "AAACT2727Q",
         },
         {
           name: "cin",

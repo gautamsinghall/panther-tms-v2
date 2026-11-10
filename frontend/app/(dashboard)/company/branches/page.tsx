@@ -28,6 +28,7 @@ import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { CountrySelect } from "@/components/ui/country-select";
 import { StateSelect } from "@/components/ui/state-select";
 import { PincodeInput } from "@/components/ui/pincode-input";
+import { GstinInput } from "@/components/ui/gstin-input";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { apiClient } from "@/lib/api-client";
 
@@ -504,7 +505,40 @@ export default function IssuingOfficesPage() {
               </div>
             </div>
 
-            {/* Section 2: Registered Address */}
+            {/* Section 2: Statutory & Tax Identification (Location Specific) */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider pb-1.5 border-b border-slate-200 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                Statutory & Tax Details (Location Specific)
+              </h4>
+
+              <div>
+                <label className="block text-[11px] font-medium text-slate-700 mb-1">
+                  Office GSTIN
+                </label>
+                <GstinInput
+                  id="branch-gstin"
+                  size="sm"
+                  value={gstin}
+                  onChange={setGstin}
+                  placeholder="e.g. 09AAAAA0000A1Z5"
+                  onFetch={(res) => {
+                    if (!name && (res.trade_name || res.legal_name)) {
+                      setName(res.trade_name || res.legal_name || "");
+                    }
+                    if (res.address) setAddress(res.address);
+                    if (res.city) setCity(res.city);
+                    if (res.state) setState(res.state);
+                    if (res.pincode) setPincode(res.pincode);
+                    if (res.country) setCountry(res.country);
+                    toast.success("Branch address & details autofilled from GSTIN!");
+                  }}
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">State-specific GST registration number (autofills location & trade name)</span>
+              </div>
+            </div>
+
+            {/* Section 3: Registered Address */}
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider pb-1.5 border-b border-slate-200 flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-indigo-600" />
@@ -578,28 +612,6 @@ export default function IssuingOfficesPage() {
                     size="sm"
                   />
                 </div>
-              </div>
-            </div>
-
-            {/* Section 3: Statutory & Taxation (Location Specific) */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider pb-1.5 border-b border-slate-200 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-indigo-600" />
-                Statutory & Tax Details (Location Specific)
-              </h4>
-
-              <div>
-                <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                  Office GSTIN
-                </label>
-                <Input
-                  maxLength={15}
-                  placeholder="e.g. 09AAAAA0000A1Z5"
-                  value={gstin}
-                  onChange={(e) => setGstin(e.target.value.toUpperCase())}
-                  className="font-mono text-xs font-semibold tracking-wider uppercase"
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">State-specific GST registration number</span>
               </div>
             </div>
 

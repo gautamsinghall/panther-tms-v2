@@ -43,10 +43,19 @@ class Settings(BaseSettings):
     RAZORPAY_WEBHOOK_SECRET: str = "rzp_webhook_secret_panther_2026"
     RAZORPAY_GRACE_PERIOD_DAYS: int = 7
 
-    # E-Way Bill / GSP (GST Suvidha Provider) Platform Credentials (loaded from project env / Dokploy)
-    GSP_BASE_URL: str = "https://gsp.adaequare.com"
-    GSP_CLIENT_ID: Optional[str] = None
-    GSP_CLIENT_SECRET: Optional[str] = None
+    # GST / PAN Platform Credentials (read from environment, no hardcoded values)
+    GSP_BASE_URL: str = Field(
+        default="https://gsp.adaequare.com",
+        validation_alias=AliasChoices("GST_PAN_BASE_URL", "GSP_BASE_URL"),
+    )
+    GSP_CLIENT_ID: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("GST_PAN_CLIENT_ID", "GST_CLIENT_ID", "GSP_CLIENT_ID", "ADA_CLIENT_ID"),
+    )
+    GSP_CLIENT_SECRET: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("GST_PAN_CLIENT_SECRET", "GST_CLIENT_SECRET", "GSP_CLIENT_SECRET", "ADA_CLIENT_SECRET"),
+    )
 
     # Freight Tiger SIM Tracking Integration (PRD §11 / FT Trip APIs)
     FREIGHT_TIGER_BASE_URL: str = Field(

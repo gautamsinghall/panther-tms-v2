@@ -154,6 +154,12 @@ export default function EmployeeMasterPage() {
       description: "Basic identity and contact details.",
       fields: [
         {
+          name: "pan",
+          label: "PAN Card Number",
+          type: "pan",
+          placeholder: "e.g. AAACT2727Q",
+        },
+        {
           name: "name",
           label: "Full Name",
           type: "text",
@@ -191,12 +197,6 @@ export default function EmployeeMasterPage() {
       title: "Bank & Compensation",
       description: "Payroll bank details and monthly compensation.",
       fields: [
-        {
-          name: "pan",
-          label: "PAN",
-          type: "text",
-          placeholder: "10-character alphanumeric",
-        },
         {
           name: "bank_name",
           label: "Bank Name",

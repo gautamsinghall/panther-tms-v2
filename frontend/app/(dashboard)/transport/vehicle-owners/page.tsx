@@ -206,6 +206,13 @@ export default function VehicleOwnersPage() {
       columns: 2,
       fields: [
         {
+          name: "pan",
+          label: "PAN Number",
+          placeholder: "ABCDE1234F",
+          type: "pan",
+          colSpan: 2,
+        },
+        {
           name: "name",
           label: "Owner / Transporter Name",
           placeholder: "e.g. Sharma Freight Logistics",
@@ -223,11 +230,6 @@ export default function VehicleOwnersPage() {
           label: "Email Address",
           type: "email",
           placeholder: "finance@sharmafreight.com",
-        },
-        {
-          name: "pan",
-          label: "PAN Number",
-          placeholder: "ABCDE1234F",
         },
         {
           name: "pincode",

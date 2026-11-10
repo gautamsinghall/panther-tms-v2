@@ -10,8 +10,10 @@ from app.core.errors import AppException
 from app.core.security import verify_password, get_password_hash
 from app.tenant_db.models import (
     User, Branch, CompanySetting, EmailSetting,
-    Voucher, TripExpense, VoucherType, UserOfficeAssignment
+    Voucher, TripExpense, VoucherType, UserOfficeAssignment,
+    TaxApiTransaction
 )
+from app.integrations.gst_pan.client import get_gst_pan_client
 from app.modules.profile.schemas import (
     ChangePasswordRequest, UserProfileUpdate,
     BranchCreate, BranchUpdate,
@@ -21,7 +23,11 @@ from app.modules.profile.schemas import (
     ApiCenterTestRequest, ApiCenterTestResponse,
     WheelsEyeTestRequest, WheelsEyeTestResponse,
     FastagWalletResponse, FastagWalletTransactionItem,
-    SimWalletResponse, SimWalletTransactionItem
+    SimWalletResponse, SimWalletTransactionItem,
+    GSTLookupResponse, PANLookupResponse,
+    GSTTestRequest, GSTTestResponse,
+    PANTestRequest, PANTestResponse,
+    TaxApiTransactionItem, TaxApiCounterResponse
 )
 
 logger = logging.getLogger("panther.profile.service")
@@ -255,6 +261,8 @@ async def get_company_setting(db: AsyncSession) -> CompanySetting:
                 "wheelseye_api_token VARCHAR(255)",
                 "wheelseye_base_url VARCHAR(255) DEFAULT 'https://api.wheelseye.com'",
                 "is_wheelseye_active BOOLEAN DEFAULT TRUE",
+                "is_gst_active BOOLEAN DEFAULT TRUE",
+                "is_pan_active BOOLEAN DEFAULT TRUE",
             ]:
                 try:
                     await db.execute(text(f"ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS {col_def};"))
@@ -544,6 +552,8 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         has_ewb_password=bool(company.ewb_password),
         ewb_gstin=company.ewb_gstin or company.gstin,
         is_ewb_active=company.is_ewb_active if company.is_ewb_active is not None else True,
+        is_gst_active=company.is_gst_active if company.is_gst_active is not None else True,
+        is_pan_active=company.is_pan_active if company.is_pan_active is not None else True,
         gsp_client_id_override=company.gsp_client_id_override,
         gsp_base_url_override=company.gsp_base_url_override,
         has_gsp_secret_override=bool(company.gsp_client_secret_override),
@@ -578,6 +588,10 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
         company.ewb_gstin = data.ewb_gstin.strip().upper() if data.ewb_gstin else None
     if data.is_ewb_active is not None:
         company.is_ewb_active = data.is_ewb_active
+    if data.is_gst_active is not None:
+        company.is_gst_active = data.is_gst_active
+    if data.is_pan_active is not None:
+        company.is_pan_active = data.is_pan_active
     if data.gsp_client_id_override is not None:
         company.gsp_client_id_override = data.gsp_client_id_override.strip() if data.gsp_client_id_override else None
     if data.gsp_client_secret_override is not None:
@@ -721,6 +735,362 @@ async def test_wheelseye_connection(db: AsyncSession, req: WheelsEyeTestRequest)
         return WheelsEyeTestResponse(
             success=False,
             message=f"Connection test failed: {str(exc)}"
+        )
+
+
+# --- GST & PAN API Center & Autofill Services ---
+
+async def _get_tax_credentials(db: AsyncSession) -> tuple[str, str, str]:
+    company = await get_company_setting(db)
+    client_id = (company.gsp_client_id_override or settings.GSP_CLIENT_ID or "").strip()
+    client_secret = (company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET or "").strip()
+    base_url = (company.gsp_base_url_override or settings.GSP_BASE_URL or "https://gsp.adaequare.com").rstrip("/")
+    return client_id, client_secret, base_url
+
+
+async def _record_tax_transaction(
+    db: AsyncSession,
+    api_type: str,
+    query_value: str,
+    state_code: Optional[str] = None,
+    trade_name: Optional[str] = None,
+    legal_name: Optional[str] = None,
+    status: str = "SUCCESS",
+    source: str = "API_CENTER",
+    description: Optional[str] = None,
+) -> None:
+    try:
+        cnt_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == api_type)
+        cur_cnt = (await db.scalar(cnt_stmt) or 0) + 1
+        tx = TaxApiTransaction(
+            api_type=api_type,
+            query_value=query_value.strip().upper(),
+            state_code=state_code,
+            trade_name=trade_name,
+            legal_name=legal_name,
+            status=status,
+            source=source,
+            description=description,
+            counter_after=cur_cnt,
+        )
+        db.add(tx)
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        logger.warning(f"Error logging TaxApiTransaction for {api_type} {query_value}: {exc}")
+
+
+async def lookup_gst(db: AsyncSession, gstin: str, source: str = "AUTOFILL") -> GSTLookupResponse:
+    client_id, client_secret, base_url = await _get_tax_credentials(db)
+    client = get_gst_pan_client()
+    try:
+        result = await client.search_by_gstin(
+            gstin=gstin,
+            client_id=client_id,
+            client_secret=client_secret,
+            base_url=base_url
+        )
+        await _record_tax_transaction(
+            db,
+            api_type="GST",
+            query_value=gstin,
+            trade_name=result.get("trade_name"),
+            legal_name=result.get("legal_name"),
+            status="SUCCESS" if result.get("success") else "FAILED",
+            source=source,
+            description=result.get("message") or ("GST verification successful" if result.get("success") else "GST verification failed"),
+        )
+        return GSTLookupResponse(**result)
+    except Exception as exc:
+        logger.error(f"GST lookup failed for {gstin}: {exc}")
+        await _record_tax_transaction(
+            db,
+            api_type="GST",
+            query_value=gstin,
+            status="FAILED",
+            source=source,
+            description=str(exc)[:250],
+        )
+        return GSTLookupResponse(
+            success=False,
+            message=f"GST lookup failed: {str(exc)}"
+        )
+
+
+async def lookup_pan(db: AsyncSession, pan: str, state_cd: Optional[str] = "07", source: str = "AUTOFILL") -> PANLookupResponse:
+    client_id, client_secret, base_url = await _get_tax_credentials(db)
+    client = get_gst_pan_client()
+    try:
+        result = await client.search_by_pan(
+            pan=pan,
+            state_cd=state_cd or "07",
+            client_id=client_id,
+            client_secret=client_secret,
+            base_url=base_url
+        )
+        await _record_tax_transaction(
+            db,
+            api_type="PAN",
+            query_value=pan,
+            state_code=state_cd or "07",
+            trade_name=result.get("trade_name"),
+            legal_name=result.get("legal_name"),
+            status="SUCCESS" if result.get("success") else "FAILED",
+            source=source,
+            description=result.get("message") or ("PAN verification successful" if result.get("success") else "PAN verification failed"),
+        )
+        return PANLookupResponse(**result)
+    except Exception as exc:
+        logger.error(f"PAN lookup failed for {pan}: {exc}")
+        await _record_tax_transaction(
+            db,
+            api_type="PAN",
+            query_value=pan,
+            state_code=state_cd or "07",
+            status="FAILED",
+            source=source,
+            description=str(exc)[:250],
+        )
+        return PANLookupResponse(
+            success=False,
+            message=f"PAN lookup failed: {str(exc)}"
+        )
+
+
+async def test_gst_connection(db: AsyncSession, req: GSTTestRequest) -> GSTTestResponse:
+    company = await get_company_setting(db)
+    client_id = (req.gsp_client_id or company.gsp_client_id_override or settings.GSP_CLIENT_ID or "").strip()
+    client_secret = (req.gsp_client_secret or company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET or "").strip()
+    base_url = (req.gsp_base_url or company.gsp_base_url_override or settings.GSP_BASE_URL or "https://gsp.adaequare.com").rstrip("/")
+
+    client = get_gst_pan_client()
+    try:
+        result = await client.search_by_gstin(
+            gstin=req.gstin,
+            client_id=client_id,
+            client_secret=client_secret,
+            base_url=base_url
+        )
+        is_succ = bool(result.get("success"))
+        await _record_tax_transaction(
+            db,
+            api_type="GST",
+            query_value=req.gstin,
+            trade_name=result.get("trade_name"),
+            legal_name=result.get("legal_name"),
+            status="SUCCESS" if is_succ else "FAILED",
+            source="SANDBOX_TEST",
+            description=result.get("message") or ("GST test connection successful" if is_succ else "GST test failed"),
+        )
+        if is_succ:
+            return GSTTestResponse(
+                success=True,
+                message="GST verification successful! Taxpayer record retrieved.",
+                gstin=result.get("gstin"),
+                legal_name=result.get("legal_name"),
+                trade_name=result.get("trade_name"),
+                details=result
+            )
+        else:
+            return GSTTestResponse(
+                success=False,
+                message=result.get("message") or "GST verification failed.",
+                gstin=req.gstin,
+                details=result
+            )
+    except Exception as exc:
+        await _record_tax_transaction(
+            db,
+            api_type="GST",
+            query_value=req.gstin,
+            status="FAILED",
+            source="SANDBOX_TEST",
+            description=str(exc)[:250],
+        )
+        return GSTTestResponse(
+            success=False,
+            message=f"Connection test error: {str(exc)}"
+        )
+
+
+async def test_pan_connection(db: AsyncSession, req: PANTestRequest) -> PANTestResponse:
+    company = await get_company_setting(db)
+    client_id = (req.gsp_client_id or company.gsp_client_id_override or settings.GSP_CLIENT_ID or "").strip()
+    client_secret = (req.gsp_client_secret or company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET or "").strip()
+    base_url = (req.gsp_base_url or company.gsp_base_url_override or settings.GSP_BASE_URL or "https://gsp.adaequare.com").rstrip("/")
+
+    client = get_gst_pan_client()
+    try:
+        result = await client.search_by_pan(
+            pan=req.pan,
+            state_cd=req.state_cd or "07",
+            client_id=client_id,
+            client_secret=client_secret,
+            base_url=base_url
+        )
+        is_succ = bool(result.get("success"))
+        await _record_tax_transaction(
+            db,
+            api_type="PAN",
+            query_value=req.pan,
+            state_code=req.state_cd or "07",
+            trade_name=result.get("trade_name"),
+            legal_name=result.get("legal_name"),
+            status="SUCCESS" if is_succ else "FAILED",
+            source="SANDBOX_TEST",
+            description=result.get("message") or ("PAN test connection successful" if is_succ else "PAN test failed"),
+        )
+        if is_succ:
+            return PANTestResponse(
+                success=True,
+                message="PAN verification successful! Taxpayer record retrieved.",
+                pan=result.get("pan"),
+                gstin=result.get("gstin"),
+                legal_name=result.get("legal_name"),
+                details=result
+            )
+        else:
+            return PANTestResponse(
+                success=False,
+                message=result.get("message") or "PAN verification failed.",
+                pan=req.pan,
+                details=result
+            )
+    except Exception as exc:
+        await _record_tax_transaction(
+            db,
+            api_type="PAN",
+            query_value=req.pan,
+            state_code=req.state_cd or "07",
+            status="FAILED",
+            source="SANDBOX_TEST",
+            description=str(exc)[:250],
+        )
+        return PANTestResponse(
+            success=False,
+            message=f"Connection test error: {str(exc)}"
+        )
+
+
+async def get_gst_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
+    company = await get_company_setting(db)
+    is_active = company.is_gst_active if company.is_gst_active is not None else True
+
+    try:
+        total_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == "GST")
+        total_lookups = (await db.scalar(total_stmt)) or 0
+
+        succ_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "GST",
+            TaxApiTransaction.status == "SUCCESS"
+        )
+        successful_lookups = (await db.scalar(succ_stmt)) or 0
+
+        fail_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "GST",
+            TaxApiTransaction.status == "FAILED"
+        )
+        failed_lookups = (await db.scalar(fail_stmt)) or 0
+
+        from sqlalchemy import desc
+        tx_stmt = select(TaxApiTransaction).where(TaxApiTransaction.api_type == "GST").order_by(desc(TaxApiTransaction.id)).limit(100)
+        tx_rows = (await db.execute(tx_stmt)).scalars().all()
+
+        tx_items = [
+            TaxApiTransactionItem(
+                id=t.id,
+                api_type=t.api_type,
+                query_value=t.query_value,
+                state_code=t.state_code,
+                trade_name=t.trade_name,
+                legal_name=t.legal_name,
+                status=t.status,
+                source=t.source,
+                description=t.description,
+                counter_after=t.counter_after,
+                created_at=t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
+            )
+            for t in tx_rows
+        ]
+
+        return TaxApiCounterResponse(
+            total_lookups=total_lookups,
+            successful_lookups=successful_lookups,
+            failed_lookups=failed_lookups,
+            is_active=is_active,
+            pricing_notice="Standard government GSTIN query and taxpayer profile verification.",
+            transactions=tx_items,
+        )
+    except Exception as exc:
+        logger.warning(f"Error fetching GST counter info: {exc}")
+        return TaxApiCounterResponse(
+            total_lookups=0,
+            successful_lookups=0,
+            failed_lookups=0,
+            is_active=is_active,
+            pricing_notice="Standard government GSTIN query and taxpayer profile verification.",
+            transactions=[],
+        )
+
+
+async def get_pan_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
+    company = await get_company_setting(db)
+    is_active = company.is_pan_active if company.is_pan_active is not None else True
+
+    try:
+        total_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == "PAN")
+        total_lookups = (await db.scalar(total_stmt)) or 0
+
+        succ_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "PAN",
+            TaxApiTransaction.status == "SUCCESS"
+        )
+        successful_lookups = (await db.scalar(succ_stmt)) or 0
+
+        fail_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "PAN",
+            TaxApiTransaction.status == "FAILED"
+        )
+        failed_lookups = (await db.scalar(fail_stmt)) or 0
+
+        from sqlalchemy import desc
+        tx_stmt = select(TaxApiTransaction).where(TaxApiTransaction.api_type == "PAN").order_by(desc(TaxApiTransaction.id)).limit(100)
+        tx_rows = (await db.execute(tx_stmt)).scalars().all()
+
+        tx_items = [
+            TaxApiTransactionItem(
+                id=t.id,
+                api_type=t.api_type,
+                query_value=t.query_value,
+                state_code=t.state_code,
+                trade_name=t.trade_name,
+                legal_name=t.legal_name,
+                status=t.status,
+                source=t.source,
+                description=t.description,
+                counter_after=t.counter_after,
+                created_at=t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
+            )
+            for t in tx_rows
+        ]
+
+        return TaxApiCounterResponse(
+            total_lookups=total_lookups,
+            successful_lookups=successful_lookups,
+            failed_lookups=failed_lookups,
+            is_active=is_active,
+            pricing_notice="Standard government PAN query with 2-digit state jurisdiction code.",
+            transactions=tx_items,
+        )
+    except Exception as exc:
+        logger.warning(f"Error fetching PAN counter info: {exc}")
+        return TaxApiCounterResponse(
+            total_lookups=0,
+            successful_lookups=0,
+            failed_lookups=0,
+            is_active=is_active,
+            pricing_notice="Standard government PAN query with 2-digit state jurisdiction code.",
+            transactions=[],
         )
 
 

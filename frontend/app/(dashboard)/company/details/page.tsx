@@ -25,6 +25,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PanInput } from "@/components/ui/pan-input";
 import { apiClient } from "@/lib/api-client";
 import { getStoredAuth } from "@/lib/auth";
 
@@ -781,6 +782,26 @@ export default function CompanyDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Corporate PAN (Entity-Wide Tax Identifier)
+                  </label>
+                  <PanInput
+                    id="company-pan"
+                    value={pan}
+                    onChange={setPan}
+                    placeholder="e.g. AAACT2727Q"
+                    size="sm"
+                    onFetch={(res) => {
+                      if (res.legal_name) setLegalEntityName(res.legal_name);
+                      if (res.trade_name || res.legal_name) setCompanyName(res.trade_name || res.legal_name || "");
+                    }}
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Entity-wide 10-character Income Tax PAN (autofills corporate legal entity & trade name).
+                  </span>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
                     Overall Company Brand / Trade Name <span className="text-rose-500">*</span>
                   </label>
                   <Input
@@ -814,23 +835,7 @@ export default function CompanyDetailsPage() {
                   </span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Corporate PAN (Entity-Wide Tax Identifier)
-                  </label>
-                  <Input
-                    value={pan}
-                    maxLength={10}
-                    onChange={(e) => setPan(e.target.value.toUpperCase())}
-                    placeholder="AAAAA0000A"
-                    className="font-mono text-xs tracking-wider font-semibold"
-                  />
-                  <span className="text-[11px] text-slate-400 mt-1 block">
-                    Entity-wide 10-character Income Tax PAN.
-                  </span>
-                </div>
-
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-slate-700 mb-1">
                     Corporate Website URL
                   </label>

@@ -307,6 +307,35 @@ export default function BillingClientPage() {
   // Standardized Form Sections matching global design system
   const formSections: FormSectionDef[] = [
     {
+      id: "tax_compliance",
+      title: "Tax, GST & Regulatory Compliance",
+      description: "Indian Goods & Services Tax (GSTIN), Permanent Account Number (PAN), and statutory TDS rate. Enter to auto-populate company details.",
+      columns: 3,
+      fields: [
+        {
+          name: "gstin",
+          label: "GSTIN (15 Digits)",
+          type: "gstin",
+          placeholder: "27AAACT1234F1Z5",
+          helperText: "15-digit alphanumeric Indian GST identifier",
+        },
+        {
+          name: "pan",
+          label: "PAN (10 Digits)",
+          type: "pan",
+          placeholder: "AAACT1234F",
+          helperText: "10-digit Income Tax PAN",
+        },
+        {
+          name: "tds_rate",
+          label: "TDS Deduction Rate (%)",
+          type: "number",
+          placeholder: "e.g. 1.00 or 2.00",
+          defaultValue: 0,
+        },
+      ],
+    },
+    {
       id: "corporate_info",
       title: "Corporate & Contact Information",
       description: "Primary client identity, trade name, and key contact details for dispatch and billing.",
@@ -345,33 +374,6 @@ export default function BillingClientPage() {
           type: "email",
           placeholder: "accounts.payable@clientcompany.com",
           colSpan: 2,
-        },
-      ],
-    },
-    {
-      id: "tax_compliance",
-      title: "Tax, GST & Regulatory Compliance",
-      description: "Indian Goods & Services Tax (GSTIN), Permanent Account Number (PAN), and statutory TDS rate.",
-      columns: 3,
-      fields: [
-        {
-          name: "gstin",
-          label: "GSTIN (15 Digits)",
-          placeholder: "27AAACT1234F1Z5",
-          helperText: "15-digit alphanumeric Indian GST identifier",
-        },
-        {
-          name: "pan",
-          label: "PAN (10 Digits)",
-          placeholder: "AAACT1234F",
-          helperText: "10-digit Income Tax PAN",
-        },
-        {
-          name: "tds_rate",
-          label: "TDS Deduction Rate (%)",
-          type: "number",
-          placeholder: "e.g. 1.00 or 2.00",
-          defaultValue: 0,
         },
       ],
     },

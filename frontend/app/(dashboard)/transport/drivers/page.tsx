@@ -363,14 +363,15 @@ export default function DriversPage() {
       columns: 2,
       fields: [
         {
-          name: "aadhar_no",
-          label: "Aadhaar Number",
-          placeholder: "e.g. 1234 5678 9012",
-        },
-        {
           name: "pan_no",
           label: "PAN Number",
           placeholder: "e.g. ABCDE1234F",
+          type: "pan",
+        },
+        {
+          name: "aadhar_no",
+          label: "Aadhaar Number",
+          placeholder: "e.g. 1234 5678 9012",
         },
         {
           name: "license_doc",

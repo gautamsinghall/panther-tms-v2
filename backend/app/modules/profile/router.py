@@ -17,7 +17,11 @@ from app.modules.profile.schemas import (
     ApiCenterTestRequest, ApiCenterTestResponse,
     WheelsEyeTestRequest, WheelsEyeTestResponse,
     FastagWalletResponse, FastagCooldownUpdate,
-    SimWalletResponse
+    SimWalletResponse,
+    GSTLookupResponse, PANLookupResponse,
+    GSTTestRequest, GSTTestResponse,
+    PANTestRequest, PANTestResponse,
+    TaxApiCounterResponse
 )
 from app.modules.profile import service
 from app.services.activity_logger import log_activity
@@ -338,6 +342,85 @@ async def test_wheelseye(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.test_wheelseye_connection(db, req)
+
+
+# --- GST & PAN Lookup & Verification Endpoints ---
+
+@router.get(
+    "/api-center/gst-lookup",
+    response_model=GSTLookupResponse,
+    summary="Lookup and verify taxpayer details by GSTIN"
+)
+async def get_gst_lookup(
+    gstin: str = Query(..., description="15-character GSTIN"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.lookup_gst(db, gstin, source="AUTOFILL")
+
+
+@router.get(
+    "/api-center/pan-lookup",
+    response_model=PANLookupResponse,
+    summary="Lookup and verify taxpayer details by PAN and state code"
+)
+async def get_pan_lookup(
+    pan: str = Query(..., description="10-character PAN"),
+    state_cd: Optional[str] = Query("07", description="2-digit state code"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.lookup_pan(db, pan, state_cd, source="AUTOFILL")
+
+
+@router.get(
+    "/api-center/gst-counter",
+    response_model=TaxApiCounterResponse,
+    summary="Get GST API verification query counter, status, and audit ledger"
+)
+async def get_gst_counter(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_gst_counter_info(db)
+
+
+@router.get(
+    "/api-center/pan-counter",
+    response_model=TaxApiCounterResponse,
+    summary="Get PAN API verification query counter, status, and audit ledger"
+)
+async def get_pan_counter(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_pan_counter_info(db)
+
+
+@router.post(
+    "/api-center/test-gst",
+    response_model=GSTTestResponse,
+    summary="Test GST verification & credentials"
+)
+async def test_gst(
+    req: GSTTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.test_gst_connection(db, req)
+
+
+@router.post(
+    "/api-center/test-pan",
+    response_model=PANTestResponse,
+    summary="Test PAN verification & credentials"
+)
+async def test_pan(
+    req: PANTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.test_pan_connection(db, req)
 
 
 @router.get(

@@ -144,6 +144,7 @@ async def lifespan(app: FastAPI):
                             "issuing_office VARCHAR(255)", "default_issuing_office_id INTEGER",
                             "ewb_username VARCHAR(100)", "ewb_password VARCHAR(255)", "ewb_gstin VARCHAR(20)",
                             "is_ewb_active BOOLEAN DEFAULT TRUE",
+                            "is_gst_active BOOLEAN DEFAULT TRUE", "is_pan_active BOOLEAN DEFAULT TRUE",
                             "gsp_client_id_override VARCHAR(255)", "gsp_client_secret_override VARCHAR(255)", "gsp_base_url_override VARCHAR(255)",
                             "ft_base_url VARCHAR(255) DEFAULT 'https://api.freighttiger.com/api/tether'",
                             "ft_auth_token TEXT", "is_ft_active BOOLEAN DEFAULT TRUE",
@@ -221,6 +222,26 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transport_company_vehicles_account_id ON transport_company_vehicles (account_id);"))
                         await t_conn.execute(text("ALTER TABLE accounts_vouchers ADD COLUMN IF NOT EXISTS company_vehicle_id INTEGER REFERENCES transport_company_vehicles(id);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_company_vehicle_id ON accounts_vouchers (company_vehicle_id);"))
+
+                        # Tax API Transactions / Counter Schema Evolution (GST & PAN)
+                        await t_conn.execute(text("""
+                            CREATE TABLE IF NOT EXISTS tax_api_transactions (
+                                id SERIAL PRIMARY KEY,
+                                api_type VARCHAR(10) NOT NULL,
+                                query_value VARCHAR(50) NOT NULL,
+                                state_code VARCHAR(10),
+                                trade_name VARCHAR(255),
+                                legal_name VARCHAR(255),
+                                status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+                                source VARCHAR(50) DEFAULT 'API_CENTER',
+                                description VARCHAR(255),
+                                counter_after INTEGER NOT NULL DEFAULT 1,
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+                            );
+                        """))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_api_type ON tax_api_transactions (api_type);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_query_value ON tax_api_transactions (query_value);"))
+                        await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_created_at ON tax_api_transactions (created_at);"))
 
                         # User Activity (Audit Log) Schema Evolution
                         for act_col in [

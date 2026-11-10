@@ -277,6 +277,18 @@ export default function ConsignerPage() {
       columns: 2,
       fields: [
         {
+          name: "gstin",
+          label: "GSTIN",
+          placeholder: "22AAACJ1234F1Z1",
+          type: "gstin",
+        },
+        {
+          name: "pan",
+          label: "PAN",
+          placeholder: "e.g. AACJ1234F",
+          type: "pan",
+        },
+        {
           name: "name",
           label: "Consigner Name",
           placeholder: "e.g. Jindal Steel & Power Ltd",
@@ -306,16 +318,6 @@ export default function ConsignerPage() {
           type: "email",
           placeholder: "logistics@company.com",
           colSpan: 2,
-        },
-        {
-          name: "gstin",
-          label: "GSTIN",
-          placeholder: "22AAACJ1234F1Z1",
-        },
-        {
-          name: "pan",
-          label: "PAN",
-          placeholder: "e.g. AACJ1234F",
         },
         {
           name: "pincode",

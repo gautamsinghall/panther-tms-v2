@@ -259,9 +259,9 @@ def _matches_permission(
         return f_req == f_p
 
     # 4. API Center:
-    # E-Way Bill: eway_bill_api, eway_bill, ewb across api_center / api-center / company
-    if (m_req in ("api_center", "api-center", "company") and f_req in ("eway_bill_api", "eway_bill", "ewb")) and \
-       (m_p in ("api_center", "api-center", "company") and f_p in ("eway_bill_api", "eway_bill", "ewb")):
+    # E-Way Bill, GST & PAN: across api_center / api-center / company
+    if (m_req in ("api_center", "api-center", "company") and f_req in ("eway_bill_api", "eway_bill", "ewb", "gst_api", "pan_api", "gst", "pan")) and \
+       (m_p in ("api_center", "api-center", "company") and f_p in ("eway_bill_api", "eway_bill", "ewb", "gst_api", "pan_api", "gst", "pan")):
         return True
 
     # FASTag API: fastag_tracking_api, fastag_tracking, fastag across api_center / api-center / company

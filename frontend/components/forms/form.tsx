@@ -10,6 +10,8 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { StateSelect } from "@/components/ui/state-select";
 import { CountrySelect } from "@/components/ui/country-select";
 import { PincodeInput } from "@/components/ui/pincode-input";
+import { GstinInput } from "@/components/ui/gstin-input";
+import { PanInput } from "@/components/ui/pan-input";
 import { isIndia } from "@/lib/states";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 
@@ -282,6 +284,168 @@ export function Form({
                         setFieldValue: handleChange,
                         error: fieldError,
                       })
+                    ) : field.type === "gstin" || field.name === "gstin" ? (
+                      <GstinInput
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        placeholder={field.placeholder || "e.g. 27AAACT2727Q1ZW"}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={field.required}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                        onFetch={(result) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          const updates: Record<string, any> = { [field.name]: result.gstin };
+
+                          // Auto-populate PAN
+                          for (const pKey of ["pan", "pan_no", "pan_number"]) {
+                            if (allFieldNames.has(pKey) && result.pan) {
+                              updates[pKey] = result.pan;
+                            }
+                          }
+
+                          // Auto-populate corporate / legal / trade name
+                          if (allFieldNames.has("company_name") && result.legal_name) {
+                            updates["company_name"] = result.legal_name;
+                          }
+                          if (allFieldNames.has("legal_name") && result.legal_name) {
+                            updates["legal_name"] = result.legal_name;
+                          }
+                          if (allFieldNames.has("name") && (result.trade_name || result.legal_name)) {
+                            updates["name"] = result.trade_name || result.legal_name;
+                          }
+                          if (allFieldNames.has("owner_name") && (result.trade_name || result.legal_name)) {
+                            updates["owner_name"] = result.trade_name || result.legal_name;
+                          }
+
+                          // Incorporation date
+                          for (const dKey of ["incorporation_date", "date_of_incorporation"]) {
+                            if (allFieldNames.has(dKey) && result.incorporation_date) {
+                              updates[dKey] = result.incorporation_date;
+                            }
+                          }
+
+                          // Legal status
+                          if (allFieldNames.has("legal_status") && result.legal_status) {
+                            updates["legal_status"] = result.legal_status;
+                          }
+
+                          // Address & Location fields
+                          if (allFieldNames.has("address") && result.address) {
+                            updates["address"] = result.address;
+                          }
+                          if (allFieldNames.has("city") && result.city) {
+                            updates["city"] = result.city;
+                          } else if (allFieldNames.has("city_name") && result.city) {
+                            updates["city_name"] = result.city;
+                          }
+                          if (allFieldNames.has("state") && result.state) {
+                            updates["state"] = result.state;
+                          }
+                          if (allFieldNames.has("billing_state") && (result.billing_state || result.state)) {
+                            updates["billing_state"] = result.billing_state || result.state;
+                          }
+                          if (allFieldNames.has("pincode") && result.pincode) {
+                            updates["pincode"] = result.pincode;
+                          }
+                          if (allFieldNames.has("country")) {
+                            updates["country"] = result.country || DEFAULT_COUNTRY;
+                          }
+
+                          setValues((prev) => ({ ...prev, ...updates }));
+
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            Object.keys(updates).forEach((k) => delete next[k]);
+                            return next;
+                          });
+                          setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
+                        }}
+                      />
+                    ) : field.type === "pan" || field.name === "pan" || field.name === "pan_no" || field.name === "pan_number" ? (
+                      <PanInput
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        stateCode={values["pan_state"] || (values["gstin"] ? values["gstin"].substring(0, 2) : "07")}
+                        onStateCodeChange={(st) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          if (allFieldNames.has("pan_state")) {
+                            handleChange("pan_state", st);
+                          }
+                        }}
+                        placeholder={field.placeholder || "e.g. AAACT2727Q"}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={field.required}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                        onFetch={(result) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          const updates: Record<string, any> = { [field.name]: result.pan };
+
+                          if (allFieldNames.has("gstin") && result.gstin) {
+                            updates["gstin"] = result.gstin;
+                          }
+                          if (allFieldNames.has("company_name") && result.legal_name) {
+                            updates["company_name"] = result.legal_name;
+                          }
+                          if (allFieldNames.has("legal_name") && result.legal_name) {
+                            updates["legal_name"] = result.legal_name;
+                          }
+                          if (allFieldNames.has("name") && (result.trade_name || result.legal_name)) {
+                            updates["name"] = result.trade_name || result.legal_name;
+                          }
+                          if (allFieldNames.has("owner_name") && (result.trade_name || result.legal_name)) {
+                            updates["owner_name"] = result.trade_name || result.legal_name;
+                          }
+                          for (const dKey of ["incorporation_date", "date_of_incorporation"]) {
+                            if (allFieldNames.has(dKey) && result.incorporation_date) {
+                              updates[dKey] = result.incorporation_date;
+                            }
+                          }
+                          if (allFieldNames.has("legal_status") && result.legal_status) {
+                            updates["legal_status"] = result.legal_status;
+                          }
+                          if (allFieldNames.has("address") && result.address) {
+                            updates["address"] = result.address;
+                          }
+                          if (allFieldNames.has("city") && result.city) {
+                            updates["city"] = result.city;
+                          } else if (allFieldNames.has("city_name") && result.city) {
+                            updates["city_name"] = result.city;
+                          }
+                          if (allFieldNames.has("state") && result.state) {
+                            updates["state"] = result.state;
+                          }
+                          if (allFieldNames.has("billing_state") && (result.billing_state || result.state)) {
+                            updates["billing_state"] = result.billing_state || result.state;
+                          }
+                          if (allFieldNames.has("pincode") && result.pincode) {
+                            updates["pincode"] = result.pincode;
+                          }
+                          if (allFieldNames.has("country")) {
+                            updates["country"] = result.country || DEFAULT_COUNTRY;
+                          }
+
+                          setValues((prev) => ({ ...prev, ...updates }));
+
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            Object.keys(updates).forEach((k) => delete next[k]);
+                            return next;
+                          });
+                          setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
+                        }}
+                      />
                     ) : field.type === "pincode" || field.name === "pincode" ? (
                       <PincodeInput
                         id={inputId}

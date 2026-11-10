@@ -188,6 +188,8 @@ ALL_NAVIGATION_MODULES = [
         "title": "API Center",
         "items": [
             {"feature": "eway_bill_api", "title": "E-Way Bill API", "href": "/api-center/eway-bill"},
+            {"feature": "gst_api", "title": "GST API", "href": "/api-center/gst"},
+            {"feature": "pan_api", "title": "PAN API", "href": "/api-center/pan"},
             {"feature": "gps_tracking_api", "title": "GPS Tracking API", "href": "/api-center/gps"},
             {"feature": "fastag_tracking_api", "title": "FASTag Tracking API", "href": "/api-center/fastag"},
             {"feature": "sim_tracking_api", "title": "SIM Based Tracking API", "href": "/api-center/sim"},
@@ -336,6 +338,12 @@ def build_user_navigation(current_user: Any, tenant: Any) -> list:
                     if feat_norm in ("eway_bill_api", "eway_bill", "ewb"):
                         allowed_features.add(("api_center", "eway_bill_api"))
                         allowed_features.add(("api-center", "eway_bill_api"))
+                    elif feat_norm in ("gst_api", "gst"):
+                        allowed_features.add(("api_center", "gst_api"))
+                        allowed_features.add(("api-center", "gst_api"))
+                    elif feat_norm in ("pan_api", "pan"):
+                        allowed_features.add(("api_center", "pan_api"))
+                        allowed_features.add(("api-center", "pan_api"))
                     elif feat_norm in ("fastag_tracking_api", "fastag_tracking", "fastag"):
                         allowed_features.add(("api_center", "fastag_tracking_api"))
                         allowed_features.add(("api-center", "fastag_tracking_api"))
