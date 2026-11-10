@@ -1699,7 +1699,7 @@ export default function HireChallansPage() {
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="from-locations-list">
-                  {locations.map((loc) => (
+                  {locations.filter((loc: any) => loc.is_active !== false || loc.city_name === fromLocation).map((loc) => (
                     <option key={loc.id} value={loc.city_name}>
                       {loc.city_name} {loc.state ? `(${loc.state})` : ""}
                     </option>
@@ -1722,7 +1722,7 @@ export default function HireChallansPage() {
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="to-locations-list">
-                  {locations.map((loc) => (
+                  {locations.filter((loc: any) => loc.is_active !== false || loc.city_name === toLocation).map((loc) => (
                     <option key={loc.id} value={loc.city_name}>
                       {loc.city_name} {loc.state ? `(${loc.state})` : ""}
                     </option>
@@ -1745,7 +1745,7 @@ export default function HireChallansPage() {
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="vehicles-list">
-                  {vehicles.map((v) => (
+                  {vehicles.filter((v: any) => v.is_active !== false || v.vehicle_number === vehicleNumber).map((v) => (
                     <option key={v.id} value={v.vehicle_number}>
                       {v.vehicle_number} {v.vehicle_type ? `(${v.vehicle_type})` : ""}
                     </option>
@@ -1765,7 +1765,7 @@ export default function HireChallansPage() {
                     className="flex-1 min-w-0 h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs truncate cursor-pointer"
                   >
                     <option value="">- Select Driver -</option>
-                    {drivers.map((d) => (
+                    {drivers.filter((d: any) => d.is_active !== false || String(d.id) === String(driverId)).map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name} {d.phone ? `(${d.phone})` : ""}
                       </option>

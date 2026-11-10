@@ -428,14 +428,18 @@ export default function UsersPage() {
           variant: "danger",
         });
         if (!ok) return;
+        setUsers((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/settings/users/${row.id}`, {
+          const res = await apiClient(`/api/v1/settings/users/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: false }),
           });
           toast.success("User deactivated successfully.");
-          loadData();
+          if (res && typeof res === "object") {
+            setUsers((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, ...res, is_active: false } : item)));
+          }
         } catch (err: any) {
+          setUsers((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: true } : item)));
           toast.error(err.message || "Failed to deactivate user.");
         }
       },
@@ -453,14 +457,18 @@ export default function UsersPage() {
           variant: "primary",
         });
         if (!ok) return;
+        setUsers((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: true } : item)));
         try {
-          await apiClient(`/api/v1/settings/users/${row.id}`, {
+          const res = await apiClient(`/api/v1/settings/users/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
           toast.success("User activated successfully.");
-          loadData();
+          if (res && typeof res === "object") {
+            setUsers((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, ...res, is_active: true } : item)));
+          }
         } catch (err: any) {
+          setUsers((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: false } : item)));
           toast.error(err.message || "Failed to activate user.");
         }
       },

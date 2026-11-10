@@ -394,13 +394,17 @@ export default function CompanyBankAccountsPage() {
   // Action Handlers
   // ---------------------------------------------------------------------------
   const handleToggleStatus = async (acc: CompanyBankAccount) => {
+    setAccounts((prev) => prev.map((a) => (String(a.id) === String(acc.id) ? { ...a, is_active: !a.is_active } : a)));
     try {
-      await apiClient(`/api/v1/accounts/bank-accounts/${acc.id}/toggle-status`, {
+      const res = await apiClient(`/api/v1/accounts/bank-accounts/${acc.id}/toggle-status`, {
         method: "PATCH",
       });
+      if (res && typeof res === "object") {
+        setAccounts((prev) => prev.map((a) => (String(a.id) === String(acc.id) ? { ...a, ...res } : a)));
+      }
       toast.success(acc.is_active ? "Bank account deactivated." : "Bank account activated.");
-      fetchData();
     } catch (err: any) {
+      setAccounts((prev) => prev.map((a) => (String(a.id) === String(acc.id) ? { ...a, is_active: acc.is_active } : a)));
       toast.error(err.message || "Failed to update account status.");
     }
   };

@@ -178,17 +178,19 @@ export default function LocationPage() {
         });
         if (!ok) return;
         // Immediate status change with NO page refresh
-        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+        setData((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/general/locations/${row.id}`, {
+          const res = await apiClient(`/api/v1/general/locations/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: false }),
           });
           toast.success("Deactivated successfully.");
-          await loadData();
+          if (res && typeof res === "object") {
+            setData((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, ...res, is_active: false } : item)));
+          }
         } catch (err: any) {
           // Revert optimistic update
-          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          setData((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: true } : item)));
           toast.error(err.message || "Failed to deactivate record.");
         }
       },
@@ -207,17 +209,19 @@ export default function LocationPage() {
         });
         if (!ok) return;
         // Immediate status change with NO page refresh
-        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+        setData((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: true } : item)));
         try {
-          await apiClient(`/api/v1/general/locations/${row.id}`, {
+          const res = await apiClient(`/api/v1/general/locations/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
           toast.success("Activated successfully.");
-          await loadData();
+          if (res && typeof res === "object") {
+            setData((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, ...res, is_active: true } : item)));
+          }
         } catch (err: any) {
           // Revert optimistic update
-          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          setData((prev) => prev.map((item) => (String(item.id) === String(row.id) ? { ...item, is_active: false } : item)));
           toast.error(err.message || "Failed to activate record.");
         }
       },

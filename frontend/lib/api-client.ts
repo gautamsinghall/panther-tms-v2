@@ -57,6 +57,22 @@ export async function apiClient<T = any>(
     headers["Content-Type"] = "application/json";
   }
 
+  // Prevent browser/proxy caching of dynamic API responses
+  if (!headers["Cache-Control"]) {
+    headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+  }
+  if (!headers["Pragma"]) {
+    headers["Pragma"] = "no-cache";
+  }
+
+  // Append cache buster to GET requests
+  let finalUrl = url;
+  const reqMethod = (options.method || "GET").toUpperCase();
+  if (reqMethod === "GET") {
+    const sep = finalUrl.includes("?") ? "&" : "?";
+    finalUrl = `${finalUrl}${sep}_t=${Date.now()}`;
+  }
+
   // HARD RULE 0 — NO DELETION OF LRs IN PANTHER TMS
   if (options.method === "DELETE" && (endpoint.includes("/transport/lrs") || endpoint.match(/\/lrs(\/|$)/))) {
     const msg = "You cannot delete this LR. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this LR needs correction or cancellation.";
@@ -75,7 +91,8 @@ export async function apiClient<T = any>(
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await fetch(finalUrl, {
+      cache: options.cache || "no-store",
       ...options,
       headers,
     });

@@ -226,17 +226,19 @@ export default function VendorMasterPage() {
 
     if (confirmed) {
       // Immediate status change with NO page refresh
-      setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: false } : item)));
+      setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: false, account_status: "Inactive" } : item)));
       try {
-        await apiClient(`/api/v1/general/vendors/${record.id}`, {
+        const res = await apiClient(`/api/v1/general/vendors/${record.id}`, {
           method: "PUT",
           body: JSON.stringify({ is_active: false, account_status: "Inactive" }),
         });
         toast.success("Deactivated successfully.");
-        await loadData();
+        if (res && typeof res === "object") {
+          setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, ...res, is_active: false, account_status: "Inactive" } : item)));
+        }
       } catch (err: any) {
         // Revert optimistic update
-        setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: true } : item)));
+        setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: true, account_status: "Active" } : item)));
         toast.error(err.message || "Failed to deactivate record.");
       }
     }
@@ -252,17 +254,19 @@ export default function VendorMasterPage() {
 
     if (confirmed) {
       // Immediate status change with NO page refresh
-      setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: true } : item)));
+      setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: true, account_status: "Active" } : item)));
       try {
-        await apiClient(`/api/v1/general/vendors/${record.id}`, {
+        const res = await apiClient(`/api/v1/general/vendors/${record.id}`, {
           method: "PUT",
           body: JSON.stringify({ is_active: true, account_status: "Active" }),
         });
         toast.success("Activated successfully.");
-        await loadData();
+        if (res && typeof res === "object") {
+          setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, ...res, is_active: true, account_status: "Active" } : item)));
+        }
       } catch (err: any) {
         // Revert optimistic update
-        setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: false } : item)));
+        setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: false, account_status: "Inactive" } : item)));
         toast.error(err.message || "Failed to activate record.");
       }
     }
@@ -727,15 +731,17 @@ export default function VendorMasterPage() {
       key: "account_status",
       header: "Running Status",
       cell: (row) => {
-        const rawStatus = (row.account_status || (row.is_active ? "Active" : "Inactive")).toUpperCase();
+        const isActuallyActive = row.is_active !== false && String(row.account_status || "").toUpperCase() !== "INACTIVE";
+        const rawStatus = (row.account_status || (isActuallyActive ? "Active" : "Inactive")).toUpperCase();
         let variant: "active" | "inactive" | "pending" | "warning" = "active";
-        if (rawStatus === "ACTIVE") variant = "active";
+        if (!isActuallyActive || rawStatus === "INACTIVE") variant = "inactive";
+        else if (rawStatus === "ACTIVE") variant = "active";
         else if (rawStatus === "HOLD" || rawStatus === "ON HOLD") variant = "warning";
         else variant = "inactive";
 
         return (
           <StatusBadge
-            status={row.account_status || (row.is_active ? "Active" : "Inactive")}
+            status={!isActuallyActive ? "Inactive" : (row.account_status || "Active")}
             variant={variant}
           />
         );
@@ -754,14 +760,14 @@ export default function VendorMasterPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-rose-600" />,
       variant: "danger",
-      hidden: (record) => !record.is_active,
+      hidden: (record) => !record.is_active || String(record.account_status || "").toUpperCase() === "INACTIVE",
       onClick: (record) => handleDeactivate(record),
     },
     {
       label: "Activate",
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
       variant: "default",
-      hidden: (record) => !!record.is_active,
+      hidden: (record) => !!record.is_active && String(record.account_status || "").toUpperCase() !== "INACTIVE",
       onClick: (record) => handleActivate(record),
     },
   ];
