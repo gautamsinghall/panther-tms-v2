@@ -226,40 +226,53 @@ export default function BillingClientPage() {
     }
   };
 
-  const handleConfirmDeactivate = async () => {
-    if (!deactivatingRecord) return;
-    setIsDeactivating(true);
+  const handleConfirmDeactivate = async (target?: BillingClientRecord) => {
+    const record = target || deactivatingRecord;
+    if (!record) return;
+    const ok = await confirmModal({
+      title: "Deactivate Record",
+      description: "Are you sure you want to deactivate this record?",
+      confirmText: "Deactivate",
+      variant: "danger",
+    });
+    if (!ok) return;
+    // Immediate status change with NO page refresh
+    setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: false } : item)));
     try {
-      await apiClient(`/api/v1/general/billing-clients/${deactivatingRecord.id}`, {
-        method: "DELETE",
+      await apiClient(`/api/v1/general/billing-clients/${record.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ is_active: false }),
       });
-      setDeactivatingRecord(null);
-      toast.success("Billing Client deactivated successfully.");
+      toast.success("Deactivated successfully.");
       await loadData();
     } catch (err: any) {
-      toast.error(err.message || "Failed to deactivate billing client.");
-    } finally {
-      setIsDeactivating(false);
+      // Revert optimistic update
+      setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: true } : item)));
+      toast.error(err.message || "Failed to deactivate record.");
     }
   };
 
   const handleToggleActivate = async (record: BillingClientRecord) => {
     const ok = await confirmModal({
-      title: "Activate Billing Client",
-      description: `Are you sure you want to activate "${record.name}"?`,
+      title: "Activate Record",
+      description: "Are you sure you want to activate this record?",
       confirmText: "Activate",
       variant: "primary",
     });
     if (!ok) return;
+    // Immediate status change with NO page refresh
+    setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: true } : item)));
     try {
       await apiClient(`/api/v1/general/billing-clients/${record.id}`, {
         method: "PUT",
         body: JSON.stringify({ is_active: true }),
       });
-      toast.success("Billing Client activated successfully.");
+      toast.success("Activated successfully.");
       await loadData();
     } catch (err: any) {
-      toast.error(err.message || "Failed to activate billing client.");
+      // Revert optimistic update
+      setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: false } : item)));
+      toast.error(err.message || "Failed to activate record.");
     }
   };
 
@@ -626,8 +639,8 @@ export default function BillingClientPage() {
 
   const actions: RowAction<BillingClientRecord>[] = [
     {
-      label: "Edit Client",
-      icon: <Edit3 className="w-3.5 h-3.5" />,
+      label: "Edit",
+      icon: <Edit3 className="w-3.5 h-3.5 text-slate-600" />,
       onClick: (row) => {
         openEditDrawer(row);
       },
@@ -638,7 +651,7 @@ export default function BillingClientPage() {
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: (row) => {
-        setDeactivatingRecord(row);
+        handleConfirmDeactivate(row);
       },
     },
     {

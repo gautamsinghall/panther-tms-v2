@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Edit3, Building2, Phone, Mail, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Building2, Phone, Mail, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -45,11 +45,8 @@ export default function ConsignerPage() {
 
   // Drawer / Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<ConsignerRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Confirmation dialog state
-  const [deactivatingRecord, setDeactivatingRecord] = useState<ConsignerRecord | null>(null);
-  const [isDeactivating, setIsDeactivating] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -201,12 +198,40 @@ export default function ConsignerPage() {
 
   const actions: RowAction<ConsignerRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
-      onClick: (row) => {
-        setDeactivatingRecord(row);
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+        try {
+          await apiClient(`/api/v1/general/consigners/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
+          loadData();
+        } catch (err: any) {
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          toast.error(err.message || "Failed to deactivate record.");
+        }
       },
     },
     {
@@ -216,21 +241,25 @@ export default function ConsignerPage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Consigner",
-          description: `Are you sure you want to activate ${row.name}?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/general/consigners/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Consigner activated successfully.");
+          toast.success("Activated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to activate consigner.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          toast.error(err.message || "Failed to activate record.");
         }
       },
     },
@@ -325,7 +354,9 @@ export default function ConsignerPage() {
         localStorage.setItem("panther_party_created", JSON.stringify({ type: "consigner", id: created.id, name: created.name }));
         window.dispatchEvent(new Event("panther_consigner_created"));
       }
+      toast.success("Consigner created successfully.");
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create consigner record.");
@@ -334,20 +365,26 @@ export default function ConsignerPage() {
     }
   };
 
-  const handleConfirmDeactivate = async () => {
-    if (!deactivatingRecord) return;
-    setIsDeactivating(true);
+  const handleUpdate = async (values: Record<string, any>) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
     try {
-      await apiClient(`/api/v1/general/consigners/${deactivatingRecord.id}`, {
-        method: "DELETE",
+      const updated = await apiClient<any>(`/api/v1/general/consigners/${editingRecord.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...values,
+          country: values.country || "India",
+        }),
       });
-      setDeactivatingRecord(null);
-      toast.success("Consigner deactivated successfully.");
+      toast.success("Consigner updated successfully.");
+      setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values, ...updated } : item)));
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
-      toast.error(err.message || "Failed to deactivate consigner.");
+      toast.error(err.message || "Failed to update consigner record.");
     } finally {
-      setIsDeactivating(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -364,7 +401,10 @@ export default function ConsignerPage() {
         primaryAction={{
           label: "Add Consigner",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -406,38 +446,37 @@ export default function ConsignerPage() {
         emptySubtext="Add your first dispatching shipper party to begin creating jobs, bookings, and freight invoices."
         emptyAction={{
           label: "Add Consigner",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       {/* Slide-over EntityDrawer per docs/design.md §16 */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create New Consigner"
-        description="Register a new dispatching party and commercial billing shipper."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Consigner" : "Create New Consigner"}
+        description={editingRecord ? "Update consignor information and billing profile." : "Register a new dispatching party and commercial billing shipper."}
         width="xl"
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "new"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Consigner"
+          initialValues={editingRecord || undefined}
+          onSubmit={editingRecord ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Create Consigner"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>
-
-      {/* Explicit ConfirmDialog per docs/design.md §24 */}
-      <ConfirmDialog
-        isOpen={!!deactivatingRecord}
-        onClose={() => setDeactivatingRecord(null)}
-        onConfirm={handleConfirmDeactivate}
-        title="Deactivate Consigner"
-        entityName={deactivatingRecord?.name}
-        consequence="Deactivating this consigner will mark their status as inactive. Existing past jobs, LRs, and invoices remain intact for audit history."
-        confirmLabel="Deactivate Consigner"
-        isLoading={isDeactivating}
-      />
     </div>
   );
 }

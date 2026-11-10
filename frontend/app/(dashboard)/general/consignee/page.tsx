@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Building2, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Building2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -41,6 +41,7 @@ export default function ConsigneePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<ConsigneeRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -177,24 +178,39 @@ export default function ConsigneePage() {
 
   const actions: RowAction<ConsigneeRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Consignee",
-          description: `Are you sure you want to deactivate ${row.name}?`,
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/general/consignees/${row.id}`, { method: "DELETE" });
-          toast.success("Consignee deactivated successfully.");
+          await apiClient(`/api/v1/general/consignees/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           await loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate consignee.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          toast.error(err.message || "Failed to deactivate record.");
         }
       },
     },
@@ -205,21 +221,25 @@ export default function ConsigneePage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Consignee",
-          description: `Are you sure you want to activate ${row.name}?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/general/consignees/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Consignee activated successfully.");
+          toast.success("Activated successfully.");
           await loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to activate consignee.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          toast.error(err.message || "Failed to activate record.");
         }
       },
     },
@@ -314,10 +334,35 @@ export default function ConsigneePage() {
         localStorage.setItem("panther_party_created", JSON.stringify({ type: "consignee", id: created.id, name: created.name }));
         window.dispatchEvent(new Event("panther_consignee_created"));
       }
+      toast.success("Consignee created successfully.");
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create consignee.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (values: Record<string, any>) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
+    try {
+      const updated = await apiClient<any>(`/api/v1/general/consignees/${editingRecord.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...values,
+          country: values.country || "India",
+        }),
+      });
+      toast.success("Consignee updated successfully.");
+      setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values, ...updated } : item)));
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update consignee.");
     } finally {
       setIsSubmitting(false);
     }
@@ -336,7 +381,10 @@ export default function ConsigneePage() {
         primaryAction={{
           label: "Add Consignee",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -378,23 +426,34 @@ export default function ConsigneePage() {
         emptySubtext="Add your first delivery receiver party to begin booking LRs."
         emptyAction={{
           label: "Add Consignee",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
         searchable={false}
       />
 
-      {/* Create Drawer per docs/design.md §5 & §16 */}
+      {/* Create / Edit Drawer per docs/design.md §5 & §16 */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create New Consignee"
-        description="Register a new delivery receiver in the consignee directory."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Consignee" : "Create New Consignee"}
+        description={editingRecord ? "Update delivery receiver details in the consignee directory." : "Register a new delivery receiver in the consignee directory."}
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "new"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Consignee"
+          initialValues={editingRecord || undefined}
+          onSubmit={editingRecord ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Create Consignee"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

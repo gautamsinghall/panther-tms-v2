@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Scale, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Scale, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -26,6 +26,7 @@ export default function UnitPage() {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<UnitRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -84,24 +85,39 @@ export default function UnitPage() {
 
   const actions: RowAction<UnitRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Unit",
-          description: `Are you sure you want to deactivate ${row.name}?`,
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/general/units/${row.id}`, { method: "DELETE" });
-          toast.success("Unit deactivated successfully.");
+          await apiClient(`/api/v1/general/units/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate unit.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          toast.error(err.message || "Failed to deactivate record.");
         }
       },
     },
@@ -112,21 +128,25 @@ export default function UnitPage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Unit",
-          description: `Are you sure you want to activate ${row.name}?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/general/units/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Unit activated successfully.");
+          toast.success("Activated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to activate unit.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          toast.error(err.message || "Failed to activate record.");
         }
       },
     },
@@ -168,10 +188,32 @@ export default function UnitPage() {
         method: "POST",
         body: JSON.stringify(values),
       });
+      toast.success("Unit created successfully.");
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create unit.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (values: Record<string, any>) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
+    try {
+      const updated = await apiClient<any>(`/api/v1/general/units/${editingRecord.id}`, {
+        method: "PUT",
+        body: JSON.stringify(values),
+      });
+      toast.success("Unit updated successfully.");
+      setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values, ...updated } : item)));
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update unit.");
     } finally {
       setIsSubmitting(false);
     }
@@ -189,7 +231,10 @@ export default function UnitPage() {
         primaryAction={{
           label: "Add Unit",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -206,21 +251,32 @@ export default function UnitPage() {
         emptySubtext="Add measurement units like MT, KG, Bags, or Cases for freight billing."
         emptyAction={{
           label: "Add Unit",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create Measurement Unit"
-        description="Add a cargo measurement unit symbol."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Unit" : "Create Measurement Unit"}
+        description={editingRecord ? "Update cargo measurement unit details." : "Add a cargo measurement unit symbol."}
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "new"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Unit"
+          initialValues={editingRecord || undefined}
+          onSubmit={editingRecord ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Create Unit"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

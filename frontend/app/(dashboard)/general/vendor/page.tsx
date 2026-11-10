@@ -218,43 +218,52 @@ export default function VendorMasterPage() {
 
   const handleDeactivate = async (record: VendorRecord) => {
     const confirmed = await confirmModal({
-      title: "Deactivate Vendor?",
-      description: `Are you sure you want to deactivate "${record.name}"? Active jobs or hire challans referencing this vendor will retain their history.`,
+      title: "Deactivate Record",
+      description: "Are you sure you want to deactivate this record?",
       confirmText: "Deactivate",
       variant: "danger",
     });
 
     if (confirmed) {
+      // Immediate status change with NO page refresh
+      setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: false } : item)));
       try {
         await apiClient(`/api/v1/general/vendors/${record.id}`, {
-          method: "DELETE",
+          method: "PUT",
+          body: JSON.stringify({ is_active: false, account_status: "Inactive" }),
         });
-        toast.success(`Vendor "${record.name}" has been deactivated.`);
+        toast.success("Deactivated successfully.");
         await loadData();
       } catch (err: any) {
-        toast.error(err.message || "Failed to deactivate vendor.");
+        // Revert optimistic update
+        setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: true } : item)));
+        toast.error(err.message || "Failed to deactivate record.");
       }
     }
   };
 
   const handleActivate = async (record: VendorRecord) => {
     const confirmed = await confirmModal({
-      title: "Activate Vendor?",
-      description: `Are you sure you want to activate "${record.name}"?`,
+      title: "Activate Record",
+      description: "Are you sure you want to activate this record?",
       confirmText: "Activate",
       variant: "primary",
     });
 
     if (confirmed) {
+      // Immediate status change with NO page refresh
+      setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: true } : item)));
       try {
         await apiClient(`/api/v1/general/vendors/${record.id}`, {
           method: "PUT",
           body: JSON.stringify({ is_active: true, account_status: "Active" }),
         });
-        toast.success(`Vendor "${record.name}" has been activated.`);
+        toast.success("Activated successfully.");
         await loadData();
       } catch (err: any) {
-        toast.error(err.message || "Failed to activate vendor.");
+        // Revert optimistic update
+        setData((prev) => prev.map((item) => (item.id === record.id ? { ...item, is_active: false } : item)));
+        toast.error(err.message || "Failed to activate record.");
       }
     }
   };
@@ -737,7 +746,7 @@ export default function VendorMasterPage() {
   // Row Actions
   const actions: RowAction<VendorRecord>[] = [
     {
-      label: "Edit Vendor",
+      label: "Edit",
       icon: <Edit3 className="w-3.5 h-3.5" />,
       onClick: (record) => openEditDrawer(record),
     },

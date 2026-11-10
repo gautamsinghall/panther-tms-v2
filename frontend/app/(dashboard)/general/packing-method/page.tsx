@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Package, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Package, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -26,6 +26,7 @@ export default function PackingMethodPage() {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<MethodOfPackingRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -84,24 +85,39 @@ export default function PackingMethodPage() {
 
   const actions: RowAction<MethodOfPackingRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Packing Method",
-          description: `Are you sure you want to deactivate ${row.name}?`,
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/general/packing-methods/${row.id}`, { method: "DELETE" });
-          toast.success("Packing method deactivated successfully.");
+          await apiClient(`/api/v1/general/packing-methods/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate packing method.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          toast.error(err.message || "Failed to deactivate record.");
         }
       },
     },
@@ -112,21 +128,25 @@ export default function PackingMethodPage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Packing Method",
-          description: `Are you sure you want to activate ${row.name}?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/general/packing-methods/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Packing method activated successfully.");
+          toast.success("Activated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to activate packing method.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          toast.error(err.message || "Failed to activate record.");
         }
       },
     },
@@ -167,10 +187,32 @@ export default function PackingMethodPage() {
         method: "POST",
         body: JSON.stringify(values),
       });
+      toast.success("Packing method created successfully.");
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create packing method.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (values: Record<string, any>) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
+    try {
+      const updated = await apiClient<any>(`/api/v1/general/packing-methods/${editingRecord.id}`, {
+        method: "PUT",
+        body: JSON.stringify(values),
+      });
+      toast.success("Packing method updated successfully.");
+      setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values, ...updated } : item)));
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update packing method.");
     } finally {
       setIsSubmitting(false);
     }
@@ -188,7 +230,10 @@ export default function PackingMethodPage() {
         primaryAction={{
           label: "Add Packing Method",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -205,21 +250,32 @@ export default function PackingMethodPage() {
         emptySubtext="Add packaging standards such as Pallets, Bags, Crates, or Drums."
         emptyAction={{
           label: "Add Packing Method",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create Packaging Method"
-        description="Add a consignment packaging standard."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Packing Method" : "Create Packaging Method"}
+        description={editingRecord ? "Update consignment packaging standard details." : "Add a consignment packaging standard."}
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "new"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Method"
+          initialValues={editingRecord || undefined}
+          onSubmit={editingRecord ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Create Method"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

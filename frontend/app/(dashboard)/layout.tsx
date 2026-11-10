@@ -20,8 +20,9 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
     return off?.id !== undefined ? String(off.id) : "default";
   });
 
-  // Reset scroll position to top on in-app navigation
+  // Reset scroll position and guarantee list canvas visibility on in-app section/page navigation
   useEffect(() => {
+    setActiveTab("list");
     const mainCanvas = document.getElementById("workspace-main-canvas");
     if (mainCanvas) {
       mainCanvas.scrollTop = 0;
@@ -30,7 +31,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
     if (formCanvas) {
       formCanvas.scrollTop = 0;
     }
-  }, [pathname]);
+  }, [pathname, setActiveTab]);
 
   useEffect(() => {
     const handleOfficeChange = (e: Event) => {

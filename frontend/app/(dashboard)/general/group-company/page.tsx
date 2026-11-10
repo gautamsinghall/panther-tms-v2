@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Building2, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Building2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -28,6 +28,7 @@ export default function GroupCompanyPage() {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<GroupCompanyRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -104,24 +105,39 @@ export default function GroupCompanyPage() {
 
   const actions: RowAction<GroupCompanyRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Group Company",
-          description: `Are you sure you want to deactivate ${row.company_name}?`,
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/general/group-companies/${row.id}`, { method: "DELETE" });
-          toast.success("Group company deactivated successfully.");
+          await apiClient(`/api/v1/general/group-companies/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate company.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          toast.error(err.message || "Failed to deactivate record.");
         }
       },
     },
@@ -132,21 +148,25 @@ export default function GroupCompanyPage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Group Company",
-          description: `Are you sure you want to activate ${row.company_name}?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/general/group-companies/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Group company activated successfully.");
+          toast.success("Activated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to activate company.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          toast.error(err.message || "Failed to activate record.");
         }
       },
     },
@@ -199,10 +219,32 @@ export default function GroupCompanyPage() {
         method: "POST",
         body: JSON.stringify(values),
       });
+      toast.success("Group company created successfully.");
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create group company.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (values: Record<string, any>) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
+    try {
+      const updated = await apiClient<any>(`/api/v1/general/group-companies/${editingRecord.id}`, {
+        method: "PUT",
+        body: JSON.stringify(values),
+      });
+      toast.success("Group company updated successfully.");
+      setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values, ...updated } : item)));
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update group company.");
     } finally {
       setIsSubmitting(false);
     }
@@ -220,7 +262,10 @@ export default function GroupCompanyPage() {
         primaryAction={{
           label: "Add Company",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -237,21 +282,32 @@ export default function GroupCompanyPage() {
         emptySubtext="Add multi-company entities to bill from multiple GST accounts."
         emptyAction={{
           label: "Add Company",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create Group Company Entity"
-        description="Register a legal trading company for invoice series."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Group Company" : "Create Group Company Entity"}
+        description={editingRecord ? "Update legal trading company details." : "Register a legal trading company for invoice series."}
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "new"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Entity"
+          initialValues={editingRecord || undefined}
+          onSubmit={editingRecord ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Create Entity"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

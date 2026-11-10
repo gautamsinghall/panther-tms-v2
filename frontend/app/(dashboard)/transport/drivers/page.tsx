@@ -244,17 +244,24 @@ export default function DriversPage() {
       hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Driver",
-          description: `Are you sure you want to deactivate driver "${row.name}"?`,
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/transport/drivers/${row.id}`, { method: "DELETE" });
-          toast.success("Driver deactivated successfully.");
+          await apiClient(`/api/v1/transport/drivers/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           loadData();
         } catch (err: any) {
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
           toast.error(err.message || "Failed to deactivate driver.");
         }
       },
@@ -266,20 +273,24 @@ export default function DriversPage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Driver",
-          description: `Are you sure you want to activate driver "${row.name}"?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/transport/drivers/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Driver activated successfully.");
+          toast.success("Activated successfully.");
           loadData();
         } catch (err: any) {
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
           toast.error(err.message || "Failed to activate driver.");
         }
       },

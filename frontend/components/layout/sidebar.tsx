@@ -1025,77 +1025,103 @@ export function Sidebar() {
               >
                 {isCollapsed ? (
                   <Tooltip content={group.title} side="right">
-                    <Link
-                      href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
-                      onClick={(e) => {
-                        if (group.is_locked) {
-                          e.preventDefault();
-                          setPlanGate({
-                            featureName: group.title,
-                            requiredPlan: group.required_plan || "BUSINESS",
-                          });
-                          return;
-                        }
-                        if (isFormOpen) {
-                          closeFormTab(false);
-                        }
-                        setIsCollapsed(false);
-                        setExpandedGroups((prev) => ({
-                          ...prev,
-                          [group.id]: true,
-                        }));
-                      }}
-                      className={cn(
-                        "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
-                        hasActiveChild
-                          ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
-                          : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
-                      )}
-                      title={group.title}
-                      aria-label={group.title}
-                    >
-                      <span className={cn(
-                        "transition-transform duration-150",
-                        hasActiveChild ? "text-indigo-600" : "text-slate-500"
-                      )}>
-                        {icon}
-                      </span>
-                      {hasActiveChild && (
-                        <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
-                      )}
-                    </Link>
+                    {group.items && group.items.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (group.is_locked) {
+                            setPlanGate({
+                              featureName: group.title,
+                              requiredPlan: group.required_plan || "BUSINESS",
+                            });
+                            return;
+                          }
+                          setIsCollapsed(false);
+                          setExpandedGroups((prev) => ({
+                            ...prev,
+                            [group.id]: true,
+                          }));
+                        }}
+                        className={cn(
+                          "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
+                          hasActiveChild
+                            ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
+                            : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
+                        )}
+                        title={group.title}
+                        aria-label={group.title}
+                      >
+                        <span className={cn(
+                          "transition-transform duration-150",
+                          hasActiveChild ? "text-indigo-600" : "text-slate-500"
+                        )}>
+                          {icon}
+                        </span>
+                        {hasActiveChild && (
+                          <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
+                        )}
+                      </button>
+                    ) : (
+                      <Link
+                        href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
+                        onClick={(e) => {
+                          if (group.is_locked) {
+                            e.preventDefault();
+                            setPlanGate({
+                              featureName: group.title,
+                              requiredPlan: group.required_plan || "BUSINESS",
+                            });
+                            return;
+                          }
+                          if (isFormOpen) {
+                            closeFormTab(false);
+                          }
+                          setActiveTab("list");
+                        }}
+                        className={cn(
+                          "w-11 h-11 mx-auto flex items-center justify-center rounded-xl transition-all duration-150 cursor-pointer group select-none relative",
+                          hasActiveChild
+                            ? "bg-indigo-50/90 text-indigo-600 border border-indigo-200/80 shadow-2xs"
+                            : "text-slate-600 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
+                        )}
+                        title={group.title}
+                        aria-label={group.title}
+                      >
+                        <span className={cn(
+                          "transition-transform duration-150",
+                          hasActiveChild ? "text-indigo-600" : "text-slate-500"
+                        )}>
+                          {icon}
+                        </span>
+                        {hasActiveChild && (
+                          <span className="absolute -left-1 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.4)]" />
+                        )}
+                      </Link>
+                    )}
                   </Tooltip>
-                ) : (
-                  <div
+                ) : group.items && group.items.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (group.is_locked) {
+                        setPlanGate({
+                          featureName: group.title,
+                          requiredPlan: group.required_plan || "BUSINESS",
+                        });
+                        return;
+                      }
+                      toggleGroup(group.id);
+                    }}
                     className={cn(
-                      "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none",
+                      "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none cursor-pointer",
                       hasActiveChild
                         ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
                         : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
                     )}
+                    aria-label={`${group.title} section`}
+                    aria-expanded={isExpanded}
                   >
-                    <Link
-                      href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
-                      onClick={(e) => {
-                        if (group.is_locked) {
-                          e.preventDefault();
-                          setPlanGate({
-                            featureName: group.title,
-                            requiredPlan: group.required_plan || "BUSINESS",
-                          });
-                          return;
-                        }
-                        if (isFormOpen) {
-                          closeFormTab(false);
-                        }
-                        setExpandedGroups((prev) => ({
-                          ...prev,
-                          [group.id]: true,
-                        }));
-                      }}
-                      className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5 cursor-pointer"
-                      aria-label={group.title}
-                    >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5">
                       <span className={cn(
                         "shrink-0 transition-all duration-150",
                         hasActiveChild ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"
@@ -1105,7 +1131,7 @@ export function Sidebar() {
                       <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">
                         {group.title}
                       </span>
-                    </Link>
+                    </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 ml-1">
                       {group.is_locked && (
@@ -1116,26 +1142,51 @@ export function Sidebar() {
                           <Lock className="w-2.5 h-2.5 shrink-0" />
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleGroup(group.id);
-                        }}
-                        className="p-1 -m-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-[#2A2A34] transition-colors cursor-pointer inline-flex items-center justify-center"
-                        aria-label={`Toggle ${group.title} submenu`}
-                      >
-                        <motion.span
-                          className="inline-flex items-center justify-center"
-                          animate={{ rotate: isExpanded ? 90 : 0 }}
-                          transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
-                        >
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </motion.span>
-                      </button>
+                      <span className="p-1 -m-1 rounded-md text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors inline-flex items-center justify-center">
+                        {isExpanded ? (
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                        )}
+                      </span>
                     </div>
-                  </div>
+                  </button>
+                ) : (
+                  <Link
+                    href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
+                    onClick={(e) => {
+                      if (group.is_locked) {
+                        e.preventDefault();
+                        setPlanGate({
+                          featureName: group.title,
+                          requiredPlan: group.required_plan || "BUSINESS",
+                        });
+                        return;
+                      }
+                      if (isFormOpen) {
+                        closeFormTab(false);
+                      }
+                      setActiveTab("list");
+                    }}
+                    className={cn(
+                      "group flex w-full items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 select-none cursor-pointer",
+                      hasActiveChild
+                        ? "text-slate-900 dark:text-[#F5F5F7] font-semibold bg-slate-100/90 dark:bg-[#17171B] border border-slate-200/80 dark:border-[#303036] shadow-2xs"
+                        : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100 dark:hover:bg-[#1C1C22] hover:text-slate-900 dark:hover:text-[#F5F5F7] active:bg-slate-200/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-1 py-0.5">
+                      <span className={cn(
+                        "shrink-0 transition-all duration-150",
+                        hasActiveChild ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"
+                      )}>
+                        {icon}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-800 dark:text-[#F5F5F7] truncate">
+                        {group.title}
+                      </span>
+                    </div>
+                  </Link>
                 )}
 
                 {/* Sub items — Accordion with Staggered Linear Inset Pill Active State */}
@@ -1182,9 +1233,7 @@ export function Sidebar() {
                               if (isFormOpen) {
                                 closeFormTab(false);
                               }
-                              if (normalizedPathname === sub.href) {
-                                setActiveTab("list");
-                              }
+                              setActiveTab("list");
                             }}
                             className={cn(
                               "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-all duration-150 select-none",
@@ -1352,14 +1401,46 @@ export function Sidebar() {
 
                   return (
                     <div key={`mobile-${group.id}`} className="space-y-0.5">
-                      <div
-                        className={cn(
-                          "w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150",
-                          hasActiveChild
-                            ? "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40"
-                            : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100/70 dark:hover:bg-[#1C1C22]"
-                        )}
-                      >
+                      {group.items && group.items.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (group.is_locked) {
+                              setPlanGate({
+                                featureName: group.title,
+                                requiredPlan: group.required_plan || "BUSINESS",
+                              });
+                              return;
+                            }
+                            toggleGroup(group.id);
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer",
+                            hasActiveChild
+                              ? "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40"
+                              : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100/70 dark:hover:bg-[#1C1C22]"
+                          )}
+                          aria-label={`Toggle ${group.title} submenu`}
+                          aria-expanded={isExpanded}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span className={cn(
+                              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-slate-500 dark:text-[#CACAD0] bg-slate-100/80 dark:bg-[#1A1A20]",
+                              hasActiveChild && "text-indigo-600 dark:text-indigo-400 bg-indigo-100/70 dark:bg-indigo-900/60"
+                            )}>
+                              {icon}
+                            </span>
+                            <span className="truncate">{group.title}</span>
+                          </div>
+                          <span className="p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 inline-flex items-center justify-center">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
+                            )}
+                          </span>
+                        </button>
+                      ) : (
                         <Link
                           href={group.is_locked ? "#" : resolveUrl(getGroupRoute(group))}
                           onClick={(e) => {
@@ -1375,12 +1456,14 @@ export function Sidebar() {
                             if (isFormOpen) {
                               closeFormTab(false);
                             }
-                            setExpandedGroups((prev) => ({
-                              ...prev,
-                              [group.id]: true,
-                            }));
+                            setActiveTab("list");
                           }}
-                          className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                          className={cn(
+                            "w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer",
+                            hasActiveChild
+                              ? "bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/40"
+                              : "text-slate-700 dark:text-[#CACAD0] hover:bg-slate-100/70 dark:hover:bg-[#1C1C22]"
+                          )}
                         >
                           <span className={cn(
                             "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-slate-500 dark:text-[#CACAD0] bg-slate-100/80 dark:bg-[#1A1A20]",
@@ -1390,22 +1473,7 @@ export function Sidebar() {
                           </span>
                           <span className="truncate">{group.title}</span>
                         </Link>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            toggleGroup(group.id);
-                          }}
-                          className="p-1 -m-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                          aria-label={`Toggle ${group.title} submenu`}
-                        >
-                          <ChevronRight className={cn(
-                            "w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200",
-                            isExpanded && "rotate-90 text-indigo-600 dark:text-indigo-400"
-                          )} />
-                        </button>
-                      </div>
+                      )}
 
                       {isExpanded && (
                         <div className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100 dark:border-[#22232E] ml-4 my-0.5">
@@ -1430,9 +1498,7 @@ export function Sidebar() {
                                   if (isFormOpen) {
                                     closeFormTab(false);
                                   }
-                                  if (normalizedPathname === sub.href) {
-                                    setActiveTab("list");
-                                  }
+                                  setActiveTab("list");
                                 }}
                                 className={cn(
                                   "group relative flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors",

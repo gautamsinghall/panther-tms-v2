@@ -3,7 +3,7 @@ import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Trash2, Building2, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Building2, CheckCircle2, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -35,10 +35,12 @@ export default function VehicleOwnersPage() {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<VehicleOwnerRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("action") === "add") {
+      setEditingRecord(null);
       setIsDrawerOpen(true);
     }
   }, [searchParams]);
@@ -125,23 +127,38 @@ export default function VehicleOwnersPage() {
 
   const actions: RowAction<VehicleOwnerRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Vehicle Owner",
-          description: `Are you sure you want to deactivate vehicle owner "${row.name}"?`,
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/transport/vehicle-owners/${row.id}`, { method: "DELETE" });
-          toast.success("Vehicle owner deactivated successfully.");
+          await apiClient(`/api/v1/transport/vehicle-owners/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           loadData();
         } catch (err: any) {
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
           toast.error(err.message || "Failed to deactivate vehicle owner.");
         }
       },
@@ -153,20 +170,24 @@ export default function VehicleOwnersPage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Vehicle Owner",
-          description: `Are you sure you want to activate vehicle owner "${row.name}"?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/transport/vehicle-owners/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Vehicle owner activated successfully.");
+          toast.success("Activated successfully.");
           loadData();
         } catch (err: any) {
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
           toast.error(err.message || "Failed to activate vehicle owner.");
         }
       },
@@ -254,18 +275,29 @@ export default function VehicleOwnersPage() {
     },
   ];
 
-  const handleCreate = async (values: Record<string, any>) => {
+  const handleSubmit = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
       const { pincode, country, ...payload } = values;
-      await apiClient("/api/v1/transport/vehicle-owners", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (editingRecord) {
+        const updated = await apiClient<VehicleOwnerRecord>(`/api/v1/transport/vehicle-owners/${editingRecord.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...updated } : item)));
+        toast.success("Vehicle owner updated successfully.");
+      } else {
+        await apiClient("/api/v1/transport/vehicle-owners", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Vehicle owner created successfully.");
+        loadData();
+      }
       setIsDrawerOpen(false);
-      loadData();
+      setEditingRecord(null);
     } catch (err: any) {
-      toast.error(err.message || "Failed to add vehicle owner.");
+      toast.error(err.message || (editingRecord ? "Failed to update vehicle owner." : "Failed to add vehicle owner."));
     } finally {
       setIsSubmitting(false);
     }
@@ -283,7 +315,10 @@ export default function VehicleOwnersPage() {
         primaryAction={{
           label: "Add Vehicle Owner",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -300,22 +335,32 @@ export default function VehicleOwnersPage() {
         emptySubtext="Add truck suppliers to issue hire challans and manage freight payables."
         emptyAction={{
           label: "Add Vehicle Owner",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Add Vehicle Owner"
-        description="Register a truck supplier for hire challan settlements."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Vehicle Owner" : "Add Vehicle Owner"}
+        description={editingRecord ? "Update truck supplier details and banking records." : "Register a truck supplier for hire challan settlements."}
         width="xl"
       >
         <Form
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Add Owner"
+          initialValues={editingRecord || undefined}
+          onSubmit={handleSubmit}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Add Owner"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

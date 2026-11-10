@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Pencil, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -26,6 +26,7 @@ export default function IndustryPage() {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<IndustryRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -75,24 +76,39 @@ export default function IndustryPage() {
 
   const actions: RowAction<IndustryRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Industry",
-          description: `Are you sure you want to deactivate ${row.name}?`,
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/general/industries/${row.id}`, { method: "DELETE" });
-          toast.success("Industry deactivated successfully.");
+          await apiClient(`/api/v1/general/industries/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate industry.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          toast.error(err.message || "Failed to deactivate record.");
         }
       },
     },
@@ -103,21 +119,25 @@ export default function IndustryPage() {
       hidden: (row) => !!row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Industry",
-          description: `Are you sure you want to activate ${row.name}?`,
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/general/industries/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Industry activated successfully.");
+          toast.success("Activated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to activate industry.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          toast.error(err.message || "Failed to activate record.");
         }
       },
     },
@@ -159,10 +179,32 @@ export default function IndustryPage() {
         method: "POST",
         body: JSON.stringify(values),
       });
+      toast.success("Industry created successfully.");
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create industry.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (values: Record<string, any>) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
+    try {
+      const updated = await apiClient<any>(`/api/v1/general/industries/${editingRecord.id}`, {
+        method: "PUT",
+        body: JSON.stringify(values),
+      });
+      toast.success("Industry updated successfully.");
+      setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values, ...updated } : item)));
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update industry.");
     } finally {
       setIsSubmitting(false);
     }
@@ -180,7 +222,10 @@ export default function IndustryPage() {
         primaryAction={{
           label: "Add Industry",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -197,21 +242,32 @@ export default function IndustryPage() {
         emptySubtext="Add industry vertical classifications for billing and reporting."
         emptyAction={{
           label: "Add Industry",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create New Industry"
-        description="Define a new client business vertical."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Industry" : "Create New Industry"}
+        description={editingRecord ? "Update client business vertical details." : "Define a new client business vertical."}
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "new"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Industry"
+          initialValues={editingRecord || undefined}
+          onSubmit={editingRecord ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Create Industry"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>

@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, MapPin, Trash2, CheckCircle2 } from "lucide-react";
+import { Plus, MapPin, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -39,6 +39,7 @@ export default function LocationPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<LocationRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -142,8 +143,8 @@ export default function LocationPage() {
     },
   ];
 
-  // Check if current user has permission to deactivate / activate locations
-  const canDeactivate = useMemo(() => {
+  // Check if current user has permission to edit / deactivate / activate locations
+  const canModify = useMemo(() => {
     if (typeof window === "undefined") return true;
     const auth = getStoredAuth();
     if (!auth?.user) return true;
@@ -155,24 +156,40 @@ export default function LocationPage() {
 
   const actions: RowAction<LocationRecord>[] = [
     {
+      label: "Edit",
+      icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
+      hidden: () => !canModify,
+      onClick: (row) => {
+        setEditingRecord(row);
+        setIsDrawerOpen(true);
+      },
+    },
+    {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
-      hidden: (row) => !row.is_active || !canDeactivate,
+      hidden: (row) => !row.is_active || !canModify,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Deactivate Location",
-          description: "Are you sure you want to deactivate this location?",
+          title: "Deactivate Record",
+          description: "Are you sure you want to deactivate this record?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
         try {
-          await apiClient(`/api/v1/general/locations/${row.id}`, { method: "DELETE" });
-          toast.success("Location deactivated successfully.");
+          await apiClient(`/api/v1/general/locations/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false }),
+          });
+          toast.success("Deactivated successfully.");
           await loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to deactivate location.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
+          toast.error(err.message || "Failed to deactivate record.");
         }
       },
     },
@@ -180,24 +197,28 @@ export default function LocationPage() {
       label: "Activate",
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
       variant: "default",
-      hidden: (row) => !!row.is_active || !canDeactivate,
+      hidden: (row) => !!row.is_active || !canModify,
       onClick: async (row) => {
         const ok = await confirmModal({
-          title: "Activate Location",
-          description: "Are you sure you want to activate this location?",
+          title: "Activate Record",
+          description: "Are you sure you want to activate this record?",
           confirmText: "Activate",
           variant: "primary",
         });
         if (!ok) return;
+        // Immediate status change with NO page refresh
+        setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: true } : item)));
         try {
           await apiClient(`/api/v1/general/locations/${row.id}`, {
             method: "PUT",
             body: JSON.stringify({ is_active: true }),
           });
-          toast.success("Location activated successfully.");
+          toast.success("Activated successfully.");
           await loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to activate location.");
+          // Revert optimistic update
+          setData((prev) => prev.map((item) => (item.id === row.id ? { ...item, is_active: false } : item)));
+          toast.error(err.message || "Failed to activate record.");
         }
       },
     },
@@ -259,10 +280,35 @@ export default function LocationPage() {
           is_drop_point: true,
         }),
       });
+      toast.success("Location created successfully.");
       setIsDrawerOpen(false);
+      setEditingRecord(null);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to create location.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (values: Record<string, any>) => {
+    if (!editingRecord) return;
+    setIsSubmitting(true);
+    try {
+      const updated = await apiClient<any>(`/api/v1/general/locations/${editingRecord.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...values,
+          country: values.country || "India",
+        }),
+      });
+      toast.success("Location updated successfully.");
+      setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...values, ...updated } : item)));
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update location.");
     } finally {
       setIsSubmitting(false);
     }
@@ -280,7 +326,10 @@ export default function LocationPage() {
         primaryAction={{
           label: "Add Location",
           icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
       />
 
@@ -320,22 +369,33 @@ export default function LocationPage() {
         emptySubtext="Add transport transit hubs and terminals to enable booking routes."
         emptyAction={{
           label: "Add Location",
-          onClick: () => setIsDrawerOpen(true),
+          onClick: () => {
+            setEditingRecord(null);
+            setIsDrawerOpen(true);
+          },
         }}
         searchable={false}
       />
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create New Location"
-        description="Register a new hub or terminal in the master network."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingRecord(null);
+        }}
+        title={editingRecord ? "Edit Location" : "Create New Location"}
+        description={editingRecord ? "Update hub or terminal transit details." : "Register a new hub or terminal in the master network."}
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "new"}
           sections={formSections}
-          onSubmit={handleCreate}
-          onCancel={() => setIsDrawerOpen(false)}
-          submitLabel="Create Location"
+          initialValues={editingRecord || undefined}
+          onSubmit={editingRecord ? handleUpdate : handleCreate}
+          onCancel={() => {
+            setIsDrawerOpen(false);
+            setEditingRecord(null);
+          }}
+          submitLabel={editingRecord ? "Save Changes" : "Create Location"}
           isLoading={isSubmitting}
         />
       </EntityDrawer>
