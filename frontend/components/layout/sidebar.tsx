@@ -273,6 +273,8 @@ export const ALL_NAVIGATION_MODULES: NavGroup[] = [
     title: "API Center",
     items: [
       { feature: "eway_bill_api", title: "E-Way Bill API", href: "/api-center/eway-bill" },
+      { feature: "gst_api", title: "GST API", href: "/api-center/gst" },
+      { feature: "pan_api", title: "PAN API", href: "/api-center/pan" },
       { feature: "gps_tracking_api", title: "GPS Tracking API", href: "/api-center/gps" },
       { feature: "fastag_tracking_api", title: "FASTag Tracking API", href: "/api-center/fastag" },
       { feature: "sim_tracking_api", title: "SIM Based Tracking API", href: "/api-center/sim" },
@@ -438,6 +440,8 @@ const SUB_ITEM_ICONS_BY_HREF: Record<string, React.ComponentType<{ className?: s
 
   // API Center
   "/api-center/eway-bill": FileSpreadsheet,
+  "/api-center/gst": Building2,
+  "/api-center/pan": FileCheck2,
   "/api-center/gps": Compass,
   "/api-center/fastag": Navigation,
   "/api-center/sim": Radio,
@@ -544,6 +548,8 @@ const SUB_ITEM_ICONS_BY_FEATURE: Record<string, React.ComponentType<{ className?
   company_details: Building2,
   api_center: KeyRound,
   eway_bill_api: FileSpreadsheet,
+  gst_api: Building2,
+  pan_api: FileCheck2,
   fastag_api: Navigation,
   fastag_tracking_api: Navigation,
   gps_tracking: Compass,

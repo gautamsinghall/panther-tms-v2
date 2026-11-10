@@ -145,6 +145,8 @@ const ROUTE_INFO_MAP: Record<string, RouteInfo> = {
 
   // API Center
   "/api-center/eway-bill": { title: "E-Way Bill API", icon: FileSpreadsheet },
+  "/api-center/gst": { title: "GST API", icon: Building2 },
+  "/api-center/pan": { title: "PAN API", icon: FileCheck2 },
   "/api-center/fastag": { title: "FASTag Tracking API", icon: Navigation },
   "/api-center/sim": { title: "SIM Tracking API", icon: Radio },
   "/api-center/gps": { title: "GPS Tracking API", icon: Compass },

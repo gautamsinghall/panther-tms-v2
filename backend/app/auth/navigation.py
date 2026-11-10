@@ -188,6 +188,8 @@ ALL_NAVIGATION_MODULES = [
         "title": "API Center",
         "items": [
             {"feature": "eway_bill_api", "title": "E-Way Bill API", "href": "/api-center/eway-bill"},
+            {"feature": "gst_api", "title": "GST API", "href": "/api-center/gst"},
+            {"feature": "pan_api", "title": "PAN API", "href": "/api-center/pan"},
             {"feature": "gps_tracking_api", "title": "GPS Tracking API", "href": "/api-center/gps"},
             {"feature": "fastag_tracking_api", "title": "FASTag Tracking API", "href": "/api-center/fastag"},
             {"feature": "sim_tracking_api", "title": "SIM Based Tracking API", "href": "/api-center/sim"},
