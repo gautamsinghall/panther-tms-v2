@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   Table,
   PlusCircle,
@@ -217,14 +218,21 @@ export function WorkspaceTabBar() {
           type="button"
           onClick={() => setActiveTab("list")}
           className={cn(
-            "group relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-t-lg transition-colors duration-100 border-t border-l border-r cursor-pointer shrink-0",
+            "group relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-t-lg transition-all duration-150 border-t border-l border-r cursor-pointer shrink-0",
             activeTab === "list"
-              ? "bg-[#F8FAFC] text-slate-900 border-slate-200/90 shadow-2xs -mb-px z-10 font-bold"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border-transparent"
+              ? "bg-[#F8FAFC] dark:bg-[#1A1D2B] text-slate-900 dark:text-white border-slate-200/90 dark:border-[#2E3150] shadow-2xs -mb-px z-10 font-bold"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-[#1E2130] border-transparent"
           )}
           title={`View ${routeInfo.title} records`}
         >
-          <ListIcon className={cn("w-3.5 h-3.5 shrink-0", activeTab === "list" ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600")} />
+          {activeTab === "list" && (
+            <motion.span
+              layoutId="activeWorkspaceTabIndicator"
+              className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-600 dark:bg-indigo-400 z-20"
+              transition={{ type: "spring", stiffness: 500, damping: 35 }}
+            />
+          )}
+          <ListIcon className={cn("w-3.5 h-3.5 shrink-0", activeTab === "list" ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 group-hover:text-slate-600")} />
           <span className="truncate max-w-[120px] sm:max-w-[200px]">{routeInfo.title}</span>
 
           {/* Indicator dot if form draft is active in background */}
@@ -244,19 +252,26 @@ export function WorkspaceTabBar() {
           <div
             onClick={() => setActiveTab("form")}
             className={cn(
-              "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-colors duration-100 border-t border-l border-r cursor-pointer shrink-0",
+              "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-all duration-150 border-t border-l border-r cursor-pointer shrink-0 animate-in fade-in slide-in-from-left-2 duration-150",
               activeTab === "form"
-                ? "bg-[#F8FAFC] text-indigo-700 border-slate-200/90 shadow-2xs -mb-px z-10 font-bold"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border-transparent"
+                ? "bg-[#F8FAFC] dark:bg-[#1A1D2B] text-indigo-700 dark:text-indigo-400 border-slate-200/90 dark:border-[#2E3150] shadow-2xs -mb-px z-10 font-bold"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-[#1E2130] border-transparent"
             )}
             title={formTabInfo?.title || "New Entry Form"}
           >
-            <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            {activeTab === "form" && (
+              <motion.span
+                layoutId="activeWorkspaceTabIndicator"
+                className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-600 dark:bg-indigo-400 z-20"
+                transition={{ type: "spring", stiffness: 500, damping: 35 }}
+              />
+            )}
+            <PlusCircle className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
             <span className="max-w-[120px] sm:max-w-[220px] truncate">
               {formTabInfo?.title || "New Entry Form"}
             </span>
 
-            <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/70 uppercase tracking-wider font-bold shrink-0">
+            <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/60 uppercase tracking-wider font-bold shrink-0">
               Form Tab
             </span>
 
@@ -268,7 +283,7 @@ export function WorkspaceTabBar() {
                 closeFormTab();
               }}
               title="Close tab (Esc)"
-              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-0.5 cursor-pointer shrink-0"
+              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors ml-0.5 cursor-pointer shrink-0"
               aria-label="Close tab"
             >
               <X className="w-3.5 h-3.5" />
@@ -284,19 +299,26 @@ export function WorkspaceTabBar() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-colors duration-100 border-t border-l border-r cursor-pointer shrink-0",
+                "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-all duration-150 border-t border-l border-r cursor-pointer shrink-0 animate-in fade-in slide-in-from-left-2 duration-150",
                 isCurrentMaster
-                  ? "bg-[#F8FAFC] text-indigo-700 border-slate-200/90 shadow-2xs -mb-px z-10 font-bold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border-transparent"
+                  ? "bg-[#F8FAFC] dark:bg-[#1A1D2B] text-indigo-700 dark:text-indigo-400 border-slate-200/90 dark:border-[#2E3150] shadow-2xs -mb-px z-10 font-bold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-[#1E2130] border-transparent"
               )}
               title={tab.title}
             >
-              <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              {isCurrentMaster && (
+                <motion.span
+                  layoutId="activeWorkspaceTabIndicator"
+                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-600 dark:bg-indigo-400 z-20"
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
+              <PlusCircle className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span className="max-w-[120px] sm:max-w-[200px] truncate">
                 {tab.title}
               </span>
 
-              <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/70 uppercase tracking-wider font-bold shrink-0">
+              <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/60 uppercase tracking-wider font-bold shrink-0">
                 Master Tab
               </span>
 
@@ -308,7 +330,7 @@ export function WorkspaceTabBar() {
                   closeMasterTab(tab.id);
                 }}
                 title="Close tab (Esc)"
-                className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-0.5 cursor-pointer shrink-0"
+                className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors ml-0.5 cursor-pointer shrink-0"
                 aria-label={`Close ${tab.title}`}
               >
                 <X className="w-3.5 h-3.5" />

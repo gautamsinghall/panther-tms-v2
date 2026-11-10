@@ -824,22 +824,19 @@ export function Sidebar() {
   // Ensure the active module group is open when navigating
   useEffect(() => {
     if (normalizedPathname && navGroups.length > 0) {
-      let needsUpdate = false;
-      const updates: Record<string, boolean> = {};
-      navGroups.forEach((g) => {
-        if (isGroupActive(g, normalizedPathname) && !expandedGroups[g.id]) {
-          updates[g.id] = true;
-          needsUpdate = true;
-        }
+      setExpandedGroups((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        navGroups.forEach((g) => {
+          if (isGroupActive(g, normalizedPathname) && !prev[g.id]) {
+            next[g.id] = true;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
       });
-      if (needsUpdate) {
-        setExpandedGroups((prev) => ({
-          ...prev,
-          ...updates,
-        }));
-      }
     }
-  }, [normalizedPathname, navGroups, expandedGroups]);
+  }, [normalizedPathname, navGroups]);
 
   const toggleGroup = (id: string) => {
     setExpandedGroups((prev) => ({
@@ -1201,7 +1198,7 @@ export function Sidebar() {
                       : "grid-rows-[0fr] opacity-0 pointer-events-none"
                   )}
                 >
-                  <div className="overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 dark:border-[#22232E] ml-4 my-0.5 relative">
+                  <div className="min-h-0 overflow-hidden pl-3.5 pr-1 space-y-0.5 pt-0.5 border-l border-slate-100/90 dark:border-[#22232E] ml-4 my-0.5 relative">
                     {group.items?.map((sub) => {
                       const isActive = normalizedPathname === sub.href;
                       const SubIcon = getSubItemIcon(sub);
@@ -1210,6 +1207,7 @@ export function Sidebar() {
                         <Link
                           key={sub.href}
                           href={sub.is_locked ? "#" : resolveUrl(sub.href)}
+                          prefetch={false}
                           onClick={(e) => {
                             if (sub.is_locked) {
                               e.preventDefault();
@@ -1262,7 +1260,12 @@ export function Sidebar() {
                             )}
                           </span>
                           {isActive && !sub.is_locked && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs" />
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                              className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0 shadow-xs"
+                            />
                           )}
                         </Link>
                       );
@@ -1462,6 +1465,7 @@ export function Sidebar() {
                               <Link
                                 key={`mobile-sub-${sub.href}`}
                                 href={sub.is_locked ? "#" : resolveUrl(sub.href)}
+                                prefetch={false}
                                 onClick={(e) => {
                                   if (sub.is_locked) {
                                     e.preventDefault();
@@ -1494,7 +1498,12 @@ export function Sidebar() {
                                   <span className="truncate">{sub.title}</span>
                                 </span>
                                 {isActive && !sub.is_locked && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0 shadow-xs" />
+                                  <motion.span
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0 shadow-xs"
+                                  />
                                 )}
                               </Link>
                             );

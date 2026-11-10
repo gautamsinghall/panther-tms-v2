@@ -14,11 +14,15 @@ import { PantherAIProvider, PantherAILauncher, PantherAIPanel } from "@/componen
 
 function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { activeTab, isFormOpen, formTabInfo, setActiveTab, closeFormTab } = useWorkspaceTabs();
+  const { activeTab, isFormOpen, formTabInfo, setActiveTab, closeFormTab, masterTabs } = useWorkspaceTabs();
   const [officeKey, setOfficeKey] = useState<string>(() => {
     const off = getActiveOffice();
     return off?.id !== undefined ? String(off.id) : "default";
   });
+
+  const isFormTabActive = activeTab === "form" && isFormOpen;
+  const isMasterTabActive = activeTab.startsWith("master-") && masterTabs.some((t) => t.id === activeTab);
+  const isMainCanvasVisible = !isFormTabActive && !isMasterTabActive;
 
   // Reset scroll position and guarantee list canvas visibility on in-app section/page navigation
   useEffect(() => {
@@ -33,20 +37,29 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, setActiveTab]);
 
+  // Self-heal activeTab if it is pointing to a closed form or nonexistent master tab
+  useEffect(() => {
+    if (activeTab === "form" && !isFormOpen) {
+      setActiveTab("list");
+    } else if (activeTab.startsWith("master-") && !masterTabs.some((t) => t.id === activeTab)) {
+      setActiveTab(isFormOpen ? "form" : "list");
+    }
+  }, [activeTab, isFormOpen, masterTabs, setActiveTab]);
+
   // Ensure switching to form or master tab always views from the top
   useEffect(() => {
-    if (activeTab === "form") {
+    if (isFormTabActive) {
       const formCanvas = document.getElementById("workspace-form-canvas");
       if (formCanvas) {
         formCanvas.scrollTop = 0;
       }
-    } else if (activeTab.startsWith("master-")) {
+    } else if (isMasterTabActive) {
       const masterCanvas = document.getElementById(`workspace-master-canvas-${activeTab}`);
       if (masterCanvas) {
         masterCanvas.scrollTop = 0;
       }
     }
-  }, [activeTab]);
+  }, [activeTab, isFormTabActive, isMasterTabActive]);
 
   useEffect(() => {
     const handleOfficeChange = (e: Event) => {
@@ -71,13 +84,13 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex-1 relative overflow-hidden flex flex-col min-w-0">
-      {/* Main List Canvas (Visible when activeTab is "list") */}
+      {/* Main List Canvas (Guaranteed visible when not viewing an active form or master tab) */}
       <main
         key={officeKey}
         id="workspace-main-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative",
-          activeTab === "list" ? "block" : "hidden"
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-opacity duration-150 ease-out",
+          isMainCanvasVisible ? "block opacity-100 animate-in fade-in-50 duration-150" : "hidden opacity-0"
         )}
       >
         <div className="max-w-[1440px] mx-auto space-y-4 sm:space-y-6">
@@ -128,12 +141,12 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* Form Canvas Portal Target (Visible when activeTab is "form") */}
+      {/* Form Canvas Portal Target (Visible when activeTab is "form" and form is open) */}
       <div
         id="workspace-form-canvas"
         className={cn(
-          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative",
-          activeTab === "form" ? "block" : "hidden"
+          "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-opacity duration-150 ease-out",
+          isFormTabActive ? "block opacity-100 animate-in fade-in-50 duration-150" : "hidden opacity-0"
         )}
       />
 
