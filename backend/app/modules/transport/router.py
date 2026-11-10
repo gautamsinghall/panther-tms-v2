@@ -6,7 +6,7 @@ from app.core.errors import AppException, ForbiddenException, ResourceNotFoundEx
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, get_current_user, check_entitlement_limit, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch, LR
+from app.tenant_db.models import User, Branch, LR, Job
 from app.modules.transport import service
 from app.services.activity_logger import log_activity
 from app.modules.transport.excel_import import generate_job_import_template, import_jobs_from_excel
@@ -452,6 +452,44 @@ async def import_jobs_excel(
     )
     return res
 
+def _build_job_response(job: Job) -> JobResponse:
+    linked_lr = job.lrs[0] if (getattr(job, "lrs", None) and len(job.lrs) > 0) else None
+    return JobResponse(
+        id=job.id,
+        job_number=job.job_number,
+        issuing_office_id=job.issuing_office_id,
+        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
+        job_date=job.job_date,
+        consigner_id=job.consigner_id,
+        consignee_id=job.consignee_id,
+        origin_location_id=job.origin_location_id,
+        destination_location_id=job.destination_location_id,
+        billing_client_id=job.billing_client_id,
+        billing_party=job.billing_party or (job.billing_client.name if job.billing_client else None),
+        expected_dispatch_date=job.expected_dispatch_date,
+        cargo_description=job.cargo_description,
+        estimated_weight_mt=job.estimated_weight_mt,
+        estimated_packages=job.estimated_packages,
+        status=job.status,
+        special_instructions=job.special_instructions,
+        created_by_user_id=job.created_by_user_id,
+        consigner_name=job.consigner.name if job.consigner else None,
+        consigner_code=job.consigner.code if job.consigner else None,
+        consignee_name=job.consignee.name if job.consignee else None,
+        consignee_code=job.consignee.code if job.consignee else None,
+        billing_client_name=job.billing_client.name if job.billing_client else (job.billing_party or None),
+        origin_city=job.origin_location.city_name if job.origin_location else None,
+        destination_city=job.destination_location.city_name if job.destination_location else None,
+        lr_id=linked_lr.id if linked_lr else None,
+        lr_number=linked_lr.lr_number if linked_lr else None,
+        vehicle_number=linked_lr.vehicle_number if linked_lr else None,
+        driver_name=linked_lr.driver_name if linked_lr else None,
+        driver_phone=linked_lr.driver_phone if linked_lr else None,
+        total_freight_amount=linked_lr.total_freight_amount if linked_lr else None,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+    )
+
 @router.get("/jobs", response_model=List[JobResponse])
 async def list_jobs(
     limit: Optional[int] = Query(default=None, ge=1),
@@ -471,38 +509,7 @@ async def list_jobs(
         offset=offset,
         search=search,
     )
-    return [
-        JobResponse(
-            id=j.id,
-            job_number=j.job_number,
-            issuing_office_id=j.issuing_office_id,
-            issuing_office_name=j.issuing_office.name if j.issuing_office else None,
-            job_date=j.job_date,
-            consigner_id=j.consigner_id,
-            consignee_id=j.consignee_id,
-            origin_location_id=j.origin_location_id,
-            destination_location_id=j.destination_location_id,
-            billing_client_id=j.billing_client_id,
-            billing_party=j.billing_party or (j.billing_client.name if j.billing_client else None),
-            expected_dispatch_date=j.expected_dispatch_date,
-            cargo_description=j.cargo_description,
-            estimated_weight_mt=j.estimated_weight_mt,
-            estimated_packages=j.estimated_packages,
-            status=j.status,
-            special_instructions=j.special_instructions,
-            created_by_user_id=j.created_by_user_id,
-            consigner_name=j.consigner.name if j.consigner else None,
-            consigner_code=j.consigner.code if j.consigner else None,
-            consignee_name=j.consignee.name if j.consignee else None,
-            consignee_code=j.consignee.code if j.consignee else None,
-            billing_client_name=j.billing_client.name if j.billing_client else (j.billing_party or None),
-            origin_city=j.origin_location.city_name if j.origin_location else None,
-            destination_city=j.destination_location.city_name if j.destination_location else None,
-            created_at=j.created_at,
-            updated_at=j.updated_at,
-        )
-        for j in jobs
-    ]
+    return [_build_job_response(j) for j in jobs]
 
 @router.post("/jobs", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def create_job(
@@ -539,35 +546,7 @@ async def create_job(
             "estimated_weight_mt": float(job.estimated_weight_mt) if job.estimated_weight_mt else None,
         },
     )
-    return JobResponse(
-        id=job.id,
-        job_number=job.job_number,
-        issuing_office_id=job.issuing_office_id,
-        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
-        job_date=job.job_date,
-        consigner_id=job.consigner_id,
-        consignee_id=job.consignee_id,
-        origin_location_id=job.origin_location_id,
-        destination_location_id=job.destination_location_id,
-        billing_client_id=job.billing_client_id,
-        billing_party=job.billing_party or (job.billing_client.name if job.billing_client else None),
-        expected_dispatch_date=job.expected_dispatch_date,
-        cargo_description=job.cargo_description,
-        estimated_weight_mt=job.estimated_weight_mt,
-        estimated_packages=job.estimated_packages,
-        status=job.status,
-        special_instructions=job.special_instructions,
-        created_by_user_id=job.created_by_user_id,
-        consigner_name=job.consigner.name if job.consigner else None,
-        consigner_code=job.consigner.code if job.consigner else None,
-        consignee_name=job.consignee.name if job.consignee else None,
-        consignee_code=job.consignee.code if job.consignee else None,
-        billing_client_name=job.billing_client.name if job.billing_client else (job.billing_party or None),
-        origin_city=job.origin_location.city_name if job.origin_location else None,
-        destination_city=job.destination_location.city_name if job.destination_location else None,
-        created_at=job.created_at,
-        updated_at=job.updated_at,
-    )
+    return _build_job_response(job)
 
 @router.put("/jobs/{id}", response_model=JobResponse)
 async def update_job(
@@ -589,35 +568,7 @@ async def update_job(
         details=f"Updated Job {job.job_number}",
         details_json=data.model_dump(exclude_unset=True),
     )
-    return JobResponse(
-        id=job.id,
-        job_number=job.job_number,
-        issuing_office_id=job.issuing_office_id,
-        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
-        job_date=job.job_date,
-        consigner_id=job.consigner_id,
-        consignee_id=job.consignee_id,
-        origin_location_id=job.origin_location_id,
-        destination_location_id=job.destination_location_id,
-        billing_client_id=job.billing_client_id,
-        billing_party=job.billing_party or (job.billing_client.name if job.billing_client else None),
-        expected_dispatch_date=job.expected_dispatch_date,
-        cargo_description=job.cargo_description,
-        estimated_weight_mt=job.estimated_weight_mt,
-        estimated_packages=job.estimated_packages,
-        status=job.status,
-        special_instructions=job.special_instructions,
-        created_by_user_id=job.created_by_user_id,
-        consigner_name=job.consigner.name if job.consigner else None,
-        consigner_code=job.consigner.code if job.consigner else None,
-        consignee_name=job.consignee.name if job.consignee else None,
-        consignee_code=job.consignee.code if job.consignee else None,
-        billing_client_name=job.billing_client.name if job.billing_client else (job.billing_party or None),
-        origin_city=job.origin_location.city_name if job.origin_location else None,
-        destination_city=job.destination_location.city_name if job.destination_location else None,
-        created_at=job.created_at,
-        updated_at=job.updated_at,
-    )
+    return _build_job_response(job)
 
 @router.post("/jobs/{id}/transition", response_model=JobResponse)
 async def transition_job_status(
@@ -640,35 +591,7 @@ async def transition_job_status(
         details_json={"target_status": req.target_status, "remarks": req.remarks},
     )
 
-    return JobResponse(
-        id=job.id,
-        job_number=job.job_number,
-        issuing_office_id=job.issuing_office_id,
-        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
-        job_date=job.job_date,
-        consigner_id=job.consigner_id,
-        consignee_id=job.consignee_id,
-        origin_location_id=job.origin_location_id,
-        destination_location_id=job.destination_location_id,
-        billing_client_id=job.billing_client_id,
-        billing_party=job.billing_party or (job.billing_client.name if job.billing_client else None),
-        expected_dispatch_date=job.expected_dispatch_date,
-        cargo_description=job.cargo_description,
-        estimated_weight_mt=job.estimated_weight_mt,
-        estimated_packages=job.estimated_packages,
-        status=job.status,
-        special_instructions=job.special_instructions,
-        created_by_user_id=job.created_by_user_id,
-        consigner_name=job.consigner.name if job.consigner else None,
-        consigner_code=job.consigner.code if job.consigner else None,
-        consignee_name=job.consignee.name if job.consignee else None,
-        consignee_code=job.consignee.code if job.consignee else None,
-        billing_client_name=job.billing_client.name if job.billing_client else (job.billing_party or None),
-        origin_city=job.origin_location.city_name if job.origin_location else None,
-        destination_city=job.destination_location.city_name if job.destination_location else None,
-        created_at=job.created_at,
-        updated_at=job.updated_at,
-    )
+    return _build_job_response(job)
 
 # ==============================================================================
 # 6. GR / LR Booking & Transitions

@@ -2439,23 +2439,30 @@ def _build_lr_idempotent_response(data: dict) -> LRConfirmationResponse:
     balance = float(data.get("balance_amount", 0.0))
     v_num = data.get("vehicle_number", "Vehicle")
     off_name = data.get("office_name", "Default")
+    job_num = data.get("job_number")
+
+    metrics = [
+        {"label": "LR Number", "value": lr_num},
+        {"label": "Status", "value": "Booked"},
+        {"label": "Vehicle", "value": v_num},
+    ]
+    if job_num:
+        metrics.append({"label": "Job Order", "value": job_num})
+    metrics.extend([
+        {"label": "Total Freight", "value": f"₹{freight:,.2f}"},
+        {"label": "Balance Due", "value": f"₹{balance:,.2f}"},
+    ])
 
     success_card = StructuredCard(
         card_type="lr_created",
         title="LR Created Successfully",
-        subtitle=f"LR Number: {lr_num}",
+        subtitle=f"LR Number: {lr_num}" + (f" • Job: {job_num}" if job_num else ""),
         badge={"text": "Created", "variant": "success"},
-        metrics=[
-            {"label": "LR Number", "value": lr_num},
-            {"label": "Status", "value": "Booked"},
-            {"label": "Vehicle", "value": v_num},
-            {"label": "Total Freight", "value": f"₹{freight:,.2f}"},
-            {"label": "Balance Due", "value": f"₹{balance:,.2f}"},
-        ],
+        metrics=metrics,
         items=[
             {
                 "primary": f"LR {lr_num} • {v_num}",
-                "secondary": f"Office: {off_name} • Confirmed & Booked",
+                "secondary": f"Office: {off_name} • Confirmed & Booked" + (f" • Job {job_num}" if job_num else ""),
                 "amount": f"₹{freight:,.2f}",
                 "status": "Created",
                 "href": f"/transport/lr-booking?lr_number={lr_num}",
@@ -2464,11 +2471,12 @@ def _build_lr_idempotent_response(data: dict) -> LRConfirmationResponse:
         action={"label": f"Open LR {lr_num}", "href": f"/transport/lr-booking?lr_number={lr_num}"},
     )
 
+    job_mention = f" and auto-linked Job {job_num}" if job_num else ""
     return LRConfirmationResponse(
         success=True,
         lr_id=lr_id,
         lr_number=lr_num,
-        message=f"Your LR {lr_num} has been created successfully in the transport register. [Open LR {lr_num}](/transport/lr-booking?lr_number={lr_num})",
+        message=f"Your LR {lr_num}{job_mention} has been created successfully in the transport register. [Open LR {lr_num}](/transport/lr-booking?lr_number={lr_num})",
         card=success_card,
     )
 
@@ -2804,6 +2812,8 @@ async def confirm_lr_draft(
             "balance_amount": float(lr.balance_amount or 0),
             "vehicle_number": lr.vehicle_number,
             "office_name": office_name,
+            "job_id": lr.job_id,
+            "job_number": lr.job.job_number if getattr(lr, "job", None) else None,
         }
 
         # 12. Insert durable database idempotency record in SAME transaction

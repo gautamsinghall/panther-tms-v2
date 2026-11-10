@@ -42,6 +42,10 @@ interface JobRecord {
   estimated_packages?: number;
   status: string;
   special_instructions?: string;
+  lr_id?: number;
+  lr_number?: string;
+  vehicle_number?: string;
+  driver_name?: string;
   created_at: string;
 }
 
@@ -147,8 +151,17 @@ export default function JobsPage() {
       const newOffice = customEvent.detail || getActiveOffice();
       loadData(newOffice);
     };
+    const handleJobsUpdated = () => {
+      loadData();
+    };
     window.addEventListener("panther_office_changed", handleOfficeChange);
-    return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
+    window.addEventListener("panther_jobs_updated", handleJobsUpdated);
+    window.addEventListener("focus", handleJobsUpdated);
+    return () => {
+      window.removeEventListener("panther_office_changed", handleOfficeChange);
+      window.removeEventListener("panther_jobs_updated", handleJobsUpdated);
+      window.removeEventListener("focus", handleJobsUpdated);
+    };
   }, [loadData]);
 
   const stats = useMemo(() => {
@@ -172,7 +185,9 @@ export default function JobsPage() {
           item.consignee_name?.toLowerCase().includes(term) ||
           item.origin_city?.toLowerCase().includes(term) ||
           item.destination_city?.toLowerCase().includes(term) ||
-          item.cargo_description?.toLowerCase().includes(term);
+          item.cargo_description?.toLowerCase().includes(term) ||
+          item.lr_number?.toLowerCase().includes(term) ||
+          item.vehicle_number?.toLowerCase().includes(term);
         if (!match) return false;
       }
       return true;
@@ -192,6 +207,11 @@ export default function JobsPage() {
           <span className="text-[11px] font-mono text-slate-500">
             {formatDate(row.job_date)}
           </span>
+          {row.lr_number && (
+            <span className="text-[11px] font-mono text-indigo-600 block font-semibold mt-0.5">
+              LR #{row.lr_number}
+            </span>
+          )}
         </div>
       ),
     },
@@ -233,6 +253,22 @@ export default function JobsPage() {
           <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-800 border border-slate-200/80 shadow-2xs">
             {row.destination_city || "Destination"}
           </span>
+        </div>
+      ),
+    },
+    {
+      key: "vehicle_number",
+      header: "Vehicle / LR",
+      cell: (row) => (
+        <div>
+          <span className="font-mono font-semibold text-slate-900 block text-xs">
+            {row.vehicle_number || "—"}
+          </span>
+          {row.lr_number && (
+            <span className="text-[11px] font-mono text-indigo-600 font-semibold block mt-0.5">
+              LR #{row.lr_number}
+            </span>
+          )}
         </div>
       ),
     },
@@ -281,6 +317,19 @@ export default function JobsPage() {
       onClick: (row) => {
         router.push(`/transport/lr-booking?job_id=${row.id}`);
       },
+      hidden: (row) => Boolean(row.lr_number),
+    },
+    {
+      label: "View LR",
+      icon: <Truck className="w-4 h-4 text-indigo-600" />,
+      onClick: (row) => {
+        if (row.lr_id) {
+          router.push(`/transport/lr-booking?edit=${row.lr_id}`);
+        } else if (row.lr_number) {
+          router.push(`/transport/lr-booking?search=${encodeURIComponent(row.lr_number)}`);
+        }
+      },
+      hidden: (row) => !row.lr_number,
     },
   ];
 

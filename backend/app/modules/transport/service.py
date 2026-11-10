@@ -410,6 +410,7 @@ async def get_all_jobs(
             selectinload(Job.destination_location),
             selectinload(Job.billing_client),
             selectinload(Job.issuing_office),
+            selectinload(Job.lrs),
         )
         .order_by(desc(Job.created_at))
     )
@@ -514,6 +515,7 @@ async def get_all_lrs(
     stmt = (
         select(LR)
         .options(
+            selectinload(LR.job),
             selectinload(LR.consigner),
             selectinload(LR.consignee),
             selectinload(LR.origin_location),
@@ -556,6 +558,7 @@ async def search_lrs(
     stmt = (
         select(LR)
         .options(
+            selectinload(LR.job),
             selectinload(LR.consigner),
             selectinload(LR.consignee),
             selectinload(LR.origin_location),
@@ -581,7 +584,23 @@ async def search_lrs(
     return list(result.scalars().unique().all())
 
 async def get_lr_by_id(db: AsyncSession, lr_id: int) -> LR:
-    lr = await db.get(LR, lr_id)
+    stmt = (
+        select(LR)
+        .options(
+            selectinload(LR.job),
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+            selectinload(LR.issuing_office),
+            selectinload(LR.billing_customer),
+            selectinload(LR.load_type_rel),
+            selectinload(LR.packing_method),
+        )
+        .where(LR.id == lr_id)
+    )
+    res = await db.execute(stmt)
+    lr = res.scalar_one_or_none()
     if not lr:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="LR not found.")
     return lr
@@ -655,18 +674,77 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
     advance = lr_dict.get("advance_amount") or Decimal("0.00")
     lr_dict["balance_amount"] = total - advance
 
-    lr = LR(**lr_dict)
-    db.add(lr)
-    
-    # Cascade: If linked to a Job in OPEN status, transition Job to BOOKED
-    if data.job_id:
+    # Job linkage: use selected job, or auto-create corresponding Job Order
+    auto_job = None
+    if data.job_id and int(data.job_id) > 0:
         job = await db.get(Job, data.job_id)
         if job and job.status == JobStatus.OPEN.value:
             job.status = JobStatus.BOOKED.value
+    else:
+        auto_job_number = await allocate_or_validate_voucher_number(
+            db, "JOB", manual_number=None, issuing_office_id=target_office_id
+        )
+        billing_party_name = None
+        if data.billing_customer_id:
+            from app.tenant_db.models import BillingClient
+            bc = await db.get(BillingClient, data.billing_customer_id)
+            if bc:
+                billing_party_name = bc.name
+
+        if lr_dict.get("status") == LRStatus.CANCELLED.value or b_status == "Canceled":
+            auto_job_status = JobStatus.CANCELLED.value
+        elif lr_dict.get("status") == "RESERVED" or b_status == "Reserved":
+            auto_job_status = JobStatus.OPEN.value
+        else:
+            auto_job_status = JobStatus.BOOKED.value
+
+        auto_job = Job(
+            job_number=auto_job_number,
+            job_date=data.lr_date or date.today(),
+            consigner_id=data.consigner_id,
+            consignee_id=data.consignee_id,
+            origin_location_id=data.origin_location_id,
+            destination_location_id=data.destination_location_id,
+            billing_client_id=data.billing_customer_id,
+            billing_party=billing_party_name,
+            expected_dispatch_date=data.dispatch_date or data.lr_date or date.today(),
+            cargo_description=data.particulars or data.load_type,
+            estimated_weight_mt=data.chargeable_weight_mt or data.actual_weight_mt or Decimal("0.000"),
+            estimated_packages=data.package_count or 0,
+            status=auto_job_status,
+            special_instructions=data.remarks,
+            created_by_user_id=user_id,
+            issuing_office_id=target_office_id,
+        )
+        db.add(auto_job)
+        await db.flush()
+        lr_dict["job_id"] = auto_job.id
+
+    lr = LR(**lr_dict)
+    if auto_job:
+        lr.job = auto_job
+    db.add(lr)
 
     if auto_commit:
         await db.commit()
-        await db.refresh(lr)
+        # Eagerly reload with all relationships
+        stmt = (
+            select(LR)
+            .options(
+                selectinload(LR.job).selectinload(Job.lrs),
+                selectinload(LR.consigner),
+                selectinload(LR.consignee),
+                selectinload(LR.origin_location),
+                selectinload(LR.destination_location),
+                selectinload(LR.issuing_office),
+                selectinload(LR.billing_customer),
+                selectinload(LR.load_type_rel),
+                selectinload(LR.packing_method),
+            )
+            .where(LR.id == lr.id)
+        )
+        res = await db.execute(stmt)
+        lr = res.scalar_one()
     else:
         await db.flush()
     return lr

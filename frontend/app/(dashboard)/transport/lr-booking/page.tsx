@@ -939,6 +939,9 @@ export default function LRBookingPage() {
       setEditingLrRecord(null);
       setDrawerError(null);
       await loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("panther_jobs_updated"));
+      }
 
       // Show the saved record in the view modal
       if (savedRecord) {

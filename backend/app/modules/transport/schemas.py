@@ -390,6 +390,12 @@ class JobResponse(JobBase):
     origin_city: Optional[str] = None
     destination_city: Optional[str] = None
     issuing_office_name: Optional[str] = None
+    lr_id: Optional[int] = None
+    lr_number: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
+    total_freight_amount: Optional[Decimal] = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

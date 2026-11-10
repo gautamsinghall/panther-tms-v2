@@ -760,6 +760,30 @@ async def allocate_or_validate_voucher_number(
         res = await db.execute(fallback_stmt)
         series = res.scalars().first()
 
+    # Auto-provision standard automatic JOB series if not yet initialized in tenant or office
+    if not series and norm_type == "JOB":
+        from app.tenant_db.models import Branch
+        br_code = ""
+        if issuing_office_id:
+            br_obj = await db.get(Branch, issuing_office_id)
+            if br_obj and br_obj.code:
+                br_code = f"{br_obj.code}-"
+        prefix = f"JOB-{br_code}" if br_code else "JOB-2026-"
+        series = SeriesMaster(
+            document_type="JOB",
+            series_name=f"Standard Job Series {br_code}".strip(),
+            prefix=prefix,
+            starting_number=1,
+            current_number=0,
+            series_mode="AUTOMATIC",
+            financial_year="2026-2027",
+            is_active=True,
+            is_default=True,
+            issuing_office_id=issuing_office_id,
+        )
+        db.add(series)
+        await db.flush()
+
     # Rule: LR, HC, General Invoice, Transport Invoice mandatory manual check
     if is_mandatory_manual and not series:
         readable_title = norm_type.replace("_", " ").title()

@@ -733,6 +733,18 @@ class Job(TenantBase):
     issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
     lrs = relationship("LR", back_populates="job", lazy="selectin")
 
+    @property
+    def converted_lr(self):
+        return self.lrs[0] if (hasattr(self, "lrs") and self.lrs) else None
+
+    @property
+    def lr_number(self):
+        return self.converted_lr.lr_number if self.converted_lr else None
+
+    @property
+    def vehicle_number(self):
+        return self.converted_lr.vehicle_number if self.converted_lr else None
+
 
 class LR(TenantBase):
     """Lorry Receipt / Goods Receipt (LR/GR) - Core consignment document"""

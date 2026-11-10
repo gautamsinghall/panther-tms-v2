@@ -41,6 +41,10 @@ export interface JobViewRecord {
   estimated_packages?: number;
   status: string;
   special_instructions?: string;
+  lr_id?: number;
+  lr_number?: string;
+  vehicle_number?: string;
+  driver_name?: string;
   created_at: string;
   issuing_office_name?: string;
 }
@@ -548,6 +552,11 @@ export function JobOrderViewModal({
                   Job Order: {job.job_number}
                 </h3>
                 <StatusBadge status={job.status} />
+                {job.lr_number && (
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    LR #{job.lr_number}
+                  </span>
+                )}
               </div>
               <p id="job-order-dialog-description" className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                 Trip Indent #{job.id} · Created {formatDate(job.job_date || job.created_at)}
@@ -603,8 +612,24 @@ export function JobOrderViewModal({
               <span>PDF</span>
             </Button>
 
-            {/* Prioritized Primary Action: Single Book GR/LR button */}
-            {job.status === "OPEN" && (
+            {/* Prioritized Primary Action: View LR if linked, otherwise Book GR/LR */}
+            {job.lr_number ? (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  if (typeof window !== "undefined") {
+                    window.location.href = `/transport/lr-booking?search=${encodeURIComponent(job.lr_number!)}`;
+                  }
+                }}
+                className="text-xs font-semibold h-8 gap-1.5 shadow-xs cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-700"
+              >
+                <Truck className="w-3.5 h-3.5" />
+                <span>View LR #{job.lr_number}</span>
+              </Button>
+            ) : job.status === "OPEN" ? (
               <Button
                 ref={primaryActionRef}
                 type="button"
@@ -619,7 +644,7 @@ export function JobOrderViewModal({
                 <Truck className="w-3.5 h-3.5" />
                 <span>Book GR/LR</span>
               </Button>
-            )}
+            ) : null}
 
             {/* Dialog Close Button */}
             <button
@@ -820,6 +845,24 @@ export function JobOrderViewModal({
                         </span>
                       </div>
                     </div>
+
+                    {/* Row 3: Linked LR & Vehicle */}
+                    {(job.lr_number || job.vehicle_number) && (
+                      <div className="grid grid-cols-2 divide-x divide-slate-300 border-t border-slate-200 bg-slate-50/50">
+                        <div className="p-2 pl-3 flex items-center">
+                          <span className="font-bold text-slate-800 w-28 shrink-0">LINKED LR NO.</span>
+                          <span className="font-bold font-mono text-indigo-700">
+                            {job.lr_number || "—"}
+                          </span>
+                        </div>
+                        <div className="p-2 pl-3 flex items-center">
+                          <span className="font-bold text-slate-800 w-52 shrink-0">ASSIGNED VEHICLE</span>
+                          <span className="font-mono font-semibold text-slate-900">
+                            {job.vehicle_number || "—"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* 5. CARGO / CONSIGNMENT DETAILS Table */}
