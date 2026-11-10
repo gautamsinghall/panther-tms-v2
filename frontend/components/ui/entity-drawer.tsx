@@ -46,6 +46,7 @@ export function EntityDrawer({
   const [mounted, setMounted] = useState(false);
   const wasOpenedRef = useRef(false);
   const onCloseRef = useRef(onClose);
+  const topContainerRef = useRef<HTMLDivElement>(null);
   onCloseRef.current = onClose;
 
   useEffect(() => {
@@ -63,11 +64,50 @@ export function EntityDrawer({
           onCloseRef.current?.();
         },
       });
+
+      // Guarantee the form always opens from the very top (never bottom or residual scroll)
+      const scrollToTop = () => {
+        const formCanvas = document.getElementById("workspace-form-canvas");
+        if (formCanvas) {
+          formCanvas.scrollTop = 0;
+        }
+        const mainCanvas = document.getElementById("workspace-main-canvas");
+        if (mainCanvas) {
+          mainCanvas.scrollTop = 0;
+        }
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+        }
+        if (topContainerRef.current) {
+          try {
+            topContainerRef.current.scrollIntoView({ behavior: "instant", block: "start" });
+          } catch {
+            // ignore fallback
+          }
+        }
+      };
+
+      scrollToTop();
+      const rafId = requestAnimationFrame(scrollToTop);
+      const t1 = setTimeout(scrollToTop, 25);
+      const t2 = setTimeout(scrollToTop, 100);
+
+      return () => {
+        cancelAnimationFrame(rafId);
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     } else if (wasOpenedRef.current) {
       // ONLY dismiss the form tab if THIS specific drawer instance was previously open!
       // This prevents sibling/closed drawers on multi-drawer pages (e.g. Accounts) from cancelling an open drawer.
       wasOpenedRef.current = false;
       dismissFormTab();
+      const formCanvas = document.getElementById("workspace-form-canvas");
+      if (formCanvas) {
+        formCanvas.scrollTop = 0;
+      }
     }
   }, [isOpen, title, description, subtitle, openFormTab, dismissFormTab]);
 
@@ -98,6 +138,7 @@ export function EntityDrawer({
 
   const formViewContent = (
     <div
+      ref={topContainerRef}
       className={cn(
         "w-full mx-auto space-y-6 pb-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-75",
         maxWidthClass

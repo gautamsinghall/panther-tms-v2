@@ -116,6 +116,18 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
   const openFormTab = useCallback((info: FormTabInfo) => {
     setFormTabInfo(info);
     setActiveTab("form");
+    if (typeof window !== "undefined") {
+      const reset = () => {
+        const formCanvas = document.getElementById("workspace-form-canvas");
+        if (formCanvas) formCanvas.scrollTop = 0;
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      };
+      reset();
+      requestAnimationFrame(reset);
+      setTimeout(reset, 30);
+    }
   }, []);
 
   // Closes the form tab and triggers the parent page's onClose handler
@@ -123,6 +135,10 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
     const cb = onCloseRef.current;
     setFormTabInfo(null);
     setActiveTab("list");
+    if (typeof window !== "undefined") {
+      const formCanvas = document.getElementById("workspace-form-canvas");
+      if (formCanvas) formCanvas.scrollTop = 0;
+    }
     if (callOnClose && cb) {
       try {
         cb();
@@ -136,6 +152,10 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
   const dismissFormTab = useCallback(() => {
     setFormTabInfo(null);
     setActiveTab("list");
+    if (typeof window !== "undefined") {
+      const formCanvas = document.getElementById("workspace-form-canvas");
+      if (formCanvas) formCanvas.scrollTop = 0;
+    }
   }, []);
 
   // Open a full Master form in a new in-app TMS tab

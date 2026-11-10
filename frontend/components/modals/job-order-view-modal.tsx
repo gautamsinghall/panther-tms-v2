@@ -209,11 +209,20 @@ export function JobOrderViewModal({
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    // Guarantee view opens at top
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+
     // 3. Load company settings
     loadCompanyDetails();
 
     // 4. Initial focus inside dialog
     const focusTimer = setTimeout(() => {
+      if (modalBodyRef.current) {
+        modalBodyRef.current.scrollTop = 0;
+      }
       if (primaryActionRef.current) {
         primaryActionRef.current.focus();
       } else if (modalRef.current) {

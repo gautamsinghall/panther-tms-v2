@@ -33,6 +33,27 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, setActiveTab]);
 
+  // Ensure switching to form or master tab always views from the top
+  useEffect(() => {
+    if (activeTab === "form") {
+      const formCanvas = document.getElementById("workspace-form-canvas");
+      if (formCanvas) {
+        formCanvas.scrollTop = 0;
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    } else if (activeTab.startsWith("master-")) {
+      const masterCanvas = document.getElementById(`workspace-master-canvas-${activeTab}`);
+      if (masterCanvas) {
+        masterCanvas.scrollTop = 0;
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     const handleOfficeChange = (e: Event) => {
       const customEvent = e as CustomEvent<OfficeSummary>;

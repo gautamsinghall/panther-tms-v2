@@ -216,6 +216,24 @@ export function HireChallanViewModal({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (isOpen) {
+      const scrollToTop = () => {
+        if (modalBodyRef.current) {
+          modalBodyRef.current.scrollTop = 0;
+        }
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      };
+      scrollToTop();
+      const rafId = requestAnimationFrame(scrollToTop);
+      const t = setTimeout(scrollToTop, 25);
+      return () => {
+        cancelAnimationFrame(rafId);
+        clearTimeout(t);
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen || !mounted || !challan) return null;
 
   const handlePrint = () => {

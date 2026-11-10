@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import { X, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Form } from "@/components/forms/form";
@@ -753,6 +753,23 @@ export function MasterFormView({
   const { setActiveTab, formTabInfo } = useWorkspaceTabs();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDirtyRef = useRef(false);
+
+  useEffect(() => {
+    const scrollToTop = () => {
+      const el = document.getElementById(`workspace-master-canvas-${tab.id}`);
+      if (el) el.scrollTop = 0;
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    scrollToTop();
+    const rafId = requestAnimationFrame(scrollToTop);
+    const t = setTimeout(scrollToTop, 30);
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(t);
+    };
+  }, [tab.id]);
 
   const meta = MASTER_DEFINITIONS[tab.type] || MASTER_DEFINITIONS.billing_client;
   const sections = useMemo(() => meta.getSections(), [meta]);
