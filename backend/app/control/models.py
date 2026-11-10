@@ -67,6 +67,8 @@ class Tenant(ControlBase):
     current_period_end = Column(DateTime(timezone=True), nullable=True)
     grace_period_until = Column(DateTime(timezone=True), nullable=True)
     razorpay_customer_id = Column(String(100), nullable=True)
+    gst_credits_left = Column(Integer, default=0, nullable=False)
+    pan_credits_left = Column(Integer, default=0, nullable=False)
     fastag_credits_left = Column(Integer, default=0, nullable=False)
     sim_wallet_balance = Column(Numeric(12, 2), default=Decimal("0.00"), server_default="0.00", nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

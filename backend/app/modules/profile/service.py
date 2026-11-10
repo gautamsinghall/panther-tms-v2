@@ -1,6 +1,6 @@
 import logging
 import httpx
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict, Any, Union
 from datetime import datetime, timezone, date
 from decimal import Decimal
 from sqlalchemy import select, func, extract, text
@@ -530,6 +530,8 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
     company = await get_company_setting(db)
 
     credits_left = 0
+    gst_credits_left = 0
+    pan_credits_left = 0
     if tenant_id:
         try:
             from app.core.database import ControlSessionLocal
@@ -537,11 +539,13 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
             from sqlalchemy import select
             async with ControlSessionLocal() as session:
                 res = await session.execute(
-                    select(ControlTenant.fastag_credits_left).where(ControlTenant.tenant_id == tenant_id)
+                    select(ControlTenant).where(ControlTenant.tenant_id == tenant_id)
                 )
-                val = res.scalar_one_or_none()
-                if val is not None:
-                    credits_left = int(val)
+                tenant_row = res.scalar_one_or_none()
+                if tenant_row:
+                    credits_left = int(tenant_row.fastag_credits_left or 0)
+                    gst_credits_left = int(tenant_row.gst_credits_left or 0)
+                    pan_credits_left = int(tenant_row.pan_credits_left or 0)
         except Exception:
             pass
 
@@ -566,6 +570,8 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         google_maps_configured=bool(settings.GOOGLE_MAPS_API_KEY),
         fastag_credits_left=credits_left,
         fastag_rate_per_fetch=1.50,
+        gst_credits_left=gst_credits_left,
+        pan_credits_left=pan_credits_left,
         fastag_cooldown_minutes=company.fastag_cooldown_minutes if company.fastag_cooldown_minutes is not None else 10,
         wheelseye_base_url=company.wheelseye_base_url or "https://api.wheelseye.com",
         wheelseye_api_token=company.wheelseye_api_token,
@@ -748,6 +754,61 @@ async def _get_tax_credentials(db: AsyncSession) -> tuple[str, str, str]:
     return client_id, client_secret, base_url
 
 
+async def check_and_deduct_tax_credit(
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+    api_type: str = "GST",
+) -> Tuple[bool, int, str]:
+    """
+    Checks if tenant has at least 1 credit remaining in panther_control database.
+    If credits > 0, debits 1 call in panther_control and returns (True, remaining, "").
+    If credits <= 0, returns (False, 0, "<API_TYPE> API credits exhausted...").
+    Tariff is strictly 1 credit per fetch.
+    """
+    if not tenant_id and not company_code:
+        # If no tenant context provided (e.g. testing / fallback), allow pass
+        return True, 999, ""
+
+    from app.core.database import ControlSessionLocal
+    from app.control.models import Tenant as ControlTenant
+    from sqlalchemy import select, or_
+
+    try:
+        async with ControlSessionLocal() as session:
+            stmt = select(ControlTenant).where(
+                or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+            ).with_for_update()
+            res = await session.execute(stmt)
+            tenant_obj = res.scalar_one_or_none()
+            if not tenant_obj:
+                return False, 0, "Tenant record not found in control database."
+
+            if api_type == "GST":
+                current_credits = tenant_obj.gst_credits_left or 0
+                if current_credits <= 0:
+                    return False, 0, (
+                        "GST API credits exhausted (0 calls remaining). "
+                        "Live query blocked. Please contact your system administrator to recharge GST verification credits."
+                    )
+                tenant_obj.gst_credits_left = current_credits - 1
+                new_balance = tenant_obj.gst_credits_left
+            else:
+                current_credits = tenant_obj.pan_credits_left or 0
+                if current_credits <= 0:
+                    return False, 0, (
+                        "PAN API credits exhausted (0 calls remaining). "
+                        "Live query blocked. Please contact your system administrator to recharge PAN verification credits."
+                    )
+                tenant_obj.pan_credits_left = current_credits - 1
+                new_balance = tenant_obj.pan_credits_left
+
+            await session.commit()
+            return True, new_balance, ""
+    except Exception as e:
+        logger.error(f"Error checking and deducting {api_type} credit: {e}")
+        return False, 0, f"{api_type} credit verification error: {str(e)}"
+
+
 async def _record_tax_transaction(
     db: AsyncSession,
     api_type: str,
@@ -758,6 +819,8 @@ async def _record_tax_transaction(
     status: str = "SUCCESS",
     source: str = "API_CENTER",
     description: Optional[str] = None,
+    credits_deducted: int = 1,
+    balance_after: Optional[int] = None,
 ) -> None:
     try:
         cnt_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == api_type)
@@ -772,6 +835,8 @@ async def _record_tax_transaction(
             source=source,
             description=description,
             counter_after=cur_cnt,
+            credits_deducted=credits_deducted,
+            balance_after=balance_after,
         )
         db.add(tx)
         await db.commit()
@@ -780,7 +845,35 @@ async def _record_tax_transaction(
         logger.warning(f"Error logging TaxApiTransaction for {api_type} {query_value}: {exc}")
 
 
-async def lookup_gst(db: AsyncSession, gstin: str, source: str = "AUTOFILL") -> GSTLookupResponse:
+async def lookup_gst(
+    db: AsyncSession,
+    gstin: str,
+    source: str = "AUTOFILL",
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> GSTLookupResponse:
+    # 1. Enforce credit check in panther_control
+    has_credit, rem_balance, credit_err = await check_and_deduct_tax_credit(
+        tenant_id=tenant_id,
+        company_code=company_code,
+        api_type="GST"
+    )
+    if not has_credit:
+        await _record_tax_transaction(
+            db,
+            api_type="GST",
+            query_value=gstin,
+            status="FAILED",
+            source=source,
+            description=credit_err,
+            credits_deducted=0,
+            balance_after=rem_balance,
+        )
+        return GSTLookupResponse(
+            success=False,
+            message=credit_err
+        )
+
     client_id, client_secret, base_url = await _get_tax_credentials(db)
     client = get_gst_pan_client()
     try:
@@ -799,6 +892,8 @@ async def lookup_gst(db: AsyncSession, gstin: str, source: str = "AUTOFILL") -> 
             status="SUCCESS" if result.get("success") else "FAILED",
             source=source,
             description=result.get("message") or ("GST verification successful" if result.get("success") else "GST verification failed"),
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         return GSTLookupResponse(**result)
     except Exception as exc:
@@ -810,6 +905,8 @@ async def lookup_gst(db: AsyncSession, gstin: str, source: str = "AUTOFILL") -> 
             status="FAILED",
             source=source,
             description=str(exc)[:250],
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         return GSTLookupResponse(
             success=False,
@@ -817,7 +914,37 @@ async def lookup_gst(db: AsyncSession, gstin: str, source: str = "AUTOFILL") -> 
         )
 
 
-async def lookup_pan(db: AsyncSession, pan: str, state_cd: Optional[str] = "07", source: str = "AUTOFILL") -> PANLookupResponse:
+async def lookup_pan(
+    db: AsyncSession,
+    pan: str,
+    state_cd: Optional[str] = "07",
+    source: str = "AUTOFILL",
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> PANLookupResponse:
+    # 1. Enforce credit check in panther_control
+    has_credit, rem_balance, credit_err = await check_and_deduct_tax_credit(
+        tenant_id=tenant_id,
+        company_code=company_code,
+        api_type="PAN"
+    )
+    if not has_credit:
+        await _record_tax_transaction(
+            db,
+            api_type="PAN",
+            query_value=pan,
+            state_code=state_cd or "07",
+            status="FAILED",
+            source=source,
+            description=credit_err,
+            credits_deducted=0,
+            balance_after=rem_balance,
+        )
+        return PANLookupResponse(
+            success=False,
+            message=credit_err
+        )
+
     client_id, client_secret, base_url = await _get_tax_credentials(db)
     client = get_gst_pan_client()
     try:
@@ -838,6 +965,8 @@ async def lookup_pan(db: AsyncSession, pan: str, state_cd: Optional[str] = "07",
             status="SUCCESS" if result.get("success") else "FAILED",
             source=source,
             description=result.get("message") or ("PAN verification successful" if result.get("success") else "PAN verification failed"),
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         return PANLookupResponse(**result)
     except Exception as exc:
@@ -850,6 +979,8 @@ async def lookup_pan(db: AsyncSession, pan: str, state_cd: Optional[str] = "07",
             status="FAILED",
             source=source,
             description=str(exc)[:250],
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         return PANLookupResponse(
             success=False,
@@ -857,7 +988,34 @@ async def lookup_pan(db: AsyncSession, pan: str, state_cd: Optional[str] = "07",
         )
 
 
-async def test_gst_connection(db: AsyncSession, req: GSTTestRequest) -> GSTTestResponse:
+async def test_gst_connection(
+    db: AsyncSession,
+    req: GSTTestRequest,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> GSTTestResponse:
+    has_credit, rem_balance, credit_err = await check_and_deduct_tax_credit(
+        tenant_id=tenant_id,
+        company_code=company_code,
+        api_type="GST"
+    )
+    if not has_credit:
+        await _record_tax_transaction(
+            db,
+            api_type="GST",
+            query_value=req.gstin,
+            status="FAILED",
+            source="SANDBOX_TEST",
+            description=credit_err,
+            credits_deducted=0,
+            balance_after=rem_balance,
+        )
+        return GSTTestResponse(
+            success=False,
+            message=credit_err,
+            gstin=req.gstin
+        )
+
     company = await get_company_setting(db)
     client_id = (req.gsp_client_id or company.gsp_client_id_override or settings.GSP_CLIENT_ID or "").strip()
     client_secret = (req.gsp_client_secret or company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET or "").strip()
@@ -881,6 +1039,8 @@ async def test_gst_connection(db: AsyncSession, req: GSTTestRequest) -> GSTTestR
             status="SUCCESS" if is_succ else "FAILED",
             source="SANDBOX_TEST",
             description=result.get("message") or ("GST test connection successful" if is_succ else "GST test failed"),
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         if is_succ:
             return GSTTestResponse(
@@ -906,6 +1066,8 @@ async def test_gst_connection(db: AsyncSession, req: GSTTestRequest) -> GSTTestR
             status="FAILED",
             source="SANDBOX_TEST",
             description=str(exc)[:250],
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         return GSTTestResponse(
             success=False,
@@ -913,7 +1075,35 @@ async def test_gst_connection(db: AsyncSession, req: GSTTestRequest) -> GSTTestR
         )
 
 
-async def test_pan_connection(db: AsyncSession, req: PANTestRequest) -> PANTestResponse:
+async def test_pan_connection(
+    db: AsyncSession,
+    req: PANTestRequest,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> PANTestResponse:
+    has_credit, rem_balance, credit_err = await check_and_deduct_tax_credit(
+        tenant_id=tenant_id,
+        company_code=company_code,
+        api_type="PAN"
+    )
+    if not has_credit:
+        await _record_tax_transaction(
+            db,
+            api_type="PAN",
+            query_value=req.pan,
+            state_code=req.state_cd or "07",
+            status="FAILED",
+            source="SANDBOX_TEST",
+            description=credit_err,
+            credits_deducted=0,
+            balance_after=rem_balance,
+        )
+        return PANTestResponse(
+            success=False,
+            message=credit_err,
+            pan=req.pan
+        )
+
     company = await get_company_setting(db)
     client_id = (req.gsp_client_id or company.gsp_client_id_override or settings.GSP_CLIENT_ID or "").strip()
     client_secret = (req.gsp_client_secret or company.gsp_client_secret_override or settings.GSP_CLIENT_SECRET or "").strip()
@@ -939,6 +1129,8 @@ async def test_pan_connection(db: AsyncSession, req: PANTestRequest) -> PANTestR
             status="SUCCESS" if is_succ else "FAILED",
             source="SANDBOX_TEST",
             description=result.get("message") or ("PAN test connection successful" if is_succ else "PAN test failed"),
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         if is_succ:
             return PANTestResponse(
@@ -965,6 +1157,8 @@ async def test_pan_connection(db: AsyncSession, req: PANTestRequest) -> PANTestR
             status="FAILED",
             source="SANDBOX_TEST",
             description=str(exc)[:250],
+            credits_deducted=1,
+            balance_after=rem_balance,
         )
         return PANTestResponse(
             success=False,
@@ -972,9 +1166,29 @@ async def test_pan_connection(db: AsyncSession, req: PANTestRequest) -> PANTestR
         )
 
 
-async def get_gst_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
+async def get_gst_counter_info(
+    db: AsyncSession,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> TaxApiCounterResponse:
     company = await get_company_setting(db)
     is_active = company.is_gst_active if company.is_gst_active is not None else True
+
+    credits_left = 0
+    if tenant_id or company_code:
+        try:
+            from app.core.database import ControlSessionLocal
+            from app.control.models import Tenant as ControlTenant
+            from sqlalchemy import select, or_
+            async with ControlSessionLocal() as session:
+                stmt = select(ControlTenant.gst_credits_left).where(
+                    or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+                )
+                val = (await session.execute(stmt)).scalar_one_or_none()
+                if val is not None:
+                    credits_left = int(val)
+        except Exception as exc:
+            logger.warning(f"Could not load gst_credits_left from control DB: {exc}")
 
     try:
         total_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == "GST")
@@ -1008,6 +1222,8 @@ async def get_gst_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
                 source=t.source,
                 description=t.description,
                 counter_after=t.counter_after,
+                credits_deducted=t.credits_deducted if t.credits_deducted is not None else 1,
+                balance_after=t.balance_after,
                 created_at=t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
             )
             for t in tx_rows
@@ -1017,6 +1233,7 @@ async def get_gst_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
             total_lookups=total_lookups,
             successful_lookups=successful_lookups,
             failed_lookups=failed_lookups,
+            api_calls_left=credits_left,
             is_active=is_active,
             pricing_notice="Standard government GSTIN query and taxpayer profile verification.",
             transactions=tx_items,
@@ -1027,15 +1244,36 @@ async def get_gst_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
             total_lookups=0,
             successful_lookups=0,
             failed_lookups=0,
+            api_calls_left=credits_left,
             is_active=is_active,
             pricing_notice="Standard government GSTIN query and taxpayer profile verification.",
             transactions=[],
         )
 
 
-async def get_pan_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
+async def get_pan_counter_info(
+    db: AsyncSession,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> TaxApiCounterResponse:
     company = await get_company_setting(db)
     is_active = company.is_pan_active if company.is_pan_active is not None else True
+
+    credits_left = 0
+    if tenant_id or company_code:
+        try:
+            from app.core.database import ControlSessionLocal
+            from app.control.models import Tenant as ControlTenant
+            from sqlalchemy import select, or_
+            async with ControlSessionLocal() as session:
+                stmt = select(ControlTenant.pan_credits_left).where(
+                    or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+                )
+                val = (await session.execute(stmt)).scalar_one_or_none()
+                if val is not None:
+                    credits_left = int(val)
+        except Exception as exc:
+            logger.warning(f"Could not load pan_credits_left from control DB: {exc}")
 
     try:
         total_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == "PAN")
@@ -1069,6 +1307,8 @@ async def get_pan_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
                 source=t.source,
                 description=t.description,
                 counter_after=t.counter_after,
+                credits_deducted=t.credits_deducted if t.credits_deducted is not None else 1,
+                balance_after=t.balance_after,
                 created_at=t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
             )
             for t in tx_rows
@@ -1078,6 +1318,7 @@ async def get_pan_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
             total_lookups=total_lookups,
             successful_lookups=successful_lookups,
             failed_lookups=failed_lookups,
+            api_calls_left=credits_left,
             is_active=is_active,
             pricing_notice="Standard government PAN query with 2-digit state jurisdiction code.",
             transactions=tx_items,
@@ -1088,6 +1329,7 @@ async def get_pan_counter_info(db: AsyncSession) -> TaxApiCounterResponse:
             total_lookups=0,
             successful_lookups=0,
             failed_lookups=0,
+            api_calls_left=credits_left,
             is_active=is_active,
             pricing_notice="Standard government PAN query with 2-digit state jurisdiction code.",
             transactions=[],

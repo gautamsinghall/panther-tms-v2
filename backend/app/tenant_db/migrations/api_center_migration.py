@@ -44,10 +44,14 @@ async def run_migration():
                         status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
                         source VARCHAR(50) DEFAULT 'API_CENTER',
                         description VARCHAR(255),
+                        credits_deducted INTEGER DEFAULT 1,
+                        balance_after INTEGER,
                         counter_after INTEGER NOT NULL DEFAULT 1,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
                     );
                 """))
+                await t_conn.execute(text("ALTER TABLE tax_api_transactions ADD COLUMN IF NOT EXISTS credits_deducted INTEGER DEFAULT 1;"))
+                await t_conn.execute(text("ALTER TABLE tax_api_transactions ADD COLUMN IF NOT EXISTS balance_after INTEGER;"))
                 await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_api_type ON tax_api_transactions (api_type);"))
                 await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_query_value ON tax_api_transactions (query_value);"))
                 await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_created_at ON tax_api_transactions (created_at);"))

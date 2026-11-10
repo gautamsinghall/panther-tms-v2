@@ -1226,6 +1226,8 @@ class TaxApiTransaction(TenantBase):
     status = Column(String(20), nullable=False, default="SUCCESS")  # "SUCCESS" or "FAILED"
     source = Column(String(50), nullable=True, default="API_CENTER")  # "API_CENTER", "BILLING_CLIENT", "VENDOR", etc.
     description = Column(String(255), nullable=True)
+    credits_deducted = Column(Integer, default=1, nullable=False)
+    balance_after = Column(Integer, nullable=True)
     counter_after = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 

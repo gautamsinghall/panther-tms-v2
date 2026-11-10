@@ -22,6 +22,7 @@ import {
   FileCheck,
   Activity,
   Layers,
+  Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -70,6 +71,8 @@ interface TaxTransactionItem {
   source?: string;
   description?: string;
   counter_after: number;
+  credits_deducted?: number;
+  balance_after?: number | null;
   created_at: string;
 }
 
@@ -77,6 +80,7 @@ interface TaxCounterData {
   total_lookups: number;
   successful_lookups: number;
   failed_lookups: number;
+  api_calls_left: number;
   is_active: boolean;
   pricing_notice: string;
   transactions: TaxTransactionItem[];
@@ -103,6 +107,7 @@ export default function GSTApiPage() {
     total_lookups: 0,
     successful_lookups: 0,
     failed_lookups: 0,
+    api_calls_left: 0,
     is_active: true,
     pricing_notice: "Standard government GSTIN query and taxpayer profile verification.",
     transactions: [],
@@ -279,7 +284,7 @@ export default function GSTApiPage() {
             <RefreshCw
               className={`w-3.5 h-3.5 ${isCounterLoading ? "animate-spin" : "text-indigo-600"}`}
             />
-            <span>Refresh Counter</span>
+            <span>Refresh Quota &amp; Counter</span>
           </Button>
         </div>
       </PageHeader>
@@ -311,54 +316,59 @@ export default function GSTApiPage() {
 
       {/* Top 3 KPI Counter Cards (matching FASTag and SIM tracking) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1: Total GST Lookups Counter */}
+        {/* Card 1: GST Calls Available */}
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono">
-              GST Calls / Lookups
+              GST Calls Available
             </span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+              <Wallet className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3.5">
+            <div className="text-2xl font-bold text-slate-900 font-mono">
+              {counterData.api_calls_left ?? 0}{" "}
+              <span className="text-sm font-semibold text-slate-500 font-sans">Calls Left</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Standard Tariff: <strong className="text-slate-800">1 Credit / Fetch</strong>
+            </p>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                (counterData.api_calls_left ?? 0) > 0
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-rose-100 text-rose-800"
+              }`}
+            >
+              {(counterData.api_calls_left ?? 0) > 0
+                ? `Active Quota (${counterData.api_calls_left} Calls)`
+                : "Exhausted (0 Calls)"}
+            </span>
+            <span className="text-[10px] font-mono text-slate-400">Taxpayer Registry</span>
+          </div>
+        </div>
+
+        {/* Card 2: Total Lookups */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono">
+              Total GST Lookups
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
               <Activity className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3.5">
             <div className="text-2xl font-bold text-slate-900 font-mono">
               {counterData.total_lookups}{" "}
-              <span className="text-sm font-semibold text-slate-500 font-sans">Lookups Performed</span>
+              <span className="text-sm font-semibold text-slate-500 font-sans">Queries Performed</span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Live automated taxpayer autofill queries
-            </p>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                isGstActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {isGstActive ? "Active API Integration" : "Disabled"}
-            </span>
-            <span className="text-[10px] font-mono text-slate-400">GST Portal Query</span>
-          </div>
-        </div>
-
-        {/* Card 2: Successful Verifications */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono">
-              Successful Verifications
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-              <FileCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3.5">
-            <div className="text-2xl font-bold text-slate-900 font-mono">
-              {counterData.successful_lookups}{" "}
-              <span className="text-sm font-semibold text-emerald-700 font-sans">Verified</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Unresolved / Failed: <strong className="text-slate-800">{counterData.failed_lookups}</strong>
+              Verified: <strong className="text-emerald-700">{counterData.successful_lookups}</strong> | Failed:{" "}
+              <strong className="text-slate-700">{counterData.failed_lookups}</strong>
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -386,8 +396,14 @@ export default function GSTApiPage() {
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-emerald-700 font-medium">Automatic Master Autofill</span>
-            <span className="text-[10px] font-mono text-slate-400">Active Pipe</span>
+            <span
+              className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                isGstActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              {isGstActive ? "Active Pipe" : "Disabled"}
+            </span>
+            <span className="text-[10px] font-mono text-slate-400">Live API</span>
           </div>
         </div>
       </div>
@@ -716,6 +732,8 @@ export default function GSTApiPage() {
                   <th className="py-2.5 px-3 font-semibold">Legal / Business Name</th>
                   <th className="py-2.5 px-3 font-semibold">Source</th>
                   <th className="py-2.5 px-3 font-semibold">Status</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Debited</th>
+                  <th className="py-2.5 px-3 font-semibold text-center">Quota Left</th>
                   <th className="py-2.5 px-3 font-semibold text-right">Counter #</th>
                 </tr>
               </thead>
@@ -754,6 +772,24 @@ export default function GSTApiPage() {
                         )}
                         <span>{tx.status}</span>
                       </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-mono text-[11px]">
+                      {tx.credits_deducted ? (
+                        <span className="text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
+                          -{tx.credits_deducted} Call
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">0 Calls</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-mono text-[11px] font-bold text-slate-800">
+                      {tx.balance_after !== null && tx.balance_after !== undefined ? (
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800">
+                          {tx.balance_after}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono text-slate-500 font-semibold">
                       #{tx.counter_after}

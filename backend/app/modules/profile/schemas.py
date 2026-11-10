@@ -238,6 +238,8 @@ class ApiCenterSettingResponse(BaseModel):
     # Telemetry Gateways Status (Dokploy & panther_control)
     fastag_configured: bool = False
     google_maps_configured: bool = False
+    gst_credits_left: int = 0
+    pan_credits_left: int = 0
     fastag_credits_left: int = 0
     fastag_rate_per_fetch: float = 1.50
     fastag_cooldown_minutes: int = 10
@@ -344,16 +346,19 @@ class TaxApiTransactionItem(BaseModel):
     status: str
     source: Optional[str] = "API_CENTER"
     description: Optional[str] = None
+    credits_deducted: int = 1
+    balance_after: Optional[int] = None
     counter_after: int = 1
     created_at: str
 
 
 class TaxApiCounterResponse(BaseModel):
+    api_calls_left: int = 0
     total_lookups: int = 0
     successful_lookups: int = 0
     failed_lookups: int = 0
     is_active: bool = True
-    pricing_notice: str = "Real-time government taxpayer verification and automated master records population."
+    pricing_notice: str = "Standard tariff: 1 Credit per taxpayer verification. Calls are blocked when balance reaches 0. Recharges are managed in panther_control."
     transactions: List[TaxApiTransactionItem] = []
 
 

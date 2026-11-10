@@ -52,9 +52,13 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_period_until TIMESTAMPTZ;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS gst_credits_left INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS pan_credits_left INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS fastag_credits_left INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sim_wallet_balance NUMERIC(12, 2) DEFAULT 0.00;"))
                 # Only initialize to 0 if NULL (new or uninitialized column); never overwrite existing/recharged credits on re-runs
+                await conn.execute(text("UPDATE tenants SET gst_credits_left = 0 WHERE gst_credits_left IS NULL;"))
+                await conn.execute(text("UPDATE tenants SET pan_credits_left = 0 WHERE pan_credits_left IS NULL;"))
                 await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
                 await conn.execute(text("UPDATE tenants SET sim_wallet_balance = 0.00 WHERE sim_wallet_balance IS NULL;"))
                 # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
@@ -235,10 +239,14 @@ async def lifespan(app: FastAPI):
                                 status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
                                 source VARCHAR(50) DEFAULT 'API_CENTER',
                                 description VARCHAR(255),
+                                credits_deducted INTEGER DEFAULT 1,
+                                balance_after INTEGER,
                                 counter_after INTEGER NOT NULL DEFAULT 1,
                                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
                             );
                         """))
+                        await t_conn.execute(text("ALTER TABLE tax_api_transactions ADD COLUMN IF NOT EXISTS credits_deducted INTEGER DEFAULT 1;"))
+                        await t_conn.execute(text("ALTER TABLE tax_api_transactions ADD COLUMN IF NOT EXISTS balance_after INTEGER;"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_api_type ON tax_api_transactions (api_type);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_query_value ON tax_api_transactions (query_value);"))
                         await t_conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tax_api_transactions_created_at ON tax_api_transactions (created_at);"))

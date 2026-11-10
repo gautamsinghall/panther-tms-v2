@@ -354,9 +354,16 @@ async def test_wheelseye(
 async def get_gst_lookup(
     gstin: str = Query(..., description="15-character GSTIN"),
     current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.lookup_gst(db, gstin, source="AUTOFILL")
+    return await service.lookup_gst(
+        db,
+        gstin,
+        source="AUTOFILL",
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
 
 
 @router.get(
@@ -368,9 +375,17 @@ async def get_pan_lookup(
     pan: str = Query(..., description="10-character PAN"),
     state_cd: Optional[str] = Query("07", description="2-digit state code"),
     current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.lookup_pan(db, pan, state_cd, source="AUTOFILL")
+    return await service.lookup_pan(
+        db,
+        pan,
+        state_cd,
+        source="AUTOFILL",
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
 
 
 @router.get(
@@ -380,9 +395,14 @@ async def get_pan_lookup(
 )
 async def get_gst_counter(
     current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_gst_counter_info(db)
+    return await service.get_gst_counter_info(
+        db,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
 
 
 @router.get(
@@ -392,9 +412,14 @@ async def get_gst_counter(
 )
 async def get_pan_counter(
     current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_pan_counter_info(db)
+    return await service.get_pan_counter_info(
+        db,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
 
 
 @router.post(
@@ -405,9 +430,15 @@ async def get_pan_counter(
 async def test_gst(
     req: GSTTestRequest,
     current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.test_gst_connection(db, req)
+    return await service.test_gst_connection(
+        db,
+        req,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
 
 
 @router.post(
@@ -418,9 +449,15 @@ async def test_gst(
 async def test_pan(
     req: PANTestRequest,
     current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.test_pan_connection(db, req)
+    return await service.test_pan_connection(
+        db,
+        req,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
 
 
 @router.get(
