@@ -65,6 +65,7 @@ export interface HireChallanRegisterRow {
   remarks?: string | null;
   lr_id?: number | null;
   lr_number?: string | null;
+  actions?: any;
 }
 
 interface OwnerOption {
@@ -1008,7 +1009,7 @@ export default function HCRegisterPage() {
                         col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left",
                         isFirstSticky && "sticky left-0 z-20 bg-slate-100 dark:bg-[#101116]",
                         isFirstSticky && canScrollHorizontally && scrollPosition > 10 && "shadow-[3px_0_6px_-2px_rgba(0,0,0,0.35)]",
-                        isActions && "sticky right-0 z-20 bg-slate-100 dark:bg-[#101116] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.15)] text-center print:hidden"
+                        isActions && "sticky right-0 z-20 bg-slate-100 dark:bg-[#101116] text-center print:hidden"
                       )}
                     >
                       <div className={cn("inline-flex items-center gap-1", col.align === "right" && "justify-end", isActions && "justify-center")}>
@@ -1041,7 +1042,7 @@ export default function HCRegisterPage() {
                       if (!visibleColumns[col.key]) return null;
                       if (col.key === "actions") {
                         return (
-                          <td key={col.key} className="py-3 px-3.5 sticky right-0 z-10 bg-white dark:bg-[#121319] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.1)] text-center border-b border-slate-200 dark:border-[#1C1D26] print:hidden">
+                          <td key={col.key} className="py-3 px-3.5 sticky right-0 z-10 bg-white dark:bg-[#121319] text-center border-b border-slate-200 dark:border-[#1C1D26] print:hidden">
                             <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-14 mx-auto" />
                           </td>
                         );
@@ -1300,7 +1301,7 @@ export default function HCRegisterPage() {
                       <td
                         className={cn(
                           "py-3 px-3.5 text-center whitespace-nowrap sticky right-0 z-10 transition-colors bg-white dark:bg-[#121319] group-hover:bg-slate-50/90 dark:group-hover:bg-[#161720]",
-                          "shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/60 dark:border-[#1C1D26] print:hidden"
+                          "border-b border-slate-200/60 dark:border-[#1C1D26] print:hidden"
                         )}
                       >
                         <Button

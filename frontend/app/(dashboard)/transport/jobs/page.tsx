@@ -15,12 +15,7 @@ import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import {
-  QuickCreateBillingClientModal,
-  QuickCreateConsignerModal,
-  QuickCreateConsigneeModal,
-  QuickCreateLocationModal,
-} from "@/components/modals/quick-create-modal";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { JobExcelImportModal } from "@/components/modals/job-excel-import-modal";
 import { JobOrderViewModal } from "@/components/modals/job-order-view-modal";
 
@@ -83,11 +78,7 @@ export default function JobsPage() {
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
   const formSetFieldValueRef = useRef<((name: string, value: any) => void) | null>(null);
 
-  // Quick Create Modals state
-  const [quickBillingClientOpen, setQuickBillingClientOpen] = useState(false);
-  const [quickConsignerOpen, setQuickConsignerOpen] = useState(false);
-  const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
-  const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
+  const { openMasterTab } = useWorkspaceTabs();
 
   // Excel Import Modal state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -293,51 +284,57 @@ export default function JobsPage() {
     },
   ];
 
-  const handleBillingClientCreated = (newClient: { id: number; name: string }) => {
-    setBillingClients((prev) => [{ id: newClient.id, name: newClient.name }, ...prev]);
+  const handleBillingClientCreated = (newClient: { id: number | string; label?: string; name?: string }) => {
+    setBillingClients((prev) => [{ id: Number(newClient.id), name: newClient.name || newClient.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, billing_client_id: String(newClient.id) }));
     formSetFieldValueRef.current?.("billing_client_id", String(newClient.id));
   };
 
-  const handleConsignerCreated = (newConsigner: { id: number; name: string }) => {
-    setConsigners((prev) => [{ id: newConsigner.id, name: newConsigner.name }, ...prev]);
+  const handleConsignerCreated = (newConsigner: { id: number | string; label?: string; name?: string }) => {
+    setConsigners((prev) => [{ id: Number(newConsigner.id), name: newConsigner.name || newConsigner.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, consigner_id: String(newConsigner.id) }));
     formSetFieldValueRef.current?.("consigner_id", String(newConsigner.id));
   };
 
-  const handleConsigneeCreated = (newConsignee: { id: number; name: string }) => {
-    setConsignees((prev) => [{ id: newConsignee.id, name: newConsignee.name }, ...prev]);
+  const handleConsigneeCreated = (newConsignee: { id: number | string; label?: string; name?: string }) => {
+    setConsignees((prev) => [{ id: Number(newConsignee.id), name: newConsignee.name || newConsignee.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, consignee_id: String(newConsignee.id) }));
     formSetFieldValueRef.current?.("consignee_id", String(newConsignee.id));
   };
 
-  const handleLocationCreated = (newLoc: { id: number; city_name: string }) => {
-    setLocations((prev) => [{ id: newLoc.id, city_name: newLoc.city_name }, ...prev]);
-    const field = quickLocationTarget === "origin" ? "origin_location_id" : "destination_location_id";
+  const handleLocationCreated = (newLoc: { id: number | string; city_name?: string; label?: string }, field: "origin_location_id" | "destination_location_id") => {
+    setLocations((prev) => [{ id: Number(newLoc.id), city_name: newLoc.city_name || newLoc.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, [field]: String(newLoc.id) }));
     formSetFieldValueRef.current?.(field, String(newLoc.id));
-    setQuickLocationTarget(null);
   };
 
-  const billingClientOptions = billingClients.map((b) => ({
-    label: b.name ? `${b.name}${b.code ? ` (${b.code})` : ""}` : `Billing Client #${b.id}`,
-    value: String(b.id),
-  }));
+  const billingClientOptions = billingClients
+    .filter((b: any) => b.is_active !== false || String(b.id) === String(editingJob?.billing_client_id))
+    .map((b) => ({
+      label: b.name ? `${b.name}${b.code ? ` (${b.code})` : ""}` : `Billing Client #${b.id}`,
+      value: String(b.id),
+    }));
 
-  const consignerOptions = consigners.map((c) => ({
-    label: c.name || `Consignor #${c.id}`,
-    value: String(c.id),
-  }));
+  const consignerOptions = consigners
+    .filter((c: any) => c.is_active !== false || String(c.id) === String(editingJob?.consigner_id))
+    .map((c) => ({
+      label: c.name || `Consignor #${c.id}`,
+      value: String(c.id),
+    }));
 
-  const consigneeOptions = consignees.map((c) => ({
-    label: c.name || `Consignee #${c.id}`,
-    value: String(c.id),
-  }));
+  const consigneeOptions = consignees
+    .filter((c: any) => c.is_active !== false || String(c.id) === String(editingJob?.consignee_id))
+    .map((c) => ({
+      label: c.name || `Consignee #${c.id}`,
+      value: String(c.id),
+    }));
 
-  const locationOptions = locations.map((l) => ({
-    label: l.city_name ? `${l.city_name}${l.state ? `, ${l.state}` : ""}` : `Location #${l.id}`,
-    value: String(l.id),
-  }));
+  const locationOptions = locations
+    .filter((l: any) => l.is_active !== false || String(l.id) === String(editingJob?.origin_location_id) || String(l.id) === String(editingJob?.destination_location_id))
+    .map((l) => ({
+      label: l.city_name ? `${l.city_name}${l.state ? `, ${l.state}` : ""}` : `Location #${l.id}`,
+      value: String(l.id),
+    }));
 
   const seriesOptions = useMemo(() => {
     if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
@@ -414,9 +411,9 @@ export default function JobsPage() {
           required: true,
           options: billingClientOptions,
           placeholder: "Select Billing Client",
-          onAddNew: () => setQuickBillingClientOpen(true),
+          onAddNew: () => openMasterTab({ type: "billing_client", title: "Add Billing Client", onSuccess: handleBillingClientCreated }),
           addNewLabel: "+ Add New Billing Client",
-          addNewTitle: "Quickly register new corporate billing client",
+          addNewTitle: "Register new corporate billing client in TMS tab",
           colSpan: 1,
         },
         {
@@ -426,9 +423,9 @@ export default function JobsPage() {
           required: true,
           options: locationOptions,
           placeholder: "Select Origin Location",
-          onAddNew: () => setQuickLocationTarget("origin"),
+          onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "origin_location_id") }),
           addNewLabel: "+ Add New Origin Location",
-          addNewTitle: "Quickly create origin city / hub",
+          addNewTitle: "Create origin city / hub in TMS tab",
         },
         {
           name: "destination_location_id",
@@ -437,9 +434,9 @@ export default function JobsPage() {
           required: true,
           options: locationOptions,
           placeholder: "Select Destination Location",
-          onAddNew: () => setQuickLocationTarget("destination"),
+          onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "destination_location_id") }),
           addNewLabel: "+ Add New Destination Location",
-          addNewTitle: "Quickly create destination city / hub",
+          addNewTitle: "Create destination city / hub in TMS tab",
         },
         {
           name: "job_date",
@@ -462,9 +459,9 @@ export default function JobsPage() {
           required: true,
           options: consignerOptions,
           placeholder: "Select Consignor",
-          onAddNew: () => setQuickConsignerOpen(true),
+          onAddNew: () => openMasterTab({ type: "consigner", title: "Add Consignor", onSuccess: handleConsignerCreated }),
           addNewLabel: "+ Add New Consignor",
-          addNewTitle: "Quickly create and register consignor",
+          addNewTitle: "Create and register consignor in TMS tab",
         },
         {
           name: "consignee_id",
@@ -473,9 +470,9 @@ export default function JobsPage() {
           required: true,
           options: consigneeOptions,
           placeholder: "Select Consignee",
-          onAddNew: () => setQuickConsigneeOpen(true),
+          onAddNew: () => openMasterTab({ type: "consignee", title: "Add Consignee", onSuccess: handleConsigneeCreated }),
           addNewLabel: "+ Add New Consignee",
-          addNewTitle: "Quickly create and register consignee",
+          addNewTitle: "Create and register consignee in TMS tab",
         },
         {
           name: "cargo_description",
@@ -715,29 +712,6 @@ export default function JobsPage() {
           isLoading={isSubmitting}
         />
       </EntityDrawer>
-
-      {/* Quick Creation Modals */}
-      <QuickCreateBillingClientModal
-        isOpen={quickBillingClientOpen}
-        onClose={() => setQuickBillingClientOpen(false)}
-        onSuccess={handleBillingClientCreated}
-      />
-      <QuickCreateConsignerModal
-        isOpen={quickConsignerOpen}
-        onClose={() => setQuickConsignerOpen(false)}
-        onSuccess={handleConsignerCreated}
-      />
-      <QuickCreateConsigneeModal
-        isOpen={quickConsigneeOpen}
-        onClose={() => setQuickConsigneeOpen(false)}
-        onSuccess={handleConsigneeCreated}
-      />
-      <QuickCreateLocationModal
-        isOpen={quickLocationTarget !== null}
-        onClose={() => setQuickLocationTarget(null)}
-        onSuccess={handleLocationCreated}
-        defaultTitle={quickLocationTarget === "origin" ? "Quick Add Origin Hub / City" : "Quick Add Destination Hub / City"}
-      />
 
       {/* Mass Excel Import Modal */}
       <JobExcelImportModal

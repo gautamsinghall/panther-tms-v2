@@ -1,5 +1,5 @@
 "use client";
-import { toast } from "@/lib/toast";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -234,6 +234,7 @@ export default function BillingClientPage() {
         method: "DELETE",
       });
       setDeactivatingRecord(null);
+      toast.success("Billing Client deactivated successfully.");
       await loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to deactivate billing client.");
@@ -243,14 +244,22 @@ export default function BillingClientPage() {
   };
 
   const handleToggleActivate = async (record: BillingClientRecord) => {
+    const ok = await confirmModal({
+      title: "Activate Billing Client",
+      description: `Are you sure you want to activate "${record.name}"?`,
+      confirmText: "Activate",
+      variant: "primary",
+    });
+    if (!ok) return;
     try {
       await apiClient(`/api/v1/general/billing-clients/${record.id}`, {
         method: "PUT",
-        body: JSON.stringify({ is_active: !record.is_active }),
+        body: JSON.stringify({ is_active: true }),
       });
+      toast.success("Billing Client activated successfully.");
       await loadData();
     } catch (err: any) {
-      toast.error(err.message || "Failed to update client status.");
+      toast.error(err.message || "Failed to activate billing client.");
     }
   };
 
@@ -633,7 +642,7 @@ export default function BillingClientPage() {
       },
     },
     {
-      label: "Reactivate",
+      label: "Activate",
       icon: <Check className="w-3.5 h-3.5 text-emerald-600" />,
       hidden: (row) => row.is_active,
       onClick: (row) => {

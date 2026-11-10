@@ -10,6 +10,38 @@ import React, {
   useRef,
 } from "react";
 import { usePathname } from "next/navigation";
+import { confirmModal } from "@/lib/toast";
+
+export type MasterType =
+  | "billing_client"
+  | "consigner"
+  | "consignee"
+  | "location"
+  | "vehicle_owner"
+  | "driver"
+  | "load_type"
+  | "market_vehicle";
+
+export interface OpenMasterTabConfig {
+  type: MasterType;
+  title?: string;
+  subtitle?: string;
+  initialValues?: Record<string, any>;
+  onSuccess?: (created: { id: string | number; label: string; [key: string]: any }) => void;
+  onCancel?: () => void;
+}
+
+export interface MasterTabItem {
+  id: string;
+  type: MasterType;
+  title: string;
+  subtitle?: string;
+  initialValues?: Record<string, any>;
+  isDirty?: boolean;
+  returnToTabId?: string;
+  onSuccess?: (created: { id: string | number; label: string; [key: string]: any }) => void;
+  onCancel?: () => void;
+}
 
 export interface FormTabInfo {
   title: string;
@@ -18,13 +50,17 @@ export interface FormTabInfo {
 }
 
 interface WorkspaceTabsContextValue {
-  activeTab: "list" | "form";
-  setActiveTab: (tab: "list" | "form") => void;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
   formTabInfo: FormTabInfo | null;
   openFormTab: (info: FormTabInfo) => void;
   closeFormTab: (callOnClose?: boolean) => void;
   dismissFormTab: () => void;
   isFormOpen: boolean;
+  masterTabs: MasterTabItem[];
+  openMasterTab: (config: OpenMasterTabConfig) => string;
+  closeMasterTab: (tabId: string, skipConfirm?: boolean) => Promise<boolean>;
+  updateMasterTabDirty: (tabId: string, isDirty: boolean) => void;
   isMobileNavOpen: boolean;
   setIsMobileNavOpen: (open: boolean) => void;
   openMobileNav: () => void;
@@ -32,25 +68,40 @@ interface WorkspaceTabsContextValue {
   toggleMobileNav: () => void;
 }
 
+const DEFAULT_TITLES: Record<MasterType, string> = {
+  billing_client: "Add Billing Client",
+  consigner: "Add Consignor",
+  consignee: "Add Consignee",
+  location: "Add Location",
+  vehicle_owner: "Add Vehicle Owner",
+  driver: "Add Driver",
+  load_type: "Add Load Type",
+  market_vehicle: "Add Vehicle",
+};
+
 const WorkspaceTabsContext = createContext<WorkspaceTabsContextValue | null>(null);
 
 export function WorkspaceTabsProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [activeTab, setActiveTab] = useState<"list" | "form">("list");
+  const [activeTab, setActiveTab] = useState<string>("list");
   const [formTabInfo, setFormTabInfo] = useState<FormTabInfo | null>(null);
+  const [masterTabs, setMasterTabs] = useState<MasterTabItem[]>([]);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
   const onCloseRef = useRef<(() => void) | null>(null);
+  const masterTabsRef = useRef<MasterTabItem[]>([]);
+  masterTabsRef.current = masterTabs;
 
   // Keep ref up to date with latest onClose callback
   useEffect(() => {
     onCloseRef.current = formTabInfo?.onClose ?? null;
   }, [formTabInfo]);
 
-  // When pathname changes (user navigated via sidebar), reset to list tab, clear form tab, and close mobile nav
+  // When pathname changes (user navigated via sidebar), reset to list tab, clear form & master tabs, close mobile nav
   useEffect(() => {
     const cb = onCloseRef.current;
     setActiveTab("list");
     setFormTabInfo(null);
+    setMasterTabs([]);
     setIsMobileNavOpen(false);
     onCloseRef.current = null;
     if (cb) {
@@ -87,6 +138,77 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
     setActiveTab("list");
   }, []);
 
+  // Open a full Master form in a new in-app TMS tab
+  const openMasterTab = useCallback((config: OpenMasterTabConfig): string => {
+    const newId = `master-${config.type}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const tabTitle = config.title || DEFAULT_TITLES[config.type] || "Add New Record";
+
+    // Detect where user came from: if form is open, return to form, else list
+    const currentActive = activeTab;
+    const returnTarget = currentActive.startsWith("master-")
+      ? currentActive
+      : formTabInfo
+      ? "form"
+      : "list";
+
+    const newTab: MasterTabItem = {
+      id: newId,
+      type: config.type,
+      title: tabTitle,
+      subtitle: config.subtitle,
+      initialValues: config.initialValues,
+      isDirty: false,
+      returnToTabId: returnTarget,
+      onSuccess: config.onSuccess,
+      onCancel: config.onCancel,
+    };
+
+    setMasterTabs((prev) => [...prev, newTab]);
+    setActiveTab(newId);
+    return newId;
+  }, [activeTab, formTabInfo]);
+
+  // Close master tab with unsaved changes confirmation
+  const closeMasterTab = useCallback(async (tabId: string, skipConfirm = false): Promise<boolean> => {
+    const target = masterTabsRef.current.find((t) => t.id === tabId);
+    if (!target) return true;
+
+    if (target.isDirty && !skipConfirm) {
+      const ok = await confirmModal({
+        title: "Unsaved Changes",
+        description: "You have unsaved changes. Do you want to close without saving?",
+        confirmText: "Yes",
+        cancelText: "No",
+        variant: "warning",
+      });
+      if (!ok) return false;
+    }
+
+    setMasterTabs((prev) => prev.filter((t) => t.id !== tabId));
+    setActiveTab((prev) => {
+      if (prev === tabId) {
+        // Return to the tab the user came from
+        return target.returnToTabId || (formTabInfo ? "form" : "list");
+      }
+      return prev;
+    });
+
+    try {
+      target.onCancel?.();
+    } catch (err) {
+      console.error("Error in master tab onCancel", err);
+    }
+
+    return true;
+  }, [formTabInfo]);
+
+  // Update dirty state for master tab
+  const updateMasterTabDirty = useCallback((tabId: string, isDirty: boolean) => {
+    setMasterTabs((prev) =>
+      prev.map((t) => (t.id === tabId ? { ...t, isDirty } : t))
+    );
+  }, []);
+
   const openMobileNav = useCallback(() => setIsMobileNavOpen(true), []);
   const closeMobileNav = useCallback(() => setIsMobileNavOpen(false), []);
   const toggleMobileNav = useCallback(() => setIsMobileNavOpen((prev) => !prev), []);
@@ -100,6 +222,10 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
       closeFormTab,
       dismissFormTab,
       isFormOpen: formTabInfo !== null,
+      masterTabs,
+      openMasterTab,
+      closeMasterTab,
+      updateMasterTabDirty,
       isMobileNavOpen,
       setIsMobileNavOpen,
       openMobileNav,
@@ -112,6 +238,10 @@ export function WorkspaceTabsProvider({ children }: { children: React.ReactNode 
       openFormTab,
       closeFormTab,
       dismissFormTab,
+      masterTabs,
+      openMasterTab,
+      closeMasterTab,
+      updateMasterTabDirty,
       isMobileNavOpen,
       openMobileNav,
       closeMobileNav,

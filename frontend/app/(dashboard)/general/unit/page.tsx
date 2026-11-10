@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Scale } from "lucide-react";
+import { Plus, Trash2, Scale, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -87,6 +87,7 @@ export default function UnitPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
+      hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Unit",
@@ -97,9 +98,35 @@ export default function UnitPage() {
         if (!ok) return;
         try {
           await apiClient(`/api/v1/general/units/${row.id}`, { method: "DELETE" });
+          toast.success("Unit deactivated successfully.");
           loadData();
         } catch (err: any) {
           toast.error(err.message || "Failed to deactivate unit.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Unit",
+          description: `Are you sure you want to activate ${row.name}?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/general/units/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Unit activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate unit.");
         }
       },
     },

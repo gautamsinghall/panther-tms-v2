@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -78,6 +78,7 @@ export default function IndustryPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
+      hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Industry",
@@ -88,9 +89,35 @@ export default function IndustryPage() {
         if (!ok) return;
         try {
           await apiClient(`/api/v1/general/industries/${row.id}`, { method: "DELETE" });
+          toast.success("Industry deactivated successfully.");
           loadData();
         } catch (err: any) {
           toast.error(err.message || "Failed to deactivate industry.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Industry",
+          description: `Are you sure you want to activate ${row.name}?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/general/industries/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Industry activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate industry.");
         }
       },
     },

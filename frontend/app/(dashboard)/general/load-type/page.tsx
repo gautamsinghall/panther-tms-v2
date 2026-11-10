@@ -132,7 +132,7 @@ export default function LoadTypePage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-rose-600" />,
       variant: "danger",
-      disabled: (row) => !row.is_active,
+      hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Load Type",
@@ -143,12 +143,41 @@ export default function LoadTypePage() {
         if (!ok) return;
         try {
           await apiClient(`/api/v1/general/load-types/${row.id}`, { method: "DELETE" });
+          toast.success("Load type deactivated successfully.");
           loadData();
           if (typeof window !== "undefined") {
             window.dispatchEvent(new Event("panther_load_types_changed"));
           }
         } catch (err: any) {
           toast.error(err.message || "Failed to deactivate load type.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Load Type",
+          description: `Are you sure you want to activate "${row.name}"?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/general/load-types/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Load type activated successfully.");
+          loadData();
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("panther_load_types_changed"));
+          }
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate load type.");
         }
       },
     },

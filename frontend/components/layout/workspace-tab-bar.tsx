@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import {
   Table,
@@ -173,7 +173,15 @@ function formatRouteTitle(pathname: string): RouteInfo {
 
 export function WorkspaceTabBar() {
   const pathname = usePathname();
-  const { activeTab, setActiveTab, formTabInfo, closeFormTab, isFormOpen } = useWorkspaceTabs();
+  const {
+    activeTab,
+    setActiveTab,
+    formTabInfo,
+    closeFormTab,
+    isFormOpen,
+    masterTabs,
+    closeMasterTab,
+  } = useWorkspaceTabs();
 
   const normalized = pathname
     ? pathname.replace(/^\/[a-z0-9]{10}/, "").replace(/^\/demo123456/, "").replace(/^\/demo/, "") || "/"
@@ -182,7 +190,21 @@ export function WorkspaceTabBar() {
   const routeInfo = formatRouteTitle(pathname);
   const ListIcon = routeInfo.icon;
 
-  if (normalized === "/" && !isFormOpen) {
+  const hasAnyMasterTab = masterTabs && masterTabs.length > 0;
+  const isMasterTabActive = activeTab.startsWith("master-");
+
+  // Global Escape key listener for master tabs
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isMasterTabActive) {
+        closeMasterTab(activeTab);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, isMasterTabActive, closeMasterTab]);
+
+  if (normalized === "/" && !isFormOpen && !hasAnyMasterTab) {
     return null;
   }
 
@@ -206,10 +228,10 @@ export function WorkspaceTabBar() {
           <span className="truncate max-w-[120px] sm:max-w-[200px]">{routeInfo.title}</span>
 
           {/* Indicator dot if form draft is active in background */}
-          {isFormOpen && activeTab === "list" && (
+          {(isFormOpen || hasAnyMasterTab) && activeTab === "list" && (
             <span
               className="flex h-2 w-2 relative ml-0.5"
-              title="Form draft is open in background"
+              title="Work in progress is open in background tabs"
             >
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600" />
@@ -253,11 +275,52 @@ export function WorkspaceTabBar() {
             </button>
           </div>
         )}
+
+        {/* Tab 3+: In-App Master Creation Tabs (opened from '+' dropdown icons) */}
+        {masterTabs.map((tab) => {
+          const isCurrentMaster = activeTab === tab.id;
+          return (
+            <div
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "group relative flex items-center gap-2 pl-3.5 pr-2 py-1.5 text-xs font-semibold rounded-t-lg transition-all border-t border-l border-r cursor-pointer shrink-0 animate-in fade-in slide-in-from-left-2 duration-150",
+                isCurrentMaster
+                  ? "bg-[#F8FAFC] text-indigo-700 border-slate-200/90 shadow-2xs -mb-px z-10 font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border-transparent"
+              )}
+              title={tab.title}
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="max-w-[120px] sm:max-w-[200px] truncate">
+                {tab.title}
+              </span>
+
+              <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/70 uppercase tracking-wider font-bold shrink-0">
+                Master Tab
+              </span>
+
+              {/* Close Tab (X) Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeMasterTab(tab.id);
+                }}
+                title="Close tab (Esc)"
+                className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-0.5 cursor-pointer shrink-0"
+                aria-label={`Close ${tab.title}`}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Right: Quick Context Actions / Status */}
       <div className="flex items-center gap-2.5 shrink-0 pl-2">
-        {isFormOpen && activeTab === "form" && (
+        {(activeTab === "form" || isMasterTabActive) && (
           <span className="text-[11px] font-medium text-slate-500 hidden sm:flex items-center gap-1.5">
             <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-600 border border-slate-300 font-semibold shadow-2xs">
               Esc
@@ -266,10 +329,16 @@ export function WorkspaceTabBar() {
           </span>
         )}
 
-        {isFormOpen && activeTab === "list" && (
+        {activeTab === "list" && (isFormOpen || hasAnyMasterTab) && (
           <button
             type="button"
-            onClick={() => setActiveTab("form")}
+            onClick={() => {
+              if (hasAnyMasterTab) {
+                setActiveTab(masterTabs[masterTabs.length - 1].id);
+              } else {
+                setActiveTab("form");
+              }
+            }}
             className="text-[11px] font-semibold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/90 px-2.5 py-1 rounded-lg border border-indigo-200/70 flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
           >
             <span>Resume Form Tab →</span>

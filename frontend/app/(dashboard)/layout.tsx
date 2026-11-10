@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { WorkspaceTabBar } from "@/components/layout/workspace-tab-bar";
 import { WorkspaceTabsProvider, useWorkspaceTabs } from "@/lib/workspace-tabs-context";
+import { MasterTabsContainer } from "@/components/masters/master-forms";
 import { cn } from "@/lib/utils";
 import { FileEdit, ArrowRight } from "lucide-react";
 import { PantherAIProvider, PantherAILauncher, PantherAIPanel } from "@/components/ai";
@@ -60,7 +61,7 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
         id="workspace-main-canvas"
         className={cn(
           "flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3 pb-28 sm:p-6 sm:pb-32 lg:p-7 lg:pb-36 bg-[#F3F5FC] dark:bg-[#0B0B0D] relative transition-colors duration-200",
-          activeTab === "form" ? "hidden" : "block"
+          activeTab === "list" ? "block" : "hidden"
         )}
       >
         <div className="max-w-[1440px] mx-auto space-y-4 sm:space-y-6">
@@ -119,6 +120,9 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
           activeTab === "form" ? "block" : "hidden"
         )}
       />
+
+      {/* Master Tabs Canvas (Rendered when activeTab matches any master tab) */}
+      <MasterTabsContainer />
     </div>
   );
 }

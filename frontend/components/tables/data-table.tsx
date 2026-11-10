@@ -649,7 +649,7 @@ export function DataTable<T extends Record<string, any>>({
                         col.align === "right" || col.isNumeric ? "text-right" : "",
                         col.align === "center" ? "text-center" : "",
                         col.sortable ? "cursor-pointer hover:text-slate-900 dark:hover:text-white" : "",
-                        isActionsCol && "sticky right-0 z-20 bg-slate-50 dark:bg-[#17171B] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)]"
+                        isActionsCol && "sticky right-0 z-20 bg-slate-50 dark:bg-[#17171B]"
                       )}
                       onClick={() => col.sortable && handleSort(colKey)}
                     >
@@ -681,7 +681,7 @@ export function DataTable<T extends Record<string, any>>({
                 {actions.length > 0 && (
                   <th
                     className={cn(
-                      "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono sticky right-0 bg-slate-50 dark:bg-[#17171B] z-20 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/80 dark:border-[#2B2C37]",
+                      "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono sticky right-0 bg-slate-50 dark:bg-[#17171B] z-20 border-b border-slate-200/80 dark:border-[#2B2C37]",
                       cellPaddingClass,
                       actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right"
                     )}
@@ -715,7 +715,7 @@ export function DataTable<T extends Record<string, any>>({
                           className={cn(
                             cellPaddingClass,
                             "border-b border-slate-100 dark:border-[#22232E]",
-                            isActionsCol && "sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)]"
+                            isActionsCol && "sticky right-0 bg-white dark:bg-[#17171B] z-10"
                           )}
                         >
                           <Skeleton className="h-4 w-3/4 rounded" />
@@ -723,7 +723,7 @@ export function DataTable<T extends Record<string, any>>({
                       );
                     })}
                     {actions.length > 0 && (
-                      <td className={cn(cellPaddingClass, "sticky right-0 bg-white dark:bg-[#17171B] z-10 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-100 dark:border-[#22232E]", actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right")}>
+                      <td className={cn(cellPaddingClass, "sticky right-0 bg-white dark:bg-[#17171B] z-10 border-b border-slate-100 dark:border-[#22232E]", actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right")}>
                         <Skeleton className={cn("h-4 rounded", actionLayout === "inline" ? "w-16 mx-auto" : "w-6 ml-auto")} />
                       </td>
                     )}
@@ -823,7 +823,7 @@ export function DataTable<T extends Record<string, any>>({
                               col.align === "right" || col.isNumeric ? "text-right tabular-nums font-mono" : "",
                               col.align === "center" ? "text-center" : "",
                               isActionsCol &&
-                                "sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)]"
+                                "sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E]"
                             )}
                           >
                             {col.cell ? col.cell(row, rIndex) : col.render ? col.render(row, rIndex) : (row[colKey] ?? "-")}
@@ -836,7 +836,7 @@ export function DataTable<T extends Record<string, any>>({
                         <td
                           className={cn(
                             cellPaddingClass,
-                            "sticky right-0 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E] z-10 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-100 dark:border-[#22232E]",
+                            "sticky right-0 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E] z-10 border-b border-slate-100 dark:border-[#22232E]",
                             actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right"
                           )}
                         >

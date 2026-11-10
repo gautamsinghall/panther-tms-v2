@@ -1,8 +1,8 @@
 "use client";
-import { toast } from "@/lib/toast";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Shield, UserPlus, Edit2, Building2, MapPin, Check, Star, AlertCircle } from "lucide-react";
+import { Plus, Shield, UserPlus, Edit2, Building2, MapPin, Check, Star, AlertCircle, Trash2, CheckCircle2 } from "lucide-react";
 import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -408,8 +408,10 @@ export default function UsersPage() {
       onClick: (row) => openEditDrawer(row),
     },
     {
-      label: "Toggle Status",
-      hidden: (row) => row.email.toLowerCase() === "admin@demo.com" || row.id === currentAuth?.user?.id,
+      label: "Deactivate",
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
+      variant: "danger",
+      hidden: (row) => !row.is_active || row.email.toLowerCase() === "admin@demo.com" || row.id === currentAuth?.user?.id,
       onClick: async (row) => {
         if (row.email.toLowerCase() === "admin@demo.com") {
           toast.error("The demo administrator account cannot be deactivated.");
@@ -419,14 +421,47 @@ export default function UsersPage() {
           toast.error("You cannot deactivate your own account.");
           return;
         }
+        const ok = await confirmModal({
+          title: "Deactivate User",
+          description: `Are you sure you want to deactivate ${row.full_name || row.email}? The user will no longer be able to log in, but their history is preserved.`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
         try {
           await apiClient(`/api/v1/settings/users/${row.id}`, {
             method: "PUT",
-            body: JSON.stringify({ is_active: !row.is_active }),
+            body: JSON.stringify({ is_active: false }),
           });
+          toast.success("User deactivated successfully.");
           loadData();
         } catch (err: any) {
-          toast.error(err.message || "Failed to update user status.");
+          toast.error(err.message || "Failed to deactivate user.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active || row.email.toLowerCase() === "admin@demo.com" || row.id === currentAuth?.user?.id,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate User",
+          description: `Are you sure you want to activate ${row.full_name || row.email}?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/settings/users/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("User activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate user.");
         }
       },
     },

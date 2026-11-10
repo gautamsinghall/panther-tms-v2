@@ -2036,7 +2036,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Credit</th>
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Outstanding Balance</th>
                       <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
-                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2116,7 +2116,7 @@ export default function MasterLedgerPage() {
                                 {client.transaction_count}{" "}vouchers
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2154,7 +2154,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Credit (Billed)</th>
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Outstanding Payable</th>
                       <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
-                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2234,7 +2234,7 @@ export default function MasterLedgerPage() {
                                 {vendor.transaction_count}{" "}entries
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2272,7 +2272,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Settled Expenses</th>
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Current Balance</th>
                       <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
-                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2351,7 +2351,7 @@ export default function MasterLedgerPage() {
                                 {driver.transaction_count}{" "}records
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2389,7 +2389,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Depreciation (Cr)</th>
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Book Value (WDV)</th>
                       <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Last Activity</th>
-                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2481,7 +2481,7 @@ export default function MasterLedgerPage() {
                                 {veh.transaction_count}{" "}entries • Ops:{" "}{formatCurrency(veh.total_operational_expense)}
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2519,7 +2519,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Inflows (Dr)</th>
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Outflows (Cr)</th>
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Current Balance</th>
-                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2572,7 +2572,7 @@ export default function MasterLedgerPage() {
                             </span>{" "}
                             <span className="text-[10px] text-[#98A2B3] ml-1">{b.balance_type}</span>
                           </td>
-                          <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 border-b border-[#F2F4F7] dark:border-[#303036]/70">
                             <Button
                               size="sm"
                               variant="outline"
@@ -2609,7 +2609,7 @@ export default function MasterLedgerPage() {
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Total Credit (Liability)</th>
                       <th className="py-3 px-4 text-right border-b border-slate-200/90 dark:border-[#303036]">Current Balance</th>
                       <th className="py-3 px-4 border-b border-slate-200/90 dark:border-[#303036]">Activity</th>
-                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
+                      <th className="py-3 px-4 text-center w-36 min-w-[130px] whitespace-nowrap sticky right-0 z-20 bg-slate-50 dark:bg-[#101013] border-b border-slate-200/90 dark:border-[#303036]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F2F4F7] dark:divide-[#303036]/70 text-xs">
@@ -2678,7 +2678,7 @@ export default function MasterLedgerPage() {
                                 {tax.transaction_count}{" "}voucher lines
                               </div>
                             </td>
-                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.12)] dark:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.4)] border-b border-[#F2F4F7] dark:border-[#303036]/70">
+                            <td className="py-3.5 px-4 text-center whitespace-nowrap w-36 min-w-[130px] sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/60 border-b border-[#F2F4F7] dark:border-[#303036]/70">
                               <Button
                                 size="sm"
                                 variant="outline"

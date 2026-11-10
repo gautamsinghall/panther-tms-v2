@@ -34,7 +34,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
-import { QuickCreateVehicleOwnerModal } from "@/components/modals/quick-create-modal";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
 export interface MarketVehicleRecord {
   id: number;
@@ -97,6 +97,7 @@ interface OwnerOption {
   id: number;
   name: string;
   phone?: string;
+  is_active?: boolean;
 }
 
 const VEHICLE_TYPE_OPTIONS = [
@@ -156,6 +157,7 @@ const RC_ORIGINAL_OPTIONS = [
 
 export default function MarketVehiclesPage() {
   const router = useRouter();
+  const { openMasterTab } = useWorkspaceTabs();
   const [data, setData] = useState<MarketVehicleRecord[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -170,9 +172,6 @@ export default function MarketVehiclesPage() {
   // Details View Drawer State
   const [detailsRecord, setDetailsRecord] = useState<MarketVehicleRecord | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-
-  // Quick Create Modal State
-  const [quickOwnerOpen, setQuickOwnerOpen] = useState(false);
 
   // Form State
   const [formValues, setFormValues] = useState<Record<string, any>>({
@@ -253,18 +252,21 @@ export default function MarketVehiclesPage() {
     );
   }, [formValues.vehicle_type, formValues.vehicle_class]);
 
-  // Handle owner created from QuickCreate modal
-  const handleOwnerCreated = (newOwner: { id: number; name: string }) => {
-    setOwners((prev) => [{ id: newOwner.id, name: newOwner.name }, ...prev]);
+  // Handle owner created from Add Vehicle Owner tab
+  const handleOwnerCreated = (newOwner: any) => {
+    const ownerName = newOwner.owner_name || newOwner.name || newOwner.label || "New Owner";
+    setOwners((prev) => [{ id: newOwner.id, name: ownerName, phone: newOwner.phone, is_active: true }, ...prev]);
     setFormValues((prev) => ({ ...prev, owner_id: String(newOwner.id) }));
   };
 
   const ownerOptions = [
     { label: "None / Direct Driver", value: "" },
-    ...owners.map((o) => ({
-      label: o.phone ? `${o.name} (${o.phone})` : o.name,
-      value: String(o.id),
-    })),
+    ...owners
+      .filter((o: any) => o.is_active !== false || String(o.id) === String(formValues.owner_id))
+      .map((o) => ({
+        label: o.phone ? `${o.name} (${o.phone})` : o.name,
+        value: String(o.id),
+      })),
   ];
 
   // Auto-calculate Payload Capacity (MT) if GVW and Unladen are populated
@@ -688,6 +690,53 @@ export default function MarketVehiclesPage() {
         handleOpenEditDrawer(row);
       },
     },
+    {
+      label: "Deactivate",
+      icon: <Trash2 className="w-3.5 h-3.5 text-rose-600" />,
+      variant: "danger",
+      hidden: (row) => !row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Deactivate Vehicle",
+          description: `Are you sure you want to deactivate vehicle "${row.vehicle_number}"?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/transport/market-vehicles/${row.id}`, { method: "DELETE" });
+          toast.success("Vehicle deactivated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to deactivate vehicle.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Vehicle",
+          description: `Are you sure you want to activate vehicle "${row.vehicle_number}"?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/transport/market-vehicles/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Vehicle activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate vehicle.");
+        }
+      },
+    },
   ];
 
   return (
@@ -831,23 +880,36 @@ export default function MarketVehiclesPage() {
                         value={formValues.owner_id}
                         options={ownerOptions}
                         placeholder="Select or search owner / supplier..."
+                        onAddNew={() =>
+                          openMasterTab({
+                            type: "vehicle_owner",
+                            title: "Add Vehicle Owner",
+                            onSuccess: handleOwnerCreated,
+                          })
+                        }
                         onChange={(val) =>
                           setFormValues((prev) => ({ ...prev, owner_id: val }))
                         }
                       />
                     </div>
 
-                    {/* "+ Quick Add Owner" Popup Trigger Beside Dropdown */}
+                    {/* "+ Add Owner" Tab Trigger Beside Dropdown */}
                     <Button
                       type="button"
                       variant="outline"
                       size="md"
-                      onClick={() => setQuickOwnerOpen(true)}
+                      onClick={() =>
+                        openMasterTab({
+                          type: "vehicle_owner",
+                          title: "Add Vehicle Owner",
+                          onSuccess: handleOwnerCreated,
+                        })
+                      }
                       className="h-10 px-3.5 rounded-xl border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs shrink-0 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                      title="Quick register new vehicle owner in popup dialog without leaving this form"
+                      title="Add new vehicle owner in a new TMS tab"
                     >
-                      <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>+ Quick Add Owner</span>
+                      <Plus className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>+ Add Owner</span>
                     </Button>
                   </div>
 
@@ -2091,13 +2153,6 @@ export default function MarketVehiclesPage() {
           </div>
         )}
       </EntityDrawer>
-
-      {/* Quick Creation Modal for Vehicle Owner */}
-      <QuickCreateVehicleOwnerModal
-        isOpen={quickOwnerOpen}
-        onClose={() => setQuickOwnerOpen(false)}
-        onSuccess={handleOwnerCreated}
-      />
     </div>
   );
 }

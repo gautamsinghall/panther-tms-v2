@@ -31,10 +31,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
-import {
-  QuickCreateVehicleOwnerModal,
-  QuickCreateDriverModal,
-} from "@/components/modals/quick-create-modal";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { HireChallanViewModal } from "@/components/modals/hire-challan-view-modal";
 import { Button } from "@/components/ui/button";
 import { getActiveOffice, OfficeSummary } from "@/lib/auth";
@@ -217,9 +214,7 @@ export default function HireChallansPage() {
     branchesRef.current = branches;
   }, [branches]);
 
-  // Quick Create Modals State
-  const [quickDriverOpen, setQuickDriverOpen] = useState(false);
-  const [quickOwnerOpen, setQuickOwnerOpen] = useState(false);
+  const { openMasterTab } = useWorkspaceTabs();
 
   // Series Master Data State
   const [manualSeriesData, setManualSeriesData] = useState<{
@@ -1779,9 +1774,23 @@ export default function HireChallansPage() {
 
                   <button
                     type="button"
-                    onClick={() => setQuickDriverOpen(true)}
-                    title="Quick Add Driver"
-                    aria-label="Quick Add Driver"
+                    onClick={() =>
+                      openMasterTab({
+                        type: "driver",
+                        title: "Add Driver",
+                        onSuccess: (newD) => {
+                          setDrivers((prev) => [
+                            { id: Number(newD.id), name: newD.name || newD.label, phone: newD.phone },
+                            ...prev,
+                          ]);
+                          setDriverId(String(newD.id));
+                          setDriverName(newD.name || newD.label);
+                          if (newD.phone) setDriverPhone(newD.phone);
+                        },
+                      })
+                    }
+                    title="Add Driver in new TMS tab"
+                    aria-label="Add Driver"
                     className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
@@ -1815,7 +1824,7 @@ export default function HireChallansPage() {
                     className="flex-1 min-w-0 h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs truncate cursor-pointer"
                   >
                     <option value="">- Select Vendor / Owner -</option>
-                    {owners.map((o) => (
+                    {owners.filter((o: any) => o.is_active !== false || String(o.id) === String(ownerId)).map((o) => (
                       <option key={o.id} value={o.id}>
                         {o.name} {o.pan ? `[${o.pan}]` : ""}
                       </option>
@@ -1823,9 +1832,25 @@ export default function HireChallansPage() {
                   </select>
                   <button
                     type="button"
-                    onClick={() => setQuickOwnerOpen(true)}
-                    title="Add New Vendor / Owner"
-                    aria-label="Add New Vendor / Owner"
+                    onClick={() =>
+                      openMasterTab({
+                        type: "vehicle_owner",
+                        title: "Add Vehicle Owner",
+                        onSuccess: (newO) => {
+                          setOwners((prev) => [
+                            {
+                              id: Number(newO.id),
+                              name: newO.owner_name || newO.name || newO.label,
+                              pan: newO.pan_number || newO.pan,
+                            },
+                            ...prev,
+                          ]);
+                          setOwnerId(String(newO.id));
+                        },
+                      })
+                    }
+                    title="Add Vehicle Owner in new TMS tab"
+                    aria-label="Add Vehicle Owner"
                     className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
@@ -2324,27 +2349,6 @@ export default function HireChallansPage() {
         challan={selectedChallanDetail}
         onClose={() => setSelectedChallanDetail(null)}
         onSettle={handleSettle}
-      />
-
-      {/* Quick Create Driver Modal */}
-      <QuickCreateDriverModal
-        isOpen={quickDriverOpen}
-        onClose={() => setQuickDriverOpen(false)}
-        onSuccess={(newDriver) => {
-          setDrivers((prev) => [{ id: newDriver.id, name: newDriver.name }, ...prev]);
-          setDriverId(String(newDriver.id));
-          setDriverName(newDriver.name);
-        }}
-      />
-
-      {/* Quick Create Vendor Modal */}
-      <QuickCreateVehicleOwnerModal
-        isOpen={quickOwnerOpen}
-        onClose={() => setQuickOwnerOpen(false)}
-        onSuccess={(newOwner) => {
-          setOwners((prev) => [{ id: newOwner.id, name: newOwner.name }, ...prev]);
-          setOwnerId(String(newOwner.id));
-        }}
       />
     </div>
   );

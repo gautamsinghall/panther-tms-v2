@@ -38,11 +38,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getActiveOffice, OfficeSummary, getStoredAuth, getStoredNavigation } from "@/lib/auth";
 import { canAccessRoute } from "@/lib/permissions";
-import {
-  QuickCreateConsignerModal,
-  QuickCreateConsigneeModal,
-  QuickCreateLocationModal,
-} from "@/components/modals/quick-create-modal";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
 import {
   LRInvoiceItemsTable,
@@ -204,25 +200,11 @@ export default function LRBookingPage() {
   const [selectedConsigneeId, setSelectedConsigneeId] = useState<string>("");
   const [selectedJob, setSelectedJob] = useState<LinkedJobData | null>(null);
   const [drawerError, setDrawerError] = useState<string | null>(null);
-
-  // Helper to open related masters in a new tab while preserving active tenant workspace context
-  const openInNewTab = useCallback((path: string) => {
-    const auth = getStoredAuth();
-    const tId = auth?.tenantId || "";
-    const prefix = tId ? `/${tId}` : "";
-    const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    const targetUrl = path.startsWith("http") ? path : `${prefix}${cleanPath}`;
-    window.open(targetUrl, "_blank");
-  }, []);
+  const { openMasterTab } = useWorkspaceTabs();
 
   // View & Print LR state
   const [selectedLrForView, setSelectedLrForView] = useState<LRRecord | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-
-  // Quick Create Modals state
-  const [quickConsignerOpen, setQuickConsignerOpen] = useState(false);
-  const [quickConsigneeOpen, setQuickConsigneeOpen] = useState(false);
-  const [quickLocationTarget, setQuickLocationTarget] = useState<"origin" | "destination" | null>(null);
 
   // Series Master State
   const [isSeriesLoading, setIsSeriesLoading] = useState(true);
@@ -526,38 +508,46 @@ export default function LRBookingPage() {
 
   const billingCustomerOptions = useMemo(() => [
     { label: "Select Billing Customer...", value: "" },
-    ...billingCustomers.map((c) => ({
-      label: c.name || `Client #${c.id}`,
-      value: String(c.id),
-      subLabel: c.city ? `City: ${c.city}` : undefined,
-    })),
-  ], [billingCustomers]);
+    ...billingCustomers
+      .filter((c: any) => c.is_active !== false || String(c.id) === String(editingLrRecord?.billing_customer_id))
+      .map((c: any) => ({
+        label: c.name || `Client #${c.id}`,
+        value: String(c.id),
+        subLabel: c.city ? `City: ${c.city}` : undefined,
+      })),
+  ], [billingCustomers, editingLrRecord]);
 
   const locationOptions = useMemo(() => [
     { label: "Select Location Hub...", value: "" },
-    ...locations.map((l) => ({
-      label: l.city_name || `Location #${l.id}`,
-      value: String(l.id),
-    })),
-  ], [locations]);
+    ...locations
+      .filter((l: any) => l.is_active !== false || String(l.id) === String(editingLrRecord?.origin_location_id) || String(l.id) === String(editingLrRecord?.destination_location_id))
+      .map((l: any) => ({
+        label: l.city_name || `Location #${l.id}`,
+        value: String(l.id),
+      })),
+  ], [locations, editingLrRecord]);
 
   const consignerOptions = useMemo(() => [
     { label: "Select Consignor (Sender)...", value: "" },
-    ...consigners.map((c) => ({
-      label: c.name || `Consignor #${c.id}`,
-      value: String(c.id),
-      subLabel: [c.city, c.state].filter(Boolean).join(", "),
-    })),
-  ], [consigners]);
+    ...consigners
+      .filter((c: any) => c.is_active !== false || String(c.id) === String(editingLrRecord?.consigner_id))
+      .map((c: any) => ({
+        label: c.name || `Consignor #${c.id}`,
+        value: String(c.id),
+        subLabel: [c.city, c.state].filter(Boolean).join(", "),
+      })),
+  ], [consigners, editingLrRecord]);
 
   const consigneeOptions = useMemo(() => [
     { label: "Select Consignee (Receiver)...", value: "" },
-    ...consignees.map((c) => ({
-      label: c.name || `Consignee #${c.id}`,
-      value: String(c.id),
-      subLabel: [c.city, c.state].filter(Boolean).join(", "),
-    })),
-  ], [consignees]);
+    ...consignees
+      .filter((c: any) => c.is_active !== false || String(c.id) === String(editingLrRecord?.consignee_id))
+      .map((c: any) => ({
+        label: c.name || `Consignee #${c.id}`,
+        value: String(c.id),
+        subLabel: [c.city, c.state].filter(Boolean).join(", "),
+      })),
+  ], [consignees, editingLrRecord]);
 
   const packingMethodOptions = useMemo(() => [
     { label: "Select Packing Method...", value: "" },
@@ -985,7 +975,7 @@ export default function LRBookingPage() {
           type: "select",
           options: jobOptions,
           placeholder: "Choose linked job or Direct Booking",
-          onAddNew: () => openInNewTab("/transport/jobs?add=true"),
+          onAddNew: () => router.push("/transport/jobs"),
           addNewLabel: "+ Create New Job",
           addNewTitle: "Opens Trip Order creation in a new tab without losing current LR form progress",
           onChange: (newJobId) => {
@@ -1070,7 +1060,7 @@ export default function LRBookingPage() {
               formSetFieldValueRef.current?.("lr_number", nextVal);
             }
           },
-          onAddNew: canAccessRoute("/settings/series-master") ? () => openInNewTab("/settings/series-master") : undefined,
+          onAddNew: canAccessRoute("/settings/series-master") ? () => router.push("/settings/series-master") : undefined,
           addNewLabel: canAccessRoute("/settings/series-master") ? "+ Manage LR Series" : undefined,
           addNewTitle: canAccessRoute("/settings/series-master") ? "Configure Series Batches in Settings" : undefined,
         },
@@ -1125,10 +1115,10 @@ export default function LRBookingPage() {
           label: "Billing Customer",
           type: "select",
           options: billingCustomerOptions,
-          onAddNew: () => openInNewTab("/general/billing-client?add=true"),
+          onAddNew: () => openMasterTab({ type: "billing_client", title: "Add Billing Client", onSuccess: handleBillingClientCreated }),
           addNewLabel: "+ New Customer",
-          addNewTitle: "Opens Billing Customer creation in a new tab without losing current LR form progress",
-          helperText: "Click '+' to create customer in a new tab; automatically available upon return.",
+          addNewTitle: "Opens Billing Customer creation in a new TMS tab without losing form progress",
+          helperText: "Click '+' to create customer in a new tab; automatically selected upon return.",
         },
         {
           name: "origin_location_id",
@@ -1137,6 +1127,9 @@ export default function LRBookingPage() {
           required: true,
           options: locationOptions,
           placeholder: "Select origin city / dispatch hub",
+          onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "origin_location_id") }),
+          addNewLabel: "+ New Location",
+          addNewTitle: "Opens Location creation in a new TMS tab without losing form progress",
         },
         {
           name: "destination_location_id",
@@ -1145,6 +1138,9 @@ export default function LRBookingPage() {
           required: true,
           options: locationOptions,
           placeholder: "Select delivery city / destination hub",
+          onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "destination_location_id") }),
+          addNewLabel: "+ New Location",
+          addNewTitle: "Opens Location creation in a new TMS tab without losing form progress",
         },
         {
           name: "via",
@@ -1160,9 +1156,9 @@ export default function LRBookingPage() {
           required: true,
           options: consignerOptions,
           onChange: (val) => setSelectedConsignerId(String(val)),
-          onAddNew: () => openInNewTab("/general/consigner?add=true"),
+          onAddNew: () => openMasterTab({ type: "consigner", title: "Add Consignor", onSuccess: handleConsignerCreated }),
           addNewLabel: "+ New Consignor",
-          addNewTitle: "Opens Consignor creation in a new tab without losing current LR form progress",
+          addNewTitle: "Opens Consignor creation in a new TMS tab without losing form progress",
           helperText: selectedConsignerAddress
             ? `📍 Address: ${selectedConsignerAddress}`
             : "Select Consignor to view registered address below.",
@@ -1174,9 +1170,9 @@ export default function LRBookingPage() {
           required: true,
           options: consigneeOptions,
           onChange: (val) => setSelectedConsigneeId(String(val)),
-          onAddNew: () => openInNewTab("/general/consignee?add=true"),
+          onAddNew: () => openMasterTab({ type: "consignee", title: "Add Consignee", onSuccess: handleConsigneeCreated }),
           addNewLabel: "+ New Consignee",
-          addNewTitle: "Opens Consignee creation in a new tab without losing current LR form progress",
+          addNewTitle: "Opens Consignee creation in a new TMS tab without losing form progress",
           helperText: selectedConsigneeAddress
             ? `📍 Address: ${selectedConsigneeAddress}`
             : "Select Consignee to view registered address below.",
@@ -1238,9 +1234,9 @@ export default function LRBookingPage() {
           label: "Load Type",
           type: "select",
           options: loadTypeOptions,
-          onAddNew: () => openInNewTab("/general/load-type?add=true"),
-          addNewLabel: "+ Manage Load Types",
-          addNewTitle: "Opens Load Type master in General menu where you can manage carriage categories",
+          onAddNew: () => openMasterTab({ type: "load_type", title: "Add Load Type", onSuccess: handleLoadTypeCreated }),
+          addNewLabel: "+ New Load Type",
+          addNewTitle: "Opens Load Type creation in a new TMS tab without losing form progress",
           helperText: "Managed under General > Load Type master; automatically populates here.",
         },
         {
@@ -1392,7 +1388,6 @@ export default function LRBookingPage() {
     jobs,
     manualSeriesData,
     selectedJob,
-    openInNewTab,
   ]);
 
   const columns: ColumnDef<LRRecord>[] = [
@@ -1833,26 +1828,37 @@ export default function LRBookingPage() {
     },
   ];
 
-  const handleConsignerCreated = (newConsigner: { id: number; name: string }) => {
-    setConsigners((prev) => [{ id: newConsigner.id, name: newConsigner.name }, ...prev]);
+  const handleBillingClientCreated = (newClient: { id: number | string; label?: string; name?: string }) => {
+    setBillingCustomers((prev) => [{ id: Number(newClient.id), name: newClient.name || newClient.label }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, billing_customer_id: String(newClient.id) }));
+    formSetFieldValueRef.current?.("billing_customer_id", String(newClient.id));
+  };
+
+  const handleConsignerCreated = (newConsigner: { id: number | string; name?: string; label?: string }) => {
+    setConsigners((prev) => [{ id: Number(newConsigner.id), name: newConsigner.name || newConsigner.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, consigner_id: String(newConsigner.id) }));
     formSetFieldValueRef.current?.("consigner_id", String(newConsigner.id));
     setSelectedConsignerId(String(newConsigner.id));
   };
 
-  const handleConsigneeCreated = (newConsignee: { id: number; name: string }) => {
-    setConsignees((prev) => [{ id: newConsignee.id, name: newConsignee.name }, ...prev]);
+  const handleConsigneeCreated = (newConsignee: { id: number | string; name?: string; label?: string }) => {
+    setConsignees((prev) => [{ id: Number(newConsignee.id), name: newConsignee.name || newConsignee.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, consignee_id: String(newConsignee.id) }));
     formSetFieldValueRef.current?.("consignee_id", String(newConsignee.id));
     setSelectedConsigneeId(String(newConsignee.id));
   };
 
-  const handleLocationCreated = (newLoc: { id: number; city_name: string }) => {
-    setLocations((prev) => [{ id: newLoc.id, city_name: newLoc.city_name }, ...prev]);
-    const field = quickLocationTarget === "origin" ? "origin_location_id" : "destination_location_id";
+  const handleLocationCreated = (newLoc: { id: number | string; city_name?: string; label?: string }, field: "origin_location_id" | "destination_location_id") => {
+    setLocations((prev) => [{ id: Number(newLoc.id), city_name: newLoc.city_name || newLoc.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, [field]: String(newLoc.id) }));
     formSetFieldValueRef.current?.(field, String(newLoc.id));
-    setQuickLocationTarget(null);
+  };
+
+  const handleLoadTypeCreated = (newLt: { id: number | string; name?: string; label?: string }) => {
+    const val = newLt.name || newLt.label || String(newLt.id);
+    setLoadTypes((prev) => [{ id: Number(newLt.id), name: val }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, load_type: val }));
+    formSetFieldValueRef.current?.("load_type", val);
   };
 
   if (!isPermitted) {
@@ -2044,7 +2050,7 @@ export default function LRBookingPage() {
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => openInNewTab("/settings/series-master")}
+                onClick={() => router.push("/settings/series-master")}
                 className="bg-white dark:bg-[#161218] text-rose-700 dark:text-rose-300 border-rose-300 dark:border-[#5C2731] hover:bg-rose-50 dark:hover:bg-[#26161D] text-xs shrink-0 font-semibold"
               >
                 Setup Series in Settings
@@ -2091,24 +2097,6 @@ export default function LRBookingPage() {
           submitDisabled={!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)}
         />
       </EntityDrawer>
-
-      {/* Quick Creation Modals */}
-      <QuickCreateConsignerModal
-        isOpen={quickConsignerOpen}
-        onClose={() => setQuickConsignerOpen(false)}
-        onSuccess={handleConsignerCreated}
-      />
-      <QuickCreateConsigneeModal
-        isOpen={quickConsigneeOpen}
-        onClose={() => setQuickConsigneeOpen(false)}
-        onSuccess={handleConsigneeCreated}
-      />
-      <QuickCreateLocationModal
-        isOpen={quickLocationTarget !== null}
-        onClose={() => setQuickLocationTarget(null)}
-        onSuccess={handleLocationCreated}
-        defaultTitle={quickLocationTarget === "origin" ? "Quick Add Origin Hub / City" : "Quick Add Destination Hub / City"}
-      />
 
       {/* LR View & Print Modal */}
       <LRViewModal

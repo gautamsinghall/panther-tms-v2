@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Building2 } from "lucide-react";
+import { Plus, Trash2, Building2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -180,6 +180,7 @@ export default function ConsigneePage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
+      hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Consignee",
@@ -190,9 +191,35 @@ export default function ConsigneePage() {
         if (!ok) return;
         try {
           await apiClient(`/api/v1/general/consignees/${row.id}`, { method: "DELETE" });
-          loadData();
+          toast.success("Consignee deactivated successfully.");
+          await loadData();
         } catch (err: any) {
           toast.error(err.message || "Failed to deactivate consignee.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Consignee",
+          description: `Are you sure you want to activate ${row.name}?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/general/consignees/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Consignee activated successfully.");
+          await loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate consignee.");
         }
       },
     },

@@ -34,7 +34,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
-import { QuickCreateVehicleOwnerModal, QuickCreateDriverModal } from "@/components/modals/quick-create-modal";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
 export interface CompanyVehicleRecord {
   id: number;
@@ -181,9 +181,7 @@ export default function CompanyVehiclesPage() {
   const [detailsRecord, setDetailsRecord] = useState<CompanyVehicleRecord | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  // Quick Create Modal State
-  const [quickOwnerOpen, setQuickOwnerOpen] = useState(false);
-  const [quickDriverOpen, setQuickDriverOpen] = useState(false);
+  const { openMasterTab } = useWorkspaceTabs();
 
   // Form State
   const [formValues, setFormValues] = useState<Record<string, any>>({
@@ -268,18 +266,21 @@ export default function CompanyVehiclesPage() {
     );
   }, [formValues.vehicle_type, formValues.vehicle_class]);
 
-  // Handle owner created from QuickCreate modal
-  const handleOwnerCreated = (newOwner: { id: number; name: string }) => {
-    setOwners((prev) => [{ id: newOwner.id, name: newOwner.name }, ...prev]);
+  // Handle owner created from Master tab
+  const handleOwnerCreated = (newOwner: { id: number | string; name?: string; owner_name?: string; label?: string; phone?: string }) => {
+    const ownerName = newOwner.owner_name || newOwner.name || newOwner.label || "New Owner";
+    setOwners((prev) => [{ id: Number(newOwner.id), name: ownerName, phone: newOwner.phone }, ...prev]);
     setFormValues((prev) => ({ ...prev, owner_id: String(newOwner.id) }));
   };
 
   const ownerOptions = [
     { label: "None / Direct Driver", value: "" },
-    ...owners.map((o) => ({
-      label: o.phone ? `${o.name} (${o.phone})` : o.name,
-      value: String(o.id),
-    })),
+    ...owners
+      .filter((o: any) => o.is_active !== false || String(o.id) === String(formValues.owner_id))
+      .map((o) => ({
+        label: o.phone ? `${o.name} (${o.phone})` : o.name,
+        value: String(o.id),
+      })),
   ];
 
   // Auto-calculate Payload Capacity (MT) if GVW and Unladen are populated
@@ -720,6 +721,53 @@ export default function CompanyVehiclesPage() {
         handleOpenEditDrawer(row);
       },
     },
+    {
+      label: "Deactivate",
+      icon: <Trash2 className="w-3.5 h-3.5 text-rose-600" />,
+      variant: "danger",
+      hidden: (row) => !row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Deactivate Vehicle",
+          description: `Are you sure you want to deactivate vehicle "${row.vehicle_number}"?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/transport/company-vehicles/${row.id}`, { method: "DELETE" });
+          toast.success("Vehicle deactivated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to deactivate vehicle.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Vehicle",
+          description: `Are you sure you want to activate vehicle "${row.vehicle_number}"?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/transport/company-vehicles/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Vehicle activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate vehicle.");
+        }
+      },
+    },
   ];
 
   return (
@@ -863,23 +911,38 @@ export default function CompanyVehiclesPage() {
                         value={formValues.owner_id}
                         options={ownerOptions}
                         placeholder="Select or search owner / supplier..."
+                        onAddNew={() =>
+                          openMasterTab({
+                            type: "vehicle_owner",
+                            title: "Add Vehicle Owner",
+                            onSuccess: handleOwnerCreated,
+                          })
+                        }
+                        addNewLabel="+ Add New Owner"
+                        addNewTitle="Register vehicle owner in new TMS tab"
                         onChange={(val) =>
                           setFormValues((prev) => ({ ...prev, owner_id: val }))
                         }
                       />
                     </div>
 
-                    {/* "+ Quick Add Owner" Popup Trigger Beside Dropdown */}
+                    {/* "+ Add Owner" Trigger Beside Dropdown */}
                     <Button
                       type="button"
                       variant="outline"
                       size="md"
-                      onClick={() => setQuickOwnerOpen(true)}
+                      onClick={() =>
+                        openMasterTab({
+                          type: "vehicle_owner",
+                          title: "Add Vehicle Owner",
+                          onSuccess: handleOwnerCreated,
+                        })
+                      }
                       className="h-10 px-3.5 rounded-xl border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs shrink-0 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                      title="Quick register new vehicle owner in popup dialog without leaving this form"
+                      title="Register vehicle owner in new TMS tab without leaving this form"
                     >
                       <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>+ Quick Add Owner</span>
+                      <span>+ Add Owner</span>
                     </Button>
                   </div>
 
@@ -2123,13 +2186,6 @@ export default function CompanyVehiclesPage() {
           </div>
         )}
       </EntityDrawer>
-
-      {/* Quick Creation Modal for Vehicle Owner */}
-      <QuickCreateVehicleOwnerModal
-        isOpen={quickOwnerOpen}
-        onClose={() => setQuickOwnerOpen(false)}
-        onSuccess={handleOwnerCreated}
-      />
     </div>
   );
 }

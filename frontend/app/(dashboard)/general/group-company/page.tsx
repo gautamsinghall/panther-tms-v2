@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Building2 } from "lucide-react";
+import { Plus, Trash2, Building2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
@@ -107,6 +107,7 @@ export default function GroupCompanyPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
+      hidden: (row) => !row.is_active,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Group Company",
@@ -117,9 +118,35 @@ export default function GroupCompanyPage() {
         if (!ok) return;
         try {
           await apiClient(`/api/v1/general/group-companies/${row.id}`, { method: "DELETE" });
+          toast.success("Group company deactivated successfully.");
           loadData();
         } catch (err: any) {
           toast.error(err.message || "Failed to deactivate company.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Group Company",
+          description: `Are you sure you want to activate ${row.company_name}?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/general/group-companies/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Group company activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate company.");
         }
       },
     },

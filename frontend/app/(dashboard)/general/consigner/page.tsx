@@ -1,8 +1,8 @@
 "use client";
-import { toast } from "@/lib/toast";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Edit3, Building2, Phone, Mail } from "lucide-react";
+import { Plus, Trash2, Edit3, Building2, Phone, Mail, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -202,11 +202,36 @@ export default function ConsignerPage() {
   const actions: RowAction<ConsignerRecord>[] = [
     {
       label: "Deactivate",
-      icon: <Trash2 className="w-3.5 h-3.5" />,
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
       hidden: (row) => !row.is_active,
       onClick: (row) => {
         setDeactivatingRecord(row);
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Consigner",
+          description: `Are you sure you want to activate ${row.name}?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/general/consigners/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Consigner activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate consigner.");
+        }
       },
     },
   ];
@@ -317,6 +342,7 @@ export default function ConsignerPage() {
         method: "DELETE",
       });
       setDeactivatingRecord(null);
+      toast.success("Consigner deactivated successfully.");
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to deactivate consigner.");

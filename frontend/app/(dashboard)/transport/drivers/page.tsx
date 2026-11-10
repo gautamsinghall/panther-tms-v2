@@ -1,5 +1,5 @@
 "use client";
-import { toast } from "@/lib/toast";
+import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
@@ -235,6 +235,53 @@ export default function DriversPage() {
       onClick: (row) => {
         setEditingRecord(row);
         setIsDrawerOpen(true);
+      },
+    },
+    {
+      label: "Deactivate",
+      icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
+      variant: "danger",
+      hidden: (row) => !row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Deactivate Driver",
+          description: `Are you sure you want to deactivate driver "${row.name}"?`,
+          confirmText: "Deactivate",
+          variant: "danger",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/transport/drivers/${row.id}`, { method: "DELETE" });
+          toast.success("Driver deactivated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to deactivate driver.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Driver",
+          description: `Are you sure you want to activate driver "${row.name}"?`,
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/transport/drivers/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Driver activated successfully.");
+          loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate driver.");
+        }
       },
     },
   ];

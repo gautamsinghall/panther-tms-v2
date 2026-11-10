@@ -26,6 +26,7 @@ interface FormProps {
   stickyFooter?: boolean;
   className?: string;
   setFieldValueRef?: React.MutableRefObject<((name: string, value: any) => void) | null>;
+  onChange?: (values: Record<string, any>) => void;
 }
 
 /**
@@ -48,6 +49,7 @@ export function Form({
   stickyFooter = false,
   className,
   setFieldValueRef,
+  onChange,
 }: FormProps) {
   const loading = isLoading || isSubmitting;
   // Seed initial values with field defaultValues where initialValues does not provide them
@@ -91,6 +93,7 @@ export function Form({
           next["state"] = "";
         }
       }
+      onChange?.(next);
       return next;
     });
     if (errors[name]) {

@@ -237,6 +237,28 @@ export default function VendorMasterPage() {
     }
   };
 
+  const handleActivate = async (record: VendorRecord) => {
+    const confirmed = await confirmModal({
+      title: "Activate Vendor?",
+      description: `Are you sure you want to activate "${record.name}"?`,
+      confirmText: "Activate",
+      variant: "primary",
+    });
+
+    if (confirmed) {
+      try {
+        await apiClient(`/api/v1/general/vendors/${record.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ is_active: true, account_status: "Active" }),
+        });
+        toast.success(`Vendor "${record.name}" has been activated.`);
+        await loadData();
+      } catch (err: any) {
+        toast.error(err.message || "Failed to activate vendor.");
+      }
+    }
+  };
+
   // Form Sections mapped to the user request and screenshot
   const formSections: FormSectionDef[] = [
     {
@@ -725,6 +747,13 @@ export default function VendorMasterPage() {
       variant: "danger",
       hidden: (record) => !record.is_active,
       onClick: (record) => handleDeactivate(record),
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (record) => !!record.is_active,
+      onClick: (record) => handleActivate(record),
     },
   ];
 

@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, MapPin, Trash2 } from "lucide-react";
+import { Plus, MapPin, Trash2, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/tables/data-table";
@@ -13,6 +13,8 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { FormSectionDef } from "@/types/form";
 import { apiClient } from "@/lib/api-client";
 import { COUNTRY_OPTIONS, DEFAULT_COUNTRY } from "@/lib/countries";
+import { getStoredAuth } from "@/lib/auth";
+import { isAdminRole, canAccessRoute } from "@/lib/permissions";
 
 interface LocationRecord {
   id: number;
@@ -140,24 +142,62 @@ export default function LocationPage() {
     },
   ];
 
+  // Check if current user has permission to deactivate / activate locations
+  const canDeactivate = useMemo(() => {
+    if (typeof window === "undefined") return true;
+    const auth = getStoredAuth();
+    if (!auth?.user) return true;
+    if (isAdminRole(auth.user.role)) return true;
+    const roleName = (auth.user.role || auth.user.designation || "").toUpperCase();
+    if (roleName.includes("VIEW") || roleName.includes("READ")) return false;
+    return canAccessRoute("/general/location");
+  }, []);
+
   const actions: RowAction<LocationRecord>[] = [
     {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
+      hidden: (row) => !row.is_active || !canDeactivate,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Location",
-          description: `Are you sure you want to deactivate ${row.city_name}?`,
+          description: "Are you sure you want to deactivate this location?",
           confirmText: "Deactivate",
           variant: "danger",
         });
         if (!ok) return;
         try {
           await apiClient(`/api/v1/general/locations/${row.id}`, { method: "DELETE" });
-          loadData();
+          toast.success("Location deactivated successfully.");
+          await loadData();
         } catch (err: any) {
           toast.error(err.message || "Failed to deactivate location.");
+        }
+      },
+    },
+    {
+      label: "Activate",
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      variant: "default",
+      hidden: (row) => !!row.is_active || !canDeactivate,
+      onClick: async (row) => {
+        const ok = await confirmModal({
+          title: "Activate Location",
+          description: "Are you sure you want to activate this location?",
+          confirmText: "Activate",
+          variant: "primary",
+        });
+        if (!ok) return;
+        try {
+          await apiClient(`/api/v1/general/locations/${row.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: true }),
+          });
+          toast.success("Location activated successfully.");
+          await loadData();
+        } catch (err: any) {
+          toast.error(err.message || "Failed to activate location.");
         }
       },
     },
