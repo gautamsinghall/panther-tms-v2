@@ -234,7 +234,7 @@ export default function VehicleOwnersPage() {
         {
           name: "pincode",
           label: "Pincode",
-          type: "pincode",
+          type: "text",
           placeholder: "e.g. 302001",
         },
         {

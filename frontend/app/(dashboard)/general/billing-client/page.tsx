@@ -407,7 +407,7 @@ export default function BillingClientPage() {
         {
           name: "pincode",
           label: "Pincode / Postal Code",
-          type: "pincode",
+          type: "text",
           placeholder: "e.g. 400001",
         },
         {

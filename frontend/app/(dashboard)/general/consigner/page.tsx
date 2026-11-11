@@ -322,7 +322,7 @@ export default function ConsignerPage() {
         {
           name: "pincode",
           label: "Pincode",
-          type: "pincode",
+          type: "text",
           placeholder: "e.g. 496001",
         },
         {

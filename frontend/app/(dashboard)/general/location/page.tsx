@@ -228,8 +228,7 @@ export default function LocationPage() {
         {
           name: "pincode",
           label: "Pincode",
-          type: "pincode",
-          cityFieldName: "city_name",
+          type: "text",
           placeholder: "370421",
         },
         {

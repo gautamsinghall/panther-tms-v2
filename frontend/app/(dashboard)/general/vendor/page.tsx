@@ -398,12 +398,8 @@ export default function VendorMasterPage() {
         {
           name: "pincode",
           label: "Zip",
-          type: "pincode",
+          type: "text",
           placeholder: "e.g. 400001",
-          cityFieldName: "city",
-          stateFieldName: "state",
-          countryFieldName: "country",
-          helperText: "Enter 6-digit PIN code to auto-populate City and State",
         },
         {
           name: "city",
@@ -453,12 +449,8 @@ export default function VendorMasterPage() {
         {
           name: "secondary_pincode",
           label: "Zip",
-          type: "pincode",
+          type: "text",
           placeholder: "e.g. 410206",
-          cityFieldName: "secondary_city",
-          stateFieldName: "secondary_state",
-          countryFieldName: "secondary_country",
-          helperText: "Enter 6-digit PIN code to auto-populate City and State",
         },
         {
           name: "secondary_city",

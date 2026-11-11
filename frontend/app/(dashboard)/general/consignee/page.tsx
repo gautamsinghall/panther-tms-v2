@@ -302,7 +302,7 @@ export default function ConsigneePage() {
         {
           name: "pincode",
           label: "Pincode",
-          type: "pincode",
+          type: "text",
           placeholder: "e.g. 410501",
         },
         {

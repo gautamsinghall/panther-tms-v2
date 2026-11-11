@@ -9,7 +9,6 @@ import { AlertCircle, HelpCircle, Upload, CheckCircle2, X } from "lucide-react";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { StateSelect } from "@/components/ui/state-select";
 import { CountrySelect } from "@/components/ui/country-select";
-import { PincodeInput } from "@/components/ui/pincode-input";
 import { GstinInput } from "@/components/ui/gstin-input";
 import { PanInput } from "@/components/ui/pan-input";
 import { isIndia } from "@/lib/states";
@@ -452,53 +451,6 @@ export function Form({
                             return next;
                           });
                           setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
-                        }}
-                      />
-                    ) : field.type === "pincode" || field.name === "pincode" ? (
-                      <PincodeInput
-                        id={inputId}
-                        name={field.name}
-                        value={val}
-                        placeholder={field.placeholder || "e.g. 496001"}
-                        disabled={field.disabled || loading}
-                        error={Boolean(fieldError)}
-                        required={fieldRequired}
-                        onChange={(selectedVal) => {
-                          handleChange(field.name, selectedVal);
-                          field.onChange?.(selectedVal);
-                        }}
-                        onBlur={() => handleBlur(field)}
-                        onFetch={(result) => {
-                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
-                          const cityKey = field.cityFieldName || (allFieldNames.has("city_name") ? "city_name" : "city");
-                          const stateKey = field.stateFieldName || "state";
-                          const countryKey = field.countryFieldName || "country";
-
-                          setValues((prev) => ({
-                            ...prev,
-                            [field.name]: result.pincode,
-                            ...(allFieldNames.has(cityKey) ? { [cityKey]: result.city } : {}),
-                            ...(allFieldNames.has(stateKey) ? { [stateKey]: result.state } : {}),
-                            ...(allFieldNames.has(countryKey) ? { [countryKey]: result.country } : {}),
-                          }));
-
-                          setErrors((prev) => {
-                            const next = { ...prev };
-                            delete next[field.name];
-                            delete next[cityKey];
-                            delete next[stateKey];
-                            delete next[countryKey];
-                            return next;
-                          });
-                          setErrorList((prev) =>
-                            prev.filter(
-                              (item) =>
-                                item.name !== field.name &&
-                                item.name !== cityKey &&
-                                item.name !== stateKey &&
-                                item.name !== countryKey
-                            )
-                          );
                         }}
                       />
                     ) : field.type === "state" || field.name === "state" ? (

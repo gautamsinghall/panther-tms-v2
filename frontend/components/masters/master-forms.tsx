@@ -171,9 +171,7 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
           {
             name: "pincode",
             label: "Postal / ZIP Code (6 Digits)",
-            type: "pincode",
-            cityFieldName: "city",
-            stateFieldName: "state",
+            type: "text",
             placeholder: "400001",
           },
           {
@@ -235,8 +233,7 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
           {
             name: "pincode",
             label: "Pincode",
-            type: "pincode",
-            cityFieldName: "city_name",
+            type: "text",
             placeholder: "370421",
           },
           {
@@ -335,7 +332,7 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
           {
             name: "pincode",
             label: "Pincode",
-            type: "pincode",
+            type: "text",
             placeholder: "e.g. 496001",
           },
           {
@@ -431,7 +428,7 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
           {
             name: "pincode",
             label: "Pincode",
-            type: "pincode",
+            type: "text",
             placeholder: "e.g. 400072",
           },
           {
@@ -603,6 +600,7 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
           {
             name: "pincode",
             label: "Pincode",
+            type: "text",
             placeholder: "e.g. 302001",
           },
         ],

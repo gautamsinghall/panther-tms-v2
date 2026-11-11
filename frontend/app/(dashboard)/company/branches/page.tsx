@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/input";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { CountrySelect } from "@/components/ui/country-select";
 import { StateSelect } from "@/components/ui/state-select";
-import { PincodeInput } from "@/components/ui/pincode-input";
 import { GstinInput } from "@/components/ui/gstin-input";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { apiClient } from "@/lib/api-client";
@@ -562,16 +561,12 @@ export default function IssuingOfficesPage() {
                   <label className="block text-[11px] font-medium text-slate-700 mb-1">
                     PIN Code
                   </label>
-                  <PincodeInput
-                    size="sm"
+                  <Input
+                    type="text"
                     value={pincode}
-                    onChange={setPincode}
-                    onFetch={(res) => {
-                      setCity(res.city);
-                      setState(res.state);
-                      setCountry("India");
-                    }}
+                    onChange={(e) => setPincode(e.target.value)}
                     placeholder="e.g. 201001"
+                    className="text-xs"
                   />
                 </div>
 

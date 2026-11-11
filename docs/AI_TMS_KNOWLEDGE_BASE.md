@@ -198,7 +198,6 @@ Transport Jobs represent client booking indents and vehicle placement demands be
 - **Unit (`/general/unit`)**: Measurement units (MT, KG, Quintal, Litre, Box, Bag, Barrel).
 - **Method of Packing (`/general/packing-method`)**: Packaging types (Corrugated Box, Wooden Crate, Pallet, Gunny Bag, Loose, Drum).
 - **Load Type (`/general/load-type`)**: FTL (Full Truck Load), LTL (Part Load), ODC (Over Dimensional Cargo), Reefer/Cold-chain.
-- **Indian Postal PIN Code Resolver (`/api/v1/general/pincode/{pincode}`)**: Resolves city, district, state, and post office from 6-digit postal codes instantly.
 
 ---
 

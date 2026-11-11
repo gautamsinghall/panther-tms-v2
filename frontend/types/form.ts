@@ -8,13 +8,11 @@ export interface FormFieldOption {
 export interface FormFieldDef {
   name: string;
   label: string;
-  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "pincode" | "gstin" | "pan" | "custom";
+  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "gstin" | "pan" | "custom";
   placeholder?: string;
   required?: boolean | ((values: Record<string, any>) => boolean);
   options?: FormFieldOption[]; // for select
-  countryFieldName?: string; // Optional field name of corresponding country (defaults to 'country')
-  stateFieldName?: string; // Optional field name of corresponding state (defaults to 'state')
-  cityFieldName?: string; // Optional field name of corresponding city (defaults to 'city' or 'city_name')
+  countryFieldName?: string; // Optional field name of corresponding country
   disabled?: boolean;
   disabledReason?: string; // Tooltip explaining why disabled per design.md §3
   helperText?: string;

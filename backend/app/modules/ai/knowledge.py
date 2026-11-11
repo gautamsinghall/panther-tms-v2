@@ -49,7 +49,6 @@ TMS_CORE_KNOWLEDGE = """
 - Vendors: /general/vendor (Petrol pumps, repair workshops, brokers).
 - Locations: /general/location (Cities, industrial hubs, ports).
 - Industry, Designation, Group Company, Unit, Packing Method, Load Type.
-- PIN Code Lookup: /api/v1/general/pincode/{pincode} (Resolves city, district, and state from 6-digit postal PIN codes).
 
 6. SHIPMENT TRACKING MODES:
 - FASTag Tracking: /tracking/fastag (Tracks toll plaza crossings via vehicle FASTag with automated 10-minute anti-spam cooldown).
