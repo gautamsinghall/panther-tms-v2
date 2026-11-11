@@ -462,6 +462,7 @@ class LRBase(BaseModel):
     chargeable_weight_mt: Decimal = Decimal("0.000")
     bill_of_entry: Optional[str] = None
     container_no: Optional[str] = None
+    seal_no: Optional[str] = None
     load_type_id: Optional[int] = None
     load_type: Optional[str] = None
     payment_type: Optional[str] = "To Be Billed"
@@ -547,6 +548,7 @@ class LRUpdate(BaseModel):
     chargeable_weight_mt: Optional[Decimal] = None
     bill_of_entry: Optional[str] = None
     container_no: Optional[str] = None
+    seal_no: Optional[str] = None
     load_type_id: Optional[int] = None
     load_type: Optional[str] = None
     payment_type: Optional[str] = None
@@ -1117,4 +1119,3 @@ class GPSHistoryResponse(BaseModel):
     route_coordinates: List[List[Any]] = Field(default_factory=list)
     summary: GPSHistorySummary
     pricing_notice: str = "Standard tariff: ₹1.50 per vehicle fetch. Calls are blocked when balance reaches 0. Recharges are managed by system administrator."
-

@@ -648,6 +648,7 @@ def _build_lr_response(l: LR) -> LRResponse:
         chargeable_weight_mt=l.chargeable_weight_mt,
         bill_of_entry=l.bill_of_entry,
         container_no=l.container_no,
+        seal_no=l.seal_no,
         load_type_id=l.load_type_id,
         load_type=l.load_type,
         load_type_name=l.load_type_rel.name if l.load_type_rel else l.load_type,
@@ -1844,5 +1845,4 @@ async def geocode_gps_endpoint(
         "latitude": lat,
         "longitude": lng,
     }
-
 

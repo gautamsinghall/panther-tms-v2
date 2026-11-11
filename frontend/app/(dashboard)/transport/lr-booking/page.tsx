@@ -91,6 +91,7 @@ interface LRRecord {
   chargeable_weight_mt: string | number;
   bill_of_entry?: string;
   container_no?: string;
+  seal_no?: string;
   load_type_id?: number;
   load_type?: string;
   load_type_name?: string;
@@ -670,6 +671,7 @@ export default function LRBookingPage() {
       chargeable_weight_mt: freshData.chargeable_weight_mt ? String(freshData.chargeable_weight_mt) : "0.000",
       bill_of_entry: freshData.bill_of_entry || "",
       container_no: freshData.container_no || "",
+      seal_no: freshData.seal_no || "",
       load_type_id: freshData.load_type_id ? String(freshData.load_type_id) : "",
       payment_type: freshData.payment_type || "To Be Billed",
       eta: freshData.eta || "",
@@ -748,6 +750,7 @@ export default function LRBookingPage() {
       chargeable_weight_mt: matchedJob?.estimated_weight_mt ? String(matchedJob.estimated_weight_mt) : "0.000",
       bill_of_entry: "",
       container_no: "",
+      seal_no: "",
       load_type_id: "",
       payment_type: "To Be Billed",
       eta: "",
@@ -900,6 +903,7 @@ export default function LRBookingPage() {
         chargeable_weight_mt: parseFloat(values.chargeable_weight_mt) || 0,
         bill_of_entry: values.bill_of_entry ? String(values.bill_of_entry).trim() : null,
         container_no: values.container_no ? String(values.container_no).trim() : null,
+        seal_no: values.seal_no ? String(values.seal_no).trim() : null,
         load_type_id: values.load_type_id ? parseInt(values.load_type_id, 10) : null,
         load_type: selectedLoadType?.name || null,
         payment_type: values.payment_type || "To Be Billed",
@@ -1288,6 +1292,12 @@ export default function LRBookingPage() {
           label: "Container No.",
           type: "text",
           placeholder: "e.g. MSKU-123456-7",
+        },
+        {
+          name: "seal_no",
+          label: "Seal No.",
+          type: "text",
+          placeholder: "Enter seal number",
         },
       ],
     },

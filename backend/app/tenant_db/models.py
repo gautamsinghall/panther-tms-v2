@@ -809,6 +809,7 @@ class LR(TenantBase):
     cha_job_number = Column(String(100), nullable=True)
     bill_of_entry = Column(String(100), nullable=True)
     container_no = Column(String(100), nullable=True)
+    seal_no = Column(String(100), nullable=True)
     load_type_id = Column(Integer, ForeignKey("general_load_types.id"), nullable=True)
     load_type = Column(String(100), nullable=True)
     payment_type = Column(String(50), default="To Be Billed", nullable=True)
@@ -2082,4 +2083,3 @@ class AIOperationIdempotency(TenantBase):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
     )
-

@@ -328,6 +328,7 @@ async def lifespan(app: FastAPI):
                             "cha_job_number VARCHAR(100)",
                             "bill_of_entry VARCHAR(100)",
                             "container_no VARCHAR(100)",
+                            "seal_no VARCHAR(100)",
                             "load_type_id INTEGER REFERENCES general_load_types(id)",
                             "load_type VARCHAR(100)",
                             "payment_type VARCHAR(50) DEFAULT 'To Be Billed'",
@@ -729,5 +730,4 @@ app.include_router(profile_router, prefix=settings.API_V1_PREFIX)
 app.include_router(ai_router, prefix=settings.API_V1_PREFIX)
 app.include_router(profile_router)
 app.include_router(transport_router)
-
 
