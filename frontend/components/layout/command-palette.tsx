@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { ALL_NAVIGATION_MODULES } from "@/components/layout/sidebar";
 
 interface CommandItem {
   id: string;
@@ -274,6 +275,34 @@ const COMMAND_ITEMS: CommandItem[] = [
   },
 ];
 
+const navigationCategory = (groupId: string): CommandItem["category"] => {
+  if (groupId === "transport" || groupId === "tracking" || groupId === "fleet") return "Transport";
+  if (groupId === "accounts" || groupId === "statements") return "Accounts";
+  if (groupId === "general" || groupId === "misc") return "Masters";
+  if (groupId === "settings") return "Settings";
+  if (groupId === "company") return "Company Settings";
+  return "Reports";
+};
+
+const NAVIGATION_COMMAND_ITEMS: CommandItem[] = ALL_NAVIGATION_MODULES.flatMap((group) =>
+  group.items.map((item) => ({
+    id: `navigation-${group.id}-${item.feature || item.title}`,
+    title: item.title,
+    description: `${group.title} section`,
+    category: navigationCategory(group.id),
+    href: item.href,
+    icon: <FileText className="w-4 h-4 text-[#4F46E5]" />,
+    keywords: [group.title, item.feature, item.title].filter(Boolean) as string[],
+  }))
+);
+
+const ALL_COMMAND_ITEMS = [
+  ...COMMAND_ITEMS,
+  ...NAVIGATION_COMMAND_ITEMS.filter(
+    (navigationItem) => !COMMAND_ITEMS.some((commandItem) => commandItem.href === navigationItem.href)
+  ),
+];
+
 export interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
@@ -370,7 +399,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   }, [isOpen, query]);
 
   // Filter items matching query across title, description, category, and keywords
-  const filteredItems = COMMAND_ITEMS.filter((item) => {
+  const filteredItems = ALL_COMMAND_ITEMS.filter((item) => {
     if (!query.trim()) return true;
     const q = query.toLowerCase().trim();
     return (
