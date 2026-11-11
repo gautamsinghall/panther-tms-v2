@@ -2,7 +2,7 @@
 import { toast, confirmModal } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Trash2,
@@ -157,6 +157,7 @@ const RC_ORIGINAL_OPTIONS = [
 
 export default function MarketVehiclesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { openMasterTab } = useWorkspaceTabs();
   const [data, setData] = useState<MarketVehicleRecord[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
@@ -380,6 +381,12 @@ export default function MarketVehiclesPage() {
     });
     setIsDrawerOpen(true);
   };
+
+  useEffect(() => {
+    if (searchParams.get("action") === "add") {
+      handleOpenAddDrawer();
+    }
+  }, [searchParams]);
 
   // Open Edit Vehicle Drawer
   const handleOpenEditDrawer = (record: MarketVehicleRecord) => {
