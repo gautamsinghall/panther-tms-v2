@@ -1,8 +1,10 @@
 import logging
+import csv
 import secrets
 import string
+from pathlib import Path
 from typing import List, Optional
-from sqlalchemy import select, text, or_
+from sqlalchemy import insert, select, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.core.config import settings
 from app.core.errors import AppException
@@ -18,10 +20,12 @@ from app.control.schemas import (
 )
 from app.integrations.razorpay.client import razorpay_client
 from app.tenant_db.base import TenantBase
-from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment
+from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment, Location
 from app.core.database import get_tenant_session_maker
 
 logger = logging.getLogger("panther.control.service")
+
+DEFAULT_LOCATIONS_FILE = Path(__file__).resolve().parents[1] / "data" / "default_locations.csv"
 
 DEFAULT_PLANS = [
     {
@@ -319,6 +323,29 @@ async def initialize_tenant_schema_and_admin(
             await session.flush()
         else:
             admin_user = existing_user
+
+        location_exists = await session.execute(select(Location.id).limit(1))
+        if location_exists.scalar_one_or_none() is None:
+            batch = []
+            with DEFAULT_LOCATIONS_FILE.open(newline="", encoding="utf-8") as locations_file:
+                for row in csv.DictReader(locations_file):
+                    batch.append(
+                        {
+                            "country": "India",
+                            "state": row["state"].strip(),
+                            "city_name": row["city_name"].strip(),
+                            "pincode": row["pincode"].strip(),
+                            "is_pickup_point": True,
+                            "is_drop_point": True,
+                            "is_active": True,
+                        }
+                    )
+                    if len(batch) == 1000:
+                        await session.execute(insert(Location), batch)
+                        batch.clear()
+                if batch:
+                    await session.execute(insert(Location), batch)
+            logger.info(f"Seeded default locations for {db_name}")
 
         # Per tenant configuration: No issuing office is created by default.
         # The admin will set up their own issuing offices under Company Settings > Branches.
@@ -780,4 +807,3 @@ async def create_tenant_subscription(
         razorpay_key_id=settings.RAZORPAY_KEY_ID,
         currency="INR",
     )
-
