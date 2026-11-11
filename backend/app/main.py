@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,10 +28,19 @@ from app.modules.home.router import router as home_router
 from app.modules.profile.router import router as profile_router
 from app.modules.ai.router import router as ai_router
 
+logger = logging.getLogger(__name__)
 
+async def seed_postal_directory_background() -> None:
+    try:
+        from app.control.service import seed_postal_locations
+        async with ControlSessionLocal() as session:
+            await seed_postal_locations(session)
+    except Exception as exc:
+        logger.error("Shared postal directory seeding failed: %s", exc)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    postal_seed_task = None
     # Startup: Ensure control-plane tables exist and plans are seeded
     try:
         async with control_engine.begin() as conn:
@@ -74,8 +85,6 @@ async def lifespan(app: FastAPI):
 
         async with ControlSessionLocal() as session:
             await seed_plans_and_entitlements(session)
-            from app.control.service import seed_postal_locations
-            await seed_postal_locations(session)
 
             # Check and auto-provision demo tenant if missing
             from sqlalchemy import select, text, or_
@@ -638,9 +647,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Startup initialization notice: {e}")
 
+    postal_seed_task = asyncio.create_task(seed_postal_directory_background())
     yield
 
     # Shutdown: Close all database engines cleanly
+    if postal_seed_task and not postal_seed_task.done():
+        postal_seed_task.cancel()
+        await asyncio.gather(postal_seed_task, return_exceptions=True)
     try:
         await close_all_connections()
     except Exception:
