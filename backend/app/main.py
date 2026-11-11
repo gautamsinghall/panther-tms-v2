@@ -131,22 +131,6 @@ async def lifespan(app: FastAPI):
                             if "pg_type_typname_nsp_index" not in str(ca_err) and "already exists" not in str(ca_err):
                                 raise
 
-                        legacy_location_count = await t_conn.execute(
-                            text("SELECT COUNT(*) FROM general_locations")
-                        )
-                        if (legacy_location_count.scalar() or 0) > 10000:
-                            await t_conn.execute(text(
-                                "DELETE FROM general_locations "
-                                "WHERE issuing_office_id IS NULL "
-                                "AND location_code IS NULL "
-                                "AND address IS NULL"
-                            ))
-                            print(f"Removed legacy bulk postal locations from {t_db}")
-                        await t_conn.execute(text(
-                            "CREATE INDEX IF NOT EXISTS ix_general_locations_pincode "
-                            "ON general_locations (pincode)"
-                        ))
-
                         await t_conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS incorporation_date DATE;"))
                         await t_conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS billing_state VARCHAR(100);"))
