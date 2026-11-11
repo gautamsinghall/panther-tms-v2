@@ -18,6 +18,7 @@ export interface EntityDrawerProps {
   size?: "md" | "lg" | "xl" | "full";
   footer?: React.ReactNode;
   contextLabel?: string;
+  inline?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export function EntityDrawer({
   size,
   footer,
   contextLabel = "Record Form",
+  inline = false,
 }: EntityDrawerProps) {
   const isOpen = Boolean(rawIsOpen ?? rawOpen);
   const { openFormTab, dismissFormTab, setActiveTab, activeTab } = useWorkspaceTabs();
@@ -55,6 +57,7 @@ export function EntityDrawer({
 
   // Sync tab state with isOpen prop
   useEffect(() => {
+    if (inline) return;
     if (isOpen) {
       wasOpenedRef.current = true;
       openFormTab({
@@ -109,17 +112,18 @@ export function EntityDrawer({
         formCanvas.scrollTop = 0;
       }
     }
-  }, [isOpen, title, description, subtitle, openFormTab, dismissFormTab]);
+  }, [isOpen, title, description, subtitle, openFormTab, dismissFormTab, inline]);
 
   // Clean up if component unmounts while open
   useEffect(() => {
+    if (inline) return;
     return () => {
       if (wasOpenedRef.current) {
         wasOpenedRef.current = false;
         dismissFormTab();
       }
     };
-  }, [dismissFormTab]);
+  }, [dismissFormTab, inline]);
 
   // Global Escape key listener to close form when in form tab
   useEffect(() => {
@@ -167,12 +171,12 @@ export function EntityDrawer({
           <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
             <button
               type="button"
-              onClick={() => setActiveTab("list")}
+              onClick={() => (inline ? onCloseRef.current?.() : setActiveTab("list"))}
               className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-[#1A1D2B] hover:bg-slate-200/70 dark:hover:bg-[#23273A] rounded-xl transition-colors cursor-pointer border border-slate-200/60 dark:border-[#2B2E42] shadow-2xs flex-1 sm:flex-initial"
-              title="Switch to records table without closing form"
+              title={inline ? "Return to previous form" : "Switch to records table without closing form"}
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Records (Keep Draft)</span>
+              <span>{inline ? "Back (Keep Draft)" : "Records (Keep Draft)"}</span>
             </button>
             <button
               type="button"
@@ -207,7 +211,7 @@ export function EntityDrawer({
       : null;
 
   // If portal target container is mounted, portal into layout's workspace-form-canvas
-  if (mounted && targetEl) {
+  if (!inline && mounted && targetEl) {
     return createPortal(formViewContent, targetEl);
   }
 

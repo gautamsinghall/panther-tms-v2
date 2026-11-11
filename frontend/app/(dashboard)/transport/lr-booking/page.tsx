@@ -1957,9 +1957,35 @@ export default function LRBookingPage() {
     formSetFieldValueRef.current?.("via", cityName);
   };
 
+  const handleMarketVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string }) => {
+    const vehicleNumber = newVehicle.vehicle_number || newVehicle.label || String(newVehicle.id);
+    setMarketVehicles((prev) => [
+      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type },
+      ...prev,
+    ]);
+    setFormInitialValues((prev) => ({ ...prev, vehicle_number: vehicleNumber }));
+    formSetFieldValueRef.current?.("vehicle_number", vehicleNumber);
+    if (newVehicle.vehicle_type) formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+  };
+
+  const handleCompanyVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string }) => {
+    const vehicleNumber = newVehicle.vehicle_number || newVehicle.label || String(newVehicle.id);
+    setCompanyVehicles((prev) => [
+      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type },
+      ...prev,
+    ]);
+    setFormInitialValues((prev) => ({ ...prev, vehicle_number: vehicleNumber }));
+    formSetFieldValueRef.current?.("vehicle_number", vehicleNumber);
+    if (newVehicle.vehicle_type) formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+  };
+
   const openVehicleMaster = (type: "market" | "company") => {
     setIsVehicleTypePromptOpen(false);
-    router.push(type === "market" ? "/transport/market-vehicles?action=add" : "/transport/company-vehicles?action=add");
+    if (type === "market") {
+      openMasterTab({ type: "market_vehicle", title: "Add Market Truck", onSuccess: handleMarketVehicleCreated });
+      return;
+    }
+    openMasterTab({ type: "company_vehicle", title: "Add Company Truck", onSuccess: handleCompanyVehicleCreated });
   };
 
   const handleLoadTypeCreated = (newLt: { id: number | string; name?: string; label?: string }) => {

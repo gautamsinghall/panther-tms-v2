@@ -9,6 +9,8 @@ import { apiClient } from "@/lib/api-client";
 import { toast } from "@/lib/toast";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { useWorkspaceTabs, MasterTabItem } from "@/lib/workspace-tabs-context";
+import CompanyVehiclesPage, { CompanyVehicleRecord } from "@/app/(dashboard)/transport/company-vehicles/page";
+import MarketVehiclesPage, { MarketVehicleRecord } from "@/app/(dashboard)/transport/market-vehicles/page";
 
 interface MasterFormMeta {
   title: string;
@@ -862,6 +864,26 @@ export function MasterFormView({
 
   const meta = MASTER_DEFINITIONS[tab.type] || MASTER_DEFINITIONS.billing_client;
   const sections = useMemo(() => meta.getSections(), [meta]);
+
+  if (tab.type === "company_vehicle") {
+    return (
+      <CompanyVehiclesPage
+        embedded
+        onCreated={(vehicle: CompanyVehicleRecord) => onSuccess({ ...vehicle, id: vehicle.id, label: vehicle.vehicle_number })}
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "market_vehicle") {
+    return (
+      <MarketVehiclesPage
+        embedded
+        onCreated={(vehicle: MarketVehicleRecord) => onSuccess({ ...vehicle, id: vehicle.id, label: vehicle.vehicle_number })}
+        onCancel={onClose}
+      />
+    );
+  }
 
   const handleFieldChange = () => {
     if (!isDirtyRef.current) {

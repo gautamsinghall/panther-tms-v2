@@ -163,7 +163,13 @@ const RC_ORIGINAL_OPTIONS = [
   { label: "With Vehicle Financier", value: "With Financier" },
 ];
 
-export default function CompanyVehiclesPage() {
+export interface CompanyVehiclesPageProps {
+  embedded?: boolean;
+  onCreated?: (vehicle: CompanyVehicleRecord) => void;
+  onCancel?: () => void;
+}
+
+function CompanyVehiclesPageImpl({ embedded = false, onCreated, onCancel }: CompanyVehiclesPageProps) {
   const router = useRouter();
   const [data, setData] = useState<CompanyVehicleRecord[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
@@ -173,7 +179,7 @@ export default function CompanyVehiclesPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Add / Edit Drawer State
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<CompanyVehicleRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -247,6 +253,7 @@ export default function CompanyVehiclesPage() {
     } finally {
       setIsLoading(false);
     }
+
   };
 
   useEffect(() => {
@@ -293,6 +300,7 @@ export default function CompanyVehiclesPage() {
         const payloadMt = ((gvw - unladen) / 1000).toFixed(2);
         updated.capacity_mt = payloadMt;
       }
+
       return updated;
     });
   };
@@ -534,19 +542,21 @@ export default function CompanyVehiclesPage() {
         last_repair_bill_doc: formValues.last_repair_bill_doc || null,
       };
 
+      let savedVehicle: CompanyVehicleRecord | undefined;
       if (editingRecord) {
-        await apiClient(`/api/v1/transport/company-vehicles/${editingRecord.id}`, {
+        savedVehicle = await apiClient<CompanyVehicleRecord>(`/api/v1/transport/company-vehicles/${editingRecord.id}`, {
           method: "PUT",
           body: JSON.stringify(payload),
         });
       } else {
-        await apiClient("/api/v1/transport/company-vehicles", {
+        savedVehicle = await apiClient<CompanyVehicleRecord>("/api/v1/transport/company-vehicles", {
           method: "POST",
           body: JSON.stringify(payload),
         });
       }
 
       setIsDrawerOpen(false);
+      if (embedded && !editingRecord && savedVehicle) onCreated?.(savedVehicle);
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to save company vehicle.");
@@ -787,7 +797,7 @@ export default function CompanyVehiclesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      {!embedded && <PageHeader
         title="Company Vehicles"
         description="Registry of hired market trucks, technical specs, compliance validity, and equipment."
         breadcrumbs={[
@@ -799,9 +809,9 @@ export default function CompanyVehiclesPage() {
           icon: <Plus className="w-3.5 h-3.5" />,
           onClick: handleOpenAddDrawer,
         }}
-      />
+      />}
 
-      <DataTable
+      {!embedded && <DataTable
         columns={columns}
         data={data}
         isLoading={isLoading}
@@ -816,14 +826,15 @@ export default function CompanyVehiclesPage() {
           label: "Add Vehicle",
           onClick: handleOpenAddDrawer,
         }}
-      />
+      />}
 
       {/* ========================================================================= */}
       {/* UNIFIED ADD / EDIT VEHICLE DRAWER                                         */}
       {/* ========================================================================= */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => (onCancel ? onCancel() : setIsDrawerOpen(false))}
+        inline={embedded}
         title={editingRecord ? `Edit Vehicle: ${editingRecord.vehicle_number}` : "Add Vehicle"}
         description="Register technical specs, ownership, regulatory validities, and maintenance equipment."
         size="xl"
@@ -2203,4 +2214,8 @@ export default function CompanyVehiclesPage() {
       </EntityDrawer>
     </div>
   );
+}
+
+export default function CompanyVehiclesPage(props: any) {
+  return <CompanyVehiclesPageImpl {...props} />;
 }
