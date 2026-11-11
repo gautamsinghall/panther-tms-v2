@@ -24,6 +24,7 @@ export interface FormFieldDef {
   onAddNew?: () => void;
   addNewLabel?: string;
   addNewTitle?: string;
+  hideAddNewOption?: boolean;
   addNewHref?: string;
   accept?: string;
   hideLabel?: boolean;

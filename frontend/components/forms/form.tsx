@@ -559,6 +559,7 @@ export function Form({
                         }
                         addNewLabel={field.addNewLabel || `+ Add new ${field.label.replace(" *", "")}`}
                         addNewTitle={field.addNewTitle || `Add new ${field.label}`}
+                        hideAddNewOption={field.hideAddNewOption}
                       />
                     ) : field.type === "textarea" ? (
                       <textarea

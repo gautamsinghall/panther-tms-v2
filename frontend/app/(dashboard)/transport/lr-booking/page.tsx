@@ -125,6 +125,7 @@ interface SelectOption {
   city?: string;
   state?: string;
   pincode?: string;
+  is_active?: boolean;
 }
 
 interface SeriesRangeItem {
@@ -537,6 +538,16 @@ export default function LRBookingPage() {
         value: String(l.id),
       })),
   ], [locations, editingLrRecord]);
+
+  const transitLocationOptions = useMemo(() => [
+    { label: "Select Transit Location...", value: "" },
+    ...locations
+      .filter((location) => location.is_active !== false)
+      .map((location) => ({
+        label: location.city_name || `Location #${location.id}`,
+        value: location.city_name || "",
+      })),
+  ], [locations]);
 
   const marketVehicleOptions = useMemo(() => [
     { label: "Select Market Vehicle...", value: "" },
@@ -1183,9 +1194,13 @@ export default function LRBookingPage() {
         {
           name: "via",
           label: "Via",
-          type: "text",
-          placeholder: "e.g. Jaipur - Delhi Bypass / Ahmedabad",
-          helperText: "Route transit information.",
+          type: "select",
+          options: transitLocationOptions,
+          placeholder: "Select transit location",
+          onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: handleViaLocationCreated }),
+          addNewLabel: "+ New Location",
+          addNewTitle: "Opens Location creation in a new TMS tab without losing form progress",
+          helperText: "Select a transit location or add a new hub.",
         },
         {
           name: "consigner_id",
@@ -1231,7 +1246,7 @@ export default function LRBookingPage() {
           options: truckOptions,
           placeholder: "Select market or company vehicle",
           onAddNew: () => setIsVehicleTypePromptOpen(true),
-          addNewLabel: "+ Add Vehicle",
+          hideAddNewOption: true,
           addNewTitle: "Choose whether to add a market vehicle or company vehicle",
           helperText: selectedJob
             ? "⚠️ Truck assignment required — Job order indents do not specify a vehicle registration."
@@ -1427,6 +1442,7 @@ export default function LRBookingPage() {
     paymentTypeOptions,
     billingCustomerOptions,
     locationOptions,
+    transitLocationOptions,
     marketVehicleOptions,
     truckOptions,
     consignerOptions,
@@ -1903,6 +1919,13 @@ export default function LRBookingPage() {
     setLocations((prev) => [{ id: Number(newLoc.id), city_name: newLoc.city_name || newLoc.label }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, [field]: String(newLoc.id) }));
     formSetFieldValueRef.current?.(field, String(newLoc.id));
+  };
+
+  const handleViaLocationCreated = (newLoc: { id: number | string; city_name?: string; label?: string }) => {
+    const cityName = newLoc.city_name || newLoc.label || String(newLoc.id);
+    setLocations((prev) => [{ id: Number(newLoc.id), city_name: cityName }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, via: cityName }));
+    formSetFieldValueRef.current?.("via", cityName);
   };
 
   const handleMarketVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string }) => {

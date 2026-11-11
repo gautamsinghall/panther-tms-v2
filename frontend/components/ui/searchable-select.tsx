@@ -29,6 +29,7 @@ export interface SearchableSelectProps {
   onAddNew?: () => void;
   addNewLabel?: string;
   addNewTitle?: string;
+  hideAddNewOption?: boolean;
 }
 
 /**
@@ -58,6 +59,7 @@ export function SearchableSelect({
   onAddNew,
   addNewLabel,
   addNewTitle,
+  hideAddNewOption = false,
 }: SearchableSelectProps) {
   const generatedId = useId();
   const controlId = id || `searchable-select-${generatedId}`;
@@ -304,7 +306,7 @@ export function SearchableSelect({
                   );
                 })}
 
-                {onAddNew && (
+                {onAddNew && !hideAddNewOption && (
                   <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-[#22232E]">
                     <button
                       type="button"
