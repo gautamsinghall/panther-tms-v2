@@ -46,21 +46,6 @@ function WorkspaceCanvas({ children }: { children: React.ReactNode }) {
     }
   }, [activeTab, isFormOpen, masterTabs, setActiveTab]);
 
-  // Ensure switching to form or master tab always views from the top
-  useEffect(() => {
-    if (isFormTabActive) {
-      const formCanvas = document.getElementById("workspace-form-canvas");
-      if (formCanvas) {
-        formCanvas.scrollTop = 0;
-      }
-    } else if (isMasterTabActive) {
-      const masterCanvas = document.getElementById(`workspace-master-canvas-${activeTab}`);
-      if (masterCanvas) {
-        masterCanvas.scrollTop = 0;
-      }
-    }
-  }, [activeTab, isFormTabActive, isMasterTabActive]);
-
   useEffect(() => {
     const handleOfficeChange = (e: Event) => {
       const customEvent = e as CustomEvent<OfficeSummary>;
