@@ -653,6 +653,7 @@ def _build_lr_response(l: LR) -> LRResponse:
         load_type=l.load_type,
         load_type_name=l.load_type_rel.name if l.load_type_rel else l.load_type,
         payment_type=l.payment_type or "To Be Billed",
+        show_amounts_in_print=l.show_amounts_in_print,
         eta=l.eta,
         particulars=l.particulars,
         lr_series_id=l.lr_series_id,

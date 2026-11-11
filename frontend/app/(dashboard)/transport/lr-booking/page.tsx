@@ -97,6 +97,7 @@ interface LRRecord {
   load_type?: string;
   load_type_name?: string;
   payment_type?: string;
+  show_amounts_in_print?: boolean;
   eta?: string;
   particulars?: string;
   remarks?: string;
@@ -724,6 +725,7 @@ export default function LRBookingPage() {
       seal_no: freshData.seal_no || "",
       load_type_id: freshData.load_type_id ? String(freshData.load_type_id) : "",
       payment_type: freshData.payment_type || "To Be Billed",
+      show_amounts_in_print: Boolean(freshData.show_amounts_in_print),
       eta: freshData.eta || "",
       driver_name: freshData.driver_name || "",
       driver_phone: freshData.driver_phone || "",
@@ -802,6 +804,7 @@ export default function LRBookingPage() {
       seal_no: "",
       load_type_id: "",
       payment_type: "To Be Billed",
+      show_amounts_in_print: false,
       eta: "",
       driver_name: "",
       driver_phone: "",
@@ -955,6 +958,7 @@ export default function LRBookingPage() {
         load_type_id: values.load_type_id ? parseInt(values.load_type_id, 10) : null,
         load_type: selectedLoadType?.name || null,
         payment_type: values.payment_type || "To Be Billed",
+        show_amounts_in_print: values.show_amounts_in_print === true || values.show_amounts_in_print === "show",
         eta: values.eta || null,
         particulars: combinedParts || (values.particulars ? String(values.particulars).trim() : null),
         remarks: values.remarks ? String(values.remarks).trim() : null,
@@ -1394,6 +1398,30 @@ export default function LRBookingPage() {
           required: true,
           options: paymentTypeOptions,
           defaultValue: "To Be Billed",
+        },
+        {
+          name: "show_amounts_in_print",
+          label: "Amounts in Print",
+          type: "custom",
+          customRender: ({ value, onChange }) => (
+            <div className="flex items-center gap-5 pt-1">
+              {[
+                { label: "Hide (show payment status)", value: false },
+                { label: "Show amounts", value: true },
+              ].map((option) => (
+                <label key={option.label} className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="show_amounts_in_print"
+                    checked={Boolean(value) === option.value}
+                    onChange={() => onChange(option.value)}
+                    className="h-4 w-4 accent-indigo-600"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          ),
         },
       ],
     },

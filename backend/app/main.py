@@ -334,6 +334,7 @@ async def lifespan(app: FastAPI):
                             "load_type_id INTEGER REFERENCES general_load_types(id)",
                             "load_type VARCHAR(100)",
                             "payment_type VARCHAR(50) DEFAULT 'To Be Billed'",
+                            "show_amounts_in_print BOOLEAN DEFAULT FALSE",
                             "eta VARCHAR(100)",
                             "particulars TEXT",
                             "lr_series_id INTEGER REFERENCES settings_series_masters(id)",

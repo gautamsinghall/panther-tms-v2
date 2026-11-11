@@ -466,6 +466,7 @@ class LRBase(BaseModel):
     load_type_id: Optional[int] = None
     load_type: Optional[str] = None
     payment_type: Optional[str] = "To Be Billed"
+    show_amounts_in_print: bool = False
     eta: Optional[str] = None
     particulars: Optional[str] = None
     lr_series_id: Optional[int] = None
@@ -551,6 +552,7 @@ class LRUpdate(BaseModel):
     load_type_id: Optional[int] = None
     load_type: Optional[str] = None
     payment_type: Optional[str] = None
+    show_amounts_in_print: Optional[bool] = None
     eta: Optional[str] = None
     particulars: Optional[str] = None
     lr_series_id: Optional[int] = None

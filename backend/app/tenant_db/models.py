@@ -814,6 +814,7 @@ class LR(TenantBase):
     load_type_id = Column(Integer, ForeignKey("general_load_types.id"), nullable=True)
     load_type = Column(String(100), nullable=True)
     payment_type = Column(String(50), default="To Be Billed", nullable=True)
+    show_amounts_in_print = Column(Boolean, default=False, nullable=False)
     eta = Column(String(100), nullable=True)
     particulars = Column(Text, nullable=True)
     lr_series_id = Column(Integer, ForeignKey("settings_series_masters.id"), nullable=True)
