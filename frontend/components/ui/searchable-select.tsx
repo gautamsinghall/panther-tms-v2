@@ -16,6 +16,7 @@ export interface SearchableSelectProps {
   name?: string;
   value?: string | number | null;
   options?: SearchableSelectOption[];
+  onSearch?: (query: string) => Promise<SearchableSelectOption[]>;
   placeholder?: string;
   searchPlaceholder?: string;
   disabled?: boolean;
@@ -46,6 +47,7 @@ export function SearchableSelect({
   name,
   value,
   options = [],
+  onSearch,
   placeholder = "Select an option...",
   searchPlaceholder = "Type to filter...",
   disabled = false,
@@ -66,18 +68,22 @@ export function SearchableSelect({
   const listboxId = `${controlId}-listbox`;
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [remoteOptions, setRemoteOptions] = useState<SearchableSelectOption[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [lastSelectedOption, setLastSelectedOption] = useState<SearchableSelectOption | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Find currently selected option (exact match or case-insensitive fallback)
+  const availableOptions = remoteOptions ?? options;
   const selectedOption =
-    options.find((opt) => String(opt.value) === String(value)) ||
+    [...availableOptions, ...options, ...(lastSelectedOption ? [lastSelectedOption] : [])].find((opt) => String(opt.value) === String(value)) ||
     (value !== undefined && value !== null && value !== ""
-      ? options.find((opt) => String(opt.value).toLowerCase() === String(value).toLowerCase().trim())
+      ? [...availableOptions, ...options, ...(lastSelectedOption ? [lastSelectedOption] : [])].find((opt) => String(opt.value).toLowerCase() === String(value).toLowerCase().trim())
       : undefined);
 
   // Filter options based on user text input (matches label, value, subLabel, and keywords)
-  const filteredOptions = options.filter((opt) => {
+  const filteredOptions = availableOptions.filter((opt) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
     return (
@@ -87,6 +93,28 @@ export function SearchableSelect({
       (opt.keywords && opt.keywords.some((k) => k.toLowerCase().includes(query)))
     );
   });
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!onSearch || !isOpen || query.length < 2) {
+      setRemoteOptions(null);
+      setIsSearching(false);
+      return;
+    }
+
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      setIsSearching(true);
+      onSearch(query)
+        .then((results) => { if (active) setRemoteOptions(results); })
+        .catch(() => { if (active) setRemoteOptions([]); })
+        .finally(() => { if (active) setIsSearching(false); });
+    }, 300);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [isOpen, onSearch, searchQuery]);
 
   // Close when clicking outside
   useEffect(() => {
@@ -138,6 +166,8 @@ export function SearchableSelect({
   };
 
   const handleSelect = (val: string | number) => {
+    const selected = filteredOptions.find((option) => String(option.value) === String(val));
+    if (selected) setLastSelectedOption(selected);
     onChange(val);
     setIsOpen(false);
     setSearchQuery("");
@@ -266,7 +296,11 @@ export function SearchableSelect({
               </button>
             )}
 
-            {filteredOptions.length > 0 ? (
+            {isSearching ? (
+              <div className="px-3 py-3 text-center">
+                <p className="text-xs text-slate-500 font-medium">Searching locations...</p>
+              </div>
+            ) : filteredOptions.length > 0 ? (
               <>
                 {filteredOptions.map((opt) => {
                   const isSelected = String(opt.value) === String(value);
@@ -308,7 +342,9 @@ export function SearchableSelect({
               </>
             ) : (
               <div className="px-3 py-3 text-center">
-                <p className="text-xs text-slate-500 font-medium">No matching options found</p>
+                <p className="text-xs text-slate-500 font-medium">
+                  {onSearch && searchQuery.trim().length < 2 ? "Type at least 2 characters to search all locations" : "No matching options found"}
+                </p>
               </div>
             )}
           </div>

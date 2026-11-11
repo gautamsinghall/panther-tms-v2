@@ -176,6 +176,28 @@ export default function LRBookingPage() {
   const [loadTypes, setLoadTypes] = useState<SelectOption[]>([]);
   const [marketVehicles, setMarketVehicles] = useState<SelectOption[]>([]);
   const [companyVehicles, setCompanyVehicles] = useState<SelectOption[]>([]);
+
+  const searchLocationOptions = useCallback(async (query: string) => {
+    const results = await apiClient<Array<{ id: number; city_name: string; state?: string; pincode?: string }>>(
+      `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
+    );
+    return results.filter((location) => location.city_name).map((location) => ({
+      label: location.city_name,
+      value: String(location.id),
+      subLabel: location.state,
+      keywords: [location.pincode || ""],
+    }));
+  }, []);
+
+  const searchTransitLocationOptions = useCallback(async (query: string) => {
+    const results = await apiClient<Array<{ id: number; city_name: string; state?: string; pincode?: string }>>(
+      `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
+    );
+    return Array.from(new Map(results.filter((location) => location.city_name).map((location) => [
+      location.city_name,
+      { label: location.city_name, value: location.city_name, subLabel: location.state, keywords: [location.pincode || ""] },
+    ])).values());
+  }, []);
   const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -1181,6 +1203,7 @@ export default function LRBookingPage() {
           type: "select",
           required: (values) => values.booking_status !== "Reserved",
           options: locationOptions,
+          onSearch: searchLocationOptions,
           placeholder: "Select origin city / dispatch hub",
           onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "origin_location_id") }),
           addNewLabel: "+ New Location",
@@ -1192,6 +1215,7 @@ export default function LRBookingPage() {
           type: "select",
           required: (values) => values.booking_status !== "Reserved",
           options: locationOptions,
+          onSearch: searchLocationOptions,
           placeholder: "Select delivery city / destination hub",
           onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "destination_location_id") }),
           addNewLabel: "+ New Location",
@@ -1202,6 +1226,7 @@ export default function LRBookingPage() {
           label: "Via",
           type: "select",
           options: transitLocationOptions,
+          onSearch: searchTransitLocationOptions,
           placeholder: "Select transit location",
           onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: handleViaLocationCreated }),
           addNewLabel: "+ New Location",

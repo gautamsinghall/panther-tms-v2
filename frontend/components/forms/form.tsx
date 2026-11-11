@@ -490,6 +490,7 @@ export function Form({
                         name={field.name}
                         value={val}
                         options={field.options || []}
+                        onSearch={field.onSearch}
                         placeholder={field.placeholder || `Select ${field.label}`}
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}

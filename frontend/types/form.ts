@@ -3,6 +3,8 @@ import React from "react";
 export interface FormFieldOption {
   label: string;
   value: string | number;
+  subLabel?: string;
+  keywords?: string[];
 }
 
 export interface FormFieldDef {
@@ -12,6 +14,7 @@ export interface FormFieldDef {
   placeholder?: string;
   required?: boolean | ((values: Record<string, any>) => boolean);
   options?: FormFieldOption[]; // for select
+  onSearch?: (query: string) => Promise<FormFieldOption[]>;
   countryFieldName?: string; // Optional field name of corresponding country
   disabled?: boolean;
   disabledReason?: string; // Tooltip explaining why disabled per design.md §3

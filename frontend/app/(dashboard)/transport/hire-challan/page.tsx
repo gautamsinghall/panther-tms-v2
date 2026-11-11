@@ -95,6 +95,7 @@ interface LocationOption {
   id: number;
   city_name: string;
   state?: string;
+  is_active?: boolean;
 }
 
 interface VehicleOption {
@@ -185,6 +186,8 @@ export default function HireChallansPage() {
   const [data, setData] = useState<HireChallanRecord[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [fromLocationMatches, setFromLocationMatches] = useState<LocationOption[]>([]);
+  const [toLocationMatches, setToLocationMatches] = useState<LocationOption[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
@@ -234,6 +237,42 @@ export default function HireChallansPage() {
   const [challanNumber, setChallanNumber] = useState<string>("");
   const [fromLocation, setFromLocation] = useState<string>("");
   const [toLocation, setToLocation] = useState<string>("");
+
+  useEffect(() => {
+    const query = fromLocation.trim();
+    if (query.length < 2) {
+      setFromLocationMatches([]);
+      return;
+    }
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      apiClient<LocationOption[]>(`/api/v1/general/locations/search?q=${encodeURIComponent(query)}`)
+        .then((results) => { if (active) setFromLocationMatches(results); })
+        .catch(() => { if (active) setFromLocationMatches([]); });
+    }, 300);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [fromLocation]);
+
+  useEffect(() => {
+    const query = toLocation.trim();
+    if (query.length < 2) {
+      setToLocationMatches([]);
+      return;
+    }
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      apiClient<LocationOption[]>(`/api/v1/general/locations/search?q=${encodeURIComponent(query)}`)
+        .then((results) => { if (active) setToLocationMatches(results); })
+        .catch(() => { if (active) setToLocationMatches([]); });
+    }, 300);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [toLocation]);
 
   const [challanDate, setChallanDate] = useState<string>(
     new Date().toISOString().split("T")[0]
@@ -1699,7 +1738,7 @@ export default function HireChallansPage() {
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="from-locations-list">
-                  {locations.filter((loc: any) => loc.is_active !== false || loc.city_name === fromLocation).map((loc) => (
+                  {[...locations, ...fromLocationMatches].filter((loc, index, all) => all.findIndex((item) => item.id === loc.id) === index).filter((loc) => loc.is_active !== false || loc.city_name === fromLocation).map((loc) => (
                     <option key={loc.id} value={loc.city_name}>
                       {loc.city_name} {loc.state ? `(${loc.state})` : ""}
                     </option>
@@ -1722,7 +1761,7 @@ export default function HireChallansPage() {
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
                 <datalist id="to-locations-list">
-                  {locations.filter((loc: any) => loc.is_active !== false || loc.city_name === toLocation).map((loc) => (
+                  {[...locations, ...toLocationMatches].filter((loc, index, all) => all.findIndex((item) => item.id === loc.id) === index).filter((loc) => loc.is_active !== false || loc.city_name === toLocation).map((loc) => (
                     <option key={loc.id} value={loc.city_name}>
                       {loc.city_name} {loc.state ? `(${loc.state})` : ""}
                     </option>

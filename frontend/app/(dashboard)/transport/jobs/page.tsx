@@ -70,6 +70,17 @@ export default function JobsPage() {
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const searchLocationOptions = useCallback(async (query: string) => {
+    const results = await apiClient<Array<{ id: number; city_name: string; state?: string; pincode?: string }>>(
+      `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
+    );
+    return results.filter((location) => location.city_name).map((location) => ({
+      label: `${location.city_name}${location.state ? `, ${location.state}` : ""}`,
+      value: String(location.id),
+      keywords: [location.pincode || ""],
+    }));
+  }, []);
+
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -471,6 +482,7 @@ export default function JobsPage() {
           type: "select",
           required: true,
           options: locationOptions,
+          onSearch: searchLocationOptions,
           placeholder: "Select Origin Location",
           onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "origin_location_id") }),
           addNewLabel: "+ Add New Origin Location",
@@ -482,6 +494,7 @@ export default function JobsPage() {
           type: "select",
           required: true,
           options: locationOptions,
+          onSearch: searchLocationOptions,
           placeholder: "Select Destination Location",
           onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "destination_location_id") }),
           addNewLabel: "+ Add New Destination Location",

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch
+from app.tenant_db.models import User, Branch, Location
 from app.modules.general import schemas, service
 from app.services.activity_logger import log_activity
 
@@ -286,6 +286,36 @@ async def list_locations(
         page=page, page_size=page_size, search=search, active=active,
     )
     return {"items": items, "page": page, "page_size": page_size, "total": total}
+
+@router.get("/locations/search", response_model=List[schemas.LocationResponse], summary="Search locations for form fields")
+async def search_locations(
+    q: str = Query(..., min_length=2),
+    limit: int = Query(50, ge=1, le=50),
+    current_user: User = Depends(require_permission("general", "location", "view")),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    term = q.strip()
+    if len(term) < 2:
+        return []
+    pattern = f"{term}%"
+    filters = [
+        Location.is_active.is_(True),
+        or_(
+            Location.city_name.ilike(pattern),
+            Location.state.ilike(pattern),
+            Location.pincode.ilike(pattern),
+        ),
+    ]
+    if current_office:
+        filters.append(or_(Location.issuing_office_id == current_office.id, Location.issuing_office_id.is_(None)))
+    result = await db.execute(
+        select(Location)
+        .where(*filters)
+        .order_by(Location.city_name, Location.state, Location.id)
+        .limit(limit)
+    )
+    return list(result.scalars().all())
 
 @router.post("/locations", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, summary="Create a location")
 async def create_location(
