@@ -933,10 +933,10 @@ export default function LRBookingPage() {
         origin_location_id: values.origin_location_id ? parseInt(values.origin_location_id, 10) : null,
         destination_location_id: values.destination_location_id ? parseInt(values.destination_location_id, 10) : null,
         via: values.via ? String(values.via).trim() : null,
-        consigner_id: parseInt(values.consigner_id, 10),
-        consignee_id: parseInt(values.consignee_id, 10),
+        consigner_id: values.consigner_id ? parseInt(values.consigner_id, 10) : null,
+        consignee_id: values.consignee_id ? parseInt(values.consignee_id, 10) : null,
         vehicle_source: editingLrRecord?.vehicle_source || "MARKET",
-        vehicle_number: String(values.vehicle_number).trim().toUpperCase(),
+        vehicle_number: values.vehicle_number ? String(values.vehicle_number).trim().toUpperCase() : null,
         vehicle_type: values.vehicle_type ? String(values.vehicle_type).trim() : null,
         driver_name: values.driver_name ? String(values.driver_name).trim() : null,
         driver_phone: values.driver_phone ? String(values.driver_phone).trim() : null,
@@ -1146,7 +1146,7 @@ export default function LRBookingPage() {
           name: "dispatch_date",
           label: "Dispatch Date",
           type: "date",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
           defaultValue: new Date().toISOString().split("T")[0],
           helperText: "Defaults to current or scheduled dispatch date.",
         },
@@ -1168,6 +1168,7 @@ export default function LRBookingPage() {
           name: "billing_customer_id",
           label: "Billing Customer",
           type: "select",
+          required: (values) => values.booking_status === "Reserved",
           options: billingCustomerOptions,
           onAddNew: () => openMasterTab({ type: "billing_client", title: "Add Billing Client", onSuccess: handleBillingClientCreated }),
           addNewLabel: "+ New Customer",
@@ -1178,7 +1179,7 @@ export default function LRBookingPage() {
           name: "origin_location_id",
           label: "Origin Hub",
           type: "select",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
           options: locationOptions,
           placeholder: "Select origin city / dispatch hub",
           onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "origin_location_id") }),
@@ -1189,7 +1190,7 @@ export default function LRBookingPage() {
           name: "destination_location_id",
           label: "Destination Hub",
           type: "select",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
           options: locationOptions,
           placeholder: "Select delivery city / destination hub",
           onAddNew: () => openMasterTab({ type: "location", title: "Add Location", onSuccess: (rec) => handleLocationCreated(rec, "destination_location_id") }),
@@ -1211,7 +1212,7 @@ export default function LRBookingPage() {
           name: "consigner_id",
           label: "Consignor",
           type: "select",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
           options: consignerOptions,
           onChange: (val) => setSelectedConsignerId(String(val)),
           onAddNew: () => openMasterTab({ type: "consigner", title: "Add Consignor", onSuccess: handleConsignerCreated }),
@@ -1225,7 +1226,7 @@ export default function LRBookingPage() {
           name: "consignee_id",
           label: "Consignee",
           type: "select",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
           options: consigneeOptions,
           onChange: (val) => setSelectedConsigneeId(String(val)),
           onAddNew: () => openMasterTab({ type: "consignee", title: "Add Consignee", onSuccess: handleConsigneeCreated }),
@@ -1247,7 +1248,7 @@ export default function LRBookingPage() {
           name: "vehicle_number",
           label: "Truck No.",
           type: "select",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
           options: truckOptions,
           placeholder: "Select company or market truck",
           onAddNew: () => setIsVehicleTypePromptOpen(true),
@@ -1306,7 +1307,7 @@ export default function LRBookingPage() {
           label: "No. of Packages",
           type: "number",
           placeholder: "e.g. 50",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
         },
         {
           name: "packing_method_id",
@@ -1395,7 +1396,7 @@ export default function LRBookingPage() {
           name: "payment_type",
           label: "Payment Type",
           type: "select",
-          required: true,
+          required: (values) => values.booking_status !== "Reserved",
           options: paymentTypeOptions,
           defaultValue: "To Be Billed",
         },
@@ -2050,7 +2051,7 @@ export default function LRBookingPage() {
               <button
                 type="button"
                 onClick={() => openVehicleMaster("market")}
-                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2B2E42] bg-slate-50/70 dark:bg-[#1A1D2B] hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-200 dark:hover:border-indigo-700 text-slate-700 dark:text-slate-300 transition-all cursor-pointer font-medium group"
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2B2E42] bg-slate-50/70 dark:bg-[#1A1D2B] hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white dark:hover:border-indigo-600 text-slate-700 dark:text-slate-300 transition-all cursor-pointer font-medium group"
               >
                 <span className="font-semibold text-sm">Market Truck</span>
                 <span className="text-[11px] opacity-75">Hired / Broker vehicle</span>

@@ -73,6 +73,8 @@ export function Form({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [errorList, setErrorList] = useState<Array<{ name: string; label: string; message: string; id: string }>>([]);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const isFieldRequired = (field: FormFieldDef) =>
+    typeof field.required === "function" ? field.required(values) : Boolean(field.required);
 
   useEffect(() => {
     const defaults: Record<string, any> = {};
@@ -118,7 +120,7 @@ export function Form({
 
   const handleBlur = (field: FormFieldDef) => {
     setTouched((prev) => ({ ...prev, [field.name]: true }));
-    if (field.required && !field.disabled) {
+    if (isFieldRequired(field) && !field.disabled) {
       const val = values[field.name] ?? field.defaultValue;
       if (val === undefined || val === null || String(val).trim() === "") {
         const msg = `${field.label} is required`;
@@ -147,7 +149,7 @@ export function Form({
 
     for (const section of sections) {
       for (const field of section.fields) {
-        if (field.required && !field.disabled) {
+        if (isFieldRequired(field) && !field.disabled) {
           const val = values[field.name] ?? field.defaultValue;
           if (val === undefined || val === null || String(val).trim() === "") {
             const msg = `${field.label} is required`;
@@ -232,6 +234,7 @@ export function Form({
             <div className={cn("grid gap-4 sm:gap-5", gridCols)}>
               {section.fields.map((field) => {
                 const fieldError = errors[field.name];
+                const fieldRequired = isFieldRequired(field);
                 const inputId = `form-field-${field.name}`;
                 const val = values[field.name] ?? field.defaultValue ?? "";
 
@@ -253,7 +256,7 @@ export function Form({
                           className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight"
                         >
                           {field.label}
-                          {field.required && (
+                          {fieldRequired && (
                             <span className="text-rose-500 ml-0.5 font-bold" title="Required">
                               *
                             </span>
@@ -297,7 +300,7 @@ export function Form({
                         placeholder={field.placeholder || "e.g. 27AAACT2727Q1ZW"}
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}
-                        required={field.required}
+                        required={fieldRequired}
                         onChange={(selectedVal) => {
                           handleChange(field.name, selectedVal);
                           field.onChange?.(selectedVal);
@@ -387,7 +390,7 @@ export function Form({
                         placeholder={field.placeholder || "e.g. AAACT2727Q"}
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}
-                        required={field.required}
+                        required={fieldRequired}
                         onChange={(selectedVal) => {
                           handleChange(field.name, selectedVal);
                           field.onChange?.(selectedVal);
@@ -459,7 +462,7 @@ export function Form({
                         placeholder={field.placeholder || "e.g. 496001"}
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}
-                        required={field.required}
+                        required={fieldRequired}
                         onChange={(selectedVal) => {
                           handleChange(field.name, selectedVal);
                           field.onChange?.(selectedVal);
@@ -507,7 +510,7 @@ export function Form({
                         placeholder={field.placeholder || `Select ${field.label}`}
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}
-                        required={field.required}
+                        required={fieldRequired}
                         onChange={(selectedVal) => {
                           handleChange(field.name, selectedVal);
                           field.onChange?.(selectedVal);
@@ -522,7 +525,7 @@ export function Form({
                         placeholder={field.placeholder || `Select ${field.label}`}
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}
-                        required={field.required}
+                        required={fieldRequired}
                         onChange={(selectedVal) => {
                           handleChange(field.name, selectedVal);
                           field.onChange?.(selectedVal);
@@ -538,7 +541,7 @@ export function Form({
                         placeholder={field.placeholder || `Select ${field.label}`}
                         disabled={field.disabled || loading}
                         error={Boolean(fieldError)}
-                        required={field.required}
+                        required={fieldRequired}
                         onChange={(selectedVal) => {
                           handleChange(field.name, selectedVal);
                           field.onChange?.(selectedVal);

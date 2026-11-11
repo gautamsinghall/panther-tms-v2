@@ -10,7 +10,7 @@ export interface FormFieldDef {
   label: string;
   type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "pincode" | "gstin" | "pan" | "custom";
   placeholder?: string;
-  required?: boolean;
+  required?: boolean | ((values: Record<string, any>) => boolean);
   options?: FormFieldOption[]; // for select
   countryFieldName?: string; // Optional field name of corresponding country (defaults to 'country')
   stateFieldName?: string; // Optional field name of corresponding state (defaults to 'state')

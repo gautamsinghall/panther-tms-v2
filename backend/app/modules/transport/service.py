@@ -680,7 +680,7 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
         job = await db.get(Job, data.job_id)
         if job and job.status == JobStatus.OPEN.value:
             job.status = JobStatus.BOOKED.value
-    else:
+    elif b_status != "Reserved" or (data.consigner_id and data.consignee_id):
         auto_job_number = await allocate_or_validate_voucher_number(
             db, "JOB", manual_number=None, issuing_office_id=target_office_id
         )

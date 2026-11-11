@@ -342,6 +342,9 @@ async def lifespan(app: FastAPI):
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS {lr_col};"))
                         await t_conn.execute(text("ALTER TABLE transport_lrs DROP COLUMN IF EXISTS payment_terms;"))
+                        await t_conn.execute(text("ALTER TABLE transport_lrs ALTER COLUMN consigner_id DROP NOT NULL;"))
+                        await t_conn.execute(text("ALTER TABLE transport_lrs ALTER COLUMN consignee_id DROP NOT NULL;"))
+                        await t_conn.execute(text("ALTER TABLE transport_lrs ALTER COLUMN vehicle_number DROP NOT NULL;"))
 
                         # Hire Challan Standard Fields Evolution
                         for hc_col in [

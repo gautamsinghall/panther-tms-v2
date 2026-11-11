@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional, Dict, Any, Union
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.tenant_db.models import (
     JobStatus,
     LRStatus,
@@ -342,8 +342,8 @@ class JobBase(BaseModel):
     job_number: Optional[str] = None
     issuing_office_id: Optional[int] = None
     job_date: date = Field(default_factory=date.today)
-    consigner_id: int
-    consignee_id: int
+    consigner_id: Optional[int] = None
+    consignee_id: Optional[int] = None
     origin_location_id: Optional[int] = None
     destination_location_id: Optional[int] = None
     billing_client_id: Optional[int] = None
@@ -438,13 +438,13 @@ class LRBase(BaseModel):
     dispatch_date: Optional[date] = Field(default_factory=date.today)
     appointment_date: Optional[date] = None
     billing_customer_id: Optional[int] = None
-    consigner_id: int
-    consignee_id: int
+    consigner_id: Optional[int] = None
+    consignee_id: Optional[int] = None
     origin_location_id: Optional[int] = None
     destination_location_id: Optional[int] = None
     via: Optional[str] = None
     vehicle_source: str = "MARKET"
-    vehicle_number: str = Field(..., min_length=2, max_length=50)
+    vehicle_number: Optional[str] = Field(None, min_length=2, max_length=50)
     vehicle_type: Optional[str] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
@@ -511,6 +511,23 @@ class LRBase(BaseModel):
         if v == "" or v is None or (isinstance(v, str) and not v.strip()):
             return None
         return v
+
+    @model_validator(mode="after")
+    def validate_lr_requirements(self):
+        if self.booking_status == "Reserved":
+            if not self.billing_customer_id:
+                raise ValueError("Billing Customer is required for Reserved bookings")
+            return self
+        missing = [
+            label for label, value in (
+                ("Consignor", self.consigner_id),
+                ("Consignee", self.consignee_id),
+                ("Truck No.", self.vehicle_number),
+            ) if value is None or (isinstance(value, str) and not value.strip())
+        ]
+        if missing:
+            raise ValueError(f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} required")
+        return self
 
 class LRCreate(LRBase):
     pass
