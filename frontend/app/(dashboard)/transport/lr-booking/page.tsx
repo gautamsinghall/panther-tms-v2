@@ -1256,6 +1256,10 @@ export default function LRBookingPage() {
           type: "select",
           options: packingMethodOptions,
           placeholder: "e.g. Wooden Pallet, Gunny Bag, Corrugated Box",
+          onAddNew: () => openMasterTab({ type: "packing_method", title: "Add Packing Method", onSuccess: handlePackingMethodCreated }),
+          addNewLabel: "+ New Packing Method",
+          addNewTitle: "Opens Packing Method creation in a new TMS tab without losing form progress",
+          helperText: "Managed under General > Packing Method; automatically selected here.",
         },
         {
           name: "actual_weight_mt",
@@ -1863,6 +1867,13 @@ export default function LRBookingPage() {
     setLoadTypes((prev) => [{ id: Number(newLt.id), name: val }, ...prev]);
     setFormInitialValues((prev) => ({ ...prev, load_type: val }));
     formSetFieldValueRef.current?.("load_type", val);
+  };
+
+  const handlePackingMethodCreated = (newMethod: { id: number | string; name?: string; label?: string }) => {
+    const val = newMethod.name || newMethod.label || String(newMethod.id);
+    setPackingMethods((prev) => [{ id: Number(newMethod.id), name: val }, ...prev]);
+    setFormInitialValues((prev) => ({ ...prev, packing_method_id: String(newMethod.id) }));
+    formSetFieldValueRef.current?.("packing_method_id", String(newMethod.id));
   };
 
   if (!isPermitted) {

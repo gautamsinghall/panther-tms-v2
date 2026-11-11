@@ -20,6 +20,7 @@ export type MasterType =
   | "vehicle_owner"
   | "driver"
   | "load_type"
+  | "packing_method"
   | "market_vehicle";
 
 export interface OpenMasterTabConfig {
@@ -76,6 +77,7 @@ const DEFAULT_TITLES: Record<MasterType, string> = {
   vehicle_owner: "Add Vehicle Owner",
   driver: "Add Driver",
   load_type: "Add Load Type",
+  packing_method: "Add Packing Method",
   market_vehicle: "Add Vehicle",
 };
 

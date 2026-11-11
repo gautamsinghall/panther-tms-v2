@@ -650,6 +650,7 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
         window.dispatchEvent(new Event("panther_load_type_created"));
       }
     },
+
     getSections: () => [
       {
         id: "load_type_info",
@@ -674,6 +675,48 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
             label: "Description / Freight Specifications",
             placeholder: "e.g. Applicable for dedicated commercial trucks without partial consolidation",
             type: "textarea",
+            colSpan: 2,
+          },
+        ],
+      },
+    ],
+  },
+
+  packing_method: {
+    title: "Add Packing Method",
+    contextLabel: "Packing Method Master",
+    description: "Define a packaging type used for cargo handling and transport.",
+    submitLabel: "Create Packing Method",
+    successToast: "Packing method created successfully.",
+    apiEndpoint: "/api/v1/general/packing-methods",
+    buildPayload: (values) => ({
+      name: String(values.name || "").trim(),
+      code: values.code ? String(values.code).trim() : null,
+      description: values.description ? String(values.description).trim() : null,
+    }),
+    formatResponse: (res) => ({ id: res.id, label: res.name, ...res }),
+    getSections: () => [
+      {
+        id: "packing_info",
+        title: "Packing Specification",
+        description: "Packaging type definition",
+        columns: 2,
+        fields: [
+          {
+            name: "name",
+            label: "Packing Type",
+            placeholder: "e.g. Wooden Pallet / Carton Box",
+            required: true,
+          },
+          {
+            name: "code",
+            label: "Method Code",
+            placeholder: "e.g. PLT / CTN",
+          },
+          {
+            name: "description",
+            label: "Description",
+            placeholder: "Protection and handling instructions",
             colSpan: 2,
           },
         ],
