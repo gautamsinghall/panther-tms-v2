@@ -2051,7 +2051,7 @@ export default function LRBookingPage() {
               <button
                 type="button"
                 onClick={() => openVehicleMaster("market")}
-                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2B2E42] bg-slate-50/70 dark:bg-[#1A1D2B] hover:bg-indigo-600 hover:text-white hover:border-indigo-600 dark:hover:bg-indigo-600 dark:hover:text-white dark:hover:border-indigo-600 text-slate-700 dark:text-slate-300 transition-all cursor-pointer font-medium group"
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2B2E42] bg-slate-50/70 dark:bg-[#1A1D2B] hover:!bg-indigo-600 hover:!text-white hover:!border-indigo-600 dark:hover:!bg-indigo-600 dark:hover:!text-white dark:hover:!border-indigo-600 text-slate-700 dark:text-slate-300 transition-all cursor-pointer font-medium group"
               >
                 <span className="font-semibold text-sm">Market Truck</span>
                 <span className="text-[11px] opacity-75">Hired / Broker vehicle</span>
