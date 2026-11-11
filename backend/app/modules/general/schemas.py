@@ -240,6 +240,21 @@ class LocationResponse(LocationBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class LocationListResponse(BaseModel):
+    items: List[LocationResponse]
+    page: int
+    page_size: int
+    total: int
+
+class PostalLocationResponse(BaseModel):
+    id: int
+    country: str
+    state: str
+    city_name: str
+    pincode: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 # --- Industry ---
 class IndustryBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=150)
@@ -494,4 +509,3 @@ class VendorResponse(VendorBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-

@@ -270,7 +270,7 @@ export default function LRBookingPage() {
         apiClient<LRRecord[]>(`/api/v1/transport/lrs${officeParam}`).catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consigners").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consignees").catch(() => []),
-        apiClient<SelectOption[]>("/api/v1/general/locations").catch(() => []),
+        apiClient<{ items: SelectOption[] }>("/api/v1/general/locations?page_size=100").catch(() => ({ items: [] })),
         apiClient<LinkedJobData[]>(`/api/v1/transport/jobs${officeParam}`).catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/packing-methods").catch(() => []),
@@ -284,7 +284,7 @@ export default function LRBookingPage() {
       setData(Array.isArray(lrsRes) ? lrsRes : []);
       setConsigners(Array.isArray(consignersRes) ? consignersRes : []);
       setConsignees(Array.isArray(consigneesRes) ? consigneesRes : []);
-      setLocations(Array.isArray(locationsRes) ? locationsRes : []);
+      setLocations(locationsRes.items || []);
       setJobs(Array.isArray(jobsRes) ? jobsRes : []);
       setBillingCustomers(Array.isArray(billingCustRes) ? billingCustRes : []);
       setPackingMethods(Array.isArray(packingMethRes) ? packingMethRes : []);

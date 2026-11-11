@@ -26,6 +26,7 @@ interface LocationRecord {
   is_drop_point: boolean;
   pincode?: string;
   is_active: boolean;
+  source?: "tenant" | "postal";
 }
 
 export default function LocationPage() {
@@ -41,13 +42,32 @@ export default function LocationPage() {
   const [editingRecord, setEditingRecord] = useState<LocationRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const loadData = async () => {
+  const loadData = async (query = searchTerm) => {
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
     try {
-      const res = await apiClient<LocationRecord[]>("/api/v1/general/locations");
-      setData(Array.isArray(res) ? res : []);
+      const params = new URLSearchParams({ page: "1", page_size: "100" });
+      if (query.trim().length >= 2) params.set("search", query.trim());
+      const res = await apiClient<{ items: LocationRecord[] }>(`/api/v1/general/locations?${params}`);
+      let items = res.items || [];
+      if (query.trim().length >= 2) {
+        const postal = await apiClient<Array<LocationRecord>>(
+          `/api/v1/general/locations/postal-search?q=${encodeURIComponent(query.trim())}&limit=25`
+        );
+        items = [
+          ...items.map((item) => ({ ...item, source: "tenant" as const })),
+          ...postal.map((item) => ({
+            ...item,
+            id: -Math.abs(item.id),
+            source: "postal" as const,
+            is_active: true,
+            is_pickup_point: true,
+            is_drop_point: true,
+          })),
+        ];
+      }
+      setData(items);
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load locations.");
@@ -57,29 +77,26 @@ export default function LocationPage() {
   };
 
   useEffect(() => {
-    loadData();
     const handleOfficeChange = () => {
-      loadData();
+      loadData(searchTerm);
     };
     window.addEventListener("panther_office_changed", handleOfficeChange);
     return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
   }, []);
 
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => loadData(searchTerm), searchTerm.trim() ? 350 : 0);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
+  const filteredData = useMemo(
+    () => data.filter((item) => {
       if (statusFilter === "ACTIVE" && !item.is_active) return false;
       if (statusFilter === "INACTIVE" && item.is_active) return false;
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase().trim();
-        const matchesCity = item.city_name?.toLowerCase().includes(q);
-        const matchesState = item.state?.toLowerCase().includes(q);
-        const matchesCountry = item.country?.toLowerCase().includes(q);
-        const matchesPin = item.pincode?.toLowerCase().includes(q);
-        if (!matchesCity && !matchesState && !matchesCountry && !matchesPin) return false;
-      }
       return true;
-    });
-  }, [data, statusFilter, searchTerm]);
+    }),
+    [data, statusFilter]
+  );
 
   const columns: ColumnDef<LocationRecord>[] = [
     {
@@ -146,9 +163,33 @@ export default function LocationPage() {
 
   const actions: RowAction<LocationRecord>[] = [
     {
+      label: "Add to Locations",
+      icon: <Plus className="w-3.5 h-3.5 text-indigo-600" />,
+      hidden: (row) => row.source !== "postal" || !canModify,
+      onClick: async (row) => {
+        try {
+          await apiClient("/api/v1/general/locations", {
+            method: "POST",
+            body: JSON.stringify({
+              country: row.country,
+              state: row.state,
+              city_name: row.city_name,
+              pincode: row.pincode,
+              is_pickup_point: true,
+              is_drop_point: true,
+            }),
+          });
+          toast.success("Location added successfully.");
+          loadData(searchTerm);
+        } catch (err: any) {
+          toast.error(err.message || "Failed to add location.");
+        }
+      },
+    },
+    {
       label: "Edit",
       icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
-      hidden: () => !canModify,
+      hidden: (row) => row.source === "postal" || !canModify,
       onClick: (row) => {
         setEditingRecord(row);
         setIsDrawerOpen(true);
@@ -158,7 +199,7 @@ export default function LocationPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
-      hidden: (row) => !row.is_active || !canModify,
+      hidden: (row) => row.source === "postal" || !row.is_active || !canModify,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Record",
@@ -189,7 +230,7 @@ export default function LocationPage() {
       label: "Activate",
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
       variant: "default",
-      hidden: (row) => !!row.is_active || !canModify,
+      hidden: (row) => row.source === "postal" || !!row.is_active || !canModify,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Activate Record",
@@ -352,8 +393,8 @@ export default function LocationPage() {
         errorMessage={errorMessage}
         onRetry={loadData}
         actions={actions}
-        emptyMessage="No locations yet"
-        emptySubtext="Add transport transit hubs and terminals to enable booking routes."
+        emptyMessage="No locations found"
+        emptySubtext="Search the shared postal directory or add a custom hub."
         emptyAction={{
           label: "Add Location",
           onClick: () => {

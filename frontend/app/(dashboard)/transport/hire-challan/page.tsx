@@ -420,7 +420,7 @@ export default function HireChallansPage() {
         chargeHeadsRes,
       ] = await Promise.all([
         apiClient<BranchOption[]>("/api/v1/profile/branches").catch(() => []),
-        apiClient<LocationOption[]>("/api/v1/general/locations").catch(() => []),
+        apiClient<{ items: LocationOption[] }>("/api/v1/general/locations?page_size=100").catch(() => ({ items: [] })),
         apiClient<any[]>("/api/v1/transport/market-vehicles").catch(() => []),
         apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<DriverOption[]>("/api/v1/transport/drivers").catch(() => []),
@@ -432,7 +432,7 @@ export default function HireChallansPage() {
       const branchList = Array.isArray(branchesRes) ? branchesRes : [];
       branchesRef.current = branchList;
       setBranches(branchList);
-      setLocations(Array.isArray(locationsRes) ? locationsRes : []);
+      setLocations(locationsRes.items || []);
 
       // Combine vehicles
       const vMap = new Map<string, VehicleOption>();

@@ -72,4 +72,3 @@ async def close_all_connections():
         await engine.dispose()
     _tenant_engines.clear()
     _tenant_session_makers.clear()
-

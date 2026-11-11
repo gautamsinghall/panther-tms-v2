@@ -107,14 +107,14 @@ export default function JobsPage() {
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/consigners"),
         apiClient<SelectOption[]>("/api/v1/general/consignees"),
-        apiClient<SelectOption[]>("/api/v1/general/locations"),
+        apiClient<{ items: SelectOption[] }>("/api/v1/general/locations?page_size=100"),
         apiClient<any>(`/api/v1/settings/series/check/JOB${officeParam}`).catch(() => null),
       ]);
       setData(Array.isArray(jobsRes) ? jobsRes : []);
       setBillingClients(Array.isArray(billingClientsRes) ? billingClientsRes : []);
       setConsigners(Array.isArray(consignersRes) ? consignersRes : []);
       setConsignees(Array.isArray(consigneesRes) ? consigneesRes : []);
-      setLocations(Array.isArray(locationsRes) ? locationsRes : []);
+      setLocations(locationsRes.items || []);
       setSeriesInfo(seriesRes);
 
       // If create drawer is open, auto-refresh form with new office's series and next number

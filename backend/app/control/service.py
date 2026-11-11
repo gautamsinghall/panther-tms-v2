@@ -12,7 +12,7 @@ from app.core.security import get_password_hash
 from app.core.tenancy import generate_tenant_id, sanitize_company_code
 import json
 from datetime import datetime, timezone, timedelta
-from app.control.models import ControlBase, Plan, Entitlement, Tenant, WebhookEvent
+from app.control.models import ControlBase, Plan, Entitlement, Tenant, WebhookEvent, PostalLocation
 from app.control.schemas import (
     TenantProvisionRequest, SignupInitiateRequest, SignupInitiateResponse,
     SignupCompleteRequest, CreateSubscriptionRequest, CreateSubscriptionResponse,
@@ -20,12 +20,34 @@ from app.control.schemas import (
 )
 from app.integrations.razorpay.client import razorpay_client
 from app.tenant_db.base import TenantBase
-from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment, Location
+from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment
 from app.core.database import get_tenant_session_maker
 
 logger = logging.getLogger("panther.control.service")
 
 DEFAULT_LOCATIONS_FILE = Path(__file__).resolve().parents[1] / "data" / "default_locations.csv"
+
+async def seed_postal_locations(session: AsyncSession) -> None:
+    await session.execute(text("SELECT pg_advisory_xact_lock(91827365)"))
+    exists = await session.execute(select(PostalLocation.id).limit(1))
+    if exists.scalar_one_or_none() is not None:
+        return
+    batch = []
+    with DEFAULT_LOCATIONS_FILE.open(newline="", encoding="utf-8") as locations_file:
+        for row in csv.DictReader(locations_file):
+            batch.append({
+                "city_name": row["city_name"].strip(),
+                "state": row["state"].strip(),
+                "pincode": row["pincode"].strip(),
+                "country": "India",
+            })
+            if len(batch) == 1000:
+                await session.execute(insert(PostalLocation), batch)
+                batch.clear()
+        if batch:
+            await session.execute(insert(PostalLocation), batch)
+    await session.commit()
+    logger.info("Seeded shared postal directory")
 
 DEFAULT_PLANS = [
     {
@@ -323,29 +345,6 @@ async def initialize_tenant_schema_and_admin(
             await session.flush()
         else:
             admin_user = existing_user
-
-        location_exists = await session.execute(select(Location.id).limit(1))
-        if location_exists.scalar_one_or_none() is None:
-            batch = []
-            with DEFAULT_LOCATIONS_FILE.open(newline="", encoding="utf-8") as locations_file:
-                for row in csv.DictReader(locations_file):
-                    batch.append(
-                        {
-                            "country": "India",
-                            "state": row["state"].strip(),
-                            "city_name": row["city_name"].strip(),
-                            "pincode": row["pincode"].strip(),
-                            "is_pickup_point": True,
-                            "is_drop_point": True,
-                            "is_active": True,
-                        }
-                    )
-                    if len(batch) == 1000:
-                        await session.execute(insert(Location), batch)
-                        batch.clear()
-                if batch:
-                    await session.execute(insert(Location), batch)
-            logger.info(f"Seeded default locations for {db_name}")
 
         # Per tenant configuration: No issuing office is created by default.
         # The admin will set up their own issuing offices under Company Settings > Branches.

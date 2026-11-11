@@ -249,7 +249,7 @@ class Location(TenantBase):
     is_pickup_point = Column(Boolean, default=True, nullable=False)
     is_drop_point = Column(Boolean, default=True, nullable=False)
     address = Column(Text, nullable=True)
-    pincode = Column(String(20), nullable=True)
+    pincode = Column(String(20), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     issuing_office_id = Column(Integer, ForeignKey("profile_branches.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

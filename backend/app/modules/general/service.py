@@ -1,5 +1,5 @@
 from typing import List, Optional, Type, TypeVar
-from sqlalchemy import select, or_, text
+from sqlalchemy import func, select, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
 from app.tenant_db.models import (
@@ -201,8 +201,51 @@ async def list_locations(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
+    page: int = 1,
+    page_size: int = 50,
+    search: Optional[str] = None,
+    active: Optional[bool] = None,
 ) -> List[Location]:
-    return await _get_all(db, Location, office_id=office_id, include_unassigned=include_unassigned)
+    items, _ = await list_locations_page(
+        db, office_id=office_id, include_unassigned=include_unassigned,
+        page=1, page_size=10000,
+    )
+    return items
+
+async def list_locations_page(
+    db: AsyncSession,
+    office_id: Optional[int] = None,
+    include_unassigned: bool = False,
+    page: int = 1,
+    page_size: int = 50,
+    search: Optional[str] = None,
+    active: Optional[bool] = None,
+) -> tuple[List[Location], int]:
+    filters = []
+    if office_id and include_unassigned:
+        filters.append(or_(Location.issuing_office_id == office_id, Location.issuing_office_id.is_(None)))
+    elif office_id:
+        filters.append(Location.issuing_office_id == office_id)
+    if active is not None:
+        filters.append(Location.is_active == active)
+    if search:
+        term = f"%{search.strip()}%"
+        filters.append(or_(
+            Location.city_name.ilike(term),
+            Location.state.ilike(term),
+            Location.pincode.ilike(term),
+            Location.country.ilike(term),
+        ))
+    count_result = await db.execute(select(func.count()).select_from(Location).where(*filters))
+    total = count_result.scalar_one()
+    result = await db.execute(
+        select(Location)
+        .where(*filters)
+        .order_by(Location.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    return list(result.scalars().all()), total
 
 async def get_location(db: AsyncSession, lid: int) -> Location:
     return await _get_by_id(db, Location, lid)
@@ -430,4 +473,3 @@ async def update_vendor(db: AsyncSession, vid: int, data) -> Vendor:
 
 async def delete_vendor(db: AsyncSession, vid: int) -> Vendor:
     return await _soft_delete(db, Vendor, vid)
-

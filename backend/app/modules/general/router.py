@@ -1,10 +1,13 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user, get_current_office
 from app.control.models import Tenant
 from app.tenant_db.models import User, Branch
+from app.control.models import PostalLocation
+from app.core.database import get_control_db
 from app.modules.general import schemas, service
 from app.services.activity_logger import log_activity
 
@@ -268,15 +271,47 @@ async def delete_consigner(
 # ==============================================================================
 # 3. Location
 # ==============================================================================
-@router.get("/locations", response_model=List[schemas.LocationResponse], summary="List all locations")
+@router.get("/locations", response_model=schemas.LocationListResponse, summary="List locations")
 async def list_locations(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    search: Optional[str] = Query(None, min_length=2),
+    active: Optional[bool] = None,
     current_user: User = Depends(require_permission("general", "location", "view")),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     target_office_id = current_office.id if current_office else None
     include_unassigned = True
-    return await service.list_locations(db, office_id=target_office_id, include_unassigned=include_unassigned)
+    items, total = await service.list_locations_page(
+        db, office_id=target_office_id, include_unassigned=include_unassigned,
+        page=page, page_size=page_size, search=search, active=active,
+    )
+    return {"items": items, "page": page, "page_size": page_size, "total": total}
+
+@router.get(
+    "/locations/postal-search",
+    response_model=List[schemas.PostalLocationResponse],
+    summary="Search shared postal directory",
+)
+async def search_postal_locations(
+    q: str = Query(..., min_length=2),
+    limit: int = Query(25, ge=1, le=50),
+    current_user: User = Depends(require_permission("general", "location", "view")),
+    db: AsyncSession = Depends(get_control_db),
+):
+    term = f"%{q.strip()}%"
+    result = await db.execute(
+        select(PostalLocation)
+        .where(or_(
+            PostalLocation.city_name.ilike(term),
+            PostalLocation.state.ilike(term),
+            PostalLocation.pincode.ilike(term),
+        ))
+        .order_by(PostalLocation.city_name, PostalLocation.state, PostalLocation.pincode)
+        .limit(limit)
+    )
+    return list(result.scalars().all())
 
 @router.post("/locations", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, summary="Create a location")
 async def create_location(
@@ -689,4 +724,3 @@ async def delete_vendor(
         details=f"Deactivated vendor {getattr(vendor, 'name', id)}",
     )
     return vendor
-
