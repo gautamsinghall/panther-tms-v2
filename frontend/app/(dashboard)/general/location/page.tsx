@@ -391,7 +391,7 @@ export default function LocationPage() {
         isLoading={isLoading}
         isError={isError}
         errorMessage={errorMessage}
-        onRetry={loadData}
+        onRetry={() => loadData(searchTerm)}
         actions={actions}
         emptyMessage="No locations found"
         emptySubtext="Search the shared postal directory or add a custom hub."
