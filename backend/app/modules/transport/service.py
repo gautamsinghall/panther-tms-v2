@@ -826,7 +826,7 @@ async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
             selectinload(LR.load_type_rel),
             selectinload(LR.packing_method),
         )
-        .where(LR.id == lr.id)
+        .where(LR.id == lr_id)
     )
     result = await db.execute(stmt)
     return result.scalar_one()
