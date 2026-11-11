@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   ArrowRight,
@@ -1244,13 +1245,13 @@ export default function LRBookingPage() {
           type: "select",
           required: true,
           options: truckOptions,
-          placeholder: "Select market or company vehicle",
+          placeholder: "Select company or market truck",
           onAddNew: () => setIsVehicleTypePromptOpen(true),
-          hideAddNewOption: true,
-          addNewTitle: "Choose whether to add a market vehicle or company vehicle",
+          addNewLabel: "+ Add Truck",
+          addNewTitle: "Choose whether to add a company truck or market truck",
           helperText: selectedJob
             ? "⚠️ Truck assignment required — Job order indents do not specify a vehicle registration."
-            : "Select the registration number of the assigned market vehicle.",
+            : "Select the registration number of the assigned vehicle.",
         },
         {
           name: "vehicle_type",
@@ -1941,13 +1942,26 @@ export default function LRBookingPage() {
     }
   };
 
+  const handleCompanyVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string }) => {
+    const vehicleNumber = newVehicle.vehicle_number || newVehicle.label || String(newVehicle.id);
+    setCompanyVehicles((prev) => [
+      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type },
+      ...prev,
+    ]);
+    setFormInitialValues((prev) => ({ ...prev, vehicle_number: vehicleNumber }));
+    formSetFieldValueRef.current?.("vehicle_number", vehicleNumber);
+    if (newVehicle.vehicle_type) {
+      formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+    }
+  };
+
   const openVehicleMaster = (type: "market" | "company") => {
     setIsVehicleTypePromptOpen(false);
     if (type === "market") {
-      openMasterTab({ type: "market_vehicle", title: "Add Market Vehicle", onSuccess: handleMarketVehicleCreated });
+      openMasterTab({ type: "market_vehicle", title: "Add Market Truck", onSuccess: handleMarketVehicleCreated });
       return;
     }
-    router.push("/transport/company-vehicles?action=add");
+    openMasterTab({ type: "company_vehicle", title: "Add Company Truck", onSuccess: handleCompanyVehicleCreated });
   };
 
   const handleLoadTypeCreated = (newLt: { id: number | string; name?: string; label?: string }) => {
@@ -1983,31 +1997,52 @@ export default function LRBookingPage() {
 
   return (
     <div className="space-y-6">
-      {isVehicleTypePromptOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl dark:bg-slate-900">
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Add Vehicle</h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Is this a market vehicle or a company vehicle?
+      {isVehicleTypePromptOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in-0 duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#12131A] border border-slate-200 dark:border-[#22232E] animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <Truck className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">Add Truck</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Select the truck category to register
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Is this truck a <strong>Company Truck</strong> (own fleet) or a <strong>Market Truck</strong> (hired / broker)?
             </p>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <Button type="button" onClick={() => openVehicleMaster("market")}>
-                Market Vehicle
-              </Button>
-              <Button type="button" variant="outline" onClick={() => openVehicleMaster("company")}>
-                Company Vehicle
-              </Button>
+              <button
+                type="button"
+                onClick={() => openVehicleMaster("company")}
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-indigo-500/20 bg-indigo-50/70 dark:bg-indigo-950/50 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-indigo-700 dark:text-indigo-300 transition-all cursor-pointer font-medium group"
+              >
+                <span className="font-semibold text-sm">Company Truck</span>
+                <span className="text-[11px] opacity-75">Own / Leased fleet</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => openVehicleMaster("market")}
+                className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2B2E42] bg-slate-50/70 dark:bg-[#1A1D2B] hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-slate-700 dark:text-slate-300 transition-all cursor-pointer font-medium group"
+              >
+                <span className="font-semibold text-sm">Market Truck</span>
+                <span className="text-[11px] opacity-75">Hired / Broker vehicle</span>
+              </button>
             </div>
             <Button
               type="button"
               variant="ghost"
-              className="mt-3 w-full"
+              className="mt-4 w-full text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
               onClick={() => setIsVehicleTypePromptOpen(false)}
             >
               Cancel
             </Button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       <PageHeader
         title="Lorry Receipts (GR / LR)"

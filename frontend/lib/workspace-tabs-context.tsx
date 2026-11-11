@@ -21,7 +21,8 @@ export type MasterType =
   | "driver"
   | "load_type"
   | "packing_method"
-  | "market_vehicle";
+  | "market_vehicle"
+  | "company_vehicle";
 
 export interface OpenMasterTabConfig {
   type: MasterType;
@@ -78,7 +79,8 @@ const DEFAULT_TITLES: Record<MasterType, string> = {
   driver: "Add Driver",
   load_type: "Add Load Type",
   packing_method: "Add Packing Method",
-  market_vehicle: "Add Vehicle",
+  market_vehicle: "Add Market Truck",
+  company_vehicle: "Add Company Truck",
 };
 
 const WorkspaceTabsContext = createContext<WorkspaceTabsContextValue | null>(null);

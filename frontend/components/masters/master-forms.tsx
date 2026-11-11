@@ -725,11 +725,11 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
   },
 
   market_vehicle: {
-    title: "Add Vehicle",
-    contextLabel: "Vehicle Master",
+    title: "Add Market Truck",
+    contextLabel: "Market Truck Master",
     description: "Register commercial vehicle plate, body type, and loading capacity.",
-    submitLabel: "Create Vehicle",
-    successToast: "Vehicle created successfully.",
+    submitLabel: "Create Market Truck",
+    successToast: "Market truck created successfully.",
     apiEndpoint: "/api/v1/transport/market-vehicles",
     buildPayload: (values) => ({
       vehicle_number: String(values.vehicle_number || "").toUpperCase().trim(),
@@ -741,7 +741,7 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
     getSections: () => [
       {
         id: "vehicle_info",
-        title: "Vehicle Details",
+        title: "Market Vehicle Details",
         description: "Commercial registration plate, classification, and capacity metrics.",
         columns: 2,
         fields: [
@@ -759,6 +759,58 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
           {
             name: "capacity_mt",
             label: "Carrying Capacity (MT)",
+            type: "number",
+            placeholder: "e.g. 25.0",
+          },
+          {
+            name: "rc_status",
+            label: "Registration Status",
+            placeholder: "Active",
+            defaultValue: "Active",
+          },
+        ],
+      },
+    ],
+  },
+
+  company_vehicle: {
+    title: "Add Company Truck",
+    contextLabel: "Company Fleet Master",
+    description: "Register own commercial fleet vehicle plate, body type, and payload capacity.",
+    submitLabel: "Create Company Truck",
+    successToast: "Company truck created successfully.",
+    apiEndpoint: "/api/v1/transport/company-vehicles",
+    buildPayload: (values) => ({
+      vehicle_number: String(values.vehicle_number || "").toUpperCase().trim(),
+      vehicle_type: values.vehicle_type || "Open Truck",
+      capacity_mt: values.capacity_mt ? parseFloat(values.capacity_mt) : 0,
+      ownership_type: "Company Vehicle",
+      rc_status: values.rc_status || "Active",
+    }),
+    formatResponse: (res) => ({ id: res.id, label: res.vehicle_number, ...res }),
+    getSections: () => [
+      {
+        id: "vehicle_info",
+        title: "Company Vehicle Details",
+        description: "Registration plate, classification, and capacity metrics.",
+        columns: 2,
+        fields: [
+          {
+            name: "vehicle_number",
+            label: "Vehicle Registration No.",
+            placeholder: "e.g. MH-12-AB-1234",
+            required: true,
+          },
+          {
+            name: "vehicle_type",
+            label: "Vehicle Type / Body",
+            placeholder: "e.g. 32ft MXL Container or Open Trailer",
+            required: true,
+            defaultValue: "Open Truck",
+          },
+          {
+            name: "capacity_mt",
+            label: "Payload Capacity (MT)",
             type: "number",
             placeholder: "e.g. 25.0",
           },
