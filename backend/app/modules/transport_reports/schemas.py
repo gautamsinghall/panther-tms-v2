@@ -28,7 +28,6 @@ class LRRegisterRow(BaseModel):
     site_from: Optional[str] = None
     site_to: Optional[str] = None
     eway_bill_number: Optional[str] = None
-    payment_terms: Optional[str] = None
     payment_type: Optional[str] = None
     vehicle_type: Optional[str] = None
     driver_name: Optional[str] = None

@@ -104,7 +104,6 @@ interface LRRecord {
   loading_charges?: string | number;
   unloading_charges?: string | number;
   other_charges?: string | number;
-  payment_terms?: string;
   total_freight_amount: string | number;
   advance_amount: string | number;
   balance_amount: string | number;
@@ -662,7 +661,6 @@ export default function LRBookingPage() {
       loading_charges: freshData.loading_charges ? String(freshData.loading_charges) : "",
       unloading_charges: freshData.unloading_charges ? String(freshData.unloading_charges) : "",
       other_charges: freshData.other_charges ? String(freshData.other_charges) : "",
-      payment_terms: freshData.payment_terms || "TO_PAY",
       vehicle_number: freshData.vehicle_number || "",
       vehicle_type: freshData.vehicle_type || "",
       package_count: freshData.package_count || 0,
@@ -734,7 +732,6 @@ export default function LRBookingPage() {
       loading_charges: "",
       unloading_charges: "",
       other_charges: "",
-      payment_terms: "TO_PAY",
       vehicle_number: "", // Intentionally blank: Jobs do not specify a vehicle
       vehicle_type: "",
       eway_bill_number: "",
@@ -870,7 +867,6 @@ export default function LRBookingPage() {
         other_charges: otherAmt,
         total_freight_amount: totFreight,
         balance_amount: balAmt,
-        payment_terms: values.payment_terms || "TO_PAY",
         lr_number: values.lr_number ? String(values.lr_number).trim() : undefined,
         job_id: values.job_id ? parseInt(values.job_id, 10) : null,
         booking_status: values.booking_status || "Booked",
@@ -1104,14 +1100,6 @@ export default function LRBookingPage() {
           type: "date",
           placeholder: "Appointment date for scheduling",
         },
-        {
-          name: "payment_type",
-          label: "Payment Type",
-          type: "select",
-          required: true,
-          options: paymentTypeOptions,
-          defaultValue: "To Be Billed",
-        },
       ],
     },
     {
@@ -1304,7 +1292,7 @@ export default function LRBookingPage() {
     {
       id: "sec_commercial_freight",
       title: "Commercial Freight & Billing Terms",
-      description: "Basic freight charges, handling add-ons, driver/transporter advances, and payment terms",
+      description: "Basic freight charges, handling add-ons, driver/transporter advances, and payment type",
       columns: 2,
       fields: [
         {
@@ -1340,15 +1328,12 @@ export default function LRBookingPage() {
           placeholder: "0.00",
         },
         {
-          name: "payment_terms",
-          label: "Payment Terms",
+          name: "payment_type",
+          label: "Payment Type",
           type: "select",
-          options: [
-            { label: "To Pay (Consignee)", value: "TO_PAY" },
-            { label: "Paid (Consignor)", value: "PAID" },
-            { label: "To Be Billed (TBB)", value: "TBB" },
-          ],
-          defaultValue: "TO_PAY",
+          required: true,
+          options: paymentTypeOptions,
+          defaultValue: "To Be Billed",
         },
       ],
     },

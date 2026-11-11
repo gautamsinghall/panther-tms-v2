@@ -59,7 +59,6 @@ export interface LRRegisterRow {
   site_from?: string | null;
   site_to?: string | null;
   eway_bill_number?: string | null;
-  payment_terms?: string | null;
   payment_type?: string | null;
   vehicle_type?: string | null;
   driver_name?: string | null;
@@ -98,7 +97,7 @@ const AVAILABLE_COLUMNS: ColumnConfig[] = [
   { key: "total_freight_amount", label: "Freight Amount", defaultVisible: false, align: "right", minWidth: "120px" },
   { key: "advance_amount", label: "Advance", defaultVisible: false, align: "right", minWidth: "110px" },
   { key: "eway_bill_number", label: "E-Way Bill No", defaultVisible: false, minWidth: "130px" },
-  { key: "payment_terms", label: "Payment Terms", defaultVisible: false, minWidth: "110px" },
+  { key: "payment_type", label: "Payment Type", defaultVisible: false, minWidth: "110px" },
 ];
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -1220,9 +1219,9 @@ export default function LRRegisterPage() {
                       </td>
                     )}
 
-                    {visibleColumns["payment_terms"] && (
+                    {visibleColumns["payment_type"] && (
                       <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                        {row.payment_terms || "-"}
+                        {row.payment_type || "-"}
                       </td>
                     )}
                   </tr>

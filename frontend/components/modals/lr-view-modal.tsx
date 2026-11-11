@@ -50,7 +50,7 @@ export interface LRViewRecord {
   total_freight_amount: string | number;
   advance_amount: string | number;
   balance_amount: string | number;
-  payment_terms?: string;
+  payment_type?: string;
   particulars?: string;
   remarks?: string;
   created_at?: string;
@@ -751,10 +751,10 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
 
             <div className="mt-2 pt-1 border-t border-slate-200">
               <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-700">
-                PAYMENT TERMS{" "}
+                PAYMENT TYPE{" "}
               </span>
               <span className="font-bold text-xs uppercase text-slate-900 ml-1">
-                {lr.payment_terms || "TO_PAY"}
+                {lr.payment_type || "To Be Billed"}
               </span>
             </div>
           </div>

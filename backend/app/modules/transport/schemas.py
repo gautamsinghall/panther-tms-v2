@@ -481,7 +481,6 @@ class LRBase(BaseModel):
     advance_amount: Decimal = Decimal("0.00")
     balance_amount: Decimal = Decimal("0.00")
     
-    payment_terms: str = "TO_PAY"
     remarks: Optional[str] = None
 
     @field_validator("invoice_date", "eway_bill_date", "eway_bill_expiry", "appointment_date", "dispatch_date", "lr_date", mode="before")
@@ -564,7 +563,6 @@ class LRUpdate(BaseModel):
     total_freight_amount: Optional[Decimal] = None
     advance_amount: Optional[Decimal] = None
     balance_amount: Optional[Decimal] = None
-    payment_terms: Optional[str] = None
     remarks: Optional[str] = None
 
     @field_validator("invoice_date", "eway_bill_date", "eway_bill_expiry", "appointment_date", "dispatch_date", "lr_date", mode="before")

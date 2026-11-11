@@ -66,6 +66,7 @@ async def run_migration():
                     "invoice_items JSONB DEFAULT '[]'::jsonb",
                 ]:
                     await conn.execute(text(f"ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS {lr_col};"))
+                await conn.execute(text("ALTER TABLE transport_lrs DROP COLUMN IF EXISTS payment_terms;"))
 
                 lt_check = await conn.execute(text("SELECT COUNT(*) FROM general_load_types;"))
                 if (lt_check.scalar() or 0) == 0:

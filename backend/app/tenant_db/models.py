@@ -779,7 +779,6 @@ class LR(TenantBase):
     advance_amount = Column(Numeric(12, 2), default=0, nullable=False)
     balance_amount = Column(Numeric(12, 2), default=0, nullable=False)
     
-    payment_terms = Column(String(50), default="TO_PAY", nullable=False)  # PAID, TO_PAY, TO_BE_BILLED
     status = Column(String(50), default=LRStatus.DRAFT.value, nullable=False, index=True)
     remarks = Column(Text, nullable=True)
     created_by_user_id = Column(Integer, nullable=True)

@@ -401,7 +401,7 @@ async def execute_lr_tool(
                 "amount": f"₹{inv_val:,.2f}" if inv_val else None,
             },
             {
-                "primary": f"Financial Settlement: {lr.payment_terms}",
+                "primary": f"Financial Settlement: {lr.payment_type or 'To Be Billed'}",
                 "secondary": f"Base Freight: ₹{float(lr.freight_amount or 0):,.2f} • Advance: ₹{advance_val:,.2f}",
                 "amount": f"₹{total_freight_val:,.2f}",
             },
@@ -426,7 +426,7 @@ async def execute_lr_tool(
                 {"label": "Total Freight", "value": f"₹{total_freight_val:,.2f}"},
                 {"label": "Balance Due", "value": f"₹{balance_val:,.2f}"},
                 {"label": "Weight (MT)", "value": f"{actual_wt:.3f} MT"},
-                {"label": "Terms", "value": lr.payment_terms or "TO_PAY"},
+                {"label": "Payment Type", "value": lr.payment_type or "To Be Billed"},
             ],
             items=items,
             action={"label": f"Open LR {lr.lr_number}", "href": f"/transport/lr-booking?lr_number={lr.lr_number}"},
@@ -439,7 +439,7 @@ async def execute_lr_tool(
             else:
                 msg = f"Lorry Receipt **{lr.lr_number}** is currently **{lr.status or 'Booked'}** ({'Delivered at destination' if delivered else 'In transit / Not yet delivered'}). Route: **{route_display}**."
         elif field_focus == "balance":
-            msg = f"The balance due for LR **{lr.lr_number}** is **₹{balance_val:,.2f}** (Total Freight: ₹{total_freight_val:,.2f}, Advance: ₹{advance_val:,.2f}, Payment Terms: `{lr.payment_terms}`)."
+            msg = f"The balance due for LR **{lr.lr_number}** is **₹{balance_val:,.2f}** (Total Freight: ₹{total_freight_val:,.2f}, Advance: ₹{advance_val:,.2f}, Payment Type: `{lr.payment_type or 'To Be Billed'}`)."
         elif field_focus == "driver":
             msg = f"The driver for LR **{lr.lr_number}** is **{drv_str}** (Phone: {drv_phone}, Vehicle: **{veh_str}**)."
         elif field_focus == "consignee":
@@ -458,7 +458,7 @@ async def execute_lr_tool(
                 f"- **Consignee (Delivery)**: {consignee_str}\n"
                 f"- **Assigned Vehicle**: **{veh_str}** ({lr.vehicle_source}) | **Driver**: {drv_str} ({drv_phone})\n"
                 f"- **Cargo Details**: {pkg_cnt} packages ({packing_str}) | Weight: **{actual_wt:.3f} MT**\n"
-                f"- **Financials**: Total Freight: **₹{total_freight_val:,.2f}** | Advance: ₹{advance_val:,.2f} | **Balance Due: ₹{balance_val:,.2f}** (Terms: `{lr.payment_terms}`)\n"
+                f"- **Financials**: Total Freight: **₹{total_freight_val:,.2f}** | Advance: ₹{advance_val:,.2f} | **Balance Due: ₹{balance_val:,.2f}** (Payment Type: `{lr.payment_type or 'To Be Billed'}`)\n"
                 f"- **Invoice / E-Way Bill**: Invoice #{inv_no} | EWB #{ewb_no}\n"
             )
             if telematics_text:
@@ -473,7 +473,7 @@ async def execute_lr_tool(
                 f"- **पाने वाले (Consignee)**: {consignee_str}\n"
                 f"- **वाहन**: **{veh_str}** | **चालक**: {drv_str} ({drv_phone})\n"
                 f"- **माल विवरण**: {pkg_cnt} पैकेज ({packing_str}) | वजन: **{actual_wt:.3f} MT**\n"
-                f"- **भाड़ा (Freight)**: कुल भाड़ा: **₹{total_freight_val:,.2f}** | अग्रिम: ₹{advance_val:,.2f} | **शेष देय: ₹{balance_val:,.2f}** (`{lr.payment_terms}`)\n"
+                f"- **भाड़ा (Freight)**: कुल भाड़ा: **₹{total_freight_val:,.2f}** | अग्रिम: ₹{advance_val:,.2f} | **शेष देय: ₹{balance_val:,.2f}** (`{lr.payment_type or 'To Be Billed'}`)\n"
                 f"- **इनवॉइस / ई-वे बिल**: इनवॉइस #{inv_no} | ई-वे बिल #{ewb_no}\n"
             )
             if telematics_text:
@@ -488,7 +488,7 @@ async def execute_lr_tool(
                 f"- **Consignee**: {consignee_str}\n"
                 f"- **Assigned Vehicle**: **{veh_str}** ({lr.vehicle_source}) | **Driver**: {drv_str} ({drv_phone})\n"
                 f"- **Cargo Details**: {pkg_cnt} packages ({packing_str}) | Weight: **{actual_wt:.3f} MT**\n"
-                f"- **Commercials**: Total Freight: **₹{total_freight_val:,.2f}** | Advance: ₹{advance_val:,.2f} | **Balance Due: ₹{balance_val:,.2f}** (Terms: `{lr.payment_terms}`)\n"
+                f"- **Commercials**: Total Freight: **₹{total_freight_val:,.2f}** | Advance: ₹{advance_val:,.2f} | **Balance Due: ₹{balance_val:,.2f}** (Payment Type: `{lr.payment_type or 'To Be Billed'}`)\n"
                 f"- **Invoices / E-Way Bill**: Inv #{inv_no} | E-Way Bill #{ewb_no}\n"
             )
             if telematics_text:

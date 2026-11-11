@@ -338,6 +338,7 @@ async def lifespan(app: FastAPI):
                             "invoice_items JSONB DEFAULT '[]'::jsonb",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_lrs ADD COLUMN IF NOT EXISTS {lr_col};"))
+                        await t_conn.execute(text("ALTER TABLE transport_lrs DROP COLUMN IF EXISTS payment_terms;"))
 
                         # Hire Challan Standard Fields Evolution
                         for hc_col in [
@@ -730,4 +731,3 @@ app.include_router(profile_router, prefix=settings.API_V1_PREFIX)
 app.include_router(ai_router, prefix=settings.API_V1_PREFIX)
 app.include_router(profile_router)
 app.include_router(transport_router)
-

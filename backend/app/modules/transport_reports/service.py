@@ -200,9 +200,7 @@ async def get_lr_booking_register(
 
                 eway_bill_number=lr.eway_bill_number or "",
 
-                payment_terms=lr.payment_terms or "",
-
-                payment_type=lr.payment_type or lr.payment_terms or "",
+                payment_type=lr.payment_type or "",
 
                 vehicle_type=lr.vehicle_type or "",
 
