@@ -257,12 +257,6 @@ const MASTER_DEFINITIONS: Record<string, MasterFormMeta> = {
             defaultValue: DEFAULT_COUNTRY,
             required: true,
           },
-          {
-            name: "address",
-            label: "Full Address / Landmark",
-            type: "textarea",
-            colSpan: 2,
-          },
         ],
       },
     ],
@@ -899,4 +893,3 @@ export function MasterTabsContainer() {
     </>
   );
 }
-

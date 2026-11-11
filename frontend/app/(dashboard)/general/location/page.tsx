@@ -24,7 +24,6 @@ interface LocationRecord {
   location_code?: string;
   is_pickup_point: boolean;
   is_drop_point: boolean;
-  address?: string;
   pincode?: string;
   is_active: boolean;
 }
@@ -76,8 +75,7 @@ export default function LocationPage() {
         const matchesState = item.state?.toLowerCase().includes(q);
         const matchesCountry = item.country?.toLowerCase().includes(q);
         const matchesPin = item.pincode?.toLowerCase().includes(q);
-        const matchesAddress = item.address?.toLowerCase().includes(q);
-        if (!matchesCity && !matchesState && !matchesCountry && !matchesPin && !matchesAddress) return false;
+        if (!matchesCity && !matchesState && !matchesCountry && !matchesPin) return false;
       }
       return true;
     });
@@ -122,18 +120,6 @@ export default function LocationPage() {
       cell: (row) => (
         <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
           {row.pincode || "-"}
-        </span>
-      ),
-    },
-    {
-      key: "address",
-      header: "Full Address / Landmark",
-      cell: (row) => (
-        <span
-          className="text-xs text-slate-600 dark:text-slate-400 max-w-[280px] truncate block"
-          title={row.address || undefined}
-        >
-          {row.address || "-"}
         </span>
       ),
     },
@@ -265,12 +251,6 @@ export default function LocationPage() {
           type: "country",
           defaultValue: DEFAULT_COUNTRY,
           required: true,
-        },
-        {
-          name: "address",
-          label: "Full Address / Landmark",
-          type: "textarea",
-          colSpan: 2,
         },
       ],
     },
