@@ -26,7 +26,6 @@ interface LocationRecord {
   is_drop_point: boolean;
   pincode?: string;
   is_active: boolean;
-  source?: "tenant" | "postal";
 }
 
 export default function LocationPage() {
@@ -49,23 +48,8 @@ export default function LocationPage() {
     try {
       const params = new URLSearchParams({ page: "1", page_size: "100" });
       if (query.trim().length >= 2) params.set("search", query.trim());
-      const postalQuery = query.trim().length >= 2 ? `?q=${encodeURIComponent(query.trim())}` : "";
-      const [res, postal] = await Promise.all([
-        apiClient<{ items: LocationRecord[] }>(`/api/v1/general/locations?${params}`),
-        apiClient<Array<LocationRecord>>(`/api/v1/general/locations/postal-search${postalQuery}`),
-      ]);
-      const items = [
-        ...(res.items || []).map((item) => ({ ...item, source: "tenant" as const })),
-        ...postal.map((item) => ({
-          ...item,
-          id: -Math.abs(item.id),
-          source: "postal" as const,
-          is_active: true,
-          is_pickup_point: true,
-          is_drop_point: true,
-        })),
-      ];
-      setData(items);
+      const res = await apiClient<{ items: LocationRecord[] }>(`/api/v1/general/locations?${params}`);
+      setData(res.items || []);
     } catch (err: any) {
       setIsError(true);
       setErrorMessage(err.message || "Failed to load locations.");
@@ -161,33 +145,9 @@ export default function LocationPage() {
 
   const actions: RowAction<LocationRecord>[] = [
     {
-      label: "Add to Locations",
-      icon: <Plus className="w-3.5 h-3.5 text-indigo-600" />,
-      hidden: (row) => row.source !== "postal" || !canModify,
-      onClick: async (row) => {
-        try {
-          await apiClient("/api/v1/general/locations", {
-            method: "POST",
-            body: JSON.stringify({
-              country: row.country,
-              state: row.state,
-              city_name: row.city_name,
-              pincode: row.pincode,
-              is_pickup_point: true,
-              is_drop_point: true,
-            }),
-          });
-          toast.success("Location added successfully.");
-          loadData(searchTerm);
-        } catch (err: any) {
-          toast.error(err.message || "Failed to add location.");
-        }
-      },
-    },
-    {
       label: "Edit",
       icon: <Pencil className="w-3.5 h-3.5 text-slate-600" />,
-      hidden: (row) => row.source === "postal" || !canModify,
+      hidden: () => !canModify,
       onClick: (row) => {
         setEditingRecord(row);
         setIsDrawerOpen(true);
@@ -197,7 +157,7 @@ export default function LocationPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-[#F04438]" />,
       variant: "danger",
-      hidden: (row) => row.source === "postal" || !row.is_active || !canModify,
+      hidden: (row) => !row.is_active || !canModify,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Deactivate Record",
@@ -228,7 +188,7 @@ export default function LocationPage() {
       label: "Activate",
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
       variant: "default",
-      hidden: (row) => row.source === "postal" || !!row.is_active || !canModify,
+      hidden: (row) => !!row.is_active || !canModify,
       onClick: async (row) => {
         const ok = await confirmModal({
           title: "Activate Record",
@@ -392,7 +352,7 @@ export default function LocationPage() {
         onRetry={() => loadData(searchTerm)}
         actions={actions}
         emptyMessage="No locations found"
-        emptySubtext="Search the postal directory or add a custom hub."
+        emptySubtext="Add a hub or terminal location to get started."
         emptyAction={{
           label: "Add Location",
           onClick: () => {

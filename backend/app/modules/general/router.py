@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch, PostalLocation
+from app.tenant_db.models import User, Branch
 from app.modules.general import schemas, service
 from app.services.activity_logger import log_activity
 
@@ -286,31 +286,6 @@ async def list_locations(
         page=page, page_size=page_size, search=search, active=active,
     )
     return {"items": items, "page": page, "page_size": page_size, "total": total}
-
-@router.get(
-    "/locations/postal-search",
-    response_model=List[schemas.PostalLocationResponse],
-    summary="Search tenant postal directory",
-)
-async def search_postal_locations(
-    q: Optional[str] = Query(None, min_length=2),
-    limit: int = Query(100, ge=1, le=100),
-    current_user: User = Depends(require_permission("general", "location", "view")),
-    db: AsyncSession = Depends(get_tenant_db),
-):
-    q = q.strip() if q else None
-    stmt = select(PostalLocation)
-    if q:
-        term = f"%{q}%"
-        stmt = stmt.where(or_(
-            PostalLocation.city_name.ilike(term),
-            PostalLocation.state.ilike(term),
-            PostalLocation.pincode.ilike(term),
-        )).order_by(PostalLocation.city_name, PostalLocation.state, PostalLocation.pincode)
-    else:
-        stmt = stmt.order_by(PostalLocation.id)
-    result = await db.execute(stmt.limit(limit))
-    return list(result.scalars().all())
 
 @router.post("/locations", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, summary="Create a location")
 async def create_location(

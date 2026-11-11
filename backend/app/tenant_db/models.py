@@ -270,16 +270,6 @@ class Location(TenantBase):
         return self.city_name or self.state or self.location_code or "Unknown"
 
 
-class PostalLocation(TenantBase):
-    __tablename__ = "postal_locations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    city_name = Column(String(100), nullable=False, index=True)
-    state = Column(String(100), nullable=False, index=True)
-    pincode = Column(String(20), nullable=False, index=True)
-    country = Column(String(100), nullable=False, default="India")
-
-
 class Industry(TenantBase):
     """Industry vertical master (e.g. Steel, Cement, FMCG, Auto)"""
     __tablename__ = "general_industries"

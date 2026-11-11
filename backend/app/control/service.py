@@ -4,7 +4,7 @@ import secrets
 import string
 from pathlib import Path
 from typing import List, Optional
-from sqlalchemy import insert, select, text, or_
+from sqlalchemy import insert, select, text, or_, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.core.config import settings
 from app.core.errors import AppException
@@ -20,34 +20,54 @@ from app.control.schemas import (
 )
 from app.integrations.razorpay.client import razorpay_client
 from app.tenant_db.base import TenantBase
-from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment, PostalLocation
+from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment, Location
 from app.core.database import get_tenant_session_maker
 
 logger = logging.getLogger("panther.control.service")
 
 DEFAULT_LOCATIONS_FILE = Path(__file__).resolve().parents[1] / "data" / "default_locations.csv"
 
-async def seed_postal_locations(session: AsyncSession) -> None:
+async def seed_default_locations(session: AsyncSession) -> None:
     await session.execute(text("SELECT pg_advisory_xact_lock(91827365)"))
-    exists = await session.execute(select(PostalLocation.id).limit(1))
-    if exists.scalar_one_or_none() is not None:
-        return
     batch = []
     with DEFAULT_LOCATIONS_FILE.open(newline="", encoding="utf-8") as locations_file:
         for row in csv.DictReader(locations_file):
-            batch.append({
+            location = {
                 "city_name": row["city_name"].strip(),
                 "state": row["state"].strip(),
                 "pincode": row["pincode"].strip(),
                 "country": "India",
-            })
+                "is_pickup_point": True,
+                "is_drop_point": True,
+                "is_active": True,
+            }
+            batch.append(location)
             if len(batch) == 1000:
-                await session.execute(insert(PostalLocation), batch)
+                await _insert_missing_default_locations(session, batch)
                 batch.clear()
         if batch:
-            await session.execute(insert(PostalLocation), batch)
+            await _insert_missing_default_locations(session, batch)
+    await session.execute(text("DROP TABLE IF EXISTS postal_locations"))
     await session.commit()
-    logger.info("Seeded tenant postal directory")
+    logger.info("Seeded default locations into tenant general_locations")
+
+
+async def _insert_missing_default_locations(session: AsyncSession, batch: list[dict]) -> None:
+    keys = [(row["city_name"], row["state"], row["pincode"]) for row in batch]
+    result = await session.execute(
+        select(Location.city_name, Location.state, Location.pincode).where(
+            tuple_(Location.city_name, Location.state, Location.pincode).in_(keys)
+        )
+    )
+    existing = set(result.all())
+    missing = []
+    for row in batch:
+        key = (row["city_name"], row["state"], row["pincode"])
+        if key not in existing:
+            missing.append(row)
+            existing.add(key)
+    if missing:
+        await session.execute(insert(Location), missing)
 
 DEFAULT_PLANS = [
     {
@@ -311,7 +331,7 @@ async def initialize_tenant_schema_and_admin(
         await conn.run_sync(TenantBase.metadata.create_all)
 
     async with get_tenant_session_maker(db_name)() as session:
-        await seed_postal_locations(session)
+        await seed_default_locations(session)
 
     # 2. Seed initial Company Admin and Company Settings
     session_maker = get_tenant_session_maker(db_name)
