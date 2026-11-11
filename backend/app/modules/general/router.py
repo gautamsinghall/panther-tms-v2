@@ -293,22 +293,23 @@ async def list_locations(
     summary="Search tenant postal directory",
 )
 async def search_postal_locations(
-    q: str = Query(..., min_length=2),
-    limit: int = Query(25, ge=1, le=50),
+    q: Optional[str] = Query(None, min_length=2),
+    limit: int = Query(100, ge=1, le=100),
     current_user: User = Depends(require_permission("general", "location", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    term = f"%{q.strip()}%"
-    result = await db.execute(
-        select(PostalLocation)
-        .where(or_(
+    q = q.strip() if q else None
+    stmt = select(PostalLocation)
+    if q:
+        term = f"%{q}%"
+        stmt = stmt.where(or_(
             PostalLocation.city_name.ilike(term),
             PostalLocation.state.ilike(term),
             PostalLocation.pincode.ilike(term),
-        ))
-        .order_by(PostalLocation.city_name, PostalLocation.state, PostalLocation.pincode)
-        .limit(limit)
-    )
+        )).order_by(PostalLocation.city_name, PostalLocation.state, PostalLocation.pincode)
+    else:
+        stmt = stmt.order_by(PostalLocation.id)
+    result = await db.execute(stmt.limit(limit))
     return list(result.scalars().all())
 
 @router.post("/locations", response_model=schemas.LocationResponse, status_code=status.HTTP_201_CREATED, summary="Create a location")

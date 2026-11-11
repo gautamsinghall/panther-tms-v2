@@ -49,24 +49,22 @@ export default function LocationPage() {
     try {
       const params = new URLSearchParams({ page: "1", page_size: "100" });
       if (query.trim().length >= 2) params.set("search", query.trim());
-      const res = await apiClient<{ items: LocationRecord[] }>(`/api/v1/general/locations?${params}`);
-      let items = res.items || [];
-      if (query.trim().length >= 2) {
-        const postal = await apiClient<Array<LocationRecord>>(
-          `/api/v1/general/locations/postal-search?q=${encodeURIComponent(query.trim())}&limit=25`
-        );
-        items = [
-          ...items.map((item) => ({ ...item, source: "tenant" as const })),
-          ...postal.map((item) => ({
-            ...item,
-            id: -Math.abs(item.id),
-            source: "postal" as const,
-            is_active: true,
-            is_pickup_point: true,
-            is_drop_point: true,
-          })),
-        ];
-      }
+      const postalQuery = query.trim().length >= 2 ? `?q=${encodeURIComponent(query.trim())}` : "";
+      const [res, postal] = await Promise.all([
+        apiClient<{ items: LocationRecord[] }>(`/api/v1/general/locations?${params}`),
+        apiClient<Array<LocationRecord>>(`/api/v1/general/locations/postal-search${postalQuery}`),
+      ]);
+      const items = [
+        ...(res.items || []).map((item) => ({ ...item, source: "tenant" as const })),
+        ...postal.map((item) => ({
+          ...item,
+          id: -Math.abs(item.id),
+          source: "postal" as const,
+          is_active: true,
+          is_pickup_point: true,
+          is_drop_point: true,
+        })),
+      ];
       setData(items);
     } catch (err: any) {
       setIsError(true);
@@ -394,7 +392,7 @@ export default function LocationPage() {
         onRetry={() => loadData(searchTerm)}
         actions={actions}
         emptyMessage="No locations found"
-        emptySubtext="Search the shared postal directory or add a custom hub."
+        emptySubtext="Search the postal directory or add a custom hub."
         emptyAction={{
           label: "Add Location",
           onClick: () => {
