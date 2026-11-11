@@ -42,6 +42,32 @@ def test_normalization_gst_response():
     assert normalized["state_code"] == "27"
     assert normalized["pincode"] == "400001"
     assert normalized["country"] == "India"
+    assert normalized["billing_state"] == "Maharashtra"
+
+
+def test_normalization_with_state_code_fallback():
+    client = GstPanClient()
+    sample_gst = {
+        "lgnm": "DELHI LOGISTICS LIMITED",
+        "tradeNam": "DELHI LOGISTICS",
+        "rgdt": "01/01/2020",
+        "ctb": "Private Limited Company",
+        "gstin": "07AAAAA0000A1Z5",
+        "pradr": {
+            "addr": {
+                "bnm": "Connaught Place",
+                "loc": "New Delhi",
+                "dst": "Central Delhi",
+                "pncd": "110001",
+                "stcd": "07"
+            }
+        }
+    }
+    normalized = client._normalize_taxpayer_data(sample_gst)
+    assert normalized["gstin"] == "07AAAAA0000A1Z5"
+    assert normalized["state"] == "Delhi"
+    assert normalized["billing_state"] == "Delhi"
+    assert normalized["incorporation_date"] == "2020-01-01"
 
 
 def test_normalization_pan_response():

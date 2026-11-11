@@ -12,6 +12,46 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+GST_STATE_MAP = {
+    "01": "Jammu and Kashmir",
+    "02": "Himachal Pradesh",
+    "03": "Punjab",
+    "04": "Chandigarh",
+    "05": "Uttarakhand",
+    "06": "Haryana",
+    "07": "Delhi",
+    "08": "Rajasthan",
+    "09": "Uttar Pradesh",
+    "10": "Bihar",
+    "11": "Sikkim",
+    "12": "Arunachal Pradesh",
+    "13": "Nagaland",
+    "14": "Manipur",
+    "15": "Mizoram",
+    "16": "Tripura",
+    "17": "Meghalaya",
+    "18": "Assam",
+    "19": "West Bengal",
+    "20": "Jharkhand",
+    "21": "Odisha",
+    "22": "Chhattisgarh",
+    "23": "Madhya Pradesh",
+    "24": "Gujarat",
+    "26": "Dadra and Nagar Haveli and Daman and Diu",
+    "27": "Maharashtra",
+    "29": "Karnataka",
+    "30": "Goa",
+    "31": "Lakshadweep",
+    "32": "Kerala",
+    "33": "Tamil Nadu",
+    "34": "Puducherry",
+    "35": "Andaman and Nicobar Islands",
+    "36": "Telangana",
+    "37": "Andhra Pradesh",
+    "38": "Ladakh",
+}
+
+
 class GstPanClient:
     """
     Client for interacting with the GST and PAN API verification gateway.
@@ -250,8 +290,17 @@ class GstPanClient:
         full_address = ", ".join(addr_parts)
         pincode = (addr_obj.get("pncd") or "").strip()
         city = (addr_obj.get("dst") or addr_obj.get("loc") or "").strip()
-        state = (addr_obj.get("stcd") or "").strip()
+        raw_state = (addr_obj.get("stcd") or "").strip()
         state_code = gstin[:2] if len(gstin) >= 2 else ""
+
+        # Normalize state using GST state code map if state is code or empty
+        state = raw_state
+        if state in GST_STATE_MAP:
+            state = GST_STATE_MAP[state]
+        elif not state and state_code in GST_STATE_MAP:
+            state = GST_STATE_MAP[state_code]
+
+        billing_state = state
 
         return {
             "gstin": gstin,
@@ -266,7 +315,7 @@ class GstPanClient:
             "state_code": state_code,
             "pincode": pincode,
             "country": "India",
-            "billing_state": state,
+            "billing_state": billing_state,
         }
 
 

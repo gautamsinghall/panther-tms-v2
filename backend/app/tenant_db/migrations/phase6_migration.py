@@ -85,6 +85,10 @@ async def run_migration():
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_vendor_id ON accounts_vouchers (vendor_id);"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_accounts_vouchers_driver_id ON accounts_vouchers (driver_id);"))
 
+            # Billing Client: Date of Incorporation & Billing State
+            await conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS incorporation_date DATE;"))
+            await conn.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS billing_state VARCHAR(100);"))
+
             await conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS einvoicing_records (
                     id SERIAL PRIMARY KEY,

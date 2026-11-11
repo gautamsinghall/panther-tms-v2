@@ -154,6 +154,8 @@ class BillingClient(TenantBase):
     gstin = Column(String(15), nullable=True, index=True)
     pan = Column(String(10), nullable=True, index=True)
     tds_rate = Column(Numeric(5, 2), default=0.00, nullable=True)
+    incorporation_date = Column(Date, nullable=True)
+    billing_state = Column(String(100), nullable=True)
     credit_period_days = Column(Integer, default=30, nullable=True)
     credit_limit = Column(Numeric(12, 2), default=0.00, nullable=True)
     payment_terms = Column(String(255), nullable=True)

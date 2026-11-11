@@ -43,6 +43,8 @@ export interface BillingClientRecord {
   gstin?: string;
   pan?: string;
   tds_rate?: number;
+  incorporation_date?: string;
+  billing_state?: string;
   credit_period_days?: number;
   credit_limit?: number;
   payment_terms?: string;
@@ -66,6 +68,8 @@ const defaultInitialValues = {
   gstin: "",
   pan: "",
   tds_rate: 0,
+  incorporation_date: "",
+  billing_state: "",
   credit_period_days: 30,
   credit_limit: 0,
   payment_terms: "",
@@ -186,6 +190,8 @@ export default function BillingClientPage() {
         gstin: values.gstin ? String(values.gstin).trim().toUpperCase() : null,
         pan: values.pan ? String(values.pan).trim().toUpperCase() : null,
         tds_rate: values.tds_rate !== undefined && values.tds_rate !== "" ? parseFloat(values.tds_rate) : 0,
+        incorporation_date: values.incorporation_date ? String(values.incorporation_date).trim() : null,
+        billing_state: values.billing_state ? String(values.billing_state).trim() : null,
         credit_period_days:
           values.credit_period_days !== undefined && values.credit_period_days !== ""
             ? parseInt(values.credit_period_days, 10)
@@ -293,6 +299,8 @@ export default function BillingClientPage() {
       gstin: editingRecord.gstin || "",
       pan: editingRecord.pan || "",
       tds_rate: editingRecord.tds_rate ?? 0,
+      incorporation_date: editingRecord.incorporation_date || "",
+      billing_state: editingRecord.billing_state || "",
       credit_period_days: editingRecord.credit_period_days ?? 30,
       credit_limit: editingRecord.credit_limit ?? 0,
       payment_terms: editingRecord.payment_terms || "",
@@ -342,16 +350,22 @@ export default function BillingClientPage() {
       columns: 2,
       fields: [
         {
+          name: "incorporation_date",
+          label: "Date of Incorporate",
+          type: "date",
+          placeholder: "YYYY-MM-DD",
+        },
+        {
+          name: "billing_state",
+          label: "Billing State",
+          type: "state",
+          placeholder: "Select Billing State",
+        },
+        {
           name: "name",
           label: "Client / Trade Name",
           placeholder: "e.g. Tata Steel Ltd or Reliance Retail",
           required: true,
-          colSpan: 2,
-        },
-        {
-          name: "code",
-          label: "Client Code (Optional)",
-          placeholder: "e.g. CLI-001",
         },
         {
           name: "company_name",
@@ -373,36 +387,6 @@ export default function BillingClientPage() {
           label: "Email Address for Invoicing & Statements",
           type: "email",
           placeholder: "accounts.payable@clientcompany.com",
-          colSpan: 2,
-        },
-      ],
-    },
-    {
-      id: "credit_terms",
-      title: "Credit Terms & Payment Ceiling",
-      description: "Debtor terms, maximum outstanding credit limit, and contractual billing milestones.",
-      columns: 2,
-      fields: [
-        {
-          name: "credit_period_days",
-          label: "Credit Period (Days)",
-          type: "number",
-          placeholder: "30",
-          defaultValue: 30,
-          helperText: "Default payment duration allowed after invoice generation",
-        },
-        {
-          name: "credit_limit",
-          label: "Credit Limit (INR ₹)",
-          type: "number",
-          placeholder: "e.g. 500000",
-          defaultValue: 0,
-          helperText: "Maximum permitted unpaid invoice balance across active jobs",
-        },
-        {
-          name: "payment_terms",
-          label: "Payment Terms / Billing Notes",
-          placeholder: "e.g. 30 Days from Physical POD Submission / Payment via RTGS",
           colSpan: 2,
         },
       ],
@@ -442,6 +426,36 @@ export default function BillingClientPage() {
           label: "Country",
           type: "country",
           defaultValue: DEFAULT_COUNTRY,
+        },
+      ],
+    },
+    {
+      id: "credit_terms",
+      title: "Credit Terms & Payment Ceiling",
+      description: "Debtor terms, maximum outstanding credit limit, and contractual billing milestones.",
+      columns: 2,
+      fields: [
+        {
+          name: "credit_period_days",
+          label: "Credit Period (Days)",
+          type: "number",
+          placeholder: "30",
+          defaultValue: 30,
+          helperText: "Default payment duration allowed after invoice generation",
+        },
+        {
+          name: "credit_limit",
+          label: "Credit Limit (INR ₹)",
+          type: "number",
+          placeholder: "e.g. 500000",
+          defaultValue: 0,
+          helperText: "Maximum permitted unpaid invoice balance across active jobs",
+        },
+        {
+          name: "payment_terms",
+          label: "Payment Terms / Billing Notes",
+          placeholder: "e.g. 30 Days from Physical POD Submission / Payment via RTGS",
+          colSpan: 2,
         },
       ],
     },
@@ -485,6 +499,7 @@ export default function BillingClientPage() {
           item.pan?.toLowerCase().includes(term) ||
           item.city?.toLowerCase().includes(term) ||
           item.state?.toLowerCase().includes(term) ||
+          item.billing_state?.toLowerCase().includes(term) ||
           item.address?.toLowerCase().includes(term);
         if (!match) return false;
       }

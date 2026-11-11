@@ -13,6 +13,8 @@ class BillingClientBase(BaseModel):
     gstin: Optional[str] = None
     pan: Optional[str] = None
     tds_rate: Optional[float] = 0.00
+    incorporation_date: Optional[date] = None
+    billing_state: Optional[str] = None
     credit_period_days: Optional[int] = 30
     credit_limit: Optional[float] = 0.00
     payment_terms: Optional[str] = None
@@ -29,6 +31,8 @@ class BillingClientBase(BaseModel):
         if isinstance(data, dict):
             if "county" in data and "country" not in data:
                 data["country"] = data["county"]
+            if data.get("incorporation_date") == "":
+                data["incorporation_date"] = None
         return data
 
 class BillingClientCreate(BillingClientBase):
@@ -44,6 +48,8 @@ class BillingClientUpdate(BaseModel):
     gstin: Optional[str] = None
     pan: Optional[str] = None
     tds_rate: Optional[float] = None
+    incorporation_date: Optional[date] = None
+    billing_state: Optional[str] = None
     credit_period_days: Optional[int] = None
     credit_limit: Optional[float] = None
     payment_terms: Optional[str] = None
@@ -61,6 +67,8 @@ class BillingClientUpdate(BaseModel):
         if isinstance(data, dict):
             if "county" in data and "country" not in data:
                 data["country"] = data["county"]
+            if data.get("incorporation_date") == "":
+                data["incorporation_date"] = None
         return data
 
 class BillingClientResponse(BillingClientBase):
