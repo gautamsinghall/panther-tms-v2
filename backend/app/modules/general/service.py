@@ -1,5 +1,5 @@
 from typing import List, Optional, Type, TypeVar
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
 from app.tenant_db.models import (
@@ -54,33 +54,80 @@ async def _soft_delete(db: AsyncSession, model: Type[T], entity_id: int) -> T:
     return entity
 
 # --- Billing Client Service ---
+async def _ensure_billing_client_columns(db: AsyncSession):
+    try:
+        await db.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS incorporation_date DATE;"))
+        await db.execute(text("ALTER TABLE general_billing_clients ADD COLUMN IF NOT EXISTS billing_state VARCHAR(100);"))
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
 async def list_billing_clients(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
 ) -> List[BillingClient]:
-    return await _get_all(db, BillingClient, office_id=office_id, include_unassigned=include_unassigned)
+    try:
+        return await _get_all(db, BillingClient, office_id=office_id, include_unassigned=include_unassigned)
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "incorporation_date" in err_msg or "billing_state" in err_msg or "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await _ensure_billing_client_columns(db)
+            return await _get_all(db, BillingClient, office_id=office_id, include_unassigned=include_unassigned)
+        raise
 
 async def get_billing_client(db: AsyncSession, cid: int) -> BillingClient:
-    return await _get_by_id(db, BillingClient, cid)
+    try:
+        return await _get_by_id(db, BillingClient, cid)
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "incorporation_date" in err_msg or "billing_state" in err_msg or "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await _ensure_billing_client_columns(db)
+            return await _get_by_id(db, BillingClient, cid)
+        raise
 
 async def create_billing_client(db: AsyncSession, data, office_id: Optional[int] = None) -> BillingClient:
     data_dict = data.model_dump()
     if office_id and not data_dict.get("issuing_office_id"):
         data_dict["issuing_office_id"] = office_id
-    entity = BillingClient(**data_dict)
-    db.add(entity)
-    await db.commit()
-    await db.refresh(entity)
-    return entity
+    try:
+        entity = BillingClient(**data_dict)
+        db.add(entity)
+        await db.commit()
+        await db.refresh(entity)
+        return entity
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "incorporation_date" in err_msg or "billing_state" in err_msg or "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await db.rollback()
+            await _ensure_billing_client_columns(db)
+            entity = BillingClient(**data_dict)
+            db.add(entity)
+            await db.commit()
+            await db.refresh(entity)
+            return entity
+        raise
 
 async def update_billing_client(db: AsyncSession, cid: int, data) -> BillingClient:
-    entity = await _get_by_id(db, BillingClient, cid)
-    for k, v in data.model_dump(exclude_unset=True).items():
-        setattr(entity, k, v)
-    await db.commit()
-    await db.refresh(entity)
-    return entity
+    try:
+        entity = await _get_by_id(db, BillingClient, cid)
+        for k, v in data.model_dump(exclude_unset=True).items():
+            setattr(entity, k, v)
+        await db.commit()
+        await db.refresh(entity)
+        return entity
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "incorporation_date" in err_msg or "billing_state" in err_msg or "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await db.rollback()
+            await _ensure_billing_client_columns(db)
+            entity = await _get_by_id(db, BillingClient, cid)
+            for k, v in data.model_dump(exclude_unset=True).items():
+                setattr(entity, k, v)
+            await db.commit()
+            await db.refresh(entity)
+            return entity
+        raise
 
 async def delete_billing_client(db: AsyncSession, cid: int) -> BillingClient:
     return await _soft_delete(db, BillingClient, cid)
