@@ -308,8 +308,8 @@ async def create_company_vehicle(
         module="transport",
         entity_type="Vehicle",
         entity_id=str(v.id),
-        entity_identifier=v.registration_number,
-        details_json={"registration_number": v.registration_number, "make": v.make, "model": v.model},
+        entity_identifier=v.vehicle_number,
+        details_json={"vehicle_number": v.vehicle_number, "vehicle_type": v.vehicle_type},
     )
     return v
 
@@ -329,8 +329,8 @@ async def update_company_vehicle(
         module="transport",
         entity_type="Vehicle",
         entity_id=str(v.id),
-        entity_identifier=v.registration_number,
-        details=f"Updated company vehicle {v.registration_number}",
+        entity_identifier=v.vehicle_number,
+        details=f"Updated company vehicle {v.vehicle_number}",
         details_json=data.model_dump(exclude_unset=True),
     )
     return v
