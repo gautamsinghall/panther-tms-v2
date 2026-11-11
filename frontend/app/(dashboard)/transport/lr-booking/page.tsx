@@ -115,6 +115,8 @@ interface LRRecord {
 interface SelectOption {
   id: number;
   name?: string;
+  vehicle_number?: string;
+  vehicle_type?: string;
   title?: string;
   city_name?: string;
   job_number?: string;
@@ -169,6 +171,8 @@ export default function LRBookingPage() {
   const [billingCustomers, setBillingCustomers] = useState<SelectOption[]>([]);
   const [packingMethods, setPackingMethods] = useState<SelectOption[]>([]);
   const [loadTypes, setLoadTypes] = useState<SelectOption[]>([]);
+  const [marketVehicles, setMarketVehicles] = useState<SelectOption[]>([]);
+  const [companyVehicles, setCompanyVehicles] = useState<SelectOption[]>([]);
   const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -200,6 +204,7 @@ export default function LRBookingPage() {
   const [selectedConsigneeId, setSelectedConsigneeId] = useState<string>("");
   const [selectedJob, setSelectedJob] = useState<LinkedJobData | null>(null);
   const [drawerError, setDrawerError] = useState<string | null>(null);
+  const [isVehicleTypePromptOpen, setIsVehicleTypePromptOpen] = useState(false);
   const { openMasterTab } = useWorkspaceTabs();
 
   // View & Print LR state
@@ -254,6 +259,8 @@ export default function LRBookingPage() {
         billingCustRes,
         packingMethRes,
         loadTypesRes,
+        marketVehiclesRes,
+        companyVehiclesRes,
         seriesRes,
         manualRangesRes,
       ] = await Promise.all([
@@ -265,6 +272,8 @@ export default function LRBookingPage() {
         apiClient<SelectOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/packing-methods").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/general/load-types").catch(() => []),
+        apiClient<SelectOption[]>("/api/v1/transport/market-vehicles").catch(() => []),
+        apiClient<SelectOption[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<any>(`/api/v1/settings/series/check/LR${officeParam}`).catch(() => null),
         apiClient<any>(`/api/v1/settings/series/manual-ranges/LR${officeParam}`).catch(() => null),
       ]);
@@ -277,6 +286,8 @@ export default function LRBookingPage() {
       setBillingCustomers(Array.isArray(billingCustRes) ? billingCustRes : []);
       setPackingMethods(Array.isArray(packingMethRes) ? packingMethRes : []);
       setLoadTypes(Array.isArray(loadTypesRes) ? loadTypesRes : []);
+      setMarketVehicles(Array.isArray(marketVehiclesRes) ? marketVehiclesRes : []);
+      setCompanyVehicles(Array.isArray(companyVehiclesRes) ? companyVehiclesRes : []);
       setSeriesInfo(seriesRes);
       setManualSeriesData(manualRangesRes);
 
@@ -526,6 +537,35 @@ export default function LRBookingPage() {
         value: String(l.id),
       })),
   ], [locations, editingLrRecord]);
+
+  const marketVehicleOptions = useMemo(() => [
+    { label: "Select Market Vehicle...", value: "" },
+    ...(editingLrRecord?.vehicle_number &&
+    !marketVehicles.some((vehicle) => vehicle.vehicle_number === editingLrRecord.vehicle_number)
+      ? [{ label: `${editingLrRecord.vehicle_number} (Current)`, value: editingLrRecord.vehicle_number }]
+      : []),
+    ...marketVehicles.map((vehicle) => ({
+      label: vehicle.vehicle_number || `Vehicle #${vehicle.id}`,
+      value: vehicle.vehicle_number || "",
+      subLabel: vehicle.vehicle_type || undefined,
+    })),
+  ], [marketVehicles, editingLrRecord]);
+
+  const companyVehicleOptions = useMemo(() => companyVehicles.map((vehicle) => ({
+    label: vehicle.vehicle_number || `Vehicle #${vehicle.id}`,
+    value: vehicle.vehicle_number || "",
+    subLabel: vehicle.vehicle_type ? `Company • ${vehicle.vehicle_type}` : "Company Vehicle",
+  })), [companyVehicles]);
+
+  const truckOptions = useMemo(() => [
+    { label: "Select Truck...", value: "" },
+    ...marketVehicles.map((vehicle) => ({
+      label: vehicle.vehicle_number || `Vehicle #${vehicle.id}`,
+      value: vehicle.vehicle_number || "",
+      subLabel: vehicle.vehicle_type ? `Market • ${vehicle.vehicle_type}` : "Market Vehicle",
+    })),
+    ...companyVehicleOptions,
+  ], [marketVehicles, companyVehicleOptions]);
 
   const consignerOptions = useMemo(() => [
     { label: "Select Consignor (Sender)...", value: "" },
@@ -1186,12 +1226,16 @@ export default function LRBookingPage() {
         {
           name: "vehicle_number",
           label: "Truck No.",
-          type: "text",
+          type: "select",
           required: true,
-          placeholder: "e.g. RJ-14-GH-1234",
+          options: truckOptions,
+          placeholder: "Select market or company vehicle",
+          onAddNew: () => setIsVehicleTypePromptOpen(true),
+          addNewLabel: "+ Add Vehicle",
+          addNewTitle: "Choose whether to add a market vehicle or company vehicle",
           helperText: selectedJob
             ? "⚠️ Truck assignment required — Job order indents do not specify a vehicle registration."
-            : "Enter registration number of assigned vehicle.",
+            : "Select the registration number of the assigned market vehicle.",
         },
         {
           name: "vehicle_type",
@@ -1383,6 +1427,8 @@ export default function LRBookingPage() {
     paymentTypeOptions,
     billingCustomerOptions,
     locationOptions,
+    marketVehicleOptions,
+    truckOptions,
     consignerOptions,
     consigneeOptions,
     selectedConsignerAddress,
@@ -1859,6 +1905,28 @@ export default function LRBookingPage() {
     formSetFieldValueRef.current?.(field, String(newLoc.id));
   };
 
+  const handleMarketVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string }) => {
+    const vehicleNumber = newVehicle.vehicle_number || newVehicle.label || String(newVehicle.id);
+    setMarketVehicles((prev) => [
+      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type },
+      ...prev,
+    ]);
+    setFormInitialValues((prev) => ({ ...prev, vehicle_number: vehicleNumber }));
+    formSetFieldValueRef.current?.("vehicle_number", vehicleNumber);
+    if (newVehicle.vehicle_type) {
+      formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+    }
+  };
+
+  const openVehicleMaster = (type: "market" | "company") => {
+    setIsVehicleTypePromptOpen(false);
+    if (type === "market") {
+      openMasterTab({ type: "market_vehicle", title: "Add Market Vehicle", onSuccess: handleMarketVehicleCreated });
+      return;
+    }
+    router.push("/transport/company-vehicles?action=add");
+  };
+
   const handleLoadTypeCreated = (newLt: { id: number | string; name?: string; label?: string }) => {
     const val = newLt.name || newLt.label || String(newLt.id);
     setLoadTypes((prev) => [{ id: Number(newLt.id), name: val }, ...prev]);
@@ -1892,6 +1960,32 @@ export default function LRBookingPage() {
 
   return (
     <div className="space-y-6">
+      {isVehicleTypePromptOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl dark:bg-slate-900">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-white">Add Vehicle</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Is this a market vehicle or a company vehicle?
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <Button type="button" onClick={() => openVehicleMaster("market")}>
+                Market Vehicle
+              </Button>
+              <Button type="button" variant="outline" onClick={() => openVehicleMaster("company")}>
+                Company Vehicle
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-3 w-full"
+              onClick={() => setIsVehicleTypePromptOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
       <PageHeader
         title="Lorry Receipts (GR / LR)"
         description="Track freight movements, dispatch states, arrivals, and POD verification."
