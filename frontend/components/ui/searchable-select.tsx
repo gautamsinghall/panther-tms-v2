@@ -305,43 +305,10 @@ export function SearchableSelect({
                     </button>
                   );
                 })}
-
-                {onAddNew && !hideAddNewOption && (
-                  <div className="pt-1.5 mt-1 border-t border-slate-100 dark:border-[#22232E]">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsOpen(false);
-                        onAddNew();
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>{addNewLabel || "Create New Record"}</span>
-                    </button>
-                  </div>
-                )}
               </>
             ) : (
-              <div className="px-3 py-3 text-center space-y-2">
+              <div className="px-3 py-3 text-center">
                 <p className="text-xs text-slate-500 font-medium">No matching options found</p>
-                {onAddNew && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsOpen(false);
-                      onAddNew();
-                    }}
-                    className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-dashed border-indigo-200 dark:border-indigo-800"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{addNewLabel || "Create New Record"}</span>
-                  </button>
-                )}
               </div>
             )}
           </div>
