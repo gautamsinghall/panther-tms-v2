@@ -107,6 +107,33 @@ export function PantherAIPanel() {
   const [isListening, setIsListening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const committedSpeechRef = useRef<Set<string>>(new Set());
+
+  const stopSpeechRecognition = useCallback(() => {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    committedSpeechRef.current.clear();
+    setIsListening(false);
+
+    if (!recognition) return;
+
+    recognition.onstart = null;
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+    try {
+      recognition.abort();
+    } catch {
+      // Recognition may already have ended.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      stopSpeechRecognition();
+    }
+    return stopSpeechRecognition;
+  }, [isOpen, stopSpeechRecognition]);
 
   // Restore saved panel size preference
   useEffect(() => {
@@ -414,8 +441,7 @@ export function PantherAIPanel() {
     }
 
     if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
+      stopSpeechRecognition();
       return;
     }
 
@@ -423,16 +449,28 @@ export function PantherAIPanel() {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
       recognition.lang = "en-IN";
+      committedSpeechRef.current.clear();
       recognition.onstart = () => {
         setIsListening(true);
         setError(null);
       };
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((r: any) => r[0].transcript)
-          .join("");
-        if (transcript) {
+        const finalTranscripts = Array.from(event.results)
+          .slice(event.resultIndex)
+          .filter((result: any) => result.isFinal)
+          .map((result: any) => String(result[0]?.transcript || "").trim())
+          .filter(Boolean)
+          .filter((transcript) => {
+            const normalized = transcript.toLocaleLowerCase().replace(/\s+/g, " ");
+            if (committedSpeechRef.current.has(normalized)) return false;
+            committedSpeechRef.current.add(normalized);
+            return true;
+          });
+
+        if (finalTranscripts.length > 0) {
+          const transcript = finalTranscripts.join(" ");
           setInput((prev) => {
             const trimmed = prev.trim();
             return trimmed ? `${trimmed} ${transcript}` : transcript;

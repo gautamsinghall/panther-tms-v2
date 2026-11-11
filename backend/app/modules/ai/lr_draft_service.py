@@ -360,6 +360,7 @@ def is_cancel_intent(text: str) -> bool:
         "cancel draft", "clear draft", "discard draft", "draft cancel", "cancel lr draft",
         "cancel lr", "cancel booking", "cancel", "clear", "discard", "abort draft", "abort",
         "reset draft", "radd karo", "hatao draft", "stop draft", "stop booking", "cancel it",
+        "रद्द करें", "रद्द करो", "रद्द", "ड्राफ्ट रद्द", "ड्राफ्ट हटाओ", "साफ़ करें", "साफ करो",
     ]
     return any(t == lower or f" {t} " in f" {lower} " for t in cancel_triggers)
 
@@ -1064,16 +1065,18 @@ async def resolve_or_create_location(
     query = select(Location).where(Location.is_active == True)
     if office_id:
         query = query.where(or_(Location.issuing_office_id == office_id, Location.issuing_office_id.is_(None)))
-    query = query.where(or_(Location.city_name.ilike(f"%{clean_city}%"), Location.location_code.ilike(f"%{clean_city}%"))).limit(5)
+    query = query.where(
+        or_(
+            Location.city_name.ilike(clean_city),
+            Location.location_code.ilike(clean_city),
+        )
+    ).limit(5)
     result = await db.execute(query)
     matches = list(result.scalars().all())
 
     for m in matches:
         if (m.city_name or "").lower().strip() == clean_city.lower():
             return m
-
-    if matches:
-        return matches[0]
 
     code = clean_city[:4].upper()
     new_loc = Location(
@@ -1302,15 +1305,15 @@ async def handle_conversational_lr_booking(
         if c_obj:
             draft.update_field("consigner_id", c_obj.id, label=c_obj.name)
             draft.preview_labels["consigner_name"] = c_obj.name
-            draft.data["consigner_name"] = c_obj.name
+            draft.update_field("consigner_name", c_obj.name)
         elif c_ambig:
             opts = ", ".join(m.name for m in c_ambig)
             feedback_notes.append(f"Multiple consigners match '{cand_c}': {opts}. Please clarify which party you intend.")
         else:
-            clean_c = clean_party_name(cand_c).title()
+            clean_c = clean_party_name(cand_c)
             draft.preview_labels["consigner_name"] = clean_c
-            draft.data["consigner_name"] = clean_c
-            draft.data["consigner_id"] = None
+            draft.update_field("consigner_name", clean_c)
+            draft.update_field("consigner_id", None)
 
     # 7. Process Consignee
     if "consignee_candidate" in entities:
@@ -1319,28 +1322,28 @@ async def handle_conversational_lr_booking(
         if ce_obj:
             draft.update_field("consignee_id", ce_obj.id, label=ce_obj.name)
             draft.preview_labels["consignee_name"] = ce_obj.name
-            draft.data["consignee_name"] = ce_obj.name
+            draft.update_field("consignee_name", ce_obj.name)
         elif ce_ambig:
             opts = ", ".join(m.name for m in ce_ambig)
             feedback_notes.append(f"Multiple consignees match '{cand_ce}': {opts}. Please clarify which party you intend.")
         else:
-            clean_ce = clean_party_name(cand_ce).title()
+            clean_ce = clean_party_name(cand_ce)
             draft.preview_labels["consignee_name"] = clean_ce
-            draft.data["consignee_name"] = clean_ce
-            draft.data["consignee_id"] = None
+            draft.update_field("consignee_name", clean_ce)
+            draft.update_field("consignee_id", None)
 
     # 8. Process Locations
     if "origin_candidate" in entities:
         cand_o = entities["origin_candidate"]
         loc_o = await resolve_or_create_location(db, cand_o, office_id=eff_office_id)
         draft.update_field("origin_location_id", loc_o.id)
-        draft.preview_labels["origin_name"] = loc_o.city_name
+        draft.preview_labels["origin_name"] = strip_field_label(cand_o, "origin").strip()
 
     if "destination_candidate" in entities:
         cand_d = entities["destination_candidate"]
         loc_d = await resolve_or_create_location(db, cand_d, office_id=eff_office_id)
         draft.update_field("destination_location_id", loc_d.id)
-        draft.preview_labels["destination_name"] = loc_d.city_name
+        draft.preview_labels["destination_name"] = strip_field_label(cand_d, "destination").strip()
 
     # 9. Process Financials, Packages, Cargo
     if "freight_amount" in entities:

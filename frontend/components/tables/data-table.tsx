@@ -282,6 +282,7 @@ export function DataTable<T extends Record<string, any>>({
   const [canScrollHorizontally, setCanScrollHorizontally] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [maxScrollLeft, setMaxScrollLeft] = useState(0);
+  const [tableViewportWidth, setTableViewportWidth] = useState(0);
 
   const checkScrollable = useCallback(() => {
     const el = tableContainerRef.current;
@@ -290,10 +291,10 @@ export function DataTable<T extends Record<string, any>>({
     setCanScrollHorizontally(hasOverflow);
     setMaxScrollLeft(Math.max(0, el.scrollWidth - el.clientWidth));
     setScrollPosition(el.scrollLeft);
+    setTableViewportWidth(el.clientWidth);
   }, []);
 
   useEffect(() => {
-    if (!enableColumnSlider) return;
     checkScrollable();
     const el = tableContainerRef.current;
     if (!el) return;
@@ -737,11 +738,16 @@ export function DataTable<T extends Record<string, any>>({
                     colSpan={activeColumns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
                     className="py-14 text-center"
                   >
-                    <DataState
-                      kind="error"
-                      description={errorMessage || "The records could not be loaded. Check your connection and try again."}
-                      action={onRetry ? { label: "Retry", onClick: onRetry } : undefined}
-                    />
+                    <div
+                      className="sticky left-0 flex justify-center"
+                      style={{ width: tableViewportWidth ? `${tableViewportWidth}px` : "100%" }}
+                    >
+                      <DataState
+                        kind="error"
+                        description={errorMessage || "The records could not be loaded. Check your connection and try again."}
+                        action={onRetry ? { label: "Retry", onClick: onRetry } : undefined}
+                      />
+                    </div>
                   </td>
                 </tr>
               )}
@@ -753,24 +759,29 @@ export function DataTable<T extends Record<string, any>>({
                     colSpan={activeColumns.length + (selectable ? 1 : 0) + (actions.length > 0 ? 1 : 0)}
                     className="py-16 text-center"
                   >
-                    {emptyState && !searchTerm.trim() ? (
-                      emptyState
-                    ) : (
-                    <DataState
-                      kind={searchTerm.trim() ? "no-results" : emptyKind}
-                      title={searchTerm.trim() ? "No search results" : emptyMessage}
-                      description={
-                        searchTerm.trim()
-                          ? `No records match “${searchTerm.trim()}”. Clear the search or try another term.`
-                          : emptySubtext || "Records will appear here after they are created."
-                      }
-                      action={
-                        searchTerm.trim()
-                          ? { label: "Clear search", onClick: () => setSearchTerm("") }
-                          : emptyAction
-                      }
-                    />
-                    )}
+                    <div
+                      className="sticky left-0 flex justify-center"
+                      style={{ width: tableViewportWidth ? `${tableViewportWidth}px` : "100%" }}
+                    >
+                      {emptyState && !searchTerm.trim() ? (
+                        emptyState
+                      ) : (
+                        <DataState
+                          kind={searchTerm.trim() ? "no-results" : emptyKind}
+                          title={searchTerm.trim() ? "No search results" : emptyMessage}
+                          description={
+                            searchTerm.trim()
+                              ? `No records match “${searchTerm.trim()}”. Clear the search or try another term.`
+                              : emptySubtext || "Records will appear here after they are created."
+                          }
+                          action={
+                            searchTerm.trim()
+                              ? { label: "Clear search", onClick: () => setSearchTerm("") }
+                              : emptyAction
+                          }
+                        />
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}

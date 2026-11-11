@@ -107,9 +107,9 @@ def detect_delete_record_request(text: str) -> Optional[str]:
     or None if not a delete request.
     """
     raw = (text or "").strip().lower()
-    is_delete_verb = bool(re.search(r"\b(delete|remove|erase|destroy|drop)\b", raw))
+    is_delete_verb = bool(re.search(r"\b(delete|remove|erase|destroy|drop|डिलीट|हटाएं|हटाओ|मिटाएं|मिटाओ)\b", raw))
     if not is_delete_verb:
-        if not re.search(r"\b(delete|hatao|mitao)\b", raw):
+        if not re.search(r"\b(delete|hatao|mitao|हटाएं|हटाओ|मिटाएं|मिटाओ)\b", raw):
             return None
 
     # Draft cancellations are not database record deletes (e.g., 'cancel draft')
@@ -117,13 +117,13 @@ def detect_delete_record_request(text: str) -> Optional[str]:
         return None
 
     # Determine item name
-    if re.search(r"\b(vehicle|gadi|truck|lorry|gaadi)\b", raw):
+    if re.search(r"\b(vehicle|gadi|truck|lorry|gaadi|वाहन|गाड़ी|गाड़ी|ट्रक)\b", raw):
         return "vehicle"
-    elif re.search(r"\b(driver|chalak)\b", raw):
+    elif re.search(r"\b(driver|chalak|ड्राइवर|चालक)\b", raw):
         return "driver"
     elif re.search(r"\b(bill|invoice)\b", raw):
         return "bill"
-    elif re.search(r"\b(challan|hire\s*challan)\b", raw):
+    elif re.search(r"\b(challan|hire\s*challan|चालान)\b", raw):
         return "challan"
     elif re.search(r"\b(job)\b", raw):
         return "job"
@@ -131,11 +131,11 @@ def detect_delete_record_request(text: str) -> Optional[str]:
         return "client"
     elif re.search(r"\b(vendor)\b", raw):
         return "vendor"
-    elif re.search(r"\b(lr|gr|bilty|consignment)\b", raw):
+    elif re.search(r"\b(lr|gr|bilty|consignment|एलआर|जीआर|बिल्टी|कंसाइनमेंट)\b", raw):
         return "LR"
-    elif re.search(r"\b(everything|all|data|records)\b", raw):
+    elif re.search(r"\b(everything|all|data|records|सब|सारा|डेटा|रिकॉर्ड)\b", raw):
         return "record"
-    elif re.search(r"^[!\s]*(delete|remove|erase)\b", raw):
+    elif re.search(r"^[!\s]*(delete|remove|erase|डिलीट|हटाएं|हटाओ|मिटाएं|मिटाओ)\b", raw):
         return "record"
 
     return "record"
