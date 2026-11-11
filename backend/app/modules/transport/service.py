@@ -813,8 +813,23 @@ async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
         lr.balance_amount = total - advance
 
     await db.commit()
-    await db.refresh(lr)
-    return lr
+    stmt = (
+        select(LR)
+        .options(
+            selectinload(LR.job).selectinload(Job.lrs),
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+            selectinload(LR.issuing_office),
+            selectinload(LR.billing_customer),
+            selectinload(LR.load_type_rel),
+            selectinload(LR.packing_method),
+        )
+        .where(LR.id == lr.id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one()
 
 async def transition_lr_status(db: AsyncSession, lr_id: int, target_status: LRStatus, remarks: Optional[str] = None) -> LR:
     lr = await db.get(LR, lr_id)

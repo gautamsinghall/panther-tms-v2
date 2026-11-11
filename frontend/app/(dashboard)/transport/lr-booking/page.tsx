@@ -908,8 +908,9 @@ export default function LRBookingPage() {
         remarks: values.remarks ? String(values.remarks).trim() : null,
       };
 
+      const wasEditing = Boolean(editingLrId);
       let savedRecord: LRRecord;
-      if (editingLrId) {
+      if (wasEditing) {
         // Edit existing LR record (PUT) - does NOT create duplicate records
         savedRecord = await apiClient<LRRecord>(`/api/v1/transport/lrs/${editingLrId}`, {
           method: "PUT",
@@ -943,7 +944,7 @@ export default function LRBookingPage() {
         window.dispatchEvent(new Event("panther_jobs_updated"));
       }
 
-      // Show the saved record in the view modal
+      toast.success(wasEditing ? "Lorry Receipt updated successfully. Opening print preview." : "Lorry Receipt created successfully.");
       if (savedRecord) {
         setSelectedLrForView(savedRecord);
         setIsViewModalOpen(true);
