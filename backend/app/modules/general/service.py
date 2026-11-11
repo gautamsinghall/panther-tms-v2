@@ -238,6 +238,23 @@ async def list_locations_page(
         ))
     count_result = await db.execute(select(func.count()).select_from(Location).where(*filters))
     total = count_result.scalar_one()
+    if page == 1 and not search:
+        delhi = await db.execute(
+            select(Location)
+            .where(*filters, Location.state.in_(["Delhi", "DELHI"]))
+            .order_by(Location.city_name, Location.pincode, Location.id)
+            .limit(page_size)
+        )
+        items = list(delhi.scalars().all())
+        if len(items) < page_size:
+            rest = await db.execute(
+                select(Location)
+                .where(*filters, Location.state.notin_(["Delhi", "DELHI"]))
+                .order_by(Location.id.desc())
+                .limit(page_size - len(items))
+            )
+            items.extend(rest.scalars().all())
+        return items, total
     result = await db.execute(
         select(Location)
         .where(*filters)

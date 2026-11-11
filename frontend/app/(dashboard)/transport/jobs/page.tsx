@@ -55,6 +55,7 @@ interface SelectOption {
   code?: string;
   city_name?: string;
   state?: string;
+  pincode?: string;
 }
 
 import { getActiveOffice } from "@/lib/auth";
@@ -75,7 +76,7 @@ export default function JobsPage() {
       `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
     );
     return results.filter((location) => location.city_name).map((location) => ({
-      label: `${location.city_name}${location.state ? `, ${location.state}` : ""}`,
+      label: [location.city_name, location.state, location.pincode].filter(Boolean).join(", "),
       value: String(location.id),
       keywords: [location.pincode || ""],
     }));
@@ -392,7 +393,7 @@ export default function JobsPage() {
   const locationOptions = locations
     .filter((l: any) => l.is_active !== false || String(l.id) === String(editingJob?.origin_location_id) || String(l.id) === String(editingJob?.destination_location_id))
     .map((l) => ({
-      label: l.city_name ? `${l.city_name}${l.state ? `, ${l.state}` : ""}` : `Location #${l.id}`,
+      label: l.city_name ? [l.city_name, l.state, l.pincode].filter(Boolean).join(", ") : `Location #${l.id}`,
       value: String(l.id),
     }));
 

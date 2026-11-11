@@ -95,6 +95,7 @@ interface LocationOption {
   id: number;
   city_name: string;
   state?: string;
+  pincode?: string;
   is_active?: boolean;
 }
 
@@ -1739,9 +1740,7 @@ export default function HireChallansPage() {
                 />
                 <datalist id="from-locations-list">
                   {[...locations, ...fromLocationMatches].filter((loc, index, all) => all.findIndex((item) => item.id === loc.id) === index).filter((loc) => loc.is_active !== false || loc.city_name === fromLocation).map((loc) => (
-                    <option key={loc.id} value={loc.city_name}>
-                      {loc.city_name} {loc.state ? `(${loc.state})` : ""}
-                    </option>
+                    <option key={loc.id} value={loc.city_name} label={[loc.city_name, loc.state, loc.pincode].filter(Boolean).join(", ")} />
                   ))}
                 </datalist>
               </div>
@@ -1762,9 +1761,7 @@ export default function HireChallansPage() {
                 />
                 <datalist id="to-locations-list">
                   {[...locations, ...toLocationMatches].filter((loc, index, all) => all.findIndex((item) => item.id === loc.id) === index).filter((loc) => loc.is_active !== false || loc.city_name === toLocation).map((loc) => (
-                    <option key={loc.id} value={loc.city_name}>
-                      {loc.city_name} {loc.state ? `(${loc.state})` : ""}
-                    </option>
+                    <option key={loc.id} value={loc.city_name} label={[loc.city_name, loc.state, loc.pincode].filter(Boolean).join(", ")} />
                   ))}
                 </datalist>
               </div>

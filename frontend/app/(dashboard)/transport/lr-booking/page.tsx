@@ -182,7 +182,7 @@ export default function LRBookingPage() {
       `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
     );
     return results.filter((location) => location.city_name).map((location) => ({
-      label: location.city_name,
+      label: [location.city_name, location.state, location.pincode].filter(Boolean).join(", "),
       value: String(location.id),
       subLabel: location.state,
       keywords: [location.pincode || ""],
@@ -194,8 +194,8 @@ export default function LRBookingPage() {
       `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
     );
     return Array.from(new Map(results.filter((location) => location.city_name).map((location) => [
-      location.city_name,
-      { label: location.city_name, value: location.city_name, subLabel: location.state, keywords: [location.pincode || ""] },
+      `${location.city_name}|${location.state}|${location.pincode}`,
+      { label: [location.city_name, location.state, location.pincode].filter(Boolean).join(", "), value: location.city_name },
     ])).values());
   }, []);
   const [activeOffice, setActiveOfficeState] = useState<OfficeSummary | null>(null);
@@ -558,7 +558,7 @@ export default function LRBookingPage() {
     ...locations
       .filter((l: any) => l.is_active !== false || String(l.id) === String(editingLrRecord?.origin_location_id) || String(l.id) === String(editingLrRecord?.destination_location_id))
       .map((l: any) => ({
-        label: l.city_name || `Location #${l.id}`,
+        label: [l.city_name, l.state, l.pincode].filter(Boolean).join(", ") || `Location #${l.id}`,
         value: String(l.id),
       })),
   ], [locations, editingLrRecord]);
@@ -568,7 +568,7 @@ export default function LRBookingPage() {
     ...locations
       .filter((location) => location.is_active !== false)
       .map((location) => ({
-        label: location.city_name || `Location #${location.id}`,
+        label: [location.city_name, location.state, location.pincode].filter(Boolean).join(", ") || `Location #${location.id}`,
         value: location.city_name || "",
       })),
   ], [locations]);

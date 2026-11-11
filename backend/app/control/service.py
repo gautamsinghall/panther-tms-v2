@@ -4,7 +4,7 @@ import secrets
 import string
 from pathlib import Path
 from typing import List, Optional
-from sqlalchemy import insert, select, text, or_, tuple_
+from sqlalchemy import func, insert, select, text, or_, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.core.config import settings
 from app.core.errors import AppException
@@ -53,19 +53,26 @@ async def seed_default_locations(session: AsyncSession) -> None:
 
 
 async def _insert_missing_default_locations(session: AsyncSession, batch: list[dict]) -> None:
-    keys = [(row["city_name"], row["state"], row["pincode"]) for row in batch]
+    keys = [(row["city_name"].lower(), row["state"].lower(), row["pincode"]) for row in batch]
     result = await session.execute(
-        select(Location.city_name, Location.state, Location.pincode).where(
-            tuple_(Location.city_name, Location.state, Location.pincode).in_(keys)
+        select(Location).where(
+            tuple_(func.lower(Location.city_name), func.lower(Location.state), Location.pincode).in_(keys)
         )
     )
-    existing = set(result.all())
+    existing = {}
+    for location in result.scalars():
+        key = (location.city_name.lower(), location.state.lower(), location.pincode)
+        existing.setdefault(key, []).append(location)
     missing = []
+    seen = set(existing)
     for row in batch:
-        key = (row["city_name"], row["state"], row["pincode"])
-        if key not in existing:
+        key = (row["city_name"].lower(), row["state"].lower(), row["pincode"])
+        if key in existing:
+            for location in existing[key]:
+                location.state = row["state"]
+        elif key not in seen:
             missing.append(row)
-            existing.add(key)
+            seen.add(key)
     if missing:
         await session.execute(insert(Location), missing)
 
