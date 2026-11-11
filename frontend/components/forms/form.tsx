@@ -29,6 +29,7 @@ interface FormProps {
   className?: string;
   setFieldValueRef?: React.MutableRefObject<((name: string, value: any) => void) | null>;
   onChange?: (values: Record<string, any>) => void;
+  onValidationError?: (errors: Array<{ name: string; label: string; message: string; id: string }>) => void;
 }
 
 /**
@@ -52,6 +53,7 @@ export function Form({
   className,
   setFieldValueRef,
   onChange,
+  onValidationError,
 }: FormProps) {
   const loading = isLoading || isSubmitting;
   // Seed initial values with field defaultValues where initialValues does not provide them
@@ -163,6 +165,9 @@ export function Form({
 
     setErrors(newErrors);
     setErrorList(newErrorList);
+    if (newErrorList.length > 0) {
+      onValidationError?.(newErrorList);
+    }
 
     if (newErrorList.length > 0) {
       // Auto-scroll and focus the first invalid field

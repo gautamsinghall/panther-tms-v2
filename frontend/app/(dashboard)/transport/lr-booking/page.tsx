@@ -950,7 +950,9 @@ export default function LRBookingPage() {
         setIsViewModalOpen(true);
       }
     } catch (err: any) {
-      setDrawerError(err.message || "Failed to save Lorry Receipt. Please review the form and correct the required fields.");
+      const message = err.message || "Failed to save Lorry Receipt. Please review the form and correct the required fields.";
+      setDrawerError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -2106,6 +2108,9 @@ export default function LRBookingPage() {
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
           onSubmit={handleSubmit}
+          onValidationError={(errors) => {
+            toast.error(`Please complete: ${errors[0]?.label || "the highlighted required fields"}.`);
+          }}
           onCancel={handleCloseDrawer}
           submitLabel={editingLrRecord ? "Save Changes" : "Create Lorry Receipt"}
           isLoading={isSubmitting}
