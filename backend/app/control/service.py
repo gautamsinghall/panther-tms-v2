@@ -4,7 +4,7 @@ import secrets
 import string
 from pathlib import Path
 from typing import List, Optional
-from sqlalchemy import func, insert, select, text, or_, tuple_
+from sqlalchemy import and_, func, insert, select, text, or_, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.core.config import settings
 from app.core.errors import AppException
@@ -27,8 +27,15 @@ logger = logging.getLogger("panther.control.service")
 
 DEFAULT_LOCATIONS_FILE = Path(__file__).resolve().parents[1] / "data" / "default_locations.csv"
 
-async def seed_default_locations(session: AsyncSession) -> None:
-    await session.execute(text("SELECT pg_advisory_xact_lock(91827365)"))
+async def seed_default_locations(session: AsyncSession, *, acquire_lock: bool = True) -> None:
+    if acquire_lock:
+        await session.execute(text("SELECT pg_advisory_xact_lock(91827365)"))
+    if await _default_locations_seeded(session):
+        await session.execute(text("DROP TABLE IF EXISTS postal_locations"))
+        await session.commit()
+        return
+    existing = await session.execute(select(Location.id).limit(1))
+    merge_existing = existing.scalar_one_or_none() is not None
     batch = []
     with DEFAULT_LOCATIONS_FILE.open(newline="", encoding="utf-8") as locations_file:
         for row in csv.DictReader(locations_file):
@@ -43,30 +50,46 @@ async def seed_default_locations(session: AsyncSession) -> None:
             }
             batch.append(location)
             if len(batch) == 1000:
-                await _insert_missing_default_locations(session, batch)
+                if merge_existing:
+                    await _insert_missing_default_locations(session, batch)
+                else:
+                    await session.execute(insert(Location), batch)
                 batch.clear()
         if batch:
-            await _insert_missing_default_locations(session, batch)
+            if merge_existing:
+                await _insert_missing_default_locations(session, batch)
+            else:
+                await session.execute(insert(Location), batch)
     await session.execute(text("DROP TABLE IF EXISTS postal_locations"))
     await session.commit()
     logger.info("Seeded default locations into tenant general_locations")
 
 
+async def _default_locations_seeded(session: AsyncSession) -> bool:
+    result = await session.execute(
+        select(Location.city_name).where(or_(
+            and_(Location.city_name == "Kothimir", Location.state.in_(("Telangana", "TELANGANA")), Location.pincode == "504273"),
+            and_(Location.city_name == "NDC Barkatpura", Location.state == "NA", Location.pincode == "500927"),
+        ))
+    )
+    return set(result.scalars().all()) == {"Kothimir", "NDC Barkatpura"}
+
+
 async def _insert_missing_default_locations(session: AsyncSession, batch: list[dict]) -> None:
-    keys = [(row["city_name"].lower(), row["state"].lower(), row["pincode"]) for row in batch]
+    keys = [(row["city_name"], row["state"].lower(), row["pincode"]) for row in batch]
     result = await session.execute(
         select(Location).where(
-            tuple_(func.lower(Location.city_name), func.lower(Location.state), Location.pincode).in_(keys)
+            tuple_(Location.city_name, func.lower(Location.state), Location.pincode).in_(keys)
         )
     )
     existing = {}
     for location in result.scalars():
-        key = (location.city_name.lower(), location.state.lower(), location.pincode)
+        key = (location.city_name, location.state.lower(), location.pincode)
         existing.setdefault(key, []).append(location)
     missing = []
     seen = set(existing)
     for row in batch:
-        key = (row["city_name"].lower(), row["state"].lower(), row["pincode"])
+        key = (row["city_name"], row["state"].lower(), row["pincode"])
         if key in existing:
             for location in existing[key]:
                 location.state = row["state"]
@@ -75,6 +98,18 @@ async def _insert_missing_default_locations(session: AsyncSession, batch: list[d
             seen.add(key)
     if missing:
         await session.execute(insert(Location), missing)
+
+
+async def normalize_tenant_locations(session: AsyncSession) -> None:
+    lock = await session.execute(text("SELECT pg_try_advisory_xact_lock(91827365)"))
+    if not lock.scalar():
+        return
+    if not await _default_locations_seeded(session):
+        await seed_default_locations(session, acquire_lock=False)
+        return
+    await session.execute(text("UPDATE general_locations SET state = initcap(state) WHERE state <> 'NA' AND state = upper(state)"))
+    await session.execute(text("DROP TABLE IF EXISTS postal_locations"))
+    await session.commit()
 
 DEFAULT_PLANS = [
     {

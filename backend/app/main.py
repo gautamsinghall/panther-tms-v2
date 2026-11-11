@@ -30,11 +30,11 @@ from app.modules.ai.router import router as ai_router
 
 logger = logging.getLogger(__name__)
 
-async def seed_tenant_default_locations_background() -> None:
+async def normalize_tenant_locations_background() -> None:
     try:
         from sqlalchemy import select
         from app.control.models import Tenant
-        from app.control.service import seed_default_locations
+        from app.control.service import normalize_tenant_locations
         from app.core.database import get_tenant_session_maker
         async with ControlSessionLocal() as session:
             result = await session.execute(select(Tenant.db_name).where(Tenant.db_name.isnot(None)))
@@ -42,15 +42,15 @@ async def seed_tenant_default_locations_background() -> None:
         for db_name in db_names:
             try:
                 async with get_tenant_session_maker(db_name)() as session:
-                    await seed_default_locations(session)
+                    await normalize_tenant_locations(session)
             except Exception:
-                logger.exception("Tenant default location seeding failed for %s", db_name)
+                logger.exception("Tenant location normalization failed for %s", db_name)
     except Exception as exc:
-        logger.exception("Tenant default location backfill failed: %s", exc)
+        logger.exception("Tenant location normalization task failed: %s", exc)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    location_seed_task = None
+    location_normalize_task = None
     # Startup: Ensure control-plane tables exist and plans are seeded
     try:
         async with control_engine.begin() as conn:
@@ -642,13 +642,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Startup initialization notice: {e}")
 
-    location_seed_task = asyncio.create_task(seed_tenant_default_locations_background())
+    location_normalize_task = asyncio.create_task(normalize_tenant_locations_background())
     yield
 
     # Shutdown: Close all database engines cleanly
-    if location_seed_task and not location_seed_task.done():
-        location_seed_task.cancel()
-        await asyncio.gather(location_seed_task, return_exceptions=True)
+    if location_normalize_task and not location_normalize_task.done():
+        location_normalize_task.cancel()
+        await asyncio.gather(location_normalize_task, return_exceptions=True)
     try:
         await close_all_connections()
     except Exception:
