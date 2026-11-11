@@ -750,18 +750,20 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
               )}
             </div>
 
-            {lr.show_amounts_in_print && <div className="mt-2 pt-1 border-t border-slate-200">
-              <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-700">
-                PAYMENT TYPE{" "}
-              </span>
-              <span className="font-bold text-xs uppercase text-slate-900 ml-1">
-                {lr.payment_type || "To Be Billed"}
-              </span>
-            </div>}
+            {lr.show_amounts_in_print && (
+              <div className="mt-2 pt-1 border-t border-slate-200">
+                <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-700">
+                  PAYMENT TYPE{" "}
+                </span>
+                <span className="font-bold text-xs uppercase text-slate-900 ml-1">
+                  {lr.payment_type || "To Be Billed"}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Right: Freight Summary */}
-          {lr.show_amounts_in_print ? <div className="w-[42%] divide-y divide-slate-200 text-[11px]">
+          <div className={`w-[42%] divide-y divide-slate-200 text-[11px] ${lr.show_amounts_in_print ? "" : "hidden"}`}>
             <div className="flex justify-between py-1 px-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
                 BASIC FREIGHT
@@ -818,14 +820,14 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
                 {formatCurrency(lr.balance_amount)}
               </span>
             </div>
-          </div> : <div className="w-[42%] flex flex-col items-center justify-center py-4 px-3 text-center">
+          </div>
+          <div className={`w-[42%] flex flex-col items-center justify-center py-4 px-3 text-center ${lr.show_amounts_in_print ? "hidden" : ""}`}>
               <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-700">
                 PAYMENT TYPE
               </span>
               <span className="font-bold text-sm uppercase text-slate-900 mt-1">
                 {lr.payment_type || "To Be Billed"}
               </span>
-            </div>}
           </div>
         </div>
 
