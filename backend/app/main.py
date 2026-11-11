@@ -30,13 +30,23 @@ from app.modules.ai.router import router as ai_router
 
 logger = logging.getLogger(__name__)
 
-async def seed_postal_directory_background() -> None:
+async def seed_tenant_postal_directories_background() -> None:
     try:
+        from sqlalchemy import select
+        from app.control.models import Tenant
         from app.control.service import seed_postal_locations
+        from app.core.database import get_tenant_session_maker
         async with ControlSessionLocal() as session:
-            await seed_postal_locations(session)
+            result = await session.execute(select(Tenant.db_name).where(Tenant.db_name.isnot(None)))
+            db_names = result.scalars().all()
+        for db_name in db_names:
+            try:
+                async with get_tenant_session_maker(db_name)() as session:
+                    await seed_postal_locations(session)
+            except Exception:
+                logger.exception("Tenant postal directory seeding failed for %s", db_name)
     except Exception as exc:
-        logger.error("Shared postal directory seeding failed: %s", exc)
+        logger.exception("Tenant postal directory backfill failed: %s", exc)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -75,6 +85,7 @@ async def lifespan(app: FastAPI):
                 # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
                 await conn.execute(text("DROP TABLE IF EXISTS fastag_wallet_transactions;"))
                 await conn.execute(text("DROP TABLE IF EXISTS sim_wallet_transactions;"))
+                await conn.execute(text("DROP TABLE IF EXISTS postal_locations;"))
                 # Backfill existing records if any
                 await conn.execute(text("UPDATE tenants SET tenant_id = 'demo123456' WHERE (tenant_id IS NULL OR tenant_id = '') AND (company_name ILIKE '%demo%');"))
                 await conn.execute(text("UPDATE tenants SET company_code = 'DEMOLOGISTICS' WHERE (company_code IS NULL OR company_code = '') AND (company_name ILIKE '%demo%');"))
@@ -631,7 +642,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Startup initialization notice: {e}")
 
-    postal_seed_task = asyncio.create_task(seed_postal_directory_background())
+    postal_seed_task = asyncio.create_task(seed_tenant_postal_directories_background())
     yield
 
     # Shutdown: Close all database engines cleanly

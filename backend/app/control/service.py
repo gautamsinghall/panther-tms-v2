@@ -12,7 +12,7 @@ from app.core.security import get_password_hash
 from app.core.tenancy import generate_tenant_id, sanitize_company_code
 import json
 from datetime import datetime, timezone, timedelta
-from app.control.models import ControlBase, Plan, Entitlement, Tenant, WebhookEvent, PostalLocation
+from app.control.models import ControlBase, Plan, Entitlement, Tenant, WebhookEvent
 from app.control.schemas import (
     TenantProvisionRequest, SignupInitiateRequest, SignupInitiateResponse,
     SignupCompleteRequest, CreateSubscriptionRequest, CreateSubscriptionResponse,
@@ -20,7 +20,7 @@ from app.control.schemas import (
 )
 from app.integrations.razorpay.client import razorpay_client
 from app.tenant_db.base import TenantBase
-from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment
+from app.tenant_db.models import User, Role, CompanySetting, Branch, UserOfficeAssignment, PostalLocation
 from app.core.database import get_tenant_session_maker
 
 logger = logging.getLogger("panther.control.service")
@@ -47,7 +47,7 @@ async def seed_postal_locations(session: AsyncSession) -> None:
         if batch:
             await session.execute(insert(PostalLocation), batch)
     await session.commit()
-    logger.info("Seeded shared postal directory")
+    logger.info("Seeded tenant postal directory")
 
 DEFAULT_PLANS = [
     {
@@ -309,6 +309,9 @@ async def initialize_tenant_schema_and_admin(
     # 1. Create all tenant tables
     async with engine.begin() as conn:
         await conn.run_sync(TenantBase.metadata.create_all)
+
+    async with get_tenant_session_maker(db_name)() as session:
+        await seed_postal_locations(session)
 
     # 2. Seed initial Company Admin and Company Settings
     session_maker = get_tenant_session_maker(db_name)

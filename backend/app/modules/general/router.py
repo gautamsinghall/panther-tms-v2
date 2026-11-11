@@ -5,9 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tenant_db.session import get_tenant_db, get_current_tenant
 from app.auth.dependencies import require_permission, check_entitlement_limit, get_current_user, get_current_office
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch
-from app.control.models import PostalLocation
-from app.core.database import get_control_db
+from app.tenant_db.models import User, Branch, PostalLocation
 from app.modules.general import schemas, service
 from app.services.activity_logger import log_activity
 
@@ -292,13 +290,13 @@ async def list_locations(
 @router.get(
     "/locations/postal-search",
     response_model=List[schemas.PostalLocationResponse],
-    summary="Search shared postal directory",
+    summary="Search tenant postal directory",
 )
 async def search_postal_locations(
     q: str = Query(..., min_length=2),
     limit: int = Query(25, ge=1, le=50),
     current_user: User = Depends(require_permission("general", "location", "view")),
-    db: AsyncSession = Depends(get_control_db),
+    db: AsyncSession = Depends(get_tenant_db),
 ):
     term = f"%{q.strip()}%"
     result = await db.execute(

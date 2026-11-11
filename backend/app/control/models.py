@@ -82,16 +82,6 @@ class Tenant(ControlBase):
     plan = relationship("Plan", back_populates="tenants")
 
 
-class PostalLocation(ControlBase):
-    __tablename__ = "postal_locations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    city_name = Column(String(100), nullable=False, index=True)
-    state = Column(String(100), nullable=False, index=True)
-    pincode = Column(String(20), nullable=False, index=True)
-    country = Column(String(100), nullable=False, default="India")
-
-
 class WebhookEvent(ControlBase):
     """
     Stores incoming processed webhook events for idempotent deduplication.
