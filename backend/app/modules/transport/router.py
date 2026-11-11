@@ -799,6 +799,7 @@ async def update_lr(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     lr = await service.update_lr(db, id, data)
+    response = _build_lr_response(lr)
     await log_activity(
         db=db,
         user=current_user,
@@ -811,7 +812,7 @@ async def update_lr(
         details=f"Updated LR {lr.lr_number}",
         details_json=data.model_dump(exclude_unset=True),
     )
-    return _build_lr_response(lr)
+    return response
 
 @router.post("/lrs/{id}/transition", response_model=LRResponse)
 async def transition_lr_status(
@@ -1845,4 +1846,3 @@ async def geocode_gps_endpoint(
         "latitude": lat,
         "longitude": lng,
     }
-
