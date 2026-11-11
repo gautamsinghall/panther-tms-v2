@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { getWorkspaceUrl } from "@/lib/auth";
 import { ALL_NAVIGATION_MODULES } from "@/components/layout/sidebar";
 
 interface CommandItem {
@@ -414,7 +415,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   const handleSelect = (item: CommandItem) => {
     onClose();
-    router.push(item.href);
+    router.push(getWorkspaceUrl(item.href));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

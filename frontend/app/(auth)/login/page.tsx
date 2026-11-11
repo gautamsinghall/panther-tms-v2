@@ -141,7 +141,7 @@ export default function LoginPage() {
       {/* Inspired by reference: Deep midnight-navy, top cinematic truck video/hero, */}
       {/* glassmorphic card, gradient button, and bottom trust indicators.          */}
       {/* ========================================================================= */}
-      <div className="lg:hidden min-h-screen min-h-[100dvh] w-full flex flex-col justify-between bg-[#060813] text-white relative overflow-x-hidden selection:bg-indigo-500/30 selection:text-white">
+      <div className="lg:hidden h-[100dvh] min-h-[100dvh] w-full flex flex-col justify-between bg-[#060813] text-white relative overflow-x-hidden overflow-y-auto selection:bg-indigo-500/30 selection:text-white">
         {/* Top Truck Hero with Autoplaying Video & Scrim Gradients */}
         <div className="absolute top-0 inset-x-0 h-[36vh] min-h-[250px] max-h-[340px] overflow-hidden pointer-events-none select-none z-0">
           <video
@@ -398,7 +398,7 @@ export default function LoginPage() {
       {/* 100% UNCHANGED: 4K Video Backdrop, AuthNavbar, Left Product Marketing     */}
       {/* column with 4 feature cards, Glassmorphic Login card & Enterprise footer. */}
       {/* ========================================================================= */}
-      <div className="hidden lg:flex min-h-screen w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-x-hidden">
+      <div className="hidden lg:flex h-[100dvh] max-h-[100dvh] w-full flex-col justify-between bg-transparent text-white font-sans selection:bg-indigo-500/30 selection:text-white relative overflow-hidden">
         {/* Full-screen fixed video backdrop with poster frame and dark gradient scrim */}
         <VideoBackdrop />
 
@@ -406,10 +406,10 @@ export default function LoginPage() {
         <AuthNavbar mode="login" />
 
         {/* Main Split Layout: (~60% Left / ~40% Right) */}
-        <main className="flex-1 w-full max-w-[1580px] mx-auto px-4 sm:px-10 lg:px-14 py-2 xl:py-3 relative flex items-center justify-between min-h-0 gap-6 sm:gap-8 lg:gap-12">
+        <main className="flex-1 w-full max-w-[1580px] mx-auto px-4 sm:px-10 lg:px-14 py-2 xl:py-3 max-[800px]:py-0 relative flex items-center justify-between min-h-0 gap-6 sm:gap-8 lg:gap-12">
           {/* Left Product Area: Brand Hero, Feature Highlights & Security Trust */}
-          <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col justify-center py-2 relative z-10">
-            <div className="space-y-4 sm:space-y-5 max-w-[580px]">
+          <div className="w-full lg:w-[58%] xl:w-[60%] flex flex-col justify-center py-2 max-[800px]:py-0 relative z-10">
+            <div className="space-y-4 sm:space-y-5 max-[800px]:space-y-3 max-w-[580px]">
               {/* 1. Pill Badge */}
               <div className="animate-liquid-fade-1">
                 <div className="liquid-glass-pill inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-white text-xs font-semibold">
@@ -423,7 +423,7 @@ export default function LoginPage() {
 
               {/* 2. Headline */}
               <div className="animate-liquid-fade-2 space-y-1">
-                <h1 className="text-3xl sm:text-4xl xl:text-[42px] font-extrabold tracking-tight text-white leading-[1.18]">
+                <h1 className="text-3xl sm:text-4xl xl:text-[42px] max-[800px]:text-3xl font-extrabold tracking-tight text-white leading-[1.18]">
                   Enterprise transport operations,
                   <span className="text-white/90 block mt-1">
                     dependably handled.
@@ -433,7 +433,7 @@ export default function LoginPage() {
 
               {/* 3. Supporting Copy */}
               <div className="animate-liquid-fade-2">
-                <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 max-w-[530px]">
+                <div className="liquid-glass-card rounded-2xl p-4 sm:p-5 max-[800px]:p-3 max-w-[530px]">
                   <p className="text-xs sm:text-sm text-white/80 leading-relaxed font-normal">
                     Unified consignment management, Lorry Receipts (GR/LR), double-entry transport accounting, and statutory GST compliance tailored for Indian logistics businesses.
                   </p>
@@ -443,7 +443,7 @@ export default function LoginPage() {
               {/* 4. 4 Feature Highlights Row */}
               <div className="animate-liquid-fade-3 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
                 {/* Consignments */}
-                <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
+                <div className="liquid-glass-card p-3.5 max-[800px]:p-2.5 rounded-2xl text-left space-y-1.5 group cursor-default">
                   <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
                     <Truck className="w-4 h-4" />
                   </div>
@@ -454,7 +454,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Accounting */}
-                <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
+                <div className="liquid-glass-card p-3.5 max-[800px]:p-2.5 rounded-2xl text-left space-y-1.5 group cursor-default">
                   <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
                     <FileText className="w-4 h-4" />
                   </div>
@@ -465,7 +465,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Multi-Branch */}
-                <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
+                <div className="liquid-glass-card p-3.5 max-[800px]:p-2.5 rounded-2xl text-left space-y-1.5 group cursor-default">
                   <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
                     <Building2 className="w-4 h-4" />
                   </div>
@@ -476,7 +476,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Compliance */}
-                <div className="liquid-glass-card p-3.5 rounded-2xl text-left space-y-1.5 group cursor-default">
+                <div className="liquid-glass-card p-3.5 max-[800px]:p-2.5 rounded-2xl text-left space-y-1.5 group cursor-default">
                   <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white transition-colors duration-200">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
@@ -499,12 +499,12 @@ export default function LoginPage() {
 
           {/* Right Column: Desktop Liquid Glass Login Panel */}
           <div className="w-full lg:w-[42%] xl:w-[38%] flex justify-end z-20 py-0 animate-liquid-fade-panel">
-            <div className="w-full max-w-[440px] xl:max-w-[460px]">
+            <div className="w-full max-w-[440px] xl:max-w-[460px] max-[800px]:max-w-[410px]">
               <div
                 onMouseMove={handleMouseMove}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                className="liquid-glass-panel rounded-[32px] p-6 sm:p-7 xl:p-8 space-y-4 sm:space-y-4.5 relative"
+                className="liquid-glass-panel rounded-[32px] p-6 sm:p-7 xl:p-8 max-[800px]:p-4 max-[800px]:space-y-3 relative"
               >
                 {/* Dynamic neutral reflection / subtle glint */}
                 <div
@@ -516,7 +516,7 @@ export default function LoginPage() {
                   aria-hidden="true"
                 />
 
-                <div className="relative z-10 space-y-5">
+                <div className="relative z-10 space-y-5 max-[800px]:space-y-3">
                   {/* Header */}
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
@@ -561,7 +561,7 @@ export default function LoginPage() {
                   )}
 
                   {/* Desktop Form */}
-                  <form onSubmit={handleSubmit} className="space-y-4" style={{ colorScheme: "dark" }}>
+                  <form onSubmit={handleSubmit} className="space-y-4 max-[800px]:space-y-3" style={{ colorScheme: "dark" }}>
                     {/* Field 1: Company Code */}
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -585,7 +585,7 @@ export default function LoginPage() {
                           autoComplete="organization"
                           required
                           style={{ colorScheme: "dark" }}
-                          className="w-full pl-10 pr-3.5 py-2.5 text-sm font-semibold tracking-wider text-white placeholder:text-white/35 bg-transparent focus:outline-none uppercase font-mono"
+                          className="w-full pl-10 pr-3.5 py-2.5 max-[800px]:py-2 text-sm font-semibold tracking-wider text-white placeholder:text-white/35 bg-transparent focus:outline-none uppercase font-mono"
                         />
                       </div>
                       <p className="text-[11px] text-white/50 font-normal">
@@ -611,7 +611,7 @@ export default function LoginPage() {
                           autoComplete="email"
                           required
                           style={{ colorScheme: "dark" }}
-                          className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium text-white placeholder:text-white/35 bg-transparent focus:outline-none"
+                          className="w-full pl-10 pr-3.5 py-2.5 max-[800px]:py-2 text-sm font-medium text-white placeholder:text-white/35 bg-transparent focus:outline-none"
                         />
                       </div>
                     </div>
@@ -644,7 +644,7 @@ export default function LoginPage() {
                           autoComplete="current-password"
                           required
                           style={{ colorScheme: "dark" }}
-                          className="w-full pl-10 pr-11 py-2.5 text-sm font-medium text-white placeholder:text-white/35 bg-transparent focus:outline-none"
+                          className="w-full pl-10 pr-11 py-2.5 max-[800px]:py-2 text-sm font-medium text-white placeholder:text-white/35 bg-transparent focus:outline-none"
                         />
                         <button
                           type="button"
@@ -662,7 +662,7 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="liquid-glass-btn-primary w-full h-12 mt-2 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group focus:outline-none"
+                      className="liquid-glass-btn-primary w-full h-12 max-[800px]:h-10 mt-2 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group focus:outline-none"
                     >
                       {isLoading ? (
                         <>
@@ -689,7 +689,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* Demo Workspace Card */}
-                  <div className="liquid-glass-inset rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 min-h-fit overflow-visible">
+                  <div className="liquid-glass-inset rounded-2xl p-3.5 sm:p-4 max-[800px]:p-2.5 flex items-center justify-between gap-3 min-h-fit overflow-visible">
                     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
                         <Sparkles className="w-4 h-4 text-white" />
@@ -720,7 +720,7 @@ export default function LoginPage() {
         </main>
 
         {/* Desktop Enterprise Trust & Security Footer */}
-        <footer className="w-full border-t border-white/10 bg-transparent py-3 px-12 lg:px-16 flex flex-wrap items-center justify-between gap-y-2 text-xs text-white/70 z-30 shrink-0">
+        <footer className="w-full border-t border-white/10 bg-transparent py-3 px-12 lg:px-16 max-[800px]:py-1.5 max-[800px]:px-6 flex flex-wrap items-center justify-between gap-y-2 text-xs text-white/70 z-30 shrink-0">
           <div className="flex flex-wrap items-center gap-6">
             <div className="liquid-glass-pill inline-flex items-center gap-2 px-3 py-1 rounded-full">
               <span className="relative flex h-2 w-2">
