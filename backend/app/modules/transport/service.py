@@ -617,6 +617,22 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
     lr_dict["created_by_user_id"] = user_id
     lr_dict["issuing_office_id"] = target_office_id
 
+    # Canonical single Booking Date
+    canonical_date = data.dispatch_date or data.lr_date or date.today()
+    lr_dict["lr_date"] = canonical_date
+    lr_dict["dispatch_date"] = canonical_date
+
+    # Determine vehicle source from CompanyVehicle master
+    if data.vehicle_number:
+        clean_v_num = data.vehicle_number.strip().upper()
+        lr_dict["vehicle_number"] = clean_v_num
+        cv_stmt = select(CompanyVehicle.id).where(func.upper(CompanyVehicle.vehicle_number) == clean_v_num)
+        cv_res = await db.execute(cv_stmt)
+        if cv_res.scalar_one_or_none():
+            lr_dict["vehicle_source"] = "COMPANY"
+        elif not lr_dict.get("vehicle_source") or lr_dict["vehicle_source"] == "MARKET":
+            lr_dict["vehicle_source"] = "MARKET"
+
     # Handle booking status
     b_status = data.booking_status or "Booked"
     lr_dict["booking_status"] = b_status
@@ -634,20 +650,25 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
         if lt_obj:
             lr_dict["load_type"] = lt_obj.name
 
-    # Handle invoice_items if provided
+    # Handle invoice_items if provided (excluding blank invoice rows)
     items = data.invoice_items or []
     if items:
         serialized_items = []
         for it in items:
             d = it.model_dump() if hasattr(it, "model_dump") else (it if isinstance(it, dict) else dict(it))
+            inv_no = str(d.get("invoice_no") or "").strip()
+            ewb_no = str(d.get("eway_bill_number") or "").strip()
+            inv_val = float(d.get("invoice_value") or 0)
+            # Honour invoice-line exclusion rule: blank rows (no invoice no, no eway bill, <=0 value) must not be saved
+            if not inv_no and not ewb_no and inv_val <= 0:
+                continue
             if "invoice_date" in d and d["invoice_date"] is not None:
                 d["invoice_date"] = str(d["invoice_date"])
             if "eway_bill_date" in d and d["eway_bill_date"] is not None:
                 d["eway_bill_date"] = str(d["eway_bill_date"])
             if "eway_bill_expiry" in d and d["eway_bill_expiry"] is not None:
                 d["eway_bill_expiry"] = str(d["eway_bill_expiry"])
-            if "invoice_value" in d and d["invoice_value"] is not None:
-                d["invoice_value"] = float(d["invoice_value"])
+            d["invoice_value"] = inv_val
             serialized_items.append(d)
         lr_dict["invoice_items"] = serialized_items
 
@@ -759,6 +780,25 @@ async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
     for field, val in data.model_dump(exclude_unset=True).items():
         setattr(lr, field, val)
 
+    # Sync canonical booking date
+    if data.dispatch_date:
+        lr.dispatch_date = data.dispatch_date
+        lr.lr_date = data.dispatch_date
+    elif data.lr_date:
+        lr.lr_date = data.lr_date
+        lr.dispatch_date = data.lr_date
+
+    # Determine vehicle source from CompanyVehicle master
+    if data.vehicle_number:
+        clean_v_num = data.vehicle_number.strip().upper()
+        lr.vehicle_number = clean_v_num
+        cv_stmt = select(CompanyVehicle.id).where(func.upper(CompanyVehicle.vehicle_number) == clean_v_num)
+        cv_res = await db.execute(cv_stmt)
+        if cv_res.scalar_one_or_none():
+            lr.vehicle_source = "COMPANY"
+        elif data.vehicle_source:
+            lr.vehicle_source = data.vehicle_source
+
     # Sync status with booking_status if provided
     if data.booking_status:
         if data.booking_status == "Canceled":
@@ -775,19 +815,24 @@ async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
         if lt_obj:
             lr.load_type = lt_obj.name
 
-    # Handle invoice_items if updated
+    # Handle invoice_items if updated (excluding blank invoice rows)
     if data.invoice_items is not None:
         serialized_items = []
         for it in data.invoice_items:
             d = it.model_dump() if hasattr(it, "model_dump") else (it if isinstance(it, dict) else dict(it))
+            inv_no = str(d.get("invoice_no") or "").strip()
+            ewb_no = str(d.get("eway_bill_number") or "").strip()
+            inv_val = float(d.get("invoice_value") or 0)
+            # Honour invoice-line exclusion rule: exclude blank invoice rows (no invoice no, no eway bill, <=0 value)
+            if not inv_no and not ewb_no and inv_val <= 0:
+                continue
             if "invoice_date" in d and d["invoice_date"] is not None:
                 d["invoice_date"] = str(d["invoice_date"])
             if "eway_bill_date" in d and d["eway_bill_date"] is not None:
                 d["eway_bill_date"] = str(d["eway_bill_date"])
             if "eway_bill_expiry" in d and d["eway_bill_expiry"] is not None:
                 d["eway_bill_expiry"] = str(d["eway_bill_expiry"])
-            if "invoice_value" in d and d["invoice_value"] is not None:
-                d["invoice_value"] = float(d["invoice_value"])
+            d["invoice_value"] = inv_val
             serialized_items.append(d)
         lr.invoice_items = serialized_items
 

@@ -176,6 +176,9 @@ export default function LRBookingPage() {
   const [loadTypes, setLoadTypes] = useState<SelectOption[]>([]);
   const [marketVehicles, setMarketVehicles] = useState<SelectOption[]>([]);
   const [companyVehicles, setCompanyVehicles] = useState<SelectOption[]>([]);
+  const [drivers, setDrivers] = useState<SelectOption[]>([]);
+  const [selectedVehicleNumber, setSelectedVehicleNumber] = useState<string>("");
+  const currentFormValuesRef = useRef<Record<string, any>>({});
 
   const searchLocationOptions = useCallback(async (query: string) => {
     const results = await apiClient<Array<{ id: number; city_name: string; state?: string; pincode?: string }>>(
@@ -232,6 +235,23 @@ export default function LRBookingPage() {
   const [isVehicleTypePromptOpen, setIsVehicleTypePromptOpen] = useState(false);
   const { openMasterTab } = useWorkspaceTabs();
 
+  const checkOverload = useCallback((vehNum: string, actWt: string | number | undefined, chgWt: string | number | undefined) => {
+    if (!vehNum) return;
+    const allVehs = [...companyVehicles, ...marketVehicles];
+    const match = allVehs.find((v) => (v.vehicle_number || "").toUpperCase() === String(vehNum).toUpperCase());
+    const cap = parseFloat(String(match?.capacity_mt || 0));
+    if (cap > 0) {
+      const a = parseFloat(String(actWt || 0));
+      const c = parseFloat(String(chgWt || 0));
+      const maxW = Math.max(a, c);
+      if (maxW > cap) {
+        toast.warning(
+          `⚠️ Vehicle Overload Warning: Load weight (${maxW} MT) exceeds vehicle payload capacity (${cap} MT) for ${match?.vehicle_number}.`
+        );
+      }
+    }
+  }, [companyVehicles, marketVehicles]);
+
   // View & Print LR state
   const [selectedLrForView, setSelectedLrForView] = useState<LRRecord | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -286,6 +306,7 @@ export default function LRBookingPage() {
         loadTypesRes,
         marketVehiclesRes,
         companyVehiclesRes,
+        driversRes,
         seriesRes,
         manualRangesRes,
       ] = await Promise.all([
@@ -299,6 +320,7 @@ export default function LRBookingPage() {
         apiClient<SelectOption[]>("/api/v1/general/load-types").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/transport/market-vehicles").catch(() => []),
         apiClient<SelectOption[]>("/api/v1/transport/company-vehicles").catch(() => []),
+        apiClient<SelectOption[]>("/api/v1/transport/drivers").catch(() => []),
         apiClient<any>(`/api/v1/settings/series/check/LR${officeParam}`).catch(() => null),
         apiClient<any>(`/api/v1/settings/series/manual-ranges/LR${officeParam}`).catch(() => null),
       ]);
@@ -313,6 +335,7 @@ export default function LRBookingPage() {
       setLoadTypes(Array.isArray(loadTypesRes) ? loadTypesRes : []);
       setMarketVehicles(Array.isArray(marketVehiclesRes) ? marketVehiclesRes : []);
       setCompanyVehicles(Array.isArray(companyVehiclesRes) ? companyVehiclesRes : []);
+      setDrivers(Array.isArray(driversRes) ? driversRes : []);
       setSeriesInfo(seriesRes);
       setManualSeriesData(manualRangesRes);
 
@@ -401,12 +424,17 @@ export default function LRBookingPage() {
       refreshDropdownsSilently();
     };
 
+    const handleCloseDrawerEvent = () => {
+      handleCloseDrawer();
+    };
+
     window.addEventListener("panther_office_changed", handleOfficeChange);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("panther_consigner_created", refreshDropdownsSilently);
     window.addEventListener("panther_consignee_created", refreshDropdownsSilently);
     window.addEventListener("panther_billing_client_created", refreshDropdownsSilently);
     window.addEventListener("panther_load_types_changed", refreshDropdownsSilently);
+    window.addEventListener("panther_close_active_drawer", handleCloseDrawerEvent);
 
     return () => {
       window.removeEventListener("panther_office_changed", handleOfficeChange);
@@ -415,6 +443,7 @@ export default function LRBookingPage() {
       window.removeEventListener("panther_consignee_created", refreshDropdownsSilently);
       window.removeEventListener("panther_billing_client_created", refreshDropdownsSilently);
       window.removeEventListener("panther_load_types_changed", refreshDropdownsSilently);
+      window.removeEventListener("panther_close_active_drawer", handleCloseDrawerEvent);
     };
   }, [loadData, refreshDropdownsSilently]);
 
@@ -582,14 +611,18 @@ export default function LRBookingPage() {
     ...marketVehicles.map((vehicle) => ({
       label: vehicle.vehicle_number || `Vehicle #${vehicle.id}`,
       value: vehicle.vehicle_number || "",
-      subLabel: vehicle.vehicle_type || undefined,
+      subLabel: vehicle.vehicle_type
+        ? `Market • ${vehicle.vehicle_type}${vehicle.capacity_mt ? ` (${vehicle.capacity_mt} MT)` : ""}`
+        : `Market Vehicle${vehicle.capacity_mt ? ` (${vehicle.capacity_mt} MT)` : ""}`,
     })),
   ], [marketVehicles, editingLrRecord]);
 
   const companyVehicleOptions = useMemo(() => companyVehicles.map((vehicle) => ({
     label: vehicle.vehicle_number || `Vehicle #${vehicle.id}`,
     value: vehicle.vehicle_number || "",
-    subLabel: vehicle.vehicle_type ? `Company • ${vehicle.vehicle_type}` : "Company Vehicle",
+    subLabel: vehicle.vehicle_type
+      ? `Company • ${vehicle.vehicle_type}${vehicle.capacity_mt ? ` (${vehicle.capacity_mt} MT)` : ""}`
+      : `Company Vehicle${vehicle.capacity_mt ? ` (${vehicle.capacity_mt} MT)` : ""}`,
   })), [companyVehicles]);
 
   const truckOptions = useMemo(() => [
@@ -597,10 +630,23 @@ export default function LRBookingPage() {
     ...marketVehicles.map((vehicle) => ({
       label: vehicle.vehicle_number || `Vehicle #${vehicle.id}`,
       value: vehicle.vehicle_number || "",
-      subLabel: vehicle.vehicle_type ? `Market • ${vehicle.vehicle_type}` : "Market Vehicle",
+      subLabel: vehicle.vehicle_type
+        ? `Market • ${vehicle.vehicle_type}${vehicle.capacity_mt ? ` (${vehicle.capacity_mt} MT)` : ""}`
+        : `Market Vehicle${vehicle.capacity_mt ? ` (${vehicle.capacity_mt} MT)` : ""}`,
     })),
     ...companyVehicleOptions,
   ], [marketVehicles, companyVehicleOptions]);
+
+  const driverOptions = useMemo(() => [
+    { label: "Unregistered Driver (Free-Text / Unverified)", value: "" },
+    ...drivers.map((d: any) => ({
+      label: d.license_number
+        ? `${d.name} · DL: ${d.license_number} (${d.phone})`
+        : `${d.name} (${d.phone})`,
+      value: String(d.id),
+      subLabel: d.license_number ? `DL No: ${d.license_number}` : "No DL on file",
+    })),
+  ], [drivers]);
 
   const consignerOptions = useMemo(() => [
     { label: "Select Consignor (Sender)...", value: "" },
@@ -714,7 +760,7 @@ export default function LRBookingPage() {
             },
           ];
 
-    setFormInitialValues({
+    const initialVals: Record<string, any> = {
       job_id: freshData.job_id ? String(freshData.job_id) : "",
       booking_status: freshData.booking_status || "Booked",
       issuing_office_display: freshData.issuing_office_name
@@ -749,12 +795,18 @@ export default function LRBookingPage() {
       payment_type: freshData.payment_type || "To Be Billed",
       show_amounts_in_print: Boolean(freshData.show_amounts_in_print),
       eta: freshData.eta || "",
+      driver_id: (freshData as any).driver_id ? String((freshData as any).driver_id) : "",
       driver_name: freshData.driver_name || "",
       driver_phone: freshData.driver_phone || "",
+      driver_license: (freshData as any).driver_license || "",
       invoice_items: initialItems,
       particulars: freshData.particulars || "",
       remarks: freshData.remarks || "",
-    });
+    };
+
+    setSelectedVehicleNumber(freshData.vehicle_number || "");
+    currentFormValuesRef.current = initialVals;
+    setFormInitialValues(initialVals);
 
     setIsDrawerOpen(true);
   };
@@ -788,7 +840,7 @@ export default function LRBookingPage() {
     if (currentOffice) setActiveOfficeState(currentOffice);
     const officeNameStr = currentOffice ? `${currentOffice.name} (${currentOffice.code || "HO"})` : activeOfficeDisplay;
 
-    setFormInitialValues({
+    const initialVals: Record<string, any> = {
       job_id: matchedJob ? String(matchedJob.id) : "",
       booking_status: "Booked",
       issuing_office_display: officeNameStr,
@@ -828,12 +880,18 @@ export default function LRBookingPage() {
       payment_type: "To Be Billed",
       show_amounts_in_print: false,
       eta: "",
+      driver_id: "",
       driver_name: "",
       driver_phone: "",
+      driver_license: "",
       invoice_items: [initialInvoiceItem],
       particulars: matchedJob?.cargo_description || "",
       remarks: matchedJob?.special_instructions || "",
-    });
+    };
+
+    setSelectedVehicleNumber("");
+    currentFormValuesRef.current = initialVals;
+    setFormInitialValues(initialVals);
 
     setIsDrawerOpen(true);
   }, [manualSeriesData, seriesInfo, jobs, activeOfficeDisplay, activeOffice]);
@@ -898,14 +956,32 @@ export default function LRBookingPage() {
     try {
       const selectedLoadType = loadTypes.find((lt) => String(lt.id) === String(values.load_type_id));
 
+      const isCompanyVehicle = companyVehicles.some(
+        (v) => (v.vehicle_number || "").trim().toUpperCase() === String(values.vehicle_number || "").trim().toUpperCase()
+      );
+      const vehicleSource = isCompanyVehicle ? "COMPANY" : (editingLrRecord?.vehicle_source || "MARKET");
+
+      // Validate load weight against vehicle payload capacity
+      const actualWeightVal = parseFloat(String(values.actual_weight_mt || 0));
+      const chargedWeightVal = parseFloat(String(values.chargeable_weight_mt || 0));
+      const maxWeightVal = Math.max(actualWeightVal, chargedWeightVal);
+      const assignedVeh = [...companyVehicles, ...marketVehicles].find(
+        (v) => (v.vehicle_number || "").trim().toUpperCase() === String(values.vehicle_number || "").trim().toUpperCase()
+      );
+      const vehCap = parseFloat(String(assignedVeh?.capacity_mt || 0));
+      if (vehCap > 0 && maxWeightVal > vehCap) {
+        toast.warning(
+          `⚠️ Vehicle Overload Warning: Consignment weight (${maxWeightVal} MT) exceeds vehicle payload capacity (${vehCap} MT) for ${assignedVeh?.vehicle_number}.`
+        );
+      }
+
+      // Honour invoice-line exclusion rule: blank rows (no invoice no, no eway bill, <=0 value) are excluded
       const rawItems: LRInvoiceItem[] = values.invoice_items || [];
       const validItems = rawItems.filter(
         (it) =>
           (it.invoice_no && String(it.invoice_no).trim().length > 0) ||
           (it.eway_bill_number && String(it.eway_bill_number).trim().length > 0) ||
-          (it.invoice_value && parseFloat(String(it.invoice_value)) > 0) ||
-          (it.particulars && String(it.particulars).trim().length > 0) ||
-          (it.cha_job_number && String(it.cha_job_number).trim().length > 0)
+          (parseFloat(String(it.invoice_value || 0)) > 0)
       );
       const itemsToSave = validItems.map((it) => ({
         id: it.id || undefined,
@@ -950,6 +1026,7 @@ export default function LRBookingPage() {
         issuing_office_id: activeOffice?.id || (editingLrRecord ? editingLrRecord.issuing_office_id : undefined),
         lr_series_id: values.lr_series_id && values.lr_series_id !== "default" ? parseInt(values.lr_series_id, 10) : null,
         dispatch_date: values.dispatch_date || new Date().toISOString().split("T")[0],
+        lr_date: values.dispatch_date || new Date().toISOString().split("T")[0],
         appointment_date: values.appointment_date && String(values.appointment_date).trim() ? String(values.appointment_date).trim() : null,
         billing_customer_id: values.billing_customer_id ? parseInt(values.billing_customer_id, 10) : null,
         origin_location_id: values.origin_location_id ? parseInt(values.origin_location_id, 10) : null,
@@ -957,7 +1034,7 @@ export default function LRBookingPage() {
         via: values.via ? String(values.via).trim() : null,
         consigner_id: values.consigner_id ? parseInt(values.consigner_id, 10) : null,
         consignee_id: values.consignee_id ? parseInt(values.consignee_id, 10) : null,
-        vehicle_source: editingLrRecord?.vehicle_source || "MARKET",
+        vehicle_source: vehicleSource,
         vehicle_number: values.vehicle_number ? String(values.vehicle_number).trim().toUpperCase() : null,
         vehicle_type: values.vehicle_type ? String(values.vehicle_type).trim() : null,
         driver_name: values.driver_name ? String(values.driver_name).trim() : null,
@@ -1049,6 +1126,8 @@ export default function LRBookingPage() {
           onUnlink={() => {
             setSelectedJob(null);
             formSetFieldValueRef.current?.("job_id", "");
+            currentFormValuesRef.current.job_id = "";
+            setFormInitialValues((prev) => ({ ...prev, job_id: "" }));
           }}
         />
       ) : null,
@@ -1067,43 +1146,82 @@ export default function LRBookingPage() {
               const matchedJob = jobs.find((j: any) => String(j.id) === String(newJobId)) as any;
               if (matchedJob) {
                 setSelectedJob(matchedJob);
+                const updates: Record<string, any> = {
+                  job_id: String(newJobId),
+                };
                 if (matchedJob.consigner_id) {
+                  updates.consigner_id = String(matchedJob.consigner_id);
                   formSetFieldValueRef.current?.("consigner_id", String(matchedJob.consigner_id));
                   setSelectedConsignerId(String(matchedJob.consigner_id));
                 }
                 if (matchedJob.consignee_id) {
+                  updates.consignee_id = String(matchedJob.consignee_id);
                   formSetFieldValueRef.current?.("consignee_id", String(matchedJob.consignee_id));
                   setSelectedConsigneeId(String(matchedJob.consignee_id));
                 }
                 if (matchedJob.origin_location_id) {
+                  updates.origin_location_id = String(matchedJob.origin_location_id);
                   formSetFieldValueRef.current?.("origin_location_id", String(matchedJob.origin_location_id));
                 }
                 if (matchedJob.destination_location_id) {
+                  updates.destination_location_id = String(matchedJob.destination_location_id);
                   formSetFieldValueRef.current?.("destination_location_id", String(matchedJob.destination_location_id));
                 }
                 if (matchedJob.billing_client_id) {
+                  updates.billing_customer_id = String(matchedJob.billing_client_id);
                   formSetFieldValueRef.current?.("billing_customer_id", String(matchedJob.billing_client_id));
                 }
                 if (matchedJob.estimated_packages !== undefined && matchedJob.estimated_packages !== null) {
+                  updates.package_count = matchedJob.estimated_packages;
                   formSetFieldValueRef.current?.("package_count", matchedJob.estimated_packages);
                 }
                 if (matchedJob.estimated_weight_mt !== undefined && matchedJob.estimated_weight_mt !== null) {
                   const wt = String(matchedJob.estimated_weight_mt);
+                  updates.actual_weight_mt = wt;
+                  updates.chargeable_weight_mt = wt;
                   formSetFieldValueRef.current?.("actual_weight_mt", wt);
                   formSetFieldValueRef.current?.("chargeable_weight_mt", wt);
                 }
                 if (matchedJob.expected_dispatch_date) {
+                  updates.dispatch_date = matchedJob.expected_dispatch_date;
                   formSetFieldValueRef.current?.("dispatch_date", matchedJob.expected_dispatch_date);
                 }
                 if (matchedJob.cargo_description) {
+                  updates.particulars = matchedJob.cargo_description;
                   formSetFieldValueRef.current?.("particulars", matchedJob.cargo_description);
+
+                  const curItems = currentFormValuesRef.current?.invoice_items || [createEmptyInvoiceItem()];
+                  const updatedItems = curItems.map((it: any, idx: number) => {
+                    if (idx === 0 && (!it.particulars || it.particulars.trim() === "")) {
+                      return { ...it, particulars: matchedJob.cargo_description };
+                    }
+                    return it;
+                  });
+                  updates.invoice_items = updatedItems;
+                  formSetFieldValueRef.current?.("invoice_items", updatedItems);
                 }
                 if (matchedJob.special_instructions) {
+                  updates.remarks = matchedJob.special_instructions;
                   formSetFieldValueRef.current?.("remarks", matchedJob.special_instructions);
+                }
+
+                currentFormValuesRef.current = { ...currentFormValuesRef.current, ...updates };
+                setFormInitialValues((prev) => ({ ...prev, ...updates }));
+
+                const curVeh = currentFormValuesRef.current?.vehicle_number || selectedVehicleNumber;
+                if (curVeh) {
+                  checkOverload(
+                    curVeh,
+                    updates.actual_weight_mt || currentFormValuesRef.current?.actual_weight_mt,
+                    updates.chargeable_weight_mt || currentFormValuesRef.current?.chargeable_weight_mt
+                  );
                 }
               }
             } else {
               setSelectedJob(null);
+              const updates = { job_id: "" };
+              currentFormValuesRef.current = { ...currentFormValuesRef.current, ...updates };
+              setFormInitialValues((prev) => ({ ...prev, ...updates }));
             }
           },
         },
@@ -1166,11 +1284,11 @@ export default function LRBookingPage() {
         },
         {
           name: "dispatch_date",
-          label: "Dispatch Date",
+          label: "Booking Date (Dispatch Date)",
           type: "date",
           required: (values) => values.booking_status !== "Reserved",
           defaultValue: new Date().toISOString().split("T")[0],
-          helperText: "Defaults to current or scheduled dispatch date.",
+          helperText: "Single consistent booking & dispatch date across LR print, table list, and transport registers.",
         },
         {
           name: "appointment_date",
@@ -1279,22 +1397,64 @@ export default function LRBookingPage() {
           onAddNew: () => setIsVehicleTypePromptOpen(true),
           addNewLabel: "+ Add Truck",
           addNewTitle: "Choose whether to add a company truck or market truck",
+          onChange: (newVehNum) => {
+            setSelectedVehicleNumber(String(newVehNum || ""));
+            const allVehs = [...companyVehicles, ...marketVehicles];
+            const match = allVehs.find((v) => (v.vehicle_number || "").toUpperCase() === String(newVehNum || "").toUpperCase());
+            if (match?.vehicle_type) {
+              formSetFieldValueRef.current?.("vehicle_type", match.vehicle_type);
+            }
+            if (match && (match as any).default_driver_id) {
+              const drvId = String((match as any).default_driver_id);
+              formSetFieldValueRef.current?.("driver_id", drvId);
+              const drvMatch = drivers.find((d: any) => String(d.id) === drvId);
+              if (drvMatch) {
+                formSetFieldValueRef.current?.("driver_name", drvMatch.name);
+                formSetFieldValueRef.current?.("driver_phone", drvMatch.phone);
+                if (drvMatch.license_number) {
+                  formSetFieldValueRef.current?.("driver_license", drvMatch.license_number);
+                }
+              }
+            }
+            checkOverload(String(newVehNum || ""), currentFormValuesRef.current?.actual_weight_mt, currentFormValuesRef.current?.chargeable_weight_mt);
+          },
           helperText: selectedJob
             ? "⚠️ Truck assignment required — Job order indents do not specify a vehicle registration."
             : "Select the registration number of the assigned vehicle.",
         },
         {
           name: "vehicle_type",
-          label: "Vehicle Type",
+          label: "Vehicle Type / Class",
           type: "select",
           options: vehicleTypeOptions,
           placeholder: "Select vehicle chassis / body type",
         },
         {
+          name: "driver_id",
+          label: "Assigned Driver (Driver Master)",
+          type: "select",
+          options: driverOptions,
+          placeholder: "Select verified driver or choose Unregistered",
+          helperText: "Select verified driver with DL on file, or leave as Unregistered to enter free-text driver details.",
+          onChange: (driverId) => {
+            if (driverId) {
+              const match = drivers.find((d: any) => String(d.id) === String(driverId));
+              if (match) {
+                formSetFieldValueRef.current?.("driver_name", match.name);
+                formSetFieldValueRef.current?.("driver_phone", match.phone);
+                if (match.license_number) {
+                  formSetFieldValueRef.current?.("driver_license", match.license_number);
+                }
+              }
+            }
+          },
+        },
+        {
           name: "driver_name",
-          label: "Driver Name",
+          label: "Driver Name (Free-Text / Unverified)",
           type: "text",
           placeholder: "e.g. Ramesh Singh",
+          helperText: "Operational driver operating the vehicle. Free-text unverified if not linked to Driver Master.",
         },
         {
           name: "driver_phone",
@@ -1302,6 +1462,13 @@ export default function LRBookingPage() {
           type: "text",
           placeholder: "e.g. 9876543210",
           helperText: "Valid 10-digit mobile number.",
+        },
+        {
+          name: "driver_license",
+          label: "Driver Licence No. (DL)",
+          type: "text",
+          placeholder: "e.g. MH14 20110001234",
+          helperText: "Driving licence number for statutory transit compliance.",
         },
         {
           name: "eta",
@@ -1317,6 +1484,13 @@ export default function LRBookingPage() {
       description: "Load category, package count, packing method, container notes, and scale weights",
       columns: 2,
       fields: [
+        {
+          name: "particulars",
+          label: "Cargo Description / Commodities",
+          type: "text",
+          placeholder: "e.g. Industrial Machinery, Steel Coils, FMCG Goods",
+          helperText: "Carried on LR consignment note; auto-populated from linked Job or Invoice Particulars.",
+        },
         {
           name: "load_type_id",
           label: "Load Type",
@@ -1351,6 +1525,10 @@ export default function LRBookingPage() {
           type: "number",
           placeholder: "e.g. 15.500",
           helperText: "Actual weighbridge weight in Metric Tonnes.",
+          onChange: (val) => {
+            const vNum = currentFormValuesRef.current?.vehicle_number || selectedVehicleNumber;
+            if (vNum) checkOverload(vNum, val, currentFormValuesRef.current?.chargeable_weight_mt);
+          },
         },
         {
           name: "chargeable_weight_mt",
@@ -1358,6 +1536,10 @@ export default function LRBookingPage() {
           type: "number",
           placeholder: "e.g. 16.000",
           helperText: "Billed / chargeable weight in Metric Tonnes.",
+          onChange: (val) => {
+            const vNum = currentFormValuesRef.current?.vehicle_number || selectedVehicleNumber;
+            if (vNum) checkOverload(vNum, currentFormValuesRef.current?.actual_weight_mt, val);
+          },
         },
         {
           name: "bill_of_entry",
@@ -1499,7 +1681,9 @@ export default function LRBookingPage() {
     locationOptions,
     transitLocationOptions,
     marketVehicleOptions,
+    companyVehicleOptions,
     truckOptions,
+    driverOptions,
     consignerOptions,
     consigneeOptions,
     selectedConsignerAddress,
@@ -1510,6 +1694,8 @@ export default function LRBookingPage() {
     jobs,
     manualSeriesData,
     selectedJob,
+    checkOverload,
+    selectedVehicleNumber,
   ]);
 
   const columns: ColumnDef<LRRecord>[] = [
@@ -1952,57 +2138,80 @@ export default function LRBookingPage() {
 
   const handleBillingClientCreated = (newClient: { id: number | string; label?: string; name?: string }) => {
     setBillingCustomers((prev) => [{ id: Number(newClient.id), name: newClient.name || newClient.label }, ...prev]);
-    setFormInitialValues((prev) => ({ ...prev, billing_customer_id: String(newClient.id) }));
+    currentFormValuesRef.current.billing_customer_id = String(newClient.id);
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, billing_customer_id: String(newClient.id) }));
     formSetFieldValueRef.current?.("billing_customer_id", String(newClient.id));
   };
 
   const handleConsignerCreated = (newConsigner: { id: number | string; name?: string; label?: string }) => {
     setConsigners((prev) => [{ id: Number(newConsigner.id), name: newConsigner.name || newConsigner.label }, ...prev]);
-    setFormInitialValues((prev) => ({ ...prev, consigner_id: String(newConsigner.id) }));
+    currentFormValuesRef.current.consigner_id = String(newConsigner.id);
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, consigner_id: String(newConsigner.id) }));
     formSetFieldValueRef.current?.("consigner_id", String(newConsigner.id));
     setSelectedConsignerId(String(newConsigner.id));
   };
 
   const handleConsigneeCreated = (newConsignee: { id: number | string; name?: string; label?: string }) => {
     setConsignees((prev) => [{ id: Number(newConsignee.id), name: newConsignee.name || newConsignee.label }, ...prev]);
-    setFormInitialValues((prev) => ({ ...prev, consignee_id: String(newConsignee.id) }));
+    currentFormValuesRef.current.consignee_id = String(newConsignee.id);
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, consignee_id: String(newConsignee.id) }));
     formSetFieldValueRef.current?.("consignee_id", String(newConsignee.id));
     setSelectedConsigneeId(String(newConsignee.id));
   };
 
   const handleLocationCreated = (newLoc: { id: number | string; city_name?: string; label?: string }, field: "origin_location_id" | "destination_location_id") => {
     setLocations((prev) => [{ id: Number(newLoc.id), city_name: newLoc.city_name || newLoc.label }, ...prev]);
-    setFormInitialValues((prev) => ({ ...prev, [field]: String(newLoc.id) }));
+    currentFormValuesRef.current[field] = String(newLoc.id);
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, [field]: String(newLoc.id) }));
     formSetFieldValueRef.current?.(field, String(newLoc.id));
   };
 
   const handleViaLocationCreated = (newLoc: { id: number | string; city_name?: string; label?: string }) => {
     const cityName = newLoc.city_name || newLoc.label || String(newLoc.id);
     setLocations((prev) => [{ id: Number(newLoc.id), city_name: cityName }, ...prev]);
-    setFormInitialValues((prev) => ({ ...prev, via: cityName }));
+    currentFormValuesRef.current.via = cityName;
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, via: cityName }));
     formSetFieldValueRef.current?.("via", cityName);
   };
 
-  const handleMarketVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string }) => {
+  const handleMarketVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string; capacity_mt?: number }) => {
     const vehicleNumber = newVehicle.vehicle_number || newVehicle.label || String(newVehicle.id);
+    const capacity = newVehicle.capacity_mt !== undefined ? Number(newVehicle.capacity_mt) : 0;
     setMarketVehicles((prev) => [
-      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type },
+      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type, capacity_mt: capacity },
       ...prev,
     ]);
-    setFormInitialValues((prev) => ({ ...prev, vehicle_number: vehicleNumber }));
+    setSelectedVehicleNumber(vehicleNumber);
+    currentFormValuesRef.current.vehicle_number = vehicleNumber;
     formSetFieldValueRef.current?.("vehicle_number", vehicleNumber);
-    if (newVehicle.vehicle_type) formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+    if (newVehicle.vehicle_type) {
+      currentFormValuesRef.current.vehicle_type = newVehicle.vehicle_type;
+      formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+    }
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, vehicle_number: vehicleNumber }));
+
+    // Check payload capacity against current weights and warn
+    checkOverload(vehicleNumber, currentFormValuesRef.current?.actual_weight_mt, currentFormValuesRef.current?.chargeable_weight_mt);
   };
 
-  const handleCompanyVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string }) => {
+  const handleCompanyVehicleCreated = (newVehicle: { id: number | string; vehicle_number?: string; label?: string; vehicle_type?: string; capacity_mt?: number }) => {
     const vehicleNumber = newVehicle.vehicle_number || newVehicle.label || String(newVehicle.id);
+    const capacity = newVehicle.capacity_mt !== undefined ? Number(newVehicle.capacity_mt) : 0;
     setCompanyVehicles((prev) => [
-      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type },
+      { id: Number(newVehicle.id), vehicle_number: vehicleNumber, name: vehicleNumber, title: newVehicle.vehicle_type, capacity_mt: capacity },
       ...prev,
     ]);
-    setFormInitialValues((prev) => ({ ...prev, vehicle_number: vehicleNumber }));
+    setSelectedVehicleNumber(vehicleNumber);
+    currentFormValuesRef.current.vehicle_number = vehicleNumber;
     formSetFieldValueRef.current?.("vehicle_number", vehicleNumber);
-    if (newVehicle.vehicle_type) formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+    if (newVehicle.vehicle_type) {
+      currentFormValuesRef.current.vehicle_type = newVehicle.vehicle_type;
+      formSetFieldValueRef.current?.("vehicle_type", newVehicle.vehicle_type);
+    }
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, vehicle_number: vehicleNumber }));
+
+    // Check payload capacity against current weights and warn
+    checkOverload(vehicleNumber, currentFormValuesRef.current?.actual_weight_mt, currentFormValuesRef.current?.chargeable_weight_mt);
   };
 
   const openVehicleMaster = (type: "market" | "company") => {
@@ -2017,14 +2226,16 @@ export default function LRBookingPage() {
   const handleLoadTypeCreated = (newLt: { id: number | string; name?: string; label?: string }) => {
     const val = newLt.name || newLt.label || String(newLt.id);
     setLoadTypes((prev) => [{ id: Number(newLt.id), name: val }, ...prev]);
-    setFormInitialValues((prev) => ({ ...prev, load_type: val }));
+    currentFormValuesRef.current.load_type = val;
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, load_type: val }));
     formSetFieldValueRef.current?.("load_type", val);
   };
 
   const handlePackingMethodCreated = (newMethod: { id: number | string; name?: string; label?: string }) => {
     const val = newMethod.name || newMethod.label || String(newMethod.id);
     setPackingMethods((prev) => [{ id: Number(newMethod.id), name: val }, ...prev]);
-    setFormInitialValues((prev) => ({ ...prev, packing_method_id: String(newMethod.id) }));
+    currentFormValuesRef.current.packing_method_id = String(newMethod.id);
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, packing_method_id: String(newMethod.id) }));
     formSetFieldValueRef.current?.("packing_method_id", String(newMethod.id));
   };
 
@@ -2304,6 +2515,9 @@ export default function LRBookingPage() {
           sections={formSections}
           initialValues={formInitialValues}
           setFieldValueRef={formSetFieldValueRef}
+          onChange={(vals) => {
+            currentFormValuesRef.current = vals;
+          }}
           onSubmit={handleSubmit}
           onValidationError={(errors) => {
             toast.error(`Please complete: ${errors[0]?.label || "the highlighted required fields"}.`);

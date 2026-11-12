@@ -475,6 +475,9 @@ function CompanyVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Comp
     if (!formValues.vehicle_type) {
       errors.vehicle_type = "Vehicle / Body specification is required.";
     }
+    if (!formValues.vehicle_class) {
+      errors.vehicle_class = "Vehicle Class is required.";
+    }
     if (!formValues.capacity_mt || parseFloat(String(formValues.capacity_mt)) <= 0) {
       errors.capacity_mt = "Valid payload capacity (MT) is required (> 0).";
     }
@@ -799,7 +802,7 @@ function CompanyVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Comp
     <div className="space-y-6">
       {!embedded && <PageHeader
         title="Company Vehicles"
-        description="Registry of hired market trucks, technical specs, compliance validity, and equipment."
+        description="Registry of owned company fleet vehicles, technical specs, compliance validity, and equipment."
         breadcrumbs={[
           { label: "Transport", href: "/transport/jobs" },
           { label: "Company Vehicles" },

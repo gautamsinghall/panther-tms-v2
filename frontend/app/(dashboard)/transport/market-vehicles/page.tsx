@@ -453,6 +453,9 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
     if (!formValues.vehicle_type) {
       errors.vehicle_type = "Vehicle / Body specification is required.";
     }
+    if (!formValues.vehicle_class) {
+      errors.vehicle_class = "Vehicle Class is required.";
+    }
     if (!formValues.capacity_mt || parseFloat(String(formValues.capacity_mt)) <= 0) {
       errors.capacity_mt = "Valid payload capacity (MT) is required (> 0).";
     }

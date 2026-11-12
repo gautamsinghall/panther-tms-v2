@@ -75,6 +75,7 @@ export function Form({
   const isFieldRequired = (field: FormFieldDef) =>
     typeof field.required === "function" ? field.required(values) : Boolean(field.required);
 
+  const prevInitialValuesRef = useRef<Record<string, any>>(initialValues);
   useEffect(() => {
     const defaults: Record<string, any> = {};
     for (const section of sections) {
@@ -84,8 +85,20 @@ export function Form({
         }
       }
     }
-    setValues((prev) => ({ ...defaults, ...prev, ...initialValues }));
-  }, [initialValues]);
+    setValues((prev) => {
+      const prevInit = prevInitialValuesRef.current || {};
+      const updated: Record<string, any> = { ...prev };
+      // Only apply keys from initialValues that actually changed from previous initialValues,
+      // preventing stale initial values from wiping dirty or dynamically populated form fields.
+      for (const key of Object.keys(initialValues)) {
+        if (initialValues[key] !== prevInit[key]) {
+          updated[key] = initialValues[key];
+        }
+      }
+      return { ...defaults, ...updated };
+    });
+    prevInitialValuesRef.current = initialValues;
+  }, [initialValues, sections]);
 
   const handleChange = (name: string, value: any) => {
     setValues((prev) => {

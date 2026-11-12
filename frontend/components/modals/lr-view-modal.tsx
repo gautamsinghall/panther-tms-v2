@@ -567,7 +567,7 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
           </div>
           <div className="py-1 px-3">
             <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">BOOKING DATE</span>
-            <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{formatDateDMY(lr.lr_date)}</span>
+            <span className="font-mono font-semibold text-xs text-slate-900 block mt-0.5">{formatDateDMY(lr.dispatch_date || lr.lr_date)}</span>
           </div>
           <div className="py-1 px-3">
             <span className="text-slate-500 block text-[9px] font-bold uppercase tracking-wider">TRIP JOB ORDER</span>
@@ -678,42 +678,51 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
           </tbody>
         </table>
 
-        {/* 6b. Invoices & E-Way Bills Compliance Table (Only if invoice items exist) */}
-        {Boolean(lr.invoice_items && lr.invoice_items.length > 0) && (
-          <div className="border-b border-slate-300">
-            <div className="bg-[#f1f5f9] px-3 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 border-b border-slate-300">
-              INVOICES & E-WAY BILLS COMPLIANCE
-            </div>
-            <table className="w-full text-[10px] text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-300 font-semibold text-slate-800 divide-x divide-slate-300 bg-slate-50">
-                  <th className="p-1 text-center w-8">#</th>
-                  <th className="p-1 pl-2">Invoice No & Date</th>
-                  <th className="p-1 pl-2 text-right">Invoice Value</th>
-                  <th className="p-1 pl-2">E-Way Bill No.</th>
-                  <th className="p-1 pl-2">EWB Expiry</th>
-                  <th className="p-1 pl-2 text-slate-700">Particulars / Commodity</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {lr.invoice_items!.map((it: any, i: number) => (
-                  <tr key={i} className="divide-x divide-slate-200">
-                    <td className="p-1 text-center font-mono">{i + 1}</td>
-                    <td className="p-1 pl-2 font-medium">
-                      {it.invoice_no || "—"} {it.invoice_date ? `(${it.invoice_date})` : ""}
-                    </td>
-                    <td className="p-1 pl-2 text-right font-mono font-medium">
-                      {it.invoice_value ? formatCurrency(parseFloat(it.invoice_value)) : "—"}
-                    </td>
-                    <td className="p-1 pl-2 font-mono">{it.eway_bill_number || "—"}</td>
-                    <td className="p-1 pl-2">{it.eway_bill_expiry || "—"}</td>
-                    <td className="p-1 pl-2 text-slate-700">{it.particulars || it.remarks || "—"}</td>
+        {/* 6b. Invoices & E-Way Bills Compliance Table (Only if valid invoice items exist) */}
+        {(() => {
+          const validInvoiceItems = (lr.invoice_items || []).filter(
+            (it: any) =>
+              (it.invoice_no && String(it.invoice_no).trim().length > 0) ||
+              (it.eway_bill_number && String(it.eway_bill_number).trim().length > 0) ||
+              (parseFloat(String(it.invoice_value || 0)) > 0)
+          );
+          if (validInvoiceItems.length === 0) return null;
+          return (
+            <div className="border-b border-slate-300">
+              <div className="bg-[#f1f5f9] px-3 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-700 border-b border-slate-300">
+                INVOICES & E-WAY BILLS COMPLIANCE
+              </div>
+              <table className="w-full text-[10px] text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-300 font-semibold text-slate-800 divide-x divide-slate-300 bg-slate-50">
+                    <th className="p-1 text-center w-8">#</th>
+                    <th className="p-1 pl-2">Invoice No & Date</th>
+                    <th className="p-1 pl-2 text-right">Invoice Value</th>
+                    <th className="p-1 pl-2">E-Way Bill No.</th>
+                    <th className="p-1 pl-2">EWB Expiry</th>
+                    <th className="p-1 pl-2 text-slate-700">Particulars / Commodity</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {validInvoiceItems.map((it: any, i: number) => (
+                    <tr key={i} className="divide-x divide-slate-200">
+                      <td className="p-1 text-center font-mono">{i + 1}</td>
+                      <td className="p-1 pl-2 font-medium">
+                        {it.invoice_no || "—"} {it.invoice_date ? `(${it.invoice_date})` : ""}
+                      </td>
+                      <td className="p-1 pl-2 text-right font-mono font-medium">
+                        {it.invoice_value ? formatCurrency(parseFloat(it.invoice_value)) : "—"}
+                      </td>
+                      <td className="p-1 pl-2 font-mono">{it.eway_bill_number || "—"}</td>
+                      <td className="p-1 pl-2">{it.eway_bill_expiry || "—"}</td>
+                      <td className="p-1 pl-2 text-slate-700">{it.particulars || it.remarks || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
 
         {/* 7. Financial Breakdown & Payment Terms */}
         <div className="flex border-b border-slate-300 text-[11px]">

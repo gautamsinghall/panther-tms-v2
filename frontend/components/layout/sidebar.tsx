@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -646,6 +646,7 @@ function isGroupActive(group: NavGroup, pathname: string): boolean {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isFormOpen, closeFormTab, setActiveTab, isMobileNavOpen, closeMobileNav } = useWorkspaceTabs();
 
   // Close mobile nav on escape and lock body scroll
@@ -1224,9 +1225,16 @@ export function Sidebar() {
                               return;
                             }
                             if (isFormOpen) {
-                              closeFormTab(false);
+                              closeFormTab(true);
                             }
                             setActiveTab("list");
+                            if (typeof window !== "undefined") {
+                              window.dispatchEvent(new Event("panther_close_active_drawer"));
+                            }
+                            if (normalizedPathname === sub.href) {
+                              e.preventDefault();
+                              router.push(resolveUrl(sub.href));
+                            }
                           }}
                           className={cn(
                             "group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs sm:text-[13px] transition-colors duration-100 select-none",
@@ -1483,9 +1491,16 @@ export function Sidebar() {
                                   }
                                   closeMobileNav();
                                   if (isFormOpen) {
-                                    closeFormTab(false);
+                                    closeFormTab(true);
                                   }
                                   setActiveTab("list");
+                                  if (typeof window !== "undefined") {
+                                    window.dispatchEvent(new Event("panther_close_active_drawer"));
+                                  }
+                                  if (normalizedPathname === sub.href) {
+                                    e.preventDefault();
+                                    router.push(resolveUrl(sub.href));
+                                  }
                                 }}
                                 className={cn(
                                   "group relative flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition-colors",

@@ -867,7 +867,16 @@ export function MasterFormView({
     return (
       <CompanyVehiclesPage
         embedded
-        onCreated={(vehicle: CompanyVehicleRecord) => onSuccess({ ...vehicle, id: vehicle.id, label: vehicle.vehicle_number })}
+        onCreated={(vehicle: CompanyVehicleRecord) =>
+          onSuccess({
+            ...vehicle,
+            id: vehicle.id,
+            label: vehicle.vehicle_number,
+            vehicle_number: vehicle.vehicle_number,
+            vehicle_type: vehicle.vehicle_type,
+            capacity_mt: vehicle.capacity_mt,
+          })
+        }
         onCancel={onClose}
       />
     );
@@ -877,7 +886,16 @@ export function MasterFormView({
     return (
       <MarketVehiclesPage
         embedded
-        onCreated={(vehicle: MarketVehicleRecord) => onSuccess({ ...vehicle, id: vehicle.id, label: vehicle.vehicle_number })}
+        onCreated={(vehicle: MarketVehicleRecord) =>
+          onSuccess({
+            ...vehicle,
+            id: vehicle.id,
+            label: vehicle.vehicle_number,
+            vehicle_number: vehicle.vehicle_number,
+            vehicle_type: vehicle.vehicle_type,
+            capacity_mt: vehicle.capacity_mt,
+          })
+        }
         onCancel={onClose}
       />
     );
