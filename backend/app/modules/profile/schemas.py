@@ -36,6 +36,8 @@ class BranchBase(BaseModel):
     bank_account_no: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_branch: Optional[str] = None
+    swift_code: Optional[str] = None
+    msme_registration_no: Optional[str] = None
     document_notes: Optional[str] = None
     is_head_office: bool = False
     is_active: bool = True
@@ -74,6 +76,8 @@ class BranchUpdate(BaseModel):
     bank_account_no: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_branch: Optional[str] = None
+    swift_code: Optional[str] = None
+    msme_registration_no: Optional[str] = None
     document_notes: Optional[str] = None
     is_head_office: Optional[bool] = None
     is_active: Optional[bool] = None
@@ -111,6 +115,8 @@ class CompanySettingUpdate(BaseModel):
     bank_account_no: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_branch: Optional[str] = None
+    swift_code: Optional[str] = None
+    msme_registration_no: Optional[str] = None
     website: Optional[str] = None
     logo_url: Optional[str] = None
     signature_url: Optional[str] = None
@@ -142,6 +148,8 @@ class CompanySettingResponse(BaseModel):
     bank_account_no: Optional[str] = None
     bank_ifsc: Optional[str] = None
     bank_branch: Optional[str] = None
+    swift_code: Optional[str] = None
+    msme_registration_no: Optional[str] = None
     website: Optional[str] = None
     logo_url: Optional[str] = None
     signature_url: Optional[str] = None

@@ -176,6 +176,10 @@ async def ensure_tally_schema(session: AsyncSession) -> None:
         "UPDATE accounts_vouchers SET gst_treatment = 'FCM' WHERE gst_treatment IS NULL;",
         "ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS hsn_sac VARCHAR(20);",
         "ALTER TABLE accounts_voucher_items ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 2) DEFAULT 0.00;",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS msme_registration_no VARCHAR(100);",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS swift_code VARCHAR(50);",
+        "ALTER TABLE profile_branches ADD COLUMN IF NOT EXISTS msme_registration_no VARCHAR(100);",
+        "ALTER TABLE profile_branches ADD COLUMN IF NOT EXISTS swift_code VARCHAR(50);",
     ]
 
     for stmt in ddl_statements:

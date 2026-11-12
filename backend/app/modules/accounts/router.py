@@ -69,6 +69,94 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.hire_challan_number = v.hire_challan.challan_number if v.hire_challan else None
     resp.irn = v.einvoice.irn if v.einvoice else None
     resp.irn_status = v.einvoice.status if v.einvoice else None
+    resp.ack_no = v.einvoice.ack_number if (v.einvoice and getattr(v.einvoice, "ack_number", None)) else None
+    resp.ack_date = v.einvoice.ack_date.strftime("%Y-%m-%d %H:%M:%S") if (v.einvoice and getattr(v.einvoice, "ack_date", None)) else None
+
+    # Map rich LR details for dynamic invoice printing
+    if getattr(v, "lr", None):
+        lr_obj = v.lr
+        orig_loc = getattr(lr_obj, "origin_location", None)
+        dest_loc = getattr(lr_obj, "destination_location", None)
+        resp.lr_details = {
+            "id": lr_obj.id,
+            "lr_number": lr_obj.lr_number,
+            "lr_date": str(lr_obj.lr_date) if lr_obj.lr_date else None,
+            "dispatch_date": str(getattr(lr_obj, "dispatch_date", None)) if getattr(lr_obj, "dispatch_date", None) else None,
+            "vehicle_number": lr_obj.vehicle_number,
+            "vehicle_type": getattr(lr_obj, "vehicle_type", None),
+            "from_city": orig_loc.city if orig_loc and orig_loc.city else (orig_loc.name if orig_loc else None),
+            "from_state": orig_loc.state if orig_loc else None,
+            "to_city": getattr(lr_obj, "destination_city", None) or (dest_loc.city if dest_loc and dest_loc.city else (dest_loc.name if dest_loc else None)),
+            "to_state": dest_loc.state if dest_loc else None,
+            "consigner_name": lr_obj.consigner.name if getattr(lr_obj, "consigner", None) else None,
+            "consignee_name": lr_obj.consignee.name if getattr(lr_obj, "consignee", None) else None,
+            "particulars": getattr(lr_obj, "particulars", None),
+            "chargeable_weight_mt": float(lr_obj.chargeable_weight_mt or 0) if getattr(lr_obj, "chargeable_weight_mt", None) is not None else 0,
+            "package_count": getattr(lr_obj, "package_count", 0) or 0,
+            "invoice_items": getattr(lr_obj, "invoice_items", []) or [],
+        }
+
+    # Map client details for dynamic invoice printing
+    if getattr(v, "billing_client", None):
+        bc = v.billing_client
+        resp.client_details = {
+            "id": bc.id,
+            "name": bc.name,
+            "company_name": bc.company_name,
+            "address": bc.address,
+            "city": bc.city,
+            "state": bc.state or getattr(bc, "billing_state", None),
+            "pincode": bc.pincode,
+            "gstin": bc.gstin,
+            "pan": bc.pan,
+        }
+    elif getattr(v, "lr", None) and getattr(v.lr, "billing_customer", None):
+        bc = v.lr.billing_customer
+        resp.client_details = {
+            "id": bc.id,
+            "name": bc.name,
+            "company_name": bc.company_name,
+            "address": bc.address,
+            "city": bc.city,
+            "state": bc.state or getattr(bc, "billing_state", None),
+            "pincode": bc.pincode,
+            "gstin": bc.gstin,
+            "pan": bc.pan,
+        }
+    elif getattr(v, "lr", None) and (getattr(v.lr, "consignee", None) or getattr(v.lr, "consigner", None)):
+        party = v.lr.consignee or v.lr.consigner
+        resp.client_details = {
+            "name": party.name,
+            "company_name": getattr(party, "company_name", None),
+            "address": getattr(party, "address", None),
+            "city": getattr(party, "city", None),
+            "state": getattr(party, "state", None),
+            "pincode": getattr(party, "pincode", None),
+            "gstin": getattr(party, "gstin", None),
+            "pan": getattr(party, "pan", None),
+        }
+
+    # Map issuing office details for dynamic invoice printing
+    if getattr(v, "issuing_office", None):
+        io = v.issuing_office
+        resp.issuing_office_details = {
+            "id": io.id,
+            "name": io.name,
+            "code": io.code,
+            "address": io.address,
+            "city": io.city,
+            "state": io.state,
+            "pincode": io.pincode,
+            "phone": io.phone,
+            "email": io.email,
+            "gstin": io.gstin,
+            "pan": io.pan,
+            "bank_name": getattr(io, "bank_name", None),
+            "bank_account_no": getattr(io, "bank_account_no", None),
+            "bank_ifsc": getattr(io, "bank_ifsc", None),
+            "bank_branch": getattr(io, "bank_branch", None),
+            "swift_code": getattr(io, "swift_code", None),
+        }
     resp.issuing_office_id = v.issuing_office_id
     resp.issuing_office_name = v.issuing_office.name if getattr(v, "issuing_office", None) else None
     resp.billing_client_name = v.billing_client.name if getattr(v, "billing_client", None) else None
