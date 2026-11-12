@@ -73,6 +73,8 @@ class DriverBase(BaseModel):
     current_address: Optional[str] = None
     emergency_contact: Optional[str] = None
     blood_group: Optional[str] = None
+    dob: Optional[date] = None
+    is_verified: bool = False
     is_active: bool = True
 
 class DriverCreate(DriverBase):
@@ -96,6 +98,8 @@ class DriverUpdate(BaseModel):
     current_address: Optional[str] = None
     emergency_contact: Optional[str] = None
     blood_group: Optional[str] = None
+    dob: Optional[date] = None
+    is_verified: Optional[bool] = None
     is_active: Optional[bool] = None
 
 class DriverResponse(DriverBase):
@@ -158,6 +162,7 @@ class MarketVehicleBase(BaseModel):
     rc_copy_doc: Optional[str] = None
     last_repair_bill_doc: Optional[str] = None
 
+    is_verified: bool = False
     is_active: bool = True
 
 class MarketVehicleCreate(MarketVehicleBase):
@@ -208,6 +213,7 @@ class MarketVehicleUpdate(BaseModel):
     rc_original_status: Optional[str] = None
     rc_copy_doc: Optional[str] = None
     last_repair_bill_doc: Optional[str] = None
+    is_verified: Optional[bool] = None
     is_active: Optional[bool] = None
 
 class MarketVehicleResponse(MarketVehicleBase):
@@ -273,6 +279,7 @@ class CompanyVehicleBase(BaseModel):
 
     default_driver_id: Optional[int] = None
     current_odometer_km: int = 0
+    is_verified: bool = False
     is_active: bool = True
 
 class CompanyVehicleCreate(CompanyVehicleBase):
@@ -327,6 +334,7 @@ class CompanyVehicleUpdate(BaseModel):
 
     default_driver_id: Optional[int] = None
     current_odometer_km: Optional[int] = None
+    is_verified: Optional[bool] = None
     is_active: Optional[bool] = None
 
 class CompanyVehicleResponse(CompanyVehicleBase):

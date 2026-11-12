@@ -84,6 +84,18 @@ class Settings(BaseSettings):
     FASTAG_API_KEY: Optional[str] = None
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
+    # RC & DL Verification Integration (Logitrack Vahan & Sarathi Gateways)
+    RC_API_URL: str = "https://logitrack.webcorevision.com:5000/api/v1/vehicle-info"
+    RC_API_KEY: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("RC_API_KEY", "LOGITRACK_API_KEY", "FASTAG_API_KEY"),
+    )
+    DL_API_URL: str = "https://logitrack.webcorevision.com:5000/api/v1/driver"
+    DL_API_KEY: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("DL_API_KEY", "LOGITRACK_API_KEY", "FASTAG_API_KEY"),
+    )
+
     # Panther AI Assistant (Google Gemini via OpenAI-Compatible Endpoint)
     OPENAI_API_KEY: Optional[str] = Field(
         default=None,

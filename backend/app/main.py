@@ -75,13 +75,20 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(100);"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS gst_credits_left INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS pan_credits_left INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS rc_credits_left INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS dl_credits_left INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS fastag_credits_left INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS sim_wallet_balance NUMERIC(12, 2) DEFAULT 0.00;"))
                 # Only initialize to 0 if NULL (new or uninitialized column); never overwrite existing/recharged credits on re-runs
                 await conn.execute(text("UPDATE tenants SET gst_credits_left = 0 WHERE gst_credits_left IS NULL;"))
                 await conn.execute(text("UPDATE tenants SET pan_credits_left = 0 WHERE pan_credits_left IS NULL;"))
+                await conn.execute(text("UPDATE tenants SET rc_credits_left = 0 WHERE rc_credits_left IS NULL;"))
+                await conn.execute(text("UPDATE tenants SET dl_credits_left = 0 WHERE dl_credits_left IS NULL;"))
                 await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
                 await conn.execute(text("UPDATE tenants SET sim_wallet_balance = 0.00 WHERE sim_wallet_balance IS NULL;"))
+                # Pre-seed demo tenant verification credits if 0
+                await conn.execute(text("UPDATE tenants SET rc_credits_left = 100 WHERE (tenant_id = 'demo123456' OR company_code = 'DEMOLOGISTICS') AND (rc_credits_left = 0 OR rc_credits_left IS NULL);"))
+                await conn.execute(text("UPDATE tenants SET dl_credits_left = 100 WHERE (tenant_id = 'demo123456' OR company_code = 'DEMOLOGISTICS') AND (dl_credits_left = 0 OR dl_credits_left IS NULL);"))
                 # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
                 await conn.execute(text("DROP TABLE IF EXISTS fastag_wallet_transactions;"))
                 await conn.execute(text("DROP TABLE IF EXISTS sim_wallet_transactions;"))
@@ -162,8 +169,12 @@ async def lifespan(app: FastAPI):
                             "license_doc TEXT",
                             "aadhar_doc TEXT",
                             "pan_doc TEXT",
+                            "dob DATE",
+                            "is_verified BOOLEAN DEFAULT FALSE",
                         ]:
                             await t_conn.execute(text(f"ALTER TABLE transport_drivers ADD COLUMN IF NOT EXISTS {drv_col};"))
+                        await t_conn.execute(text("ALTER TABLE transport_company_vehicles ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;"))
+                        await t_conn.execute(text("ALTER TABLE transport_market_vehicles ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;"))
                         for cs_col in [
                             "city VARCHAR(100)", "state VARCHAR(100)", "pincode VARCHAR(20)", "phone VARCHAR(50)", "email VARCHAR(255)",
                             "bank_name VARCHAR(150)", "bank_account_no VARCHAR(50)", "bank_ifsc VARCHAR(20)", "bank_branch VARCHAR(150)",
@@ -173,7 +184,10 @@ async def lifespan(app: FastAPI):
                             "ewb_username VARCHAR(100)", "ewb_password VARCHAR(255)", "ewb_gstin VARCHAR(20)",
                             "is_ewb_active BOOLEAN DEFAULT TRUE",
                             "is_gst_active BOOLEAN DEFAULT TRUE", "is_pan_active BOOLEAN DEFAULT TRUE",
+                            "is_rc_active BOOLEAN DEFAULT TRUE", "is_dl_active BOOLEAN DEFAULT TRUE",
                             "gsp_client_id_override VARCHAR(255)", "gsp_client_secret_override VARCHAR(255)", "gsp_base_url_override VARCHAR(255)",
+                            "rc_api_key_override VARCHAR(255)", "dl_api_key_override VARCHAR(255)",
+                            "rc_api_url_override VARCHAR(255)", "dl_api_url_override VARCHAR(255)",
                             "ft_base_url VARCHAR(255) DEFAULT 'https://api.freighttiger.com/api/tether'",
                             "ft_auth_token TEXT", "is_ft_active BOOLEAN DEFAULT TRUE",
                             "wheelseye_api_token VARCHAR(255)",

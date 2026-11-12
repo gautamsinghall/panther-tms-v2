@@ -14,6 +14,8 @@ from app.tenant_db.models import (
     TaxApiTransaction
 )
 from app.integrations.gst_pan.client import get_gst_pan_client
+from app.integrations.rc_verification import get_rc_client
+from app.integrations.dl_verification import get_dl_client
 from app.modules.profile.schemas import (
     ChangePasswordRequest, UserProfileUpdate,
     BranchCreate, BranchUpdate,
@@ -25,8 +27,11 @@ from app.modules.profile.schemas import (
     FastagWalletResponse, FastagWalletTransactionItem,
     SimWalletResponse, SimWalletTransactionItem,
     GSTLookupResponse, PANLookupResponse,
+    RCLookupResponse, DLLookupResponse,
     GSTTestRequest, GSTTestResponse,
     PANTestRequest, PANTestResponse,
+    RCTestRequest, RCTestResponse,
+    DLTestRequest, DLTestResponse,
     TaxApiTransactionItem, TaxApiCounterResponse
 )
 
@@ -532,6 +537,8 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
     credits_left = 0
     gst_credits_left = 0
     pan_credits_left = 0
+    rc_credits_left = 0
+    dl_credits_left = 0
     if tenant_id:
         try:
             from app.core.database import ControlSessionLocal
@@ -546,6 +553,8 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
                     credits_left = int(tenant_row.fastag_credits_left or 0)
                     gst_credits_left = int(tenant_row.gst_credits_left or 0)
                     pan_credits_left = int(tenant_row.pan_credits_left or 0)
+                    rc_credits_left = int(getattr(tenant_row, "rc_credits_left", 0) or 0)
+                    dl_credits_left = int(getattr(tenant_row, "dl_credits_left", 0) or 0)
         except Exception:
             pass
 
@@ -558,11 +567,19 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         is_ewb_active=company.is_ewb_active if company.is_ewb_active is not None else True,
         is_gst_active=company.is_gst_active if company.is_gst_active is not None else True,
         is_pan_active=company.is_pan_active if company.is_pan_active is not None else True,
+        is_rc_active=getattr(company, "is_rc_active", True) if getattr(company, "is_rc_active", None) is not None else True,
+        is_dl_active=getattr(company, "is_dl_active", True) if getattr(company, "is_dl_active", None) is not None else True,
         gsp_client_id_override=company.gsp_client_id_override,
         gsp_base_url_override=company.gsp_base_url_override,
         has_gsp_secret_override=bool(company.gsp_client_secret_override),
         platform_gsp_configured=bool(settings.GSP_CLIENT_ID and settings.GSP_CLIENT_SECRET),
         platform_gsp_base_url=settings.GSP_BASE_URL,
+        rc_api_url_override=getattr(company, "rc_api_url_override", None),
+        dl_api_url_override=getattr(company, "dl_api_url_override", None),
+        has_rc_key_override=bool(getattr(company, "rc_api_key_override", None)),
+        has_dl_key_override=bool(getattr(company, "dl_api_key_override", None)),
+        platform_rc_configured=bool(settings.RC_API_KEY or settings.FASTAG_API_KEY),
+        platform_dl_configured=bool(settings.DL_API_KEY or settings.FASTAG_API_KEY),
         ft_base_url=sanitize_ft_base_url(company.ft_base_url),
         has_ft_auth_token=bool(resolve_freight_tiger_token(company.ft_auth_token)),
         is_ft_active=company.is_ft_active if company.is_ft_active is not None else True,
@@ -572,6 +589,8 @@ async def get_api_center_setting(db: AsyncSession, tenant_id: Optional[str] = No
         fastag_rate_per_fetch=1.50,
         gst_credits_left=gst_credits_left,
         pan_credits_left=pan_credits_left,
+        rc_credits_left=rc_credits_left,
+        dl_credits_left=dl_credits_left,
         fastag_cooldown_minutes=company.fastag_cooldown_minutes if company.fastag_cooldown_minutes is not None else 10,
         wheelseye_base_url=company.wheelseye_base_url or "https://api.wheelseye.com",
         wheelseye_api_token=company.wheelseye_api_token,
@@ -598,6 +617,26 @@ async def update_api_center_setting(db: AsyncSession, data: ApiCenterSettingUpda
         company.is_gst_active = data.is_gst_active
     if data.is_pan_active is not None:
         company.is_pan_active = data.is_pan_active
+    if data.is_rc_active is not None:
+        company.is_rc_active = data.is_rc_active
+    if data.is_dl_active is not None:
+        company.is_dl_active = data.is_dl_active
+    if data.rc_api_key_override is not None:
+        key = data.rc_api_key_override.strip()
+        if key and not key.startswith("••"):
+            company.rc_api_key_override = key
+        elif not key:
+            company.rc_api_key_override = None
+    if data.dl_api_key_override is not None:
+        key = data.dl_api_key_override.strip()
+        if key and not key.startswith("••"):
+            company.dl_api_key_override = key
+        elif not key:
+            company.dl_api_key_override = None
+    if data.rc_api_url_override is not None:
+        company.rc_api_url_override = data.rc_api_url_override.strip() if data.rc_api_url_override else None
+    if data.dl_api_url_override is not None:
+        company.dl_api_url_override = data.dl_api_url_override.strip() if data.dl_api_url_override else None
     if data.gsp_client_id_override is not None:
         company.gsp_client_id_override = data.gsp_client_id_override.strip() if data.gsp_client_id_override else None
     if data.gsp_client_secret_override is not None:
@@ -792,7 +831,7 @@ async def check_and_deduct_tax_credit(
                     )
                 tenant_obj.gst_credits_left = current_credits - 1
                 new_balance = tenant_obj.gst_credits_left
-            else:
+            elif api_type == "PAN":
                 current_credits = tenant_obj.pan_credits_left or 0
                 if current_credits <= 0:
                     return False, 0, (
@@ -801,6 +840,26 @@ async def check_and_deduct_tax_credit(
                     )
                 tenant_obj.pan_credits_left = current_credits - 1
                 new_balance = tenant_obj.pan_credits_left
+            elif api_type == "RC":
+                current_credits = getattr(tenant_obj, "rc_credits_left", 0) or 0
+                if current_credits <= 0:
+                    return False, 0, (
+                        "RC API credits exhausted (0 calls remaining). "
+                        "Live query blocked. Please contact your system administrator to recharge RC verification credits."
+                    )
+                tenant_obj.rc_credits_left = current_credits - 1
+                new_balance = tenant_obj.rc_credits_left
+            elif api_type == "DL":
+                current_credits = getattr(tenant_obj, "dl_credits_left", 0) or 0
+                if current_credits <= 0:
+                    return False, 0, (
+                        "DL API credits exhausted (0 calls remaining). "
+                        "Live query blocked. Please contact your system administrator to recharge DL verification credits."
+                    )
+                tenant_obj.dl_credits_left = current_credits - 1
+                new_balance = tenant_obj.dl_credits_left
+            else:
+                return False, 0, f"Unsupported api_type '{api_type}'."
 
             await session.commit()
             return True, new_balance, ""
@@ -1334,6 +1393,376 @@ async def get_pan_counter_info(
             pricing_notice="Standard government PAN query with 2-digit state jurisdiction code.",
             transactions=[],
         )
+
+
+# --- RC & DL Verification Services (Vahan & Sarathi API Gateway) ---
+
+async def _get_rc_credentials(db: AsyncSession) -> tuple[str, str]:
+    company = await get_company_setting(db)
+    api_key = (getattr(company, "rc_api_key_override", None) or settings.RC_API_KEY or settings.FASTAG_API_KEY or "").strip()
+    api_url = (getattr(company, "rc_api_url_override", None) or settings.RC_API_URL or "https://logitrack.webcorevision.com:5000/api/v1/vehicle-info").strip()
+    return api_key, api_url
+
+
+async def _get_dl_credentials(db: AsyncSession) -> tuple[str, str]:
+    company = await get_company_setting(db)
+    api_key = (getattr(company, "dl_api_key_override", None) or settings.DL_API_KEY or settings.FASTAG_API_KEY or "").strip()
+    api_url = (getattr(company, "dl_api_url_override", None) or settings.DL_API_URL or "https://logitrack.webcorevision.com:5000/api/v1/driver").strip()
+    return api_key, api_url
+
+
+async def lookup_rc(
+    db: AsyncSession,
+    vehicle_number: str,
+    source: str = "AUTOFILL",
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> RCLookupResponse:
+    company = await get_company_setting(db)
+    if getattr(company, "is_rc_active", True) is False:
+        return RCLookupResponse(success=False, message="RC Verification API is currently disabled in API Center.")
+
+    has_credit, rem_balance, credit_err = await check_and_deduct_tax_credit(
+        tenant_id=tenant_id,
+        company_code=company_code,
+        api_type="RC"
+    )
+    if not has_credit:
+        await _record_tax_transaction(
+            db,
+            api_type="RC",
+            query_value=vehicle_number,
+            status="FAILED",
+            source=source,
+            description=credit_err,
+            credits_deducted=0,
+            balance_after=rem_balance,
+        )
+        return RCLookupResponse(success=False, message=credit_err, vehicle_number=vehicle_number)
+
+    api_key, api_url = await _get_rc_credentials(db)
+    client = get_rc_client()
+    try:
+        result = await client.verify_rc(
+            vehicle_number=vehicle_number,
+            api_key=api_key,
+            api_url=api_url
+        )
+        await _record_tax_transaction(
+            db,
+            api_type="RC",
+            query_value=vehicle_number,
+            trade_name=result.get("vehicle_description"),
+            legal_name=result.get("owner_name"),
+            status="SUCCESS" if result.get("success") else "FAILED",
+            source=source,
+            description=result.get("message") or ("RC verification successful" if result.get("success") else "RC verification failed"),
+            credits_deducted=1,
+            balance_after=rem_balance,
+        )
+        return RCLookupResponse(**result)
+    except Exception as exc:
+        logger.error(f"RC lookup failed for {vehicle_number}: {exc}")
+        await _record_tax_transaction(
+            db,
+            api_type="RC",
+            query_value=vehicle_number,
+            status="FAILED",
+            source=source,
+            description=str(exc)[:250],
+            credits_deducted=1,
+            balance_after=rem_balance,
+        )
+        return RCLookupResponse(success=False, message=f"RC lookup failed: {str(exc)}", vehicle_number=vehicle_number)
+
+
+async def lookup_dl(
+    db: AsyncSession,
+    dlnumber: str,
+    dob: str,
+    source: str = "AUTOFILL",
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> DLLookupResponse:
+    company = await get_company_setting(db)
+    if getattr(company, "is_dl_active", True) is False:
+        return DLLookupResponse(success=False, message="DL Verification API is currently disabled in API Center.")
+
+    has_credit, rem_balance, credit_err = await check_and_deduct_tax_credit(
+        tenant_id=tenant_id,
+        company_code=company_code,
+        api_type="DL"
+    )
+    if not has_credit:
+        await _record_tax_transaction(
+            db,
+            api_type="DL",
+            query_value=dlnumber,
+            status="FAILED",
+            source=source,
+            description=credit_err,
+            credits_deducted=0,
+            balance_after=rem_balance,
+        )
+        return DLLookupResponse(success=False, message=credit_err, dlnumber=dlnumber, dob=dob)
+
+    api_key, api_url = await _get_dl_credentials(db)
+    client = get_dl_client()
+    try:
+        result = await client.verify_driver(
+            dlnumber=dlnumber,
+            dob=dob,
+            api_key=api_key,
+            api_url=api_url
+        )
+        await _record_tax_transaction(
+            db,
+            api_type="DL",
+            query_value=dlnumber,
+            trade_name=result.get("vehicle_classes"),
+            legal_name=result.get("driver_name"),
+            status="SUCCESS" if result.get("success") else "FAILED",
+            source=source,
+            description=result.get("message") or ("DL verification successful" if result.get("success") else "DL verification failed"),
+            credits_deducted=1,
+            balance_after=rem_balance,
+        )
+        return DLLookupResponse(**result)
+    except Exception as exc:
+        logger.error(f"DL lookup failed for {dlnumber}: {exc}")
+        await _record_tax_transaction(
+            db,
+            api_type="DL",
+            query_value=dlnumber,
+            status="FAILED",
+            source=source,
+            description=str(exc)[:250],
+            credits_deducted=1,
+            balance_after=rem_balance,
+        )
+        return DLLookupResponse(success=False, message=f"DL lookup failed: {str(exc)}", dlnumber=dlnumber, dob=dob)
+
+
+async def get_rc_counter_info(
+    db: AsyncSession,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> TaxApiCounterResponse:
+    company = await get_company_setting(db)
+    is_active = getattr(company, "is_rc_active", True) if getattr(company, "is_rc_active", None) is not None else True
+
+    credits_left = 0
+    if tenant_id or company_code:
+        try:
+            from app.core.database import ControlSessionLocal
+            from app.control.models import Tenant as ControlTenant
+            from sqlalchemy import select, or_
+            async with ControlSessionLocal() as session:
+                stmt = select(ControlTenant.rc_credits_left).where(
+                    or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+                )
+                val = (await session.execute(stmt)).scalar_one_or_none()
+                if val is not None:
+                    credits_left = int(val)
+        except Exception as exc:
+            logger.warning(f"Could not load rc_credits_left from control DB: {exc}")
+
+    try:
+        total_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == "RC")
+        total_lookups = (await db.scalar(total_stmt)) or 0
+
+        succ_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "RC",
+            TaxApiTransaction.status == "SUCCESS"
+        )
+        successful_lookups = (await db.scalar(succ_stmt)) or 0
+
+        fail_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "RC",
+            TaxApiTransaction.status == "FAILED"
+        )
+        failed_lookups = (await db.scalar(fail_stmt)) or 0
+
+        from sqlalchemy import desc
+        tx_stmt = select(TaxApiTransaction).where(TaxApiTransaction.api_type == "RC").order_by(desc(TaxApiTransaction.id)).limit(100)
+        tx_rows = (await db.execute(tx_stmt)).scalars().all()
+
+        tx_items = [
+            TaxApiTransactionItem(
+                id=t.id,
+                api_type=t.api_type,
+                query_value=t.query_value,
+                state_code=t.state_code,
+                trade_name=t.trade_name,
+                legal_name=t.legal_name,
+                status=t.status,
+                source=t.source,
+                description=t.description,
+                counter_after=t.counter_after,
+                credits_deducted=t.credits_deducted if t.credits_deducted is not None else 1,
+                balance_after=t.balance_after,
+                created_at=t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
+            )
+            for t in tx_rows
+        ]
+
+        return TaxApiCounterResponse(
+            total_lookups=total_lookups,
+            successful_lookups=successful_lookups,
+            failed_lookups=failed_lookups,
+            api_calls_left=credits_left,
+            is_active=is_active,
+            pricing_notice="Standard government RC verification query via Vahan registry.",
+            transactions=tx_items,
+        )
+    except Exception as exc:
+        logger.warning(f"Error fetching RC counter info: {exc}")
+        return TaxApiCounterResponse(
+            total_lookups=0,
+            successful_lookups=0,
+            failed_lookups=0,
+            api_calls_left=credits_left,
+            is_active=is_active,
+            pricing_notice="Standard government RC verification query via Vahan registry.",
+            transactions=[],
+        )
+
+
+async def get_dl_counter_info(
+    db: AsyncSession,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> TaxApiCounterResponse:
+    company = await get_company_setting(db)
+    is_active = getattr(company, "is_dl_active", True) if getattr(company, "is_dl_active", None) is not None else True
+
+    credits_left = 0
+    if tenant_id or company_code:
+        try:
+            from app.core.database import ControlSessionLocal
+            from app.control.models import Tenant as ControlTenant
+            from sqlalchemy import select, or_
+            async with ControlSessionLocal() as session:
+                stmt = select(ControlTenant.dl_credits_left).where(
+                    or_(ControlTenant.tenant_id == tenant_id, ControlTenant.company_code == company_code)
+                )
+                val = (await session.execute(stmt)).scalar_one_or_none()
+                if val is not None:
+                    credits_left = int(val)
+        except Exception as exc:
+            logger.warning(f"Could not load dl_credits_left from control DB: {exc}")
+
+    try:
+        total_stmt = select(func.count(TaxApiTransaction.id)).where(TaxApiTransaction.api_type == "DL")
+        total_lookups = (await db.scalar(total_stmt)) or 0
+
+        succ_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "DL",
+            TaxApiTransaction.status == "SUCCESS"
+        )
+        successful_lookups = (await db.scalar(succ_stmt)) or 0
+
+        fail_stmt = select(func.count(TaxApiTransaction.id)).where(
+            TaxApiTransaction.api_type == "DL",
+            TaxApiTransaction.status == "FAILED"
+        )
+        failed_lookups = (await db.scalar(fail_stmt)) or 0
+
+        from sqlalchemy import desc
+        tx_stmt = select(TaxApiTransaction).where(TaxApiTransaction.api_type == "DL").order_by(desc(TaxApiTransaction.id)).limit(100)
+        tx_rows = (await db.execute(tx_stmt)).scalars().all()
+
+        tx_items = [
+            TaxApiTransactionItem(
+                id=t.id,
+                api_type=t.api_type,
+                query_value=t.query_value,
+                state_code=t.state_code,
+                trade_name=t.trade_name,
+                legal_name=t.legal_name,
+                status=t.status,
+                source=t.source,
+                description=t.description,
+                counter_after=t.counter_after,
+                credits_deducted=t.credits_deducted if t.credits_deducted is not None else 1,
+                balance_after=t.balance_after,
+                created_at=t.created_at.strftime("%Y-%m-%d %H:%M:%S") if t.created_at else "",
+            )
+            for t in tx_rows
+        ]
+
+        return TaxApiCounterResponse(
+            total_lookups=total_lookups,
+            successful_lookups=successful_lookups,
+            failed_lookups=failed_lookups,
+            api_calls_left=credits_left,
+            is_active=is_active,
+            pricing_notice="Standard government DL verification query via Sarathi registry.",
+            transactions=tx_items,
+        )
+    except Exception as exc:
+        logger.warning(f"Error fetching DL counter info: {exc}")
+        return TaxApiCounterResponse(
+            total_lookups=0,
+            successful_lookups=0,
+            failed_lookups=0,
+            api_calls_left=credits_left,
+            is_active=is_active,
+            pricing_notice="Standard government DL verification query via Sarathi registry.",
+            transactions=[],
+        )
+
+
+async def test_rc_connection(
+    db: AsyncSession,
+    req: RCTestRequest,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> RCTestResponse:
+    company = await get_company_setting(db)
+    api_key = (req.rc_api_key or getattr(company, "rc_api_key_override", None) or settings.RC_API_KEY or settings.FASTAG_API_KEY or "").strip()
+    api_url = (req.rc_api_url or getattr(company, "rc_api_url_override", None) or settings.RC_API_URL or "https://logitrack.webcorevision.com:5000/api/v1/vehicle-info").strip()
+
+    if not api_key:
+        return RCTestResponse(success=False, message="No RC API Key configured. Please enter or configure your API key in API Center.", vehicle_number=req.vehicle_number)
+
+    client = get_rc_client()
+    try:
+        res = await client.verify_rc(req.vehicle_number, api_key=api_key, api_url=api_url)
+        return RCTestResponse(
+            success=bool(res.get("success")),
+            message=res.get("message") or ("RC verified successfully" if res.get("success") else "RC verification failed"),
+            vehicle_number=res.get("vehicle_number"),
+            details=res
+        )
+    except Exception as exc:
+        return RCTestResponse(success=False, message=f"RC test connection failed: {str(exc)}", vehicle_number=req.vehicle_number)
+
+
+async def test_dl_connection(
+    db: AsyncSession,
+    req: DLTestRequest,
+    tenant_id: Optional[str] = None,
+    company_code: Optional[str] = None,
+) -> DLTestResponse:
+    company = await get_company_setting(db)
+    api_key = (req.dl_api_key or getattr(company, "dl_api_key_override", None) or settings.DL_API_KEY or settings.FASTAG_API_KEY or "").strip()
+    api_url = (req.dl_api_url or getattr(company, "dl_api_url_override", None) or settings.DL_API_URL or "https://logitrack.webcorevision.com:5000/api/v1/driver").strip()
+
+    if not api_key:
+        return DLTestResponse(success=False, message="No DL API Key configured. Please enter or configure your API key in API Center.", dlnumber=req.dlnumber)
+
+    client = get_dl_client()
+    try:
+        res = await client.verify_driver(req.dlnumber, dob=req.dob, api_key=api_key, api_url=api_url)
+        return DLTestResponse(
+            success=bool(res.get("success")),
+            message=res.get("message") or ("DL verified successfully" if res.get("success") else "DL verification failed"),
+            dlnumber=res.get("dlnumber"),
+            details=res
+        )
+    except Exception as exc:
+        return DLTestResponse(success=False, message=f"DL test connection failed: {str(exc)}", dlnumber=req.dlnumber)
 
 
 async def get_fastag_wallet_info(

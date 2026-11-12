@@ -11,6 +11,8 @@ import { StateSelect } from "@/components/ui/state-select";
 import { CountrySelect } from "@/components/ui/country-select";
 import { GstinInput } from "@/components/ui/gstin-input";
 import { PanInput } from "@/components/ui/pan-input";
+import { RcInput } from "@/components/ui/rc-input";
+import { DlInput } from "@/components/ui/dl-input";
 import { isIndia } from "@/lib/states";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 
@@ -388,6 +390,99 @@ export function Form({
                           setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
                         }}
                       />
+                    ) : (field.type as any) === "rc" ? (
+                      <RcInput
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        placeholder={field.placeholder || "e.g. MH-04-AZ-5678"}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={fieldRequired}
+                        isVerified={Boolean(values["is_verified"])}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                        onFetch={(result) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          const updates: Record<string, any> = { [field.name]: result.vehicle_number, is_verified: true };
+
+                          if (allFieldNames.has("vehicle_description") && result.vehicle_description) updates["vehicle_description"] = result.vehicle_description;
+                          if (allFieldNames.has("vehicle_class") && result.vehicle_class) updates["vehicle_class"] = result.vehicle_class;
+                          if (allFieldNames.has("engine_number") && result.engine_number) updates["engine_number"] = result.engine_number;
+                          if (allFieldNames.has("chassis_number") && result.chassis_number) updates["chassis_number"] = result.chassis_number;
+                          if (allFieldNames.has("rc_status") && result.rc_status) updates["rc_status"] = result.rc_status;
+                          if (allFieldNames.has("financier") && result.financier) updates["financier"] = result.financier;
+                          if (allFieldNames.has("gvw_kg") && result.gvw_kg) updates["gvw_kg"] = result.gvw_kg;
+                          if (allFieldNames.has("unladen_weight_kg") && result.unladen_weight_kg) updates["unladen_weight_kg"] = result.unladen_weight_kg;
+                          if (allFieldNames.has("color") && result.color) updates["color"] = result.color;
+                          if (allFieldNames.has("emission_norms") && result.emission_norms) updates["emission_norms"] = result.emission_norms;
+                          if (allFieldNames.has("cylinders") && result.cylinders) updates["cylinders"] = result.cylinders;
+                          if (allFieldNames.has("seating_capacity") && result.seating_capacity) updates["seating_capacity"] = result.seating_capacity;
+                          if (allFieldNames.has("registration_date") && result.registration_date) updates["registration_date"] = result.registration_date;
+                          if (allFieldNames.has("fitness_expiry") && result.fitness_expiry) updates["fitness_expiry"] = result.fitness_expiry;
+                          if (allFieldNames.has("insurance_expiry") && result.insurance_expiry) updates["insurance_expiry"] = result.insurance_expiry;
+                          if (allFieldNames.has("tax_validity") && result.tax_validity) updates["tax_validity"] = result.tax_validity;
+                          if (allFieldNames.has("puc_expiry") && result.puc_expiry) updates["puc_expiry"] = result.puc_expiry;
+                          if (allFieldNames.has("permit_validity") && result.permit_validity) updates["permit_validity"] = result.permit_validity;
+                          if (allFieldNames.has("national_permit_expiry") && result.permit_validity) updates["national_permit_expiry"] = result.permit_validity;
+
+                          setValues((prev) => ({ ...prev, ...updates }));
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            Object.keys(updates).forEach((k) => delete next[k]);
+                            return next;
+                          });
+                          setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
+                        }}
+                      />
+                    ) : (field.type as any) === "dl" || field.name === "license_number" ? (
+                      <DlInput
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        dob={values["dob"] || values["driver_dob"] || ""}
+                        onDobChange={(newDob) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          if (allFieldNames.has("dob")) handleChange("dob", newDob);
+                          else if (allFieldNames.has("driver_dob")) handleChange("driver_dob", newDob);
+                        }}
+                        showDobInput={!sections.some((s) => s.fields.some((f) => f.name === "dob" || f.name === "driver_dob"))}
+                        placeholder={field.placeholder || "e.g. MH12 20180012345"}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={fieldRequired}
+                        isVerified={Boolean(values["is_verified"])}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                        onFetch={(result) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          const updates: Record<string, any> = { [field.name]: result.dlnumber, is_verified: true };
+
+                          if (allFieldNames.has("name") && result.driver_name) updates["name"] = result.driver_name;
+                          if (allFieldNames.has("phone") && result.driver_mobile && !result.driver_mobile.includes("*")) {
+                            updates["phone"] = result.driver_mobile;
+                          }
+                          if (allFieldNames.has("dl_status") && result.dl_status) updates["dl_status"] = result.dl_status;
+                          if (allFieldNames.has("vehicle_classes") && result.vehicle_classes) updates["vehicle_classes"] = result.vehicle_classes;
+                          if (allFieldNames.has("valid_from") && result.valid_from) updates["valid_from"] = result.valid_from;
+                          if (allFieldNames.has("valid_upto") && result.valid_upto) updates["valid_upto"] = result.valid_upto;
+                          if (allFieldNames.has("license_expiry") && result.valid_upto) updates["license_expiry"] = result.valid_upto;
+
+                          setValues((prev) => ({ ...prev, ...updates }));
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            Object.keys(updates).forEach((k) => delete next[k]);
+                            return next;
+                          });
+                          setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
+                        }}
+                      />
                     ) : field.type === "pan" || field.name === "pan" || field.name === "pan_no" || field.name === "pan_number" ? (
                       <PanInput
                         id={inputId}
@@ -459,6 +554,99 @@ export function Form({
 
                           setValues((prev) => ({ ...prev, ...updates }));
 
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            Object.keys(updates).forEach((k) => delete next[k]);
+                            return next;
+                          });
+                          setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
+                        }}
+                      />
+                    ) : (field.type as any) === "rc" ? (
+                      <RcInput
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        placeholder={field.placeholder || "e.g. MH-04-AZ-5678"}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={fieldRequired}
+                        isVerified={Boolean(values["is_verified"])}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                        onFetch={(result) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          const updates: Record<string, any> = { [field.name]: result.vehicle_number, is_verified: true };
+
+                          if (allFieldNames.has("vehicle_description") && result.vehicle_description) updates["vehicle_description"] = result.vehicle_description;
+                          if (allFieldNames.has("vehicle_class") && result.vehicle_class) updates["vehicle_class"] = result.vehicle_class;
+                          if (allFieldNames.has("engine_number") && result.engine_number) updates["engine_number"] = result.engine_number;
+                          if (allFieldNames.has("chassis_number") && result.chassis_number) updates["chassis_number"] = result.chassis_number;
+                          if (allFieldNames.has("rc_status") && result.rc_status) updates["rc_status"] = result.rc_status;
+                          if (allFieldNames.has("financier") && result.financier) updates["financier"] = result.financier;
+                          if (allFieldNames.has("gvw_kg") && result.gvw_kg) updates["gvw_kg"] = result.gvw_kg;
+                          if (allFieldNames.has("unladen_weight_kg") && result.unladen_weight_kg) updates["unladen_weight_kg"] = result.unladen_weight_kg;
+                          if (allFieldNames.has("color") && result.color) updates["color"] = result.color;
+                          if (allFieldNames.has("emission_norms") && result.emission_norms) updates["emission_norms"] = result.emission_norms;
+                          if (allFieldNames.has("cylinders") && result.cylinders) updates["cylinders"] = result.cylinders;
+                          if (allFieldNames.has("seating_capacity") && result.seating_capacity) updates["seating_capacity"] = result.seating_capacity;
+                          if (allFieldNames.has("registration_date") && result.registration_date) updates["registration_date"] = result.registration_date;
+                          if (allFieldNames.has("fitness_expiry") && result.fitness_expiry) updates["fitness_expiry"] = result.fitness_expiry;
+                          if (allFieldNames.has("insurance_expiry") && result.insurance_expiry) updates["insurance_expiry"] = result.insurance_expiry;
+                          if (allFieldNames.has("tax_validity") && result.tax_validity) updates["tax_validity"] = result.tax_validity;
+                          if (allFieldNames.has("puc_expiry") && result.puc_expiry) updates["puc_expiry"] = result.puc_expiry;
+                          if (allFieldNames.has("permit_validity") && result.permit_validity) updates["permit_validity"] = result.permit_validity;
+                          if (allFieldNames.has("national_permit_expiry") && result.permit_validity) updates["national_permit_expiry"] = result.permit_validity;
+
+                          setValues((prev) => ({ ...prev, ...updates }));
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            Object.keys(updates).forEach((k) => delete next[k]);
+                            return next;
+                          });
+                          setErrorList((prev) => prev.filter((item) => !(item.name in updates)));
+                        }}
+                      />
+                    ) : (field.type as any) === "dl" || field.name === "license_number" ? (
+                      <DlInput
+                        id={inputId}
+                        name={field.name}
+                        value={val}
+                        dob={values["dob"] || values["driver_dob"] || ""}
+                        onDobChange={(newDob) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          if (allFieldNames.has("dob")) handleChange("dob", newDob);
+                          else if (allFieldNames.has("driver_dob")) handleChange("driver_dob", newDob);
+                        }}
+                        showDobInput={!sections.some((s) => s.fields.some((f) => f.name === "dob" || f.name === "driver_dob"))}
+                        placeholder={field.placeholder || "e.g. MH12 20180012345"}
+                        disabled={field.disabled || loading}
+                        error={Boolean(fieldError)}
+                        required={fieldRequired}
+                        isVerified={Boolean(values["is_verified"])}
+                        onChange={(selectedVal) => {
+                          handleChange(field.name, selectedVal);
+                          field.onChange?.(selectedVal);
+                        }}
+                        onBlur={() => handleBlur(field)}
+                        onFetch={(result) => {
+                          const allFieldNames = new Set(sections.flatMap((s) => s.fields.map((f) => f.name)));
+                          const updates: Record<string, any> = { [field.name]: result.dlnumber, is_verified: true };
+
+                          if (allFieldNames.has("name") && result.driver_name) updates["name"] = result.driver_name;
+                          if (allFieldNames.has("phone") && result.driver_mobile && !result.driver_mobile.includes("*")) {
+                            updates["phone"] = result.driver_mobile;
+                          }
+                          if (allFieldNames.has("dl_status") && result.dl_status) updates["dl_status"] = result.dl_status;
+                          if (allFieldNames.has("vehicle_classes") && result.vehicle_classes) updates["vehicle_classes"] = result.vehicle_classes;
+                          if (allFieldNames.has("valid_from") && result.valid_from) updates["valid_from"] = result.valid_from;
+                          if (allFieldNames.has("valid_upto") && result.valid_upto) updates["valid_upto"] = result.valid_upto;
+                          if (allFieldNames.has("license_expiry") && result.valid_upto) updates["license_expiry"] = result.valid_upto;
+
+                          setValues((prev) => ({ ...prev, ...updates }));
                           setErrors((prev) => {
                             const next = { ...prev };
                             Object.keys(updates).forEach((k) => delete next[k]);

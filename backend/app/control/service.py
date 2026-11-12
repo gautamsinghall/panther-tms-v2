@@ -512,6 +512,8 @@ async def provision_tenant(
         admin_email=str(data.admin_email).lower().strip(),
         gst_credits_left=0,
         pan_credits_left=0,
+        rc_credits_left=0,
+        dl_credits_left=0,
         fastag_credits_left=0,
     )
     control_session.add(tenant)
@@ -617,6 +619,8 @@ async def initiate_signup(
         subscription_status="CREATED",
         gst_credits_left=0,
         pan_credits_left=0,
+        rc_credits_left=0,
+        dl_credits_left=0,
         fastag_credits_left=0,
     )
     control_session.add(tenant)

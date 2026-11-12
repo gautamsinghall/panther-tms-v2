@@ -10,7 +10,7 @@ export interface FormFieldOption {
 export interface FormFieldDef {
   name: string;
   label: string;
-  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "gstin" | "pan" | "custom";
+  type?: "text" | "number" | "email" | "password" | "select" | "textarea" | "checkbox" | "date" | "file" | "country" | "state" | "gstin" | "pan" | "rc" | "dl" | "custom";
   placeholder?: string;
   required?: boolean | ((values: Record<string, any>) => boolean);
   options?: FormFieldOption[]; // for select

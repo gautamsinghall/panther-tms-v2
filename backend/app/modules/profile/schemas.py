@@ -240,9 +240,19 @@ class ApiCenterSettingResponse(BaseModel):
     google_maps_configured: bool = False
     gst_credits_left: int = 0
     pan_credits_left: int = 0
+    rc_credits_left: int = 0
+    dl_credits_left: int = 0
     fastag_credits_left: int = 0
     fastag_rate_per_fetch: float = 1.50
     fastag_cooldown_minutes: int = 10
+    is_rc_active: bool = True
+    is_dl_active: bool = True
+    has_rc_key_override: bool = False
+    has_dl_key_override: bool = False
+    rc_api_url_override: Optional[str] = None
+    dl_api_url_override: Optional[str] = None
+    platform_rc_configured: bool = False
+    platform_dl_configured: bool = False
 
 
 class ApiCenterSettingUpdate(BaseModel):
@@ -252,9 +262,15 @@ class ApiCenterSettingUpdate(BaseModel):
     is_ewb_active: Optional[bool] = True
     is_gst_active: Optional[bool] = True
     is_pan_active: Optional[bool] = True
+    is_rc_active: Optional[bool] = True
+    is_dl_active: Optional[bool] = True
     gsp_client_id_override: Optional[str] = None
     gsp_client_secret_override: Optional[str] = None
     gsp_base_url_override: Optional[str] = None
+    rc_api_key_override: Optional[str] = None
+    dl_api_key_override: Optional[str] = None
+    rc_api_url_override: Optional[str] = None
+    dl_api_url_override: Optional[str] = None
     ft_base_url: Optional[str] = None
     ft_auth_token: Optional[str] = None
     is_ft_active: Optional[bool] = None
@@ -333,6 +349,73 @@ class PANTestResponse(BaseModel):
     pan: Optional[str] = None
     gstin: Optional[str] = None
     legal_name: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+class RCLookupResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    owner_name: Optional[str] = None
+    vehicle_description: Optional[str] = None
+    vehicle_class: Optional[str] = None
+    engine_number: Optional[str] = None
+    chassis_number: Optional[str] = None
+    rc_status: Optional[str] = None
+    financier: Optional[str] = None
+    gvw_kg: Optional[float] = None
+    unladen_weight_kg: Optional[float] = None
+    color: Optional[str] = None
+    emission_norms: Optional[str] = None
+    cylinders: Optional[int] = None
+    seating_capacity: Optional[int] = None
+    registration_date: Optional[str] = None
+    fitness_expiry: Optional[str] = None
+    insurance_expiry: Optional[str] = None
+    tax_validity: Optional[str] = None
+    puc_expiry: Optional[str] = None
+    permit_validity: Optional[str] = None
+    raw_data: Optional[Dict[str, Any]] = None
+
+
+class DLLookupResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    dlnumber: Optional[str] = None
+    dob: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_mobile: Optional[str] = None
+    dl_status: Optional[str] = None
+    valid_from: Optional[str] = None
+    valid_upto: Optional[str] = None
+    vehicle_classes: Optional[str] = None
+    raw_data: Optional[Dict[str, Any]] = None
+
+
+class RCTestRequest(BaseModel):
+    vehicle_number: str
+    rc_api_key: Optional[str] = None
+    rc_api_url: Optional[str] = None
+
+
+class RCTestResponse(BaseModel):
+    success: bool
+    message: str
+    vehicle_number: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+class DLTestRequest(BaseModel):
+    dlnumber: str
+    dob: str
+    dl_api_key: Optional[str] = None
+    dl_api_url: Optional[str] = None
+
+
+class DLTestResponse(BaseModel):
+    success: bool
+    message: str
+    dlnumber: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
 
 

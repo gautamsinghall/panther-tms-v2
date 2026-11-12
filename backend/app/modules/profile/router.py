@@ -19,8 +19,11 @@ from app.modules.profile.schemas import (
     FastagWalletResponse, FastagCooldownUpdate,
     SimWalletResponse,
     GSTLookupResponse, PANLookupResponse,
+    RCLookupResponse, DLLookupResponse,
     GSTTestRequest, GSTTestResponse,
     PANTestRequest, PANTestResponse,
+    RCTestRequest, RCTestResponse,
+    DLTestRequest, DLTestResponse,
     TaxApiCounterResponse
 )
 from app.modules.profile import service
@@ -454,6 +457,122 @@ async def test_pan(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     return await service.test_pan_connection(
+        db,
+        req,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
+
+# --- RC & DL Lookup & Verification Endpoints ---
+
+@router.get(
+    "/api-center/rc-lookup",
+    response_model=RCLookupResponse,
+    summary="Lookup and verify vehicle details by registration number (RC)"
+)
+async def get_rc_lookup(
+    vehicle_number: str = Query(..., description="Vehicle Registration Number, e.g. MH04AZ5678"),
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.lookup_rc(
+        db,
+        vehicle_number=vehicle_number,
+        source="AUTOFILL",
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
+
+@router.get(
+    "/api-center/dl-lookup",
+    response_model=DLLookupResponse,
+    summary="Lookup and verify driver license details by DL number and DOB"
+)
+async def get_dl_lookup(
+    dlnumber: str = Query(..., description="Driving License Number"),
+    dob: str = Query(..., description="Driver Date of Birth (YYYY-MM-DD or DD-MM-YYYY)"),
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.lookup_dl(
+        db,
+        dlnumber=dlnumber,
+        dob=dob,
+        source="AUTOFILL",
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
+
+@router.get(
+    "/api-center/rc-counter",
+    response_model=TaxApiCounterResponse,
+    summary="Get RC API verification query counter, status, and audit ledger"
+)
+async def get_rc_counter(
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_rc_counter_info(
+        db,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
+
+@router.get(
+    "/api-center/dl-counter",
+    response_model=TaxApiCounterResponse,
+    summary="Get DL API verification query counter, status, and audit ledger"
+)
+async def get_dl_counter(
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.get_dl_counter_info(
+        db,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
+
+@router.post(
+    "/api-center/test-rc",
+    response_model=RCTestResponse,
+    summary="Test RC verification & credentials"
+)
+async def test_rc(
+    req: RCTestRequest,
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.test_rc_connection(
+        db,
+        req,
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
+
+@router.post(
+    "/api-center/test-dl",
+    response_model=DLTestResponse,
+    summary="Test DL verification & credentials"
+)
+async def test_dl(
+    req: DLTestRequest,
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    return await service.test_dl_connection(
         db,
         req,
         tenant_id=tenant.tenant_id if tenant else None,

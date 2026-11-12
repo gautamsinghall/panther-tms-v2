@@ -111,9 +111,15 @@ class CompanySetting(TenantBase):
     is_ewb_active = Column(Boolean, default=True, nullable=False)
     is_gst_active = Column(Boolean, default=True, nullable=False)
     is_pan_active = Column(Boolean, default=True, nullable=False)
+    is_rc_active = Column(Boolean, default=True, nullable=False)
+    is_dl_active = Column(Boolean, default=True, nullable=False)
     gsp_client_id_override = Column(String(255), nullable=True)
     gsp_client_secret_override = Column(String(255), nullable=True)
     gsp_base_url_override = Column(String(255), nullable=True)
+    rc_api_key_override = Column(String(255), nullable=True)
+    dl_api_key_override = Column(String(255), nullable=True)
+    rc_api_url_override = Column(String(255), nullable=True)
+    dl_api_url_override = Column(String(255), nullable=True)
 
     # Freight Tiger SIM Tracking Integration (PRD §11 / FT Trip APIs)
     ft_base_url = Column(String(255), default="https://api.freighttiger.com/api/tether", nullable=True)
@@ -557,6 +563,8 @@ class Driver(TenantBase):
     current_address = Column(Text, nullable=True)
     emergency_contact = Column(String(50), nullable=True)
     blood_group = Column(String(10), nullable=True)
+    dob = Column(Date, nullable=True)
+    is_verified = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
@@ -621,6 +629,7 @@ class MarketVehicle(TenantBase):
     rc_original_status = Column(String(100), nullable=True)
     rc_copy_doc = Column(Text, nullable=True)
     last_repair_bill_doc = Column(Text, nullable=True)
+    is_verified = Column(Boolean, default=False, nullable=False)
 
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -693,6 +702,7 @@ class CompanyVehicle(TenantBase):
     default_driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True)
     account_id = Column(Integer, ForeignKey("misc_accounts.id"), nullable=True, index=True)
     current_odometer_km = Column(Integer, default=0, nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(

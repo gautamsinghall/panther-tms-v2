@@ -31,6 +31,8 @@ interface DriverRecord {
   pan_doc?: string;
   license_number?: string;
   license_expiry?: string;
+  dob?: string;
+  is_verified?: boolean;
   emergency_contact?: string;
   blood_group?: string;
   is_active: boolean;
@@ -142,9 +144,16 @@ export default function DriversPage({ embedded = false, onCreated, onCancel }: D
       header: "DL Status & Coverage",
       cell: (row) => (
         <div>
-          <span className="font-mono text-xs bg-slate-50 text-slate-800 px-2 py-0.5 rounded border border-slate-200 shadow-2xs inline-block">
-            {row.dl_status || "Standard"}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono text-xs bg-slate-50 text-slate-800 px-2 py-0.5 rounded border border-slate-200 shadow-2xs inline-block">
+              {row.dl_status || "Standard"}
+            </span>
+            {row.is_verified && (
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
+              </span>
+            )}
+          </div>
           {row.vehicle_classes && (
             <span className="block text-[11px] text-slate-500 mt-1 font-medium truncate max-w-[200px]" title={row.vehicle_classes}>
               {row.vehicle_classes}
@@ -331,7 +340,15 @@ export default function DriversPage({ embedded = false, onCreated, onCancel }: D
           name: "license_number",
           label: "Driving License Number",
           placeholder: "e.g. MH12 20180012345",
+          type: "dl",
           required: true,
+        },
+        {
+          name: "dob",
+          label: "Date of Birth (DOB)",
+          type: "date",
+          required: false,
+          helperText: "Required for live DL / Sarathi verification (DD-MM-YYYY or YYYY-MM-DD)",
         },
         {
           name: "dl_status",
@@ -414,6 +431,8 @@ export default function DriversPage({ embedded = false, onCreated, onCancel }: D
         name: prefillDriver?.name || "",
         phone: prefillDriver?.phone || "",
         license_number: "",
+        dob: "",
+        is_verified: false,
         dl_status: "UNVERIFIED",
         vehicle_classes: "",
         valid_from: "",
@@ -429,6 +448,8 @@ export default function DriversPage({ embedded = false, onCreated, onCancel }: D
       name: editingRecord.name || "",
       phone: editingRecord.phone || "",
       license_number: editingRecord.license_number || "",
+      dob: editingRecord.dob ? editingRecord.dob.split("T")[0] : "",
+      is_verified: editingRecord.is_verified ?? false,
       dl_status: editingRecord.dl_status || "",
       vehicle_classes: editingRecord.vehicle_classes || "",
       valid_from: editingRecord.valid_from ? editingRecord.valid_from.split("T")[0] : "",

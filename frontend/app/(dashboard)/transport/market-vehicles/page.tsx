@@ -35,6 +35,7 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { formatDate, cn } from "@/lib/utils";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
+import { RcInput } from "@/components/ui/rc-input";
 
 export interface MarketVehicleRecord {
   id: number;
@@ -65,6 +66,7 @@ export interface MarketVehicleRecord {
   cylinders?: number | string;
   seating_capacity?: number | string;
   rc_status?: string;
+  is_verified?: boolean;
 
   // Step 3: Validity Details
   tax_validity?: string;
@@ -367,6 +369,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
       cylinders: "",
       seating_capacity: "2",
       rc_status: "UNVERIFIED",
+      is_verified: false,
       fitness_expiry: "",
       insurance_expiry: "",
       tax_validity: "",
@@ -419,6 +422,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
       cylinders: record.cylinders ? String(record.cylinders) : "",
       seating_capacity: record.seating_capacity ? String(record.seating_capacity) : "2",
       rc_status: record.rc_status || "ACTIVE",
+      is_verified: record.is_verified ?? false,
       fitness_expiry: record.fitness_expiry ? record.fitness_expiry.slice(0, 10) : "",
       insurance_expiry: record.insurance_expiry ? record.insurance_expiry.slice(0, 10) : "",
       tax_validity: record.tax_validity ? record.tax_validity.slice(0, 10) : "",
@@ -500,6 +504,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
         cylinders: formValues.cylinders ? parseInt(String(formValues.cylinders), 10) : null,
         seating_capacity: formValues.seating_capacity ? parseInt(String(formValues.seating_capacity), 10) : null,
         rc_status: formValues.rc_status || "ACTIVE",
+        is_verified: Boolean(formValues.is_verified),
         fitness_expiry: formValues.fitness_expiry || null,
         insurance_expiry: formValues.insurance_expiry || null,
         tax_validity: formValues.tax_validity || null,
@@ -577,6 +582,11 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                 )}
               >
                 RC: {row.rc_status}
+              </span>
+            )}
+            {row.is_verified && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> Verified
               </span>
             )}
           </div>
@@ -867,14 +877,12 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <label className="block text-xs font-semibold text-slate-700">
                     Vehicle Registration Number <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <RcInput
                     value={formValues.vehicle_number}
-                    placeholder="e.g. MH-04-AZ-5678"
-                    onChange={(e) => {
+                    onChange={(val) => {
                       setFormValues((prev) => ({
                         ...prev,
-                        vehicle_number: e.target.value.toUpperCase(),
+                        vehicle_number: val,
                       }));
                       if (formErrors.vehicle_number) {
                         setFormErrors((prev) => {
@@ -884,8 +892,47 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                         });
                       }
                     }}
+                    onFetch={(data) => {
+                      setFormValues((prev) => {
+                        const next = { ...prev };
+                        if (data.vehicle_number) next.vehicle_number = data.vehicle_number;
+                        if (data.vehicle_description || data.maker_model) next.vehicle_description = data.vehicle_description || data.maker_model;
+                        if (data.vehicle_class) next.vehicle_class = data.vehicle_class;
+                        if (data.engine_number) next.engine_number = data.engine_number;
+                        if (data.chassis_number) next.chassis_number = data.chassis_number;
+                        if (data.financier) next.financier = data.financier;
+                        if (data.gvw_kg != null) next.gvw_kg = String(data.gvw_kg);
+                        if (data.unladen_weight_kg != null) next.unladen_weight_kg = String(data.unladen_weight_kg);
+                        if (data.emission_norms) next.emission_norms = data.emission_norms;
+                        if (data.color) next.color = data.color;
+                        if (data.cylinders != null) next.cylinders = String(data.cylinders);
+                        if (data.seating_capacity != null) next.seating_capacity = String(data.seating_capacity);
+                        const s = data.rc_status || data.status;
+                        if (s) next.rc_status = s.toUpperCase();
+                        if (data.registration_date) next.registration_date = data.registration_date;
+                        if (data.fitness_expiry) next.fitness_expiry = data.fitness_expiry;
+                        if (data.insurance_expiry) next.insurance_expiry = data.insurance_expiry;
+                        if (data.tax_validity) next.tax_validity = data.tax_validity;
+                        if (data.puc_expiry) next.puc_expiry = data.puc_expiry;
+                        if (data.permit_validity) next.permit_validity = data.permit_validity;
+                        next.is_verified = true;
+
+                        if (data.owner_name && (!prev.owner_id || prev.owner_id === "")) {
+                          const cleanRcOwner = data.owner_name.toLowerCase().trim();
+                          const matched = owners.find((o) =>
+                            cleanRcOwner.includes(o.name.toLowerCase().trim()) ||
+                            o.name.toLowerCase().trim().includes(cleanRcOwner)
+                          );
+                          if (matched) {
+                            next.owner_id = String(matched.id);
+                          }
+                        }
+                        return next;
+                      });
+                      toast.success(`Verified: ${data.vehicle_description || data.maker_model || "RC details loaded"}`);
+                    }}
+                    placeholder="e.g. MH-04-AZ-5678"
                     className={cn(
-                      "w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-semibold rounded-xl border bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 uppercase tracking-widest shadow-2xs",
                       formErrors.vehicle_number ? "border-rose-400" : "border-slate-200"
                     )}
                   />

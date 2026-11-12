@@ -204,6 +204,44 @@ async def delete_driver(
         detail="You cannot delete this driver. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this driver needs correction or cancellation.",
     )
 
+
+# --- Vehicle & Driver Verification Proxies ---
+
+@router.get("/verify-rc", summary="Verify vehicle RC number and autofill technical specs")
+async def transport_verify_rc(
+    vehicle_number: str = Query(..., description="Vehicle Registration Number"),
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    from app.modules.profile.service import lookup_rc
+    return await lookup_rc(
+        db,
+        vehicle_number=vehicle_number,
+        source="VEHICLE_FORM",
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
+
+@router.get("/verify-dl", summary="Verify driver license and autofill coverage & validity")
+async def transport_verify_dl(
+    dlnumber: str = Query(..., description="Driving License Number"),
+    dob: str = Query(..., description="Date of Birth"),
+    current_user: User = Depends(get_current_user),
+    tenant: Optional[Tenant] = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    from app.modules.profile.service import lookup_dl
+    return await lookup_dl(
+        db,
+        dlnumber=dlnumber,
+        dob=dob,
+        source="DRIVER_FORM",
+        tenant_id=tenant.tenant_id if tenant else None,
+        company_code=tenant.company_code if tenant else None,
+    )
+
 # ==============================================================================
 # 3. Market Vehicles
 # ==============================================================================
