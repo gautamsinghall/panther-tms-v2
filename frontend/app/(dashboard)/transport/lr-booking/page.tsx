@@ -488,18 +488,18 @@ export default function LRBookingPage() {
     }),
   ], [jobs]);
 
-  const bookingStatusOptions = [
+  const bookingStatusOptions = useMemo(() => [
     { label: "Booked", value: "Booked" },
     { label: "Canceled", value: "Canceled" },
     { label: "Reserved", value: "Reserved" },
-  ];
+  ], []);
 
-  const paymentTypeOptions = [
+  const paymentTypeOptions = useMemo(() => [
     { label: "To Be Billed", value: "To Be Billed" },
     { label: "To Pay", value: "To Pay" },
     { label: "Paid", value: "Paid" },
     { label: "FOC", value: "FOC" },
-  ];
+  ], []);
 
   const seriesRangeOptions = useMemo(() => {
     if (seriesInfo?.series_options && seriesInfo.series_options.length > 0) {
@@ -947,7 +947,7 @@ export default function LRBookingPage() {
 
   const handleSubmit = async (values: Record<string, any>) => {
     if (isSubmitting) return;
-    if (!editingLrId && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)) {
+    if (!editingLrId && !seriesInfo?.configured && (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0)) {
       setDrawerError("No active LR series configured for this issuing office. Please setup or import the default series template in Settings > Series Master before creating an LR.");
       return;
     }
@@ -2315,7 +2315,7 @@ export default function LRBookingPage() {
         }}
       />
 
-      {!isSeriesLoading && seriesInfo && !seriesInfo.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
+      {!isSeriesLoading && seriesInfo && !seriesInfo.configured && (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) && (
         <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-2">
             <span className="font-bold">⚠️ Manual Series Required:</span>
@@ -2456,7 +2456,7 @@ export default function LRBookingPage() {
         </div>
 
         {/* Unconfigured Series Warning Alert */}
-        {!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0) && (
+        {!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0) && (
           <div className="mb-4 p-4 rounded-xl bg-rose-50 dark:bg-[#201418] border border-rose-200 dark:border-[#4E232B] text-rose-900 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
@@ -2525,7 +2525,7 @@ export default function LRBookingPage() {
           onCancel={handleCloseDrawer}
           submitLabel={editingLrRecord ? "Save Changes" : "Create Lorry Receipt"}
           isLoading={isSubmitting}
-          submitDisabled={!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || manualSeriesData.ranges.length === 0)}
+          submitDisabled={!editingLrRecord && !seriesInfo?.configured && (!manualSeriesData || !manualSeriesData.ranges || manualSeriesData.ranges.length === 0)}
         />
       </EntityDrawer>
 

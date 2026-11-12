@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { cn, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -75,7 +75,7 @@ export function Form({
   const isFieldRequired = (field: FormFieldDef) =>
     typeof field.required === "function" ? field.required(values) : Boolean(field.required);
 
-  const prevInitialValuesRef = useRef<Record<string, any>>(initialValues);
+  const prevInitialValuesRef = useRef<Record<string, any>>(initialValues || {});
   useEffect(() => {
     const defaults: Record<string, any> = {};
     for (const section of sections) {
@@ -90,14 +90,15 @@ export function Form({
       const updated: Record<string, any> = { ...prev };
       // Only apply keys from initialValues that actually changed from previous initialValues,
       // preventing stale initial values from wiping dirty or dynamically populated form fields.
-      for (const key of Object.keys(initialValues)) {
-        if (initialValues[key] !== prevInit[key]) {
-          updated[key] = initialValues[key];
+      const safeInit = initialValues || {};
+      for (const key of Object.keys(safeInit)) {
+        if (safeInit[key] !== prevInit[key]) {
+          updated[key] = safeInit[key];
         }
       }
       return { ...defaults, ...updated };
     });
-    prevInitialValuesRef.current = initialValues;
+    prevInitialValuesRef.current = initialValues || {};
   }, [initialValues, sections]);
 
   const handleChange = (name: string, value: any) => {
