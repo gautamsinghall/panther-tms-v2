@@ -376,10 +376,11 @@ export function TransportInvoicePrintModal({
     null;
 
   const bankName =
+    defaultBank?.custom_bank_name ||
     defaultBank?.bank_name ||
     issuingBranch?.bank_name ||
     company?.bank_name ||
-    "ICICI Bank";
+    "";
   const bankBranch =
     defaultBank?.branch_name ||
     issuingBranch?.bank_branch ||
@@ -470,10 +471,10 @@ export function TransportInvoicePrintModal({
           {/* Printable Document Sheet (Exact A4 Styling) */}
           <div
             id="printable-tax-invoice"
-            className="w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans"
-            style={{ minHeight: "280mm" }}
+            className="w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans min-h-[280mm] flex flex-col justify-between"
           >
-            {/* Header: Logo, Company Name, Contact, TAX INVOICE title */}
+            <div>
+              {/* Header: Logo, Company Name, Contact, TAX INVOICE title */}
             <div className="flex items-start justify-between gap-4">
               {/* Left: Monogram / Logo + Company Info */}
               <div className="flex items-start gap-3.5">
@@ -660,9 +661,26 @@ export function TransportInvoicePrintModal({
                 <tbody className="divide-y divide-slate-200">
                   {items && items.length > 0 ? (
                     items.map((itm: any, idx: number) => {
-                      const itmTaxable = parseFloat(String(itm.taxable_amount || itm.amount || 0));
                       const itmTax = parseFloat(String(itm.tax_amount || 0));
-                      const itmTotal = parseFloat(String(itm.total_amount || itmTaxable + itmTax));
+                      const rawTaxable = itm.taxable_amount ?? itm.amount;
+                      const itmTaxable =
+                        rawTaxable !== undefined && rawTaxable !== null && rawTaxable !== ""
+                          ? parseFloat(String(rawTaxable))
+                          : itm.total_amount !== undefined && itm.total_amount !== null && itm.total_amount !== ""
+                          ? parseFloat(String(itm.total_amount))
+                          : itm.rate && itm.quantity
+                          ? parseFloat(String(itm.rate)) * parseFloat(String(itm.quantity))
+                          : taxableAmount || 0;
+                      const itmTotal = parseFloat(
+                        String(
+                          itm.net_amount ??
+                            (itm.total_amount !== undefined &&
+                            itm.tax_amount !== undefined &&
+                            Number(itm.total_amount) > Number(itmTaxable)
+                              ? itm.total_amount
+                              : itmTaxable + itmTax)
+                        )
+                      );
                       return (
                         <tr key={idx} className="hover:bg-slate-50/50">
                           <td className="p-2 border-r border-slate-200 text-center font-mono">{idx + 1}</td>
@@ -845,7 +863,7 @@ export function TransportInvoicePrintModal({
                     <div className="flex justify-between">
                       <span className="text-slate-500">Bank & Branch:</span>
                       <span className="font-bold text-slate-900">
-                        {bankName}
+                        {bankName || "—"}
                         {bankBranch ? `, ${bankBranch}` : ""}
                       </span>
                     </div>
@@ -867,11 +885,11 @@ export function TransportInvoicePrintModal({
                 </div>
 
                 {/* Terms & Conditions */}
-                <div>
+                <div className="pt-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#1e40af] block mb-1">
                     TERMS & CONDITIONS
                   </span>
-                  <ol className="list-decimal list-inside space-y-0.5 text-[10px] text-slate-600 leading-normal">
+                  <ol className="list-decimal list-inside space-y-0.5 text-[10px] text-slate-600 leading-normal pb-2">
                     <li>Any discrepancies in the bill must be reported within 10 days from the bill date.</li>
                     <li>
                       Interest @ 24% per annum will be charged if payment is not settled within 7 days of
@@ -890,7 +908,7 @@ export function TransportInvoicePrintModal({
               </div>
 
               {/* Right Column (Span 5): Authorized Signatory */}
-              <div className="col-span-5 border border-slate-200 rounded-xs p-3 flex flex-col justify-between h-full bg-white text-right">
+              <div className="col-span-5 border border-slate-200 rounded-xs p-3 flex flex-col justify-between bg-white text-right">
                 <div>
                   <p className="text-xs font-bold uppercase text-slate-900">
                     For {companyName}
@@ -922,9 +940,10 @@ export function TransportInvoicePrintModal({
                 </div>
               </div>
             </div>
+            </div>
 
             {/* Bottom Footer Line */}
-            <div className="border-t border-slate-200 mt-4 pt-2 flex justify-between items-center text-[10px] text-slate-500">
+            <div className="border-t border-slate-200 mt-6 pt-2 flex justify-between items-center text-[10px] text-slate-500">
               <span>
                 {companyName} — TAX INVOICE {invoiceNo}
               </span>
