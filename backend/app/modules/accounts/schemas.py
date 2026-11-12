@@ -457,11 +457,6 @@ class VoucherResponse(VoucherBase):
     against_voucher_number: Optional[str] = None
     irn: Optional[str] = None
     irn_status: Optional[str] = None
-    ack_no: Optional[str] = None
-    ack_date: Optional[str] = None
-    lr_details: Optional[Dict[str, Any]] = None
-    client_details: Optional[Dict[str, Any]] = None
-    issuing_office_details: Optional[Dict[str, Any]] = None
     items: List[VoucherItemResponse] = []
     ledger_entries: List[LedgerEntryResponse] = []
     bill_allocations: List[BillAllocationResponse] = []
