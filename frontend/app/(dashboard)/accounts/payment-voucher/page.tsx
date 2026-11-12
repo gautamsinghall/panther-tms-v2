@@ -2029,8 +2029,8 @@ export default function PaymentVoucherPage() {
 
       {/* MODAL 3: Print Payment Voucher (Indian Transport Standard) */}
       {isPrintModalOpen && printVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 overflow-y-auto">
-          <div className="bg-white text-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative print:m-0 print:p-0 print:w-full print:shadow-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static">
+          <div className="printable-paper-sheet printable-document-sheet bg-white text-slate-900 rounded-xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative print:m-0 print:p-0 print:w-full print:shadow-none">
             {/* Modal Controls */}
             <div className="flex items-center justify-between border-b pb-3 print:hidden">
               <span className="font-semibold text-sm text-slate-700 flex items-center gap-1.5">

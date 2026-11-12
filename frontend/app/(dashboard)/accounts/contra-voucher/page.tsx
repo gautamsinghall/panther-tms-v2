@@ -1280,8 +1280,8 @@ export default function ContraVoucherPage() {
 
       {/* MODAL 3: Print Contra Voucher (Indian Transport Standard) */}
       {isPrintModalOpen && printVoucher && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-6 relative print:m-0 print:p-0 print:w-full print:shadow-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static">
+          <div className="printable-paper-sheet printable-document-sheet bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-6 relative print:m-0 print:p-0 print:w-full print:shadow-none">
             {/* Header */}
             <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-start">
               <div>

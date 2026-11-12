@@ -173,6 +173,35 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [theme, applyThemeWithTransition]);
 
+  // Global print isolation: ensure printing always strips dark theme from html root
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      const root = document.documentElement;
+      if (root.classList.contains("dark")) {
+        root.classList.remove("dark");
+        root.setAttribute("data-theme", "light");
+        root.setAttribute("data-print-dark-restore", "true");
+        root.style.colorScheme = "light";
+      }
+    };
+    const handleAfterPrint = () => {
+      const root = document.documentElement;
+      if (root.getAttribute("data-print-dark-restore") === "true") {
+        root.removeAttribute("data-print-dark-restore");
+        root.classList.add("dark");
+        root.setAttribute("data-theme", "dark");
+        root.style.colorScheme = "dark";
+      }
+    };
+
+    window.addEventListener("beforeprint", handleBeforePrint);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => {
+      window.removeEventListener("beforeprint", handleBeforePrint);
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
+  }, []);
+
 
   const value: ThemeContextType = {
     theme: isAuthPage ? "light" : theme,

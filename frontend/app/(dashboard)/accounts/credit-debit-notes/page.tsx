@@ -1379,8 +1379,8 @@ export default function CreditDebitNotesPage() {
           PRINTABLE NOTE MODAL (TALLY PRIME STYLE)
           ========================================================================= */}
       {printVoucher && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-6">
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:overflow-visible print:static">
+          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-6 print:p-0 print:w-full print:shadow-none print:border-none print:m-0">
             {/* Action Bar */}
             <div className="flex items-center justify-between border-b border-border pb-4 print:hidden">
               <span className="font-semibold text-sm text-foreground">Print / Preview Note Voucher</span>
@@ -1395,7 +1395,7 @@ export default function CreditDebitNotesPage() {
             </div>
 
             {/* Printable Document Body */}
-            <div className="bg-white text-black p-8 rounded border border-gray-300 font-sans text-sm flex flex-col gap-6">
+            <div className="printable-paper-sheet printable-document-sheet bg-white text-black p-8 rounded border border-gray-300 font-sans text-sm flex flex-col gap-6">
               {/* Header */}
               <div className="text-center border-b border-gray-300 pb-4">
                 <h1 className="text-xl font-bold uppercase tracking-wider text-black">

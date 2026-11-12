@@ -1910,8 +1910,8 @@ export default function PurchasesPage() {
       {/* MODAL 4: Printable Purchase Voucher                                        */}
       {/* -------------------------------------------------------------------------- */}
       {isPrintModalOpen && printBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static">
+          <div className="printable-paper-sheet printable-document-sheet bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl space-y-6 print:p-0 print:w-full print:shadow-none print:border-none print:m-0">
             <div className="flex justify-between items-start border-b border-gray-200 pb-4">
               <div>
                 <span className="text-xs uppercase tracking-widest text-indigo-700 font-bold block">PantherTMS ERP</span>

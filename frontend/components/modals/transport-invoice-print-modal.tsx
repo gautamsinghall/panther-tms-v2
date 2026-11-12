@@ -421,12 +421,12 @@ export function TransportInvoicePrintModal({
       />
 
       {/* Modal Container */}
-      <div className="transport-invoice-container relative w-full max-w-5xl my-auto bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="transport-invoice-container relative w-full max-w-5xl my-auto bg-white dark:bg-[#111217] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#22232E] overflow-hidden z-10 flex flex-col print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Controls Bar (Hidden in Print) */}
-        <div className="no-print flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-slate-50 border-b border-slate-200">
+        <div className="no-print flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-slate-50 dark:bg-[#161722] border-b border-slate-200 dark:border-[#22232E]">
           <div className="flex items-center gap-3">
-            <span className="font-bold text-slate-800 text-sm">Transport Tax Invoice Preview</span>
-            <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-xs font-medium">
+            <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Transport Tax Invoice Preview</span>
+            <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-medium">
               {[
                 "ORIGINAL FOR RECIPIENT",
                 "DUPLICATE FOR TRANSPORTER",
@@ -437,8 +437,8 @@ export function TransportInvoicePrintModal({
                   onClick={() => setSelectedCopy(copy)}
                   className={`px-2.5 py-1 rounded-md transition-all ${
                     selectedCopy === copy
-                      ? "bg-white text-indigo-700 font-bold shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-white dark:bg-[#2A2B36] text-indigo-700 dark:text-indigo-400 font-bold shadow-xs"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                   }`}
                 >
                   {copy.split(" ")[0]}
@@ -459,7 +459,7 @@ export function TransportInvoicePrintModal({
               size="sm"
               variant="outline"
               onClick={onClose}
-              className="h-8 w-8 p-0 rounded-lg text-slate-500 hover:text-slate-800"
+              className="h-8 w-8 p-0 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -467,11 +467,11 @@ export function TransportInvoicePrintModal({
         </div>
 
         {/* Scrollable Document Area in Modal */}
-        <div className="max-h-[85vh] overflow-y-auto p-4 sm:p-8 bg-slate-100 flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+        <div className="max-h-[85vh] overflow-y-auto p-4 sm:p-8 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:max-h-none">
           {/* Printable Document Sheet (Exact A4 Styling) */}
           <div
             id="printable-tax-invoice"
-            className="w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans min-h-[280mm] h-fit flex flex-col justify-between"
+            className="printable-paper-sheet printable-document-sheet w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans min-h-[280mm] h-fit flex flex-col justify-between"
           >
             <div>
               {/* Header: Logo, Company Name, Contact, TAX INVOICE title */}

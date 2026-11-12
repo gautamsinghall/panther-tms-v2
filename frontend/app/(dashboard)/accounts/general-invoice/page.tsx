@@ -1924,13 +1924,13 @@ export default function GeneralInvoicePage() {
       {/* 4. GST Tax Invoice Print Preview Modal                                 */}
       {/* ---------------------------------------------------------------------- */}
       {printInvoice && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-slate-200">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white print:overflow-visible print:static">
+          <div className="bg-white dark:bg-[#111217] rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-[#22232E] print:p-0 print:w-full print:shadow-none print:border-none print:m-0">
             {/* Modal Controls */}
-            <div className="flex items-center justify-between border-b pb-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#22232E] pb-4 print:hidden">
               <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-bold text-slate-900 text-base">
+                <Printer className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
                   GST Tax Invoice & Billing Bill
                 </h3>
               </div>
@@ -1939,7 +1939,7 @@ export default function GeneralInvoicePage() {
                   size="sm"
                   variant="primary"
                   onClick={() => window.print()}
-                  className="gap-1.5"
+                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Printer className="w-4 h-4" /> Print / Save PDF
                 </Button>
@@ -1956,7 +1956,7 @@ export default function GeneralInvoicePage() {
             {/* Printable Document Sheet */}
             <div
               id="printable-tax-invoice"
-              className="p-6 border border-slate-300 rounded-xl space-y-6 text-xs text-slate-900 dark:text-white bg-white"
+              className="printable-paper-sheet printable-document-sheet p-6 border border-slate-300 rounded-xl space-y-6 text-xs text-slate-900 bg-white"
             >
               {/* Header */}
               <div className="text-center border-b pb-4 space-y-1">
@@ -2121,10 +2121,10 @@ export default function GeneralInvoicePage() {
 
               {/* Amount in Words */}
               <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase block font-semibold">
+                <span className="text-[10px] text-slate-500 uppercase block font-semibold">
                   Amount Chargeable (in words):
                 </span>
-                <span className="font-bold text-slate-900 dark:text-white text-xs">
+                <span className="font-bold text-slate-900 text-xs">
                   {numberToWords(parseFloat(String(printInvoice.net_amount)))}
                 </span>
               </div>
@@ -2132,7 +2132,7 @@ export default function GeneralInvoicePage() {
               {/* Bank & Payment Remittance Details */}
               <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
                     BANK REMITTANCE DETAILS (RTGS / NEFT)
                   </span>
                   <p>
@@ -2152,7 +2152,7 @@ export default function GeneralInvoicePage() {
                   </p>
                 </div>
                 <div className="flex flex-col justify-between text-right p-3">
-                  <span className="text-slate-500 dark:text-slate-400 text-[10px]">
+                  <span className="text-slate-500 text-[10px]">
                     For Panther Logistics & Transport Pvt Ltd
                   </span>
                   <div className="h-12 flex items-center justify-end">
@@ -2160,7 +2160,7 @@ export default function GeneralInvoicePage() {
                       [ Digitally Signed & Authorized ]
                     </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">Authorized Signatory</span>
+                  <span className="font-bold text-slate-900">Authorized Signatory</span>
                 </div>
               </div>
             </div>

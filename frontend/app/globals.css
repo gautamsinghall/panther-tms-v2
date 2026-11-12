@@ -1576,32 +1576,68 @@ html.dark .job-order-modal-body {
   background-color: #0B0B0E !important;
 }
 
+/* ==========================================================================
+   GLOBAL PAPER DOCUMENT & PRINT PREVIEW THEME ISOLATION
+   Ensures all printable document sheets (Tax Invoices, LRs, Challans, Job Orders,
+   Vouchers, Reports) ALWAYS retain authentic physical light paper styling
+   (white sheet, dark ink, light tables, authentic brand accents) even when
+   the application is operating in Dark Mode.
+   ========================================================================== */
+
+/* 1. Paper Document Outer Container */
 html.dark #lr-printable-document,
 html.dark [id^="lr-printable-document"],
 html.dark #hire-challan-printable-document,
+html.dark [id^="hire-challan-printable-document"],
 html.dark #job-order-printable-document,
+html.dark [id^="job-order-printable-document"],
+html.dark #printable-tax-invoice,
+html.dark [id*="printable-tax-invoice"],
 html.dark .printable-document-sheet,
-html.dark .printable-paper-sheet {
+html.dark .printable-paper-sheet,
+html.dark [data-printable-document],
+html.dark [data-printable-sheet],
+html.dark .print-paper {
   background-color: #ffffff !important;
   background: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
+  color-scheme: light !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1) !important;
 }
 
+/* 2. Color-scheme and border resets for all descendants */
 html.dark #lr-printable-document *,
 html.dark [id^="lr-printable-document"] *,
 html.dark #hire-challan-printable-document *,
+html.dark [id^="hire-challan-printable-document"] *,
 html.dark #job-order-printable-document *,
+html.dark [id^="job-order-printable-document"] *,
+html.dark #printable-tax-invoice *,
+html.dark [id*="printable-tax-invoice"] *,
 html.dark .printable-document-sheet *,
-html.dark .printable-paper-sheet * {
+html.dark .printable-paper-sheet *,
+html.dark [data-printable-document] *,
+html.dark [data-printable-sheet] *,
+html.dark .print-paper * {
+  color-scheme: light !important;
   border-color: #cbd5e1 !important;
 }
 
+/* 3. White & Light Fill Backgrounds inside Document */
 html.dark #lr-printable-document .bg-white,
 html.dark [id^="lr-printable-document"] .bg-white,
 html.dark #hire-challan-printable-document .bg-white,
-html.dark #job-order-printable-document .bg-white {
+html.dark [id^="hire-challan-printable-document"] .bg-white,
+html.dark #job-order-printable-document .bg-white,
+html.dark [id^="job-order-printable-document"] .bg-white,
+html.dark #printable-tax-invoice .bg-white,
+html.dark [id*="printable-tax-invoice"] .bg-white,
+html.dark .printable-document-sheet .bg-white,
+html.dark .printable-paper-sheet .bg-white,
+html.dark [data-printable-document] .bg-white,
+html.dark [data-printable-sheet] .bg-white,
+html.dark .print-paper .bg-white {
   background-color: #ffffff !important;
   background: #ffffff !important;
   color: #0f172a !important;
@@ -1610,7 +1646,15 @@ html.dark #job-order-printable-document .bg-white {
 html.dark #lr-printable-document [class*="bg-slate-50"],
 html.dark [id^="lr-printable-document"] [class*="bg-slate-50"],
 html.dark #hire-challan-printable-document [class*="bg-slate-50"],
-html.dark #job-order-printable-document [class*="bg-slate-50"] {
+html.dark [id^="hire-challan-printable-document"] [class*="bg-slate-50"],
+html.dark #job-order-printable-document [class*="bg-slate-50"],
+html.dark [id^="job-order-printable-document"] [class*="bg-slate-50"],
+html.dark #printable-tax-invoice [class*="bg-slate-50"],
+html.dark [id*="printable-tax-invoice"] [class*="bg-slate-50"],
+html.dark .printable-document-sheet [class*="bg-slate-50"],
+html.dark .printable-paper-sheet [class*="bg-slate-50"],
+html.dark [data-printable-document] [class*="bg-slate-50"],
+html.dark [data-printable-sheet] [class*="bg-slate-50"] {
   background-color: #f8fafc !important;
   background: #f8fafc !important;
 }
@@ -1618,7 +1662,15 @@ html.dark #job-order-printable-document [class*="bg-slate-50"] {
 html.dark #lr-printable-document [class*="bg-slate-100"],
 html.dark [id^="lr-printable-document"] [class*="bg-slate-100"],
 html.dark #hire-challan-printable-document [class*="bg-slate-100"],
-html.dark #job-order-printable-document [class*="bg-slate-100"] {
+html.dark [id^="hire-challan-printable-document"] [class*="bg-slate-100"],
+html.dark #job-order-printable-document [class*="bg-slate-100"],
+html.dark [id^="job-order-printable-document"] [class*="bg-slate-100"],
+html.dark #printable-tax-invoice [class*="bg-slate-100"],
+html.dark [id*="printable-tax-invoice"] [class*="bg-slate-100"],
+html.dark .printable-document-sheet [class*="bg-slate-100"],
+html.dark .printable-paper-sheet [class*="bg-slate-100"],
+html.dark [data-printable-document] [class*="bg-slate-100"],
+html.dark [data-printable-sheet] [class*="bg-slate-100"] {
   background-color: #f1f5f9 !important;
   background: #f1f5f9 !important;
 }
@@ -1626,7 +1678,13 @@ html.dark #job-order-printable-document [class*="bg-slate-100"] {
 html.dark #lr-printable-document [class*="bg-[#f1f5f9]"],
 html.dark [id^="lr-printable-document"] [class*="bg-[#f1f5f9]"],
 html.dark #hire-challan-printable-document [class*="bg-[#f1f5f9]"],
-html.dark #job-order-printable-document [class*="bg-[#f1f5f9]"] {
+html.dark [id^="hire-challan-printable-document"] [class*="bg-[#f1f5f9]"],
+html.dark #job-order-printable-document [class*="bg-[#f1f5f9]"],
+html.dark [id^="job-order-printable-document"] [class*="bg-[#f1f5f9]"],
+html.dark #printable-tax-invoice [class*="bg-[#f1f5f9]"],
+html.dark [id*="printable-tax-invoice"] [class*="bg-[#f1f5f9]"],
+html.dark .printable-document-sheet [class*="bg-[#f1f5f9]"],
+html.dark .printable-paper-sheet [class*="bg-[#f1f5f9]"] {
   background-color: #f1f5f9 !important;
   background: #f1f5f9 !important;
 }
@@ -1634,7 +1692,13 @@ html.dark #job-order-printable-document [class*="bg-[#f1f5f9]"] {
 html.dark #lr-printable-document [class*="bg-[#f8fafc]"],
 html.dark [id^="lr-printable-document"] [class*="bg-[#f8fafc]"],
 html.dark #hire-challan-printable-document [class*="bg-[#f8fafc]"],
-html.dark #job-order-printable-document [class*="bg-[#f8fafc]"] {
+html.dark [id^="hire-challan-printable-document"] [class*="bg-[#f8fafc]"],
+html.dark #job-order-printable-document [class*="bg-[#f8fafc]"],
+html.dark [id^="job-order-printable-document"] [class*="bg-[#f8fafc]"],
+html.dark #printable-tax-invoice [class*="bg-[#f8fafc]"],
+html.dark [id*="printable-tax-invoice"] [class*="bg-[#f8fafc]"],
+html.dark .printable-document-sheet [class*="bg-[#f8fafc]"],
+html.dark .printable-paper-sheet [class*="bg-[#f8fafc]"] {
   background-color: #f8fafc !important;
   background: #f8fafc !important;
   color: #475569 !important;
@@ -1642,83 +1706,217 @@ html.dark #job-order-printable-document [class*="bg-[#f8fafc]"] {
 
 html.dark #lr-printable-document [class*="bg-[#fef3c7]"],
 html.dark [id^="lr-printable-document"] [class*="bg-[#fef3c7]"],
-html.dark #hire-challan-printable-document [class*="bg-[#fef3c7]"] {
+html.dark #hire-challan-printable-document [class*="bg-[#fef3c7]"],
+html.dark [id^="hire-challan-printable-document"] [class*="bg-[#fef3c7]"],
+html.dark #printable-tax-invoice [class*="bg-[#fef3c7]"],
+html.dark [id*="printable-tax-invoice"] [class*="bg-[#fef3c7]"],
+html.dark .printable-document-sheet [class*="bg-[#fef3c7]"],
+html.dark .printable-paper-sheet [class*="bg-[#fef3c7]"] {
   background-color: #fef3c7 !important;
   background: #fef3c7 !important;
+  color: #78350f !important;
 }
 
 html.dark #lr-printable-document .bg-black,
 html.dark [id^="lr-printable-document"] .bg-black,
 html.dark #hire-challan-printable-document .bg-black,
-html.dark #job-order-printable-document .bg-black {
+html.dark #job-order-printable-document .bg-black,
+html.dark #printable-tax-invoice .bg-black,
+html.dark .printable-document-sheet .bg-black,
+html.dark .printable-paper-sheet .bg-black {
   background-color: #000000 !important;
   background: #000000 !important;
   color: #ffffff !important;
 }
 
-/* Explicitly enforce dark ink typography inside paper documents */
+/* 4. Distinct Brand/Header Fills inside Document (Grand Total, Headings) */
+html.dark #lr-printable-document [class*="bg-[#1e3a8a]"],
+html.dark #printable-tax-invoice [class*="bg-[#1e3a8a]"],
+html.dark [id*="printable-tax-invoice"] [class*="bg-[#1e3a8a]"],
+html.dark .printable-document-sheet [class*="bg-[#1e3a8a]"],
+html.dark .printable-paper-sheet [class*="bg-[#1e3a8a]"],
+html.dark #lr-printable-document .bg-\[\#1e3a8a\],
+html.dark #printable-tax-invoice .bg-\[\#1e3a8a\] {
+  background-color: #1e3a8a !important;
+  background: #1e3a8a !important;
+  color: #ffffff !important;
+}
+
+html.dark #lr-printable-document [class*="bg-[#1e40af]"],
+html.dark #printable-tax-invoice [class*="bg-[#1e40af]"],
+html.dark [id*="printable-tax-invoice"] [class*="bg-[#1e40af]"],
+html.dark .printable-document-sheet [class*="bg-[#1e40af]"],
+html.dark .printable-paper-sheet [class*="bg-[#1e40af]"],
+html.dark #lr-printable-document .bg-\[\#1e40af\],
+html.dark #printable-tax-invoice .bg-\[\#1e40af\] {
+  background-color: #1e40af !important;
+  background: #1e40af !important;
+  color: #ffffff !important;
+}
+
+html.dark #printable-tax-invoice [class*="bg-blue-600"],
+html.dark .printable-document-sheet [class*="bg-blue-600"],
+html.dark .printable-paper-sheet [class*="bg-blue-600"] {
+  background-color: #2563eb !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+/* 5. Typography: Enforce Dark Ink Text across Documents */
 html.dark #lr-printable-document .text-slate-900,
 html.dark [id^="lr-printable-document"] .text-slate-900,
 html.dark #hire-challan-printable-document .text-slate-900,
 html.dark #job-order-printable-document .text-slate-900,
+html.dark #printable-tax-invoice .text-slate-900,
+html.dark [id*="printable-tax-invoice"] .text-slate-900,
+html.dark .printable-document-sheet .text-slate-900,
+html.dark .printable-paper-sheet .text-slate-900,
 html.dark #lr-printable-document .text-slate-950,
 html.dark [id^="lr-printable-document"] .text-slate-950,
 html.dark #hire-challan-printable-document .text-slate-950,
-html.dark #job-order-printable-document .text-slate-950 {
+html.dark #job-order-printable-document .text-slate-950,
+html.dark #printable-tax-invoice .text-slate-950,
+html.dark .printable-document-sheet .text-slate-950,
+html.dark .printable-paper-sheet .text-slate-950,
+html.dark #printable-tax-invoice .text-black,
+html.dark .printable-document-sheet .text-black,
+html.dark .printable-paper-sheet .text-black {
   color: #0f172a !important;
 }
 
 html.dark #lr-printable-document .text-slate-800,
 html.dark [id^="lr-printable-document"] .text-slate-800,
 html.dark #hire-challan-printable-document .text-slate-800,
-html.dark #job-order-printable-document .text-slate-800 {
+html.dark #job-order-printable-document .text-slate-800,
+html.dark #printable-tax-invoice .text-slate-800,
+html.dark [id*="printable-tax-invoice"] .text-slate-800,
+html.dark .printable-document-sheet .text-slate-800,
+html.dark .printable-paper-sheet .text-slate-800 {
   color: #1e293b !important;
 }
 
 html.dark #lr-printable-document .text-slate-700,
 html.dark [id^="lr-printable-document"] .text-slate-700,
 html.dark #hire-challan-printable-document .text-slate-700,
-html.dark #job-order-printable-document .text-slate-700 {
+html.dark #job-order-printable-document .text-slate-700,
+html.dark #printable-tax-invoice .text-slate-700,
+html.dark [id*="printable-tax-invoice"] .text-slate-700,
+html.dark .printable-document-sheet .text-slate-700,
+html.dark .printable-paper-sheet .text-slate-700 {
   color: #334155 !important;
 }
 
 html.dark #lr-printable-document .text-slate-600,
 html.dark [id^="lr-printable-document"] .text-slate-600,
 html.dark #hire-challan-printable-document .text-slate-600,
-html.dark #job-order-printable-document .text-slate-600 {
+html.dark #job-order-printable-document .text-slate-600,
+html.dark #printable-tax-invoice .text-slate-600,
+html.dark [id*="printable-tax-invoice"] .text-slate-600,
+html.dark .printable-document-sheet .text-slate-600,
+html.dark .printable-paper-sheet .text-slate-600 {
   color: #475569 !important;
 }
 
 html.dark #lr-printable-document .text-slate-500,
 html.dark [id^="lr-printable-document"] .text-slate-500,
 html.dark #hire-challan-printable-document .text-slate-500,
-html.dark #job-order-printable-document .text-slate-500 {
+html.dark #job-order-printable-document .text-slate-500,
+html.dark #printable-tax-invoice .text-slate-500,
+html.dark [id*="printable-tax-invoice"] .text-slate-500,
+html.dark .printable-document-sheet .text-slate-500,
+html.dark .printable-paper-sheet .text-slate-500 {
   color: #64748b !important;
 }
 
 html.dark #lr-printable-document .text-slate-400,
 html.dark [id^="lr-printable-document"] .text-slate-400,
 html.dark #hire-challan-printable-document .text-slate-400,
-html.dark #job-order-printable-document .text-slate-400 {
+html.dark #job-order-printable-document .text-slate-400,
+html.dark #printable-tax-invoice .text-slate-400,
+html.dark [id*="printable-tax-invoice"] .text-slate-400,
+html.dark .printable-document-sheet .text-slate-400,
+html.dark .printable-paper-sheet .text-slate-400 {
   color: #94a3b8 !important;
 }
 
 html.dark #lr-printable-document .text-amber-900,
 html.dark [id^="lr-printable-document"] .text-amber-900,
-html.dark #hire-challan-printable-document .text-amber-900 {
+html.dark #hire-challan-printable-document .text-amber-900,
+html.dark #printable-tax-invoice .text-amber-900,
+html.dark .printable-document-sheet .text-amber-900,
+html.dark .printable-paper-sheet .text-amber-900 {
   color: #78350f !important;
 }
 
 html.dark #lr-printable-document .text-\[\#0f2147\],
-html.dark [id^="lr-printable-document"] .text-\[\#0f2147\] {
+html.dark [id^="lr-printable-document"] .text-\[\#0f2147\],
+html.dark #printable-tax-invoice .text-\[\#0f2147\],
+html.dark .printable-document-sheet .text-\[\#0f2147\],
+html.dark .printable-paper-sheet .text-\[\#0f2147\] {
   color: #0f2147 !important;
 }
 
-/* Tables inside printable document */
+html.dark #printable-tax-invoice .text-\[\#1e40af\],
+html.dark #printable-tax-invoice [class*="text-[#1e40af]"],
+html.dark .printable-document-sheet [class*="text-[#1e40af]"],
+html.dark .printable-paper-sheet [class*="text-[#1e40af]"] {
+  color: #1e40af !important;
+}
+
+html.dark #printable-tax-invoice .text-\[\#1e3a8a\],
+html.dark #printable-tax-invoice [class*="text-[#1e3a8a]"],
+html.dark .printable-document-sheet [class*="text-[#1e3a8a]"],
+html.dark .printable-paper-sheet [class*="text-[#1e3a8a]"] {
+  color: #1e3a8a !important;
+}
+
+html.dark #printable-tax-invoice .text-white,
+html.dark [id*="printable-tax-invoice"] .text-white,
+html.dark #lr-printable-document .text-white,
+html.dark .printable-document-sheet .text-white,
+html.dark .printable-paper-sheet .text-white {
+  color: #ffffff !important;
+}
+
+/* 6. Hairline Borders & Dividers inside Document */
+html.dark #lr-printable-document [class*="border-slate-100"],
+html.dark #lr-printable-document [class*="border-slate-200"],
+html.dark #printable-tax-invoice [class*="border-slate-100"],
+html.dark #printable-tax-invoice [class*="border-slate-200"],
+html.dark .printable-document-sheet [class*="border-slate-100"],
+html.dark .printable-document-sheet [class*="border-slate-200"],
+html.dark .printable-paper-sheet [class*="border-slate-100"],
+html.dark .printable-paper-sheet [class*="border-slate-200"] {
+  border-color: #e2e8f0 !important;
+}
+
+html.dark #lr-printable-document [class*="border-slate-300"],
+html.dark #printable-tax-invoice [class*="border-slate-300"],
+html.dark .printable-document-sheet [class*="border-slate-300"],
+html.dark .printable-paper-sheet [class*="border-slate-300"] {
+  border-color: #cbd5e1 !important;
+}
+
+html.dark #printable-tax-invoice [class*="border-t-[#1e40af]"] {
+  border-top-color: #1e40af !important;
+}
+
+html.dark #printable-tax-invoice [class*="border-dashed"],
+html.dark .printable-document-sheet [class*="border-dashed"],
+html.dark .printable-paper-sheet [class*="border-dashed"] {
+  border-style: dashed !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* 7. Tables inside Printable Documents */
 html.dark #lr-printable-document table,
 html.dark [id^="lr-printable-document"] table,
 html.dark #hire-challan-printable-document table,
-html.dark #job-order-printable-document table {
+html.dark #job-order-printable-document table,
+html.dark #printable-tax-invoice table,
+html.dark [id*="printable-tax-invoice"] table,
+html.dark .printable-document-sheet table,
+html.dark .printable-paper-sheet table {
   background-color: transparent !important;
   background: transparent !important;
   color: #0f172a !important;
@@ -1727,7 +1925,11 @@ html.dark #job-order-printable-document table {
 html.dark #lr-printable-document table thead th,
 html.dark [id^="lr-printable-document"] table thead th,
 html.dark #hire-challan-printable-document table thead th,
-html.dark #job-order-printable-document table thead th {
+html.dark #job-order-printable-document table thead th,
+html.dark #printable-tax-invoice table thead th,
+html.dark [id*="printable-tax-invoice"] table thead th,
+html.dark .printable-document-sheet table thead th,
+html.dark .printable-paper-sheet table thead th {
   background-color: #f1f5f9 !important;
   background: #f1f5f9 !important;
   color: #334155 !important;
@@ -1737,11 +1939,106 @@ html.dark #job-order-printable-document table thead th {
 html.dark #lr-printable-document table tbody td,
 html.dark [id^="lr-printable-document"] table tbody td,
 html.dark #hire-challan-printable-document table tbody td,
-html.dark #job-order-printable-document table tbody td {
+html.dark #job-order-printable-document table tbody td,
+html.dark #printable-tax-invoice table tbody td,
+html.dark [id*="printable-tax-invoice"] table tbody td,
+html.dark .printable-document-sheet table tbody td,
+html.dark .printable-paper-sheet table tbody td {
   background-color: transparent !important;
   background: transparent !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
+}
+
+html.dark #lr-printable-document table tbody tr:hover,
+html.dark #printable-tax-invoice table tbody tr:hover,
+html.dark .printable-document-sheet table tbody tr:hover,
+html.dark .printable-paper-sheet table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+/* ==========================================================================
+   GLOBAL PRINT STYLES: FORCE ZERO-INK-WASTE PURE LIGHT PAPER
+   Universal print overrides so browser print dialog always renders 100% white
+   background, black/dark slate typography, and clean borders across any page.
+   ========================================================================== */
+@media print {
+  @page {
+    margin: 6mm;
+  }
+
+  html,
+  html.dark,
+  body,
+  html.dark body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    color-scheme: light !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Strip dark-mode shadows, glows, and filters */
+  html.dark * {
+    color-scheme: light !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Universal paper document print fidelity */
+  .printable-paper-sheet,
+  .printable-document-sheet,
+  #printable-tax-invoice,
+  [id*="printable-tax-invoice"],
+  #lr-printable-document,
+  [id^="lr-printable-document"],
+  #hire-challan-printable-document,
+  [id^="hire-challan-printable-document"],
+  #job-order-printable-document,
+  [id^="job-order-printable-document"],
+  [data-printable-document],
+  [data-printable-sheet],
+  .print-paper {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  html.dark .bg-white,
+  html.dark [class*="bg-white"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+
+  html.dark .text-slate-900,
+  html.dark .text-slate-950,
+  html.dark .text-slate-800,
+  html.dark .text-black,
+  html.dark [class*="text-slate-900"],
+  html.dark [class*="text-slate-950"] {
+    color: #000000 !important;
+  }
+
+  html.dark .text-slate-700,
+  html.dark .text-slate-600 {
+    color: #1e293b !important;
+  }
+
+  html.dark .text-slate-500,
+  html.dark .text-slate-400 {
+    color: #475569 !important;
+  }
+
+  html.dark [class*="border-slate"] {
+    border-color: #cbd5e1 !important;
+  }
 }
 
 
