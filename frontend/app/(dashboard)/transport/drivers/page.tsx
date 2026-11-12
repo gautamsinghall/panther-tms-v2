@@ -37,9 +37,15 @@ interface DriverRecord {
   created_at?: string;
 }
 
-export default function DriversPage() {
+export interface DriversPageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function DriversPage({ embedded = false, onCreated, onCancel }: DriversPageProps = {}) {
   const [data, setData] = useState<DriverRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -48,14 +54,14 @@ export default function DriversPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Drawer / Form state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<DriverRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [prefillDriver, setPrefillDriver] = useState<{ name: string; phone: string } | null>(null);
 
   const searchParams = useSearchParams();
   useEffect(() => {
-    if (searchParams.get("action") === "add") {
+    if (!embedded && searchParams.get("action") === "add") {
       const name = searchParams.get("name") || "";
       const phone = searchParams.get("phone") || "";
       setEditingRecord(null);
@@ -64,7 +70,7 @@ export default function DriversPage() {
       }
       setIsDrawerOpen(true);
     }
-  }, [searchParams]);
+  }, [searchParams, embedded]);
 
   // Confirmation dialog state
   const [deactivatingRecord, setDeactivatingRecord] = useState<DriverRecord | null>(null);
@@ -446,10 +452,18 @@ export default function DriversPage() {
           body: JSON.stringify(values),
         });
       } else {
-        await apiClient("/api/v1/transport/drivers", {
+        const created = await apiClient<any>("/api/v1/transport/drivers", {
           method: "POST",
           body: JSON.stringify(values),
         });
+        if (typeof window !== "undefined" && created) {
+          localStorage.setItem("panther_party_created", JSON.stringify({ type: "driver", id: created.id, name: created.name }));
+          window.dispatchEvent(new Event("panther_driver_created"));
+        }
+        if (embedded && created) {
+          onCreated?.({ ...created, label: created.name });
+          return;
+        }
       }
       setIsDrawerOpen(false);
       setEditingRecord(null);
@@ -484,70 +498,82 @@ export default function DriversPage() {
     }
   };
 
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Fleet Drivers"
-        description="Manage heavy vehicle drivers, licensing compliance, and emergency contacts."
-        primaryAction={{
-          label: "Add Driver",
-          icon: <Plus className="w-4 h-4" />,
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <>
+          <PageHeader
+            title="Fleet Drivers"
+            description="Manage heavy vehicle drivers, licensing compliance, and emergency contacts."
+            primaryAction={{
+              label: "Add Driver",
+              icon: <Plus className="w-4 h-4" />,
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+          />
 
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search driver name, phone, DL status, coverage..."
-        filters={[
-          {
-            id: "status",
-            label: "Filter Status",
-            value: statusFilter,
-            onChange: setStatusFilter,
-            options: [
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active Only", value: "ACTIVE" },
-              { label: "Inactive Only", value: "INACTIVE" },
-            ],
-          },
-        ]}
-        onClear={() => {
-          setSearchTerm("");
-          setStatusFilter("ALL");
-        }}
-      />
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search driver name, phone, DL status, coverage..."
+            filters={[
+              {
+                id: "status",
+                label: "Filter Status",
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { label: "All Statuses", value: "ALL" },
+                  { label: "Active Only", value: "ACTIVE" },
+                  { label: "Inactive Only", value: "INACTIVE" },
+                ],
+              },
+            ]}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("ALL");
+            }}
+          />
 
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        actions={actions}
-        searchable={false}
-        emptyMessage="No drivers registered"
-        emptySubtext="Add professional drivers to assign them to active transport movements."
-        emptyAction={{
-          label: "Add Driver",
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={errorMessage}
+            onRetry={loadData}
+            actions={actions}
+            searchable={false}
+            emptyMessage="No drivers registered"
+            emptySubtext="Add professional drivers to assign them to active transport movements."
+            emptyAction={{
+              label: "Add Driver",
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+          />
+        </>
+      )}
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? `Edit Fleet Driver: ${editingRecord.name}` : "Register Fleet Driver"}
         description={
           editingRecord
@@ -561,10 +587,7 @@ export default function DriversPage() {
           sections={formSections}
           initialValues={initialFormValues}
           onSubmit={handleSave}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Driver Changes" : "Register Driver"}
           isLoading={isSubmitting}
         />

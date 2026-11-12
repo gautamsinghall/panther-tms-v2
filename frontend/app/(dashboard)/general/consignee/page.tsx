@@ -31,20 +31,27 @@ interface ConsigneeRecord {
   is_active: boolean;
 }
 
-export default function ConsigneePage() {
+export interface ConsigneePageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function ConsigneePage({ embedded = false, onCreated, onCancel }: ConsigneePageProps = {}) {
   const [data, setData] = useState<ConsigneeRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filters & Drawer State
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<ConsigneeRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
+    if (embedded) return;
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -341,6 +348,10 @@ export default function ConsigneePage() {
         window.dispatchEvent(new Event("panther_consignee_created"));
       }
       toast.success("Consignee created successfully.");
+      if (embedded && created) {
+        onCreated?.({ ...created, label: created.name });
+        return;
+      }
       setIsDrawerOpen(false);
       setEditingRecord(null);
       loadData();
@@ -374,79 +385,91 @@ export default function ConsigneePage() {
     }
   };
 
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header per docs/design.md §4 */}
-      <PageHeader
-        title="Consignees"
-        description="Manage delivery receivers and destination delivery parties."
-        breadcrumbs={[
-          { label: "General", href: "/general/consignee" },
-          { label: "Consignees" },
-        ]}
-        primaryAction={{
-          label: "Add Consignee",
-          icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <>
+          {/* Header per docs/design.md §4 */}
+          <PageHeader
+            title="Consignees"
+            description="Manage delivery receivers and destination delivery parties."
+            breadcrumbs={[
+              { label: "General", href: "/general/consignee" },
+              { label: "Consignees" },
+            ]}
+            primaryAction={{
+              label: "Add Consignee",
+              icon: <Plus className="w-3.5 h-3.5" />,
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+          />
 
-      {/* Filter Bar per docs/design.md §4 */}
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by name, city, contact, GSTIN, PAN..."
-        filters={[
-          {
-            id: "status",
-            label: "All Statuses",
-            value: statusFilter,
-            options: [
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active", value: "ACTIVE" },
-              { label: "Inactive", value: "INACTIVE" },
-            ],
-            onChange: setStatusFilter,
-          },
-        ]}
-        onClear={() => {
-          setSearchTerm("");
-          setStatusFilter("ALL");
-        }}
-        hasActiveFilters={Boolean(searchTerm || statusFilter !== "ALL")}
-      />
+          {/* Filter Bar per docs/design.md §4 */}
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search by name, city, contact, GSTIN, PAN..."
+            filters={[
+              {
+                id: "status",
+                label: "All Statuses",
+                value: statusFilter,
+                options: [
+                  { label: "All Statuses", value: "ALL" },
+                  { label: "Active", value: "ACTIVE" },
+                  { label: "Inactive", value: "INACTIVE" },
+                ],
+                onChange: setStatusFilter,
+              },
+            ]}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("ALL");
+            }}
+            hasActiveFilters={Boolean(searchTerm || statusFilter !== "ALL")}
+          />
 
-      {/* DataTable per docs/design.md §5 */}
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        actions={actions}
-        emptyMessage="No consignees yet"
-        emptySubtext="Add your first delivery receiver party to begin booking LRs."
-        emptyAction={{
-          label: "Add Consignee",
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-        searchable={false}
-      />
+          {/* DataTable per docs/design.md §5 */}
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={errorMessage}
+            onRetry={loadData}
+            actions={actions}
+            emptyMessage="No consignees yet"
+            emptySubtext="Add your first delivery receiver party to begin booking LRs."
+            emptyAction={{
+              label: "Add Consignee",
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+            searchable={false}
+          />
+        </>
+      )}
 
       {/* Create / Edit Drawer per docs/design.md §5 & §16 */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? "Edit Consignee" : "Create New Consignee"}
         description={editingRecord ? "Update delivery receiver details in the consignee directory." : "Register a new delivery receiver in the consignee directory."}
       >
@@ -455,10 +478,7 @@ export default function ConsigneePage() {
           sections={formSections}
           initialValues={editingRecord || undefined}
           onSubmit={editingRecord ? handleUpdate : handleCreate}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Changes" : "Create Consignee"}
           isLoading={isSubmitting}
         />

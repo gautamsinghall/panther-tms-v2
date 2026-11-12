@@ -28,24 +28,31 @@ interface VehicleOwnerRecord {
   is_active: boolean;
 }
 
-export default function VehicleOwnersPage() {
+export interface VehicleOwnersPageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function VehicleOwnersPage({ embedded = false, onCreated, onCancel }: VehicleOwnersPageProps = {}) {
   const searchParams = useSearchParams();
   const [data, setData] = useState<VehicleOwnerRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<VehicleOwnerRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get("action") === "add") {
+    if (!embedded && searchParams.get("action") === "add") {
       setEditingRecord(null);
       setIsDrawerOpen(true);
     }
-  }, [searchParams]);
+  }, [searchParams, embedded]);
 
   const loadData = async () => {
+    if (embedded) return;
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -293,11 +300,19 @@ export default function VehicleOwnersPage() {
         setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...updated } : item)));
         toast.success("Vehicle owner updated successfully.");
       } else {
-        await apiClient("/api/v1/transport/vehicle-owners", {
+        const created = await apiClient<any>("/api/v1/transport/vehicle-owners", {
           method: "POST",
           body: JSON.stringify(payload),
         });
         toast.success("Vehicle owner created successfully.");
+        if (typeof window !== "undefined" && created) {
+          localStorage.setItem("panther_party_created", JSON.stringify({ type: "vehicle_owner", id: created.id, name: created.name }));
+          window.dispatchEvent(new Event("panther_vehicle_owner_created"));
+        }
+        if (embedded && created) {
+          onCreated?.({ ...created, label: created.name });
+          return;
+        }
         loadData();
       }
       setIsDrawerOpen(false);
@@ -309,51 +324,63 @@ export default function VehicleOwnersPage() {
     }
   };
 
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Vehicle Owners"
-        description="Manage market truck owners, freight brokers, and supplier banking records."
-        breadcrumbs={[
-          { label: "Transport", href: "/transport/jobs" },
-          { label: "Vehicle Owners" },
-        ]}
-        primaryAction={{
-          label: "Add Vehicle Owner",
-          icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <PageHeader
+          title="Vehicle Owners"
+          description="Manage market truck owners, freight brokers, and supplier banking records."
+          breadcrumbs={[
+            { label: "Transport", href: "/transport/jobs" },
+            { label: "Vehicle Owners" },
+          ]}
+          primaryAction={{
+            label: "Add Vehicle Owner",
+            icon: <Plus className="w-3.5 h-3.5" />,
+            onClick: () => {
+              setEditingRecord(null);
+              setIsDrawerOpen(true);
+            },
+          }}
+        />
+      )}
 
-      <DataTable
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        actions={actions}
-        searchPlaceholder="Search owners by name, phone, PAN..."
-        emptyMessage="No vehicle owners registered"
-        emptySubtext="Add truck suppliers to issue hire challans and manage freight payables."
-        emptyAction={{
-          label: "Add Vehicle Owner",
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <DataTable
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          errorMessage={errorMessage}
+          onRetry={loadData}
+          actions={actions}
+          searchPlaceholder="Search owners by name, phone, PAN..."
+          emptyMessage="No vehicle owners registered"
+          emptySubtext="Add truck suppliers to issue hire challans and manage freight payables."
+          emptyAction={{
+            label: "Add Vehicle Owner",
+            onClick: () => {
+              setEditingRecord(null);
+              setIsDrawerOpen(true);
+            },
+          }}
+        />
+      )}
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? "Edit Vehicle Owner" : "Add Vehicle Owner"}
         description={editingRecord ? "Update truck supplier details and banking records." : "Register a truck supplier for hire challan settlements."}
         width="xl"
@@ -362,10 +389,7 @@ export default function VehicleOwnersPage() {
           sections={formSections}
           initialValues={editingRecord || undefined}
           onSubmit={handleSubmit}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Changes" : "Add Owner"}
           isLoading={isSubmitting}
         />

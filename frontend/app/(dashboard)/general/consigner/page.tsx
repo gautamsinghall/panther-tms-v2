@@ -33,9 +33,15 @@ export interface ConsignerRecord {
   created_at?: string;
 }
 
-export default function ConsignerPage() {
+export interface ConsignerPageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function ConsignerPage({ embedded = false, onCreated, onCancel }: ConsignerPageProps = {}) {
   const [data, setData] = useState<ConsignerRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -44,11 +50,12 @@ export default function ConsignerPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Drawer / Form state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<ConsignerRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
+    if (embedded) return;
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -361,6 +368,10 @@ export default function ConsignerPage() {
         window.dispatchEvent(new Event("panther_consigner_created"));
       }
       toast.success("Consigner created successfully.");
+      if (embedded && created) {
+        onCreated?.({ ...created, label: created.name });
+        return;
+      }
       setIsDrawerOpen(false);
       setEditingRecord(null);
       loadData();
@@ -394,78 +405,90 @@ export default function ConsignerPage() {
     }
   };
 
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Standardized PageHeader per docs/design.md §10 */}
-      <PageHeader
-        title="Consigners"
-        description="Manage corporate dispatching shippers, billing profiles, and GST compliance."
-        breadcrumbs={[
-          { label: "General", href: "/general/consigner" },
-          { label: "Consigners" },
-        ]}
-        primaryAction={{
-          label: "Add Consigner",
-          icon: <Plus className="w-4 h-4" />,
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <>
+          {/* Standardized PageHeader per docs/design.md §10 */}
+          <PageHeader
+            title="Consigners"
+            description="Manage corporate dispatching shippers, billing profiles, and GST compliance."
+            breadcrumbs={[
+              { label: "General", href: "/general/consigner" },
+              { label: "Consigners" },
+            ]}
+            primaryAction={{
+              label: "Add Consigner",
+              icon: <Plus className="w-4 h-4" />,
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+          />
 
-      {/* Filter & Search Bar per docs/design.md §14 */}
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by name, city, contact, GSTIN, PAN..."
-        filters={[
-          {
-            id: "status",
-            label: "Filter Status",
-            value: statusFilter,
-            onChange: setStatusFilter,
-            options: [
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active Only", value: "ACTIVE" },
-              { label: "Inactive Only", value: "INACTIVE" },
-            ],
-          },
-        ]}
-        onClear={() => {
-          setSearchTerm("");
-          setStatusFilter("ALL");
-        }}
-      />
+          {/* Filter & Search Bar per docs/design.md §14 */}
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search by name, city, contact, GSTIN, PAN..."
+            filters={[
+              {
+                id: "status",
+                label: "Filter Status",
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { label: "All Statuses", value: "ALL" },
+                  { label: "Active Only", value: "ACTIVE" },
+                  { label: "Inactive Only", value: "INACTIVE" },
+                ],
+              },
+            ]}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("ALL");
+            }}
+          />
 
-      {/* Standardized DataTable per docs/design.md §12 */}
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        actions={actions}
-        searchable={false} // FilterBar handles search seamlessly
-        emptyMessage="No consigners yet"
-        emptySubtext="Add your first dispatching shipper party to begin creating jobs, bookings, and freight invoices."
-        emptyAction={{
-          label: "Add Consigner",
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+          {/* Standardized DataTable per docs/design.md §12 */}
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={errorMessage}
+            onRetry={loadData}
+            actions={actions}
+            searchable={false} // FilterBar handles search seamlessly
+            emptyMessage="No consigners yet"
+            emptySubtext="Add your first dispatching shipper party to begin creating jobs, bookings, and freight invoices."
+            emptyAction={{
+              label: "Add Consigner",
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+          />
+        </>
+      )}
 
       {/* Slide-over EntityDrawer per docs/design.md §16 */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? "Edit Consigner" : "Create New Consigner"}
         description={editingRecord ? "Update consignor information and billing profile." : "Register a new dispatching party and commercial billing shipper."}
         width="xl"
@@ -475,10 +498,7 @@ export default function ConsignerPage() {
           sections={formSections}
           initialValues={editingRecord || undefined}
           onSubmit={editingRecord ? handleUpdate : handleCreate}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Changes" : "Create Consigner"}
           isLoading={isSubmitting}
         />

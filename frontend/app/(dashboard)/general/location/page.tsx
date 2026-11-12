@@ -28,20 +28,27 @@ interface LocationRecord {
   is_active: boolean;
 }
 
-export default function LocationPage() {
+export interface LocationPageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function LocationPage({ embedded = false, onCreated, onCancel }: LocationPageProps = {}) {
   const [data, setData] = useState<LocationRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filters & Drawer State
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<LocationRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async (query = searchTerm) => {
+    if (embedded) return;
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -257,7 +264,7 @@ export default function LocationPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/general/locations", {
+      const created = await apiClient<any>("/api/v1/general/locations", {
         method: "POST",
         body: JSON.stringify({
           ...values,
@@ -267,6 +274,17 @@ export default function LocationPage() {
         }),
       });
       toast.success("Location created successfully.");
+      if (typeof window !== "undefined" && created) {
+        localStorage.setItem("panther_party_created", JSON.stringify({ type: "location", id: created.id, name: created.city_name || created.name }));
+        window.dispatchEvent(new Event("panther_location_created"));
+      }
+      if (embedded && created) {
+        onCreated?.({
+          ...created,
+          label: created.city_name ? `${created.city_name}, ${created.state || ""}` : (created.name || String(created.id)),
+        });
+        return;
+      }
       setIsDrawerOpen(false);
       setEditingRecord(null);
       loadData();
@@ -300,75 +318,87 @@ export default function LocationPage() {
     }
   };
 
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Locations (Hubs & Terminals)"
-        description="Manage origin and destination pickup/drop transit hubs."
-        breadcrumbs={[
-          { label: "General", href: "/general/location" },
-          { label: "Locations" },
-        ]}
-        primaryAction={{
-          label: "Add Location",
-          icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <>
+          <PageHeader
+            title="Locations (Hubs & Terminals)"
+            description="Manage origin and destination pickup/drop transit hubs."
+            breadcrumbs={[
+              { label: "General", href: "/general/location" },
+              { label: "Locations" },
+            ]}
+            primaryAction={{
+              label: "Add Location",
+              icon: <Plus className="w-3.5 h-3.5" />,
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+          />
 
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by city, state, pincode..."
-        filters={[
-          {
-            id: "status",
-            label: "All Statuses",
-            value: statusFilter,
-            options: [
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active", value: "ACTIVE" },
-              { label: "Inactive", value: "INACTIVE" },
-            ],
-            onChange: setStatusFilter,
-          },
-        ]}
-        onClear={() => {
-          setSearchTerm("");
-          setStatusFilter("ALL");
-        }}
-        hasActiveFilters={Boolean(searchTerm || statusFilter !== "ALL")}
-      />
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search by city, state, pincode..."
+            filters={[
+              {
+                id: "status",
+                label: "All Statuses",
+                value: statusFilter,
+                options: [
+                  { label: "All Statuses", value: "ALL" },
+                  { label: "Active", value: "ACTIVE" },
+                  { label: "Inactive", value: "INACTIVE" },
+                ],
+                onChange: setStatusFilter,
+              },
+            ]}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("ALL");
+            }}
+            hasActiveFilters={Boolean(searchTerm || statusFilter !== "ALL")}
+          />
 
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={() => loadData(searchTerm)}
-        actions={actions}
-        emptyMessage="No locations found"
-        emptySubtext="Add a hub or terminal location to get started."
-        emptyAction={{
-          label: "Add Location",
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-        searchable={false}
-      />
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={errorMessage}
+            onRetry={() => loadData(searchTerm)}
+            actions={actions}
+            emptyMessage="No locations found"
+            emptySubtext="Add a hub or terminal location to get started."
+            emptyAction={{
+              label: "Add Location",
+              onClick: () => {
+                setEditingRecord(null);
+                setIsDrawerOpen(true);
+              },
+            }}
+            searchable={false}
+          />
+        </>
+      )}
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? "Edit Location" : "Create New Location"}
         description={editingRecord ? "Update hub or terminal transit details." : "Register a new hub or terminal in the master network."}
       >
@@ -377,10 +407,7 @@ export default function LocationPage() {
           sections={formSections}
           initialValues={editingRecord || undefined}
           onSubmit={editingRecord ? handleUpdate : handleCreate}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Changes" : "Create Location"}
           isLoading={isSubmitting}
         />

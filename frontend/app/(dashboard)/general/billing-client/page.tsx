@@ -80,14 +80,21 @@ const defaultInitialValues = {
   country: DEFAULT_COUNTRY,
 };
 
-export default function BillingClientPage() {
+export interface BillingClientPageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function BillingClientPage({ embedded = false, onCreated, onCancel }: BillingClientPageProps = {}) {
   const router = useRouter();
   const [data, setData] = useState<BillingClientRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isPermitted = useMemo(() => {
+    if (embedded) return true;
     if (typeof window === "undefined") return true;
     const auth = getStoredAuth();
     if (!auth || !auth.user) return true;
@@ -98,7 +105,7 @@ export default function BillingClientPage() {
     return nav.some((g: any) =>
       g.items?.some((it: any) => it.href === "/general/billing-client" || (g.id === "general" && it.feature === "billing_client"))
     );
-  }, []);
+  }, [embedded]);
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,7 +113,7 @@ export default function BillingClientPage() {
   const [gstFilter, setGstFilter] = useState("ALL");
 
   // Drawer / Form state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<BillingClientRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -115,6 +122,7 @@ export default function BillingClientPage() {
   const [isDeactivating, setIsDeactivating] = useState(false);
 
   const loadData = async () => {
+    if (embedded) return;
     if (!isPermitted) {
       setIsLoading(false);
       return;
@@ -219,6 +227,10 @@ export default function BillingClientPage() {
         if (typeof window !== "undefined" && created) {
           localStorage.setItem("panther_party_created", JSON.stringify({ type: "billing_client", id: created.id, name: created.name }));
           window.dispatchEvent(new Event("panther_billing_client_created"));
+        }
+        if (embedded && created) {
+          onCreated?.({ ...created, label: created.name });
+          return;
         }
       }
 
@@ -702,112 +714,124 @@ export default function BillingClientPage() {
     );
   }
 
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <PageHeader
-        title="Billing Clients"
-        description="Manage corporate bill-to parties, debtor accounts, credit limits, and GST."
-        breadcrumbs={[
-          { label: "General", href: "/general/consigner" },
-          { label: "Billing Clients" },
-        ]}
-        primaryAction={{
-          label: "Add Billing Client",
-          icon: <Plus className="w-4 h-4" />,
-          onClick: openCreateDrawer,
-        }}
-      />
+      {!embedded && (
+        <>
+          {/* Page Header */}
+          <PageHeader
+            title="Billing Clients"
+            description="Manage corporate bill-to parties, debtor accounts, credit limits, and GST."
+            breadcrumbs={[
+              { label: "General", href: "/general/consigner" },
+              { label: "Billing Clients" },
+            ]}
+            primaryAction={{
+              label: "Add Billing Client",
+              icon: <Plus className="w-4 h-4" />,
+              onClick: openCreateDrawer,
+            }}
+          />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Total Clients"
-          value={metrics.total}
-          subtext="Registered corporate clients"
-          icon={<Building2 className="w-4 h-4 text-indigo-600" />}
-        />
-        <KpiCard
-          title="Active Accounts"
-          value={metrics.active}
-          subtext={`${metrics.total > 0 ? Math.round((metrics.active / metrics.total) * 100) : 100}% Operational`}
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-        />
-        <KpiCard
-          title="GST Registered"
-          value={metrics.gstCount}
-          subtext="Verified GSTIN clients"
-          icon={<ShieldCheck className="w-4 h-4 text-blue-600" />}
-        />
-        <KpiCard
-          title="Avg Credit Period"
-          value={`${metrics.avgCreditDays} Days`}
-          subtext="Standard debtor terms"
-          icon={<Clock className="w-4 h-4 text-amber-600" />}
-        />
-      </div>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="Total Clients"
+              value={metrics.total}
+              subtext="Registered corporate clients"
+              icon={<Building2 className="w-4 h-4 text-indigo-600" />}
+            />
+            <KpiCard
+              title="Active Accounts"
+              value={metrics.active}
+              subtext={`${metrics.total > 0 ? Math.round((metrics.active / metrics.total) * 100) : 100}% Operational`}
+              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+            />
+            <KpiCard
+              title="GST Registered"
+              value={metrics.gstCount}
+              subtext="Verified GSTIN clients"
+              icon={<ShieldCheck className="w-4 h-4 text-blue-600" />}
+            />
+            <KpiCard
+              title="Avg Credit Period"
+              value={`${metrics.avgCreditDays} Days`}
+              subtext="Standard debtor terms"
+              icon={<Clock className="w-4 h-4 text-amber-600" />}
+            />
+          </div>
 
-      {/* Filter & Search Bar */}
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by client name, code, contact, GSTIN, PAN, city..."
-        filters={[
-          {
-            id: "status",
-            label: "Status",
-            value: statusFilter,
-            onChange: setStatusFilter,
-            options: [
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active Only", value: "ACTIVE" },
-              { label: "Inactive Only", value: "INACTIVE" },
-            ],
-          },
-          {
-            id: "gst",
-            label: "GST Compliance",
-            value: gstFilter,
-            onChange: setGstFilter,
-            options: [
-              { label: "All Clients", value: "ALL" },
-              { label: "GST Registered", value: "REGISTERED" },
-              { label: "Unregistered (Non-GST)", value: "UNREGISTERED" },
-            ],
-          },
-        ]}
-        onClear={() => {
-          setSearchTerm("");
-          setStatusFilter("ALL");
-          setGstFilter("ALL");
-        }}
-      />
+          {/* Filter & Search Bar */}
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search by client name, code, contact, GSTIN, PAN, city..."
+            filters={[
+              {
+                id: "status",
+                label: "Status",
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { label: "All Statuses", value: "ALL" },
+                  { label: "Active Only", value: "ACTIVE" },
+                  { label: "Inactive Only", value: "INACTIVE" },
+                ],
+              },
+              {
+                id: "gst",
+                label: "GST Compliance",
+                value: gstFilter,
+                onChange: setGstFilter,
+                options: [
+                  { label: "All Clients", value: "ALL" },
+                  { label: "GST Registered", value: "REGISTERED" },
+                  { label: "Unregistered (Non-GST)", value: "UNREGISTERED" },
+                ],
+              },
+            ]}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("ALL");
+              setGstFilter("ALL");
+            }}
+          />
 
-      {/* Data Table */}
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        actions={actions}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        searchable={false}
-        emptyMessage="No billing clients yet"
-        emptySubtext="Add your first corporate billing client to begin creating jobs, bookings, and freight invoices."
-        emptyAction={{
-          label: "Add Billing Client",
-          onClick: openCreateDrawer,
-        }}
-      />
+          {/* Data Table */}
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            actions={actions}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={errorMessage}
+            onRetry={loadData}
+            searchable={false}
+            emptyMessage="No billing clients yet"
+            emptySubtext="Add your first corporate billing client to begin creating jobs, bookings, and freight invoices."
+            emptyAction={{
+              label: "Add Billing Client",
+              onClick: openCreateDrawer,
+            }}
+          />
+        </>
+      )}
 
       {/* Entity Drawer using Global Form UI */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? `Edit Billing Client: ${editingRecord.name}` : "Create New Billing Client"}
         description={
           editingRecord
@@ -820,10 +844,7 @@ export default function BillingClientPage() {
           sections={formSections}
           initialValues={editingInitialValues}
           onSubmit={handleFormSubmit}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Client Changes" : "Create Billing Client"}
           cancelLabel="Cancel"
           isLoading={isSubmitting}

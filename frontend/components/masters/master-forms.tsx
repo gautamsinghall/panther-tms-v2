@@ -11,6 +11,14 @@ import { DEFAULT_COUNTRY } from "@/lib/countries";
 import { useWorkspaceTabs, MasterTabItem } from "@/lib/workspace-tabs-context";
 import CompanyVehiclesPage, { CompanyVehicleRecord } from "@/app/(dashboard)/transport/company-vehicles/page";
 import MarketVehiclesPage, { MarketVehicleRecord } from "@/app/(dashboard)/transport/market-vehicles/page";
+import VehicleOwnersPage from "@/app/(dashboard)/transport/vehicle-owners/page";
+import LoadTypePage from "@/app/(dashboard)/general/load-type/page";
+import PackingMethodPage from "@/app/(dashboard)/general/packing-method/page";
+import BillingClientPage from "@/app/(dashboard)/general/billing-client/page";
+import ConsignerPage from "@/app/(dashboard)/general/consigner/page";
+import ConsigneePage from "@/app/(dashboard)/general/consignee/page";
+import LocationPage from "@/app/(dashboard)/general/location/page";
+import DriversPage from "@/app/(dashboard)/transport/drivers/page";
 
 interface MasterFormMeta {
   title: string;
@@ -894,6 +902,145 @@ export function MasterFormView({
             vehicle_number: vehicle.vehicle_number,
             vehicle_type: vehicle.vehicle_type,
             capacity_mt: vehicle.capacity_mt,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "vehicle_owner") {
+    return (
+      <VehicleOwnersPage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name || rec.owner_name,
+            name: rec.name || rec.owner_name,
+            owner_name: rec.name || rec.owner_name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "load_type") {
+    return (
+      <LoadTypePage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name,
+            name: rec.name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "packing_method") {
+    return (
+      <PackingMethodPage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name,
+            name: rec.name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "billing_client") {
+    return (
+      <BillingClientPage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name,
+            name: rec.name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "consigner") {
+    return (
+      <ConsignerPage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name,
+            name: rec.name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "consignee") {
+    return (
+      <ConsigneePage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name,
+            name: rec.name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "location") {
+    return (
+      <LocationPage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.city_name ? `${rec.city_name}, ${rec.state || ""}` : (rec.name || String(rec.id)),
+            city_name: rec.city_name,
+            name: rec.name || rec.city_name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "driver") {
+    return (
+      <DriversPage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name,
+            name: rec.name,
+            phone: rec.phone,
           })
         }
         onCancel={onClose}

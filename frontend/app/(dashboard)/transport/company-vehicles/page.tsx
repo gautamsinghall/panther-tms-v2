@@ -932,48 +932,25 @@ function CompanyVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Comp
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="flex-1 min-w-0">
-                      <SearchableSelect
-                        id="form-owner-id"
-                        name="owner_id"
-                        value={formValues.owner_id}
-                        options={ownerOptions}
-                        placeholder="Select or search owner / supplier..."
-                        onAddNew={() =>
-                          openMasterTab({
-                            type: "vehicle_owner",
-                            title: "Add Vehicle Owner",
-                            onSuccess: handleOwnerCreated,
-                          })
-                        }
-                        addNewLabel="+ Add New Owner"
-                        addNewTitle="Register vehicle owner in new TMS tab"
-                        onChange={(val) =>
-                          setFormValues((prev) => ({ ...prev, owner_id: val }))
-                        }
-                      />
-                    </div>
-
-                    {/* "+ Add Owner" Trigger Beside Dropdown */}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="md"
-                      onClick={() =>
-                        openMasterTab({
-                          type: "vehicle_owner",
-                          title: "Add Vehicle Owner",
-                          onSuccess: handleOwnerCreated,
-                        })
-                      }
-                      className="h-10 px-3.5 rounded-xl border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs shrink-0 flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                      title="Register vehicle owner in new TMS tab without leaving this form"
-                    >
-                      <UserPlus className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>+ Add Owner</span>
-                    </Button>
-                  </div>
+                  <SearchableSelect
+                    id="form-owner-id"
+                    name="owner_id"
+                    value={formValues.owner_id}
+                    options={ownerOptions}
+                    placeholder="Select or search owner / supplier..."
+                    onAddNew={() =>
+                      openMasterTab({
+                        type: "vehicle_owner",
+                        title: "Add Vehicle Owner",
+                        onSuccess: handleOwnerCreated,
+                      })
+                    }
+                    addNewLabel="+ Add New Owner"
+                    addNewTitle="Register vehicle owner in new TMS tab"
+                    onChange={(val) =>
+                      setFormValues((prev) => ({ ...prev, owner_id: val }))
+                    }
+                  />
 
                   {formValues.owner_id && (
                     <div className="text-[11px] text-slate-600 flex items-center gap-2 mt-1 px-1">

@@ -20,16 +20,23 @@ interface MethodOfPackingRecord {
   is_active: boolean;
 }
 
-export default function PackingMethodPage() {
+export interface PackingMethodPageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function PackingMethodPage({ embedded = false, onCreated, onCancel }: PackingMethodPageProps = {}) {
   const [data, setData] = useState<MethodOfPackingRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<MethodOfPackingRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
+    if (embedded) return;
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -187,11 +194,19 @@ export default function PackingMethodPage() {
   const handleCreate = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/general/packing-methods", {
+      const created = await apiClient<any>("/api/v1/general/packing-methods", {
         method: "POST",
         body: JSON.stringify(values),
       });
       toast.success("Packing method created successfully.");
+      if (typeof window !== "undefined" && created) {
+        localStorage.setItem("panther_party_created", JSON.stringify({ type: "packing_method", id: created.id, name: created.name }));
+        window.dispatchEvent(new Event("panther_packing_method_created"));
+      }
+      if (embedded && created) {
+        onCreated?.({ ...created, label: created.name });
+        return;
+      }
       setIsDrawerOpen(false);
       setEditingRecord(null);
       loadData();
@@ -222,51 +237,63 @@ export default function PackingMethodPage() {
     }
   };
 
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Methods of Packing"
-        description="Configure standard consignment packaging types for handling instructions."
-        breadcrumbs={[
-          { label: "General", href: "/general/packing-method" },
-          { label: "Packing Methods" },
-        ]}
-        primaryAction={{
-          label: "Add Packing Method",
-          icon: <Plus className="w-3.5 h-3.5" />,
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <PageHeader
+          title="Methods of Packing"
+          description="Configure standard consignment packaging types for handling instructions."
+          breadcrumbs={[
+            { label: "General", href: "/general/packing-method" },
+            { label: "Packing Methods" },
+          ]}
+          primaryAction={{
+            label: "Add Packing Method",
+            icon: <Plus className="w-3.5 h-3.5" />,
+            onClick: () => {
+              setEditingRecord(null);
+              setIsDrawerOpen(true);
+            },
+          }}
+        />
+      )}
 
-      <DataTable
-        columns={columns}
-        data={data}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        actions={actions}
-        searchPlaceholder="Search packing methods..."
-        emptyMessage="No packing methods configured"
-        emptySubtext="Add packaging standards such as Pallets, Bags, Crates, or Drums."
-        emptyAction={{
-          label: "Add Packing Method",
-          onClick: () => {
-            setEditingRecord(null);
-            setIsDrawerOpen(true);
-          },
-        }}
-      />
+      {!embedded && (
+        <DataTable
+          columns={columns}
+          data={data}
+          isLoading={isLoading}
+          isError={isError}
+          errorMessage={errorMessage}
+          onRetry={loadData}
+          actions={actions}
+          searchPlaceholder="Search packing methods..."
+          emptyMessage="No packing methods configured"
+          emptySubtext="Add packaging standards such as Pallets, Bags, Crates, or Drums."
+          emptyAction={{
+            label: "Add Packing Method",
+            onClick: () => {
+              setEditingRecord(null);
+              setIsDrawerOpen(true);
+            },
+          }}
+        />
+      )}
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? "Edit Packing Method" : "Create Packaging Method"}
         description={editingRecord ? "Update consignment packaging standard details." : "Add a consignment packaging standard."}
       >
@@ -275,10 +302,7 @@ export default function PackingMethodPage() {
           sections={formSections}
           initialValues={editingRecord || undefined}
           onSubmit={editingRecord ? handleUpdate : handleCreate}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Changes" : "Create Method"}
           isLoading={isSubmitting}
         />

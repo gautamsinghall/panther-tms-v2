@@ -24,9 +24,15 @@ interface LoadTypeRecord {
   updated_at?: string;
 }
 
-export default function LoadTypePage() {
+export interface LoadTypePageProps {
+  embedded?: boolean;
+  onCreated?: (record: any) => void;
+  onCancel?: () => void;
+}
+
+export default function LoadTypePage({ embedded = false, onCreated, onCancel }: LoadTypePageProps = {}) {
   const [data, setData] = useState<LoadTypeRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -35,11 +41,12 @@ export default function LoadTypePage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Drawer / Form state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRecord, setEditingRecord] = useState<LoadTypeRecord | null>(null);
 
   const loadData = async () => {
+    if (embedded) return;
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -247,7 +254,6 @@ export default function LoadTypePage() {
       }
       setIsDrawerOpen(false);
       setEditingRecord(null);
-      loadData();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("panther_load_types_changed"));
         localStorage.setItem("panther_load_types_updated", Date.now().toString());
@@ -263,10 +269,24 @@ export default function LoadTypePage() {
           );
         }
       }
+      if (embedded && saved) {
+        onCreated?.({ ...saved, label: saved.name });
+        return;
+      }
+      loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to save load type.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (embedded && onCancel) {
+      onCancel();
+    } else {
+      setIsDrawerOpen(false);
+      setEditingRecord(null);
     }
   };
 
@@ -277,89 +297,92 @@ export default function LoadTypePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Load Types Master"
-        description="Configure carriage load types (FTL, PTL, Container, Bulk) for transport bookings."
-        primaryAction={{
-          label: "New Load Type",
-          icon: <Plus className="w-4 h-4" />,
-          onClick: openCreateDrawer,
-        }}
-        breadcrumbs={[
-          { label: "Dashboard", href: "/" },
-          { label: "General", href: "/general/billing-client" },
-          { label: "Load Types" },
-        ]}
-      />
+      {!embedded && (
+        <>
+          <PageHeader
+            title="Load Types Master"
+            description="Configure carriage load types (FTL, PTL, Container, Bulk) for transport bookings."
+            primaryAction={{
+              label: "New Load Type",
+              icon: <Plus className="w-4 h-4" />,
+              onClick: openCreateDrawer,
+            }}
+            breadcrumbs={[
+              { label: "Dashboard", href: "/" },
+              { label: "General", href: "/general/billing-client" },
+              { label: "Load Types" },
+            ]}
+          />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <KpiCard
-          title="Total Load Types"
-          value={stats.total.toLocaleString()}
-          subtext="Configured cargo carriage categories"
-          icon={<Layers className="w-4 h-4 text-primary" />}
-        />
-        <KpiCard
-          title="Active Categories"
-          value={stats.active.toLocaleString()}
-          subtext="Available in LR booking dropdown"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-        />
-        <KpiCard
-          title="Inactive Categories"
-          value={stats.inactive.toLocaleString()}
-          subtext="Archived / deprecated types"
-          icon={<AlertCircle className="w-4 h-4 text-slate-400" />}
-        />
-      </div>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <KpiCard
+              title="Total Load Types"
+              value={stats.total.toLocaleString()}
+              subtext="Configured cargo carriage categories"
+              icon={<Layers className="w-4 h-4 text-primary" />}
+            />
+            <KpiCard
+              title="Active Categories"
+              value={stats.active.toLocaleString()}
+              subtext="Available in LR booking dropdown"
+              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+            />
+            <KpiCard
+              title="Inactive Categories"
+              value={stats.inactive.toLocaleString()}
+              subtext="Archived / deprecated types"
+              icon={<AlertCircle className="w-4 h-4 text-slate-400" />}
+            />
+          </div>
 
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search load type name, code, description..."
-        filters={[
-          {
-            id: "status",
-            label: "Filter Status",
-            value: statusFilter,
-            onChange: setStatusFilter,
-            options: [
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active", value: "ACTIVE" },
-              { label: "Inactive", value: "INACTIVE" },
-            ],
-          },
-        ]}
-        onClear={() => {
-          setSearchTerm("");
-          setStatusFilter("ALL");
-        }}
-      />
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search load type name, code, description..."
+            filters={[
+              {
+                id: "status",
+                label: "Filter Status",
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { label: "All Statuses", value: "ALL" },
+                  { label: "Active", value: "ACTIVE" },
+                  { label: "Inactive", value: "INACTIVE" },
+                ],
+              },
+            ]}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("ALL");
+            }}
+          />
 
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        actions={actions}
-        searchable={false}
-        emptyMessage="No Load Types found"
-        emptySubtext="Add your first load type category (e.g. FTL, Part Load, Containerized) to populate LR booking options."
-        emptyAction={{
-          label: "New Load Type",
-          onClick: openCreateDrawer,
-        }}
-      />
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={errorMessage}
+            onRetry={loadData}
+            actions={actions}
+            searchable={false}
+            emptyMessage="No Load Types found"
+            emptySubtext="Add your first load type category (e.g. FTL, Part Load, Containerized) to populate LR booking options."
+            emptyAction={{
+              label: "New Load Type",
+              onClick: openCreateDrawer,
+            }}
+          />
+        </>
+      )}
 
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        inline={embedded}
+        embedded={embedded}
+        onClose={handleClose}
         title={editingRecord ? `Edit Load Type: ${editingRecord.name}` : "Create New Load Type"}
         description="Configure cargo carriage category. Once created, it will automatically appear in the LR Load Type dropdown."
         width="md"
@@ -367,10 +390,7 @@ export default function LoadTypePage() {
         <Form
           sections={formSections}
           onSubmit={handleSubmit}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleClose}
           submitLabel={editingRecord ? "Save Changes" : "Create Load Type"}
           isLoading={isSubmitting}
         />
