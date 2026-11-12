@@ -134,6 +134,14 @@ class CompanySetting(TenantBase):
         nullable=False
     )
 
+    @property
+    def legal_name(self) -> Optional[str]:
+        return self.company_name
+
+    @property
+    def trade_name(self) -> Optional[str]:
+        return self.company_name
+
 
 
 # ==============================================================================

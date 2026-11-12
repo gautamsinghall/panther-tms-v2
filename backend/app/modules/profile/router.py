@@ -212,6 +212,7 @@ async def update_company(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     company = await service.update_company_setting(db, data)
+    comp_name = getattr(company, "company_name", None) or getattr(company, "legal_name", None) or "Company Profile"
     await log_activity(
         db=db,
         user=current_user,
@@ -219,9 +220,9 @@ async def update_company(
         module="company",
         entity_type="company",
         entity_id=str(company.id),
-        entity_identifier=company.legal_name or "Company Profile",
-        details=f"Updated company details for {company.legal_name or 'Company'}",
-        details_json={"legal_name": company.legal_name, "trade_name": company.trade_name, "gstin": company.gstin}
+        entity_identifier=comp_name,
+        details=f"Updated company details for {comp_name}",
+        details_json={"company_name": comp_name, "gstin": getattr(company, "gstin", None)}
     )
     return company
 
