@@ -916,18 +916,22 @@ export function TransportInvoicePrintModal({
                 </div>
 
                 {/* Signature Box */}
-                <div className="my-4 flex flex-col items-end">
-                  {company?.signature_url ? (
+                {company?.signature_url ? (
+                  <div className="my-2 flex flex-col items-end justify-center min-h-[75px]">
                     <img
                       src={company.signature_url}
                       alt="Signature"
-                      className="h-12 object-contain mr-2 mb-1"
+                      crossOrigin="anonymous"
+                      className="h-20 max-h-24 max-w-[220px] object-contain mr-1"
                     />
-                  ) : null}
-                  <div className="border border-dashed border-slate-300 rounded px-4 py-3 text-center text-slate-400 text-[10px] w-48">
-                    Authorized Signatory / Seal
                   </div>
-                </div>
+                ) : (
+                  <div className="my-4 flex flex-col items-end">
+                    <div className="border border-dashed border-slate-300 rounded px-4 py-3 text-center text-slate-400 text-[10px] w-48">
+                      Authorized Signatory / Seal
+                    </div>
+                  </div>
+                )}
 
                 {/* Signatory Footer */}
                 <div className="pt-2 border-t border-slate-200">
