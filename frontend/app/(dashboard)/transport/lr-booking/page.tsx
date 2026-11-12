@@ -2365,19 +2365,24 @@ export default function LRBookingPage() {
   };
 
   const handleLoadTypeCreated = (newLt: { id: number | string; name?: string; label?: string }) => {
-    const val = newLt.name || newLt.label || String(newLt.id);
+    const id = String(newLt.id);
+    const val = newLt.name || newLt.label || `Load Type #${id}`;
     setLoadTypes((prev) => [{ id: Number(newLt.id), name: val }, ...prev]);
+    currentFormValuesRef.current.load_type_id = id;
     currentFormValuesRef.current.load_type = val;
-    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, load_type: val }));
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, load_type_id: id, load_type: val }));
+    formSetFieldValueRef.current?.("load_type_id", id);
     formSetFieldValueRef.current?.("load_type", val);
   };
 
   const handlePackingMethodCreated = (newMethod: { id: number | string; name?: string; label?: string }) => {
-    const val = newMethod.name || newMethod.label || String(newMethod.id);
+    const id = String(newMethod.id);
+    const val = newMethod.name || newMethod.label || `Packing Method #${id}`;
     setPackingMethods((prev) => [{ id: Number(newMethod.id), name: val }, ...prev]);
-    currentFormValuesRef.current.packing_method_id = String(newMethod.id);
-    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, packing_method_id: String(newMethod.id) }));
-    formSetFieldValueRef.current?.("packing_method_id", String(newMethod.id));
+    currentFormValuesRef.current.packing_method_id = id;
+    currentFormValuesRef.current.packing_method_name = val;
+    setFormInitialValues((prev) => ({ ...prev, ...currentFormValuesRef.current, packing_method_id: id, packing_method_name: val }));
+    formSetFieldValueRef.current?.("packing_method_id", id);
   };
 
   if (!isPermitted) {
