@@ -81,7 +81,10 @@ class Settings(BaseSettings):
 
     # FASTag Tracking Integration (Loaded from project env / Dokploy)
     FASTAG_API_URL: str = "https://logitrack.webcorevision.com:5000/api/v1/fastag"
-    FASTAG_API_KEY: Optional[str] = None
+    FASTAG_API_KEY: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("FASTAG_API_KEY", "LOGITRACK_API_KEY"),
+    )
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
     # RC & DL Verification Integration (Logitrack Vahan & Sarathi Gateways)
