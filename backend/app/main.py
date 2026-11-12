@@ -86,9 +86,9 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("UPDATE tenants SET dl_credits_left = 0 WHERE dl_credits_left IS NULL;"))
                 await conn.execute(text("UPDATE tenants SET fastag_credits_left = 0 WHERE fastag_credits_left IS NULL;"))
                 await conn.execute(text("UPDATE tenants SET sim_wallet_balance = 0.00 WHERE sim_wallet_balance IS NULL;"))
-                # Pre-seed demo tenant verification credits if 0
-                await conn.execute(text("UPDATE tenants SET rc_credits_left = 100 WHERE (tenant_id = 'demo123456' OR company_code = 'DEMOLOGISTICS') AND (rc_credits_left = 0 OR rc_credits_left IS NULL);"))
-                await conn.execute(text("UPDATE tenants SET dl_credits_left = 100 WHERE (tenant_id = 'demo123456' OR company_code = 'DEMOLOGISTICS') AND (dl_credits_left = 0 OR dl_credits_left IS NULL);"))
+                # Verification credits default to 0 for all tenants (recharged via panther_control)
+                await conn.execute(text("UPDATE tenants SET rc_credits_left = 0 WHERE (tenant_id = 'demo123456' OR company_code = 'DEMOLOGISTICS') AND rc_credits_left = 100;"))
+                await conn.execute(text("UPDATE tenants SET dl_credits_left = 0 WHERE (tenant_id = 'demo123456' OR company_code = 'DEMOLOGISTICS') AND dl_credits_left = 100;"))
                 # fastag_wallet_transactions must NEVER be in panther_control; only in tenant DBs
                 await conn.execute(text("DROP TABLE IF EXISTS fastag_wallet_transactions;"))
                 await conn.execute(text("DROP TABLE IF EXISTS sim_wallet_transactions;"))
