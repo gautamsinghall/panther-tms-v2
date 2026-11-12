@@ -392,6 +392,7 @@ class JobResponse(JobBase):
     issuing_office_name: Optional[str] = None
     lr_id: Optional[int] = None
     lr_number: Optional[str] = None
+    linked_lrs: Optional[List[str]] = None
     vehicle_number: Optional[str] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None

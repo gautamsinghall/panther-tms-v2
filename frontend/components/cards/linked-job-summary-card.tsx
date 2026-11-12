@@ -39,6 +39,9 @@ export interface LinkedJobData {
   estimated_packages?: number;
   expected_dispatch_date?: string;
   special_instructions?: string;
+  lr_id?: number;
+  lr_number?: string;
+  linked_lrs?: string[];
 }
 
 interface LinkedJobSummaryCardProps {

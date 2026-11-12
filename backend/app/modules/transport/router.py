@@ -453,19 +453,29 @@ async def import_jobs_excel(
     return res
 
 def _build_job_response(job: Job) -> JobResponse:
-    linked_lr = job.lrs[0] if (getattr(job, "lrs", None) and len(job.lrs) > 0) else None
+    job_d = job.__dict__
+    lrs = job_d.get("lrs") or []
+    linked_lr = lrs[0] if (lrs and len(lrs) > 0) else None
+    lr_numbers = [l.lr_number for l in lrs if getattr(l, "lr_number", None)]
+    lr_number_str = ", ".join(lr_numbers) if lr_numbers else (linked_lr.lr_number if linked_lr else None)
+    issuing_office = job_d.get("issuing_office")
+    consigner = job_d.get("consigner")
+    consignee = job_d.get("consignee")
+    billing_client = job_d.get("billing_client")
+    origin_loc = job_d.get("origin_location")
+    dest_loc = job_d.get("destination_location")
     return JobResponse(
         id=job.id,
         job_number=job.job_number,
         issuing_office_id=job.issuing_office_id,
-        issuing_office_name=job.issuing_office.name if job.issuing_office else None,
+        issuing_office_name=issuing_office.name if issuing_office else None,
         job_date=job.job_date,
         consigner_id=job.consigner_id,
         consignee_id=job.consignee_id,
         origin_location_id=job.origin_location_id,
         destination_location_id=job.destination_location_id,
         billing_client_id=job.billing_client_id,
-        billing_party=job.billing_party or (job.billing_client.name if job.billing_client else None),
+        billing_party=job.billing_party or (billing_client.name if billing_client else None),
         expected_dispatch_date=job.expected_dispatch_date,
         cargo_description=job.cargo_description,
         estimated_weight_mt=job.estimated_weight_mt,
@@ -473,15 +483,16 @@ def _build_job_response(job: Job) -> JobResponse:
         status=job.status,
         special_instructions=job.special_instructions,
         created_by_user_id=job.created_by_user_id,
-        consigner_name=job.consigner.name if job.consigner else None,
-        consigner_code=job.consigner.code if job.consigner else None,
-        consignee_name=job.consignee.name if job.consignee else None,
-        consignee_code=job.consignee.code if job.consignee else None,
-        billing_client_name=job.billing_client.name if job.billing_client else (job.billing_party or None),
-        origin_city=job.origin_location.city_name if job.origin_location else None,
-        destination_city=job.destination_location.city_name if job.destination_location else None,
+        consigner_name=consigner.name if consigner else None,
+        consigner_code=consigner.code if consigner else None,
+        consignee_name=consignee.name if consignee else None,
+        consignee_code=consignee.code if consignee else None,
+        billing_client_name=billing_client.name if billing_client else (job.billing_party or None),
+        origin_city=origin_loc.city_name if origin_loc else None,
+        destination_city=dest_loc.city_name if dest_loc else None,
         lr_id=linked_lr.id if linked_lr else None,
-        lr_number=linked_lr.lr_number if linked_lr else None,
+        lr_number=lr_number_str,
+        linked_lrs=lr_numbers if lr_numbers else None,
         vehicle_number=linked_lr.vehicle_number if linked_lr else None,
         driver_name=linked_lr.driver_name if linked_lr else None,
         driver_phone=linked_lr.driver_phone if linked_lr else None,
@@ -511,6 +522,15 @@ async def list_jobs(
     )
     return [_build_job_response(j) for j in jobs]
 
+@router.get("/jobs/{id}", response_model=JobResponse)
+async def get_job(
+    id: int,
+    current_user: User = Depends(require_permission("transport", "jobs", "view")),
+    db: AsyncSession = Depends(get_tenant_db),
+):
+    job = await service.get_job_by_id(db, id)
+    return _build_job_response(job)
+
 @router.post("/jobs", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def create_job(
     data: JobCreate,
@@ -523,6 +543,7 @@ async def create_job(
     target_office_id = job.issuing_office_id or eff_office_id
     office_name = job.issuing_office.name if getattr(job, "issuing_office", None) else (current_office.name if current_office else None)
     office_code = job.issuing_office.code if getattr(job, "issuing_office", None) else (current_office.code if current_office else None)
+    response = _build_job_response(job)
     await log_activity(
         db=db,
         user=current_user,
@@ -538,15 +559,15 @@ async def create_job(
             "job_number": job.job_number,
             "job_date": str(job.job_date) if job.job_date else None,
             "billing_party": job.billing_party,
-            "consigner_name": job.consigner.name if getattr(job, "consigner", None) else None,
-            "consignee_name": job.consignee.name if getattr(job, "consignee", None) else None,
+            "consigner_name": response.consigner_name,
+            "consignee_name": response.consignee_name,
             "status": job.status,
             "cargo_description": job.cargo_description,
             "estimated_packages": job.estimated_packages,
             "estimated_weight_mt": float(job.estimated_weight_mt) if job.estimated_weight_mt else None,
         },
     )
-    return _build_job_response(job)
+    return response
 
 @router.put("/jobs/{id}", response_model=JobResponse)
 async def update_job(
@@ -556,6 +577,7 @@ async def update_job(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     job = await service.update_job(db, id, data)
+    response = _build_job_response(job)
     await log_activity(
         db=db,
         user=current_user,
@@ -568,7 +590,7 @@ async def update_job(
         details=f"Updated Job {job.job_number}",
         details_json=data.model_dump(exclude_unset=True),
     )
-    return _build_job_response(job)
+    return response
 
 @router.post("/jobs/{id}/transition", response_model=JobResponse)
 async def transition_job_status(
@@ -578,6 +600,7 @@ async def transition_job_status(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     job = await service.transition_job_status(db, id, req.target_status, req.remarks)
+    response = _build_job_response(job)
     await log_activity(
         db=db,
         user=current_user,
@@ -587,11 +610,10 @@ async def transition_job_status(
         entity_id=str(job.id),
         entity_identifier=job.job_number,
         office_id=job.issuing_office_id,
-        details=f"Transitioned Job {job.job_number} status to {req.target_status}" + (f" ({req.remarks})" if req.remarks else ""),
-        details_json={"target_status": req.target_status, "remarks": req.remarks},
+        details=f"Transitioned Job {job.job_number} status to {req.target_status.value}" + (f" ({req.remarks})" if req.remarks else ""),
+        details_json={"target_status": req.target_status.value, "remarks": req.remarks},
     )
-
-    return _build_job_response(job)
+    return response
 
 # ==============================================================================
 # 6. GR / LR Booking & Transitions

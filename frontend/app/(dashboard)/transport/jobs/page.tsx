@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { JobExcelImportModal } from "@/components/modals/job-excel-import-modal";
 import { JobOrderViewModal } from "@/components/modals/job-order-view-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface JobRecord {
   id: number;
@@ -44,6 +45,7 @@ interface JobRecord {
   special_instructions?: string;
   lr_id?: number;
   lr_number?: string;
+  linked_lrs?: string[];
   vehicle_number?: string;
   driver_name?: string;
   created_at: string;
@@ -70,12 +72,20 @@ export default function JobsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lockedJobPopup, setLockedJobPopup] = useState<JobRecord | null>(null);
 
   const searchLocationOptions = useCallback(async (query: string) => {
     const results = await apiClient<Array<{ id: number; city_name: string; state?: string; pincode?: string }>>(
       `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
     );
-    return results.filter((location) => location.city_name).map((location) => ({
+    if (Array.isArray(results) && results.length > 0) {
+      setLocations((prev) => {
+        const existingIds = new Set(prev.map((l) => String(l.id)));
+        const newItems = results.filter((r) => !existingIds.has(String(r.id)));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    }
+    return (results || []).filter((location) => location.city_name).map((location) => ({
       label: [location.city_name, location.state, location.pincode].filter(Boolean).join(", "),
       value: String(location.id),
       keywords: [location.pincode || ""],
@@ -307,6 +317,14 @@ export default function JobsPage() {
     },
   ];
 
+  const handleEditClick = (row: JobRecord) => {
+    if (row.lr_number || row.lr_id || (row.linked_lrs && row.linked_lrs.length > 0)) {
+      setLockedJobPopup(row);
+      return;
+    }
+    openEditJobDrawer(row);
+  };
+
   const actions: RowAction<JobRecord>[] = [
     {
       label: "Print Preview",
@@ -319,7 +337,7 @@ export default function JobsPage() {
       label: "Edit",
       icon: <Pencil className="w-4 h-4 text-blue-600" />,
       onClick: (row) => {
-        openEditJobDrawer(row);
+        handleEditClick(row);
       },
       disabled: (row) => row.status === "CLOSED" || row.status === "CANCELLED",
     },
@@ -557,6 +575,14 @@ export default function JobsPage() {
           type: "number",
           required: false,
         },
+        {
+          name: "special_instructions",
+          label: "Special Instructions",
+          placeholder: "e.g. Handle with care, keep dry, temperature sensitive",
+          type: "textarea",
+          required: false,
+          colSpan: 2,
+        },
       ],
     },
   ];
@@ -581,6 +607,7 @@ export default function JobsPage() {
         cargo_description: values.cargo_description || undefined,
         estimated_weight_mt: values.estimated_weight_mt !== undefined && values.estimated_weight_mt !== "" ? parseFloat(values.estimated_weight_mt) : 0,
         estimated_packages: values.estimated_packages !== undefined && values.estimated_packages !== "" ? parseInt(values.estimated_packages, 10) : 0,
+        special_instructions: values.special_instructions || undefined,
       };
 
       if (editingJob) {
@@ -588,15 +615,20 @@ export default function JobsPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
+        toast.success(`Trip order ${editingJob.job_number} updated successfully.`);
       } else {
-        await apiClient("/api/v1/transport/jobs", {
+        const created = await apiClient<JobRecord>("/api/v1/transport/jobs", {
           method: "POST",
           body: JSON.stringify(payload),
         });
+        toast.success(`Trip order ${created?.job_number || ""} created successfully.`);
       }
       setIsDrawerOpen(false);
       setEditingJob(null);
-      loadData();
+      await loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("panther_jobs_updated"));
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to save trip / job.");
     } finally {
@@ -618,6 +650,15 @@ export default function JobsPage() {
       job_number: initialJobNo,
       job_date: new Date().toISOString().split("T")[0],
       expected_dispatch_date: new Date().toISOString().split("T")[0],
+      billing_client_id: "",
+      origin_location_id: "",
+      destination_location_id: "",
+      consigner_id: "",
+      consignee_id: "",
+      cargo_description: "",
+      estimated_weight_mt: "",
+      estimated_packages: "",
+      special_instructions: "",
     });
     setIsDrawerOpen(true);
   }, [seriesInfo]);
@@ -634,6 +675,44 @@ export default function JobsPage() {
 
   const openEditJobDrawer = (row: JobRecord) => {
     setEditingJob(row);
+
+    // Pre-populate dropdown master lists if row's references are not in active state lists
+    if (row.billing_client_id) {
+      setBillingClients((prev) => {
+        if (prev.some((b) => String(b.id) === String(row.billing_client_id))) return prev;
+        return [{ id: row.billing_client_id, name: row.billing_client_name || row.billing_party || `Client #${row.billing_client_id}` }, ...prev];
+      });
+    }
+    if (row.consigner_id) {
+      setConsigners((prev) => {
+        if (prev.some((c) => String(c.id) === String(row.consigner_id))) return prev;
+        return [{ id: row.consigner_id, name: row.consigner_name || `Consignor #${row.consigner_id}`, code: row.consigner_code }, ...prev];
+      });
+    }
+    if (row.consignee_id) {
+      setConsignees((prev) => {
+        if (prev.some((c) => String(c.id) === String(row.consignee_id))) return prev;
+        return [{ id: row.consignee_id, name: row.consignee_name || `Consignee #${row.consignee_id}`, code: row.consignee_code }, ...prev];
+      });
+    }
+
+    setLocations((prev) => {
+      const updated = [...prev];
+      if (row.origin_location_id && !updated.some((l) => String(l.id) === String(row.origin_location_id))) {
+        updated.push({
+          id: row.origin_location_id,
+          city_name: row.origin_city || `Location #${row.origin_location_id}`,
+        });
+      }
+      if (row.destination_location_id && !updated.some((l) => String(l.id) === String(row.destination_location_id))) {
+        updated.push({
+          id: row.destination_location_id,
+          city_name: row.destination_city || `Location #${row.destination_location_id}`,
+        });
+      }
+      return updated;
+    });
+
     setFormInitialValues({
       job_series_id: "default",
       job_number: row.job_number,
@@ -647,6 +726,7 @@ export default function JobsPage() {
       cargo_description: row.cargo_description || "",
       estimated_weight_mt: row.estimated_weight_mt !== undefined && row.estimated_weight_mt !== null ? String(row.estimated_weight_mt) : "",
       estimated_packages: row.estimated_packages !== undefined && row.estimated_packages !== null ? String(row.estimated_packages) : "",
+      special_instructions: row.special_instructions || "",
     });
     setIsDrawerOpen(true);
   };
@@ -791,10 +871,32 @@ export default function JobsPage() {
         job={viewingJob}
         onClose={() => setViewingJob(null)}
         onEdit={(job) => {
-          openEditJobDrawer(job);
+          setViewingJob(null);
+          handleEditClick(job as any);
         }}
         onBookLR={(jobId) => {
           router.push(`/transport/lr-booking?job_id=${jobId}`);
+        }}
+      />
+
+      {/* Alert popup when job is locked because it is used in an LR */}
+      <ConfirmDialog
+        isOpen={lockedJobPopup !== null}
+        onClose={() => setLockedJobPopup(null)}
+        title="Job Order Locked"
+        message={`Job number ${lockedJobPopup?.job_number} is used in LR #${lockedJobPopup?.lr_number || (lockedJobPopup?.linked_lrs?.join(", "))} and cannot be edited.`}
+        confirmText="View LR"
+        cancelText="Close"
+        variant="warning"
+        onConfirm={() => {
+          const lrId = lockedJobPopup?.lr_id;
+          const lrNum = lockedJobPopup?.lr_number;
+          setLockedJobPopup(null);
+          if (lrId) {
+            router.push(`/transport/lr-booking?edit=${lrId}`);
+          } else if (lrNum) {
+            router.push(`/transport/lr-booking?search=${encodeURIComponent(lrNum)}`);
+          }
         }}
       />
     </div>

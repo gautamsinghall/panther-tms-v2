@@ -184,6 +184,13 @@ export default function LRBookingPage() {
     const results = await apiClient<Array<{ id: number; city_name: string; state?: string; pincode?: string }>>(
       `/api/v1/general/locations/search?q=${encodeURIComponent(query)}`
     );
+    if (Array.isArray(results) && results.length > 0) {
+      setLocations((prev) => {
+        const existingIds = new Set(prev.map((l) => String(l.id)));
+        const newItems = results.filter((r) => !existingIds.has(String(r.id)));
+        return newItems.length > 0 ? [...prev, ...newItems] : prev;
+      });
+    }
     return results.filter((location) => location.city_name).map((location) => ({
       label: [location.city_name, location.state, location.pincode].filter(Boolean).join(", "),
       value: String(location.id),
@@ -476,17 +483,39 @@ export default function LRBookingPage() {
   // Derived options for dropdowns
   const jobOptions = useMemo(() => [
     { label: "Direct Booking (No Job)", value: "" },
-    ...jobs.map((j: any) => {
-      const routeText = [j.origin_city, j.destination_city].filter(Boolean).join(" → ");
-      const displayLabel = routeText
-        ? `${j.job_number} · ${routeText} (ID: ${j.id})`
-        : `${j.job_number} (ID: ${j.id})`;
-      return {
-        label: displayLabel,
-        value: String(j.id),
-      };
-    }),
-  ], [jobs]);
+    ...jobs
+      .filter((j: any) => {
+        // If editing an existing LR that already has this job linked, keep it visible in options
+        if (editingLrRecord?.job_id && String(j.id) === String(editingLrRecord.job_id)) {
+          return true;
+        }
+        // Exclude jobs that are already used in an LR
+        if (j.lr_id || j.lr_number || (j.linked_lrs && j.linked_lrs.length > 0)) {
+          return false;
+        }
+        // Exclude jobs in closed/cancelled/booked/dispatched statuses
+        if (
+          j.status === "CLOSED" ||
+          j.status === "CANCELLED" ||
+          j.status === "BOOKED" ||
+          j.status === "DISPATCHED" ||
+          j.status === "DELIVERED"
+        ) {
+          return false;
+        }
+        return true;
+      })
+      .map((j: any) => {
+        const routeText = [j.origin_city, j.destination_city].filter(Boolean).join(" → ");
+        const displayLabel = routeText
+          ? `${j.job_number} · ${routeText} (ID: ${j.id})`
+          : `${j.job_number} (ID: ${j.id})`;
+        return {
+          label: displayLabel,
+          value: String(j.id),
+        };
+      }),
+  ], [jobs, editingLrRecord]);
 
   const bookingStatusOptions = useMemo(() => [
     { label: "Booked", value: "Booked" },
@@ -734,6 +763,24 @@ export default function LRBookingPage() {
       }
     } catch {}
 
+    // Ensure locations array contains the LR's origin and destination
+    setLocations((prev) => {
+      const updated = [...prev];
+      if (freshData.origin_location_id && !updated.some((l) => String(l.id) === String(freshData.origin_location_id))) {
+        updated.push({
+          id: freshData.origin_location_id,
+          city_name: freshData.origin_city || `Location #${freshData.origin_location_id}`,
+        });
+      }
+      if (freshData.destination_location_id && !updated.some((l) => String(l.id) === String(freshData.destination_location_id))) {
+        updated.push({
+          id: freshData.destination_location_id,
+          city_name: freshData.destination_city || `Location #${freshData.destination_location_id}`,
+        });
+      }
+      return updated;
+    });
+
     const matchedJob = freshData.job_id ? jobs.find((j: any) => String(j.id) === String(freshData.job_id)) : null;
     setSelectedJob(matchedJob || null);
 
@@ -824,6 +871,52 @@ export default function LRBookingPage() {
     const matchedJob = initialJobId ? jobs.find((j: any) => String(j.id) === String(initialJobId)) : null;
     setSelectedJob(matchedJob || null);
 
+    if (matchedJob) {
+      if (matchedJob.origin_location_id && (matchedJob.origin_city || matchedJob.origin_location_name)) {
+        setLocations((prev) => {
+          if (prev.some((l) => String(l.id) === String(matchedJob.origin_location_id))) return prev;
+          return [...prev, { id: matchedJob.origin_location_id, city_name: matchedJob.origin_city || matchedJob.origin_location_name }];
+        });
+      }
+      if (matchedJob.destination_location_id && (matchedJob.destination_city || matchedJob.destination_location_name)) {
+        setLocations((prev) => {
+          if (prev.some((l) => String(l.id) === String(matchedJob.destination_location_id))) return prev;
+          return [...prev, { id: matchedJob.destination_location_id, city_name: matchedJob.destination_city || matchedJob.destination_location_name }];
+        });
+      }
+      if (matchedJob.billing_client_id && (matchedJob.billing_client_name || matchedJob.billing_party)) {
+        setBillingCustomers((prev) => {
+          if (prev.some((b) => String(b.id) === String(matchedJob.billing_client_id))) return prev;
+          return [...prev, { id: matchedJob.billing_client_id, name: matchedJob.billing_client_name || matchedJob.billing_party }];
+        });
+      }
+      if (matchedJob.consigner_id && matchedJob.consigner_name) {
+        setConsigners((prev) => {
+          if (prev.some((c) => String(c.id) === String(matchedJob.consigner_id))) return prev;
+          return [...prev, { id: matchedJob.consigner_id, name: matchedJob.consigner_name, code: matchedJob.consigner_code }];
+        });
+      }
+      if (matchedJob.consignee_id && matchedJob.consignee_name) {
+        setConsignees((prev) => {
+          if (prev.some((c) => String(c.id) === String(matchedJob.consignee_id))) return prev;
+          return [...prev, { id: matchedJob.consignee_id, name: matchedJob.consignee_name, code: matchedJob.consignee_code }];
+        });
+      }
+    }
+
+    let initialLoadTypeId = "";
+    if (matchedJob?.cargo_description && loadTypes && loadTypes.length > 0) {
+      const cargoDescLower = matchedJob.cargo_description.toLowerCase();
+      const matchedLt = loadTypes.find((lt) => {
+        if (!lt.name) return false;
+        const ltNameLower = lt.name.toLowerCase();
+        return cargoDescLower.includes(ltNameLower) || ltNameLower.includes(cargoDescLower);
+      });
+      if (matchedLt) {
+        initialLoadTypeId = String(matchedLt.id);
+      }
+    }
+
     const initialConsignerId = matchedJob?.consigner_id ? String(matchedJob.consigner_id) : "";
     const initialConsigneeId = matchedJob?.consignee_id ? String(matchedJob.consignee_id) : "";
     setSelectedConsignerId(initialConsignerId);
@@ -847,7 +940,7 @@ export default function LRBookingPage() {
       issuing_office_id: currentOffice?.id,
       lr_series_id: initialSeriesId,
       lr_number: initialLrNo,
-      dispatch_date: matchedJob?.expected_dispatch_date || new Date().toISOString().split("T")[0],
+      dispatch_date: matchedJob?.expected_dispatch_date || matchedJob?.job_date || new Date().toISOString().split("T")[0],
       appointment_date: "",
       billing_customer_id: matchedJob?.billing_client_id ? String(matchedJob.billing_client_id) : "",
       origin_location_id: matchedJob?.origin_location_id ? String(matchedJob.origin_location_id) : "",
@@ -876,7 +969,7 @@ export default function LRBookingPage() {
       bill_of_entry: "",
       container_no: "",
       seal_no: "",
-      load_type_id: "",
+      load_type_id: initialLoadTypeId,
       payment_type: "To Be Billed",
       show_amounts_in_print: false,
       eta: "",
@@ -1146,6 +1239,39 @@ export default function LRBookingPage() {
               const matchedJob = jobs.find((j: any) => String(j.id) === String(newJobId)) as any;
               if (matchedJob) {
                 setSelectedJob(matchedJob);
+
+                // Ensure dropdown option lists include the matched job's entities so labels resolve
+                if (matchedJob.origin_location_id && (matchedJob.origin_city || matchedJob.origin_location_name)) {
+                  setLocations((prev) => {
+                    if (prev.some((l) => String(l.id) === String(matchedJob.origin_location_id))) return prev;
+                    return [...prev, { id: matchedJob.origin_location_id, city_name: matchedJob.origin_city || matchedJob.origin_location_name }];
+                  });
+                }
+                if (matchedJob.destination_location_id && (matchedJob.destination_city || matchedJob.destination_location_name)) {
+                  setLocations((prev) => {
+                    if (prev.some((l) => String(l.id) === String(matchedJob.destination_location_id))) return prev;
+                    return [...prev, { id: matchedJob.destination_location_id, city_name: matchedJob.destination_city || matchedJob.destination_location_name }];
+                  });
+                }
+                if (matchedJob.billing_client_id && (matchedJob.billing_client_name || matchedJob.billing_party)) {
+                  setBillingCustomers((prev) => {
+                    if (prev.some((b) => String(b.id) === String(matchedJob.billing_client_id))) return prev;
+                    return [...prev, { id: matchedJob.billing_client_id, name: matchedJob.billing_client_name || matchedJob.billing_party }];
+                  });
+                }
+                if (matchedJob.consigner_id && matchedJob.consigner_name) {
+                  setConsigners((prev) => {
+                    if (prev.some((c) => String(c.id) === String(matchedJob.consigner_id))) return prev;
+                    return [...prev, { id: matchedJob.consigner_id, name: matchedJob.consigner_name, code: matchedJob.consigner_code }];
+                  });
+                }
+                if (matchedJob.consignee_id && matchedJob.consignee_name) {
+                  setConsignees((prev) => {
+                    if (prev.some((c) => String(c.id) === String(matchedJob.consignee_id))) return prev;
+                    return [...prev, { id: matchedJob.consignee_id, name: matchedJob.consignee_name, code: matchedJob.consignee_code }];
+                  });
+                }
+
                 const updates: Record<string, any> = {
                   job_id: String(newJobId),
                 };
@@ -1182,9 +1308,10 @@ export default function LRBookingPage() {
                   formSetFieldValueRef.current?.("actual_weight_mt", wt);
                   formSetFieldValueRef.current?.("chargeable_weight_mt", wt);
                 }
-                if (matchedJob.expected_dispatch_date) {
-                  updates.dispatch_date = matchedJob.expected_dispatch_date;
-                  formSetFieldValueRef.current?.("dispatch_date", matchedJob.expected_dispatch_date);
+                const dispatchDate = matchedJob.expected_dispatch_date || matchedJob.job_date;
+                if (dispatchDate) {
+                  updates.dispatch_date = dispatchDate;
+                  formSetFieldValueRef.current?.("dispatch_date", dispatchDate);
                 }
                 if (matchedJob.cargo_description) {
                   updates.particulars = matchedJob.cargo_description;
@@ -1199,6 +1326,20 @@ export default function LRBookingPage() {
                   });
                   updates.invoice_items = updatedItems;
                   formSetFieldValueRef.current?.("invoice_items", updatedItems);
+
+                  if (loadTypes && loadTypes.length > 0) {
+                    const cargoDescLower = matchedJob.cargo_description.toLowerCase();
+                    const matchedLt = loadTypes.find((lt) => {
+                      if (!lt.name) return false;
+                      const ltNameLower = lt.name.toLowerCase();
+                      return cargoDescLower.includes(ltNameLower) || ltNameLower.includes(cargoDescLower);
+                    });
+                    if (matchedLt) {
+                      updates.load_type_id = String(matchedLt.id);
+                      updates.load_type = matchedLt.name;
+                      formSetFieldValueRef.current?.("load_type_id", String(matchedLt.id));
+                    }
+                  }
                 }
                 if (matchedJob.special_instructions) {
                   updates.remarks = matchedJob.special_instructions;

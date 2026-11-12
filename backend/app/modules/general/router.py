@@ -298,7 +298,7 @@ async def search_locations(
     term = q.strip()
     if len(term) < 2:
         return []
-    pattern = f"{term}%"
+    pattern = f"%{term}%"
     filters = [
         Location.is_active.is_(True),
         or_(

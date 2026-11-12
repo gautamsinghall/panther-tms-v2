@@ -435,6 +435,26 @@ async def get_all_jobs(
     result = await db.execute(stmt)
     return list(result.scalars().unique().all())
 
+async def get_job_by_id(db: AsyncSession, job_id: int) -> Job:
+    stmt = (
+        select(Job)
+        .options(
+            selectinload(Job.consigner),
+            selectinload(Job.consignee),
+            selectinload(Job.origin_location),
+            selectinload(Job.destination_location),
+            selectinload(Job.billing_client),
+            selectinload(Job.issuing_office),
+            selectinload(Job.lrs),
+        )
+        .where(Job.id == job_id)
+    )
+    result = await db.execute(stmt)
+    job = result.scalar_one_or_none()
+    if not job:
+        raise AppException(status_code=404, error_code="NOT_FOUND", message="Job not found.")
+    return job
+
 async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] = None, office_id: Optional[int] = None, auto_commit: bool = True) -> Job:
     target_office_id = data.issuing_office_id or office_id
     if not target_office_id:
@@ -456,19 +476,26 @@ async def create_job(db: AsyncSession, data: JobCreate, user_id: Optional[int] =
     
     job = Job(**job_dict)
     db.add(job)
+    await db.flush()
+    job_id = job.id
     if auto_commit:
         await db.commit()
-        await db.refresh(job)
+        return await get_job_by_id(db, job_id)
     else:
-        await db.flush()
-    return job
+        return job
 
 async def update_job(db: AsyncSession, job_id: int, data: JobUpdate) -> Job:
-    job = await db.get(Job, job_id)
-    if not job:
-        raise AppException(status_code=404, error_code="NOT_FOUND", message="Job not found.")
+    job = await get_job_by_id(db, job_id)
     if job.status in (JobStatus.CLOSED.value, JobStatus.CANCELLED.value):
         raise AppException(status_code=400, error_code="JOB_LOCKED", message=f"Job is {job.status} and cannot be modified.")
+    if job.lrs and len(job.lrs) > 0:
+        lr_numbers = [l.lr_number for l in job.lrs if l.lr_number]
+        lr_str = ", ".join(lr_numbers) if lr_numbers else str(len(job.lrs))
+        raise AppException(
+            status_code=400,
+            error_code="JOB_LOCKED_LR_ATTACHED",
+            message=f"Job number {job.job_number} is used in LR #{lr_str} and cannot be edited."
+        )
     for field, val in data.model_dump(exclude_unset=True).items():
         setattr(job, field, val)
     if data.billing_client_id and not data.billing_party:
@@ -477,14 +504,10 @@ async def update_job(db: AsyncSession, job_id: int, data: JobUpdate) -> Job:
         if bc:
             job.billing_party = bc.name
     await db.commit()
-    await db.refresh(job)
-    return job
+    return await get_job_by_id(db, job_id)
 
 async def transition_job_status(db: AsyncSession, job_id: int, target_status: JobStatus, remarks: Optional[str] = None) -> Job:
-    job = await db.get(Job, job_id)
-    if not job:
-        raise AppException(status_code=404, error_code="NOT_FOUND", message="Job not found.")
-    
+    job = await get_job_by_id(db, job_id)
     current = JobStatus(job.status)
     if target_status not in ALLOWED_JOB_TRANSITIONS.get(current, set()):
         raise AppException(
@@ -497,8 +520,7 @@ async def transition_job_status(db: AsyncSession, job_id: int, target_status: Jo
     if remarks:
         job.special_instructions = f"{job.special_instructions or ''}\n[{target_status.value}]: {remarks}".strip()
     await db.commit()
-    await db.refresh(job)
-    return job
+    return await get_job_by_id(db, job_id)
 
 # ===========================================================================
 # LR / GR Services & State Machine
@@ -698,9 +720,20 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
     # Job linkage: use selected job, or auto-create corresponding Job Order
     auto_job = None
     if data.job_id and int(data.job_id) > 0:
-        job = await db.get(Job, data.job_id)
-        if job and job.status == JobStatus.OPEN.value:
-            job.status = JobStatus.BOOKED.value
+        job_stmt = select(Job).options(selectinload(Job.lrs)).where(Job.id == int(data.job_id))
+        job_res = await db.execute(job_stmt)
+        job = job_res.scalar_one_or_none()
+        if not job:
+            raise AppException(status_code=404, error_code="NOT_FOUND", message="Selected Job not found.")
+        if job.lrs and len(job.lrs) > 0:
+            existing_lrs = [l.lr_number for l in job.lrs if l.lr_number]
+            lr_desc = f"LR #{', '.join(existing_lrs)}" if existing_lrs else f"{len(job.lrs)} LR(s)"
+            raise AppException(
+                status_code=400,
+                error_code="JOB_ALREADY_LINKED",
+                message=f"Job {job.job_number} is already linked to {lr_desc} and cannot be linked again."
+            )
+        job.status = JobStatus.BOOKED.value
     elif b_status != "Reserved" or (data.consigner_id and data.consignee_id):
         auto_job_number = await allocate_or_validate_voucher_number(
             db, "JOB", manual_number=None, issuing_office_id=target_office_id
@@ -745,6 +778,8 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
     if auto_job:
         lr.job = auto_job
     db.add(lr)
+    await db.flush()
+    saved_lr_id = lr.id
 
     if auto_commit:
         await db.commit()
@@ -762,7 +797,7 @@ async def create_lr(db: AsyncSession, data: LRCreate, user_id: Optional[int] = N
                 selectinload(LR.load_type_rel),
                 selectinload(LR.packing_method),
             )
-            .where(LR.id == lr.id)
+            .where(LR.id == saved_lr_id)
         )
         res = await db.execute(stmt)
         lr = res.scalar_one()
@@ -776,7 +811,25 @@ async def update_lr(db: AsyncSession, lr_id: int, data: LRUpdate) -> LR:
         raise AppException(status_code=404, error_code="NOT_FOUND", message="LR not found.")
     if lr.status == LRStatus.POD_VERIFIED.value:
         raise AppException(status_code=400, error_code="LR_LOCKED", message="LR is POD_VERIFIED and cannot be modified.")
-    
+
+    if data.job_id is not None and (lr.job_id is None or int(data.job_id) != lr.job_id):
+        if int(data.job_id) > 0:
+            job_stmt = select(Job).options(selectinload(Job.lrs)).where(Job.id == int(data.job_id))
+            job_res = await db.execute(job_stmt)
+            target_job = job_res.scalar_one_or_none()
+            if not target_job:
+                raise AppException(status_code=404, error_code="NOT_FOUND", message="Selected Job not found.")
+            other_lrs = [l for l in (target_job.lrs or []) if l.id != lr.id]
+            if other_lrs:
+                existing_lrs = [l.lr_number for l in other_lrs if l.lr_number]
+                lr_desc = f"LR #{', '.join(existing_lrs)}" if existing_lrs else f"{len(other_lrs)} LR(s)"
+                raise AppException(
+                    status_code=400,
+                    error_code="JOB_ALREADY_LINKED",
+                    message=f"Job {target_job.job_number} is already linked to {lr_desc} and cannot be linked again."
+                )
+            target_job.status = JobStatus.BOOKED.value
+
     for field, val in data.model_dump(exclude_unset=True).items():
         setattr(lr, field, val)
 
