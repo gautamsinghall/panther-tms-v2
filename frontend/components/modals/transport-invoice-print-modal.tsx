@@ -473,7 +473,7 @@ export function TransportInvoicePrintModal({
             id="printable-tax-invoice"
             className="printable-paper-sheet printable-document-sheet w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans min-h-[280mm] h-fit flex flex-col justify-between"
           >
-            <div>
+            <div className="bg-transparent">
               {/* Header: Logo, Company Name, Contact, TAX INVOICE title */}
             <div className="flex items-start justify-between gap-4">
               {/* Left: Monogram / Logo + Company Info */}
@@ -643,7 +643,7 @@ export function TransportInvoicePrintModal({
             </div>
 
             {/* Consignments Line Items Table */}
-            <div className="border border-slate-300 rounded-xs overflow-hidden mb-3">
+            <div className="border border-slate-300 rounded-xs overflow-hidden mb-3 bg-white">
               <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="bg-[#0f172a] text-white text-[10px] font-bold uppercase tracking-wider">
@@ -771,7 +771,7 @@ export function TransportInvoicePrintModal({
                 </div>
 
                 {/* Tax Breakdown Table */}
-                <div className="border border-slate-300 rounded-xs overflow-hidden">
+                <div className="border border-slate-300 rounded-xs overflow-hidden bg-white">
                   <table className="w-full border-collapse text-[11px]">
                     <thead>
                       <tr className="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold uppercase text-[10px]">
@@ -790,18 +790,18 @@ export function TransportInvoicePrintModal({
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td className="p-1.5 border-r border-slate-200 text-center font-mono">996511</td>
-                        <td className="p-1.5 border-r border-slate-200 text-right font-mono">
+                      <tr className="border-b border-slate-300 bg-white">
+                        <td className="p-1.5 border-r border-slate-200 text-center font-mono text-slate-900">996511</td>
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono text-slate-900">
                           {formatInr(taxableAmount)}
                         </td>
-                        <td className="p-1.5 border-r border-slate-200 text-right font-mono">
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono text-slate-900">
                           {formatInr(cgstAmount)}
                         </td>
-                        <td className="p-1.5 border-r border-slate-200 text-right font-mono">
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono text-slate-900">
                           {formatInr(sgstAmount)}
                         </td>
-                        <td className="p-1.5 border-r border-slate-200 text-right font-mono">
+                        <td className="p-1.5 border-r border-slate-200 text-right font-mono text-slate-900">
                           {formatInr(igstAmount)}
                         </td>
                         <td className="p-1.5 text-right font-mono font-bold text-slate-900">
@@ -885,7 +885,7 @@ export function TransportInvoicePrintModal({
                 </div>
 
                 {/* Terms & Conditions */}
-                <div className="pt-1">
+                <div className="pt-1 bg-transparent">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#1e40af] block mb-1">
                     TERMS & CONDITIONS
                   </span>

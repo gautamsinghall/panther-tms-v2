@@ -1070,38 +1070,38 @@ html.dark .bg-\[\#101828\]\/50 {
   -webkit-backdrop-filter: blur(6px) !important;
 }
 
-/* 9. Data Tables */
-html.dark div:has(> table),
-html.dark div:has(> div > table) {
+/* 9. Data Tables (Application UI Tables Only - Excludes Physical Paper Documents) */
+html.dark div:not(.printable-paper-sheet):not(.printable-document-sheet):not([data-printable-sheet]):not([data-printable-document]):not(#printable-tax-invoice):not([id*="printable-tax-invoice"]):not(#lr-printable-document):not([id^="lr-printable-document"]):not(#hire-challan-printable-document):not([id^="hire-challan-printable-document"]):not(#job-order-printable-document):not([id^="job-order-printable-document"]):not(.printable-paper-sheet *):not(.printable-document-sheet *):not(#printable-tax-invoice *):not(#lr-printable-document *):not(#hire-challan-printable-document *):not(#job-order-printable-document *):has(> table),
+html.dark div:not(.printable-paper-sheet):not(.printable-document-sheet):not([data-printable-sheet]):not([data-printable-document]):not(#printable-tax-invoice):not([id*="printable-tax-invoice"]):not(#lr-printable-document):not([id^="lr-printable-document"]):not(#hire-challan-printable-document):not([id^="hire-challan-printable-document"]):not(#job-order-printable-document):not([id^="job-order-printable-document"]):not(.printable-paper-sheet *):not(.printable-document-sheet *):not(#printable-tax-invoice *):not(#lr-printable-document *):not(#hire-challan-printable-document *):not(#job-order-printable-document *):has(> div > table) {
   background-color: #17171B !important;
   border-color: #303036 !important;
 }
 
-html.dark table thead th {
+html.dark table:not(.printable-paper-sheet table):not(.printable-document-sheet table):not(#printable-tax-invoice table):not([id*="printable-tax-invoice"] table):not(#lr-printable-document table):not(#hire-challan-printable-document table):not(#job-order-printable-document table) thead th {
   background-color: #131317 !important;
   border-color: #303036 !important;
   color: #898991 !important;
 }
 
-html.dark table tbody tr {
+html.dark table:not(.printable-paper-sheet table):not(.printable-document-sheet table):not(#printable-tax-invoice table):not([id*="printable-tax-invoice"] table):not(#lr-printable-document table):not(#hire-challan-printable-document table):not(#job-order-printable-document table) tbody tr {
   background-color: #17171B !important;
   transition: background-color 0.15s ease !important;
 }
 
 /* Highlight ONLY the specific hovered row, not the entire table */
-html.dark table tbody tr:hover {
+html.dark table:not(.printable-paper-sheet table):not(.printable-document-sheet table):not(#printable-tax-invoice table):not([id*="printable-tax-invoice"] table):not(#lr-printable-document table):not(#hire-challan-printable-document table):not(#job-order-printable-document table) tbody tr:hover {
   background-color: #222228 !important;
 }
 
-html.dark table tbody tr.bg-indigo-50\/70 {
+html.dark table:not(.printable-paper-sheet table):not(.printable-document-sheet table):not(#printable-tax-invoice table):not([id*="printable-tax-invoice"] table):not(#lr-printable-document table):not(#hire-challan-printable-document table):not(#job-order-printable-document table) tbody tr.bg-indigo-50\/70 {
   background-color: rgba(49, 34, 97, 0.40) !important;
 }
 
-html.dark table tbody tr.bg-indigo-50\/70:hover {
+html.dark table:not(.printable-paper-sheet table):not(.printable-document-sheet table):not(#printable-tax-invoice table):not([id*="printable-tax-invoice"] table):not(#lr-printable-document table):not(#hire-challan-printable-document table):not(#job-order-printable-document table) tbody tr.bg-indigo-50\/70:hover {
   background-color: rgba(49, 34, 97, 0.55) !important;
 }
 
-html.dark table tbody td {
+html.dark table:not(.printable-paper-sheet table):not(.printable-document-sheet table):not(#printable-tax-invoice table):not([id*="printable-tax-invoice"] table):not(#lr-printable-document table):not(#hire-challan-printable-document table):not(#job-order-printable-document table) tbody td {
   color: #F5F5F7 !important;
   border-color: #303036 !important;
 }
@@ -1908,15 +1908,47 @@ html.dark .printable-paper-sheet [class*="border-dashed"] {
   border-color: #cbd5e1 !important;
 }
 
-/* 7. Tables inside Printable Documents */
+/* 7. Tables & Table-Wrapping Containers inside Printable Documents */
+html.dark #lr-printable-document div:has(> table),
+html.dark [id^="lr-printable-document"] div:has(> table),
+html.dark #hire-challan-printable-document div:has(> table),
+html.dark [id^="hire-challan-printable-document"] div:has(> table),
+html.dark #job-order-printable-document div:has(> table),
+html.dark [id^="job-order-printable-document"] div:has(> table),
+html.dark #printable-tax-invoice div:has(> table),
+html.dark [id*="printable-tax-invoice"] div:has(> table),
+html.dark .printable-document-sheet div:has(> table),
+html.dark .printable-paper-sheet div:has(> table),
+html.dark [data-printable-document] div:has(> table),
+html.dark [data-printable-sheet] div:has(> table),
+html.dark #lr-printable-document div:has(> div > table),
+html.dark [id^="lr-printable-document"] div:has(> div > table),
+html.dark #hire-challan-printable-document div:has(> div > table),
+html.dark [id^="hire-challan-printable-document"] div:has(> div > table),
+html.dark #job-order-printable-document div:has(> div > table),
+html.dark [id^="job-order-printable-document"] div:has(> div > table),
+html.dark #printable-tax-invoice div:has(> div > table),
+html.dark [id*="printable-tax-invoice"] div:has(> div > table),
+html.dark .printable-document-sheet div:has(> div > table),
+html.dark .printable-paper-sheet div:has(> div > table),
+html.dark [data-printable-document] div:has(> div > table),
+html.dark [data-printable-sheet] div:has(> div > table) {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
 html.dark #lr-printable-document table,
 html.dark [id^="lr-printable-document"] table,
 html.dark #hire-challan-printable-document table,
+html.dark [id^="hire-challan-printable-document"] table,
 html.dark #job-order-printable-document table,
+html.dark [id^="job-order-printable-document"] table,
 html.dark #printable-tax-invoice table,
 html.dark [id*="printable-tax-invoice"] table,
 html.dark .printable-document-sheet table,
-html.dark .printable-paper-sheet table {
+html.dark .printable-paper-sheet table,
+html.dark [data-printable-document] table,
+html.dark [data-printable-sheet] table {
   background-color: transparent !important;
   background: transparent !important;
   color: #0f172a !important;
@@ -1925,7 +1957,9 @@ html.dark .printable-paper-sheet table {
 html.dark #lr-printable-document table thead th,
 html.dark [id^="lr-printable-document"] table thead th,
 html.dark #hire-challan-printable-document table thead th,
+html.dark [id^="hire-challan-printable-document"] table thead th,
 html.dark #job-order-printable-document table thead th,
+html.dark [id^="job-order-printable-document"] table thead th,
 html.dark #printable-tax-invoice table thead th,
 html.dark [id*="printable-tax-invoice"] table thead th,
 html.dark .printable-document-sheet table thead th,
@@ -1936,10 +1970,52 @@ html.dark .printable-paper-sheet table thead th {
   border-color: #cbd5e1 !important;
 }
 
+/* Explicitly preserve dark brand headers like bg-[#0f172a] */
+html.dark #lr-printable-document table thead tr[class*="bg-[#0f172a]"] th,
+html.dark #printable-tax-invoice table thead tr[class*="bg-[#0f172a]"] th,
+html.dark .printable-document-sheet table thead tr[class*="bg-[#0f172a]"] th,
+html.dark .printable-paper-sheet table thead tr[class*="bg-[#0f172a]"] th,
+html.dark #lr-printable-document table thead tr.bg-\[\#0f172a\] th,
+html.dark #printable-tax-invoice table thead tr.bg-\[\#0f172a\] th,
+html.dark .printable-document-sheet table thead tr.bg-\[\#0f172a\] th,
+html.dark .printable-paper-sheet table thead tr.bg-\[\#0f172a\] th {
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+html.dark #lr-printable-document table tbody,
+html.dark [id^="lr-printable-document"] table tbody,
+html.dark #hire-challan-printable-document table tbody,
+html.dark [id^="hire-challan-printable-document"] table tbody,
+html.dark #job-order-printable-document table tbody,
+html.dark [id^="job-order-printable-document"] table tbody,
+html.dark #printable-tax-invoice table tbody,
+html.dark [id*="printable-tax-invoice"] table tbody,
+html.dark .printable-document-sheet table tbody,
+html.dark .printable-paper-sheet table tbody,
+html.dark #lr-printable-document table tbody tr,
+html.dark [id^="lr-printable-document"] table tbody tr,
+html.dark #hire-challan-printable-document table tbody tr,
+html.dark [id^="hire-challan-printable-document"] table tbody tr,
+html.dark #job-order-printable-document table tbody tr,
+html.dark [id^="job-order-printable-document"] table tbody tr,
+html.dark #printable-tax-invoice table tbody tr,
+html.dark [id*="printable-tax-invoice"] table tbody tr,
+html.dark .printable-document-sheet table tbody tr,
+html.dark .printable-paper-sheet table tbody tr {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: #0f172a !important;
+}
+
 html.dark #lr-printable-document table tbody td,
 html.dark [id^="lr-printable-document"] table tbody td,
 html.dark #hire-challan-printable-document table tbody td,
+html.dark [id^="hire-challan-printable-document"] table tbody td,
 html.dark #job-order-printable-document table tbody td,
+html.dark [id^="job-order-printable-document"] table tbody td,
 html.dark #printable-tax-invoice table tbody td,
 html.dark [id*="printable-tax-invoice"] table tbody td,
 html.dark .printable-document-sheet table tbody td,
