@@ -467,11 +467,11 @@ export function TransportInvoicePrintModal({
         </div>
 
         {/* Scrollable Document Area in Modal */}
-        <div className="max-h-[85vh] overflow-y-auto p-4 sm:p-8 bg-slate-100 flex justify-center print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+        <div className="max-h-[85vh] overflow-y-auto p-4 sm:p-8 bg-slate-100 flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:max-h-none">
           {/* Printable Document Sheet (Exact A4 Styling) */}
           <div
             id="printable-tax-invoice"
-            className="w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans min-h-[280mm] flex flex-col justify-between"
+            className="w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans min-h-[280mm] h-fit flex flex-col justify-between"
           >
             <div>
               {/* Header: Logo, Company Name, Contact, TAX INVOICE title */}
