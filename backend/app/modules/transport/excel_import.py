@@ -218,6 +218,129 @@ def _parse_date(val: Any) -> Optional[date]:
     return None
 
 
+async def _resolve_or_create_location(
+    db: AsyncSession,
+    raw_location: str,
+    resolved_office_id: Optional[int],
+    location_cache: Dict[str, Location],
+) -> Location:
+    clean = str(raw_location or "").strip()
+    key = clean.lower()
+    if key in location_cache:
+        return location_cache[key]
+
+    # Parse components if formatted as "City, State, Pincode" or "City, State"
+    parts = [p.strip() for p in clean.split(",") if p.strip()]
+    city_name = parts[0] if parts else clean
+    state_name = None
+    pincode_val = None
+
+    if len(parts) >= 3:
+        city_name = parts[0]
+        state_name = parts[1]
+        last = parts[-1]
+        if last.isdigit() and len(last) in (5, 6):
+            pincode_val = last
+        else:
+            state_name = ", ".join(parts[1:])
+    elif len(parts) == 2:
+        city_name = parts[0]
+        if parts[1].isdigit() and len(parts[1]) in (5, 6):
+            pincode_val = parts[1]
+        else:
+            state_name = parts[1]
+
+    # 1. Look up existing active location from DB (fast indexed query, limit 1)
+    base_stmt = select(Location).where(Location.is_active == True)
+    loc_obj = None
+
+    # Priority 1: Match by city_name and pincode (and state if present)
+    if pincode_val:
+        pincode_stmt = (
+            base_stmt
+            .where(
+                func.lower(Location.city_name) == city_name.lower(),
+                Location.pincode == pincode_val,
+            )
+        )
+        if state_name:
+            pincode_stmt = pincode_stmt.where(func.lower(Location.state) == state_name.lower())
+        if resolved_office_id:
+            pincode_stmt = pincode_stmt.order_by(
+                case((Location.issuing_office_id == resolved_office_id, 1), else_=0).desc(),
+                Location.id.asc(),
+            )
+        else:
+            pincode_stmt = pincode_stmt.order_by(Location.id.asc())
+        res = await db.execute(pincode_stmt.limit(1))
+        loc_obj = res.scalar_one_or_none()
+
+    # Priority 2: Match by city_name and state
+    if not loc_obj and state_name:
+        state_stmt = (
+            base_stmt
+            .where(
+                func.lower(Location.city_name) == city_name.lower(),
+                func.lower(Location.state) == state_name.lower(),
+            )
+        )
+        if resolved_office_id:
+            state_stmt = state_stmt.order_by(
+                case((Location.issuing_office_id == resolved_office_id, 1), else_=0).desc(),
+                Location.id.asc(),
+            )
+        else:
+            state_stmt = state_stmt.order_by(Location.id.asc())
+        res = await db.execute(state_stmt.limit(1))
+        loc_obj = res.scalar_one_or_none()
+
+    # Priority 3: Match by location_code, city_name == clean, or city_name == city_name
+    if not loc_obj:
+        general_stmt = (
+            base_stmt
+            .where(
+                or_(
+                    func.lower(Location.location_code) == key,
+                    func.lower(Location.city_name) == key,
+                    func.lower(Location.city_name) == city_name.lower(),
+                )
+            )
+        )
+        if resolved_office_id:
+            general_stmt = general_stmt.order_by(
+                case((Location.issuing_office_id == resolved_office_id, 1), else_=0).desc(),
+                Location.id.asc(),
+            )
+        else:
+            general_stmt = general_stmt.order_by(Location.id.asc())
+        res = await db.execute(general_stmt.limit(1))
+        loc_obj = res.scalar_one_or_none()
+
+    # 2. If not found in database, auto-create
+    if not loc_obj:
+        loc_obj = Location(
+            city_name=city_name.title()[:100],
+            state=(state_name.title() if state_name else "General")[:100],
+            country="India",
+            location_code=None,
+            address=None,
+            pincode=pincode_val,
+            is_pickup_point=True,
+            is_drop_point=True,
+            is_active=True,
+            issuing_office_id=resolved_office_id,
+        )
+        db.add(loc_obj)
+        await db.flush()
+
+    location_cache[key] = loc_obj
+    location_cache[loc_obj.city_name.lower()] = loc_obj
+    if loc_obj.location_code:
+        location_cache[loc_obj.location_code.lower()] = loc_obj
+
+    return loc_obj
+
+
 async def import_jobs_from_excel(
     db: AsyncSession,
     file_bytes: bytes,
@@ -311,8 +434,7 @@ async def import_jobs_from_excel(
     consigner_global_cache: Dict[str, Consigner] = {}
     consignee_office_cache: Dict[str, Consignee] = {}
     consignee_global_cache: Dict[str, Consignee] = {}
-    location_office_cache: Dict[str, Location] = {}
-    location_global_cache: Dict[str, Location] = {}
+    location_cache: Dict[str, Location] = {}
     billing_client_office_cache: Dict[str, BillingClient] = {}
     billing_client_global_cache: Dict[str, BillingClient] = {}
 
@@ -339,17 +461,6 @@ async def import_jobs_from_excel(
                 consignee_office_cache[k_name] = ce
                 if ce.code:
                     consignee_office_cache[ce.code.strip().lower()] = ce
-
-        all_loc_res = await db.execute(select(Location).where(Location.is_active == True))
-        for loc in all_loc_res.scalars().all():
-            k_name = loc.city_name.strip().lower()
-            location_global_cache[k_name] = loc
-            if loc.location_code:
-                location_global_cache[loc.location_code.strip().lower()] = loc
-            if loc.issuing_office_id == resolved_office_id or loc.issuing_office_id is None:
-                location_office_cache[k_name] = loc
-                if loc.location_code:
-                    location_office_cache[loc.location_code.strip().lower()] = loc
 
         all_bc_res = await db.execute(select(BillingClient).where(BillingClient.is_active == True))
         for bc in all_bc_res.scalars().all():
@@ -615,48 +726,20 @@ async def import_jobs_from_excel(
             consignee_global_cache[consignee_key] = consignee_obj
 
         # 4. Origin Location
-        origin_key = raw_origin.lower()
-        origin_obj = location_office_cache.get(origin_key)
-        if not origin_obj:
-            existing_template = location_global_cache.get(origin_key)
-            origin_obj = Location(
-                city_name=raw_origin.title(),
-                state=existing_template.state if existing_template else "General",
-                country=existing_template.country if existing_template else "India",
-                location_code=existing_template.location_code if existing_template else None,
-                address=existing_template.address if existing_template else None,
-                pincode=existing_template.pincode if existing_template else None,
-                is_pickup_point=True,
-                is_drop_point=True,
-                is_active=True,
-                issuing_office_id=resolved_office_id,
-            )
-            db.add(origin_obj)
-            await db.flush()
-            location_office_cache[origin_key] = origin_obj
-            location_global_cache[origin_key] = origin_obj
+        origin_obj = await _resolve_or_create_location(
+            db=db,
+            raw_location=raw_origin,
+            resolved_office_id=resolved_office_id,
+            location_cache=location_cache,
+        )
 
         # 5. Destination Location
-        dest_key = raw_dest.lower()
-        dest_obj = location_office_cache.get(dest_key)
-        if not dest_obj:
-            existing_template = location_global_cache.get(dest_key)
-            dest_obj = Location(
-                city_name=raw_dest.title(),
-                state=existing_template.state if existing_template else "General",
-                country=existing_template.country if existing_template else "India",
-                location_code=existing_template.location_code if existing_template else None,
-                address=existing_template.address if existing_template else None,
-                pincode=existing_template.pincode if existing_template else None,
-                is_pickup_point=True,
-                is_drop_point=True,
-                is_active=True,
-                issuing_office_id=resolved_office_id,
-            )
-            db.add(dest_obj)
-            await db.flush()
-            location_office_cache[dest_key] = dest_obj
-            location_global_cache[dest_key] = dest_obj
+        dest_obj = await _resolve_or_create_location(
+            db=db,
+            raw_location=raw_dest,
+            resolved_office_id=resolved_office_id,
+            location_cache=location_cache,
+        )
 
         # -------------------------------------------------------------------
         # 2b. Database Business Duplicate Check
