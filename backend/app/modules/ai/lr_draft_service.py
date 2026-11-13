@@ -335,7 +335,7 @@ def is_lr_booking_intent(text: str) -> bool:
         return True
 
     booking_patterns = [
-        r"\b(book|create|creat|bok|boke|make|mak|craete|start|new|raise|issue|banana|banao)\b.*\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b",
+        r"\b(book|create|creat|bok|boke|make|mak|craete|start|new|raise|issue|banana|banao)\b.*\b(lr|gr|bilty|shipment|consignment|truck|lorry|lorry receipt)\b",
         r"\b(lr|gr|bilty|shipment|consignment|lorry receipt)\b.*\b(book|create|creat|bok|boke|banao|banani|banana|generate|start|karni|karna)\b",
     ]
     if any(bool(re.search(p, lower)) for p in booking_patterns):
@@ -569,7 +569,7 @@ def parse_lr_entities_from_text(text: str, current_draft: Optional[AIDraft] = No
         r"goods|cargo|material|particulars|"
         r"weight|wgt|boxes|pkgs|packages|cartons|"
         r"freight|bhada|rate|charges?|advance|peshgi|"
-        r"eway|ewb|gstin|pincode)\b|$)"
+        r"eway|ewb|gstin|pincode|tomorrow|today|kal|aaj)\b|$)"
     )
 
     # 1. Vehicle Number

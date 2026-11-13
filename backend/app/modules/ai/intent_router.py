@@ -21,6 +21,8 @@ Closed Intent Taxonomy:
 - freight_for_lr
 - find_client
 - list_clients
+- list_jobs
+- human
 - add_consignee
 - change_consignee
 - how_to_create_lr
@@ -161,6 +163,28 @@ def classify_intent_and_entities(
     )
     if has_cancel_verb:
         return RouterResult(intent="cancel_draft", confidence=1.0, matched_rule="cancel_draft")
+
+    # --------------------------------------------------------------------------
+    # 2A. HUMAN HANDOFF INTENT (No.14 rebuild — warm handoff, P4)
+    # "Talk to support" (frontend button) sends:
+    # "I need help from a human — please connect me to support".
+    # Must be checked BEFORE off-topic/help so a human request is never
+    # refused or treated as a general question.
+    # --------------------------------------------------------------------------
+    is_human_request = bool(
+        re.search(
+            r"\b(talk|speak|connect|transfer|escalate)\b.{0,25}\b(human|support|agent|person|representative)\b",
+            lower,
+        )
+        or re.search(r"\bneed\s+(?:a\s+)?human\b", lower)
+        or re.search(r"\bhuman\s+(?:help|support|assistance)\b", lower)
+        or "मानव से बात" in clean
+        or "इंसान से बात" in clean
+        or "सपोर्ट से बात" in clean
+        or bool(re.search(r"\b(?:human|support)\s+se\s+baat\b", lower))
+    )
+    if is_human_request:
+        return RouterResult(intent="human", confidence=1.0, matched_rule="human_handoff")
 
     # --------------------------------------------------------------------------
     # 3. OFF-TOPIC INTENTS (CONFIRMED OFF-TOPIC IN ALL LANGUAGES)
@@ -430,6 +454,29 @@ def classify_intent_and_entities(
             entities_raw={"client_name": c_name},
             matched_rule="find_client",
         )
+
+    # --------------------------------------------------------------------------
+    # 13A. JOB LIST INTENT (No.14 rebuild — "What is my job list?")
+    # Must be checked BEFORE the book_lr rule (§14) and before the unknown
+    # fallback, otherwise a job-list question dies at the confidence gate
+    # and the LLM fallback invents jobs (JOB-2026-xxx). Renders ONLY real
+    # rows from the DB via typed_tools.search_jobs — never invented data.
+    # --------------------------------------------------------------------------
+    is_job_list = bool(
+        re.search(
+            r"\b(job\s+list|jobs?\s+list|list\s+(?:of\s+)?(?:my\s+|all\s+|the\s+)?(?:transport\s+)?jobs?|"
+            r"show\s+(?:me\s+)?(?:my\s+|all\s+|the\s+)?(?:transport\s+)?jobs?|"
+            r"my\s+(?:transport\s+)?jobs?\b|what\s+(?:is|are)\s+(?:my\s+)?(?:transport\s+)?jobs?)\b",
+            lower,
+        )
+        or "जॉब लिस्ट" in clean
+        or "मेरी जॉब" in clean
+        or "सभी जॉब" in clean
+        or bool(re.search(r"\b(?:meri|mere)\s+job\s+list\b", lower))
+        or bool(re.search(r"\bjob\s+list\s+dikhao\b", lower))
+    )
+    if is_job_list:
+        return RouterResult(intent="list_jobs", confidence=0.95, matched_rule="list_jobs")
 
     # --------------------------------------------------------------------------
     # 14. BOOK LR INTENT (SEMANTIC, MULTILINGUAL)

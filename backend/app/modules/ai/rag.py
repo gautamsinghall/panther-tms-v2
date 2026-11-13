@@ -97,6 +97,10 @@ class PantherKnowledgeEngine:
         self.chunks: List[KnowledgeChunk] = []
         self._last_mtime: float = 0.0
         self._last_hash: str = ""
+        # BM25 statistics, rebuilt whenever the index is (re)built.
+        self._chunk_tokens: List[List[str]] = []
+        self._doc_freq: Dict[str, int] = {}
+        self._avgdl: float = 0.0
         self.load_and_index()
 
     def _should_reindex(self) -> bool:
@@ -187,9 +191,24 @@ class PantherKnowledgeEngine:
             )
 
         self.chunks = new_chunks
+        self._build_bm25_stats()
         self._last_mtime = os.path.getmtime(self.doc_path)
         self._last_hash = current_hash
         return len(self.chunks)
+
+    def _build_bm25_stats(self) -> None:
+        """Precompute per-chunk token lists, document frequencies and
+        average document length for BM25. Called on every (re)index."""
+        from collections import Counter
+
+        self._chunk_tokens = [self._tokenize(c.content) for c in self.chunks]
+        df: Counter = Counter()
+        for tokens in self._chunk_tokens:
+            for t in set(tokens):
+                df[t] += 1
+        self._doc_freq = dict(df)
+        total_len = sum(len(t) for t in self._chunk_tokens)
+        self._avgdl = (total_len / len(self._chunk_tokens)) if self._chunk_tokens else 0.0
 
     STOP_WORDS = {
         "the", "is", "a", "an", "and", "or", "for", "of", "in", "on", "at", "to",
@@ -211,7 +230,7 @@ class PantherKnowledgeEngine:
         query: str,
         plan_code: str = "PRO",
         user_permitted_categories: Optional[List[str]] = None,
-        top_k: int = 3,
+        top_k: int = 5,
     ) -> Tuple[List[KnowledgeChunk], bool]:
         """
         Retrieves top K chunks matching the query while enforcing:
@@ -230,7 +249,7 @@ class PantherKnowledgeEngine:
 
         scored_chunks: List[Tuple[float, KnowledgeChunk]] = []
 
-        for chunk in self.chunks:
+        for chunk_pos, chunk in enumerate(self.chunks):
             # 1. Enforce Plan Entitlement Barrier
             if chunk.min_plan_tier > tenant_tier:
                 continue
@@ -241,13 +260,18 @@ class PantherKnowledgeEngine:
                     if chunk.category not in user_permitted_categories:
                         continue
 
-            # 3. Calculate Hybrid BM25-like Score
+            # 3. BM25 ranking (No.14 P1, pure Python — no embeddings).
+            # score = sum over query terms of IDF * tf*(k1+1) / (tf + k1*(1-b+b*dl/avgdl))
+            # plus the existing title (+3.0) and keyword (+2.0) boosts.
             score = 0.0
-            chunk_tokens = self._tokenize(chunk.content)
+            chunk_tokens = self._chunk_tokens[chunk_pos] if chunk_pos < len(self._chunk_tokens) else []
             title_tokens = self._tokenize(chunk.title)
-            chunk_token_set = set(chunk_tokens)
             title_token_set = set(title_tokens)
             keyword_set = set(chunk.keywords)
+            doc_len = len(chunk_tokens)
+            n_docs = len(self.chunks) or 1
+            k1 = 1.5
+            b = 0.75
 
             for qt in query_tokens:
                 # Title match boost (3.0)
@@ -256,10 +280,13 @@ class PantherKnowledgeEngine:
                 # Keyword match boost (2.0)
                 if qt in keyword_set:
                     score += 2.0
-                # Content frequency match
-                if qt in chunk_token_set:
-                    tf = chunk_tokens.count(qt)
-                    score += 1.0 + math.log1p(tf)
+                # BM25 content term
+                tf = chunk_tokens.count(qt)
+                if tf > 0:
+                    df = self._doc_freq.get(qt, 0)
+                    idf = math.log(1 + (n_docs - df + 0.5) / (df + 0.5))
+                    denom = tf + k1 * (1 - b + b * (doc_len / self._avgdl if self._avgdl else 0.0))
+                    score += idf * (tf * (k1 + 1) / denom)
 
             if score > 0.0:
                 scored_chunks.append((score, chunk))
@@ -278,7 +305,7 @@ class PantherKnowledgeEngine:
         query: str,
         plan_code: str = "PRO",
         user_permitted_categories: Optional[List[str]] = None,
-        top_k: int = 3,
+        top_k: int = 5,
     ) -> Tuple[str, List[Dict[str, str]]]:
         """
         Retrieves matching chunks and builds a grounded context block with exact source citations.

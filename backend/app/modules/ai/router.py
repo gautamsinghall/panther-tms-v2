@@ -68,8 +68,9 @@ from app.modules.ai.knowledge import (
     resolve_navigation_suggestions,
     build_system_prompt,
     ROUTE_SUGGESTIONS,
+    TMS_CORE_KNOWLEDGE,
 )
-from app.modules.ai.privacy import sanitize_chat_history_for_external_llm, anonymize_system_context
+from app.modules.ai.privacy import sanitize_chat_history_for_external_llm, anonymize_system_context, scrub_user_message_pii
 from app.modules.ai.tools import (
     classify_operational_intent,
     extract_transport_entities,
@@ -95,6 +96,7 @@ from app.modules.ai.tools import (
 )
 from app.modules.ai.intent_router import classify_intent_and_entities, RouterResult
 from app.modules.ai import typed_tools
+from app.modules.ai.output_guards import guard_llm_reply
 
 
 # ==============================================================================
@@ -622,7 +624,7 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
             "3. लोडिंग का स्थान (Origin) और डिलीवरी का स्थान (Destination) दर्ज करें।\n"
             "4. **वाहन नंबर (Vehicle Number)** और **ड्राइवर** आवंटित करें।\n"
             "5. माल का विवरण, पैकेज की संख्या, वास्तविक वजन और **माल भाड़ा (Freight Rate)** दर्ज करें।\n"
-            "6. **'Save LR'** पर क्लिक करके आधिकारिक एलआर जारी करें।\n\n"
+            "6. **'Create Lorry Receipt'** पर क्लिक करके आधिकारिक एलआर जारी करें।\n\n"
             "#### 2. अनिवार्य विवरण (Mandatory Fields):\n"
             "- **कंसाइनर और कंसाइनी** का नाम और पता\n"
             "- **लोडिंग और डिलीवरी का स्थान (Origin & Destination)**\n"
@@ -646,7 +648,7 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
             "3. Loading origin aur delivery destination select karein.\n"
             "4. **Vehicle Number** aur **Driver** assign karein.\n"
             "5. Cargo particulars, package count, weight aur **Freight Charges** fill karein.\n"
-            "6. **'Save LR'** par click karke official consignment note issue karein.\n\n"
+            "6. **'Create Lorry Receipt'** par click karke official consignment note issue karein.\n\n"
             "#### 2. Mandatory Fields:\n"
             "- **Consigner & Consignee** details aur address\n"
             "- **Origin & Destination** locations\n"
@@ -671,7 +673,7 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
             "4. Assign the vehicle registration number and driver.\n"
             "5. Enter material specifications: cargo description, package count, and weight.\n"
             "6. Set freight charges, billing terms (To Pay / Paid / TBB), and any advance paid.\n"
-            "7. Click **'Save LR'** to generate and issue the official consignment note.\n\n"
+            "7. Click **'Create Lorry Receipt'** to generate and issue the official consignment note.\n\n"
             "#### 2. Mandatory Fields:\n"
             "- **Consigner & Consignee** (names, addresses, and GSTIN)\n"
             "- **Origin & Destination** (pickup and delivery locations)\n"
@@ -876,13 +878,13 @@ def get_tms_guidance_response(text: str, lang: str = "en") -> Optional[Tuple[str
         msg = (
             "To create an LR (Lorry Receipt) in Panther TMS:\n\n"
             "1. Navigate to **Transport Operations** → [LR Booking](/transport/lr-booking).\n"
-            "2. Click **Create New LR** (or simply tell me: *'book LR from [Origin] to [Destination]'*).\n"
+            "2. Click **New LR Booking** (or simply tell me: *'book LR from [Origin] to [Destination]'*).\n"
             "3. Select or enter the **Consigner (Sender)** and **Consignee (Receiver)**.\n"
             "4. Specify the **Origin (Loading)** and **Destination (Delivery)** locations.\n"
             "5. Assign a **Vehicle Number** (Company or Market truck) and Driver.\n"
             "6. Enter cargo details (packages, actual/chargeable weight, and goods description).\n"
             "7. Enter commercial terms (freight amount, payment basis: To Pay, Paid, or TBB, and any advance).\n"
-            "8. Click **Save & Generate LR** to assign the official series number."
+            "8. Click **Create Lorry Receipt** to assign the official series number."
         )
         navs = [NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations")]
         return msg, navs
@@ -1082,92 +1084,183 @@ def get_safe_general_or_refusal_response(
     text: str,
     lang: str = "en",
 ) -> Tuple[str, List[NavigationSuggestion]]:
+    """No.14 rebuild fallback: name the limit, then the closest Panther
+    alternative ("but I can…"), then the human offer. Never a bare refusal
+    with no next step. Navigation suggestions always point at real routes.
+
+    NOTE — test-pinned phrases (test_ai_all_16_acceptance_suite.py): the
+    English coding / translation / leave-email replies MUST keep
+    "cannot help with general coding", "cannot assist with general language
+    translation" and "cannot assist with drafting leave emails", and must
+    NOT contain "def ", "sorted(", ".sort()", "return", "Subject:", "Dear "
+    or "leave of absence". Do not reword those three sentences.
+    """
     lower = (text or "").strip().lower()
+    offer_en = (
+        " Is there something in Panther I can help with — for example, tracking an LR "
+        "or creating a job? Or tap 'Talk to support' below the chat if you need a human."
+    )
+    offer_hi = (
+        " क्या पैंथर में कोई ऐसा काम है जिसमें मैं मदद कर सकूँ — जैसे एलआर ट्रैक करना "
+        "या जॉब बनाना? या मानव सहायता के लिए चैट के नीचे 'Talk to support' पर टैप करें।"
+    )
+    offer_hinglish = (
+        " Kya Panther me koi aisa kaam hai jisme main madad kar sakoon — jaise LR track "
+        "karna ya job banana? Ya human help ke liye chat ke neeche 'Talk to support' par tap karein."
+    )
+    alt_en = "help with jobs, LRs, tracking, billing and learning Panther TMS"
+    alt_hi = "जॉब, एलआर, ट्रैकिंग, बिलिंग और पैंथर टीएमएस सीखने में आपकी मदद कर सकता हूँ"
+    alt_hinglish = "jobs, LRs, tracking, billing aur Panther TMS seekhne me aapki madad kar sakta hoon"
+    scope_en = "I help with jobs, LRs, tracking, billing and learning Panther TMS."
+    scope_hi = "मैं जॉब, एलआर, ट्रैकिंग, बिलिंग और पैंथर टीएमएस सीखने में आपकी मदद करता हूँ।"
+    scope_hinglish = "Main jobs, LRs, tracking, billing aur Panther TMS seekhne me aapki madad karta hoon."
+
+    def _msg(en: str, hi: str, hinglish: str) -> str:
+        if lang == "hi_devanagari":
+            return hi
+        if lang == "hinglish":
+            return hinglish
+        return en
+
+    navs = [
+        NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
+        NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
+    ]
 
     # 1. Weather
     if re.search(r"\b(weather|mausam|forecast|temperature|barish|humidity|rain)\b", lower):
-        if lang == "hi_devanagari":
-            msg = "मैं पैंथर एआई (Panther AI) हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मेरे पास लाइव मौसम (weather forecast) की जानकारी उपलब्ध नहीं है। मैं आपकी एलआर बुकिंग (LR booking), फ्लीट ट्रैकिंग और खातों (accounts) में सहायता कर सकता हूँ।"
-        elif lang == "hinglish":
-            msg = "Main Panther AI hoon, aapka transport operations assistant. Mere paas live weather forecast ki jankari nahi hai. Main LR booking, fleet tracking aur accounts ledger me aapki madad kar sakta hoon."
-        else:
-            msg = "I am Panther AI, your transport operations copilot. I do not have access to live weather forecasts. For transport operations, I can help you with LR booking, fleet tracking, and accounts ledger."
-        navs = [
-            NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
-            NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
-        ]
+        msg = _msg(
+            f"I don't have access to live weather forecasts, but I can {alt_en}." + offer_en,
+            f"मेरे पास लाइव मौसम की जानकारी उपलब्ध नहीं है, लेकिन मैं {alt_hi}।" + offer_hi,
+            f"Mere paas live weather forecast ki jankari nahi hai, lekin main {alt_hinglish}." + offer_hinglish,
+        )
         return msg, navs
 
     # 2. Flight
     if re.search(r"\b(flight|flights|airline|airlines|airplane|aeroplane|airways|air\s*ticket|boarding\s+pass)\b", lower):
-        if lang == "hi_devanagari":
-            msg = "पैंथर टीएमएस (Panther TMS) सड़क माल ढुलाई और ट्रक परिवहन (road freight logistics) का प्रबंधन करता है, और एयरलाइन फ्लाइट बुकिंग का समर्थन नहीं करता है। यदि आपको सड़क मार्ग से माल परिवहन या एलआर बुकिंग करवानी है, तो कृपया मुझे बताएं।"
-        elif lang == "hinglish":
-            msg = "Panther TMS road freight aur commercial transport logistics (trucks, LRs, challans) manage karta hai, passenger airline flights support nahi karta. Agar aapko road cargo ya LR booking karni hai, toh main madad kar sakta hoon."
-        else:
-            msg = "Panther TMS manages road freight and commercial transport logistics (trucks, LRs, and challans), and does not support airline flight bookings or passenger flight schedules. For transport operations, I can help you book road cargo, track shipments, or view accounts."
-        navs = [
-            NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
-        ]
+        msg = _msg(
+            "Panther TMS manages road freight and commercial transport logistics (trucks, LRs, and challans), "
+            "and does not support airline flight bookings, but I can " + alt_en + "." + offer_en,
+            "पैंथर टीएमएस सड़क माल ढुलाई और ट्रक परिवहन का प्रबंधन करता है, और एयरलाइन फ्लाइट बुकिंग का समर्थन नहीं करता है, लेकिन मैं "
+            + alt_hi + "।" + offer_hi,
+            "Panther TMS road freight aur commercial transport logistics (trucks, LRs, challans) manage karta hai, "
+            "passenger airline flights support nahi karta, lekin main " + alt_hinglish + "." + offer_hinglish,
+        )
         return msg, navs
 
     # 3. Share price / stock market
     if re.search(r"\b(share\s+price|stock\s+price|stock\s+market|reliance\s+share|sensex|nifty|shares?|stocks?)\b", lower):
-        if lang == "hi_devanagari":
-            msg = "मैं पैंथर एआई हूँ, ट्रांसपोर्ट मैनेजमेंट और फ्लीट लॉजिस्टिक्स में विशेषज्ञ। मैं शेयर बाजार या रिलायंस (Reliance) के लाइव शेयर मूल्य ट्रैक नहीं करता हूँ। कृपया वित्तीय बाजार प्लेटफॉर्म देखें।"
-        elif lang == "hinglish":
-            msg = "Main Panther AI hoon, transport management aur fleet logistics specialist. Main live stock market prices ya Reliance share price track nahi karta. Kripya financial market platforms check karein."
-        else:
-            msg = "I am Panther AI, specialized in transport management and fleet logistics. I do not provide live stock market prices or financial share quotes for Reliance Industries. Please refer to financial market sources for live market data."
-        navs = []
+        msg = _msg(
+            "I cannot provide live stock market prices or share quotes for Reliance, but I can " + alt_en + "." + offer_en,
+            "मैं शेयर बाजार या रिलायंस के लाइव शेयर मूल्य नहीं बता सकता, लेकिन मैं " + alt_hi + "।" + offer_hi,
+            "Main live stock market prices ya Reliance share price nahi bata sakta, lekin main " + alt_hinglish + "." + offer_hinglish,
+        )
         return msg, navs
 
-    # 4. Translation (REFUSAL ONLY - no translations or Hindi text)
+    # 4. Translation
     if re.search(r"\b(translate|translation|anuvad)\b", lower) or "to hindi" in lower or "in hindi" in lower:
-        if lang == "hi_devanagari":
-            msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं भाषा अनुवाद (translation) में सहायता नहीं कर सकता। मैं आपकी एलआर बुकिंग, फ्लीट ट्रैकिंग और खातों में सहायता कर सकता हूँ।"
-        elif lang == "hinglish":
-            msg = "Main Panther AI hoon, aapka transport operations copilot. Main general language translation provide nahi karta. Main LR booking, fleet tracking aur accounts ledger me aapki madad kar sakta hoon."
-        else:
-            msg = "I am Panther AI, your dedicated transport operations copilot. I cannot assist with general language translation requests. I can help you with transport operations such as LR booking, shipment tracking, vehicle records, and accounts."
-        navs = []
+        msg = _msg(
+            "I cannot assist with general language translation, but I can " + alt_en + "." + offer_en,
+            "मैं सामान्य भाषा अनुवाद में सहायता नहीं कर सकता, लेकिन मैं " + alt_hi + "।" + offer_hi,
+            "Main general language translation provide nahi karta, lekin main " + alt_hinglish + "." + offer_hinglish,
+        )
         return msg, navs
 
-    # 5. Leave email to boss (REFUSAL ONLY - no email templates)
+    # 5. Leave email to boss
     if re.search(r"\b(leave\s+email|leave\s+application|leave\s+letter|email\s+to\s+(?:my\s+)?boss|chhutti)\b", lower):
-        if lang == "hi_devanagari":
-            msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं व्यक्तिगत पत्र या लीव ईमेल लिखने में सहायता नहीं कर सकता। मैं आपकी एलआर बुकिंग, फ्लीट ट्रैकिंग और खातों में सहायता कर सकता हूँ।"
-        elif lang == "hinglish":
-            msg = "Main Panther AI hoon, aapka transport operations copilot. Main personal leave emails ya general content writing me sahayata nahi kar sakta. Main LR booking, fleet tracking aur accounts me madad kar sakta hoon."
-        else:
-            msg = "I am Panther AI, your dedicated transport operations copilot. I cannot assist with drafting leave emails or general writing requests. I can help you with logistics workflows like LR booking, fleet tracking, and accounts ledger."
-        navs = []
+        msg = _msg(
+            "I cannot assist with drafting leave emails, but I can " + alt_en + "." + offer_en,
+            "मैं लीव ईमेल लिखने में सहायता नहीं कर सकता, लेकिन मैं " + alt_hi + "।" + offer_hi,
+            "Main leave emails likhne me sahayata nahi kar sakta, lekin main " + alt_hinglish + "." + offer_hinglish,
+        )
         return msg, navs
 
-    # 6. Python sort function / Coding (REFUSAL ONLY - no code examples or explanation)
+    # 6. Python sort function / Coding
     if re.search(r"\b(python|javascript|typescript|c\+\+|java|sort\s+function|sorting\s+function|algorithm|bubble\s+sort|quick\s+sort|merge\s+sort|write\s+code|sql\s+query|regex)\b", lower):
-        if lang == "hi_devanagari":
-            msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं प्रोग्रामिंग या कोडिंग कार्यों में सहायता नहीं कर सकता। मैं आपकी एलआर बुकिंग, फ्लीट ट्रैकिंग और खातों में सहायता कर सकता हूँ।"
-        elif lang == "hinglish":
-            msg = "Main Panther AI hoon, aapka transport operations copilot. Main software programming ya coding requests me help nahi kar sakta. Main LR booking, fleet tracking aur accounts me madad kar sakta hoon."
-        else:
-            msg = "I am Panther AI, your transport operations copilot. I can help with LR booking, fleet tracking, driver and vehicle records, and accounts. I cannot help with general coding or unrelated writing requests."
-        navs = []
+        msg = _msg(
+            "I cannot help with general coding, but I can " + alt_en + "." + offer_en,
+            "मैं प्रोग्रामिंग या कोडिंग कार्यों में सहायता नहीं कर सकता, लेकिन मैं " + alt_hi + "।" + offer_hi,
+            "Main software programming ya coding requests me help nahi kar sakta, lekin main " + alt_hinglish + "." + offer_hinglish,
+        )
         return msg, navs
 
-    # Default fallback
-    if lang == "hi_devanagari":
-        msg = "मैं पैंथर एआई हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। मैं एलआर बुकिंग, फ्लीट ट्रैकिंग, ड्राइवर व वाहन रिकॉर्ड और खातों में सहायता कर सकता हूँ। मैं ट्रांसपोर्ट ऑपरेशंस के बाहर के अनुरोधों में सहायता नहीं कर सकता।"
-    elif lang == "hinglish":
-        msg = "Main Panther AI hoon, aapka transport operations copilot. Main LR booking, fleet tracking, driver aur vehicle records, aur accounts me madad kar sakta hoon. Main transport operations ke bahar ke requests me help nahi kar sakta."
-    else:
-        msg = "I am Panther AI, your transport operations copilot. I can help with LR booking, fleet tracking, driver and vehicle records, and accounts. I cannot help with general coding or unrelated writing requests."
-    return msg, []
-    navs = [
-        NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
-        NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
-    ]
+    # Default fallback (No.14 template)
+    msg = _msg(
+        "That's outside what Panther AI is built for — " + scope_en + offer_en,
+        "यह पैंथर एआई के दायरे से बाहर है — " + scope_hi + offer_hi,
+        "Ye Panther AI ke scope se bahar hai — " + scope_hinglish + offer_hinglish,
+    )
     return msg, navs
+
+
+def _log_ai_turn(
+    query: str,
+    intent: str,
+    confidence: Optional[float] = None,
+    retrieved_ids: Optional[List[str]] = None,
+    tool_calls: Optional[List[str]] = None,
+    outcome: str = "",
+) -> None:
+    """No.14 per-turn structured log (one line per turn for the routed path,
+    one more for the LLM-fallback path). Query is PII-scrubbed first."""
+    try:
+        logger.info(
+            "panther_ai_turn query=%s intent=%s confidence=%s retrieved=%s tools=%s outcome=%s",
+            scrub_user_message_pii(query or "")[:200],
+            intent,
+            confidence,
+            ",".join(retrieved_ids or []),
+            ",".join(tool_calls or []),
+            outcome,
+        )
+    except Exception:
+        pass
+
+
+def build_human_handoff_response(
+    history: List[Dict[str, str]],
+    last_intent: Optional[str] = None,
+    last_entities: Optional[Dict[str, Any]] = None,
+    lang: str = "en",
+) -> str:
+    """No.14 warm handoff (P4): acknowledge, summarise what was discussed
+    (intent + entities + recent user messages, PII-scrubbed), say a
+    human/admin will follow up. No invented contact details, phone or email."""
+    recent_user_msgs = [
+        scrub_user_message_pii(str(m.get("content", "")))
+        for m in (history or [])
+        if m.get("role") == "user"
+    ][-3:]
+    intent_text = last_intent or "general help"
+    entity_bits = []
+    if last_entities:
+        for k in ("lr_number", "vehicle_number", "driver_name", "party_name"):
+            if last_entities.get(k):
+                entity_bits.append(f"{k}: {scrub_user_message_pii(str(last_entities[k]))}")
+    summary_lines = [f"- Topic: {intent_text}"]
+    if entity_bits:
+        summary_lines.append("- Details: " + "; ".join(entity_bits))
+    if recent_user_msgs:
+        summary_lines.append("- Recent messages: " + " | ".join(f'\"{m}\"' for m in recent_user_msgs))
+    summary = "\n".join(summary_lines)
+    if lang == "hi_devanagari":
+        return (
+            "बिल्कुल — मैं इसे मानव सहायता के लिए सौंप रहा हूँ।\n\n"
+            "मैं यह जानकारी आगे भेजूँगा:\n" + summary + "\n\n"
+            "एक कंपनी एडमिन आपसे संपर्क करेगा। इस बीच, मैं जॉब, एलआर, ट्रैकिंग या बिलिंग में मदद कर सकता हूँ।"
+        )
+    if lang == "hinglish":
+        return (
+            "Bilkul — main ise human help ke liye forward kar raha hoon.\n\n"
+            "Main ye details aage bhejunga:\n" + summary + "\n\n"
+            "Ek Company Admin aapse follow up karega. Tab tak main jobs, LRs, tracking ya billing me madad kar sakta hoon."
+        )
+    return (
+        "Of course — I'll hand this over to a human.\n\n"
+        "Here's what I'll pass on:\n" + summary + "\n\n"
+        "A Company Admin will follow up with you. Meanwhile, I can still help with jobs, "
+        "LRs, tracking or billing — just ask."
+    )
 
 router = APIRouter(prefix="/ai", tags=["Panther AI"])
 
@@ -1404,6 +1497,7 @@ async def chat_with_copilot(
         c_intent = router_res.intent
         c_conf = router_res.confidence
         c_slots = router_res.entities_raw
+        _log_ai_turn(last_user_message, c_intent, c_conf, outcome="intent_routed")
 
         # Invariant: If intent changed, clear lastSearch and lastIntent
         if c_intent != conv_state.get("lastIntent"):
@@ -1613,6 +1707,38 @@ async def chat_with_copilot(
                 client_name=c_slots.get("client_name"),
                 lang=detected_lang,
             )
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 9A. Human handoff (No.14 P4) — "Talk to support" / ask for a human.
+        # Never refused, never a draft. Warm handoff with conversation context.
+        if c_intent == "human":
+            handoff_msg = build_human_handoff_response(
+                history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+                last_intent=conv_state.get("lastIntent"),
+                last_entities=c_slots,
+                lang=detected_lang,
+            )
+            _log_ai_turn(last_user_message, "human", c_conf, tool_calls=["human_handoff"], outcome="human_handoff")
+            return ChatResponse(
+                content=handoff_msg,
+                navigation_suggestions=nav_suggestions,
+                citations=[],
+                cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+        # 9B. Job list (No.14) — "What is my job list?" renders ONLY real DB
+        # jobs via typed_tools.search_jobs. Never invented data.
+        if c_intent == "list_jobs":
+            if not is_user_permitted(current_user, tenant, "transport", "jobs", "view"):
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_JOBS", "transport", "transport.jobs.view", last_user_message, current_office)
+                msg = "You don't have access to view Jobs. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            msg, cards, navs = await typed_tools.search_jobs(
+                db, current_user, tenant, current_office, lang=detected_lang
+            )
+            _log_ai_turn(last_user_message, "list_jobs", c_conf, tool_calls=["search_jobs"], outcome="list_jobs")
             return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
 
         # 10. Freight for LR
@@ -2721,7 +2847,7 @@ async def chat_with_copilot(
         query=last_user_message,
         plan_code=plan_code,
         user_permitted_categories=permitted_categories,
-        top_k=3,
+        top_k=5,
     )
 
     # 6. Build high-fidelity system prompt with live context & grounded RAG
@@ -2751,6 +2877,17 @@ async def chat_with_copilot(
             system_prompt=system_prompt,
         )
         reply_content = sanitize_ai_output(raw_reply)
+        # No.14 output guard: block invented IDs/amounts/dates in the LLM
+        # reply. Grounded evidence = RAG context + authorised TMS knowledge
+        # + citations + the user's own messages. Tool replies are grounded
+        # by construction (verbatim tool output) and are not re-guarded.
+        reply_content, reply_guarded = guard_llm_reply(
+            reply_content,
+            grounded_texts=[rag_context, TMS_CORE_KNOWLEDGE]
+            + [str(c) for c in citations],
+            user_text=last_user_message,
+            history_texts=[m.content for m in data.messages if m.role == "user"],
+        )
     except Exception as e:
         err_msg = str(e)
         if "Quota Exceeded" in err_msg or "rate limit" in err_msg.lower():
@@ -2763,6 +2900,13 @@ async def chat_with_copilot(
         else:
             reply_content = f"Sorry, I encountered an issue while processing your request: {err_msg}"
 
+    _log_ai_turn(
+        last_user_message,
+        "llm_fallback",
+        None,
+        retrieved_ids=[c.get("doc_id", "") for c in citations if isinstance(c, dict)],
+        outcome="llm_reply_guarded" if reply_guarded else "llm_reply",
+    )
     return ChatResponse(
         content=reply_content,
         navigation_suggestions=nav_suggestions,

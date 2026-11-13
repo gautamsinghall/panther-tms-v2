@@ -21,6 +21,7 @@ from app.tenant_db.models import (
     User,
     Branch,
     LR,
+    Job,
     CompanyVehicle,
     MarketVehicle,
     Driver,
@@ -907,4 +908,88 @@ async def showBills(
         action={"label": "View Transport Invoices", "href": "/accounts/transport-invoice"},
     )
     msg = f"Showing {len(bills)} recent transport invoices."
+    return msg, [card], navs
+
+
+# ==============================================================================
+# 7. JOB LIST TOOL (No.14 rebuild — "What is my job list?")
+# Renders ONLY real Transport Job rows from the tenant DB, newest first.
+# Never invents job numbers, clients, routes or dates. Zero rows is reported
+# as "no jobs found", never filled with sample data.
+# RBAC (transport.jobs.view) is enforced by the router before this is called.
+# ==============================================================================
+async def search_jobs(
+    db: AsyncSession,
+    user: User,
+    tenant: Tenant,
+    current_office: Optional[Branch] = None,
+    lang: str = "en",
+    limit: int = 10,
+) -> Tuple[str, List[StructuredCard], List[NavigationSuggestion]]:
+    """Lists real Transport Jobs from the DB. Returns (message, cards, navs)."""
+    total = (await db.execute(select(func.count()).select_from(Job))).scalar_one()
+
+    stmt = (
+        select(Job)
+        .options(
+            selectinload(Job.billing_client),
+            selectinload(Job.consigner),
+            selectinload(Job.consignee),
+            selectinload(Job.origin_location),
+            selectinload(Job.destination_location),
+        )
+        .order_by(desc(Job.id))
+        .limit(limit)
+    )
+    jobs = (await db.execute(stmt)).scalars().all()
+
+    navs = [
+        NavigationSuggestion(
+            title="Job Orders",
+            href="/transport/job-orders",
+            module="Transport Operations",
+        )
+    ]
+
+    if not jobs:
+        if lang == "hi_devanagari":
+            msg = "आपके रिकॉर्ड में कोई ट्रांसपोर्ट जॉब नहीं मिला।"
+        elif lang == "hinglish":
+            msg = "Aapke records me koi transport job nahi mila."
+        else:
+            msg = "I couldn't find any transport jobs in your records."
+        return msg, [], navs
+
+    items = []
+    for j in jobs:
+        client_name = j.billing_client.name if getattr(j, "billing_client", None) else "Commercial Client"
+        orig = j.origin_location.name if getattr(j, "origin_location", None) else "Loading Point"
+        dest = j.destination_location.name if getattr(j, "destination_location", None) else "Delivery Point"
+        status_val = j.status.value if hasattr(j.status, "value") else str(j.status or "PENDING")
+        job_date = getattr(j, "job_date", None)
+        items.append(
+            {
+                "primary": f"Job #{j.job_number or j.id}",
+                "secondary": f"{orig} \u2192 {dest} \u2022 {client_name}"
+                + (f" \u2022 Date: {job_date}" if job_date else ""),
+                "status": status_val,
+            }
+        )
+
+    card = StructuredCard(
+        card_type="job_list",
+        title="Transport Jobs",
+        subtitle=f"Showing {len(jobs)} of {total} job(s)",
+        badge={"text": f"{total} Jobs", "variant": "neutral"},
+        metrics=[{"label": "Total Jobs", "value": str(total)}],
+        items=items,
+        action={"label": "Open Job Orders", "href": "/transport/job-orders"},
+    )
+
+    if lang == "hi_devanagari":
+        msg = f"आपके रिकॉर्ड में **{total} ट्रांसपोर्ट जॉब** हैं। नवीनतम {len(jobs)} दिखाए जा रहे हैं।"
+    elif lang == "hinglish":
+        msg = f"Aapke records me **{total} Transport Job(s)** hain. Latest {len(jobs)} dikhaye ja rahe hain."
+    else:
+        msg = f"You have **{total} Transport Job(s)** in your records. Showing the latest {len(jobs)}."
     return msg, [card], navs
