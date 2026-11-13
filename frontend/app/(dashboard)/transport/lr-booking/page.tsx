@@ -70,8 +70,10 @@ interface LRRecord {
   consignee_address?: string;
   origin_location_id?: number;
   origin_city?: string;
+  origin_location_display?: string;
   destination_location_id?: number;
   destination_city?: string;
+  destination_location_display?: string;
   via?: string;
   vehicle_source: string;
   vehicle_number: string;
@@ -1985,7 +1987,7 @@ export default function LRBookingPage() {
       defaultVisible: true,
       cell: (row) => (
         <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
-          {row.origin_city || "—"}
+          {row.origin_location_display || row.origin_city || "—"}
         </span>
       ),
     },
@@ -1997,7 +1999,7 @@ export default function LRBookingPage() {
       defaultVisible: true,
       cell: (row) => (
         <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
-          {row.destination_city || "—"}
+          {row.destination_location_display || row.destination_city || "—"}
         </span>
       ),
     },

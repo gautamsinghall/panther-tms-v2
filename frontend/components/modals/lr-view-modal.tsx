@@ -33,7 +33,9 @@ export interface LRViewRecord {
   consignee_id?: number;
   consignee_name?: string;
   origin_city?: string;
+  origin_location_display?: string;
   destination_city?: string;
+  destination_location_display?: string;
   vehicle_source: string;
   vehicle_number: string;
   driver_name?: string;
@@ -584,13 +586,13 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
           <div className="col-span-5 py-1 px-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">ORIGIN STATION</span>
             <div className="flex items-center justify-between mt-0.5 pr-2">
-              <span className="font-bold text-xs text-slate-900">{lr.origin_city || "—"}</span>
+              <span className="font-bold text-xs text-slate-900">{lr.origin_location_display || lr.origin_city || "—"}</span>
               <span className="text-slate-400 font-bold">→</span>
             </div>
           </div>
           <div className="col-span-4 py-1 px-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">DESTINATION STATION</span>
-            <span className="font-bold text-xs text-slate-900 block mt-0.5">{lr.destination_city || "—"}</span>
+            <span className="font-bold text-xs text-slate-900 block mt-0.5">{lr.destination_location_display || lr.destination_city || "—"}</span>
           </div>
           <div className="col-span-3 py-1 px-3 text-right pr-3">
             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">E-WAY BILL</span>
@@ -611,7 +613,7 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
               {lr.consigner_name || "Direct Shipper"}
             </div>
             <div className="text-[10.5px] text-slate-600 mt-1">
-              Place of Booking: {lr.origin_city || officeCity}
+              Place of Booking: {lr.origin_location_display || lr.origin_city || officeCity}
             </div>
           </div>
           <div className="py-1.5 px-3">
@@ -619,7 +621,7 @@ export function LRViewModal({ isOpen, lr, onClose, onEdit }: LRViewModalProps) {
               {lr.consignee_name || "Direct Receiver"}
             </div>
             <div className="text-[10.5px] text-slate-600 mt-1">
-              Delivery Destination: {lr.destination_city || "As per order"}
+              Delivery Destination: {lr.destination_location_display || lr.destination_city || "As per order"}
             </div>
           </div>
         </div>

@@ -145,7 +145,9 @@ interface LROption {
   actual_weight_mt?: number;
   chargeable_weight_mt?: number;
   origin_city?: string;
+  origin_location_display?: string;
   destination_city?: string;
+  destination_location_display?: string;
 }
 
 interface ChargeHeadOption {
@@ -186,6 +188,9 @@ const DEFAULT_CHARGE_HEADS = [
   "Toll & Octroi",
   "Other Operational Charges",
 ];
+
+const ORIGIN_HUB_LABEL = "Origin Hub";
+const DESTINATION_HUB_LABEL = "Destination Hub";
 
 const TDS_CATEGORIES = [
   { label: "- Select TDS Category -", value: "", rate: 0 },
@@ -656,7 +661,7 @@ export default function HireChallansPage() {
     () => lrs.map((lr) => ({
       value: String(lr.id),
       label: lr.lr_number,
-      subLabel: [lr.origin_city, lr.destination_city, lr.vehicle_number].filter(Boolean).join(" → "),
+      subLabel: [lr.origin_location_display || lr.origin_city, lr.destination_location_display || lr.destination_city, lr.vehicle_number].filter(Boolean).join(" → "),
     })),
     [lrs]
   );
@@ -732,8 +737,8 @@ export default function HireChallansPage() {
     const lr = lrs.find((item) => String(item.id) === selectedId);
     if (!lr) return;
 
-    setFromLocation(lr.origin_city || "");
-    setToLocation(lr.destination_city || "");
+    setFromLocation(lr.origin_location_display || lr.origin_city || "");
+    setToLocation(lr.destination_location_display || lr.destination_city || "");
     if (lr.vehicle_number) handleVehicleSelect(lr.vehicle_number);
 
     const matchingDriver = drivers.find((driver) =>
@@ -804,8 +809,8 @@ export default function HireChallansPage() {
           if (matched.chargeable_weight_mt || matched.actual_weight_mt) {
             current.gross_weight = matched.chargeable_weight_mt || matched.actual_weight_mt || "";
           }
-          if (!fromLocation && matched.origin_city) setFromLocation(matched.origin_city);
-          if (!toLocation && matched.destination_city) setToLocation(matched.destination_city);
+          if (!fromLocation && (matched.origin_location_display || matched.origin_city)) setFromLocation(matched.origin_location_display || matched.origin_city || "");
+          if (!toLocation && (matched.destination_location_display || matched.destination_city)) setToLocation(matched.destination_location_display || matched.destination_city || "");
         }
       }
       next[index] = current;
@@ -1367,7 +1372,7 @@ export default function HireChallansPage() {
     },
     {
       key: "from_location",
-      header: "From (Origin)",
+      header: ORIGIN_HUB_LABEL,
       sortable: true,
       minWidth: "130px",
       defaultVisible: true,
@@ -1379,7 +1384,7 @@ export default function HireChallansPage() {
     },
     {
       key: "to_location",
-      header: "To (Destination)",
+      header: DESTINATION_HUB_LABEL,
       sortable: true,
       minWidth: "130px",
       defaultVisible: true,
@@ -1822,7 +1827,7 @@ export default function HireChallansPage() {
               </div>
 
               {/* Select LR */}
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-700">
                   Select Lorry Receipt (LR)
                 </label>
@@ -1836,7 +1841,7 @@ export default function HireChallansPage() {
               </div>
 
               {/* Vendor Ref. No. */}
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-700">
                   Vendor Ref. No.
                 </label>
@@ -1863,10 +1868,10 @@ export default function HireChallansPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* From */}
+              {/* Origin Hub */}
               <div id="form-group-fromLocation" data-field-name="fromLocation" className="space-y-1.5 scroll-mt-28 transition-all duration-200">
                 <label className="block text-xs font-semibold text-slate-700">
-                  From (Origin) <span className="text-rose-500">*</span>
+                  {ORIGIN_HUB_LABEL} <span className="text-rose-500">*</span>
                 </label>
                 <SearchableSelect
                   id="fromLocation"
@@ -1876,15 +1881,15 @@ export default function HireChallansPage() {
                   onChange={(value) => setFromLocation(String(value))}
                   options={locationOptions}
                   onSearch={searchLocationOptions}
-                  placeholder="Select origin city"
-                  searchPlaceholder="Search origin city..."
+                  placeholder={`Select ${ORIGIN_HUB_LABEL.toLowerCase()}`}
+                  searchPlaceholder={`Search ${ORIGIN_HUB_LABEL.toLowerCase()}...`}
                 />
               </div>
 
-              {/* To */}
+              {/* Destination Hub */}
               <div id="form-group-toLocation" data-field-name="toLocation" className="space-y-1.5 scroll-mt-28 transition-all duration-200">
                 <label className="block text-xs font-semibold text-slate-700">
-                  To (Destination) <span className="text-rose-500">*</span>
+                  {DESTINATION_HUB_LABEL} <span className="text-rose-500">*</span>
                 </label>
                 <SearchableSelect
                   id="toLocation"
@@ -1894,8 +1899,8 @@ export default function HireChallansPage() {
                   onChange={(value) => setToLocation(String(value))}
                   options={locationOptions}
                   onSearch={searchLocationOptions}
-                  placeholder="Select destination city"
-                  searchPlaceholder="Search destination city..."
+                  placeholder={`Select ${DESTINATION_HUB_LABEL.toLowerCase()}`}
+                  searchPlaceholder={`Search ${DESTINATION_HUB_LABEL.toLowerCase()}...`}
                 />
               </div>
 

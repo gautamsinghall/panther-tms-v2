@@ -656,6 +656,12 @@ async def transition_job_status(
 # ==============================================================================
 # 6. GR / LR Booking & Transitions
 # ==============================================================================
+def _location_display(location: Any) -> Optional[str]:
+    if not location:
+        return None
+    return ", ".join(part for part in [location.address, location.city_name, location.state, location.pincode] if part)
+
+
 def _build_lr_response(l: LR) -> LRResponse:
     consigner_addr_parts = []
     if l.consigner:
@@ -685,8 +691,10 @@ def _build_lr_response(l: LR) -> LRResponse:
         consignee_address=", ".join(consignee_addr_parts) if consignee_addr_parts else None,
         origin_location_id=l.origin_location_id,
         origin_city=l.origin_location.city_name if l.origin_location else None,
+        origin_location_display=_location_display(l.origin_location),
         destination_location_id=l.destination_location_id,
         destination_city=l.destination_location.city_name if l.destination_location else None,
+        destination_location_display=_location_display(l.destination_location),
         via=l.via,
         vehicle_source=l.vehicle_source,
         vehicle_number=l.vehicle_number,

@@ -643,7 +643,9 @@ class LRResponse(LRBase):
     load_type_name: Optional[str] = None
     packing_method_name: Optional[str] = None
     origin_city: Optional[str] = None
+    origin_location_display: Optional[str] = None
     destination_city: Optional[str] = None
+    destination_location_display: Optional[str] = None
     job_number: Optional[str] = None
     issuing_office_name: Optional[str] = None
     issuing_office_code: Optional[str] = None
