@@ -36,8 +36,12 @@ logger = logging.getLogger("panther.ai.job_draft")
 
 
 def is_job_booking_intent(text: str) -> bool:
-    """Detects whether the user is requesting to create/book a Transport Job order."""
+    """Detects whether the user is requesting to create/book a Transport Job order.
+    Knowledge questions ('what is a job') are NOT booking intent."""
     t = text.lower().strip()
+    # Knowledge / explanation questions are never booking intent
+    if re.search(r"\b(what\s+is|what\s+are|explain|tell\s+me\s+about|describe|meaning|kya\s+hai|kya\s+hota|samjhao|samjha\s+do)\b", t):
+        return False
     booking_patterns = [
         r"\b(create|book|new|generate|start|make|raise)\b.*\b(job|transport job|job order)\b",
         r"\b(job|transport job|job order)\b.*\b(create|book|generate|start|make|raise|karo|banao|karni|karna)\b",
@@ -57,7 +61,11 @@ def is_instructional_job_inquiry(text: str) -> bool:
     from app.modules.ai.tools import extract_transport_entities
     if extract_transport_entities(text).get("job_number"):
         return False
-    if any(w in t for w in ("this job", "is job", "that job", "the job", "job order details", "status of this job")):
+    # Exclude references to a specific job ("this job", "the job") but NOT "what is a job"
+    specific_ref_phrases = ("this job", "that job", "the job", "job order details", "status of this job")
+    has_specific_ref = any(w in t for w in specific_ref_phrases)
+    has_what_is = bool(re.search(r"\b(what\s+is|what\s+are|explain|kya\s+hai|kya\s+hota)\b", t))
+    if has_specific_ref and not has_what_is:
         return False
     inquiry_patterns = [
         r"\b(what is|explain|rules for|how to create|steps to create)\b.*\b(job|transport job)\b",

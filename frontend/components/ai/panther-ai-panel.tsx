@@ -1165,23 +1165,7 @@ export function PantherAIPanel() {
                     })}
                   </div>
 
-                  {/* Grounded Citations */}
-                  {msg.citations && msg.citations.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-[#262B44] flex flex-wrap items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Sources:
-                      </span>
-                      {msg.citations.map((c, cIdx) => (
-                        <span
-                          key={cIdx}
-                          className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 font-medium"
-                          title={c.source}
-                        >
-                          {c.title}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {/* Grounded Citations — hidden from UI */}
 
                   {/* 4. Intelligent Workflow Cards */}
                   {msg.cards && msg.cards.length > 0 && (

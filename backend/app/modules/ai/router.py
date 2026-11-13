@@ -395,11 +395,15 @@ def build_page_help_response(
         grounded, citations = "", []
     if not grounded:
         return base, citations
-    # Present the retrieved SOURCE sections; drop the trailing LLM
-    # instruction tail (everything from "IMPORTANT:" onward).
+    # Strip internal scaffolding so the user sees only the knowledge text.
     body = grounded.split("\nIMPORTANT:")[0]
     body = body.replace("AUTHORITATIVE PANTHERTMS RETRIEVED SPECIFICATIONS:\n", "")
-    return base + "\n\nFrom the Panther guide:\n" + body.strip(), citations
+    # Remove raw source-citation headers (--- SOURCE [n]: ... ---)
+    body = re.sub(r"---\s*SOURCE\s*\[\d+\]:.*?---\s*\n?", "", body)
+    body = body.strip()
+    if not body:
+        return base, citations
+    return base + "\n\n" + body, citations
 
 
 def is_capabilities_query(text: str) -> bool:

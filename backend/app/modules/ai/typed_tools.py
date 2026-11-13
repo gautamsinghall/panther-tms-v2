@@ -832,6 +832,50 @@ def getHowTo(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard], L
             )
         return msg, [card], navs
 
+    if topic == "tracking":
+        navs = [
+            NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Transport Operations"),
+            NavigationSuggestion(title="FASTag Tracking", href="/tracking/fastag", module="Fleet Management"),
+        ]
+        card = StructuredCard(
+            card_type="tracking_howto",
+            title="Tracking in Panther TMS",
+            subtitle="GPS, SIM & FASTag Vehicle Tracking",
+            badge={"text": "Guide", "variant": "neutral"},
+            items=[
+                {"primary": "1. Live Tracking (GPS/SIM)", "secondary": "Real-time vehicle location via SIM-based GPS. Open Transport → Live Tracking."},
+                {"primary": "2. FASTag Tracking", "secondary": "Automated toll plaza crossings. Shows which toll the vehicle last crossed and when."},
+                {"primary": "3. LR / Consignment Tracking", "secondary": "Track a shipment by LR number — ask me 'Track LR [number]' or search on the LR Booking page."},
+                {"primary": "4. E-Way Bill Tracking", "secondary": "Check e-way bill validity and vehicle movement records linked to an LR."},
+            ],
+            action={"label": "Open Live Tracking", "href": "/transport/tracking"},
+        )
+        if lang == "hi_devanagari":
+            msg = (
+                "पैंथर टीएमएस में ट्रैकिंग के तरीके:\n\n"
+                "1. **लाइव ट्रैकिंग (GPS/SIM)**: सिम-आधारित GPS से वाहन की रियल-टाइम लोकेशन। Transport → Live Tracking पर जाएं।\n"
+                "2. **FASTag ट्रैकिंग**: टोल प्लाजा क्रॉसिंग की ऑटोमैटिक अपडेट — वाहन आखिरी बार किस टोल से गुज़रा।\n"
+                "3. **LR / कंसाइनमेंट ट्रैकिंग**: LR नंबर से शिपमेंट ट्रैक करें — मुझसे पूछें 'Track LR [नंबर]'।\n"
+                "4. **E-Way Bill ट्रैकिंग**: ई-वे बिल की वैधता और वाहन मूवमेंट रिकॉर्ड।"
+            )
+        elif lang == "hinglish":
+            msg = (
+                "Panther TMS me tracking ke tarike:\n\n"
+                "1. **Live Tracking (GPS/SIM)**: SIM-based GPS se vehicle ki real-time location. Transport → Live Tracking par jayein.\n"
+                "2. **FASTag Tracking**: Toll plaza crossings ki automatic update — vehicle last kis toll se guzra.\n"
+                "3. **LR / Consignment Tracking**: LR number se shipment track karein — mujhse poochein 'Track LR [number]'.\n"
+                "4. **E-Way Bill Tracking**: E-way bill validity aur vehicle movement records."
+            )
+        else:
+            msg = (
+                "Tracking in Panther TMS:\n\n"
+                "1. **Live Tracking (GPS/SIM)**: Real-time vehicle location via SIM-based GPS. Go to Transport → Live Tracking.\n"
+                "2. **FASTag Tracking**: Automated toll plaza crossing updates — see which toll a vehicle last crossed and when.\n"
+                "3. **LR / Consignment Tracking**: Track a shipment by LR number. Ask me 'Track LR [number]' or search on the LR Booking page.\n"
+                "4. **E-Way Bill Tracking**: Check e-way bill validity and vehicle movement records linked to an LR."
+            )
+        return msg, [card], navs
+
     navs = [NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management")]
     return "How-to instructions for Panther TMS.", [], navs
 

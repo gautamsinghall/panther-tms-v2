@@ -3523,11 +3523,16 @@ def classify_operational_intent(
     clean_text = text.strip()
     lower = clean_text.lower()
 
-    # P1 GUARD: Conceptual 'how-to' questions must NEVER execute operational record searches!
-    # A question starting with 'How do I', 'How to', 'How can I', 'kaise' must NEVER run a record search
+    # P1 GUARD: Conceptual 'how-to' and 'what-is' questions must NEVER execute operational record searches!
+    # A question starting with 'How do I', 'How to', 'What is', 'Explain', 'kaise', 'kya hai' must NEVER run a record search
     # and must NEVER reuse an old LR/vehicle ID.
     how_to_pattern = r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese)\b"
-    if re.search(how_to_pattern, lower) or (re.search(r"[\u0900-\u097F]", clean_text) and "कैसे" in clean_text):
+    what_is_pattern = r"\b(what\s+is|what\s+are|what\s+does|explain|meaning\s+of|tell\s+me\s+about|describe|details\s+of|kya\s+hai|kya\s+hota\s+hai|kya\s+hota|samjhao|samjha\s+do)\b"
+    if (
+        re.search(how_to_pattern, lower)
+        or re.search(what_is_pattern, lower)
+        or (re.search(r"[\u0900-\u097F]", clean_text) and ("कैसे" in clean_text or "क्या है" in clean_text or "समझाएं" in clean_text))
+    ):
         return None
 
     # Typo add vehicle / driver inquiry guard

@@ -37,8 +37,12 @@ VEHICLE_REGEX = r"\b([A-Z]{2}[0-9]{1,2}(?:[A-Z]{1,3})?[0-9]{4})\b"
 
 
 def is_hire_challan_intent(text: str) -> bool:
-    """Detects whether the user is requesting to create/issue a Hire Challan."""
+    """Detects whether the user is requesting to create/issue a Hire Challan.
+    Knowledge questions ('what is hire challan') are NOT creation intent."""
     t = text.lower().strip()
+    # Knowledge / explanation questions are never creation intent
+    if re.search(r"\b(what\s+is|what\s+are|explain|tell\s+me\s+about|describe|meaning|kya\s+hai|kya\s+hota|samjhao|samjha\s+do)\b", t):
+        return False
     patterns = [
         r"\b(create|issue|book|new|generate|make|raise)\b.*\b(hire challan|hiring challan|truck hire|lorry hire|challan)\b",
         r"\b(hire challan|hiring challan|truck hire|lorry hire)\b.*\b(create|issue|banao|karo|banana|generate)\b",
@@ -59,7 +63,12 @@ def is_instructional_hc_inquiry(text: str) -> bool:
     from app.modules.ai.tools import extract_transport_entities
     if extract_transport_entities(text).get("hc_number"):
         return False
-    if any(w in t for w in ("this hc", "is hc", "that hc", "the hc", "this challan", "is challan", "is hire challan", "this hire challan", "its advance", "who is the vendor", "what is the balance")):
+    # Exclude references to a specific HC ("this hc", "the hc") but NOT "what is hire challan"
+    specific_hc_phrases = ("this hc", "that hc", "the hc", "this challan", "this hire challan", "its advance", "who is the vendor", "what is the balance")
+    has_specific_ref = any(w in t for w in specific_hc_phrases)
+    # "what is hire challan" contains "is hire challan" substring — don't exclude knowledge questions
+    has_what_is = bool(re.search(r"\b(what\s+is|what\s+are|explain|kya\s+hai|kya\s+hota)\b", t))
+    if has_specific_ref and not has_what_is:
         return False
     inquiry_patterns = [
         r"\b(what is|explain|rules for|how to settle|how to create)\b.*\b(hire challan|challan)\b",

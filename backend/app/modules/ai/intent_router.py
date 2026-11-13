@@ -238,6 +238,32 @@ def classify_intent_and_entities(
     # --------------------------------------------------------------------------
     # 5. KNOWLEDGE & HOW-TO QUESTIONS (MUST NEVER TRIGGER SEARCHES)
     # --------------------------------------------------------------------------
+    # General TMS knowledge question: "what is X" / "explain X" / "X kya hai"
+    # for any TMS concept. Must be checked BEFORE action intents so
+    # "what is hire challan" never opens a draft.
+    _TMS_TERMS = (
+        r"(?:hire\s+challan|challan|job\s+order|job|pod|proof\s+of\s+delivery|"
+        r"lr|lorry\s+receipt|gr|goods\s+receipt|bilty|consignment|"
+        r"master\s+ledger|ledger|sub\s*ledger|"
+        r"freight|bhada|detention|demurrage|hamali|loading\s+charge|"
+        r"consignor|consigner|consignee|"
+        r"invoice|transport\s+invoice|billing|"
+        r"branch|hub|godown|warehouse|"
+        r"pod\s+record|vehicle\s+master|driver\s+master|"
+        r"tbb|to\s+be\s+billed|to\s+pay|paid|"
+        r"manifest|trip\s+sheet|vehicle\s+settlement|hire\s+settlement|"
+        r"panther\s+tms|panther|tms)"
+    )
+    is_knowledge_question = bool(re.search(
+        r"\b(?:what\s+is|what\s+are|what\s+does|explain|tell\s+me\s+about|describe|meaning\s+of|"
+        r"kya\s+hai|kya\s+hota\s+hai|kya\s+hota|samjhao|samjha\s+do|details\s+of)\s+(?:an?\s+|the\s+)?"
+        + _TMS_TERMS + r"\b", lower
+    )) or bool(re.search(
+        _TMS_TERMS + r"\s+(?:kya\s+hai|kya\s+hota\s+hai|kya\s+hota|kya\s+hoti|matlab|meaning)", lower
+    ))
+    if is_knowledge_question:
+        return RouterResult(intent="tms_knowledge", confidence=1.0, matched_rule="tms_knowledge_what_is")
+
     # E-Way Bill Knowledge question
     if bool(re.search(r"\b(?:what\s+is|explain|documents?\s+(?:needed|required|for)|kya\s+hai|kya\s+hota\s+hai|details\s+of)\s+(?:an?\s+)?(?:eway|e-way|ewb)\s*(?:bill)?\b", lower)) or \
        bool(re.search(r"\b(?:eway|e-way|ewb)\s*(?:bill)?\s+(?:kya\s+hai|kya\s+hota\s+hai|rules?|threshold|limit|documents?)\b", lower)) or \
@@ -251,9 +277,10 @@ def classify_intent_and_entities(
        "एलआर कैसे" in clean or "बिल्टी कैसे" in clean:
         return RouterResult(intent="how_to_create_lr", confidence=1.0, matched_rule="how_to_create_lr")
 
-    # How to track
+    # How to track / what is tracking (conceptual — NOT "track LR XYZ")
     if bool(re.search(r"\b(?:how\s+(?:do\s+i|to|can\s+i)\s+track|how\s+does\s+tracking\s+work|tracking\s+kaise\s+(?:karein|hoti\s+hai))\b", lower)) or \
-       "ट्रैकिंग कैसे" in clean:
+       bool(re.search(r"\b(?:what\s+is|what\s+are|explain|tell\s+me\s+about|describe|meaning\s+of)\s+(?:\w+\s+)?(?:tracking|fasttrack|fastrack|fast\s*tag)\b", lower)) or \
+       "ट्रैकिंग कैसे" in clean or "ट्रैकिंग क्या" in clean:
         return RouterResult(intent="how_to_track", confidence=1.0, matched_rule="how_to_track")
 
     # --------------------------------------------------------------------------
@@ -351,7 +378,9 @@ def classify_intent_and_entities(
         or "कहाँ है" in clean
         or "ट्रैक" in clean
     )
-    if is_tracking_kw:
+    # "what is tracking" / "explain fastag" etc. are knowledge, not actions
+    is_conceptual = bool(re.search(r"\b(what\s+is|what\s+are|explain|describe|meaning|tell\s+me\s+about)\b", lower))
+    if is_tracking_kw and not is_conceptual:
         veh_num = extract_indian_vehicle_number(clean)
         lr_num = extract_lr_number(clean)
         # If vehicle number explicitly mentioned
