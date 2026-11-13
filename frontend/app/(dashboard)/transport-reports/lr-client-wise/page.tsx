@@ -867,8 +867,8 @@ export default function LRClientWisePage() {
       {/* ---------------------------------------------------------------------- */}
       {/* 4. Table Controls Toolbar                                              */}
       {/* ---------------------------------------------------------------------- */}
-      <div className="bg-white dark:bg-[#121319] border border-slate-200 dark:border-[#22232E] rounded-xl shadow-xs overflow-hidden">
-        <div className="p-3.5 border-b border-slate-200 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 print:hidden">
+      <div className="bg-white dark:bg-[#121319] border border-slate-200 dark:border-[#22232E] rounded-xl shadow-xs relative">
+        <div className="p-3.5 border-b border-slate-200 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 rounded-t-xl print:hidden">
           <div className="flex items-center gap-3">
             <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
               <span>LR Records</span>
@@ -962,7 +962,7 @@ export default function LRClientWisePage() {
               </Button>
 
               {isColMenuOpen && (
-                <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-xl p-3 z-50 text-xs">
+                <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-2xl p-3 z-50 text-xs">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-[#272835] font-semibold text-slate-900 dark:text-slate-200">
                     <span>Columns Visibility</span>
                     <div className="flex items-center gap-2 text-[11px]">
@@ -1082,7 +1082,7 @@ export default function LRClientWisePage() {
         {/* -------------------------------------------------------------------- */}
         {/* Table Container with Horizontal Scroll                               */}
         {/* -------------------------------------------------------------------- */}
-        <div ref={tableContainerRef} className="overflow-x-auto min-w-full">
+        <div ref={tableContainerRef} className="overflow-x-auto min-w-full rounded-b-xl">
           <table className="w-full text-xs text-left border-collapse">
             {/* Table Header: Yellow/Amber matching the reference image */}
             <thead className="bg-[#f59e0b] dark:bg-[#d97706] text-slate-900 dark:text-slate-950 font-bold select-none border-b border-amber-600">
