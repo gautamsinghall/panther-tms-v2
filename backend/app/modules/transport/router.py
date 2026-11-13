@@ -938,6 +938,7 @@ def _build_hire_challan_response(c: Any) -> HireChallanResponse:
         vehicle_number=c.vehicle_number,
         market_vehicle_id=c.market_vehicle_id,
         owner_id=c.owner_id,
+        vendor_id=c.vendor_id,
         driver_id=c.driver_id,
         driver_name=c.driver_name,
         driver_phone=c.driver_phone,
@@ -958,7 +959,8 @@ def _build_hire_challan_response(c: Any) -> HireChallanResponse:
         status=c.status,
         remarks=c.remarks,
         lr_number=c.lr.lr_number if c.lr else None,
-        owner_name=c.owner.name if c.owner else None,
+        owner_name=c.owner.name if c.owner else (c.vendor.name if c.vendor else None),
+        vendor_name=c.vendor.name if c.vendor else None,
         created_at=c.created_at,
         updated_at=c.updated_at,
     )

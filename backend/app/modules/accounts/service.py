@@ -1894,9 +1894,12 @@ async def create_purchase_bill(
         from app.tenant_db.models import VehicleOwner, HireChallan
         vo_match = None
         if data.hire_challan_id:
-            hc_stmt = select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == data.hire_challan_id)
+            hc_stmt = select(HireChallan).options(selectinload(HireChallan.owner), selectinload(HireChallan.vendor)).where(HireChallan.id == data.hire_challan_id)
             hc_obj = (await session.execute(hc_stmt)).scalar_one_or_none()
-            if hc_obj and hc_obj.owner:
+            if hc_obj and hc_obj.vendor:
+                vendor_obj = hc_obj.vendor
+                party_name = party_name if party_name != "Direct Vendor" else vendor_obj.name
+            elif hc_obj and hc_obj.owner:
                 vo_match = hc_obj.owner
                 party_name = party_name if party_name != "Direct Vendor" else vo_match.name
         elif data.party_account_id:
@@ -2545,14 +2548,14 @@ async def create_payment_voucher(
         party_type = "VEHICLE_OWNER"
         if hire_challan_id:
             hc_res = await session.execute(
-                select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == hire_challan_id)
+                select(HireChallan).options(selectinload(HireChallan.owner), selectinload(HireChallan.vendor)).where(HireChallan.id == hire_challan_id)
             )
             hc = hc_res.scalar_one_or_none()
             if not hc:
                 raise HTTPException(status_code=404, detail=f"Hire Challan #{hire_challan_id} not found")
-            owner_name = hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner")
+            owner_name = hc.vendor.name if getattr(hc, "vendor", None) else (hc.owner.name if getattr(hc, "owner", None) else (hc.driver_name or "Vehicle Owner"))
             party_name = owner_name
-            vendor_id = hc.owner_id
+            vendor_id = hc.vendor_id or hc.owner_id
             driver_id = hc.driver_id
 
             # Check if this hire challan has a booked Purchase Bill (NORMAL_PURCHASE)
@@ -2566,6 +2569,9 @@ async def create_payment_voucher(
             pb = pb_res.scalar_one_or_none()
             if pb:
                 creditor_id = pb.account_id
+            elif hc.vendor_id:
+                vendor_acc = await get_or_create_party_account(session, "VENDOR", hc.vendor_id, owner_name)
+                creditor_id = vendor_acc.id
             elif hc.owner_id:
                 owner_acc = await get_or_create_party_account(session, "VENDOR", hc.owner_id, owner_name)
                 creditor_id = owner_acc.id

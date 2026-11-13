@@ -663,6 +663,7 @@ class HireChallanBase(BaseModel):
     vehicle_number: str = Field(..., min_length=1, max_length=50)
     market_vehicle_id: Optional[int] = None
     owner_id: Optional[int] = None
+    vendor_id: Optional[int] = None
     driver_id: Optional[int] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
@@ -690,6 +691,7 @@ class HireChallanUpdate(BaseModel):
     hc_series_id: Optional[int] = None
     vehicle_number: Optional[str] = None
     owner_id: Optional[int] = None
+    vendor_id: Optional[int] = None
     driver_id: Optional[int] = None
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
@@ -718,6 +720,7 @@ class HireChallanResponse(HireChallanBase):
     status: Union[HireChallanStatus, str]
     lr_number: Optional[str] = None
     owner_name: Optional[str] = None
+    vendor_name: Optional[str] = None
     issuing_office_name: Optional[str] = None
     issuing_office_code: Optional[str] = None
     created_at: datetime

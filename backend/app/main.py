@@ -385,6 +385,7 @@ async def lifespan(app: FastAPI):
                         # Hire Challan Standard Fields Evolution
                         for hc_col in [
                             "hc_series_id INTEGER REFERENCES settings_series_masters(id)",
+                            "vendor_id INTEGER REFERENCES general_vendors(id)",
                             "vendor_ref_no VARCHAR(100)",
                             "tds_category VARCHAR(100)",
                             "loading_expenses JSONB DEFAULT '[]'::jsonb",

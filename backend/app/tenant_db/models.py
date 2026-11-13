@@ -869,6 +869,7 @@ class HireChallan(TenantBase):
     vehicle_number = Column(String(20), nullable=False, index=True)
     market_vehicle_id = Column(Integer, ForeignKey("transport_market_vehicles.id"), nullable=True)
     owner_id = Column(Integer, ForeignKey("transport_vehicle_owners.id"), nullable=True)
+    vendor_id = Column(Integer, ForeignKey("general_vendors.id"), nullable=True)
     driver_id = Column(Integer, ForeignKey("transport_drivers.id"), nullable=True)
     driver_name = Column(String(150), nullable=True)
     driver_phone = Column(String(20), nullable=True)
@@ -903,6 +904,7 @@ class HireChallan(TenantBase):
 
     lr = relationship("LR", back_populates="hire_challan", lazy="selectin")
     owner = relationship("VehicleOwner", lazy="selectin")
+    vendor = relationship("Vendor", lazy="selectin")
     driver = relationship("Driver", foreign_keys=[driver_id], lazy="selectin")
     issuing_office = relationship("Branch", foreign_keys=[issuing_office_id], lazy="selectin")
     hc_series = relationship("SeriesMaster", foreign_keys=[hc_series_id], lazy="selectin")

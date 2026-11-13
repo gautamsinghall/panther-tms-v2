@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from app.tenant_db.models import TenantBase, Branch, SeriesMaster, HireChallan, Driver, VehicleOwner, LR
+from app.tenant_db.models import TenantBase, Branch, SeriesMaster, HireChallan, Driver, VehicleOwner, Vendor, LR
 from app.modules.transport.schemas import HireChallanCreate
 from app.modules.transport.service import create_hire_challan, get_all_hire_challans
 from app.modules.settings.series_service import get_manual_series_ranges, check_series_status
@@ -89,7 +89,12 @@ async def test_hire_challan_office_series_autofill_and_expenses():
             pan="AAACN1234D",
             is_active=True,
         )
-        session.add_all([driver, owner])
+        vendor = Vendor(
+            id=1,
+            name="Independent Carrier Pvt Ltd",
+            is_active=True,
+        )
+        session.add_all([driver, owner, vendor])
         await session.commit()
 
         # 4. Verify get_manual_series_ranges for Delhi branch
@@ -163,8 +168,23 @@ async def test_hire_challan_office_series_autofill_and_expenses():
         assert len(hc.loading_expenses) == 1
         assert len(hc.unloading_expenses) == 1
 
-        # 7. Verify subsequent autofill for Delhi now gives next number 0002
+        vendor_hc = await create_hire_challan(
+            session,
+            HireChallanCreate(
+                issuing_office_id=1,
+                hc_series_id=10,
+                challan_number="HC-DEL-26-0002",
+                vehicle_number="DL-01-AB-5678",
+                driver_id=1,
+                vendor_id=vendor.id,
+            ),
+            office_id=1,
+        )
+        assert vendor_hc.vendor_id == vendor.id
+        assert vendor_hc.owner_id is None
+
+        # 7. Verify subsequent autofill for Delhi now gives next number 0003
         ranges_delhi_2 = await get_manual_series_ranges(session, "HIRE_CHALLAN", office_id=1)
-        assert ranges_delhi_2["ranges"][0]["available_options"][0]["value"] == "HC-DEL-26-0002"
+        assert ranges_delhi_2["ranges"][0]["available_options"][0]["value"] == "HC-DEL-26-0003"
 
     await engine.dispose()

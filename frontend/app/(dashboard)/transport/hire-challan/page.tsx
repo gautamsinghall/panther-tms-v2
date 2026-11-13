@@ -35,6 +35,7 @@ import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 import { HireChallanViewModal } from "@/components/modals/hire-challan-view-modal";
 import { Button } from "@/components/ui/button";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { getActiveOffice, OfficeSummary } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
@@ -49,6 +50,8 @@ interface HireChallanRecord {
   vehicle_number: string;
   owner_id?: number;
   owner_name?: string;
+  vendor_id?: number;
+  vendor_name?: string;
   driver_id?: number;
   driver_name?: string;
   driver_phone?: string;
@@ -122,6 +125,14 @@ interface OwnerOption {
   pan?: string;
 }
 
+interface VendorOption {
+  id: number;
+  name: string;
+  phone?: string;
+  pan?: string;
+  is_active?: boolean;
+}
+
 interface LROption {
   id: number;
   lr_number: string;
@@ -188,11 +199,10 @@ export default function HireChallansPage() {
   const [data, setData] = useState<HireChallanRecord[]>([]);
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [fromLocationMatches, setFromLocationMatches] = useState<LocationOption[]>([]);
-  const [toLocationMatches, setToLocationMatches] = useState<LocationOption[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [owners, setOwners] = useState<OwnerOption[]>([]);
+  const [vendors, setVendors] = useState<VendorOption[]>([]);
   const [lrs, setLrs] = useState<LROption[]>([]);
   const [chargeHeads, setChargeHeads] = useState<ChargeHeadOption[]>([]);
 
@@ -240,42 +250,6 @@ export default function HireChallansPage() {
   const [fromLocation, setFromLocation] = useState<string>("");
   const [toLocation, setToLocation] = useState<string>("");
 
-  useEffect(() => {
-    const query = fromLocation.trim();
-    if (query.length < 2) {
-      setFromLocationMatches([]);
-      return;
-    }
-    let active = true;
-    const timeout = window.setTimeout(() => {
-      apiClient<LocationOption[]>(`/api/v1/general/locations/search?q=${encodeURIComponent(query)}`)
-        .then((results) => { if (active) setFromLocationMatches(results); })
-        .catch(() => { if (active) setFromLocationMatches([]); });
-    }, 300);
-    return () => {
-      active = false;
-      window.clearTimeout(timeout);
-    };
-  }, [fromLocation]);
-
-  useEffect(() => {
-    const query = toLocation.trim();
-    if (query.length < 2) {
-      setToLocationMatches([]);
-      return;
-    }
-    let active = true;
-    const timeout = window.setTimeout(() => {
-      apiClient<LocationOption[]>(`/api/v1/general/locations/search?q=${encodeURIComponent(query)}`)
-        .then((results) => { if (active) setToLocationMatches(results); })
-        .catch(() => { if (active) setToLocationMatches([]); });
-    }, 300);
-    return () => {
-      active = false;
-      window.clearTimeout(timeout);
-    };
-  }, [toLocation]);
-
   const [challanDate, setChallanDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
@@ -284,6 +258,7 @@ export default function HireChallansPage() {
   const [driverName, setDriverName] = useState<string>("");
   const [driverPhone, setDriverPhone] = useState<string>("");
   const [ownerId, setOwnerId] = useState<string>("");
+  const [vendorId, setVendorId] = useState<string>("");
 
   const [baseHireRate, setBaseHireRate] = useState<string>("");
   const [tdsCategory, setTdsCategory] = useState<string>("");
@@ -457,6 +432,7 @@ export default function HireChallansPage() {
         companyVehiclesRes,
         driversRes,
         ownersRes,
+        vendorsRes,
         lrsRes,
         chargeHeadsRes,
       ] = await Promise.all([
@@ -466,6 +442,7 @@ export default function HireChallansPage() {
         apiClient<any[]>("/api/v1/transport/company-vehicles").catch(() => []),
         apiClient<DriverOption[]>("/api/v1/transport/drivers").catch(() => []),
         apiClient<OwnerOption[]>("/api/v1/transport/vehicle-owners").catch(() => []),
+        apiClient<VendorOption[]>("/api/v1/general/vendors").catch(() => []),
         apiClient<LROption[]>(`/api/v1/transport/lrs${officeParam}`).catch(() => []),
         apiClient<ChargeHeadOption[]>("/api/v1/misc/charge-heads").catch(() => []),
       ]);
@@ -505,6 +482,7 @@ export default function HireChallansPage() {
       setVehicles(Array.from(vMap.values()));
       setDrivers(Array.isArray(driversRes) ? driversRes : []);
       setOwners(Array.isArray(ownersRes) ? ownersRes : []);
+      setVendors(Array.isArray(vendorsRes) ? vendorsRes : []);
       setLrs(Array.isArray(lrsRes) ? lrsRes : []);
       setChargeHeads(Array.isArray(chargeHeadsRes) ? chargeHeadsRes : []);
 
@@ -630,6 +608,60 @@ export default function HireChallansPage() {
     return list;
   }, [chargeHeads]);
 
+  const locationOptions = useMemo(
+    () => locations.filter((location) => location.is_active !== false).map((location) => ({
+      value: location.city_name,
+      label: location.city_name,
+      subLabel: [location.state, location.pincode].filter(Boolean).join(" · "),
+    })),
+    [locations]
+  );
+
+  const vehicleOptions = useMemo(
+    () => vehicles.map((vehicle) => ({
+      value: vehicle.vehicle_number,
+      label: vehicle.vehicle_number,
+      subLabel: vehicle.vehicle_type || "Vehicle",
+    })),
+    [vehicles]
+  );
+
+  const driverOptions = useMemo(
+    () => drivers.filter((driver: any) => driver.is_active !== false || String(driver.id) === driverId).map((driver) => ({
+      value: String(driver.id),
+      label: driver.name,
+      subLabel: driver.phone || "Driver",
+    })),
+    [drivers, driverId]
+  );
+
+  const partyOptions = useMemo(
+    () => [
+      ...vendors.filter((vendor) => vendor.is_active !== false || String(vendor.id) === vendorId).map((vendor) => ({
+        value: `vendor:${vendor.id}`,
+        label: vendor.name,
+        subLabel: "Vendor",
+        keywords: [vendor.pan || "", vendor.phone || ""],
+      })),
+      ...owners.filter((owner: any) => owner.is_active !== false || String(owner.id) === ownerId).map((owner) => ({
+        value: `owner:${owner.id}`,
+        label: owner.name,
+        subLabel: "Vehicle Owner",
+        keywords: [owner.pan || "", owner.phone || ""],
+      })),
+    ],
+    [vendors, owners, vendorId, ownerId]
+  );
+
+  const searchLocationOptions = useCallback(async (query: string) => {
+    const results = await apiClient<LocationOption[]>(`/api/v1/general/locations/search?q=${encodeURIComponent(query)}`);
+    return results.filter((location) => location.is_active !== false).map((location) => ({
+      value: location.city_name,
+      label: location.city_name,
+      subLabel: [location.state, location.pincode].filter(Boolean).join(" · "),
+    }));
+  }, []);
+
   const refreshDrivers = async () => {
     setIsRefreshingDrivers(true);
     try {
@@ -651,6 +683,7 @@ export default function HireChallansPage() {
     );
     if (matchedVehicle && matchedVehicle.owner_id) {
       setOwnerId(String(matchedVehicle.owner_id));
+      setVendorId("");
     }
   };
 
@@ -661,6 +694,12 @@ export default function HireChallansPage() {
       setDriverName(matched.name);
       if (matched.phone) setDriverPhone(matched.phone);
     }
+  };
+
+  const handlePartySelect = (value: string) => {
+    const [partyType, id] = value.split(":");
+    setOwnerId(partyType === "owner" ? id : "");
+    setVendorId(partyType === "vendor" ? id : "");
   };
 
   const handleTdsCategoryChange = (val: string) => {
@@ -877,6 +916,7 @@ export default function HireChallansPage() {
     setDriverName("");
     setDriverPhone("");
     setOwnerId("");
+    setVendorId("");
     setTdsCategory("");
     setTdsRate(0);
     setTdsAmountInput("");
@@ -927,6 +967,7 @@ export default function HireChallansPage() {
     setDriverName(row.driver_name || "");
     setDriverPhone(row.driver_phone || "");
     setOwnerId(row.owner_id ? String(row.owner_id) : "");
+    setVendorId(row.vendor_id ? String(row.vendor_id) : "");
     setTdsCategory(row.tds_category || "");
     setTdsRate(row.tds_rate ? parseFloat(String(row.tds_rate)) : 0);
     setTdsAmountInput(row.tds_amount ? String(row.tds_amount) : "");
@@ -1035,6 +1076,14 @@ export default function HireChallansPage() {
       scrollToMissedField("vehicleNumber");
       return;
     }
+    if (!driverId) {
+      toast.warning("Please select a Driver.");
+      return;
+    }
+    if (!ownerId && !vendorId) {
+      toast.warning("Please select a Vendor or Vehicle Owner.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -1049,6 +1098,7 @@ export default function HireChallansPage() {
         lr_id: primaryLrId ? parseInt(String(primaryLrId), 10) : undefined,
         vehicle_number: vehicleNumber.trim().toUpperCase(),
         owner_id: ownerId ? parseInt(ownerId, 10) : undefined,
+        vendor_id: vendorId ? parseInt(vendorId, 10) : undefined,
         driver_id: driverId ? parseInt(driverId, 10) : undefined,
         driver_name: driverName.trim() || undefined,
         driver_phone: driverPhone.trim() || undefined,
@@ -1733,22 +1783,17 @@ export default function HireChallansPage() {
                 <label className="block text-xs font-semibold text-slate-700">
                   From (Origin) <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <SearchableSelect
                   id="fromLocation"
                   name="fromLocation"
-                  type="text"
                   required
-                  list="from-locations-list"
                   value={fromLocation}
-                  onChange={(e) => setFromLocation(e.target.value)}
+                  onChange={(value) => setFromLocation(String(value))}
+                  options={locationOptions}
+                  onSearch={searchLocationOptions}
                   placeholder="Select origin city"
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                  searchPlaceholder="Search origin city..."
                 />
-                <datalist id="from-locations-list">
-                  {[...locations, ...fromLocationMatches].filter((loc, index, all) => all.findIndex((item) => item.id === loc.id) === index).filter((loc) => loc.is_active !== false || loc.city_name === fromLocation).map((loc) => (
-                    <option key={loc.id} value={loc.city_name} label={[loc.city_name, loc.state, loc.pincode].filter(Boolean).join(", ")} />
-                  ))}
-                </datalist>
               </div>
 
               {/* To */}
@@ -1756,22 +1801,17 @@ export default function HireChallansPage() {
                 <label className="block text-xs font-semibold text-slate-700">
                   To (Destination) <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <SearchableSelect
                   id="toLocation"
                   name="toLocation"
-                  type="text"
                   required
-                  list="to-locations-list"
                   value={toLocation}
-                  onChange={(e) => setToLocation(e.target.value)}
+                  onChange={(value) => setToLocation(String(value))}
+                  options={locationOptions}
+                  onSearch={searchLocationOptions}
                   placeholder="Select destination city"
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                  searchPlaceholder="Search destination city..."
                 />
-                <datalist id="to-locations-list">
-                  {[...locations, ...toLocationMatches].filter((loc, index, all) => all.findIndex((item) => item.id === loc.id) === index).filter((loc) => loc.is_active !== false || loc.city_name === toLocation).map((loc) => (
-                    <option key={loc.id} value={loc.city_name} label={[loc.city_name, loc.state, loc.pincode].filter(Boolean).join(", ")} />
-                  ))}
-                </datalist>
               </div>
 
               {/* Vehicle No */}
@@ -1779,24 +1819,16 @@ export default function HireChallansPage() {
                 <label className="block text-xs font-semibold text-slate-700">
                   Vehicle No <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <SearchableSelect
                   id="vehicleNumber"
                   name="vehicleNumber"
-                  type="text"
                   required
-                  list="vehicles-list"
                   value={vehicleNumber}
-                  onChange={(e) => handleVehicleSelect(e.target.value)}
-                  placeholder="e.g. DL-01-AB-1234"
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold uppercase rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                  onChange={(value) => handleVehicleSelect(String(value))}
+                  options={vehicleOptions}
+                  placeholder="Select vehicle number"
+                  searchPlaceholder="Search vehicle number..."
                 />
-                <datalist id="vehicles-list">
-                  {vehicles.filter((v: any) => v.is_active !== false || v.vehicle_number === vehicleNumber).map((v) => (
-                    <option key={v.id} value={v.vehicle_number}>
-                      {v.vehicle_number} {v.vehicle_type ? `(${v.vehicle_type})` : ""}
-                    </option>
-                  ))}
-                </datalist>
               </div>
 
               {/* Driver Name with standardized pale purple '+' and slate Reload */}
@@ -1805,18 +1837,14 @@ export default function HireChallansPage() {
                   Driver Name <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
-                  <select
+                  <SearchableSelect
                     value={driverId}
-                    onChange={(e) => handleDriverSelect(e.target.value)}
-                    className="flex-1 min-w-0 h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs truncate cursor-pointer"
-                  >
-                    <option value="">- Select Driver -</option>
-                    {drivers.filter((d: any) => d.is_active !== false || String(d.id) === String(driverId)).map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} {d.phone ? `(${d.phone})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => handleDriverSelect(String(value))}
+                    options={driverOptions}
+                    placeholder="Select driver"
+                    searchPlaceholder="Search driver name or phone..."
+                    required
+                  />
 
                   <button
                     type="button"
@@ -1863,19 +1891,14 @@ export default function HireChallansPage() {
                   Vendor / Vehicle Owner <span className="text-rose-500">*</span>
                 </label>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={ownerId}
-                    onChange={(e) => setOwnerId(e.target.value)}
+                  <SearchableSelect
+                    value={vendorId ? `vendor:${vendorId}` : ownerId ? `owner:${ownerId}` : ""}
+                    onChange={(value) => handlePartySelect(String(value))}
+                    options={partyOptions}
                     required
-                    className="flex-1 min-w-0 h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs truncate cursor-pointer"
-                  >
-                    <option value="">- Select Vendor / Owner -</option>
-                    {owners.filter((o: any) => o.is_active !== false || String(o.id) === String(ownerId)).map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name} {o.pan ? `[${o.pan}]` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Select vendor or vehicle owner"
+                    searchPlaceholder="Search vendor, owner, PAN, or phone..."
+                  />
                   <button
                     type="button"
                     onClick={() =>
@@ -1892,6 +1915,7 @@ export default function HireChallansPage() {
                             ...prev,
                           ]);
                           setOwnerId(String(newO.id));
+                          setVendorId("");
                         },
                       })
                     }
