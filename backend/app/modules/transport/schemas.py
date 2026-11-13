@@ -521,6 +521,7 @@ class LRBase(BaseModel):
             return None
         return v
 
+class LRCreate(LRBase):
     @model_validator(mode="after")
     def validate_lr_requirements(self):
         if not self.billing_customer_id:
@@ -537,9 +538,6 @@ class LRBase(BaseModel):
         if missing:
             raise ValueError(f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} required")
         return self
-
-class LRCreate(LRBase):
-    pass
 
 class LRUpdate(BaseModel):
     lr_number: Optional[str] = None
