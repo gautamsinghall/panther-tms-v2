@@ -20,7 +20,7 @@ from app.tenant_db.models import (
 
 from app.modules.transport_reports.schemas import (
 
-    LRRegisterRow, LRClientWiseRow, HireChallanRegisterRow,
+    LRRegisterRow, LRClientWiseRow, LRClientWiseRecord, HireChallanRegisterRow,
 
     PendingHCRow, UnbilledLRRow, ArrivalRegisterRow,
 
@@ -218,89 +218,189 @@ async def get_lr_booking_register(
 
 
 
-# 2. LR Client-Wise (Consigner & Consignee aggregation)
-
+# 2. LR Client-Wise (Consigner & Consignee aggregation with complete LR records)
 async def get_lr_client_wise(
-
     db: AsyncSession,
-
     office_id: Optional[int] = None,
-
     include_unassigned: bool = False,
-
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    customer_id: Optional[int] = None,
 ) -> List[LRClientWiseRow]:
-
-    # Group by Consigner
-
     stmt = (
-
-        select(
-
-            Consigner.name.label("client_name"),
-
-            func.count(LR.id).label("total_lrs"),
-
-            func.coalesce(func.sum(LR.chargeable_weight_mt), Decimal("0.000")).label("total_weight"),
-
-            func.coalesce(func.sum(LR.total_freight_amount), Decimal("0.00")).label("total_freight"),
-
-            func.count(
-
-                case((LR.status.in_([LRStatus.DELIVERED.value, LRStatus.POD_RECEIVED.value, LRStatus.POD_VERIFIED.value]), 1))
-
-            ).label("delivered_count"),
-
-            func.count(
-
-                case((LR.status == LRStatus.IN_TRANSIT.value, 1))
-
-            ).label("in_transit_count"),
-
+        select(LR)
+        .options(
+            selectinload(LR.consigner),
+            selectinload(LR.consignee),
+            selectinload(LR.billing_customer),
+            selectinload(LR.origin_location),
+            selectinload(LR.destination_location),
+            selectinload(LR.issuing_office),
         )
-
-        .join(LR, LR.consigner_id == Consigner.id)
-
+        .order_by(desc(LR.lr_date), desc(LR.id))
     )
 
     if office_id:
-
         if include_unassigned:
-
             stmt = stmt.where(or_(LR.issuing_office_id == office_id, LR.issuing_office_id.is_(None)))
-
         else:
-
             stmt = stmt.where(LR.issuing_office_id == office_id)
 
-    stmt = stmt.group_by(Consigner.id, Consigner.name).order_by(desc("total_lrs"))
+    if from_date:
+        stmt = stmt.where(LR.lr_date >= from_date)
+
+    if to_date:
+        stmt = stmt.where(LR.lr_date <= to_date)
+
+    if customer_id:
+        stmt = stmt.where(or_(LR.billing_customer_id == customer_id, LR.consigner_id == customer_id))
 
     result = await db.execute(stmt)
+    lrs = result.scalars().all()
 
-    rows = []
-
-    for r in result.all():
-
-        rows.append(
-
-            LRClientWiseRow(
-
-                client_name=r.client_name,
-
-                client_type="Consigner",
-
-                total_lrs=r.total_lrs,
-
-                total_weight_mt=r.total_weight,
-
-                total_freight_amount=r.total_freight,
-
-                delivered_count=r.delivered_count,
-
-                in_transit_count=r.in_transit_count,
-
-            )
-
+    # Pre-fetch active transport invoices (bills) linked to these LRs
+    lr_ids = [lr.id for lr in lrs]
+    voucher_map = {}
+    if lr_ids:
+        v_stmt = select(Voucher).where(
+            Voucher.voucher_type == VoucherType.TRANSPORT_INVOICE.value,
+            Voucher.is_void == False,
+            Voucher.lr_id.in_(lr_ids),
         )
+        v_res = await db.execute(v_stmt)
+        for v in v_res.scalars().all():
+            voucher_map[v.lr_id] = v
+
+    groups: dict[str, dict] = {}
+
+    for lr in lrs:
+        billing_cust_name = lr.billing_customer.name if getattr(lr, "billing_customer", None) and lr.billing_customer else None
+        consigner_name = lr.consigner.name if getattr(lr, "consigner", None) and lr.consigner else None
+        consignee_name = lr.consignee.name if getattr(lr, "consignee", None) and lr.consignee else None
+
+        client_name = billing_cust_name or consigner_name or "Unassigned Client"
+        client_type = "Billing Client" if billing_cust_name else ("Consigner" if consigner_name else "Unassigned")
+        client_id = lr.billing_customer_id if billing_cust_name else (lr.consigner_id if consigner_name else None)
+
+        site_from = ""
+        if getattr(lr, "origin_location", None) and lr.origin_location:
+            c = lr.origin_location.city_name or ""
+            s = lr.origin_location.state or ""
+            site_from = f"{c}({s})" if s else c
+        elif getattr(lr, "origin_city", None):
+            site_from = str(lr.origin_city)
+
+        site_to = ""
+        if getattr(lr, "destination_location", None) and lr.destination_location:
+            c = lr.destination_location.city_name or ""
+            s = lr.destination_location.state or ""
+            site_to = f"{c}({s})" if s else c
+        elif getattr(lr, "destination_city", None):
+            site_to = str(lr.destination_city)
+
+        month_name = lr.lr_date.strftime("%B") if lr.lr_date else ""
+
+        weight_val = lr.chargeable_weight_mt if (lr.chargeable_weight_mt and lr.chargeable_weight_mt > 0) else lr.actual_weight_mt
+
+        # Invoice info with fallback to invoice_items JSON
+        inv_no = lr.invoice_no or ""
+        inv_date = lr.invoice_date
+        inv_val = lr.invoice_value if (lr.invoice_value and lr.invoice_value > 0) else None
+
+        if not inv_no and getattr(lr, "invoice_items", None) and isinstance(lr.invoice_items, list) and len(lr.invoice_items) > 0:
+            first_inv = lr.invoice_items[0]
+            if isinstance(first_inv, dict):
+                inv_no = first_inv.get("invoice_no") or ""
+                if not inv_date and first_inv.get("invoice_date"):
+                    try:
+                        inv_date = date.fromisoformat(str(first_inv.get("invoice_date")).split("T")[0])
+                    except Exception:
+                        pass
+                if not inv_val and first_inv.get("invoice_value"):
+                    try:
+                        inv_val = Decimal(str(first_inv.get("invoice_value")))
+                    except Exception:
+                        pass
+
+        # Linked bill / transport invoice voucher
+        v = voucher_map.get(lr.id)
+        if v:
+            billing_status = "Billed"
+            bill_amount = v.net_amount or v.total_amount
+            bill_no = v.voucher_number or ""
+            bill_date = v.voucher_date
+        elif lr.is_billed:
+            billing_status = "Billed"
+            bill_amount = lr.total_freight_amount
+            bill_no = ""
+            bill_date = None
+        else:
+            billing_status = "Unbilled"
+            bill_amount = None
+            bill_no = ""
+            bill_date = None
+
+        booking_status = lr.booking_status or (lr.status.replace("_", " ").title() if lr.status else "Booked")
+
+        rec = LRClientWiseRecord(
+            id=lr.id,
+            lr_number=lr.lr_number,
+            month=month_name,
+            lr_date=lr.lr_date,
+            vehicle_number=lr.vehicle_number or "",
+            vehicle_type=lr.vehicle_type or "",
+            eta=lr.eta or "",
+            site_from=site_from,
+            site_to=site_to,
+            party_invoice_no=inv_no,
+            party_invoice_date=inv_date,
+            invoice_value=inv_val,
+            weight=weight_val if (weight_val and weight_val > 0) else None,
+            pkts=lr.package_count if (lr.package_count and lr.package_count > 0) else None,
+            consigner_name=consigner_name or "",
+            consignee_name=consignee_name or "",
+            billing_customer=billing_cust_name or consigner_name or "",
+            billing_status=billing_status,
+            bill_amount=bill_amount,
+            bill_no=bill_no,
+            bill_date=bill_date,
+            booking_status=booking_status,
+            payment_type=lr.payment_type or "",
+        )
+
+        if client_name not in groups:
+            groups[client_name] = {
+                "client_id": client_id,
+                "client_name": client_name,
+                "client_type": client_type,
+                "total_lrs": 0,
+                "total_weight_mt": Decimal("0.000"),
+                "total_freight_amount": Decimal("0.00"),
+                "delivered_count": 0,
+                "in_transit_count": 0,
+                "records": [],
+            }
+
+        g = groups[client_name]
+        g["total_lrs"] += 1
+        if lr.chargeable_weight_mt:
+            g["total_weight_mt"] += lr.chargeable_weight_mt
+        elif lr.actual_weight_mt:
+            g["total_weight_mt"] += lr.actual_weight_mt
+
+        if lr.total_freight_amount:
+            g["total_freight_amount"] += lr.total_freight_amount
+
+        if lr.status in [LRStatus.DELIVERED.value, LRStatus.POD_RECEIVED.value, LRStatus.POD_VERIFIED.value]:
+            g["delivered_count"] += 1
+        elif lr.status == LRStatus.IN_TRANSIT.value:
+            g["in_transit_count"] += 1
+
+        g["records"].append(rec)
+
+    rows: List[LRClientWiseRow] = []
+    for g in sorted(groups.values(), key=lambda x: (-x["total_lrs"], x["client_name"])):
+        rows.append(LRClientWiseRow(**g))
 
     return rows
 

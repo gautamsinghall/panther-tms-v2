@@ -35,14 +35,45 @@ class LRRegisterRow(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class LRClientWiseRecord(BaseModel):
+    id: int
+    lr_number: str
+    month: Optional[str] = ""
+    lr_date: Optional[date] = None
+    vehicle_number: Optional[str] = ""
+    vehicle_type: Optional[str] = ""
+    eta: Optional[str] = ""
+    site_from: Optional[str] = ""
+    site_to: Optional[str] = ""
+    party_invoice_no: Optional[str] = ""
+    party_invoice_date: Optional[date] = None
+    invoice_value: Optional[Decimal] = None
+    weight: Optional[Decimal] = None
+    pkts: Optional[int] = None
+    consigner_name: Optional[str] = ""
+    consignee_name: Optional[str] = ""
+    billing_customer: Optional[str] = ""
+    billing_status: Optional[str] = ""
+    bill_amount: Optional[Decimal] = None
+    bill_no: Optional[str] = ""
+    bill_date: Optional[date] = None
+    booking_status: Optional[str] = ""
+    payment_type: Optional[str] = ""
+
+    model_config = ConfigDict(from_attributes=True)
+
 class LRClientWiseRow(BaseModel):
+    client_id: Optional[int] = None
     client_name: str
-    client_type: str  # Consigner or Consignee
+    client_type: str  # Consigner or Billing Client
     total_lrs: int
     total_weight_mt: Decimal
     total_freight_amount: Decimal
     delivered_count: int
     in_transit_count: int
+    records: List[LRClientWiseRecord] = []
+
+    model_config = ConfigDict(from_attributes=True)
 
 class HireChallanRegisterRow(BaseModel):
     id: int

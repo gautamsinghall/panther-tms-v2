@@ -36,13 +36,23 @@ async def get_lr_booking_register(
 
 @router.get("/lr-client-wise", response_model=List[LRClientWiseRow], summary="LR Client-Wise Summary")
 async def get_lr_client_wise(
+    from_date: Optional[date] = Query(None, description="Start date for LR filter"),
+    to_date: Optional[date] = Query(None, description="End date for LR filter"),
+    customer_id: Optional[int] = Query(None, description="Filter by customer / billing client ID"),
     current_user: User = Depends(require_permission("transport_reports", "lr_client_wise", "view")),
     current_office: Optional[Branch] = Depends(get_current_office),
     db: AsyncSession = Depends(get_tenant_db),
 ):
     office_id = current_office.id if current_office else None
     include_unassigned = current_office.is_head_office if current_office else True
-    return await service.get_lr_client_wise(db, office_id=office_id, include_unassigned=include_unassigned)
+    return await service.get_lr_client_wise(
+        db,
+        office_id=office_id,
+        include_unassigned=include_unassigned,
+        from_date=from_date,
+        to_date=to_date,
+        customer_id=customer_id,
+    )
 
 @router.get("/hc-register", response_model=List[HireChallanRegisterRow], summary="Hire Challan Register")
 async def get_hc_register(
