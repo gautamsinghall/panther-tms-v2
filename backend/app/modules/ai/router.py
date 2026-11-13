@@ -93,6 +93,8 @@ from app.modules.ai.tools import (
     execute_fleet_maintenance_tool,
     execute_einvoice_tool,
 )
+from app.modules.ai.intent_router import classify_intent_and_entities, RouterResult
+from app.modules.ai import typed_tools
 
 
 # ==============================================================================
@@ -1374,6 +1376,324 @@ async def chat_with_copilot(
         query=last_user_message,
         authorized_catalog=authorized_catalog,
     )
+
+    # --------------------------------------------------------------------------
+    # INTENT-FIRST ROUTER PIPELINE (INTENT -> TOOLS -> RENDER)
+    # Runs on EVERY message, BEFORE any slot-filling, search, or draft creation.
+    # --------------------------------------------------------------------------
+    if db:
+        conv_state = await lr_draft_store.get_conversation_state(tenant.id, current_user.id)
+
+        # Check active LR draft
+        active_d_id = await lr_draft_store.get_active_draft_id(tenant.id, current_user.id, draft_type="lr")
+        existing_d = (await lr_draft_store.get_draft(active_d_id)) if active_d_id else None
+        if existing_d and not existing_d.is_confirmed and current_office and existing_d.office_id and existing_d.office_id != current_office.id:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+            existing_d = None
+        has_active_draft = bool(existing_d and not existing_d.is_confirmed)
+        if has_active_draft:
+            conv_state["state"] = "booking_draft"
+            conv_state["draft"] = existing_d.to_dict()
+
+        router_res = classify_intent_and_entities(
+            last_user_message,
+            conversation_history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+            state=conv_state,
+            detected_lang=detected_lang,
+        )
+        c_intent = router_res.intent
+        c_conf = router_res.confidence
+        c_slots = router_res.entities_raw
+
+        # Invariant: If intent changed, clear lastSearch and lastIntent
+        if c_intent != conv_state.get("lastIntent"):
+            conv_state["lastSearch"] = None
+            conv_state["lastIntent"] = c_intent
+            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+
+        # 1. Cancel Draft Intent
+        is_cancel = is_cancel_intent(last_user_message)
+        is_job_canc = is_job_cancel_intent(last_user_message)
+        is_hc_canc = is_hc_cancel_intent(last_user_message)
+        if c_intent == "cancel_draft" or is_cancel or is_job_canc or is_hc_canc:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="job")
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="hire_challan")
+            conv_state = {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None}
+            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+            if detected_lang == "hi_devanagari":
+                reply_content = "आपका सक्रिय ड्राफ्ट रद्द (cancel) कर दिया गया है। जब भी आप नया कंसाइनमेंट या कार्य शुरू करना चाहें, मुझे बताएं।"
+            elif detected_lang == "hinglish":
+                reply_content = "Aapka active draft cancel kar diya gaya hai. Nayi booking ya transport operations ke liye kabhi bhi batayein."
+            else:
+                reply_content = "Your active LR draft has been cancelled. Let me know when you would like to book a new consignment."
+            card = StructuredCard(
+                card_type="lr_draft",
+                title="LR Booking • Draft Cancelled",
+                subtitle="Cancelled — no LR was created",
+                badge={"text": "Cancelled", "variant": "neutral"},
+                can_confirm=False,
+            )
+            return ChatResponse(
+                content=reply_content,
+                navigation_suggestions=[],
+                citations=[],
+                cards=[card],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+        # Check job & HC requests before general low confidence gate
+        is_job_req = is_job_booking_intent(last_user_message)
+        is_hc_req = is_hire_challan_intent(last_user_message)
+
+        # Page awareness query (e.g. "Which page am I on?")
+        q_page = is_current_page_query(last_user_message)
+        if q_page:
+            return ChatResponse(
+                content=get_page_awareness_response(data.page_context, q_page, lang=detected_lang),
+                navigation_suggestions=nav_suggestions,
+                citations=[],
+                cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+        # TMS Navigation queries (e.g. "Where can I view driver balances?", "Which section contains payment vouchers?")
+        nav_tuple = get_tms_navigation_response(last_user_message, lang=detected_lang)
+        if nav_tuple:
+            nav_msg, nav_items = nav_tuple
+            return ChatResponse(
+                content=nav_msg,
+                navigation_suggestions=nav_items,
+                citations=[],
+                cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+        # TMS Guidance queries (e.g. "How do I add a new vehicle?", "How do I check a driver's advance?", "Explain View Ledger")
+        guidance_tuple = get_tms_guidance_response(last_user_message, lang=detected_lang)
+        if guidance_tuple:
+            g_msg, g_navs = guidance_tuple
+            return ChatResponse(
+                content=g_msg,
+                navigation_suggestions=g_navs,
+                citations=[],
+                cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+        # 2. Confidence Gate: Confidence < 0.7 triggers single clarification question
+        if (c_intent == "unknown" or c_conf < 0.7) and not (is_job_req or is_hc_req):
+            if detected_lang == "hi_devanagari":
+                clarification = "क्या आप एलआर (LR) बुक करना चाहते हैं, ट्रैक करना चाहते हैं, या बैलेंस चेक करना चाहते हैं?"
+            elif detected_lang == "hinglish":
+                clarification = "Kya aap LR book karna chahte hain, track karna chahte hain, ya balance check karna chahte hain?"
+            else:
+                clarification = "Do you want to book an LR, track one, or check a balance?"
+            conv_state["state"] = "awaiting_clarification"
+            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+            return ChatResponse(
+                content=clarification,
+                navigation_suggestions=[
+                    NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
+                    NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
+                    NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger", module="Accounts"),
+                ],
+                citations=[],
+                cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
+        # 3. Knowledge & Guidance Intents
+        if c_intent == "what_is_eway":
+            msg, cards, navs = typed_tools.getKnowledge("eway", lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "how_to_create_lr":
+            msg, cards, navs = typed_tools.getHowTo("lr", lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "how_to_track":
+            msg, cards, navs = typed_tools.getHowTo("tracking", lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 4. Action Intents: Add / Change Consignee
+        if c_intent in ("add_consignee", "change_consignee") and not has_active_draft:
+            msg, cards, navs = typed_tools.addConsigneePrompt(consignee_name=c_slots.get("consignee"), lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 5. Ledger & Balances Family
+        if c_intent in ("view_ledger", "outstanding_balance", "vendor_balance"):
+            if not is_user_permitted(current_user, tenant, "accounts", "master_ledger", "view"):
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_LEDGER", "accounts", "accounts.master_ledger.view", last_user_message, current_office)
+                msg = "You don't have access to view accounts ledger. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            reply_content, cards = await execute_accounting_tool(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                party_name=c_slots.get("party_name"),
+                target_role=c_slots.get("target_role"),
+                lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 6. Invoices / Bills
+        if c_intent == "show_bills":
+            can_inv = is_user_permitted(current_user, tenant, "accounts", "transport_invoice", "view") or is_user_permitted(current_user, tenant, "accounts", "vouchers", "view")
+            if not can_inv:
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_INVOICE", "accounts", "accounts.transport_invoice.view", last_user_message, current_office)
+                msg = "You don't have access to view Invoices. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            msg, cards, navs = await typed_tools.showBills(db, current_user, tenant, current_office, lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 7. Vehicles: Unified search & list-all
+        if c_intent == "list_vehicles":
+            can_veh = is_user_permitted(current_user, tenant, "transport", "company_vehicles", "view") or is_user_permitted(current_user, tenant, "transport", "market_vehicles", "view")
+            if not can_veh:
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_VEHICLES", "transport", "transport.company_vehicles.view", last_user_message, current_office)
+                msg = "You don't have access to view Vehicles. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            msg, cards, navs = await typed_tools.listVehicles(db, current_user, tenant, current_office, lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "find_vehicle":
+            can_veh = is_user_permitted(current_user, tenant, "transport", "company_vehicles", "view") or is_user_permitted(current_user, tenant, "transport", "market_vehicles", "view")
+            if not can_veh:
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_VEHICLES", "transport", "transport.company_vehicles.view", last_user_message, current_office)
+                msg = "You don't have access to view Vehicles. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            v_num = c_slots.get("vehicle_number")
+            conv_state["lastSearch"] = v_num
+            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+            msg, cards, navs = await typed_tools.searchVehicle(
+                db, current_user, tenant, current_office,
+                vehicleNumber=v_num,
+                scope=c_slots.get("scope", "all"),
+                lang=detected_lang,
+            )
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 8. Drivers: Balances, search, listing
+        if c_intent == "driver_balance":
+            if not is_user_permitted(current_user, tenant, "transport", "drivers", "view"):
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_DRIVERS", "transport", "transport.drivers.view", last_user_message, current_office)
+                msg = "You don't have access to view Drivers. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            msg, cards, navs = await typed_tools.driverBalance(
+                db, current_user, tenant, current_office,
+                driver_name=c_slots.get("driver_name"),
+                lang=detected_lang,
+            )
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "list_drivers":
+            if not is_user_permitted(current_user, tenant, "transport", "drivers", "view"):
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_DRIVERS", "transport", "transport.drivers.view", last_user_message, current_office)
+                msg = "You don't have access to view Drivers. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            msg, cards, navs = await typed_tools.listDrivers(db, current_user, tenant, current_office, lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "find_driver":
+            if not is_user_permitted(current_user, tenant, "transport", "drivers", "view"):
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_VIEW_DRIVERS", "transport", "transport.drivers.view", last_user_message, current_office)
+                msg = "You don't have access to view Drivers. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            msg, cards, navs = await typed_tools.searchDriver(db, current_user, tenant, current_office, query=c_slots.get("driver_name"), lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 9. Clients
+        if c_intent in ("find_client", "list_clients"):
+            msg, cards, navs = await typed_tools.listBillingClients(
+                db, current_user, tenant, current_office,
+                client_name=c_slots.get("client_name"),
+                lang=detected_lang,
+            )
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 10. Freight for LR
+        if c_intent == "freight_for_lr":
+            msg, cards, navs = await typed_tools.getLRFreight(
+                db, current_user, tenant, current_office,
+                lr_number=c_slots.get("lr_number"),
+                lang=detected_lang,
+            )
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 11. Tracking (LR / Vehicle)
+        if c_intent in ("track_lr", "track_vehicle"):
+            can_track = is_user_permitted(current_user, tenant, "tracking", "tracking", "view") or is_user_permitted(current_user, tenant, "transport", "lr_booking", "view")
+            if not can_track:
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_TRACKING", "tracking", "tracking.tracking.view", last_user_message, current_office)
+                msg = "You don't have access to track shipments. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            lr_no = c_slots.get("lr_number")
+            veh_no = c_slots.get("vehicle_number")
+            if not lr_no and not veh_no:
+                if c_slots.get("is_today") or c_slots.get("is_latest") or bool(re.search(r"\b(lr|gr|bilty)\b", last_user_message, re.I)):
+                    reply_content, cards = await execute_lr_tool(
+                        db=db, user=current_user, tenant=tenant, current_office=current_office,
+                        is_latest=c_slots.get("is_latest", False),
+                        limit=5,
+                        lang=detected_lang,
+                    )
+                    return ChatResponse(content=reply_content, navigation_suggestions=nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+                if detected_lang == "hi_devanagari":
+                    msg = "कृपया वह एलआर (LR) नंबर या वाहन नंबर बताएं जिसे आप ट्रैक करना चाहते हैं।"
+                elif detected_lang == "hinglish":
+                    msg = "Kripya wo LR number ya vehicle number batayein jise aap track karna chahte hain."
+                else:
+                    msg = "Please provide the LR number or vehicle number you wish to track."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            reply_content, cards = await execute_tracking_tool(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                lr_number=lr_no, vehicle_number=veh_no, lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 12. Conversational / Help / Off-topic
+        if c_intent == "greet":
+            return ChatResponse(content=get_greeting_response(lang=detected_lang), navigation_suggestions=nav_suggestions, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "help":
+            return ChatResponse(content=get_capabilities_list_markdown(lang=detected_lang), navigation_suggestions=nav_suggestions, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "off_topic":
+            safe_msg, safe_navs = get_safe_general_or_refusal_response("off_topic", last_user_message, lang=detected_lang)
+            return ChatResponse(content=safe_msg, navigation_suggestions=safe_navs or nav_suggestions, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 13. Book LR
+        if c_intent == "book_lr" or (has_active_draft and not (is_job_req or is_hc_req)):
+            if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
+                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_CREATE_LR", "transport", "transport.lr_booking.create", last_user_message, current_office)
+                office_str = format_user_office_label(current_office, current_user)
+                if detected_lang == "hi_devanagari":
+                    msg = f"आपके पास एलआर (LR) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
+                elif detected_lang == "hinglish":
+                    msg = f"Aapke paas LRs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
+                else:
+                    msg = f"You don't have access to create LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
+                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+            reply_content, cards = await handle_conversational_lr_booking(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                user_text=last_user_message, lang=detected_lang,
+            )
+            conv_state["state"] = "booking_draft"
+            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+            return ChatResponse(
+                content=reply_content,
+                navigation_suggestions=nav_suggestions,
+                citations=[],
+                cards=cards,
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
 
     # --------------------------------------------------------------------------
     # STEP 2: CONVERSATIONAL WRITE WORKFLOWS & DRAFT INTERRUPT/PAUSE HANDLING

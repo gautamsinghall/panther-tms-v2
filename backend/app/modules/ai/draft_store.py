@@ -325,6 +325,15 @@ class BaseDraftBackend:
     async def record_confirmed_operation(self, draft_id: str, result: Dict[str, Any], ttl_seconds: int = 86400) -> None:
         raise NotImplementedError
 
+    async def get_conversation_state(self, tenant_id: int, user_id: int) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    async def set_conversation_state(self, tenant_id: int, user_id: int, state: Dict[str, Any], ttl_seconds: int = 3600) -> None:
+        raise NotImplementedError
+
+    async def clear_conversation_state(self, tenant_id: int, user_id: int) -> None:
+        raise NotImplementedError
+
 
 class RedisDraftBackend(BaseDraftBackend):
     """Production shared storage backend across Dokploy multi-worker instances."""
@@ -413,6 +422,24 @@ class RedisDraftBackend(BaseDraftBackend):
         payload = json.dumps(result, default=json_serial)
         await r.set(f"panther:ai:confirmed_op:{draft_id}", payload, ex=ttl_seconds)
 
+    async def get_conversation_state(self, tenant_id: int, user_id: int) -> Dict[str, Any]:
+        r = await self._get_client()
+        raw = await r.get(f"panther:ai:conv_state:{tenant_id}:{user_id}")
+        if not raw:
+            return {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None}
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None}
+
+    async def set_conversation_state(self, tenant_id: int, user_id: int, state: Dict[str, Any], ttl_seconds: int = 3600) -> None:
+        r = await self._get_client()
+        await r.set(f"panther:ai:conv_state:{tenant_id}:{user_id}", json.dumps(state, default=json_serial), ex=ttl_seconds)
+
+    async def clear_conversation_state(self, tenant_id: int, user_id: int) -> None:
+        r = await self._get_client()
+        await r.delete(f"panther:ai:conv_state:{tenant_id}:{user_id}")
+
 
 class InMemoryDraftBackend(BaseDraftBackend):
     """Thread-safe in-memory backend for hermetic unit testing without Redis."""
@@ -422,6 +449,7 @@ class InMemoryDraftBackend(BaseDraftBackend):
         self._user_active: Dict[str, str] = {}
         self._locks: Dict[str, datetime] = {}
         self._confirmed: Dict[str, str] = {}
+        self._conv_state: Dict[str, Dict[str, Any]] = {}
         self._lock = asyncio.Lock()
 
     async def get_draft(self, draft_id: str) -> Optional[AIDraft]:
@@ -483,6 +511,18 @@ class InMemoryDraftBackend(BaseDraftBackend):
     async def record_confirmed_operation(self, draft_id: str, result: Dict[str, Any], ttl_seconds: int = 86400) -> None:
         async with self._lock:
             self._confirmed[draft_id] = json.dumps(result, default=json_serial)
+
+    async def get_conversation_state(self, tenant_id: int, user_id: int) -> Dict[str, Any]:
+        async with self._lock:
+            return self._conv_state.get(f"{tenant_id}:{user_id}", {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None}).copy()
+
+    async def set_conversation_state(self, tenant_id: int, user_id: int, state: Dict[str, Any], ttl_seconds: int = 3600) -> None:
+        async with self._lock:
+            self._conv_state[f"{tenant_id}:{user_id}"] = state.copy()
+
+    async def clear_conversation_state(self, tenant_id: int, user_id: int) -> None:
+        async with self._lock:
+            self._conv_state.pop(f"{tenant_id}:{user_id}", None)
 
 
 # ==============================================================================
@@ -573,6 +613,15 @@ class AIDraftStore:
 
     async def record_confirmed_operation(self, draft_id: str, result: Dict[str, Any]) -> None:
         await self.backend.record_confirmed_operation(draft_id, result)
+
+    async def get_conversation_state(self, tenant_id: int, user_id: int) -> Dict[str, Any]:
+        return await self.backend.get_conversation_state(tenant_id, user_id)
+
+    async def set_conversation_state(self, tenant_id: int, user_id: int, state: Dict[str, Any], ttl_seconds: int = 3600) -> None:
+        await self.backend.set_conversation_state(tenant_id, user_id, state, ttl_seconds=ttl_seconds)
+
+    async def clear_conversation_state(self, tenant_id: int, user_id: int) -> None:
+        await self.backend.clear_conversation_state(tenant_id, user_id)
 
 
 # Backward compatibility aliases

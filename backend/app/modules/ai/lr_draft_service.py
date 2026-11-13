@@ -1145,6 +1145,7 @@ async def validate_and_update_draft(
         balance = total_freight - advance
 
         test_payload = {
+            "billing_customer_id": data.get("billing_customer_id") or data.get("consigner_id") or 1,
             "consigner_id": data.get("consigner_id") or 1,
             "consignee_id": data.get("consignee_id") or 1,
             "vehicle_number": data["vehicle_number"],
@@ -1241,15 +1242,39 @@ async def handle_conversational_lr_booking(
         draft_type="lr",
     )
 
-    # 4. Extract entities: heuristics first, followed by fast LLM enrichment if available
+    # 4. Extract entities: strict verbatim extraction first, followed by heuristics
     entities = parse_lr_entities_from_text(user_text, current_draft=draft)
 
-    # If any mandatory fields are still missing, try fast LLM extraction enrichment
+    # If this is not a single edit command, merge verbatim slots from intent router
+    if not entities.get("is_single_edit"):
+        from app.modules.ai.intent_router import extract_raw_booking_slots
+        raw_s = extract_raw_booking_slots(user_text)
+        if "fromCity" in raw_s and not entities.get("origin_candidate"):
+            entities["origin_candidate"] = raw_s["fromCity"]
+        if "toCity" in raw_s and not entities.get("destination_candidate"):
+            entities["destination_candidate"] = raw_s["toCity"]
+        if "consigner" in raw_s and not entities.get("consigner_candidate"):
+            entities["consigner_candidate"] = raw_s["consigner"]
+        if "consignee" in raw_s and not entities.get("consignee_candidate"):
+            entities["consignee_candidate"] = raw_s["consignee"]
+        if "vehicleNumber" in raw_s and not entities.get("vehicle_number"):
+            entities["vehicle_number"] = raw_s["vehicleNumber"]
+        if "packages" in raw_s and not entities.get("package_count"):
+            entities["package_count"] = raw_s["packages"]
+        if "weightKg" in raw_s and not entities.get("actual_weight_mt"):
+            entities["actual_weight_mt"] = round(raw_s["weightKg"] / 1000.0, 3)
+        if "freight" in raw_s and not entities.get("freight_amount"):
+            entities["freight_amount"] = raw_s["freight"]
+
+    # Only invoke LLM if fields still missing AND strictly ground every returned value to user text substring
     curr_missing = draft.missing_fields or ["Consigner (Sender)", "Consignee (Receiver)", "Vehicle Number", "Loading Location", "Delivery Location"]
-    if len(entities) < 3 and is_provider_configured():
+    if len(entities) < 2 and is_provider_configured():
         llm_entities = await extract_booking_entities_via_llm(user_text, curr_missing)
         for k, v in llm_entities.items():
             if k not in entities and v is not None:
+                # Reject any value that is not literally in user text (prevents locality expansion)
+                if isinstance(v, str) and v.lower() not in user_text.lower():
+                    continue
                 entities[k] = v
 
     feedback_notes = []
@@ -1399,7 +1424,7 @@ async def handle_conversational_lr_booking(
             "eway": "E-Way Bill",
         }
         display_name = field_display_names.get(target_key, edited_field.title())
-        has_changed = any(new_snapshot[k] != orig_snapshot[k] for k in orig_snapshot)
+        has_changed = new_snapshot.get(target_key) != orig_snapshot.get(target_key)
 
         if has_changed:
             feedback_notes.append(f"✅ Updated **{edited_field}** in your draft.")
@@ -1461,7 +1486,7 @@ async def handle_conversational_lr_booking(
         # Full Completed Form Review before final submission
         if lang == "hi_devanagari":
             base_msg = (
-                f"### 📋 एलआर बुकिंग फॉर्म — समीक्षा और पुष्टि\n\n"
+                f"**📋 एलआर बुकिंग फॉर्म — समीक्षा और पुष्टि**\n\n"
                 f"सभी आवश्यक विवरण सत्यापित हो चुके हैं:\n"
                 f"• **कंसाइनर (भेजने वाला):** {c_name}\n"
                 f"• **कंसाइनी (पाने वाला):** {ce_name}\n"
@@ -1478,7 +1503,7 @@ async def handle_conversational_lr_booking(
             )
         elif lang == "hinglish":
             base_msg = (
-                f"### 📋 LR Booking Form — Review & Confirmation\n\n"
+                f"**📋 LR Booking Form — Review & Confirmation**\n\n"
                 f"Sabhi zaroori details collect aur validate ho chuki hain:\n"
                 f"• **Consigner (Sender):** {c_name}\n"
                 f"• **Consignee (Receiver):** {ce_name}\n"
@@ -1495,7 +1520,7 @@ async def handle_conversational_lr_booking(
             )
         else:
             base_msg = (
-                f"### 📋 LR Booking Form — Review & Confirmation\n\n"
+                f"**📋 LR Booking Form — Review & Confirmation**\n\n"
                 f"All required information has been successfully collected and verified:\n"
                 f"• **Consigner (Sender):** {c_name}\n"
                 f"• **Consignee (Receiver):** {ce_name}\n"

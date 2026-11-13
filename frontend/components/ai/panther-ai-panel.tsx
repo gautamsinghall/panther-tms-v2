@@ -147,6 +147,36 @@ export function PantherAIPanel() {
     }
   }, []);
 
+  // Restore persisted chat messages on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("panther_ai_chat_messages");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const restored = parsed.map((m: any) => ({
+            ...m,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+          }));
+          setMessages(restored);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Persist chat messages whenever they change
+  useEffect(() => {
+    try {
+      if (messages.length > 1 || (messages.length === 1 && messages[0].id !== "welcome-1")) {
+        localStorage.setItem("panther_ai_chat_messages", JSON.stringify(messages));
+      }
+    } catch {
+      // ignore
+    }
+  }, [messages]);
+
   const toggleSize = useCallback(() => {
     setIsExpanded((prev) => {
       const next = !prev;
@@ -218,9 +248,13 @@ export function PantherAIPanel() {
 
     if (isNewAssistantMsg) {
       lastScrolledMsgIdRef.current = lastMsg.id;
-      // Slight delay allows markdown & card rendering to compute height before scrolling
+      // When cards are present, auto-scroll to card bottom so card & action buttons are fully visible above fixed input bar
       const timer = setTimeout(() => {
-        scrollToAssistantTop("smooth");
+        if (lastMsg.cards && lastMsg.cards.length > 0) {
+          scrollToBottom("smooth");
+        } else {
+          scrollToAssistantTop("smooth");
+        }
       }, 50);
       prevMessagesCountRef.current = messages.length;
       return () => clearTimeout(timer);
@@ -381,6 +415,11 @@ export function PantherAIPanel() {
         timestamp: new Date(),
       },
     ]);
+    try {
+      localStorage.removeItem("panther_ai_chat_messages");
+    } catch {
+      // ignore
+    }
     setActiveDraftInfo(null);
     setError(null);
   };
