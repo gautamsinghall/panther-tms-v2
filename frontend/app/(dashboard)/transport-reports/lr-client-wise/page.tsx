@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  ArrowUpDown,
   Calendar,
   X,
   FileSpreadsheet,
@@ -23,11 +22,9 @@ import {
   Wallet,
   CheckCircle2,
   Clock,
-  Layers,
-  Filter,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import { formatCurrency, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { LRViewModal, LRViewRecord } from "@/components/modals/lr-view-modal";
@@ -81,7 +78,7 @@ interface ColumnConfig {
   minWidth?: string;
 }
 
-// Exactly 22 columns from reference UI, in exact order, all visible by default
+// Exactly 22 columns from reference UI, in exact order, all enabled by default
 const TABLE_COLUMNS: ColumnConfig[] = [
   { key: "lr_number", label: "Gr No", align: "left", minWidth: "130px" },
   { key: "month", label: "Month", align: "left", minWidth: "110px" },
@@ -160,16 +157,59 @@ export default function LRClientWisePage() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [viewMode, setViewMode] = useState<"grouped" | "consolidated">("grouped");
 
+  // Column Visibility State (global toolbar dropdown)
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    TABLE_COLUMNS.forEach((col) => {
+      initial[col.key] = true;
+    });
+    return initial;
+  });
+  const [isColMenuOpen, setIsColMenuOpen] = useState(false);
+  const colMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close Column dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (colMenuRef.current && !colMenuRef.current.contains(event.target as Node)) {
+        setIsColMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const toggleColumn = (key: string) => {
+    setVisibleColumns((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleResetColumns = () => {
+    const reset: Record<string, boolean> = {};
+    TABLE_COLUMNS.forEach((col) => {
+      reset[col.key] = true;
+    });
+    setVisibleColumns(reset);
+  };
+
+  const handleSelectAllColumns = () => {
+    const all: Record<string, boolean> = {};
+    TABLE_COLUMNS.forEach((col) => {
+      all[col.key] = true;
+    });
+    setVisibleColumns(all);
+  };
+
   // Collapsed client groups state
   const [collapsedClients, setCollapsedClients] = useState<Record<string, boolean>>({});
 
   // Sorting
   const [sortKey, setSortKey] = useState<keyof LRClientWiseRecord>("lr_date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-
-  // Pagination
-  const [pageSize, setPageSize] = useState<number>(50);
-  const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Column Slider & Horizontal Scroll
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
@@ -209,7 +249,6 @@ export default function LRClientWisePage() {
   const handleApplyFilter = () => {
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
-    setCurrentPage(1);
   };
 
   const handleResetFilters = () => {
@@ -219,7 +258,6 @@ export default function LRClientWisePage() {
     setAppliedToDate(defaultDates.to);
     setSelectedClient("ALL");
     setSearchTerm("");
-    setCurrentPage(1);
   };
 
   // Quick Preset Date Handlers
@@ -233,7 +271,6 @@ export default function LRClientWisePage() {
     setToDate(today);
     setAppliedFromDate(firstDay);
     setAppliedToDate(today);
-    setCurrentPage(1);
   };
 
   const handleSetFY = () => {
@@ -242,7 +279,6 @@ export default function LRClientWisePage() {
     setToDate(defs.to);
     setAppliedFromDate(defs.from);
     setAppliedToDate(defs.to);
-    setCurrentPage(1);
   };
 
   const handleSetAllTime = () => {
@@ -250,7 +286,6 @@ export default function LRClientWisePage() {
     setToDate("");
     setAppliedFromDate("");
     setAppliedToDate("");
-    setCurrentPage(1);
   };
 
   // Toggle Collapse for a Client Group
@@ -448,7 +483,7 @@ export default function LRClientWisePage() {
       if (resizeObserver) resizeObserver.disconnect();
       if (rafScrollRef.current) cancelAnimationFrame(rafScrollRef.current);
     };
-  }, [checkScrollable, filteredGroups, viewMode]);
+  }, [checkScrollable, filteredGroups, viewMode, visibleColumns]);
 
   const handleScrollBy = (offset: number) => {
     if (tableContainerRef.current) {
@@ -473,26 +508,29 @@ export default function LRClientWisePage() {
       return;
     }
 
-    const headers = TABLE_COLUMNS.map((c) => `"${c.label.replace(/"/g, '""')}"`).join(",");
+    const activeCols = TABLE_COLUMNS.filter((col) => visibleColumns[col.key]);
+    const headers = activeCols.map((c) => `"${c.label.replace(/"/g, '""')}"`).join(",");
 
     const rows = consolidatedRecords.map((r) => {
-      return TABLE_COLUMNS.map((col) => {
-        let val: any = r[col.key];
+      return activeCols
+        .map((col) => {
+          let val: any = r[col.key];
 
-        // Format rules - NEVER output placeholder like "-" or "N/A"
-        if (col.key === "lr_date" || col.key === "party_invoice_date" || col.key === "bill_date") {
-          val = formatDateDisplay(val);
-        } else if (col.key === "weight") {
-          val = val && Number(val) > 0 ? Number(val).toFixed(3) : "";
-        } else if (col.key === "invoice_value" || col.key === "bill_amount") {
-          val = val && Number(val) > 0 ? Number(val).toFixed(2) : "";
-        } else if (col.key === "pkts") {
-          val = val && Number(val) > 0 ? String(val) : "";
-        }
+          // Format rules - NEVER output placeholder like "-" or "N/A"
+          if (col.key === "lr_date" || col.key === "party_invoice_date" || col.key === "bill_date") {
+            val = formatDateDisplay(val);
+          } else if (col.key === "weight") {
+            val = val && Number(val) > 0 ? Number(val).toFixed(3) : "";
+          } else if (col.key === "invoice_value" || col.key === "bill_amount") {
+            val = val && Number(val) > 0 ? Number(val).toFixed(2) : "";
+          } else if (col.key === "pkts") {
+            val = val && Number(val) > 0 ? String(val) : "";
+          }
 
-        if (val === null || val === undefined) val = "";
-        return `"${String(val).replace(/"/g, '""')}"`;
-      }).join(",");
+          if (val === null || val === undefined) val = "";
+          return `"${String(val).replace(/"/g, '""')}"`;
+        })
+        .join(",");
     });
 
     const csvContent = "\uFEFF" + [headers, ...rows].join("\r\n");
@@ -609,6 +647,11 @@ export default function LRClientWisePage() {
         return <span className="text-slate-700 dark:text-slate-300">{String(raw)}</span>;
     }
   };
+
+  const activeColumns = useMemo(
+    () => TABLE_COLUMNS.filter((col) => visibleColumns[col.key]),
+    [visibleColumns]
+  );
 
   return (
     <div className="space-y-4 print:p-0 print:m-0 font-sans">
@@ -883,7 +926,7 @@ export default function LRClientWisePage() {
             )}
           </div>
 
-          {/* Right Toolbar Controls: Search, Export Excel, Print */}
+          {/* Right Toolbar Controls: Search, Columns Dropdown, Export Excel, Print */}
           <div className="flex flex-wrap items-center gap-2 ml-auto">
             {/* Integrated Search Input */}
             <div className="relative flex items-center">
@@ -903,6 +946,60 @@ export default function LRClientWisePage() {
                 >
                   <X className="w-3 h-3" />
                 </button>
+              )}
+            </div>
+
+            {/* Column Visibility Dropdown (Global UI location & style matching lr-register) */}
+            <div className="relative" ref={colMenuRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsColMenuOpen(!isColMenuOpen)}
+                icon={<SlidersHorizontal className="w-3.5 h-3.5 text-[#635BFF]" />}
+              >
+                <span>Columns</span>
+                <ChevronDown className="w-3.5 h-3.5" />
+              </Button>
+
+              {isColMenuOpen && (
+                <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-[#181922] border border-slate-200 dark:border-[#2D2E3A] rounded-xl shadow-xl p-3 z-50 text-xs">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-[#272835] font-semibold text-slate-900 dark:text-slate-200">
+                    <span>Columns Visibility</span>
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllColumns}
+                        className="text-[#635BFF] hover:underline"
+                      >
+                        All
+                      </button>
+                      <span className="text-slate-500">·</span>
+                      <button
+                        type="button"
+                        onClick={handleResetColumns}
+                        className="text-slate-400 hover:underline"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                    {TABLE_COLUMNS.map((col) => (
+                      <label
+                        key={col.key}
+                        className="flex items-center gap-2 px-2 py-1 hover:bg-slate-100 dark:hover:bg-[#20222E] rounded-md cursor-pointer text-slate-700 dark:text-slate-300 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(visibleColumns[col.key])}
+                          onChange={() => toggleColumn(col.key)}
+                          className="rounded border-slate-300 dark:border-[#3D3E4E] text-[#635BFF] focus:ring-[#635BFF] w-3.5 h-3.5 cursor-pointer accent-[#635BFF]"
+                        />
+                        <span className="select-none">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -929,24 +1026,24 @@ export default function LRClientWisePage() {
         </div>
 
         {/* -------------------------------------------------------------------- */}
-        {/* Column Slider (Visible whenever horizontal overflow occurs)          */}
+        {/* Column Slider (Global UI theme: #635BFF knob and icon)               */}
         {/* -------------------------------------------------------------------- */}
         {canScrollHorizontally && (
-          <div className="px-4 py-2 bg-slate-50 dark:bg-[#0F1015] border-b border-slate-200 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 print:hidden">
+          <div className="px-4 py-2 bg-slate-50 dark:bg-[#0F1015] border-b border-slate-200 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 print:hidden animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-[#f59e0b]" />
-                <span>22 Columns Navigation</span>
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#635BFF]" />
+                <span>Columns Slider</span>
               </span>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
-                (Slide to view all 22 columns horizontally)
+                (Slide to view all columns)
               </span>
             </div>
 
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
-                onClick={() => handleScrollBy(-260)}
+                onClick={() => handleScrollBy(-240)}
                 disabled={scrollPosition <= 0}
                 aria-label="Slide Left"
                 className="w-7 h-7 rounded-md bg-white dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
@@ -961,13 +1058,13 @@ export default function LRClientWisePage() {
                   max={maxScrollLeft}
                   value={scrollPosition}
                   onChange={(e) => handleSliderChange(Number(e.target.value))}
-                  className="w-36 sm:w-64 h-2 bg-slate-200 dark:bg-[#1A1B24] border border-slate-300 dark:border-[#2B2C37] rounded-lg appearance-none cursor-pointer accent-[#f59e0b] transition-all"
+                  className="w-36 sm:w-64 h-2 bg-slate-200 dark:bg-[#1A1B24] border border-slate-300 dark:border-[#2B2C37] rounded-lg appearance-none cursor-pointer accent-[#635BFF] transition-all"
                 />
               </div>
 
               <button
                 type="button"
-                onClick={() => handleScrollBy(260)}
+                onClick={() => handleScrollBy(240)}
                 disabled={scrollPosition >= maxScrollLeft - 2}
                 aria-label="Slide Right"
                 className="w-7 h-7 rounded-md bg-white dark:bg-[#171821] hover:bg-slate-100 dark:hover:bg-[#20222E] border border-slate-200 dark:border-[#2B2C37] text-slate-700 dark:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors cursor-pointer"
@@ -990,7 +1087,7 @@ export default function LRClientWisePage() {
             {/* Table Header: Yellow/Amber matching the reference image */}
             <thead className="bg-[#f59e0b] dark:bg-[#d97706] text-slate-900 dark:text-slate-950 font-bold select-none border-b border-amber-600">
               <tr>
-                {TABLE_COLUMNS.map((col) => {
+                {activeColumns.map((col) => {
                   const isSorted = sortKey === col.key;
                   const isFirstSticky = col.key === "lr_number";
                   return (
@@ -1032,7 +1129,7 @@ export default function LRClientWisePage() {
                 // Loading Skeleton Rows
                 Array.from({ length: 6 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse bg-white dark:bg-[#121319]">
-                    {TABLE_COLUMNS.map((col) => (
+                    {activeColumns.map((col) => (
                       <td key={col.key} className="py-3 px-3">
                         <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-20" />
                       </td>
@@ -1043,7 +1140,7 @@ export default function LRClientWisePage() {
                 // Clean Empty State: "No data available in table" (Exact string from reference UI)
                 <tr>
                   <td
-                    colSpan={TABLE_COLUMNS.length}
+                    colSpan={activeColumns.length}
                     className="py-12 text-center text-slate-600 dark:text-slate-400 bg-white dark:bg-[#121319] font-medium"
                   >
                     <div className="flex flex-col items-center justify-center space-y-2">
@@ -1067,7 +1164,7 @@ export default function LRClientWisePage() {
                       {/* Client Group Banner Row */}
                       <tr className="bg-slate-100/90 dark:bg-[#181924] border-t-2 border-slate-300 dark:border-[#2D2E3F]">
                         <td
-                          colSpan={TABLE_COLUMNS.length}
+                          colSpan={activeColumns.length}
                           className="py-2.5 px-3.5 sticky left-0 z-10"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1136,7 +1233,7 @@ export default function LRClientWisePage() {
                             key={rec.id}
                             className="hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors group bg-white dark:bg-[#121319]"
                           >
-                            {TABLE_COLUMNS.map((col) => {
+                            {activeColumns.map((col) => {
                               const isFirstSticky = col.key === "lr_number";
                               return (
                                 <td
@@ -1158,23 +1255,52 @@ export default function LRClientWisePage() {
                       {/* Subtotal Footer per Client Group */}
                       {!isCollapsed && group.records.length > 1 && (
                         <tr className="bg-slate-50 dark:bg-[#14151E] font-semibold text-[11px] text-slate-700 dark:text-slate-300 border-b border-slate-300 dark:border-[#252636]">
-                          <td className="py-2 px-3 sticky left-0 z-10 bg-slate-50 dark:bg-[#14151E]">
-                            Subtotal ({group.records.length})
-                          </td>
-                          <td colSpan={10}></td>
-                          <td className="py-2 px-3 text-right font-mono tabular-nums">
-                            {group.subtotalWeight.toFixed(3)}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono tabular-nums">
-                            {group.subtotalPkts > 0 ? group.subtotalPkts : ""}
-                          </td>
-                          <td colSpan={4}></td>
-                          <td className="py-2 px-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-                            {group.subtotalBill > 0
-                              ? `₹${group.subtotalBill.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                              : ""}
-                          </td>
-                          <td colSpan={4}></td>
+                          {activeColumns.map((col, cIdx) => {
+                            const isFirst = cIdx === 0;
+                            const isFirstSticky = col.key === "lr_number";
+
+                            if (isFirst) {
+                              return (
+                                <td
+                                  key={col.key}
+                                  className={cn(
+                                    "py-2 px-3",
+                                    isFirstSticky && "sticky left-0 z-10 bg-slate-50 dark:bg-[#14151E]"
+                                  )}
+                                >
+                                  Subtotal ({group.records.length})
+                                </td>
+                              );
+                            }
+
+                            if (col.key === "weight") {
+                              return (
+                                <td key={col.key} className="py-2 px-3 text-right font-mono tabular-nums">
+                                  {group.subtotalWeight.toFixed(3)}
+                                </td>
+                              );
+                            }
+
+                            if (col.key === "pkts") {
+                              return (
+                                <td key={col.key} className="py-2 px-3 text-right font-mono tabular-nums">
+                                  {group.subtotalPkts > 0 ? group.subtotalPkts : ""}
+                                </td>
+                              );
+                            }
+
+                            if (col.key === "bill_amount") {
+                              return (
+                                <td key={col.key} className="py-2 px-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                                  {group.subtotalBill > 0
+                                    ? `₹${group.subtotalBill.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                                    : ""}
+                                </td>
+                              );
+                            }
+
+                            return <td key={col.key} className="py-2 px-3"></td>;
+                          })}
                         </tr>
                       )}
                     </React.Fragment>
@@ -1187,7 +1313,7 @@ export default function LRClientWisePage() {
                     key={rec.id}
                     className="hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors group bg-white dark:bg-[#121319]"
                   >
-                    {TABLE_COLUMNS.map((col) => {
+                    {activeColumns.map((col) => {
                       const isFirstSticky = col.key === "lr_number";
                       return (
                         <td
@@ -1212,24 +1338,53 @@ export default function LRClientWisePage() {
             {overallTotals.totalLrs > 0 && (
               <tfoot className="bg-slate-100 dark:bg-[#171822] text-slate-800 dark:text-slate-200 font-bold border-t-2 border-slate-300 dark:border-[#2C2D3E]">
                 <tr>
-                  <td className="py-3 px-3 sticky left-0 z-20 bg-slate-100 dark:bg-[#171822]">
-                    Total ({overallTotals.totalLrs} LRs)
-                  </td>
-                  <td colSpan={10}></td>
-                  <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-900 dark:text-white">
-                    {overallTotals.totalWeight.toFixed(3)}
-                  </td>
-                  <td className="py-3 px-3 text-right font-mono tabular-nums">
-                    {/* Sum of all pkts */}
-                    {consolidatedRecords.reduce((acc, r) => acc + Number(r.pkts || 0), 0) || ""}
-                  </td>
-                  <td colSpan={4}></td>
-                  <td className="py-3 px-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-                    {overallTotals.totalFreight > 0
-                      ? `₹${overallTotals.totalFreight.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-                      : ""}
-                  </td>
-                  <td colSpan={4}></td>
+                  {activeColumns.map((col, cIdx) => {
+                    const isFirst = cIdx === 0;
+                    const isFirstSticky = col.key === "lr_number";
+
+                    if (isFirst) {
+                      return (
+                        <td
+                          key={col.key}
+                          className={cn(
+                            "py-3 px-3",
+                            isFirstSticky && "sticky left-0 z-20 bg-slate-100 dark:bg-[#171822]"
+                          )}
+                        >
+                          Total ({overallTotals.totalLrs} LRs)
+                        </td>
+                      );
+                    }
+
+                    if (col.key === "weight") {
+                      return (
+                        <td key={col.key} className="py-3 px-3 text-right font-mono tabular-nums text-slate-900 dark:text-white">
+                          {overallTotals.totalWeight.toFixed(3)}
+                        </td>
+                      );
+                    }
+
+                    if (col.key === "pkts") {
+                      const totalPkts = consolidatedRecords.reduce((acc, r) => acc + Number(r.pkts || 0), 0);
+                      return (
+                        <td key={col.key} className="py-3 px-3 text-right font-mono tabular-nums">
+                          {totalPkts > 0 ? totalPkts : ""}
+                        </td>
+                      );
+                    }
+
+                    if (col.key === "bill_amount") {
+                      return (
+                        <td key={col.key} className="py-3 px-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                          {overallTotals.totalFreight > 0
+                            ? `₹${overallTotals.totalFreight.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                            : ""}
+                        </td>
+                      );
+                    }
+
+                    return <td key={col.key} className="py-3 px-3"></td>;
+                  })}
                 </tr>
               </tfoot>
             )}
