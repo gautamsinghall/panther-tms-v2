@@ -219,11 +219,13 @@ export default function BillingClientPage({ embedded = false, onCreated, onCance
           method: "PUT",
           body: JSON.stringify(payload),
         });
+        toast.success("Billing client updated successfully.");
       } else {
         const created = await apiClient<any>("/api/v1/general/billing-clients", {
           method: "POST",
           body: JSON.stringify(payload),
         });
+        toast.success("Billing client created successfully.");
         if (typeof window !== "undefined" && created) {
           localStorage.setItem("panther_party_created", JSON.stringify({ type: "billing_client", id: created.id, name: created.name }));
           window.dispatchEvent(new Event("panther_billing_client_created"));
