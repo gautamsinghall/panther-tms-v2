@@ -85,9 +85,66 @@ const INITIAL_WELCOME_MESSAGE: Message = {
   id: "welcome-1",
   role: "assistant",
   content:
-    "👋 **Welcome to Panther AI!**\n\nYour intelligent assistant for managing everyday transport operations.\n\nI’m here to make your work easier. Whether you need help with **LR/GR Booking, Hire Challans, Vehicles, Drivers, FASTag, SIM-Based Tracking, or Master Ledgers**, just tell me what you need.\n\nYou can ask questions, get step-by-step guidance, or tell me what you want to do. I'll help you through the process, one step at a time.\n\n🌐 **Speak your way:** English | हिन्दी | Hinglish\n\n**Let's get started! What would you like to do today?**",
+    "👋 **Welcome to Panther AI!**\n\nI help with Panther TMS — creating jobs, tracking vehicles and shipments, invoices and balances, PODs, and learning how to use each screen. For an LR, I guide you to the LR form — I don't create LRs in chat. I can also explain transport terms (LR, e-way bill, POD) when they help you do that work.\n\nAsk me in English, हिन्दी or Hinglish — for example, track an LR, create a job, or check a ledger balance. If something is outside what I can do, I'll tell you what I can do instead, or connect you to support.\n\n**What would you like to do today?**",
   timestamp: new Date(),
 };
+
+// No.14 rebuild (P3): suggested prompts that change with the page the user is on.
+// `label` is what the user sees; `text` is the exact message sent to the backend.
+// Only prompts the user's role can actually use are shown (filtered at render time).
+interface SuggestedPrompt {
+  label: string;
+  text: string;
+  module?: string;
+  feature?: string;
+  // v3: when set, tapping the prompt navigates to href instead of sending
+  // a chat message (used for "Book an LR" — chat LR booking is removed).
+  href?: string;
+}
+
+function getSuggestedPrompts(pathname: string): SuggestedPrompt[] {
+  if (pathname.startsWith("/transport/lr")) {
+    return [
+      { label: "Book an LR", text: "Mujhe LR book karni hai", module: "transport", feature: "lr_booking", href: "/transport/lr-booking" },
+      { label: "Track an LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
+      { label: "Show pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
+      { label: "How do I create an LR?", text: "How do I create an LR?" },
+    ];
+  }
+  if (pathname.startsWith("/transport/job")) {
+    return [
+      { label: "Create a job", text: "Create a job", module: "transport" },
+      { label: "Show my job list", text: "What is my job list?", module: "transport" },
+      { label: "Show pending LRs", text: "Show pending LRs", module: "transport" },
+    ];
+  }
+  if (pathname.startsWith("/accounts") || pathname.startsWith("/general")) {
+    return [
+      { label: "View ledger", text: "View Ledger", module: "accounts", feature: "master_ledger" },
+      { label: "Show pending invoices", text: "Show my pending invoices", module: "accounts", feature: "master_ledger" },
+      { label: "What is my balance?", text: "What is my balance?", module: "accounts", feature: "master_ledger" },
+    ];
+  }
+  if (pathname.startsWith("/transport/hire")) {
+    return [
+      { label: "Create a hire challan", text: "Create a hire challan", module: "transport" },
+      { label: "Show hire challans", text: "Show hire challans", module: "transport" },
+    ];
+  }
+  if (pathname.startsWith("/transport") || pathname.startsWith("/tracking")) {
+    return [
+      { label: "Track a vehicle", text: "Track a vehicle", module: "transport" },
+      { label: "Show my vehicles", text: "Show my vehicles", module: "transport" },
+      { label: "Where is my shipment?", text: "Where is my shipment?", module: "transport" },
+    ];
+  }
+  return [
+    { label: "Track an LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
+    { label: "Create a job", text: "Create a job", module: "transport" },
+    { label: "View ledger", text: "View Ledger", module: "accounts", feature: "master_ledger" },
+    { label: "Show pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
+  ];
+}
 
 export function PantherAIPanel() {
   const router = useRouter();
@@ -194,6 +251,7 @@ export function PantherAIPanel() {
   const lastAssistantMsgRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isSubmittingRef = useRef(false);
+  const lastUserMessageRef = useRef<string>("");
   const prevMessagesCountRef = useRef(messages.length);
   const lastScrolledMsgIdRef = useRef<string | null>(null);
 
@@ -533,11 +591,43 @@ export function PantherAIPanel() {
     }
   };
 
+  // v3: richer page context for the backend page registry — pathname first
+  // (so older backend parsing keeps working), then the page title, the open
+  // record from the URL (e.g. ?lr_number=...), and the visible labels of the
+  // first form on the page. Best effort only; never blocks sending.
+  const buildPageContext = (): string => {
+    const parts: string[] = [pathname];
+    try {
+      const title = typeof document !== "undefined" ? document.title?.trim() : "";
+      if (title) parts.push(`title: ${title}`);
+      const params = new URLSearchParams(window.location.search);
+      const rec =
+        params.get("lr_number") ||
+        params.get("job_number") ||
+        params.get("challan_number") ||
+        params.get("vehicle_number") ||
+        params.get("id");
+      if (rec) parts.push(`open record: ${rec}`);
+      const form = document.querySelector("form");
+      if (form) {
+        const labels = Array.from(form.querySelectorAll("label"))
+          .map((l) => l.textContent?.trim())
+          .filter((t): t is string => Boolean(t));
+        const unique = Array.from(new Set(labels)).slice(0, 12);
+        if (unique.length > 0) parts.push(`visible fields: ${unique.join(", ")}`);
+      }
+    } catch {
+      // fall back to the bare pathname
+    }
+    return parts.join(" | ");
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     if (isSubmittingRef.current) return;
     const rawContent = textToSend !== undefined ? textToSend : input;
     const trimmed = rawContent.trim();
     if (!trimmed || isLoading) return;
+    lastUserMessageRef.current = trimmed;
 
     isSubmittingRef.current = true;
     setError(null);
@@ -566,7 +656,7 @@ export function PantherAIPanel() {
           role: m.role,
           content: m.content,
         })),
-        page_context: pathname,
+        page_context: buildPageContext(),
         active_office_id: activeOffice?.id,
       };
 
@@ -951,7 +1041,7 @@ export function PantherAIPanel() {
             {canBookLr && (
               <button
                 type="button"
-                onClick={() => handleSendMessage("Mujhe LR book karni hai")}
+                onClick={() => handleNavigate("/transport/lr-booking")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
               >
                 <Layers className="w-3.5 h-3.5 text-[#5B50E6] dark:text-violet-400" />
@@ -1014,7 +1104,7 @@ export function PantherAIPanel() {
         <div className="px-3 py-1.5 bg-amber-500/10 dark:bg-amber-950/30 border-b border-amber-500/20 text-amber-700 dark:text-amber-300 text-[11px] flex items-center gap-2 shrink-0">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">
-            Setup mode: Set <code className="font-mono text-[10px] bg-amber-100 dark:bg-amber-900/40 px-1 py-0.5 rounded">OPENAI_API_KEY</code> in backend for live AI.
+            Setup mode: the AI provider is not configured in the backend. Ask your admin to configure it for live AI.
           </span>
         </div>
       )}
@@ -1782,7 +1872,9 @@ export function PantherAIPanel() {
             </div>
             <button
               type="button"
-              onClick={() => handleSendMessage()}
+              onClick={() => {
+              if (lastUserMessageRef.current) handleSendMessage(lastUserMessageRef.current);
+            }}
               className="text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:underline shrink-0 cursor-pointer"
             >
               Retry
@@ -1792,6 +1884,30 @@ export function PantherAIPanel() {
 
         <div ref={messagesEndRef} className="h-6 shrink-0" />
       </div>
+
+      {/* Per-page suggested prompts — No.14 P3: shown on a fresh chat only */}
+      {messages.length <= 1 &&
+        (() => {
+          const prompts = getSuggestedPrompts(pathname).filter(
+            (p) => !p.module || canAccessModule(p.module, p.feature)
+          );
+          if (prompts.length === 0) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3 bg-white dark:bg-[#0F111D] shrink-0">
+              {prompts.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => (p.href ? handleNavigate(p.href) : handleSendMessage(p.text))}
+                  disabled={isLoading}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
       {/* 5. Sticky Composer Area */}
       <div className="p-3 bg-white dark:bg-[#0F111D] border-t border-slate-100 dark:border-[#1C2033] shrink-0">
@@ -1864,9 +1980,19 @@ export function PantherAIPanel() {
         </form>
 
         {/* Disclaimer Note */}
-        <div className="flex items-center gap-1.5 mt-2 px-1 text-[11px] text-slate-400 dark:text-slate-500">
-          <Info className="w-3.5 h-3.5 shrink-0" />
-          <span>Review details before confirming.</span>
+        <div className="flex items-center justify-between gap-2 mt-2 px-1 text-[11px] text-slate-400 dark:text-slate-500">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            <span>Review details before confirming.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleSendMessage("I need help from a human — please connect me to support")}
+            disabled={isLoading}
+            className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer disabled:cursor-not-allowed"
+          >
+            Talk to support
+          </button>
         </div>
       </div>
     </div>

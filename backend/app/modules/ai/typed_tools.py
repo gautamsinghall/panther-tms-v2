@@ -797,9 +797,9 @@ def getHowTo(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard], L
             badge={"text": "Guide", "variant": "neutral"},
             items=[
                 {"primary": "1. Loading & Delivery Parties", "secondary": "Select Consigner (Sender) and Consignee (Receiver)."},
-                {"primary": "2. Vehicle Registration", "secondary": "Assign Company or Market truck (e.g., DL01AB1234)."},
-                {"primary": "3. Commercial Terms", "secondary": "Enter freight rate, freight amount, advance collected, and balance."},
-                {"primary": "4. Cargo & E-Way Bill", "secondary": "Enter package count, weight, and 12-digit E-Way Bill if goods value > ₹50,000."},
+                {"primary": "2. Origin & Destination Hubs", "secondary": "Origin Hub and Destination Hub are both required."},
+                {"primary": "3. Vehicle & Packages", "secondary": "Truck No. and No. of Packages are both required."},
+                {"primary": "4. Payment Type & E-Way Bill", "secondary": "Payment Type is required (Paid / To Pay / To Be Billed). 12-digit E-Way Bill if goods value > Rs 50,000 (Panther rule)."},
             ],
             action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"},
         )
@@ -808,27 +808,27 @@ def getHowTo(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard], L
                 "एलआर (LR / Bilty) बनाने की प्रक्रिया:\n\n"
                 "1. **कंसाइनर और कंसाइनी**: भेजने वाली (Consigner) और पाने वाली (Consignee) पार्टी चुनें।\n"
                 "2. **वाहन संख्या**: असाइन किया गया ट्रक नंबर दर्ज करें (उदा. DL01AB1234)।\n"
-                "3. **भाड़ा और अग्रिम**: माल भाड़ा (Freight) और एडवांस भुगतान दर्ज करें।\n"
-                "4. **कार्गो और ई-वे बिल**: पैकेज संख्या, वजन और यदि माल ₹50,000 से अधिक है तो 12-अंकों का ई-वे बिल जोड़ें।\n\n"
-                "आप इसे चैट में सीधे बोलकर भी शुरू कर सकते हैं, जैसे: *'Book LR from Delhi to Mumbai'*।"
+                "3. **Payment Type**: Paid, To Pay ya To Be Billed (TBB) chunein. Form par freight amount ka koi field nahi hai.\n"
+                "4. **कार्गो और ई-वे बिल**: पैकेज संख्या, वजन और यदि माल ₹50,000 से अधिक है (Panther नियम; GST intrastate सीमा राज्य के अनुसार अलग होती है) तो 12-अंकों का ई-वे बिल जोड़ें।\n\n"
+                "चैट से एलआर नहीं बनता — फॉर्म पर \"New LR Booking\" पर क्लिक करें और \"Create Lorry Receipt\" से सेव करें।"
             )
         elif lang == "hinglish":
             msg = (
                 "LR / Bilty create karne ke steps:\n\n"
                 "1. **Parties**: Consigner (Sender) aur Consignee (Receiver) select karein.\n"
                 "2. **Vehicle**: Assigned truck number enter karein (e.g. DL01AB1234).\n"
-                "3. **Freight & Advance**: Agreed freight amount aur advance payment fill karein.\n"
-                "4. **Cargo & E-Way Bill**: Packages, weight aur agar value ₹50,000+ hai toh 12-digit E-Way Bill number enter karein.\n\n"
-                "Aap mujhse directly bolkar bhi draft start kar sakte hain, e.g. *'Delhi se Mumbai ek LR banao'*."
+                "3. **Payment Type**: Paid, To Pay ya To Be Billed (TBB) select karein. Form par freight amount ka koi field nahi hai.\n"
+                "4. **Cargo & E-Way Bill**: Packages, weight aur agar value ₹50,000+ hai (Panther rule; GST intrastate thresholds state ke hisaab se alag hote hain) toh 12-digit E-Way Bill number enter karein.\n\n"
+                "Chat se LR nahi banta — form par \"New LR Booking\" click karein aur \"Create Lorry Receipt\" se save karein."
             )
         else:
             msg = (
                 "To create an LR / Consignment Note in Panther TMS:\n\n"
                 "1. **Select Parties**: Choose the loading Consigner and receiving Consignee.\n"
                 "2. **Assign Vehicle**: Enter the Indian registration number (e.g., DL01AB1234).\n"
-                "3. **Set Commercial Terms**: Specify freight amount, advance paid, and balance due.\n"
-                "4. **Cargo & E-Way Bill**: Enter packages, weight, and 12-digit E-Way Bill if goods value exceeds ₹50,000.\n\n"
-                "You can also create a draft conversationally by telling me the details directly."
+                "3. **Set Payment Type (required)**: Choose Paid, To Pay, or To Be Billed. The form has no freight amount fields.\n"
+                "4. **Cargo & E-Way Bill**: Enter packages, weight, and 12-digit E-Way Bill if goods value exceeds ₹50,000 (Panther rule; GST intrastate thresholds vary by state).\n\n"
+                "Chat cannot create an LR — click \"New LR Booking\" on the form and save with \"Create Lorry Receipt\"."
             )
         return msg, [card], navs
 

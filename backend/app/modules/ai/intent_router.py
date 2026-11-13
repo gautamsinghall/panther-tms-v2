@@ -3,10 +3,10 @@ Panther AI Intent-First Router & Domain Classifier.
 Implements a closed-taxonomy intent router running BEFORE any slot-filling,
 search, or draft creation on every message, in every supported language (en, hi_devanagari, hinglish).
 
-Closed Intent Taxonomy:
+Closed Intent Taxonomy (v3):
 - greet
 - help
-- book_lr
+- page_help
 - track_lr
 - track_vehicle
 - find_vehicle
@@ -25,7 +25,8 @@ Closed Intent Taxonomy:
 - human
 - add_consignee
 - change_consignee
-- how_to_create_lr
+- how_to_create_lr  (v3: EVERY explicit "book/create an LR" request lands here
+  as a GUIDE — chat never opens an LR draft; there is no book_lr intent)
 - how_to_track
 - what_is_eway
 - cancel_draft
@@ -209,17 +210,25 @@ def classify_intent_and_entities(
     raw_clean = re.sub(r"[^\w\s]", "", lower).strip()
     greetings = {
         "hi", "hello", "hey", "hola", "namaste", "namaskar", "greetings",
-        "good morning", "good afternoon", "good evening", "good day",
-        "hi panther", "hello panther", "hey panther", "hi there", "hello there",
+        "hlo", "hii", "helo", "helloo", "heyy", "hey there", "hi there",
+        "hello there", "good morning", "good afternoon", "good evening",
+        "good day", "hi panther", "hello panther", "hey panther",
         "kese ho", "kaise ho", "kya haal hai", "नमस्ते", "नमस्कार", "प्रणाम"
     }
-    if (
-        raw_clean in greetings
-        or raw_clean.startswith("hi ")
-        or raw_clean.startswith("hello ")
-        or "नमस्ते" in clean
-        or "नमस्कार" in clean
-        or bool(re.search(r"\b(hi|hello|hey|namaste|hola)\b", lower))
+    # v3: ONLY an exact short greeting is a greeting. A message that starts
+    # with "hi" but asks something ("hi, what is LR?") is NOT a greeting —
+    # it falls through to the real intent / RAG + LLM, so it gets an answer.
+    _greet_words = raw_clean.split()
+    if raw_clean in greetings or (
+        len(_greet_words) <= 3
+        and (
+            raw_clean.startswith("hi ")
+            or raw_clean.startswith("hello ")
+            or raw_clean.startswith("hey ")
+            or raw_clean.startswith("hlo ")
+            or raw_clean.startswith("namaste ")
+            or raw_clean.startswith("namaskar ")
+        )
     ):
         return RouterResult(intent="greet", confidence=1.0, matched_rule="greet")
 
@@ -375,20 +384,14 @@ def classify_intent_and_entities(
         )
 
     # --------------------------------------------------------------------------
-    # 10B. MULTI-FIELD BOOKING MESSAGE CHECK
-    # "Consigner A, Consignee B, Origin C, Destination D, Vehicle DL01AD1111" must
-    # open a booking draft, NOT be captured as a standalone vehicle search!
+    # 10B. MULTI-FIELD MESSAGE CHECK — REMOVED in v3.
+    # A message listing consigner/consignee/origin/destination/vehicle used to
+    # open an LR draft. Chat LR booking is removed: such a message now falls
+    # through to the how-to guide / RAG + LLM, which points the user at the
+    # LR form. Slot words ("origin", "consignee", ...) are NOT booking intent.
+    # (extract_raw_booking_slots is kept for reference only; nothing in the
+    # chat flow may open a draft from it.)
     # --------------------------------------------------------------------------
-    raw_slots = extract_raw_booking_slots(clean)
-    booking_score = sum(1 for k in ("consigner", "consignee", "fromCity", "toCity", "freight", "packages", "weightKg") if k in raw_slots)
-    has_booking_labels = bool(re.search(r"\b(consigner|consignor|consignee|origin|destination|loading|delivery)\b", lower))
-    if booking_score >= 2 or (booking_score >= 1 and has_booking_labels):
-        return RouterResult(
-            intent="book_lr",
-            confidence=0.95,
-            entities_raw=raw_slots,
-            matched_rule="book_lr_multi_field",
-        )
 
     # --------------------------------------------------------------------------
     # 11. VEHICLE LOOKUPS (LIST vs FIND)
@@ -457,7 +460,7 @@ def classify_intent_and_entities(
 
     # --------------------------------------------------------------------------
     # 13A. JOB LIST INTENT (No.14 rebuild — "What is my job list?")
-    # Must be checked BEFORE the book_lr rule (§14) and before the unknown
+    # Must be checked BEFORE the narrow LR-guide rule (§14) and before the unknown
     # fallback, otherwise a job-list question dies at the confidence gate
     # and the LLM fallback invents jobs (JOB-2026-xxx). Renders ONLY real
     # rows from the DB via typed_tools.search_jobs — never invented data.
@@ -479,35 +482,57 @@ def classify_intent_and_entities(
         return RouterResult(intent="list_jobs", confidence=0.95, matched_rule="list_jobs")
 
     # --------------------------------------------------------------------------
-    # 14. BOOK LR INTENT (SEMANTIC, MULTILINGUAL)
-    # Covers: "book a truck", "send 10 boxes", "I need to transport 20 packages",
-    # "mujhe LR book karna hai", "Delhi se Mumbai ek LR banao",
-    # "Send 15 cartons Chennai to Bengaluru, freight 12000"
+    # 13B. PAGE HELP INTENT (v3) — "what is this page / what does this page
+    # do / what is this screen for / is page pe kya hota hai". Checked before
+    # the unknown fallback. Answered from page_context + the tms-pages-* KB
+    # chunks (router.py), never from a canned reply.
     # --------------------------------------------------------------------------
-    booking_patterns = [
-        r"\b(?:book|create|make|generate|arrange)\s+(?:an?\s+)?(?:lr|gr|bilty|consignment|truck|lorry|transport)\b",
-        r"\b(?:lr|gr|bilty|consignment)\s+(?:book|create|banao|banaye|banana|bana\s+do|bana|shuru)\b",
-        r"\b(?:bana\s+do|banao|bana|banaye)\s+.*\b(?:lr|gr|bilty)\b",
-        r"\b(?:need\s+to\s+transport|need\s+to\s+move|send|dispatch|ship|move)\s+(?:[0-9]+\s+)?(?:boxes|packages|cartons|pkgs|bags|tons|tonnes|cargo|goods|material)\b",
-        r"\b(?:send|transport|ship|dispatch|move)\s+.*\s+(?:from|to|se|between)\b",
-        r"\b(?:mujhe\s+)?(?:lr|truck|gaadi)\s+(?:book\s+karna|bana|banao)\b",
-        r"\b[A-Za-z\u0900-\u097F]+\s+(?:se|से)\s+[A-Za-z\u0900-\u097F]+\s+(?:ek\s+)?(?:lr|bilty|truck)\b",
+    is_page_help = bool(
+        re.search(
+            r"\b(what\s+is\s+this\s+(?:page|screen)|what\s+does\s+this\s+(?:page|screen)\s+do|"
+            r"what\s+is\s+this\s+(?:page|screen)\s+for|what\s+can\s+i\s+do\s+(?:here|on\s+this\s+page)|"
+            r"what\s+is\s+the\s+purpose\s+of\s+this\s+page|explain\s+this\s+page|"
+            r"is\s+page\s+pe\s+kya\s+hota\s+hai|is\s+page\s+ka\s+kya\s+kaam\s+hai|"
+            r"yahan\s+kya\s+kar\s+sakte\s+hain|is\s+screen\s+par\s+kya\s+hota\s+hai)\b",
+            lower,
+        )
+        or "इस पेज पर क्या होता है" in clean
+        or "इस पेज का क्या काम है" in clean
+    )
+    if is_page_help:
+        return RouterResult(intent="page_help", confidence=0.95, matched_rule="page_help")
+
+    # --------------------------------------------------------------------------
+    # 14. LR CREATION REQUESTS — NARROW RULE ONLY (v3).
+    # Chat LR booking is REMOVED: there is no book_lr intent and no draft
+    # ever opens from chat. An explicit request to create/book an LR
+    # ("Mujhe LR book karni hai", "Delhi se Mumbai ek LR banao", "book an LR")
+    # is classified as how_to_create_lr — a GUIDE to the LR form, never a
+    # draft. REMOVED as too broad (reviewer fix): "send / ship / move /
+    # transport ... to/from/se" patterns, route-only "X se Y" patterns, the
+    # multi-field slot rule (§10B), and the has_active_draft shortcut that
+    # returned book_lr for EVERY message while a draft was open (the sticky
+    # draft: any message, including "hlo", re-entered booking). A message
+    # with no explicit LR-creation verb now falls through to RAG + LLM.
+    # --------------------------------------------------------------------------
+    lr_guide_patterns = [
+        r"\b(?:book|create|make|generate)\s+(?:an?\s+)?(?:lr|gr|bilty|consignment)\b",
+        r"\b(?:lr|gr|bilty)\s+(?:book|create|banao|banaye|banana|bana\s+do|bana|book\s+karni|book\s+karna|book\s+karo|book\s+karein)\b",
+        r"\b(?:mujhe\s+)?(?:lr|bilty)\s+book\s+karni\s+hai\b",
+        # Mixed script: Latin "LR" + Devanagari verb ("LR बुक करना है").
+        r"\b(?:lr|gr|bilty)\s+(?:बुक|बनाएं|बनाओ|बनाना|बना|बनानी)\b",
         r"एलआर\s+(?:बुक|बनाएं|बनाओ|बनाना)",
+        r"बिल्टी\s+(?:बना|बनाएं|बनाओ)",
     ]
-    is_booking = any(re.search(p, lower) for p in booking_patterns) or \
-                 ("एलआर बुक" in clean or "एलआर बना" in clean or "बिल्टी बना" in clean)
+    is_lr_guide = any(re.search(p, lower) for p in lr_guide_patterns) or \
+        ("एलआर बुक" in clean or "एलआर बना" in clean or "बिल्टी बना" in clean)
 
-    # If currently in active booking draft and not explicit other command
-    has_active_draft = bool(state and state.get("state") == "booking_draft")
-
-    if is_booking or has_active_draft:
-        # Extract raw entities safely
-        raw_slots = extract_raw_booking_slots(clean)
+    if is_lr_guide:
         return RouterResult(
-            intent="book_lr",
+            intent="how_to_create_lr",
             confidence=0.95,
-            entities_raw=raw_slots,
-            matched_rule="book_lr",
+            entities_raw={},
+            matched_rule="how_to_create_lr_explicit",
         )
 
     # --------------------------------------------------------------------------

@@ -51,10 +51,7 @@ from app.modules.ai.hire_challan_draft_service import (
 )
 from app.modules.ai.draft_store import lr_draft_store
 from app.modules.ai.lr_draft_service import (
-    handle_conversational_lr_booking,
-    is_lr_booking_intent,
     is_cancel_intent,
-    is_instructional_inquiry,
     is_valid_indian_vehicle,
     is_valid_location_name,
     parse_lr_entities_from_text,
@@ -67,6 +64,10 @@ from app.modules.ai.knowledge import (
     get_authorized_navigation_catalog,
     resolve_navigation_suggestions,
     build_system_prompt,
+    parse_page_context,
+    get_page_registry_entry,
+    format_page_registry_entry,
+    PAGE_REGISTRY,
     ROUTE_SUGGESTIONS,
     TMS_CORE_KNOWLEDGE,
 )
@@ -146,7 +147,15 @@ def detect_delete_record_request(text: str) -> Optional[str]:
 
 
 def get_blocked_delete_message(item_name: str, lang: str = "en") -> str:
-    """Exact blocked message for HARD RULE 0 across supported languages."""
+    """Exact blocked message for HARD RULE 0 across supported languages.
+
+    Hard Rule 0 (user decision): an LR delete is ALWAYS refused with the exact
+    English sentence below, in every language — Hindi/Hinglish requests must
+    NOT get a translated refusal. This one function serves both the chat path
+    (STEP 0) and the stream path, so the fix covers both.
+    """
+    if item_name == "LR":
+        return "You cannot delete this LR. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this LR needs correction or cancellation."
     if lang == "hinglish":
         return f"Aap is {item_name} ko delete nahi kar sakte. Panther TMS me deletion allowed nahi hai. Correction ya cancellation ke liye apne Company Admin se sampark karein."
     elif lang == "hi_devanagari":
@@ -188,23 +197,209 @@ def get_bulk_pii_refusal_message(lang: str = "en") -> str:
 
 
 def is_greeting(text: str) -> bool:
+    # v3: ONLY an exact short greeting counts. "hi, what is LR?" is a
+    # question, not a greeting — it must reach the real intent / RAG + LLM.
     raw = (text or "").strip().lower()
     raw_clean = re.sub(r"[^\w\s]", "", raw).strip()
     greetings = {
         "hi", "hello", "hey", "hola", "namaste", "namaskar", "greetings",
-        "good morning", "good afternoon", "good evening", "good day",
-        "hi panther", "hello panther", "hey panther", "hi there", "hello there",
+        "hlo", "hii", "helo", "helloo", "heyy", "hey there", "hi there",
+        "hello there", "good morning", "good afternoon", "good evening",
+        "good day", "hi panther", "hello panther", "hey panther",
         "kese ho", "kaise ho", "kya haal hai", "नमस्ते", "नमस्कार", "प्रणाम"
     }
-    return raw_clean in greetings or raw_clean.startswith("hi ") or raw_clean.startswith("hello ")
+    words = raw_clean.split()
+    return raw_clean in greetings or (
+        len(words) <= 3
+        and (
+            raw_clean.startswith("hi ")
+            or raw_clean.startswith("hello ")
+            or raw_clean.startswith("hey ")
+            or raw_clean.startswith("hlo ")
+        )
+    )
 
 
-def get_greeting_response(lang: str = "en") -> str:
+# Page-aware greeting hints: 2-3 things the bot can do FOR THE CURRENT PAGE.
+_PAGE_GREETING_HINTS = {
+    "/transport/lr-booking": {
+        "en": "track an LR, explain the LR form fields, or check what an e-way bill needs",
+        "hinglish": "LR track karna, LR form ke fields samajhna, ya e-way bill ke rules jaanna",
+        "hi_devanagari": "एलआर ट्रैक करना, एलआर फॉर्म के फ़ील्ड समझना, या ई-वे बिल के नियम जानना",
+    },
+    "/transport/job-orders": {
+        "en": "show your job list, explain job vs trip vs LR, or guide you to create a job",
+        "hinglish": "aapki job list dikhana, job vs trip vs LR samjhana, ya job create karne me guide karna",
+        "hi_devanagari": "आपकी जॉब लिस्ट दिखाना, जॉब vs ट्रिप vs एलआर समझाना, या जॉब बनाने में मार्गदर्शन करना",
+    },
+    "/accounts/master-ledger": {
+        "en": "check a balance, explain TBB vs To Pay vs Paid, or look at outstanding ageing",
+        "hinglish": "balance check karna, TBB vs To Pay vs Paid samjhana, ya outstanding dekhna",
+        "hi_devanagari": "बैलेंस चेक करना, TBB vs To Pay vs Paid समझाना, या बकाया देखना",
+    },
+    "/tracking/fastag": {
+        "en": "track a vehicle, explain GPS vs SIM vs FASTag, or check a toll crossing",
+        "hinglish": "vehicle track karna, GPS vs SIM vs FASTag samjhana, ya toll crossing dekhna",
+        "hi_devanagari": "वाहन ट्रैक करना, GPS vs SIM vs FASTag समझाना, या टोल क्रॉसिंग देखना",
+    },
+    "/transport/hire-challan": {
+        "en": "explain a hire challan, work out a hire settlement, or explain market vs company vehicles",
+        "hinglish": "hire challan samjhana, hire settlement nikalna, ya market vs company vehicle samjhana",
+        "hi_devanagari": "हायर चालान समझाना, हायर सेटलमेंट निकालना, या मार्केट vs कंपनी वाहन समझाना",
+    },
+    "/transport/pod-records": {
+        "en": "check pending PODs, explain what a POD is, or explain why billing needs a POD",
+        "hinglish": "pending PODs dekhna, POD kya hota hai samjhana, ya billing ke liye POD kyun chahiye batana",
+        "hi_devanagari": "पेंडिंग POD देखना, POD क्या होता है समझाना, या बिलिंग के लिए POD क्यों चाहिए बताना",
+    },
+}
+_DEFAULT_GREETING_HINTS = {
+    "en": "track an LR, check a balance, or explain a transport term",
+    "hinglish": "LR track karna, balance check karna, ya koi transport term samjhana",
+    "hi_devanagari": "एलआर ट्रैक करना, बैलेंस चेक करना, या कोई ट्रांसपोर्ट टर्म समझाना",
+}
+
+
+def get_greeting_response(
+    lang: str = "en",
+    page_context: Optional[str] = None,
+    user_name: Optional[str] = None,
+) -> str:
+    # v3: warm and human, never the old canned/robotic reply. Names 2-3
+    # things the bot can do FOR THE CURRENT PAGE, and uses the user's name.
+    first = (user_name or "").strip().split()[0] if user_name else ""
+    page_path, _ = parse_page_context(page_context)
+    hints = _DEFAULT_GREETING_HINTS.get(lang, _DEFAULT_GREETING_HINTS["en"])
+    page_title = None
+    for prefix, h in _PAGE_GREETING_HINTS.items():
+        if page_path.startswith(prefix):
+            hints = h.get(lang, h["en"])
+            _, _entry = get_page_registry_entry(page_context)
+            page_title = _entry["title"] if _entry else None
+            break
+    name_bit = f" {first}" if first else ""
+    page_bit = f" — you are on the {page_title} page" if page_title else ""
     if lang == "hi_devanagari":
-        return "नमस्ते! मैं पैंथर एआई कोपायलट (Panther AI Copilot) हूँ, आपका ट्रांसपोर्ट ऑपरेशंस सहायक। आज मैं आपकी एलआर बुकिंग, ट्रैकिंग या लेज़र खातों में कैसे मदद कर सकता हूँ?"
+        return (
+            f"नमस्ते{name_bit}! मैं पैंथर हूँ, आपका ट्रांसपोर्ट ऑपरेशंस साथी।{page_bit} "
+            f"मैं आपकी {hints} में मदद कर सकता हूँ। बताइए, आज क्या करना है?"
+        )
+    if lang == "hinglish":
+        return (
+            f"Hi{name_bit}! Main Panther hoon, aapka transport-operations colleague.{page_bit} "
+            f"Main aapki {hints} mein madad kar sakta hoon. Bataiye, aaj kya karna hai?"
+        )
+    return (
+        f"Hi{name_bit}! I'm Panther, your transport-operations colleague.{page_bit} "
+        f"I can help you {hints}. What would you like to do today?"
+    )
+
+
+def detect_language_with_history(
+    last_text: str,
+    messages: Optional[List[Dict[str, str]]] = None,
+) -> str:
+    """Language for this turn. A short acknowledgement ("ok", "haan",
+    "theek hai") carries no language signal of its own, so it inherits the
+    language of the earlier turns instead of flipping a Hindi/Hinglish chat
+    to English. A real question or sentence is detected on its own words.
+    """
+    lang = detect_language(last_text or "")
+    if lang != "en":
+        return lang
+    short_ack = (last_text or "").strip().lower() in {
+        "ok", "okay", "yes", "no", "haan", "ha", "theek hai", "continue",
+        "thanks", "thank you", "shukriya", "hmm", "acha", "achha",
+    } or len((last_text or "").strip().split()) <= 2
+    if not short_ack:
+        return "en"
+    for m in reversed(messages or []):
+        if isinstance(m, dict) and m.get("role") == "user":
+            earlier = detect_language(m.get("content", "") or "")
+            if earlier != "en":
+                return earlier
+    return "en"
+
+
+def get_lr_guide_response(
+    lang: str = "en", has_old_draft: bool = False
+) -> Tuple[str, List[NavigationSuggestion]]:
+    """v3: the ONLY response to any LR-creation request in chat. Chat never
+    creates an LR and never opens a draft: 3-4 short steps with the exact
+    form labels, plus an "Open LR Form" navigation suggestion.
+    """
+    navs = [
+        NavigationSuggestion(
+            title="Open LR Form",
+            href="/transport/lr-booking",
+            module="Transport Operations",
+            description="Open the LR form",
+        )
+    ]
+    draft_note = ""
+    if has_old_draft:
+        if lang == "hi_devanagari":
+            draft_note = "आपका पुराना चैट ड्राफ्ट हटा दिया गया है — चैट में अब एलआर ड्राफ्ट नहीं बनते। "
+        elif lang == "hinglish":
+            draft_note = "Aapka purana chat draft hata diya gaya hai — chat mein ab LR draft nahi bante. "
+        else:
+            draft_note = "Your old chat draft has been removed — chat drafts for LRs no longer exist. "
+    if lang == "hi_devanagari":
+        content = (
+            draft_note + "एलआर बनाने के लिए:\n\n"
+            "1. **LR Booking** पेज (/transport/lr-booking) पर जाएं।\n"
+            "2. **\"New LR Booking\"** पर क्लिक करें।\n"
+            "3. ज़रूरी फ़ील्ड भरें: Booking Status, Dispatch Date, Payment Type, Origin Hub, Destination Hub, Consignor, Consignee, Truck No., No. of Packages।\n"
+            "4. **\"Create Lorry Receipt\"** पर क्लिक करके सेव करें — आधिकारिक एलआर नंबर अपने आप मिलेगा।"
+        )
     elif lang == "hinglish":
-        return "Namaste! Main hoon Panther AI Copilot, aapka transport operations assistant. Aaj aapki LR booking, vehicle tracking ya ledger accounts mein kaise madad karoon?"
-    return "Hello! I am Panther AI Copilot, your transport operations assistant. How can I assist you with LR booking, fleet tracking, or master ledgers today?"
+        content = (
+            draft_note + "LR banane ke liye:\n\n"
+            "1. **LR Booking** page (/transport/lr-booking) par jayein.\n"
+            "2. **\"New LR Booking\"** par click karein.\n"
+            "3. Required fields bharein: Booking Status, Dispatch Date, Payment Type, Origin Hub, Destination Hub, Consignor, Consignee, Truck No., No. of Packages.\n"
+            "4. **\"Create Lorry Receipt\"** par click karke save karein — official LR number automatically milega."
+        )
+    else:
+        content = (
+            draft_note + "To create an LR:\n\n"
+            "1. Open the **LR Booking** page (/transport/lr-booking).\n"
+            "2. Click **\"New LR Booking\"**.\n"
+            "3. Fill the required fields: Booking Status, Dispatch Date, Payment Type, Origin Hub, Destination Hub, Consignor, Consignee, Truck No., No. of Packages.\n"
+            "4. Click **\"Create Lorry Receipt\"** to save — the official LR number is assigned automatically."
+        )
+    return content, navs
+
+
+def build_page_help_response(
+    page_context: Optional[str],
+    query: str,
+    lang: str = "en",
+    plan_code: str = "PRO",
+    permitted_categories: Optional[List[str]] = None,
+) -> Tuple[str, List[Dict[str, str]]]:
+    """Page-help answer: what the current page is for, from the page
+    registry, plus the tms-pages-* KB chunks for that page (grounded
+    context). Returns (content, citations).
+    """
+    base = get_page_awareness_response(page_context, "what_page_does", lang=lang)
+    try:
+        grounded, citations = knowledge_engine.format_grounded_context(
+            query=f"{query} {parse_page_context(page_context)[0]}",
+            plan_code=plan_code,
+            user_permitted_categories=permitted_categories,
+            top_k=5,
+            current_page=page_context,
+        )
+    except Exception:
+        grounded, citations = "", []
+    if not grounded:
+        return base, citations
+    # Present the retrieved SOURCE sections; drop the trailing LLM
+    # instruction tail (everything from "IMPORTANT:" onward).
+    body = grounded.split("\nIMPORTANT:")[0]
+    body = body.replace("AUTHORITATIVE PANTHERTMS RETRIEVED SPECIFICATIONS:\n", "")
+    return base + "\n\nFrom the Panther guide:\n" + body.strip(), citations
 
 
 def is_capabilities_query(text: str) -> bool:
@@ -609,7 +804,7 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
                 {"primary": "1. Open LR Booking", "secondary": "Go to Transport Operations → LR Booking"},
                 {"primary": "2. Select Parties", "secondary": "Choose Consigner (Sender) & Consignee (Receiver)"},
                 {"primary": "3. Assign Vehicle & Driver", "secondary": "Select vehicle registration number & driver"},
-                {"primary": "4. Material & Freight", "secondary": "Enter package count, weight & freight rate"},
+                {"primary": "4. Packages, Weight & Payment Type", "secondary": "Enter package count, weight & Payment Type (To Pay / Paid / TBB)"},
                 {"primary": "5. Verify Required Documents", "secondary": "GSTIN, Delivery Challan, E-Way Bill (> ₹50k), POD"},
             ],
             action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"}
@@ -623,18 +818,18 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
             "2. **कंसाइनर (भेजने वाला)** और **कंसाइनी (पाने वाला)** चुनें या नया जोड़ें।\n"
             "3. लोडिंग का स्थान (Origin) और डिलीवरी का स्थान (Destination) दर्ज करें।\n"
             "4. **वाहन नंबर (Vehicle Number)** और **ड्राइवर** आवंटित करें।\n"
-            "5. माल का विवरण, पैकेज की संख्या, वास्तविक वजन और **माल भाड़ा (Freight Rate)** दर्ज करें।\n"
+            "5. पैकेज की संख्या और वास्तविक/चार्ज्ड वजन दर्ज करें, और **Payment Type (To Pay / Paid / TBB)** चुनें। फॉर्म पर भाड़े की रकम का कोई फ़ील्ड नहीं है।\n"
             "6. **'Create Lorry Receipt'** पर क्लिक करके आधिकारिक एलआर जारी करें।\n\n"
             "#### 2. अनिवार्य विवरण (Mandatory Fields):\n"
             "- **कंसाइनर और कंसाइनी** का नाम और पता\n"
             "- **लोडिंग और डिलीवरी का स्थान (Origin & Destination)**\n"
             "- **वाहन नंबर (Vehicle Registration Number)** (जैसे DL01AA1111)\n"
-            "- **माल का विवरण, वजन और पैकेज संख्या**\n"
-            "- **भाड़ा दर और भुगतान शर्तें (To Pay / Paid / TBB)**\n\n"
+            "- **पैकेज संख्या और वजन** (माल का विवरण invoice-line Particulars में जाता है, अलग फ़ील्ड नहीं है)\n"
+            "- **Payment Type (To Pay / Paid / TBB)** — फॉर्म पर भाड़े की रकम का कोई फ़ील्ड नहीं है\n\n"
             "#### 3. आवश्यक दस्तावेज (Documents Required):\n"
             "- **GSTIN**: कंसाइनर और कंसाइनी दोनों का वैध जीएसटी नंबर\n"
             "- **डिलीवरी चालान / टैक्स इनवॉइस (Delivery Challan / Tax Invoice)**\n"
-            "- **ई-वे बिल (E-Way Bill)**: ₹50,000 से अधिक मूल्य के माल के लिए अनिवार्य\n"
+            "- **ई-वे बिल (E-Way Bill)**: ₹50,000 से अधिक मूल्य के माल के लिए अनिवार्य (Panther नियम; GST intrastate सीमा राज्य के अनुसार अलग होती है)\n"
             "- **वाहन दस्तावेज**: वैध आरसी (RC), फिटनेस और इंश्योरेंस विवरण\n"
             "- **FASTag ID**: टोल और स्वचालित ट्रैकिंग के लिए\n"
             "- **पीओडी (POD - Proof of Delivery)**: डिलीवरी के बाद रिसीवर की मोहर व हस्ताक्षर युक्त पावती"
@@ -647,18 +842,18 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
             "2. **Consigner (Bhejne wala)** aur **Consignee (Paane wala)** select karein.\n"
             "3. Loading origin aur delivery destination select karein.\n"
             "4. **Vehicle Number** aur **Driver** assign karein.\n"
-            "5. Cargo particulars, package count, weight aur **Freight Charges** fill karein.\n"
+            "5. Package count aur actual/charged weight fill karein, aur **Payment Type (To Pay / Paid / TBB)** select karein. Form par freight amount ka koi field nahi hai.\n"
             "6. **'Create Lorry Receipt'** par click karke official consignment note issue karein.\n\n"
             "#### 2. Mandatory Fields:\n"
             "- **Consigner & Consignee** details aur address\n"
             "- **Origin & Destination** locations\n"
             "- **Vehicle Number** (Valid Indian registration format)\n"
-            "- **Cargo Details, Weight & Package Count**\n"
-            "- **Freight Rate & Payment Mode (To Pay / Paid / TBB)**\n\n"
+            "- **Package Count & Weight** (cargo description invoice-line Particulars mein jaata hai)\n"
+            "- **Payment Type (To Pay / Paid / TBB)** — form par freight amount ka koi field nahi hai\n\n"
             "#### 3. Zaroori Documents (Required Documents):\n"
             "- **GSTIN**: Consigner aur Consignee ka GST number\n"
             "- **Delivery Challan / Tax Invoice**: Maal ka invoice/challan\n"
-            "- **E-Way Bill**: Goods value > ₹50,000 hone par mandatory\n"
+            "- **E-Way Bill**: Goods value > ₹50,000 hone par mandatory (Panther rule; GST intrastate thresholds state ke hisaab se alag hote hain)\n"
             "- **Vehicle Documents**: RC, Fitness, aur Insurance details\n"
             "- **FASTag ID**: Automated toll tracking ke liye\n"
             "- **Proof of Delivery (POD)**: Delivery confirmation receiver ke signature aur stamp ke saath"
@@ -671,19 +866,19 @@ def build_how_to_lr_response(lang: str = "en") -> Tuple[str, List[NavigationSugg
             "2. Select the **Consigner (Sender)** and **Consignee (Receiver)**.\n"
             "3. Specify the loading origin and destination delivery point.\n"
             "4. Assign the vehicle registration number and driver.\n"
-            "5. Enter material specifications: cargo description, package count, and weight.\n"
-            "6. Set freight charges, billing terms (To Pay / Paid / TBB), and any advance paid.\n"
+            "5. Enter package count and actual/charged weight (cargo description goes in the invoice-line Particulars, not a standalone field).\n"
+            "6. Set Payment Type (To Pay / Paid / TBB). The form has no freight amount fields.\n"
             "7. Click **'Create Lorry Receipt'** to generate and issue the official consignment note.\n\n"
             "#### 2. Mandatory Fields:\n"
             "- **Consigner & Consignee** (names, addresses, and GSTIN)\n"
             "- **Origin & Destination** (pickup and delivery locations)\n"
             "- **Vehicle Registration Number** (valid Indian registration)\n"
-            "- **Cargo Particulars** (packages, weight, and material description)\n"
-            "- **Freight Rate & Payment Mode**\n\n"
+            "- **Package count and weight** (cargo description in invoice-line Particulars)\n"
+            "- **Payment Type (To Pay / Paid / TBB)** — no freight amount field on the form\n\n"
             "#### 3. Documents Required:\n"
             "- **GSTIN** of both Consigner and Consignee\n"
             "- **Delivery Challan / Tax Invoice** for the cargo\n"
-            "- **E-Way Bill** (mandatory for goods consignment value exceeding ₹50,000)\n"
+            "- **E-Way Bill** (mandatory for goods consignment value exceeding ₹50,000 — Panther rule; GST intrastate thresholds vary by state)\n"
             "- **Vehicle Details** (valid RC, Fitness certificate, and Insurance)\n"
             "- **FASTag ID** (for automated toll tracking)\n"
             "- **Proof of Delivery (POD)** (signed and stamped by the consignee upon delivery)"
@@ -707,70 +902,6 @@ def get_lr_explanation_markdown(lang: str = "en") -> str:
     return content
 
 
-PAGE_METADATA = {
-    "/transport/lr-booking": {
-        "title": "LR Booking",
-        "description": "You can view existing Lorry Receipts (LRs), search consignment notes, create new LR bookings, track consignment status, and print or download bilty documents.",
-    },
-    "/transport/tracking": {
-        "title": "Live Tracking",
-        "description": "You can monitor live vehicle locations, track active LR consignments, inspect GPS and SIM tracking pings, and view FASTag toll crossing checkpoints.",
-    },
-    "/transport/company-vehicles": {
-        "title": "Vehicle Master",
-        "description": "You can view existing vehicles, search vehicle records, and access the available vehicle management actions.",
-    },
-    "/transport/market-vehicles": {
-        "title": "Vehicle Master",
-        "description": "You can view existing vehicles, search vehicle records, and access the available vehicle management actions.",
-    },
-    "/transport/drivers": {
-        "title": "Driver Master",
-        "description": "You can view driver profiles, search driver records, verify license numbers, and manage driver contact details.",
-    },
-    "/transport/hire-challans": {
-        "title": "Hire Challans",
-        "description": "You can view truck hiring memos (Hire Challans), track hired vehicle freight and advances, create new hire challans, and settle vendor balances.",
-    },
-    "/transport/hire-challan": {
-        "title": "Hire Challan",
-        "description": "You can view truck hiring memos (Hire Challans), track hired vehicle freight and advances, create new hire challans, and settle vendor balances.",
-    },
-    "/transport/pod-records": {
-        "title": "POD Records",
-        "description": "You can view Proof of Delivery (POD) records, track pending and unverified PODs, upload delivery acknowledgment scans, and verify receiver signatures.",
-    },
-    "/transport/transport-jobs": {
-        "title": "Transport Jobs",
-        "description": "You can view commercial transport job orders, manage multi-order dispatching, and track job statuses.",
-    },
-    "/accounts/master-ledger": {
-        "title": "Master Ledger",
-        "description": "You can view accounts ledgers, check billing client receivables, vendor payables, and driver advance balances.",
-    },
-    "/accounts/payment-vouchers": {
-        "title": "Payment Vouchers",
-        "description": "You can view payment vouchers, record driver advances, record vendor hiring settlements, and view payment histories.",
-    },
-    "/accounts/vouchers": {
-        "title": "Payment Vouchers",
-        "description": "You can view payment vouchers, record driver advances, record vendor hiring settlements, and view payment histories.",
-    },
-    "/general/billing-client": {
-        "title": "Billing Clients",
-        "description": "You can view registered billing clients, search customer accounts, inspect GSTIN details, and manage client credit terms.",
-    },
-    "/general/billing-clients": {
-        "title": "Billing Clients",
-        "description": "You can view registered billing clients, search customer accounts, inspect GSTIN details, and manage client credit terms.",
-    },
-    "/dashboard": {
-        "title": "Dashboard",
-        "description": "You can view operational KPI metrics, daily consignment trends, active branch activities, and high-level transport operations summaries.",
-    },
-}
-
-
 def is_current_page_query(text: str) -> Optional[str]:
     """
     Detects if user is asking about the currently open page.
@@ -782,30 +913,24 @@ def is_current_page_query(text: str) -> Optional[str]:
     lower = (text or "").strip().lower()
     if bool(re.search(r"\b(which\s+page\s+am\s+i|what\s+page\s+is\s+currently\s+open|what\s+page\s+am\s+i|where\s+am\s+i|which\s+page\s+is\s+this|current\s+page|kaunsa\s+page|kis\s+page)\b", lower)):
         return "which_page"
-    if bool(re.search(r"\b(what\s+does\s+this\s+page\s+do|what\s+can\s+i\s+do\s+here|how\s+can\s+i\s+perform\s+this\s+operation|what\s+is\s+this\s+page\s+for|is\s+page\s+ka\s+kya\s+kaam\s+hai|yahan\s+kya\s+kar\s+sakte\s+hain|is\s+page\s+par\s+kya\s+hota\s+hai)\b", lower)):
+    if bool(re.search(r"\b(what\s+does\s+this\s+(?:page|screen)\s+do|what\s+can\s+i\s+do\s+here|how\s+can\s+i\s+perform\s+this\s+operation|what\s+is\s+this\s+(?:page|screen)\s+for|what\s+is\s+this\s+(?:page|screen)|is\s+page\s+ka\s+kya\s+kaam\s+hai|yahan\s+kya\s+kar\s+sakte\s+hain|is\s+page\s+par\s+kya\s+hota\s+hai|is\s+screen\s+par\s+kya\s+hota\s+hai)\b", lower)):
         return "what_page_does"
     return None
 
 
 def get_page_awareness_response(page_context: Optional[str], query_type: str, lang: str = "en") -> str:
-    meta = None
-    if page_context:
-        clean_ctx = page_context.strip().split("?")[0].rstrip("/")
-        if clean_ctx in PAGE_METADATA:
-            meta = PAGE_METADATA[clean_ctx]
-        else:
-            for path, m in PAGE_METADATA.items():
-                if path.endswith(clean_ctx) or clean_ctx.endswith(path) or (path != "/dashboard" and path in clean_ctx):
-                    meta = m
-                    break
-
-    if not meta:
+    # v3: answers from the ONE page registry (knowledge.PAGE_REGISTRY).
+    # Unverified pages are never described with invented fields/buttons.
+    _path, meta = get_page_registry_entry(page_context)
+    if meta is None:
         if lang in ("hinglish", "hi_devanagari"):
             return "Mujhe abhi aapka currently open page determine karne me asuvidha ho rahi hai. Kripya aap jo section dekh rahe hain uska naam batayein, aur main aapko guide kar dunga."
         return "I cannot determine your currently open page right now. Please tell me the section you are viewing, and I can guide you."
 
     title = meta["title"]
-    description = meta["description"]
+    description = meta["purpose"]
+    if entry_next := meta.get("next_steps"):
+        description = description + " You can: " + "; ".join(entry_next) + "."
 
     if query_type == "which_page":
         if lang == "hi_devanagari":
@@ -878,12 +1003,12 @@ def get_tms_guidance_response(text: str, lang: str = "en") -> Optional[Tuple[str
         msg = (
             "To create an LR (Lorry Receipt) in Panther TMS:\n\n"
             "1. Navigate to **Transport Operations** → [LR Booking](/transport/lr-booking).\n"
-            "2. Click **New LR Booking** (or simply tell me: *'book LR from [Origin] to [Destination]'*).\n"
+            "2. Click **New LR Booking**. (Chat cannot create an LR for you — the form is where it is made.)\n"
             "3. Select or enter the **Consigner (Sender)** and **Consignee (Receiver)**.\n"
             "4. Specify the **Origin (Loading)** and **Destination (Delivery)** locations.\n"
             "5. Assign a **Vehicle Number** (Company or Market truck) and Driver.\n"
-            "6. Enter cargo details (packages, actual/chargeable weight, and goods description).\n"
-            "7. Enter commercial terms (freight amount, payment basis: To Pay, Paid, or TBB, and any advance).\n"
+            "6. Enter cargo details (packages and actual/chargeable weight; goods description goes in the invoice-line Particulars).\n"
+            "7. Set the Payment Type (To Pay, Paid, or TBB). The form has no freight amount fields.\n"
             "8. Click **Create Lorry Receipt** to assign the official series number."
         )
         navs = [NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations")]
@@ -985,7 +1110,9 @@ def classify_copilot_message_intent(
     - 'ledger': accounting ledger, khata, party balances, outstanding dues
     - 'vehicle': vehicle lookups, vehicle lists, vehicle fitness, add vehicle guide
     - 'other_tms': jobs, hire challans, POD records, eway bills, invoices, clients, vendors, etc.
-    - 'lr_booking': genuine LR booking intent or active LR draft continuation
+    - (v3: NO 'lr_booking' category — chat LR booking is removed; an LR
+      request is a guide, and an unmatched question is 'unknown', never
+      refused as off-topic)
     """
     clean = (text or "").strip()
     lower = clean.lower()
@@ -1068,15 +1195,13 @@ def classify_copilot_message_intent(
     if is_how_to_lr_inquiry(clean) or is_long_explanatory_message(clean) or is_capabilities_query(clean):
         return "other_tms"
 
-    # 12. LR BOOKING
-    if is_lr_booking_intent(clean):
-        return "lr_booking"
-    if is_confirming_start:
-        return "lr_booking"
-    if has_active_lr_draft and not is_cancel_intent(clean):
-        return "lr_booking"
-
-    return "off_topic"
+    # 12. LR BOOKING — REMOVED in v3. is_lr_booking_intent /
+    # is_confirming_start / has_active_lr_draft used to return "lr_booking"
+    # here, which opened a draft for almost any message. Nothing in this
+    # gate may open or resume an LR draft any more.
+    # Unmatched questions are "unknown", NOT "off_topic": an unmatched
+    # question must fall through to RAG + LLM, never be refused as off-topic.
+    return "unknown"
 
 
 def get_safe_general_or_refusal_response(
@@ -1403,7 +1528,12 @@ async def chat_with_copilot(
     and secure read-only operational tools with privacy boundary protection.
     """
     last_user_message = next((m.content for m in reversed(data.messages) if m.role == "user"), "")
-    detected_lang = detect_language(last_user_message)
+    # v3: short acks ("ok", "haan") inherit the language of earlier turns
+    # instead of flipping a Hindi/Hinglish chat to English.
+    detected_lang = detect_language_with_history(
+        last_user_message,
+        [{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+    )
 
     # --------------------------------------------------------------------------
     # STEP 0: HARD RULE 0 — NO DELETION IN PANTHER TMS (HIGHEST PRIORITY)
@@ -1516,11 +1646,11 @@ async def chat_with_copilot(
             conv_state = {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None}
             await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
             if detected_lang == "hi_devanagari":
-                reply_content = "आपका सक्रिय ड्राफ्ट रद्द (cancel) कर दिया गया है। जब भी आप नया कंसाइनमेंट या कार्य शुरू करना चाहें, मुझे बताएं।"
+                reply_content = "आपका सक्रिय ड्राफ्ट रद्द (cancel) कर दिया गया है। कोई एलआर नहीं बना। एलआर बनाने के लिए LR form खोलें: /transport/lr-booking।"
             elif detected_lang == "hinglish":
-                reply_content = "Aapka active draft cancel kar diya gaya hai. Nayi booking ya transport operations ke liye kabhi bhi batayein."
+                reply_content = "Aapka active draft cancel kar diya gaya hai. Koi LR nahi bana. LR banane ke liye LR form kholein: /transport/lr-booking."
             else:
-                reply_content = "Your active LR draft has been cancelled. Let me know when you would like to book a new consignment."
+                reply_content = "Your active draft has been cancelled. No LR was created. To make an LR, open the LR form: /transport/lr-booking."
             card = StructuredCard(
                 card_type="lr_draft",
                 title="LR Booking • Draft Cancelled",
@@ -1530,7 +1660,9 @@ async def chat_with_copilot(
             )
             return ChatResponse(
                 content=reply_content,
-                navigation_suggestions=[],
+                navigation_suggestions=[
+                    NavigationSuggestion(title="Open LR Form", href="/transport/lr-booking", module="Transport Operations")
+                ],
                 citations=[],
                 cards=[card],
                 provider_configured=is_provider_configured(),
@@ -1544,6 +1676,23 @@ async def chat_with_copilot(
         # Page awareness query (e.g. "Which page am I on?")
         q_page = is_current_page_query(last_user_message)
         if q_page:
+            if q_page == "what_page_does":
+                # v3 page_help: registry entry + tms-pages-* KB chunks.
+                page_content, page_citations = build_page_help_response(
+                    data.page_context,
+                    last_user_message,
+                    detected_lang,
+                    plan_code=tenant.plan.code if tenant and tenant.plan else "PRO",
+                    permitted_categories=[m["id"].replace("-", "_") for m in authorized_catalog],
+                )
+                return ChatResponse(
+                    content=page_content,
+                    navigation_suggestions=nav_suggestions,
+                    citations=page_citations,
+                    cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
             return ChatResponse(
                 content=get_page_awareness_response(data.page_context, q_page, lang=detected_lang),
                 navigation_suggestions=nav_suggestions,
@@ -1579,28 +1728,13 @@ async def chat_with_copilot(
                 detected_language=detected_lang,
             )
 
-        # 2. Confidence Gate: Confidence < 0.7 triggers single clarification question
-        if (c_intent == "unknown" or c_conf < 0.7) and not (is_job_req or is_hc_req):
-            if detected_lang == "hi_devanagari":
-                clarification = "क्या आप एलआर (LR) बुक करना चाहते हैं, ट्रैक करना चाहते हैं, या बैलेंस चेक करना चाहते हैं?"
-            elif detected_lang == "hinglish":
-                clarification = "Kya aap LR book karna chahte hain, track karna chahte hain, ya balance check karna chahte hain?"
-            else:
-                clarification = "Do you want to book an LR, track one, or check a balance?"
-            conv_state["state"] = "awaiting_clarification"
-            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
-            return ChatResponse(
-                content=clarification,
-                navigation_suggestions=[
-                    NavigationSuggestion(title="LR Booking", href="/transport/lr-booking", module="Transport Operations"),
-                    NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Fleet Management"),
-                    NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger", module="Accounts"),
-                ],
-                citations=[],
-                cards=[],
-                provider_configured=is_provider_configured(),
-                detected_language=detected_lang,
-            )
+        # 2. Confidence Gate — REMOVED in v3 (reviewer fix, root cause of
+        # "book LR on every message"). The old block answered EVERY
+        # unrecognised message ("hlo", "what is detention charge?", "explain
+        # POD") with "Do you want to book an LR, track one, or check a
+        # balance?" + LR Booking chips — BEFORE RAG or the LLM ever ran.
+        # Unknown now falls through to Step 2 / Step 3 (RAG + LLM); only the
+        # LLM itself may ask a clarifying question when it is unsure.
 
         # 3. Knowledge & Guidance Intents
         if c_intent == "what_is_eway":
@@ -1614,6 +1748,17 @@ async def chat_with_copilot(
         if c_intent == "how_to_track":
             msg, cards, navs = typed_tools.getHowTo("tracking", lang=detected_lang)
             return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        # 3A. Page help (v3) — "what is this page / what does this page do".
+        if c_intent == "page_help":
+            page_content, page_citations = build_page_help_response(
+                data.page_context,
+                last_user_message,
+                detected_lang,
+                plan_code=tenant.plan.code if tenant and tenant.plan else "PRO",
+                permitted_categories=[m["id"].replace("-", "_") for m in authorized_catalog],
+            )
+            return ChatResponse(content=page_content, navigation_suggestions=nav_suggestions, citations=page_citations, cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
 
         # 4. Action Intents: Add / Change Consignee
         if c_intent in ("add_consignee", "change_consignee") and not has_active_draft:
@@ -1780,11 +1925,14 @@ async def chat_with_copilot(
                 db=db, user=current_user, tenant=tenant, current_office=current_office,
                 lr_number=lr_no, vehicle_number=veh_no, lang=detected_lang,
             )
-            return ChatResponse(content=reply_content, navigation_suggestions=nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+            # Not-found tracking: exact not-found text only — no nav cards
+            # alongside it (live-test finding, 13 Nov 2026).
+            track_navs = [] if (not cards and "No LR records found" in reply_content) else nav_suggestions
+            return ChatResponse(content=reply_content, navigation_suggestions=track_navs, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
 
         # 12. Conversational / Help / Off-topic
         if c_intent == "greet":
-            return ChatResponse(content=get_greeting_response(lang=detected_lang), navigation_suggestions=nav_suggestions, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+            return ChatResponse(content=get_greeting_response(lang=detected_lang, page_context=data.page_context, user_name=current_user.full_name), navigation_suggestions=nav_suggestions, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
 
         if c_intent == "help":
             return ChatResponse(content=get_capabilities_list_markdown(lang=detected_lang), navigation_suggestions=nav_suggestions, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
@@ -1793,30 +1941,23 @@ async def chat_with_copilot(
             safe_msg, safe_navs = get_safe_general_or_refusal_response("off_topic", last_user_message, lang=detected_lang)
             return ChatResponse(content=safe_msg, navigation_suggestions=safe_navs or nav_suggestions, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
 
-        # 13. Book LR
-        if c_intent == "book_lr" or (has_active_draft and not (is_job_req or is_hc_req)):
-            if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
-                await log_blocked_rbac_attempt(db, current_user, "BLOCKED_CREATE_LR", "transport", "transport.lr_booking.create", last_user_message, current_office)
-                office_str = format_user_office_label(current_office, current_user)
-                if detected_lang == "hi_devanagari":
-                    msg = f"आपके पास एलआर (LR) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
-                elif detected_lang == "hinglish":
-                    msg = f"Aapke paas LRs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
-                else:
-                    msg = f"You don't have access to create LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
-                return ChatResponse(content=msg, navigation_suggestions=[], citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
-
-            reply_content, cards = await handle_conversational_lr_booking(
-                db=db, user=current_user, tenant=tenant, current_office=current_office,
-                user_text=last_user_message, lang=detected_lang,
+        # 13. v3: LR creation requests are a GUIDE, never a draft.
+        # Chat LR booking is REMOVED. If a stale LR draft is still open it
+        # is cleared from the chat draft store (once — see CHANGES for the
+        # one-time manual clear step) and the user gets the guide. Never
+        # resume a draft, never parse slot fields from the message.
+        if has_active_draft and not (is_job_req or is_hc_req):
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+            await lr_draft_store.set_conversation_state(
+                tenant.id, current_user.id,
+                {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None},
             )
-            conv_state["state"] = "booking_draft"
-            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+            guide_content, guide_navs = get_lr_guide_response(lang=detected_lang, has_old_draft=True)
             return ChatResponse(
-                content=reply_content,
-                navigation_suggestions=nav_suggestions,
+                content=guide_content,
+                navigation_suggestions=guide_navs,
                 citations=[],
-                cards=cards,
+                cards=[],
                 provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
@@ -1855,9 +1996,30 @@ async def chat_with_copilot(
         is_hc_canc = is_hc_cancel_intent(last_user_message)
         is_hc_inq = is_instructional_hc_inquiry(last_user_message)
 
-        is_booking = is_lr_booking_intent(last_user_message)
+        # v3: STALE CHAT LR DRAFT. Chat LR booking is removed: if an old LR
+        # draft is still open, clear it from the chat draft store and answer
+        # with the guide. Do NOT resume it, do NOT parse slot fields from
+        # the message. (A job / hire-challan request still proceeds — the
+        # stale LR draft is cleared silently first.)
+        if has_active_draft:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+            await lr_draft_store.set_conversation_state(
+                tenant.id, current_user.id,
+                {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None},
+            )
+            has_active_draft = False
+            existing_d = None
+            if not (is_job_req or is_hc_req):
+                guide_content, guide_navs = get_lr_guide_response(lang=detected_lang, has_old_draft=True)
+                return ChatResponse(
+                    content=guide_content,
+                    navigation_suggestions=guide_navs,
+                    citations=[], cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
         is_cancel = is_cancel_intent(last_user_message)
-        is_inquiry = is_instructional_inquiry(last_user_message)
 
         # A: Explicit cancel of active draft
         if is_job_canc and has_active_job:
@@ -1881,13 +2043,21 @@ async def chat_with_copilot(
                 detected_language=detected_lang,
             )
         elif is_cancel and has_active_draft:
-            reply_content, cards = await handle_conversational_lr_booking(
-                db=db, user=current_user, tenant=tenant, current_office=current_office,
-                user_text=last_user_message, lang=detected_lang
-            )
+            # v3: cancelling a chat LR draft only clears it. No LR was
+            # created, and no booking handler runs.
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="lr")
+            if detected_lang == "hi_devanagari":
+                reply_content = "आपका चैट ड्राफ्ट रद्द कर दिया गया है। कोई एलआर नहीं बना। एलआर बनाने के लिए LR form खोलें: /transport/lr-booking।"
+            elif detected_lang == "hinglish":
+                reply_content = "Aapka chat draft cancel kar diya gaya hai. Koi LR nahi bana. LR banane ke liye LR form kholein: /transport/lr-booking."
+            else:
+                reply_content = "Your chat draft has been cancelled. No LR was created. To make an LR, open the LR form: /transport/lr-booking."
             return ChatResponse(
-                content=reply_content, navigation_suggestions=nav_suggestions,
-                citations=[], cards=cards, provider_configured=is_provider_configured(),
+                content=reply_content,
+                navigation_suggestions=[
+                    NavigationSuggestion(title="Open LR Form", href="/transport/lr-booking", module="Transport Operations")
+                ],
+                citations=[], cards=[], provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
         elif is_cancel or is_job_canc or is_hc_canc:
@@ -1951,7 +2121,7 @@ async def chat_with_copilot(
                 tms_guide_tuple = get_tms_guidance_response(last_user_message, lang=detected_lang)
 
                 if is_greeting(last_user_message):
-                    sub_answer = get_greeting_response(lang=detected_lang)
+                    sub_answer = get_greeting_response(lang=detected_lang, page_context=data.page_context, user_name=current_user.full_name)
                     sub_cards = []
                 elif is_page_q:
                     sub_answer = get_page_awareness_response(data.page_context, is_page_q, lang=detected_lang)
@@ -2007,35 +2177,16 @@ async def chat_with_copilot(
                     detected_language=detected_lang,
                 )
 
-        # Slot-filling for active LR draft
-        if has_active_draft and existing_d:
-            parsed_slot_entities = parse_lr_entities_from_text(last_user_message, current_draft=existing_d)
-            has_slot_field = any(k in parsed_slot_entities for k in (
-                "consigner_candidate", "consignee_candidate", "origin_candidate",
-                "destination_candidate", "vehicle_number", "freight_amount",
-                "actual_weight_mt", "particulars", "advance_amount", "goods_value",
-                "eway_bill_number", "gstin_candidate", "pincode_candidate", "is_single_edit"
-            ))
-            if has_slot_field and not is_cancel and not is_greeting(last_user_message):
-                reply_content, cards = await handle_conversational_lr_booking(
-                    db=db, user=current_user, tenant=tenant, current_office=current_office,
-                    user_text=last_user_message, lang=detected_lang
-                )
-                return ChatResponse(
-                    content=reply_content,
-                    navigation_suggestions=nav_suggestions,
-                    citations=[],
-                    cards=cards,
-                    provider_configured=is_provider_configured(),
-                    detected_language=detected_lang,
-                )
+        # Slot-filling for an active LR draft — REMOVED in v3. Chat LR
+        # booking is removed: slot fields from a message must never fill or
+        # resume a draft. (Stale drafts are cleared at the top of Step 2.)
 
         # C: When NO active draft exists: Validate Intent BEFORE starting
         if not (has_active_draft or has_active_job or has_active_hc):
             # 1. Greeting: return greeting only
             if is_greeting(last_user_message):
                 return ChatResponse(
-                    content=get_greeting_response(lang=detected_lang),
+                    content=get_greeting_response(lang=detected_lang, page_context=data.page_context, user_name=current_user.full_name),
                     navigation_suggestions=nav_suggestions,
                     citations=[],
                     cards=[],
@@ -2197,29 +2348,22 @@ async def chat_with_copilot(
                         detected_language=detected_lang,
                     )
 
-            # 5. Starting a new LR booking:
-            # Check if assistant previously asked "Do you want to start a new LR booking?"
-            # and user is confirming with "yes", "sure", "proceed", "start"
-            prev_asst_msg = next((m.content for m in reversed(data.messages[:-1]) if m.role == "assistant"), "")
-            asked_start_booking = (
-                "Do you want to start a new LR booking?" in prev_asst_msg
-                or "Kya aap nayi LR booking start karna chahte hain?" in prev_asst_msg
-                or "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?" in prev_asst_msg
-            )
-            is_confirming_start = asked_start_booking and bool(
-                re.search(r"^(yes|y|ha|haan|sure|start|proceed|ok|okay|karo|start karo|shuru karo|हाँ|हां|शुरू करो)\b", last_user_message.strip(), re.I)
-            )
+            # 5. "Do you want to start a new LR booking?" — REMOVED in v3.
+            # Chat LR booking is removed; there is no ask-first flow and no
+            # "yes" that starts a booking. An LR request gets the form guide.
 
             # ------------------------------------------------------------------
-            # ROUTER GATE: Classify intent BEFORE slot-filler / draft opening
-            # Invariant: Only messages classified as LR booking may open or fill an LR draft.
+            # ROUTER GATE: Classify intent BEFORE any draft handling (v3).
+            # Invariant: NOTHING in the chat flow may open, fill or resume an
+            # LR draft. Job / hire-challan drafts are the only conversational
+            # write workflows left; LR requests get the form guide.
             # ------------------------------------------------------------------
             history_dicts_early = [{"role": m.role, "content": m.content} for m in data.messages[:-1]]
             intent_category = classify_copilot_message_intent(
                 text=last_user_message,
                 conversation_history=history_dicts_early,
-                has_active_lr_draft=has_active_draft,
-                is_confirming_start=is_confirming_start,
+                has_active_lr_draft=False,
+                is_confirming_start=False,
             )
 
             # 1. General knowledge or Off-topic: Polite refusal or safe general answer
@@ -2235,88 +2379,9 @@ async def chat_with_copilot(
                     detected_language=detected_lang,
                 )
 
-            # 2. Operational tools (LR Tracking, Ledger, Vehicle):
-            # Bypass LR slot-filling directly and jump to Step 3 operational dispatch
-            if intent_category == "lr_booking":
-                is_booking_trigger = (
-                    is_booking
-                    or bool(re.search(r"\b(creat|create|boking|booking|book|bok)\s+(lr|gr|bilty)\b", last_user_message, re.I))
-                    or bool(re.search(r"\b(lr|gr|bilty)\s+(creat|create|boking|booking|book|bok)\b", last_user_message, re.I))
-                )
-
-                parsed_booking_entities = parse_lr_entities_from_text(last_user_message)
-                has_booking_details = any(
-                    k in parsed_booking_entities for k in (
-                        "consigner_candidate", "consignee_candidate", "origin_candidate",
-                        "destination_candidate", "vehicle_number", "freight_amount",
-                        "actual_weight_mt", "particulars"
-                    )
-                )
-
-                # Enforce LR creation permission before showing any prompt or draft
-                if (is_booking_trigger or is_booking or has_booking_details or has_active_draft or is_confirming_start) and not is_inquiry and not is_cancel and not is_job_req and not is_hc_req:
-                    if not is_user_permitted(current_user, tenant, "transport", "lr_booking", "create"):
-                        await log_blocked_rbac_attempt(
-                            db=db,
-                            user=current_user,
-                            action="BLOCKED_CREATE_LR",
-                            module="transport",
-                            missing_permission="transport.lr_booking.create",
-                            raw_message=last_user_message,
-                            current_office=current_office,
-                        )
-                        office_str = format_user_office_label(current_office, current_user)
-                        if detected_lang == "hi_devanagari":
-                            msg = f"आपके पास एलआर (LR) बनाने की अनुमति नहीं है। आपका अधिकृत जारी करने वाला कार्यालय (issuing office) {office_str} है। कृपया अपने कंपनी एडमिन से संपर्क करें।"
-                        elif detected_lang == "hinglish":
-                            msg = f"Aapke paas LRs create karne ka access nahi hai. Aapka allowed issuing office {office_str} hai. Kripya access ke liye apne Company Admin se sampark karein."
-                        else:
-                            msg = f"You don't have access to create LRs. Your allowed issuing office is {office_str}. Please contact your Company Admin if you need access."
-                        return ChatResponse(
-                            content=msg,
-                            navigation_suggestions=[],
-                            citations=[],
-                            cards=[],
-                            provider_configured=is_provider_configured(),
-                            detected_language=detected_lang,
-                        )
-
-                if is_booking_trigger and not is_hc_req and not is_job_req and not is_confirming_start and not has_booking_details:
-                    # Ask first before creating draft ONLY when user has not given any booking details yet!
-                    if detected_lang == "hi_devanagari":
-                        ask_msg = "क्या आप एक नई एलआर (LR) बुकिंग शुरू करना चाहते हैं?"
-                    elif detected_lang == "hinglish":
-                        ask_msg = "Kya aap nayi LR booking start karna chahte hain?"
-                    else:
-                        ask_msg = "Do you want to start a new LR booking?"
-                    navs = [
-                        NavigationSuggestion(
-                            title="LR Booking Form",
-                            href="/transport/lr-booking",
-                            module="Transport Operations",
-                            description="Open full manual LR booking form"
-                        )
-                    ]
-                    cards = [
-                        StructuredCard(
-                            card_type="lr_booking_prompt",
-                            title="Start LR Booking",
-                            subtitle="Conversational LR Creation",
-                            badge={"text": "Ready", "variant": "neutral"},
-                            items=[
-                                {"primary": "Start Booking", "secondary": "Reply 'Yes' to proceed step by step, or click Open below to use the form."},
-                            ],
-                            action={"label": "Open LR Booking Form", "href": "/transport/lr-booking"},
-                        )
-                    ]
-                    return ChatResponse(
-                        content=ask_msg,
-                        navigation_suggestions=navs,
-                        citations=[],
-                        cards=cards,
-                        provider_configured=is_provider_configured(),
-                        detected_language=detected_lang,
-                    )
+            # 2. LR-booking dispatch — REMOVED in v3. The old block asked
+            # "Do you want to start a new LR booking?", enforced LR-create
+            # permission, and opened a draft. Chat LR booking is removed.
 
         # D: Route to active draft continuation or confirmed start
         chosen_workflow = None
@@ -2324,16 +2389,14 @@ async def chat_with_copilot(
             chosen_workflow = "job"
         elif is_hc_req and not is_hc_inq:
             chosen_workflow = "hc"
-        elif (is_booking and not is_inquiry) or (not (has_active_job or has_active_hc or has_active_draft) and (locals().get("is_confirming_start") or (locals().get("has_booking_details") and locals().get("intent_category") == "lr_booking"))):
-            chosen_workflow = "lr"
         elif has_active_draft or has_active_job or has_active_hc:
             active_list = []
             if has_active_job and d_job:
                 active_list.append(("job", getattr(d_job, "updated_at", "")))
             if has_active_hc and d_hc:
                 active_list.append(("hc", getattr(d_hc, "updated_at", "")))
-            if has_active_draft and existing_d:
-                active_list.append(("lr", getattr(existing_d, "updated_at", "")))
+            # v3: an LR draft never selects a workflow (chat LR booking
+            # is removed; stale LR drafts are cleared at the top of Step 2).
 
             if active_list:
                 active_list.sort(key=lambda x: str(x[1]), reverse=True)
@@ -2410,67 +2473,9 @@ async def chat_with_copilot(
                 citations=[], cards=cards, provider_configured=is_provider_configured(),
                 detected_language=detected_lang,
             )
-        elif chosen_workflow == "lr":
-            is_confirm = bool(
-                re.search(
-                    r"^(create\s+lr|confirm|confirm\s+and\s+create|create\s+it|create\s+this\s+lr|yes|y|ha|haan|proceed|banao|haan\s+bana\s+do|ha\s+create\s+karo|banado|theek\s+hai)\b",
-                    last_user_message.strip(),
-                    re.I,
-                )
-            ) or last_user_message.strip().lower() in ("create lr", "create", "yes", "confirm", "proceed", "ok", "haan", "ha", "banao")
-
-            if existing_d and existing_d.is_valid and existing_d.confirmation_token and is_confirm:
-                try:
-                    conf_req = ConfirmLRDraftRequest(
-                        draft_id=existing_d.draft_id,
-                        confirmation_token=existing_d.confirmation_token,
-                    )
-                    conf_res = await confirm_lr_draft(
-                        payload=conf_req,
-                        current_user=current_user,
-                        current_office=current_office,
-                        tenant=tenant,
-                        db=db,
-                    )
-                    if detected_lang == "hi_devanagari":
-                        reply_msg = f"✅ आपका एलआर **{conf_res.lr_number}** सफलतापूर्वक तैयार कर दिया गया है!\n\nआप नीचे दिए गए कार्ड से इसे सीधे देख सकते हैं या प्रिंट कर सकते हैं।"
-                    elif detected_lang == "hinglish":
-                        reply_msg = f"✅ Aapka LR **{conf_res.lr_number}** successfully ban gaya hai!\n\nAap ise niche diye card se directly open ya print kar sakte hain."
-                    else:
-                        reply_msg = f"✅ Your LR **{conf_res.lr_number}** has been created successfully in the transport register!\n\nYou can view or print it directly using the card below."
-                    return ChatResponse(
-                        content=reply_msg,
-                        navigation_suggestions=[
-                            NavigationSuggestion(
-                                title=f"View LR {conf_res.lr_number}",
-                                href=f"/transport/lr-booking?lr_number={conf_res.lr_number}",
-                                module="Transport Operations",
-                            )
-                        ],
-                        citations=[],
-                        cards=[conf_res.card],
-                        provider_configured=is_provider_configured(),
-                        detected_language=detected_lang,
-                    )
-                except HTTPException as he:
-                    return ChatResponse(
-                        content=f"⚠️ {he.detail}",
-                        navigation_suggestions=nav_suggestions,
-                        citations=[],
-                        cards=[],
-                        provider_configured=is_provider_configured(),
-                        detected_language=detected_lang,
-                    )
-
-            reply_content, cards = await handle_conversational_lr_booking(
-                db=db, user=current_user, tenant=tenant, current_office=current_office,
-                user_text=last_user_message, lang=detected_lang
-            )
-            return ChatResponse(
-                content=reply_content, navigation_suggestions=nav_suggestions,
-                citations=[], cards=cards, provider_configured=is_provider_configured(),
-                detected_language=detected_lang,
-            )
+        # v3: chosen_workflow == "lr" can no longer happen (chat LR booking
+        # is removed). The confirm_lr_draft API endpoint is untouched — it
+        # only confirms an existing draft and is not part of the chat flow.
 
     # --------------------------------------------------------------------------
     # STEP 2.5: RECORD PRE-FILL INTENTS (VEHICLE, DRIVER, CLIENT PREFILL)
@@ -2848,6 +2853,8 @@ async def chat_with_copilot(
         plan_code=plan_code,
         user_permitted_categories=permitted_categories,
         top_k=5,
+        conversation_history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+        current_page=data.page_context,
     )
 
     # 6. Build high-fidelity system prompt with live context & grounded RAG
@@ -3087,6 +3094,8 @@ async def stream_chat_with_copilot(
         plan_code=plan_code,
         user_permitted_categories=permitted_categories,
         top_k=3,
+        conversation_history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+        current_page=data.page_context,
     )
 
     system_prompt = build_system_prompt(
