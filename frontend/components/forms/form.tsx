@@ -15,6 +15,8 @@ import { RcInput } from "@/components/ui/rc-input";
 import { DlInput } from "@/components/ui/dl-input";
 import { isIndia } from "@/lib/states";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
+import { scrollToMissedField } from "@/lib/form-utils";
+import { toast } from "@/lib/toast";
 
 interface FormProps {
   sections: FormSectionDef[];
@@ -148,14 +150,8 @@ export function Form({
     }
   };
 
-  const scrollToField = (fieldId: string, fieldName: string) => {
-    const el = document.getElementById(fieldId) || (document.querySelector(`[name="${fieldName}"]`) as HTMLElement);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      if ("focus" in el && typeof el.focus === "function") {
-        el.focus();
-      }
-    }
+  const scrollToField = (fieldId: string, fieldName: string, label?: string) => {
+    scrollToMissedField(fieldName, { fieldId, label });
   };
 
   const validate = (): boolean => {
@@ -184,13 +180,16 @@ export function Form({
     setErrorList(newErrorList);
     if (newErrorList.length > 0) {
       onValidationError?.(newErrorList);
-    }
-
-    if (newErrorList.length > 0) {
-      // Auto-scroll and focus the first invalid field
       const firstError = newErrorList[0];
+      if (!onValidationError) {
+        toast.error(`Please complete: ${firstError.label || "the required field"}`);
+      }
+      // Auto-scroll and highlight the first missed compulsory field
       setTimeout(() => {
-        scrollToField(firstError.id, firstError.name);
+        scrollToMissedField(firstError.name, {
+          fieldId: firstError.id,
+          label: firstError.label,
+        });
       }, 50);
       return false;
     }
@@ -256,8 +255,10 @@ export function Form({
                 return (
                   <div
                     key={field.name}
+                    id={`form-group-${field.name}`}
+                    data-field-name={field.name}
                     className={cn(
-                      "space-y-1.5 min-w-0 scroll-mb-6",
+                      "space-y-1.5 min-w-0 scroll-mt-28 scroll-mb-6 transition-all duration-200",
                       field.colSpan === 2 ? "col-span-1 md:col-span-2" : "",
                       field.colSpan === 3 ? "col-span-1 md:col-span-3" : "",
                       field.colSpan === 4 ? "col-span-full" : ""
@@ -893,7 +894,7 @@ export function Form({
                 <span className="text-rose-400">•</span>
                 <button
                   type="button"
-                  onClick={() => scrollToField(err.id, err.name)}
+                  onClick={() => scrollToField(err.id, err.name, err.label)}
                   className="underline hover:text-rose-950 font-semibold cursor-pointer text-left"
                 >
                   {err.message}

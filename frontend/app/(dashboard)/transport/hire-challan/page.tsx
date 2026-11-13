@@ -1,5 +1,6 @@
 "use client";
 import { toast, confirmModal } from "@/lib/toast";
+import { scrollToMissedField } from "@/lib/form-utils";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -1021,14 +1022,17 @@ export default function HireChallansPage() {
     }
     if (!fromLocation.trim()) {
       toast.warning("Please specify the 'From' location.");
+      scrollToMissedField("fromLocation");
       return;
     }
     if (!toLocation.trim()) {
       toast.warning("Please specify the 'To' location.");
+      scrollToMissedField("toLocation");
       return;
     }
     if (!vehicleNumber.trim()) {
       toast.warning("Please enter or select a Vehicle Number.");
+      scrollToMissedField("vehicleNumber");
       return;
     }
 
@@ -1725,11 +1729,13 @@ export default function HireChallansPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* From */}
-              <div className="space-y-1.5">
+              <div id="form-group-fromLocation" data-field-name="fromLocation" className="space-y-1.5 scroll-mt-28 transition-all duration-200">
                 <label className="block text-xs font-semibold text-slate-700">
                   From (Origin) <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="fromLocation"
+                  name="fromLocation"
                   type="text"
                   required
                   list="from-locations-list"
@@ -1746,11 +1752,13 @@ export default function HireChallansPage() {
               </div>
 
               {/* To */}
-              <div className="space-y-1.5">
+              <div id="form-group-toLocation" data-field-name="toLocation" className="space-y-1.5 scroll-mt-28 transition-all duration-200">
                 <label className="block text-xs font-semibold text-slate-700">
                   To (Destination) <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="toLocation"
+                  name="toLocation"
                   type="text"
                   required
                   list="to-locations-list"
@@ -1767,11 +1775,13 @@ export default function HireChallansPage() {
               </div>
 
               {/* Vehicle No */}
-              <div className="space-y-1.5">
+              <div id="form-group-vehicleNumber" data-field-name="vehicleNumber" className="space-y-1.5 scroll-mt-28 transition-all duration-200">
                 <label className="block text-xs font-semibold text-slate-700">
                   Vehicle No <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="vehicleNumber"
+                  name="vehicleNumber"
                   type="text"
                   required
                   list="vehicles-list"

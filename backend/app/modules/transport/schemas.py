@@ -523,9 +523,9 @@ class LRBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_lr_requirements(self):
+        if not self.billing_customer_id:
+            raise ValueError("Billing Customer is required")
         if self.booking_status == "Reserved":
-            if not self.billing_customer_id:
-                raise ValueError("Billing Customer is required for Reserved bookings")
             return self
         missing = [
             label for label, value in (

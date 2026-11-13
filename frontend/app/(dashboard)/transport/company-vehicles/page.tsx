@@ -1,5 +1,6 @@
 "use client";
 import { toast, confirmModal } from "@/lib/toast";
+import { scrollToMissedField } from "@/lib/form-utils";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -494,7 +495,11 @@ function CompanyVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Comp
     }
 
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    const errKeys = Object.keys(errors);
+    if (errKeys.length > 0) {
+      setTimeout(() => scrollToMissedField(errKeys[0]), 50);
+    }
+    return errKeys.length === 0;
   };
 
   // Submit Handler for Add / Edit

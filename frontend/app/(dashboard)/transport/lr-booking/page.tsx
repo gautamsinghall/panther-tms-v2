@@ -1449,7 +1449,7 @@ export default function LRBookingPage() {
           name: "billing_customer_id",
           label: "Billing Customer",
           type: "select",
-          required: (values) => values.booking_status === "Reserved",
+          required: true,
           options: billingCustomerOptions,
           onAddNew: () => openMasterTab({ type: "billing_client", title: "Add Billing Client", onSuccess: handleBillingClientCreated }),
           addNewLabel: "+ New Customer",
