@@ -35,6 +35,7 @@ async def create_billing_client(
     await check_entitlement_limit(tenant, db, "max_masters")
     office_id = current_office.id if current_office else None
     client = await service.create_billing_client(db, data, office_id=office_id)
+    resp = schemas.BillingClientResponse.model_validate(client)
     await log_activity(
         db=db,
         user=current_user,
@@ -48,7 +49,7 @@ async def create_billing_client(
         office_code=current_office.code if current_office else None,
         details_json={"name": client.name, "city": client.city, "gstin": client.gstin},
     )
-    return client
+    return resp
 
 @router.get("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Get billing client by ID")
 async def get_billing_client(
@@ -56,7 +57,8 @@ async def get_billing_client(
     current_user: User = Depends(require_permission("general", "billing_client", "view")),
     db: AsyncSession = Depends(get_tenant_db),
 ):
-    return await service.get_billing_client(db, id)
+    client = await service.get_billing_client(db, id)
+    return schemas.BillingClientResponse.model_validate(client)
 
 @router.put("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Update billing client")
 async def update_billing_client(
@@ -66,6 +68,7 @@ async def update_billing_client(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     client = await service.update_billing_client(db, id, data)
+    resp = schemas.BillingClientResponse.model_validate(client)
     await log_activity(
         db=db,
         user=current_user,
@@ -74,9 +77,9 @@ async def update_billing_client(
         entity_type="BillingClient",
         entity_id=str(client.id),
         entity_identifier=client.name,
-        details_json=data.model_dump(exclude_unset=True),
+        details_json=data.model_dump(mode="json", exclude_unset=True),
     )
-    return client
+    return resp
 
 
 @router.delete("/billing-clients/{id}", response_model=schemas.BillingClientResponse, summary="Deactivate billing client")
@@ -86,6 +89,7 @@ async def delete_billing_client(
     db: AsyncSession = Depends(get_tenant_db),
 ):
     client = await service.delete_billing_client(db, id)
+    resp = schemas.BillingClientResponse.model_validate(client)
     await log_activity(
         db=db,
         user=current_user,
@@ -96,7 +100,7 @@ async def delete_billing_client(
         entity_identifier=getattr(client, "name", str(id)),
         details=f"Deactivated billing client {getattr(client, 'name', id)}",
     )
-    return client
+    return resp
 
 # ==============================================================================
 # 1. Consignee

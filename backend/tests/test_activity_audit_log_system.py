@@ -491,3 +491,55 @@ async def test_multi_module_mutation_activity_logging(audit_db: AsyncSession):
     )
     assert t_act.action == "SIM_TRIP_STARTED"
     assert t_act.office_id == 1
+
+
+@pytest.mark.asyncio
+async def test_log_activity_with_complex_json_and_model_preservation(audit_db: AsyncSession):
+    from app.tenant_db.models import BillingClient
+    from app.modules.general.schemas import BillingClientResponse
+
+    session = audit_db
+    admin = (await session.execute(select(User).where(User.id == 1))).scalar_one()
+
+    client = BillingClient(
+        name="Amplus Solar",
+        code="AMPLUS",
+        company_name="Amplus Energy Solutions",
+        incorporation_date=date(2020, 5, 15),
+        credit_limit=1000000.00,
+        is_active=True,
+    )
+    session.add(client)
+    await session.commit()
+    await session.refresh(client)
+
+    # Call log_activity with dates and Decimals in details_json (like model_dump returns)
+    act = await log_activity(
+        db=session,
+        user=admin,
+        action="CLIENT_UPDATED",
+        module="general",
+        entity_type="BillingClient",
+        entity_id=str(client.id),
+        entity_identifier=client.name,
+        details_json={
+            "name": client.name,
+            "incorporation_date": date(2020, 5, 15),
+            "credit_limit": Decimal("1000000.00"),
+        },
+    )
+
+    assert act is not None
+    assert act.details_json["incorporation_date"] == "2020-05-15"
+    assert act.details_json["credit_limit"] == 1000000.0
+
+    # Ensure client attributes remain accessible without MissingGreenlet error
+    assert client.name == "Amplus Solar"
+    assert client.code == "AMPLUS"
+
+    # Validate BillingClientResponse from attributes
+    resp = BillingClientResponse.model_validate(client)
+    assert resp.name == "Amplus Solar"
+    assert resp.code == "AMPLUS"
+    assert resp.credit_limit == 1000000.0
+

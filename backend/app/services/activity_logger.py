@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any, Union, Tuple
 from sqlalchemy import select, func, or_, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Request
+from fastapi.encoders import jsonable_encoder
 
 from app.core.errors import ForbiddenException, AppException
 from app.tenant_db.models import User, Branch, UserActivity, UserOfficeAssignment
@@ -260,6 +261,17 @@ async def log_activity(
             final_details = build_readable_details(action, entity_type, entity_identifier, details_json)
 
         # 5. Build and Persist Activity Record
+        safe_details_json = None
+        if details_json is not None:
+            try:
+                safe_details_json = jsonable_encoder(details_json)
+            except Exception:
+                try:
+                    import json
+                    safe_details_json = json.loads(json.dumps(details_json, default=str))
+                except Exception:
+                    safe_details_json = {"raw": str(details_json)}
+
         activity = UserActivity(
             user_id=user_id,
             user_email=user_email,
@@ -275,22 +287,27 @@ async def log_activity(
             office_code=eff_office_code,
             status=status.upper(),
             details=final_details,
-            details_json=details_json,
+            details_json=safe_details_json,
             ip_address=resolved_ip,
         )
 
-        db.add(activity)
         if commit:
-            await db.commit()
-            await db.refresh(activity)
+            try:
+                async with db.begin_nested():
+                    db.add(activity)
+                    await db.flush()
+                await db.commit()
+                await db.refresh(activity)
+            except Exception as commit_err:
+                import traceback
+                print(f"Warning: Failed to persist user activity log: {commit_err}\n{traceback.format_exc()}")
+                return None
+        else:
+            db.add(activity)
+
         return activity
 
     except Exception as err:
-        # Non-fatal: Rollback and log warning to avoid poisoning outer transaction
-        try:
-            await db.rollback()
-        except Exception:
-            pass
         import traceback
         print(f"Warning: Failed to record user activity log: {err}\n{traceback.format_exc()}")
         return None
