@@ -204,6 +204,7 @@ interface LRRecord {
   consignee_name?: string;
   billing_customer_name?: string;
   billing_customer_id?: number;
+  is_billed?: boolean;
   destination_city?: string;
 }
 
@@ -371,23 +372,26 @@ export default function TransportInvoicePage() {
     loadData();
   }, []);
 
+  const selectedLr = useMemo(
+    () => lrs.find((lr) => String(lr.id) === selectedLrId),
+    [lrs, selectedLrId]
+  );
+
   // When an LR is selected in the creation drawer, populate transport charges
   useEffect(() => {
-    if (!selectedLrId) return;
-    const matched = lrs.find((l) => String(l.id) === String(selectedLrId));
-    if (matched) {
-      setBasicFreight(String(matched.freight_amount ?? matched.total_freight_amount ?? 0));
-      setLoadingCharges(String(matched.loading_charges ?? 0));
-      setUnloadingCharges(String(matched.unloading_charges ?? 0));
-      setOtherCharges(String(matched.other_charges ?? 0));
+    if (selectedLr) {
+      setBasicFreight(String(selectedLr.freight_amount ?? selectedLr.total_freight_amount ?? 0));
+      setLoadingCharges(String(selectedLr.loading_charges ?? 0));
+      setUnloadingCharges(String(selectedLr.unloading_charges ?? 0));
+      setOtherCharges(String(selectedLr.other_charges ?? 0));
       setDetentionCharges("0.00");
       setTollCharges("0.00");
       setDiscountAmount("0.00");
-      if (matched.destination_city) {
+      if (selectedLr.destination_city) {
         setPlaceOfSupply("Maharashtra");
       }
     }
-  }, [selectedLrId, lrs]);
+  }, [selectedLr]);
 
   const filteredData = useMemo(() => {
     return data.filter((v) => {
@@ -1098,7 +1102,7 @@ export default function TransportInvoicePage() {
             <SearchableSelect
               value={selectedLrId}
               onChange={(val) => setSelectedLrId(String(val))}
-              options={lrs.map((lr) => ({
+              options={lrs.filter((lr) => !lr.is_billed).map((lr) => ({
                 value: String(lr.id),
                 label: `${lr.lr_number} (${formatDate(lr.lr_date)}) — Client: ${
                   lr.billing_customer_name || lr.consigner_name || "General Client"
@@ -1310,7 +1314,7 @@ export default function TransportInvoicePage() {
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-blue-700">[Dr.]</span>
                   <span className="font-semibold text-slate-900">
-                    Billing Client / Sundry Debtor A/c
+                    {selectedLr?.billing_customer_name || selectedLr?.consigner_name || selectedLr?.consignee_name || "Sundry Debtor A/c"}
                   </span>
                   <span className="text-[10px] text-slate-500">(Trade Receivable Asset)</span>
                 </div>

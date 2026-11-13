@@ -725,6 +725,7 @@ def _build_lr_response(l: LR) -> LRResponse:
         total_freight_amount=l.total_freight_amount,
         advance_amount=l.advance_amount,
         balance_amount=l.balance_amount,
+        is_billed=l.is_billed,
         status=l.status,
         remarks=l.remarks,
         created_by_user_id=l.created_by_user_id,

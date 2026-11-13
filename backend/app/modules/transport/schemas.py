@@ -632,6 +632,7 @@ class LRResponse(LRBase):
     id: int
     lr_number: str
     status: str
+    is_billed: bool = False
     booking_status: Optional[str] = "Booked"
     created_by_user_id: Optional[int] = None
     consigner_name: Optional[str] = None
