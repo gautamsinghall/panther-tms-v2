@@ -693,11 +693,16 @@ async def listBillingClients(
     user: User,
     tenant: Tenant,
     current_office: Optional[Branch] = None,
+    client_name: Optional[str] = None,
     lang: str = "en",
 ) -> Tuple[str, List[StructuredCard], List[NavigationSuggestion]]:
-    """Lists authorized billing clients."""
+    """Lists authorized billing clients, optionally filtered by name."""
     navs = [NavigationSuggestion(title="Billing Clients", href="/general/billing-client", module="Masters")]
-    stmt = select(BillingClient).where(BillingClient.is_active == True).limit(6)
+    stmt = select(BillingClient).where(BillingClient.is_active == True)
+    clean_q = (client_name or "").strip()
+    if clean_q:
+        stmt = stmt.where(BillingClient.name.ilike(f"%{clean_q}%"))
+    stmt = stmt.limit(6)
     res = await db.execute(stmt)
     clients = list(res.scalars().all())
     items = [{"primary": c.name, "secondary": f"GSTIN: {c.gstin or 'N/A'} • Credit Days: {c.credit_days or 30}"} for c in clients]
