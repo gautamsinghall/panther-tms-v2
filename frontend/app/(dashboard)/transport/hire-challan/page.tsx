@@ -47,6 +47,7 @@ interface HireChallanRecord {
   issuing_office_name?: string;
   issuing_office_code?: string;
   hc_series_id?: number;
+  lr_id?: number;
   vehicle_number: string;
   owner_id?: number;
   owner_name?: string;
@@ -137,6 +138,9 @@ interface LROption {
   id: number;
   lr_number: string;
   lr_date?: string;
+  vehicle_number?: string;
+  driver_name?: string;
+  driver_phone?: string;
   package_count?: number;
   actual_weight_mt?: number;
   chargeable_weight_mt?: number;
@@ -247,6 +251,7 @@ export default function HireChallansPage() {
   const [issuingOfficeId, setIssuingOfficeId] = useState<string>("");
   const [selectedSeriesId, setSelectedSeriesId] = useState<string>("");
   const [challanNumber, setChallanNumber] = useState<string>("");
+  const [selectedLrId, setSelectedLrId] = useState<string>("");
   const [fromLocation, setFromLocation] = useState<string>("");
   const [toLocation, setToLocation] = useState<string>("");
 
@@ -618,21 +623,42 @@ export default function HireChallansPage() {
   );
 
   const vehicleOptions = useMemo(
-    () => vehicles.map((vehicle) => ({
+    () => {
+      const options = vehicles.map((vehicle) => ({
       value: vehicle.vehicle_number,
       label: vehicle.vehicle_number,
       subLabel: vehicle.vehicle_type || "Vehicle",
-    })),
-    [vehicles]
+      }));
+      if (vehicleNumber && !options.some((option) => option.value.toLowerCase() === vehicleNumber.toLowerCase())) {
+        options.unshift({ value: vehicleNumber, label: vehicleNumber, subLabel: "LR vehicle" });
+      }
+      return options;
+    },
+    [vehicles, vehicleNumber]
   );
 
   const driverOptions = useMemo(
-    () => drivers.filter((driver: any) => driver.is_active !== false || String(driver.id) === driverId).map((driver) => ({
+    () => {
+      const options = drivers.filter((driver: any) => driver.is_active !== false || String(driver.id) === driverId).map((driver) => ({
       value: String(driver.id),
       label: driver.name,
       subLabel: driver.phone || "Driver",
+      }));
+      if (!driverId && driverName) {
+        options.unshift({ value: `lr-driver:${driverName}`, label: driverName, subLabel: driverPhone || "LR driver" });
+      }
+      return options;
+    },
+    [drivers, driverId, driverName, driverPhone]
+  );
+
+  const lrOptions = useMemo(
+    () => lrs.map((lr) => ({
+      value: String(lr.id),
+      label: lr.lr_number,
+      subLabel: [lr.origin_city, lr.destination_city, lr.vehicle_number].filter(Boolean).join(" → "),
     })),
-    [drivers, driverId]
+    [lrs]
   );
 
   const partyOptions = useMemo(
@@ -688,12 +714,55 @@ export default function HireChallansPage() {
   };
 
   const handleDriverSelect = (selectedId: string) => {
+    if (selectedId.startsWith("lr-driver:")) {
+      setDriverId("");
+      setDriverName(selectedId.slice("lr-driver:".length));
+      return;
+    }
     setDriverId(selectedId);
     const matched = drivers.find((d) => String(d.id) === selectedId);
     if (matched) {
       setDriverName(matched.name);
       if (matched.phone) setDriverPhone(matched.phone);
     }
+  };
+
+  const handleLrSelect = (selectedId: string) => {
+    setSelectedLrId(selectedId);
+    const lr = lrs.find((item) => String(item.id) === selectedId);
+    if (!lr) return;
+
+    setFromLocation(lr.origin_city || "");
+    setToLocation(lr.destination_city || "");
+    if (lr.vehicle_number) handleVehicleSelect(lr.vehicle_number);
+
+    const matchingDriver = drivers.find((driver) =>
+      driver.name.toLowerCase() === (lr.driver_name || "").toLowerCase()
+    );
+    if (matchingDriver) {
+      handleDriverSelect(String(matchingDriver.id));
+    } else {
+      setDriverId("");
+      setDriverName(lr.driver_name || "");
+      setDriverPhone(lr.driver_phone || "");
+    }
+
+    setLoadingExpenses((current) => {
+      const firstRow = current[0] || {
+        id: "load-1",
+        charge_head: "Loading Charges",
+        narration: "",
+        tds_applicable: false,
+        inr_amount: "",
+      };
+      return [{
+        ...firstRow,
+        lr_id: lr.id,
+        lr_no: lr.lr_number,
+        pkg_count: lr.package_count ?? "",
+        gross_weight: lr.chargeable_weight_mt ?? lr.actual_weight_mt ?? "",
+      }, ...current.slice(1)];
+    });
   };
 
   const handlePartySelect = (value: string) => {
@@ -911,6 +980,7 @@ export default function HireChallansPage() {
       autoFillSeriesAndHCNo(officeToUse, branches);
     }
     setChallanDate(new Date().toISOString().split("T")[0]);
+    setSelectedLrId("");
     setVehicleNumber("");
     setDriverId("");
     setDriverName("");
@@ -959,6 +1029,7 @@ export default function HireChallansPage() {
     setIssuingOfficeId(row.issuing_office_id ? String(row.issuing_office_id) : "");
     setSelectedSeriesId(row.hc_series_id ? String(row.hc_series_id) : "");
     setChallanNumber(row.challan_number || "");
+    setSelectedLrId(row.lr_id ? String(row.lr_id) : "");
     setFromLocation(row.from_location || "");
     setToLocation(row.to_location || "");
     setChallanDate(row.challan_date ? row.challan_date.split("T")[0] : new Date().toISOString().split("T")[0]);
@@ -1076,7 +1147,7 @@ export default function HireChallansPage() {
       scrollToMissedField("vehicleNumber");
       return;
     }
-    if (!driverId) {
+    if (!driverName) {
       toast.warning("Please select a Driver.");
       return;
     }
@@ -1747,6 +1818,20 @@ export default function HireChallansPage() {
                   value={challanDate}
                   onChange={(e) => setChallanDate(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
+                />
+              </div>
+
+              {/* Select LR */}
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Select Lorry Receipt (LR)
+                </label>
+                <SearchableSelect
+                  value={selectedLrId}
+                  onChange={(value) => handleLrSelect(String(value))}
+                  options={lrOptions}
+                  placeholder="Select LR to auto-fill route and vehicle details"
+                  searchPlaceholder="Search LR number, route, or vehicle..."
                 />
               </div>
 
