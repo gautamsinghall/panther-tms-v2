@@ -93,7 +93,10 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
     resp.note_category = getattr(v, "note_category", None)
     resp.reason_code = getattr(v, "reason_code", None)
     resp.against_voucher_id = getattr(v, "against_voucher_id", None)
-    resp.against_voucher_number = v.against_voucher.voucher_number if getattr(v, "against_voucher", None) else None 
+    try:
+        resp.against_voucher_number = v.against_voucher.voucher_number if (resp.against_voucher_id and v.against_voucher) else None
+    except Exception:
+        resp.against_voucher_number = None
 
     # Map item details
     for idx, itm in enumerate(v.items):
@@ -108,28 +111,46 @@ def map_voucher_response(v) -> schemas.VoucherResponse:
 
     # Map bill allocations (both received against this invoice, and made by this receipt)
     allocs = []
-    if hasattr(v, "bill_allocations") and v.bill_allocations:
-        allocs.extend(v.bill_allocations)
-    if hasattr(v, "allocations_made") and v.allocations_made:
-        allocs.extend(v.allocations_made)
+    try:
+        if hasattr(v, "bill_allocations") and v.bill_allocations:
+            allocs.extend(v.bill_allocations)
+    except Exception:
+        pass
+    try:
+        if hasattr(v, "allocations_made") and v.allocations_made:
+            allocs.extend(v.allocations_made)
+    except Exception:
+        pass
     if allocs:
-        resp.bill_allocations = [
-            schemas.BillAllocationResponse(
-                id=ba.id,
-                voucher_id=ba.voucher_id,
-                invoice_id=ba.invoice_id,
-                allocated_amount=ba.allocated_amount,
-                tds_amount=ba.tds_amount,
-                discount_amount=ba.discount_amount,
-                total_settled=ba.total_settled,
-                adjustment_type=ba.adjustment_type,
-                notes=ba.notes,
-                created_at=ba.created_at,
-                voucher_number=ba.voucher.voucher_number if ba.voucher else None,
-                invoice_number=ba.invoice.voucher_number if ba.invoice else None,
+        items = []
+        for ba in allocs:
+            v_num = None
+            inv_num = None
+            try:
+                v_num = ba.voucher.voucher_number if ba.voucher else None
+            except Exception:
+                pass
+            try:
+                inv_num = ba.invoice.voucher_number if ba.invoice else None
+            except Exception:
+                pass
+            items.append(
+                schemas.BillAllocationResponse(
+                    id=ba.id,
+                    voucher_id=ba.voucher_id,
+                    invoice_id=ba.invoice_id,
+                    allocated_amount=ba.allocated_amount,
+                    tds_amount=ba.tds_amount,
+                    discount_amount=ba.discount_amount,
+                    total_settled=ba.total_settled,
+                    adjustment_type=ba.adjustment_type,
+                    notes=ba.notes,
+                    created_at=ba.created_at,
+                    voucher_number=v_num,
+                    invoice_number=inv_num,
+                )
             )
-            for ba in allocs
-        ]
+        resp.bill_allocations = items
 
     return resp
 

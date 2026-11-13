@@ -399,3 +399,35 @@ async def test_get_open_invoices_for_client(e2e_session: AsyncSession):
     assert open_invs[0].balance_amount == Decimal("12000.00")
     assert open_invs[1].id == inv2.id
     assert open_invs[1].balance_amount == Decimal("24000.00")
+
+
+@pytest.mark.asyncio
+async def test_map_voucher_response_with_allocations(e2e_session: AsyncSession):
+    session = e2e_session
+    inv = await accounts_service.create_general_invoice(
+        session,
+        GeneralInvoiceCreate(
+            billing_client_id=1,
+            voucher_date=date(2026, 4, 1),
+            place_of_supply="Maharashtra",
+            items=[GeneralInvoiceItemCreate(description="Charges", quantity=Decimal("1.00"), rate=Decimal("5000.00"), tax_rate=Decimal("0.00"))]
+        ),
+        office_id=1,
+    )
+    receipt = await accounts_service.create_receipt_voucher(
+        session,
+        ReceiptVoucherCreate(
+            billing_client_id=1,
+            receipt_type="AGAINST_REF",
+            payment_mode="BANK",
+            amount=Decimal("5000.00"),
+            allocations=[ReceiptAllocationItem(invoice_id=inv.id, allocated_amount=Decimal("5000.00"))],
+        ),
+        office_id=1,
+    )
+    # Expunge everything so nothing is in identity map, simulating a fresh query/endpoint request
+    session.expunge_all()
+    fresh_receipt = await accounts_service.get_voucher_by_id(session, receipt.id)
+    from app.modules.accounts.router import map_voucher_response
+    resp = map_voucher_response(fresh_receipt)
+    assert resp.id == receipt.id

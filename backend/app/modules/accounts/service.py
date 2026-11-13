@@ -200,7 +200,11 @@ async def get_vouchers(
         selectinload(Voucher.items).selectinload(VoucherItem.charge_head),
         selectinload(Voucher.items).selectinload(VoucherItem.tax_category),
         selectinload(Voucher.ledger_entries).selectinload(LedgerEntry.account),
-        selectinload(Voucher.bill_allocations),
+        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.voucher),
+        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.invoice),
+        selectinload(Voucher.allocations_made).selectinload(BillAllocation.voucher),
+        selectinload(Voucher.allocations_made).selectinload(BillAllocation.invoice),
+        selectinload(Voucher.against_voucher),
         selectinload(Voucher.lr),
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
@@ -250,7 +254,11 @@ async def get_voucher_by_id(session: AsyncSession, voucher_id: int) -> Voucher:
         selectinload(Voucher.items).selectinload(VoucherItem.charge_head),
         selectinload(Voucher.items).selectinload(VoucherItem.tax_category),
         selectinload(Voucher.ledger_entries).selectinload(LedgerEntry.account),
-        selectinload(Voucher.bill_allocations),
+        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.voucher),
+        selectinload(Voucher.bill_allocations).selectinload(BillAllocation.invoice),
+        selectinload(Voucher.allocations_made).selectinload(BillAllocation.voucher),
+        selectinload(Voucher.allocations_made).selectinload(BillAllocation.invoice),
+        selectinload(Voucher.against_voucher),
         selectinload(Voucher.lr),
         selectinload(Voucher.hire_challan),
         selectinload(Voucher.einvoice),
@@ -1343,11 +1351,15 @@ async def get_open_invoices_for_client(session: AsyncSession, client_id: int) ->
     """
     stmt = (
         select(Voucher)
+        .options(selectinload(Voucher.lr))
         .where(
             Voucher.billing_client_id == client_id,
             Voucher.is_void == False,
             Voucher.voucher_type.in_([VoucherType.TRANSPORT_INVOICE.value, VoucherType.GENERAL_INVOICE.value]),
-            Voucher.payment_status.in_(["UNPAID", "PARTIALLY_PAID"]),
+            or_(
+                Voucher.payment_status.in_(["UNPAID", "PARTIALLY_PAID", "PARTIAL"]),
+                Voucher.payment_status.is_(None),
+            ),
         )
         .order_by(Voucher.voucher_date.asc(), Voucher.id.asc())
     )
@@ -1523,6 +1535,12 @@ async def create_receipt_voucher(
             })
             sum_alloc_net += a_net
             sum_alloc_total += a_tot
+
+        if sum_alloc_net > net_cash + Decimal("0.01"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Total allocated cash ₹{sum_alloc_net} exceeds amount received ₹{net_cash}."
+            )
 
         # Unapplied excess received over allocated bills
         unapplied_advance = max(Decimal("0.00"), net_cash - sum_alloc_net)

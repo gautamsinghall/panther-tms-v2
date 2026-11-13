@@ -203,7 +203,6 @@ export default function ReceiptVoucherPage() {
   // Drawer 1: Record Customer Receipt
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
-  const [customPartyName, setCustomPartyName] = useState<string>("");
   const [receiptType, setReceiptType] = useState<"AGAINST_REF" | "ADVANCE" | "ON_ACCOUNT">("AGAINST_REF");
   const [paymentMode, setPaymentMode] = useState<string>("BANK");
   const [bankAccountId, setBankAccountId] = useState<string>("");
@@ -215,7 +214,7 @@ export default function ReceiptVoucherPage() {
   const [clearanceStatus, setClearanceStatus] = useState<string>("CLEARED");
   const [amountReceived, setAmountReceived] = useState<string>("");
   const [tdsSection, setTdsSection] = useState<string>("194C");
-  const [tdsRate, setTdsRate] = useState<string>("2");
+  const [tdsRate, setTdsRate] = useState<string>("0");
   const [tdsAmount, setTdsAmount] = useState<string>("0");
   const [discountAmount, setDiscountAmount] = useState<string>("0");
   const [narration, setNarration] = useState<string>("");
@@ -292,6 +291,8 @@ export default function ReceiptVoucherPage() {
     const cl = billingClients.find((c) => c.id === clientIdNum);
     if (cl && cl.tds_rate !== undefined && cl.tds_rate !== null) {
       setTdsRate(String(cl.tds_rate));
+    } else {
+      setTdsRate("0");
     }
 
     setIsLoadingOpenInvoices(true);
@@ -334,25 +335,26 @@ export default function ReceiptVoucherPage() {
 
     if (rateNum > 0) {
       autoTds = Math.round((bal * (rateNum / 100)) * 100) / 100;
-      netPay = bal - autoTds;
+      netPay = Math.round((bal - autoTds) * 100) / 100;
     }
 
-    setAllocations((prev) => ({
-      ...prev,
+    const updatedAllocations = {
+      ...allocations,
       [inv.id]: {
-        ...prev[inv.id],
+        ...allocations[inv.id],
         allocated_amount: netPay.toFixed(2),
         tds_amount: autoTds > 0 ? autoTds.toFixed(2) : "0",
         discount_amount: "0",
       },
-    }));
+    };
+    setAllocations(updatedAllocations);
 
-    // Update global received amount if currently 0
-    const currentRecv = parseFloat(amountReceived) || 0;
-    if (currentRecv === 0) {
-      setAmountReceived(netPay.toFixed(2));
-      setTdsAmount(autoTds > 0 ? autoTds.toFixed(2) : "0");
-    }
+    // Compute updated total cash/bank received across all allocations
+    let sumNet = 0;
+    Object.values(updatedAllocations).forEach((a) => {
+      sumNet += parseFloat(a.allocated_amount) || 0;
+    });
+    setAmountReceived(sumNet > 0 ? (Math.round(sumNet * 100) / 100).toFixed(2) : "");
   };
 
   // Compute live totals from bill allocation table
@@ -461,7 +463,6 @@ export default function ReceiptVoucherPage() {
   // Reset Create Form
   const resetCreateForm = () => {
     setSelectedClientId("");
-    setCustomPartyName("");
     setReceiptType("AGAINST_REF");
     setPaymentMode("BANK");
     setBankAccountId("");
@@ -473,7 +474,7 @@ export default function ReceiptVoucherPage() {
     setClearanceStatus("CLEARED");
     setAmountReceived("");
     setTdsSection("194C");
-    setTdsRate("2");
+    setTdsRate("0");
     setTdsAmount("0");
     setDiscountAmount("0");
     setNarration("");
@@ -491,14 +492,8 @@ export default function ReceiptVoucherPage() {
       return;
     }
 
-    const netReceived = parseFloat(amountReceived) || 0;
-    if (netReceived <= 0) {
-      toast.warning("Please enter a valid amount received greater than ₹0.");
-      return;
-    }
-
-    if (!selectedClientId && !customPartyName.trim()) {
-      toast.warning("Please select a Billing Client or enter customer name.");
+    if (!selectedClientId) {
+      toast.warning("Please select a Billing Client.");
       return;
     }
 
@@ -515,7 +510,7 @@ export default function ReceiptVoucherPage() {
         allocated_amount: parseFloat(a.allocated_amount) || 0,
         tds_amount: parseFloat(a.tds_amount) || 0,
         discount_amount: parseFloat(a.discount_amount) || 0,
-        total_settled: (parseFloat(a.allocated_amount) || 0) + (parseFloat(a.tds_amount) || 0) + (parseFloat(a.discount_amount) || 0),
+        total_settled: Math.round(((parseFloat(a.allocated_amount) || 0) + (parseFloat(a.tds_amount) || 0) + (parseFloat(a.discount_amount) || 0)) * 100) / 100,
         invoice_number: a.invoice_number,
       }));
 
@@ -524,11 +519,35 @@ export default function ReceiptVoucherPage() {
       return;
     }
 
+    let netReceived = parseFloat(amountReceived) || 0;
+    if (receiptType === "AGAINST_REF") {
+      if (netReceived <= 0 && allocatedTotals.sumNet > 0) {
+        netReceived = allocatedTotals.sumNet;
+        setAmountReceived(netReceived.toFixed(2));
+      }
+      if (netReceived <= 0) {
+        toast.warning("Please allocate an amount to settle or enter the amount received.");
+        return;
+      }
+      if (netReceived < allocatedTotals.sumNet - 0.01) {
+        toast.warning(
+          `Amount Received (₹${netReceived.toFixed(2)}) cannot be less than total allocated amount (₹${allocatedTotals.sumNet.toFixed(2)}).`
+        );
+        return;
+      }
+    } else {
+      if (netReceived <= 0) {
+        toast.warning("Please enter a valid amount received greater than ₹0.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
+      const selectedClientObj = billingClients.find((c) => c.id === parseInt(selectedClientId));
       const payload = {
-        billing_client_id: selectedClientId ? parseInt(selectedClientId) : undefined,
-        party_name: customPartyName.trim() || undefined,
+        billing_client_id: parseInt(selectedClientId),
+        party_name: selectedClientObj?.name,
         voucher_date: voucherDate,
         receipt_type: receiptType,
         payment_mode: paymentMode,
@@ -1036,7 +1055,6 @@ export default function ReceiptVoucherPage() {
                   value={selectedClientId}
                   onChange={(e) => {
                     setSelectedClientId(e.target.value);
-                    if (e.target.value) setCustomPartyName("");
                   }}
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 >
@@ -1051,21 +1069,6 @@ export default function ReceiptVoucherPage() {
                   Selecting a client automatically loads all unpaid transport and sales invoices.
                 </p>
               </div>
-
-              {!selectedClientId && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
-                    Or Enter Direct Customer Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Shyam Logistics / Cash Customer"
-                    value={customPartyName}
-                    onChange={(e) => setCustomPartyName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
-                  />
-                </div>
-              )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-tight mb-1">
@@ -1248,6 +1251,15 @@ export default function ReceiptVoucherPage() {
                   onChange={(e) => setAmountReceived(e.target.value)}
                   className="w-full h-10 px-3.5 text-sm sm:text-base font-bold rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
+                {receiptType === "AGAINST_REF" && allocatedTotals.sumNet > 0 && parseFloat(amountReceived || "0") !== allocatedTotals.sumNet && (
+                  <button
+                    type="button"
+                    onClick={() => setAmountReceived(allocatedTotals.sumNet.toFixed(2))}
+                    className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline mt-1 block font-medium cursor-pointer"
+                  >
+                    Match Allocated Bills (₹{allocatedTotals.sumNet.toFixed(2)})
+                  </button>
+                )}
                 <p className="text-[11px] text-slate-500 mt-1">
                   The actual money deposited into your bank account or cash drawer.
                 </p>
