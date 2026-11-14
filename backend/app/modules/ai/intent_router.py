@@ -174,15 +174,19 @@ def classify_intent_and_entities(
     # --------------------------------------------------------------------------
     is_human_request = bool(
         re.search(
-            r"\b(talk|speak|connect|transfer|escalate)\b.{0,25}\b(human|support|agent|person|representative)\b",
+            r"\b(?:talk|speak|connect|transfer|escalate|contact|reach|call)\b.{0,25}\b(?:human|support|agent|person|representative|team|helpdesk)\b",
             lower,
         )
+        or re.search(r"\b(?:talk|contact|reach|call)\s+(?:to\s+|with\s+)?(?:support|agent|human|team|helpdesk)\b", lower)
         or re.search(r"\bneed\s+(?:a\s+)?human\b", lower)
         or re.search(r"\bhuman\s+(?:help|support|assistance)\b", lower)
+        or re.search(r"\b(?:support|helpdesk|agent)\s+(?:contact|number|email|phone|details|helpline)\b", lower)
         or "मानव से बात" in clean
         or "इंसान से बात" in clean
         or "सपोर्ट से बात" in clean
-        or bool(re.search(r"\b(?:human|support)\s+se\s+baat\b", lower))
+        or "सपोर्ट नंबर" in clean
+        or "सपोर्ट ईमेल" in clean
+        or bool(re.search(r"\b(?:human|support|agent)\s+se\s+baat\b", lower))
     )
     if is_human_request:
         return RouterResult(intent="human", confidence=1.0, matched_rule="human_handoff")
@@ -262,7 +266,7 @@ def classify_intent_and_entities(
         r"master\s+ledger|ledger|sub\s*ledger|"
         r"freight|bhada|detention|demurrage|hamali|loading\s+charge|"
         r"consignor|consigner|consignee|"
-        r"invoice|transport\s+invoice|billing|"
+        r"invoice|transport\s+invoice|bill+ing(?:\s+client)?|billing\s+party|client|customer|vendor|supplier|"
         r"branch|hub|godown|warehouse|"
         r"pod\s+record|vehicle\s+master|driver\s+master|"
         r"tbb|to\s+be\s+billed|to\s+pay|paid|"
@@ -488,8 +492,10 @@ def classify_intent_and_entities(
     # --------------------------------------------------------------------------
     # 13. CLIENT LOOKUPS (LIST vs FIND)
     # --------------------------------------------------------------------------
-    is_client_context = bool(re.search(r"\b(client|clients|billing\s+client|customer|customers|ग्राहक)\b", lower))
+    is_client_context = bool(re.search(r"\b(client|clients|bill+ing\s+client|customer|customers|ग्राहक)\b", lower))
     if is_client_context:
+        if bool(re.search(r"\b(?:what\s+is|what\s+are|explain|meaning|kya\s+hai|kya\s+hota)\b", lower)):
+            return RouterResult(intent="tms_knowledge", confidence=1.0, matched_rule="tms_knowledge_what_is")
         is_list_all = bool(re.search(r"\b(all|list|show\s+all|how\s+many|count|sabhi|सूची)\b", lower))
         if is_list_all:
             return RouterResult(intent="list_clients", confidence=0.95, matched_rule="list_clients")

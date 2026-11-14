@@ -706,7 +706,13 @@ async def listBillingClients(
     stmt = stmt.limit(6)
     res = await db.execute(stmt)
     clients = list(res.scalars().all())
-    items = [{"primary": c.name, "secondary": f"GSTIN: {c.gstin or 'N/A'} • Credit Days: {c.credit_days or 30}"} for c in clients]
+    items = [
+        {
+            "primary": c.name,
+            "secondary": f"GSTIN: {c.gstin or 'N/A'} • Credit Days: {getattr(c, 'credit_period_days', None) or 30}",
+        }
+        for c in clients
+    ]
     card = StructuredCard(
         card_type="client_list",
         title="Billing Clients",

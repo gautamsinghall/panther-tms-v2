@@ -322,16 +322,15 @@ export function PantherAIPanel() {
     prevMessagesCountRef.current = messages.length;
   }, [isOpen, messages, isLoading, scrollToAssistantTop, scrollToBottom]);
 
-  // Focus textarea only when the panel first opens, without shifting scroll
+  // Focus textarea when panel opens or when response completes so user can keep typing directly
   useEffect(() => {
-    if (isOpen) {
-      scrollToBottom("auto");
+    if (isOpen && !isLoading) {
       const timer = setTimeout(() => {
         textareaRef.current?.focus({ preventScroll: true });
-      }, 120);
+      }, 50);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, scrollToBottom]);
+  }, [isOpen, isLoading]);
 
   // Auto-resize textarea smoothly without layout jumps
   useEffect(() => {
@@ -424,6 +423,7 @@ export function PantherAIPanel() {
 
   const isNavPermitted = useCallback((href: string) => {
     if (!href) return false;
+    if (href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("http:") || href.startsWith("https:")) return true;
     const auth = getStoredAuth();
     if (!auth || !auth.user) return true;
     const role = (auth.user.role || "").toUpperCase();
@@ -634,6 +634,7 @@ export function PantherAIPanel() {
     setInput("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "36px";
+      textareaRef.current.focus({ preventScroll: true });
     }
 
     const uniqueUserId = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -734,6 +735,9 @@ export function PantherAIPanel() {
     } finally {
       setIsLoading(false);
       isSubmittingRef.current = false;
+      setTimeout(() => {
+        textareaRef.current?.focus({ preventScroll: true });
+      }, 50);
     }
   };
 
@@ -796,11 +800,18 @@ export function PantherAIPanel() {
       e.preventDefault();
       e.stopPropagation();
       handleSendMessage();
+      setTimeout(() => {
+        textareaRef.current?.focus({ preventScroll: true });
+      }, 10);
     }
   };
 
   const handleNavigate = (href: string) => {
     if (!href) return;
+    if (href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("http:") || href.startsWith("https:")) {
+      window.location.href = href;
+      return;
+    }
     try {
       router.push(href);
     } catch {
@@ -1949,7 +1960,6 @@ export function PantherAIPanel() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isListening ? "Listening... speak now" : "Ask Parth AI... (Shift+Enter for newline)"}
-            disabled={isLoading}
             className="flex-1 min-h-[36px] max-h-[120px] bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-hidden px-2 py-2 leading-relaxed overflow-y-auto"
           />
 

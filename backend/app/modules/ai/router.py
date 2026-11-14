@@ -17,7 +17,7 @@ from app.core.database import get_tenant_session_maker
 from app.auth.dependencies import get_current_user, get_current_office
 from app.tenant_db.session import get_current_tenant
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch
+from app.tenant_db.models import User, Branch, CompanySetting
 from app.modules.ai.schemas import (
     ChatRequest,
     ChatResponse,
@@ -1417,10 +1417,12 @@ def build_human_handoff_response(
     last_intent: Optional[str] = None,
     last_entities: Optional[Dict[str, Any]] = None,
     lang: str = "en",
+    support_phone: str = "+91 98765 43210",
+    support_email: str = "support@panthertms.com",
 ) -> str:
-    """No.14 warm handoff (P4): acknowledge, summarise what was discussed
-    (intent + entities + recent user messages, PII-scrubbed), say a
-    human/admin will follow up. No invented contact details, phone or email."""
+    """Warm handoff: acknowledge, provide direct human contact details (phone + email),
+    summarise what was discussed (intent + entities + recent user messages, PII-scrubbed),
+    and assure follow-up."""
     recent_user_msgs = [
         scrub_user_message_pii(str(m.get("content", "")))
         for m in (history or [])
@@ -1440,21 +1442,30 @@ def build_human_handoff_response(
     summary = "\n".join(summary_lines)
     if lang == "hi_devanagari":
         return (
-            "बिल्कुल — मैं इसे मानव सहायता के लिए सौंप रहा हूँ।\n\n"
-            "मैं यह जानकारी आगे भेजूँगा:\n" + summary + "\n\n"
-            "एक कंपनी एडमिन आपसे संपर्क करेगा। इस बीच, मैं जॉब, एलआर, ट्रैकिंग या बिलिंग में मदद कर सकता हूँ।"
+            "बिल्कुल — मैं आपको हमारी सहायता टीम (Support Team) से जोड़ रहा हूँ।\n\n"
+            "**सपोर्ट संपर्क विवरण (Contact Details):**\n"
+            f"- **फ़ोन / हेल्पलाइन**: {support_phone}\n"
+            f"- **ईमेल**: {support_email}\n\n"
+            "मैं सहायता प्रतिनिधि को यह संदर्भ विवरण साझा कर रहा हूँ:\n" + summary + "\n\n"
+            "एक कंपनी एडमिन या सहायता एजेंट भी आपसे संपर्क करेगा। इस बीच, मैं जॉब, एलआर, ट्रैकिंग या बिलिंग में आपकी मदद कर सकता हूँ।"
         )
     if lang == "hinglish":
         return (
-            "Bilkul — main ise human help ke liye forward kar raha hoon.\n\n"
-            "Main ye details aage bhejunga:\n" + summary + "\n\n"
-            "Ek Company Admin aapse follow up karega. Tab tak main jobs, LRs, tracking ya billing me madad kar sakta hoon."
+            "Bilkul — main aapko hamari support team se connect kar raha hoon.\n\n"
+            "**Support Contact Details:**\n"
+            f"- **Phone / Helpline**: {support_phone}\n"
+            f"- **Email**: {support_email}\n\n"
+            "Main ye details support team ko forward kar raha hoon:\n" + summary + "\n\n"
+            "Ek Company Admin ya support agent aapse follow up karega. Tab tak main jobs, LRs, tracking ya billing me madad kar sakta hoon."
         )
     return (
-        "Of course — I'll hand this over to a human.\n\n"
-        "Here's what I'll pass on:\n" + summary + "\n\n"
-        "A Company Admin will follow up with you. Meanwhile, I can still help with jobs, "
-        "LRs, tracking or billing — just ask."
+        "Of course — I'll connect you with our support team.\n\n"
+        "**Support Contact Details:**\n"
+        f"- **Phone / Helpline**: {support_phone}\n"
+        f"- **Email**: {support_email}\n\n"
+        "Here's the context I'm passing on to our support team:\n" + summary + "\n\n"
+        "A Company Admin or support representative will also follow up with you. "
+        "Meanwhile, I can still help with jobs, LRs, tracking or billing — just ask."
     )
 
 router = APIRouter(prefix="/ai", tags=["Parth AI"])
@@ -1674,6 +1685,12 @@ async def chat_with_copilot(
     # INTENT-FIRST ROUTER PIPELINE (INTENT -> TOOLS -> RENDER)
     # Runs on EVERY message, BEFORE any slot-filling, search, or draft creation.
     # --------------------------------------------------------------------------
+    c_intent = None
+    c_conf = 0.0
+    c_slots = {}
+    conv_state = {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None}
+    has_active_draft = False
+
     if db:
         conv_state = await lr_draft_store.get_conversation_state(tenant.id, current_user.id)
 
@@ -1688,22 +1705,70 @@ async def chat_with_copilot(
             conv_state["state"] = "booking_draft"
             conv_state["draft"] = existing_d.to_dict()
 
-        router_res = classify_intent_and_entities(
-            last_user_message,
-            conversation_history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
-            state=conv_state,
-            detected_lang=detected_lang,
-        )
-        c_intent = router_res.intent
-        c_conf = router_res.confidence
-        c_slots = router_res.entities_raw
-        _log_ai_turn(last_user_message, c_intent, c_conf, outcome="intent_routed")
+    router_res = classify_intent_and_entities(
+        last_user_message,
+        conversation_history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+        state=conv_state,
+        detected_lang=detected_lang,
+    )
+    c_intent = router_res.intent
+    c_conf = router_res.confidence
+    c_slots = router_res.entities_raw
+    _log_ai_turn(last_user_message, c_intent, c_conf, outcome="intent_routed")
 
-        # Invariant: If intent changed, clear lastSearch and lastIntent
-        if c_intent != conv_state.get("lastIntent"):
-            conv_state["lastSearch"] = None
-            conv_state["lastIntent"] = c_intent
-            await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+    if db and c_intent != conv_state.get("lastIntent"):
+        conv_state["lastSearch"] = None
+        conv_state["lastIntent"] = c_intent
+        await lr_draft_store.set_conversation_state(tenant.id, current_user.id, conv_state)
+
+    # Human handoff — "Talk to support" / "talk to agent" / human request.
+    # Always handled with top priority, whether DB is connected or not.
+    if c_intent == "human":
+        support_phone = "+91 98765 43210"
+        support_email = "support@panthertms.com"
+        if db:
+            try:
+                stmt_cs = select(CompanySetting).limit(1)
+                res_cs = await db.execute(stmt_cs)
+                cs = res_cs.scalars().first()
+                if cs:
+                    if cs.phone:
+                        support_phone = cs.phone
+                    if cs.email:
+                        support_email = cs.email
+            except Exception:
+                pass
+
+        handoff_msg = build_human_handoff_response(
+            history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
+            last_intent=conv_state.get("lastIntent"),
+            last_entities=c_slots,
+            lang=detected_lang,
+            support_phone=support_phone,
+            support_email=support_email,
+        )
+        support_card = StructuredCard(
+            card_type="support_contact",
+            title="Panther Support Helpdesk",
+            subtitle="Reach our human support team directly",
+            badge={"text": "Support Available", "variant": "success"},
+            items=[
+                {"primary": "Helpline Phone", "secondary": support_phone},
+                {"primary": "Support Email", "secondary": support_email},
+            ],
+            action={"label": "Email Support", "href": f"mailto:{support_email}"},
+        )
+        _log_ai_turn(last_user_message, "human", c_conf, tool_calls=["human_handoff"], outcome="human_handoff")
+        return ChatResponse(
+            content=handoff_msg,
+            navigation_suggestions=nav_suggestions,
+            citations=[],
+            cards=[support_card],
+            provider_configured=is_provider_configured(),
+            detected_language=detected_lang,
+        )
+
+    if db:
 
         # 1. Cancel Draft Intent
         is_cancel = is_cancel_intent(last_user_message)
@@ -1923,25 +1988,6 @@ async def chat_with_copilot(
                 lang=detected_lang,
             )
             return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
-
-        # 9A. Human handoff (No.14 P4) — "Talk to support" / ask for a human.
-        # Never refused, never a draft. Warm handoff with conversation context.
-        if c_intent == "human":
-            handoff_msg = build_human_handoff_response(
-                history=[{"role": m.role, "content": m.content} for m in data.messages[:-1]],
-                last_intent=conv_state.get("lastIntent"),
-                last_entities=c_slots,
-                lang=detected_lang,
-            )
-            _log_ai_turn(last_user_message, "human", c_conf, tool_calls=["human_handoff"], outcome="human_handoff")
-            return ChatResponse(
-                content=handoff_msg,
-                navigation_suggestions=nav_suggestions,
-                citations=[],
-                cards=[],
-                provider_configured=is_provider_configured(),
-                detected_language=detected_lang,
-            )
 
         # 9B. Job list (No.14) — "What is my job list?" renders ONLY real DB
         # jobs via typed_tools.search_jobs. Never invented data.
