@@ -570,7 +570,7 @@ export function DataTable<T extends Record<string, any>>({
         {enableColumnSlider && canScrollHorizontally && (
           <div className="px-4 py-2 bg-slate-50/90 dark:bg-[#0F1015] border-b border-slate-200/80 dark:border-[#22232E] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400 print:hidden animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 font-mono uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
                 <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span>Columns Slider</span>
               </span>
@@ -645,7 +645,7 @@ export function DataTable<T extends Record<string, any>>({
                       key={colKey}
                       style={{ width: col.width, minWidth: isActionsCol ? (col.minWidth || "80px") : (col.minWidth || col.width) }}
                       className={cn(
-                        "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none font-mono whitespace-nowrap border-b border-slate-200/80 dark:border-[#2B2C37]",
+                        "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none whitespace-nowrap border-b border-slate-200/80 dark:border-[#2B2C37]",
                         cellPaddingClass,
                         col.align === "right" || col.isNumeric ? "text-right" : "",
                         col.align === "center" ? "text-center" : "",
@@ -682,7 +682,7 @@ export function DataTable<T extends Record<string, any>>({
                 {actions.length > 0 && (
                   <th
                     className={cn(
-                      "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono sticky right-0 bg-slate-50 dark:bg-[#17171B] z-20 border-b border-slate-200/80 dark:border-[#2B2C37]",
+                      "text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 sticky right-0 bg-slate-50 dark:bg-[#17171B] z-20 border-b border-slate-200/80 dark:border-[#2B2C37]",
                       cellPaddingClass,
                       actionLayout === "inline" ? "w-28 text-center" : "w-20 min-w-[80px] text-right"
                     )}
@@ -831,7 +831,7 @@ export function DataTable<T extends Record<string, any>>({
                             className={cn(
                               "text-xs sm:text-[13px] text-slate-800 dark:text-[#F5F5F7] font-medium border-b border-slate-100 dark:border-[#22232E]",
                               cellPaddingClass,
-                              col.align === "right" || col.isNumeric ? "text-right tabular-nums font-mono" : "",
+                              col.align === "right" || col.isNumeric ? "text-right tabular-nums" : "",
                               col.align === "center" ? "text-center" : "",
                               isActionsCol &&
                                 "sticky right-0 z-10 bg-white dark:bg-[#17171B] group-hover:bg-slate-50/90 dark:group-hover:bg-[#20222E]"
@@ -919,15 +919,15 @@ export function DataTable<T extends Record<string, any>>({
             {/* Range info */}
             <div className="text-center sm:text-left">
               Showing{" "}
-              <span className="font-semibold text-slate-900 dark:text-white font-mono">
+              <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
                 {(validPage - 1) * pageSize + 1}
               </span>{" "}
               to{" "}
-              <span className="font-semibold text-slate-900 dark:text-white font-mono">
+              <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
                 {Math.min(validPage * pageSize, totalItems)}
               </span>{" "}
               of{" "}
-              <span className="font-semibold text-slate-900 dark:text-white font-mono">
+              <span className="font-semibold text-slate-900 dark:text-white tabular-nums">
                 {totalItems}
               </span>{" "}
               records
@@ -955,7 +955,7 @@ export function DataTable<T extends Record<string, any>>({
               </div>
 
               {/* Mobile Compact Page Indicator (< sm) */}
-              <div className="sm:hidden text-xs font-mono text-slate-600 dark:text-slate-400 font-semibold px-2">
+              <div className="sm:hidden text-xs tabular-nums text-slate-600 dark:text-slate-400 font-semibold px-2">
                 {validPage} / {totalPages}
               </div>
 
@@ -986,7 +986,7 @@ export function DataTable<T extends Record<string, any>>({
                       type="button"
                       onClick={() => setCurrentPage(Number(btn))}
                       className={cn(
-                        "min-w-[28px] h-7 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer font-mono",
+                        "min-w-[28px] h-7 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer tabular-nums",
                         isCurrent
                           ? "bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-xs border border-indigo-700/30 font-semibold"
                           : "border border-slate-200 dark:border-[#303036] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#202026] hover:text-slate-900"

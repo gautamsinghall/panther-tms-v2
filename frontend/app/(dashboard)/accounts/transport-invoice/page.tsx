@@ -674,13 +674,13 @@ export default function TransportInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs sm:text-sm">
+          <span className="font-bold text-slate-900 dark:text-white block text-xs sm:text-sm tabular-nums">
             {row.voucher_number}
           </span>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
             <span>{formatDate(row.voucher_date)}</span>
             {row.due_date && (
-              <span className="text-[10px] bg-slate-100 text-slate-600 px-1 py-0.2 rounded font-mono">
+              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium tabular-nums">
                 Due: {formatDate(row.due_date)}
               </span>
             )}
@@ -694,11 +694,11 @@ export default function TransportInvoicePage() {
       sortable: true,
       cell: (row) => (
         <div>
-          <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#1A1D2B] text-slate-900 dark:text-white border border-slate-200/90 dark:border-[#22232E]">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#1A1D2B] text-slate-900 dark:text-white border border-slate-200/90 dark:border-[#22232E] tabular-nums">
             {row.lr_number || `LR #${row.lr_id}`}
           </span>
           {row.lr?.vehicle_number && (
-            <span className="block text-[10px] text-slate-500 font-mono mt-0.5">
+            <span className="block text-[10px] text-slate-500 mt-0.5 tabular-nums font-medium">
               Truck: {row.lr.vehicle_number}
             </span>
           )}
@@ -716,12 +716,12 @@ export default function TransportInvoicePage() {
           </span>
           <div className="flex items-center gap-2 mt-0.5">
             {row.party_gstin && (
-              <span className="font-mono text-[10px] text-slate-500 uppercase">
+              <span className="text-[10px] text-slate-500 uppercase font-medium tracking-wide">
                 GST: {row.party_gstin}
               </span>
             )}
             {row.place_of_supply && (
-              <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200">
+              <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200 font-medium">
                 POS: {row.place_of_supply}
               </span>
             )}
@@ -763,10 +763,10 @@ export default function TransportInvoicePage() {
       isNumeric: true,
       cell: (row) => (
         <div className="text-right">
-          <span className="font-mono font-bold text-slate-900 dark:text-white block text-xs sm:text-sm">
+          <span className="font-bold text-slate-900 dark:text-white block text-xs sm:text-sm tabular-nums">
             {formatCurrency(row.net_amount)}
           </span>
-          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums font-medium">
             Tax: {formatCurrency(row.tax_amount)}
           </span>
         </div>
@@ -781,7 +781,7 @@ export default function TransportInvoicePage() {
         const bal = parseFloat(String(row.balance_amount ?? row.net_amount));
         const paid = parseFloat(String(row.paid_amount ?? 0));
         return (
-          <div className="text-right font-mono">
+          <div className="text-right tabular-nums">
             <span
               className={cn(
                 "font-bold block text-xs sm:text-sm",
@@ -791,7 +791,7 @@ export default function TransportInvoicePage() {
               {formatCurrency(bal)}
             </span>
             {paid > 0 && (
-              <span className="text-[10px] text-slate-500 block">
+              <span className="text-[10px] text-slate-500 block font-medium">
                 Paid: {formatCurrency(paid)}
               </span>
             )}
@@ -842,7 +842,7 @@ export default function TransportInvoicePage() {
                 IRN Active
               </Badge>
               {row.irn && (
-                <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-[100px]" title={row.irn}>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-[100px] font-medium" title={row.irn}>
                   {row.irn.substring(0, 8)}...
                 </span>
               )}
