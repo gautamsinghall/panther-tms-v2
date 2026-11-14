@@ -47,14 +47,22 @@ def require_accounts_permission(permission: str = "view", feature: Optional[str]
             raise ForbiddenException(f"Access denied to accounts.{feature or '*'}.{permission}")
         if feature:
             has_perm = any(
-                p.module == "accounts" and p.feature == feature and (p.permission == permission or p.permission == "all") and p.is_allowed
+                p.module == "accounts" and p.feature == feature and (
+                    p.permission == permission
+                    or p.permission == "all"
+                    or (permission == "edit" and p.permission in ("create", "edit", "all"))
+                ) and p.is_allowed
                 for p in current_user.custom_role.permissions
             )
             if not has_perm:
                 raise ForbiddenException(f"Access denied. Missing permission: accounts.{feature}.{permission}")
             return current_user
         has_any = any(
-            p.module == "accounts" and (p.permission == permission or p.permission == "all") and p.is_allowed
+            p.module == "accounts" and (
+                p.permission == permission
+                or p.permission == "all"
+                or (permission == "edit" and p.permission in ("create", "edit", "all"))
+            ) and p.is_allowed
             for p in current_user.custom_role.permissions
         )
         if not has_any:
@@ -346,6 +354,48 @@ async def create_receipt_voucher_endpoint(
     return map_voucher_response(receipt)
 
 
+@router.put("/receipt-vouchers/{voucher_id}", response_model=schemas.VoucherResponse)
+async def update_receipt_voucher_endpoint(
+    voucher_id: int,
+    data: schemas.ReceiptVoucherCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "receipt_voucher", "edit")),
+):
+    """
+    Update an existing customer receipt voucher with revised allocations/amounts
+    and refresh balanced double-entry ledger postings.
+    """
+    office_id = current_office.id if current_office else None
+    receipt = await service.update_receipt_voucher(
+        session, voucher_id=voucher_id, data=data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="RECEIPT_UPDATED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(receipt.id),
+        entity_identifier=receipt.voucher_number,
+        office_id=receipt.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": receipt.voucher_number,
+            "party_name": receipt.party_name,
+            "amount": float(data.amount),
+            "tds_amount": float(data.tds_amount or 0),
+            "discount_amount": float(data.discount_amount or 0),
+            "receipt_type": data.receipt_type,
+            "payment_mode": data.payment_mode,
+            "allocations_count": len(data.allocations),
+        },
+    )
+    return map_voucher_response(receipt)
+
+
 @router.post("/transport-invoices/{invoice_id}/payments", response_model=schemas.VoucherResponse, status_code=status.HTTP_201_CREATED)
 async def create_invoice_payment(
     invoice_id: int,
@@ -404,6 +454,45 @@ async def create_purchase_bill_endpoint(
         db=session,
         user=current_user,
         action="PURCHASE_BILL_RECORDED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(voucher.id),
+        entity_identifier=voucher.voucher_number,
+        office_id=voucher.issuing_office_id or office_id,
+        details_json={
+            "voucher_number": voucher.voucher_number,
+            "bill_number": data.bill_number,
+            "vendor_name": voucher.party_name,
+            "total_amount": float(voucher.total_amount),
+            "tax_amount": float(voucher.tax_amount),
+            "net_amount": float(voucher.net_amount),
+            "purchase_category": data.purchase_category,
+        },
+    )
+    return map_voucher_response(voucher)
+
+
+@router.put("/purchases/{voucher_id}", response_model=schemas.VoucherResponse)
+async def update_purchase_bill_endpoint(
+    voucher_id: int,
+    data: schemas.PurchaseBillCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "purchases", "edit")),
+):
+    """
+    Update an existing vendor purchase bill with itemized SAC/HSN lines
+    and refresh balanced double-entry ledger postings.
+    """
+    office_id = current_office.id if current_office else None
+    voucher = await service.update_purchase_bill(
+        session, voucher_id=voucher_id, data=data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PURCHASE_BILL_UPDATED",
         module="accounts",
         entity_type="Voucher",
         entity_id=str(voucher.id),
@@ -520,6 +609,47 @@ async def create_payment_voucher_endpoint(
     return map_voucher_response(pmt)
 
 
+@router.put("/payment-vouchers/{voucher_id}", response_model=schemas.VoucherResponse)
+async def update_payment_voucher_endpoint(
+    voucher_id: int,
+    data: schemas.PaymentVoucherCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "payment_voucher", "edit")),
+):
+    """
+    Update an existing payment voucher with revised bill allocations/amounts
+    and refresh balanced double-entry ledger postings.
+    """
+    office_id = current_office.id if current_office else None
+    pmt = await service.update_payment_voucher(
+        session, voucher_id=voucher_id, data=data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="PAYMENT_UPDATED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(pmt.id),
+        entity_identifier=pmt.voucher_number,
+        office_id=pmt.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": pmt.voucher_number,
+            "party_name": pmt.party_name,
+            "amount": float(data.amount),
+            "tds_amount": float(data.tds_amount or 0),
+            "discount_amount": float(data.discount_amount or 0),
+            "payment_type": data.payment_type,
+            "payment_mode": data.payment_mode,
+            "allocations_count": len(data.allocations),
+            "hire_challan_id": data.hire_challan_id,
+        },
+    )
+    return map_voucher_response(pmt)
 
 
 @router.get("/contra/accounts", response_model=List[schemas.ContraAccountItem])
@@ -557,6 +687,48 @@ async def create_contra_voucher_endpoint(
         db=session,
         user=current_user,
         action="CONTRA_POSTED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(contra.id),
+        entity_identifier=contra.voucher_number,
+        office_id=contra.issuing_office_id or office_id,
+        office_name=current_office.name if current_office else None,
+        office_code=current_office.code if current_office else None,
+        details_json={
+            "voucher_number": contra.voucher_number,
+            "party_name": contra.party_name,
+            "contra_type": data.contra_type,
+            "amount": float(data.amount),
+            "bank_charges": float(data.bank_charges or 0),
+            "source_account_id": data.source_account_id,
+            "destination_account_id": data.destination_account_id,
+            "transfer_mode": data.transfer_mode,
+            "reference_number": data.reference_number,
+        },
+    )
+    return map_voucher_response(contra)
+
+
+@router.put("/contra-vouchers/{voucher_id}", response_model=schemas.VoucherResponse)
+async def update_contra_voucher_endpoint(
+    voucher_id: int,
+    data: schemas.ContraVoucherCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: bool = Depends(require_permission("accounts", "contra_voucher", "edit")),
+):
+    """
+    Update an internal funds transfer Contra Voucher and refresh balanced ledger postings.
+    """
+    office_id = current_office.id if current_office else None
+    contra = await service.update_contra_voucher(
+        session, voucher_id=voucher_id, data=data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="CONTRA_UPDATED",
         module="accounts",
         entity_type="Voucher",
         entity_id=str(contra.id),
@@ -748,6 +920,42 @@ async def create_credit_debit_note_endpoint(
         db=session,
         user=current_user,
         action="CREDIT_DEBIT_NOTE_POSTED",
+        module="accounts",
+        entity_type="Voucher",
+        entity_id=str(note.id),
+        entity_identifier=note.voucher_number,
+        office_id=note.issuing_office_id or office_id,
+        details_json={
+            "note_number": note.voucher_number,
+            "note_type": note.voucher_type,
+            "note_category": note.note_category,
+            "net_amount": float(note.net_amount),
+            "against_voucher_id": note.against_voucher_id,
+        },
+    )
+    return map_voucher_response(note)
+
+
+@router.put("/credit-debit-notes/{voucher_id}", response_model=schemas.VoucherResponse)
+async def update_credit_debit_note_endpoint(
+    voucher_id: int,
+    data: schemas.CreditDebitNoteCreate,
+    current_office: Optional[Branch] = Depends(get_current_office),
+    session: AsyncSession = Depends(get_tenant_db),
+    current_user: User = Depends(get_current_user),
+    _perm: User = Depends(require_accounts_permission("edit", "credit_debit_notes")),
+):
+    """
+    Update an existing Credit Note or Debit Note and refresh balanced double-entry ledger effects.
+    """
+    office_id = current_office.id if current_office else None
+    note = await service.update_credit_debit_note(
+        session, voucher_id=voucher_id, data=data, office_id=office_id, user_id=current_user.id
+    )
+    await log_activity(
+        db=session,
+        user=current_user,
+        action="CREDIT_DEBIT_NOTE_UPDATED",
         module="accounts",
         entity_type="Voucher",
         entity_id=str(note.id),
@@ -1360,6 +1568,28 @@ async def create_journal_voucher_endpoint(
     voucher = await service.create_journal_voucher(
         session,
         data,
+        current_user=current_user,
+        office_id=effective_office_id,
+    )
+    return map_voucher_response(voucher)
+
+
+@router.put("/journal-vouchers/{voucher_id}", response_model=schemas.VoucherResponse)
+async def update_journal_voucher_endpoint(
+    voucher_id: int,
+    data: schemas.JournalVoucherCreate,
+    session: AsyncSession = Depends(get_tenant_db),
+    current_office: Optional[Branch] = Depends(get_current_office),
+    current_user: User = Depends(require_accounts_permission("edit", "journal_voucher")),
+):
+    """
+    Update an existing Journal Voucher, updating its balanced debit/credit lines.
+    """
+    effective_office_id = data.issuing_office_id or (current_office.id if current_office else None)
+    voucher = await service.update_journal_voucher(
+        session,
+        voucher_id=voucher_id,
+        data=data,
         current_user=current_user,
         office_id=effective_office_id,
     )

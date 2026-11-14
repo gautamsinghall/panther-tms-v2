@@ -28,6 +28,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Pencil,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -145,6 +146,7 @@ export default function ContraVoucherPage() {
 
   // Drawer 1: Record Contra Transfer
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<VoucherRecord | null>(null);
   const [contraType, setContraType] = useState<ContraType>("CASH_TO_BANK");
   const [sourceAccountId, setSourceAccountId] = useState<string>("");
   const [destinationAccountId, setDestinationAccountId] = useState<string>("");
@@ -278,7 +280,35 @@ export default function ContraVoucherPage() {
     return eligibleAccounts.find((a) => String(a.id) === destinationAccountId);
   }, [eligibleAccounts, destinationAccountId]);
 
-  // Post Contra Voucher Handler
+  // Edit Contra Voucher Handler
+  const handleEditVoucher = (voucher: VoucherRecord) => {
+    setEditingVoucher(voucher);
+    const tb = voucher.tax_breakup || {};
+    setContraType((tb.contra_type as ContraType) || "CASH_TO_BANK");
+    let srcId = tb.source_account_id ? String(tb.source_account_id) : "";
+    let dstId = tb.destination_account_id ? String(tb.destination_account_id) : "";
+    if (!srcId && voucher.ledger_entries) {
+      const crEntry = voucher.ledger_entries.find((e) => (parseFloat(String(e.credit_amount)) || 0) > 0);
+      if (crEntry) srcId = String(crEntry.account_id);
+    }
+    if (!dstId && voucher.ledger_entries) {
+      const drEntry = voucher.ledger_entries.find((e) => (parseFloat(String(e.debit_amount)) || 0) > 0);
+      if (drEntry) dstId = String(drEntry.account_id);
+    }
+    setSourceAccountId(srcId);
+    setDestinationAccountId(dstId);
+    setAmount(String(voucher.net_amount || ""));
+    setVoucherDate(voucher.voucher_date || new Date().toISOString().split("T")[0]);
+    setTransferMode(tb.transfer_mode || "BANK_TRANSFER");
+    setReferenceNumber(voucher.reference_number || "");
+    setChequeNumber(tb.cheque_number || "");
+    setChequeDate(tb.cheque_date || "");
+    setBankCharges(tb.bank_charges ? String(tb.bank_charges) : "0");
+    setNarration(voucher.narration || "");
+    setIsCreateOpen(true);
+  };
+
+  // Post or Update Contra Voucher Handler
   const handleCreateContra = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount) || 0;
@@ -319,13 +349,22 @@ export default function ContraVoucherPage() {
         issuing_office_id: activeOffice?.id || undefined,
       };
 
-      await apiClient("/api/v1/accounts/contra-vouchers", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (editingVoucher) {
+        await apiClient(`/api/v1/accounts/contra-vouchers/${editingVoucher.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast.success(`Contra Voucher ${editingVoucher.voucher_number} updated successfully`);
+      } else {
+        await apiClient("/api/v1/accounts/contra-vouchers", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Contra Voucher posted successfully with balanced double-entry entries!");
+      }
 
-      toast.success("Contra Voucher posted successfully with balanced double-entry entries!");
       setIsCreateOpen(false);
+      setEditingVoucher(null);
       resetCreateForm();
       loadData();
     } catch (err: any) {
@@ -577,6 +616,12 @@ export default function ContraVoucherPage() {
   // Table Row Actions
   const actions: RowAction<VoucherRecord>[] = [
     {
+      label: "Edit Voucher",
+      icon: <Pencil className="w-3.5 h-3.5 text-blue-500" />,
+      hidden: (row) => row.is_void,
+      onClick: (row) => handleEditVoucher(row),
+    },
+    {
       label: "View Ledger",
       icon: <Eye className="w-3.5 h-3.5" />,
       variant: "default",
@@ -621,6 +666,7 @@ export default function ContraVoucherPage() {
           icon: <Plus className="w-4 h-4" />,
           onClick: () => {
             resetCreateForm("CASH_TO_BANK");
+            setEditingVoucher(null);
             setIsCreateOpen(true);
           },
         }}
@@ -737,6 +783,7 @@ export default function ContraVoucherPage() {
               size="sm"
               onClick={() => {
                 resetCreateForm("CASH_TO_BANK");
+                setEditingVoucher(null);
                 setIsCreateOpen(true);
               }}
               className="mt-4 bg-[#4F46E5] hover:bg-[#4338CA] text-white font-semibold rounded-xl shadow-xs"
@@ -751,9 +798,12 @@ export default function ContraVoucherPage() {
       {/* DRAWER 1: Record Contra Transfer (Friendly & Guided) */}
       <EntityDrawer
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Record Contra Transfer (Move Money)"
-        description="Internal fund movement between your company's cash and bank accounts. Strictly balanced double-entry accounting with zero trading profit or loss."
+        onClose={() => {
+          setIsCreateOpen(false);
+          setEditingVoucher(null);
+        }}
+        title={editingVoucher ? `Edit Contra Voucher (${editingVoucher.voucher_number})` : "Record Contra Transfer (Move Money)"}
+        description={editingVoucher ? "Update internal fund movement between your company's cash and bank accounts. Strictly balanced double-entry accounting." : "Internal fund movement between your company's cash and bank accounts. Strictly balanced double-entry accounting with zero trading profit or loss."}
         size="xl"
       >
         <form onSubmit={handleCreateContra} className="space-y-6 pb-20">
@@ -1180,8 +1230,11 @@ export default function ContraVoucherPage() {
           )}
 
           <FormActionBar
-            onCancel={() => setIsCreateOpen(false)}
-            submitLabel="Confirm & Post Contra Transfer"
+            onCancel={() => {
+              setIsCreateOpen(false);
+              setEditingVoucher(null);
+            }}
+            submitLabel={editingVoucher ? "Update Contra Voucher" : "Confirm & Post Contra Transfer"}
             isSubmitting={isSubmitting}
           />
         </form>

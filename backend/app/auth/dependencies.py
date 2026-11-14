@@ -224,6 +224,7 @@ def _matches_permission(
         or p_perm == "all"
         or req_perm == "all"
         or (req_perm == "view" and p_perm in ("edit", "create", "delete", "approve"))
+        or (req_perm == "edit" and p_perm in ("create", "all"))
     )
     if not perm_match:
         return False

@@ -34,6 +34,7 @@ import {
   Info,
   Tag,
   Paperclip,
+  Pencil,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
@@ -331,6 +332,7 @@ export default function JournalVouchersPage() {
 
   // Drawer / Form state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<VoucherRecord | null>(null);
   const [activeTabMode, setActiveTabMode] = useState<"GUIDED" | "ADVANCED">("GUIDED");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -491,6 +493,7 @@ export default function JournalVouchersPage() {
   // Open Create Drawer
   // ---------------------------------------------------------------------------
   const handleOpenCreate = () => {
+    setEditingVoucher(null);
     setFormVoucherDate(new Date().toISOString().split("T")[0]);
     setFormOfficeId(branches.length > 0 ? branches[0].id : "");
     setFormAdjustmentType("GENERAL");
@@ -512,8 +515,39 @@ export default function JournalVouchersPage() {
     setIsDrawerOpen(true);
   };
 
+  // Edit Voucher
+  const handleEditVoucher = (v: VoucherRecord) => {
+    setEditingVoucher(v);
+    setFormVoucherDate(v.voucher_date || new Date().toISOString().split("T")[0]);
+    setFormOfficeId(v.issuing_office_id || (branches.length > 0 ? branches[0].id : ""));
+    setFormAdjustmentType(v.note_category || "GENERAL");
+    setFormReferenceNumber(v.reference_number || "");
+    setFormReferenceDate(v.reference_date || "");
+    setFormCostCenter(v.cost_center || "");
+    setFormNarration(v.narration || "");
+    setFormInternalRemarks("");
+    setFormAttachmentUrl(v.attachment_url || "");
+    setFormAllowCashBank(false);
+
+    if (v.ledger_entries && v.ledger_entries.length > 0) {
+      const activeEntries = v.ledger_entries.filter((le) => !le.is_reversal);
+      setFormLines(
+        activeEntries.map((le) => ({
+          account_id: le.account_id,
+          debit_amount: Number(le.debit_amount) > 0 ? String(le.debit_amount) : "",
+          credit_amount: Number(le.credit_amount) > 0 ? String(le.credit_amount) : "",
+          narration: le.narration || "",
+        }))
+      );
+    }
+    setActiveTabMode("ADVANCED");
+    setShowAdvancedOptions(false);
+    setIsDrawerOpen(true);
+  };
+
   // Duplicate Voucher
   const handleDuplicate = (v: VoucherRecord) => {
+    setEditingVoucher(null);
     setFormVoucherDate(new Date().toISOString().split("T")[0]);
     setFormOfficeId(v.issuing_office_id || (branches.length > 0 ? branches[0].id : ""));
     setFormAdjustmentType(v.note_category || "GENERAL");
@@ -599,16 +633,25 @@ export default function JournalVouchersPage() {
 
     setIsSubmitting(true);
     try {
-      await apiClient("/api/v1/accounts/journal-vouchers", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      toast.success(asDraft ? "Journal Voucher saved as Draft." : "Journal Voucher posted to Master Ledger successfully.");
+      if (editingVoucher) {
+        await apiClient(`/api/v1/accounts/journal-vouchers/${editingVoucher.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast.success(`Journal Voucher ${editingVoucher.voucher_number} updated successfully`);
+      } else {
+        await apiClient("/api/v1/accounts/journal-vouchers", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success(asDraft ? "Journal Voucher saved as Draft." : "Journal Voucher posted to Master Ledger successfully.");
+      }
       setIsDrawerOpen(false);
+      setEditingVoucher(null);
       fetchData();
     } catch (err: any) {
-      console.error("Create journal voucher error:", err);
-      toast.error(err.message || "Failed to post Journal Voucher.");
+      console.error("Save journal voucher error:", err);
+      toast.error(err.message || "Failed to save Journal Voucher.");
     } finally {
       setIsSubmitting(false);
     }
@@ -973,6 +1016,18 @@ export default function JournalVouchersPage() {
                             <Eye className="w-4 h-4" />
                           </button>
 
+                          {/* Edit Voucher (if not Void) */}
+                          {!isVoid && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditVoucher(v)}
+                              title="Edit Journal Voucher"
+                              className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+
                           {/* Post Draft (if Draft) */}
                           {isDraft && (
                             <button
@@ -1028,9 +1083,12 @@ export default function JournalVouchersPage() {
       {/* ======================================================================= */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        title="Create Journal Voucher"
-        subtitle="Record double-entry non-cash adjustments, provisions, accruals, depreciation, and ledger reclassifications."
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setEditingVoucher(null);
+        }}
+        title={editingVoucher ? `Edit Journal Voucher (${editingVoucher.voucher_number})` : "Create Journal Voucher"}
+        subtitle={editingVoucher ? "Update double-entry non-cash adjustments, provisions, accruals, depreciation, and ledger reclassifications." : "Record double-entry non-cash adjustments, provisions, accruals, depreciation, and ledger reclassifications."}
         width="xl"
       >
         <div className="space-y-6 pb-12">
@@ -1552,7 +1610,10 @@ export default function JournalVouchersPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsDrawerOpen(false)}
+              onClick={() => {
+                setIsDrawerOpen(false);
+                setEditingVoucher(null);
+              }}
               disabled={isSubmitting}
             >
               Cancel
@@ -1577,7 +1638,7 @@ export default function JournalVouchersPage() {
                 disabled={isSubmitting || !isBalanced}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 text-xs font-semibold"
               >
-                {isSubmitting ? "Posting..." : "Post Journal Voucher"}
+                {isSubmitting ? (editingVoucher ? "Updating..." : "Posting...") : (editingVoucher ? "Update Journal Voucher" : "Post Journal Voucher")}
               </Button>
             </div>
           </div>

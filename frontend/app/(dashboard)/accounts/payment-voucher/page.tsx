@@ -28,6 +28,7 @@ import {
   User,
   Check,
   Info,
+  Pencil,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -104,6 +105,7 @@ interface BillAllocationItem {
   created_at: string;
   voucher_number?: string;
   invoice_number?: string;
+  bill_number?: string;
 }
 
 interface LedgerEntry {
@@ -228,6 +230,7 @@ export default function PaymentVoucherPage() {
 
   // Drawer 1: Record Business Payment
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<VoucherRecord | null>(null);
   const [paymentType, setPaymentType] = useState<string>("AGAINST_REF");
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
@@ -542,6 +545,65 @@ export default function PaymentVoucherPage() {
     setAllocations({});
   };
 
+  // Edit Payment Handler
+  const handleEditPayment = async (v: VoucherRecord) => {
+    setEditingVoucher(v);
+    const tb = v.tax_breakup || {};
+    const vendorId = v.vendor_id ? String(v.vendor_id) : (tb.vendor_id ? String(tb.vendor_id) : "");
+    const driverId = v.driver_id ? String(v.driver_id) : (tb.driver_id ? String(tb.driver_id) : "");
+    const challanId = v.hire_challan_id ? String(v.hire_challan_id) : (tb.hire_challan_id ? String(tb.hire_challan_id) : "");
+
+    setPaymentType(tb.payment_type || "AGAINST_REF");
+    setSelectedVendorId(vendorId);
+    setSelectedDriverId(driverId);
+    setSelectedChallanId(challanId);
+    setChallanPaymentType(tb.hire_challan_payment_type || "ATH");
+    setSelectedExpenseAccountId(tb.party_account_id ? String(tb.party_account_id) : "");
+    setCustomPartyName(v.party_name || "");
+
+    setPaymentMode(tb.payment_mode || "BANK");
+    setBankAccountId(tb.bank_account_id ? String(tb.bank_account_id) : "");
+    setVoucherDate(v.voucher_date || new Date().toISOString().split("T")[0]);
+    setReferenceNumber(v.reference_number || "");
+    setChequeNumber(tb.cheque_number || "");
+    setChequeDate(tb.cheque_date || "");
+    setChequeBank(tb.cheque_bank || "");
+    setClearanceStatus(tb.clearance_status || "CLEARED");
+    setAmountToPay(String(v.net_amount || ""));
+    setTdsSection(tb.tds_section || "194C");
+    setTdsRate(tb.tds_rate ? String(tb.tds_rate) : "2");
+    setTdsAmount(tb.tds_amount ? String(tb.tds_amount) : "0");
+    setDiscountAmount(tb.discount_amount ? String(tb.discount_amount) : "0");
+    setNarration(v.narration || "");
+
+    if (vendorId) {
+      setIsLoadingOpenBills(true);
+      try {
+        const bills = await apiClient<OpenBill[]>(`/api/v1/accounts/vendors/${vendorId}/open-bills`);
+        setVendorOpenBills(bills || []);
+        const allocMap: Record<number, AllocationRow> = {};
+        (v.bill_allocations || []).forEach((ba) => {
+          allocMap[ba.invoice_id] = {
+            invoice_id: ba.invoice_id,
+            bill_number: ba.bill_number || `BILL #${ba.invoice_id}`,
+            voucher_date: v.voucher_date,
+            balance_amount: parseFloat(String(ba.total_settled)) || 0,
+            allocated_amount: String(ba.allocated_amount || "0"),
+            tds_amount: String(ba.tds_amount || "0"),
+            discount_amount: String(ba.discount_amount || "0"),
+          };
+        });
+        setAllocations(allocMap);
+      } catch (e) {
+        console.error("Failed to load open bills for editing:", e);
+      } finally {
+        setIsLoadingOpenBills(false);
+      }
+    }
+
+    setIsCreateOpen(true);
+  };
+
   // Submit Payment Voucher
   const handleCreatePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -622,13 +684,22 @@ export default function PaymentVoucherPage() {
         narration: narration.trim() || undefined,
       };
 
-      await apiClient("/api/v1/accounts/payment-vouchers", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (editingVoucher) {
+        await apiClient(`/api/v1/accounts/payment-vouchers/${editingVoucher.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast.success(`Payment Voucher ${editingVoucher.voucher_number} updated successfully`);
+      } else {
+        await apiClient("/api/v1/accounts/payment-vouchers", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Payment Voucher posted successfully with balanced double-entry entries!");
+      }
 
-      toast.success("Payment Voucher posted successfully with balanced double-entry entries!");
       setIsCreateOpen(false);
+      setEditingVoucher(null);
       resetCreateForm();
       loadData();
     } catch (err: any) {
@@ -891,6 +962,12 @@ export default function PaymentVoucherPage() {
   // Actions
   const actions: RowAction<VoucherRecord>[] = [
     {
+      label: "Edit Voucher",
+      icon: <Pencil className="h-4 w-4 text-blue-400" />,
+      hidden: (v) => v.is_void,
+      onClick: (v) => handleEditPayment(v),
+    },
+    {
       label: "View Journal & Allocations",
       icon: <Eye className="h-4 w-4 text-cyan-400" />,
       onClick: (v) => {
@@ -954,6 +1031,7 @@ export default function PaymentVoucherPage() {
           icon: <Plus className="w-4 h-4" />,
           onClick: () => {
             resetCreateForm();
+            setEditingVoucher(null);
             setIsCreateOpen(true);
           },
         }}
@@ -1087,6 +1165,7 @@ export default function PaymentVoucherPage() {
               size="sm"
               onClick={() => {
                 resetCreateForm();
+                setEditingVoucher(null);
                 setIsCreateOpen(true);
               }}
               className="mt-4 bg-rose-600 hover:bg-rose-500 text-white font-medium"
@@ -1101,9 +1180,12 @@ export default function PaymentVoucherPage() {
       {/* DRAWER 1: Record Business Payment (Friendly & Guided) */}
       <EntityDrawer
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Record Business Payment (Money Out)"
-        description="Enter outgoing payment details for vendor bills, market truck hire, driver advances, or direct operating expenses."
+        onClose={() => {
+          setIsCreateOpen(false);
+          setEditingVoucher(null);
+        }}
+        title={editingVoucher ? `Edit Payment Voucher (${editingVoucher.voucher_number})` : "Record Business Payment (Money Out)"}
+        description={editingVoucher ? "Update outgoing payment details for vendor bills, market truck hire, driver advances, or direct operating expenses." : "Enter outgoing payment details for vendor bills, market truck hire, driver advances, or direct operating expenses."}
         size="xl"
       >
         <form onSubmit={handleCreatePayment} className="space-y-6 pb-20">
@@ -1844,8 +1926,11 @@ export default function PaymentVoucherPage() {
           </div>
 
           <FormActionBar
-            onCancel={() => setIsCreateOpen(false)}
-            submitLabel="Post Payment Voucher"
+            onCancel={() => {
+              setIsCreateOpen(false);
+              setEditingVoucher(null);
+            }}
+            submitLabel={editingVoucher ? "Update Payment Voucher" : "Post Payment Voucher"}
             isSubmitting={isSubmitting}
           />
         </form>

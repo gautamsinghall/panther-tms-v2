@@ -1705,6 +1705,314 @@ async def create_receipt_voucher(
     return await get_voucher_by_id(session, receipt_id)
 
 
+async def update_receipt_voucher(
+    session: AsyncSession,
+    voucher_id: int,
+    data: ReceiptVoucherCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Updates an existing Receipt Voucher, adjusting previous bill allocations,
+    re-validating ledger balances, and posting updated double-entry records.
+    """
+    await ensure_standard_accounts(session)
+
+    receipt = await get_voucher_by_id(session, voucher_id)
+    if receipt.voucher_type != VoucherType.RECEIPT_VOUCHER.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voucher is not a Receipt Voucher.",
+        )
+    if receipt.is_void:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voided voucher cannot be edited.",
+        )
+
+    # 1. Roll back prior bill allocations
+    alloc_stmt = select(BillAllocation).where(BillAllocation.voucher_id == receipt.id)
+    alloc_res = await session.execute(alloc_stmt)
+    old_allocations = alloc_res.scalars().all()
+    for alloc in old_allocations:
+        inv_stmt = select(Voucher).where(Voucher.id == alloc.invoice_id)
+        inv_res = await session.execute(inv_stmt)
+        inv = inv_res.scalar_one_or_none()
+        if inv:
+            inv.paid_amount = max(Decimal("0.00"), (inv.paid_amount or Decimal("0.00")) - alloc.total_settled)
+            inv.balance_amount = min(inv.net_amount, (inv.balance_amount or Decimal("0.00")) + alloc.total_settled)
+            if inv.paid_amount == Decimal("0.00"):
+                inv.payment_status = "UNPAID"
+            else:
+                inv.payment_status = "PARTIALLY_PAID"
+
+    # Delete old allocations and ledger entries
+    await session.execute(delete(BillAllocation).where(BillAllocation.voucher_id == receipt.id))
+    await session.execute(delete(LedgerEntry).where(LedgerEntry.voucher_id == receipt.id))
+
+    # 2. Resolve Billing Client & Debtor Account
+    client: Optional[BillingClient] = None
+    party_name = (data.party_name or "").strip()
+
+    if data.billing_client_id:
+        c_res = await session.execute(select(BillingClient).where(BillingClient.id == data.billing_client_id))
+        client = c_res.scalar_one_or_none()
+        if not client:
+            raise HTTPException(status_code=404, detail=f"Billing Client #{data.billing_client_id} not found")
+        party_name = client.name
+        debtor_acc = await get_or_create_party_account(
+            session, "BILLING_CLIENT", client.id, client.name, client.code
+        )
+        debtor_id = debtor_acc.id
+    elif data.party_account_id:
+        debtor_id = data.party_account_id
+        if not party_name:
+            acc_obj = await session.get(Account, debtor_id)
+            party_name = acc_obj.name if acc_obj else "Customer"
+    else:
+        party_name = party_name or "Cash Customer"
+        debtor_id = await get_fallback_account_id(session, "ACC_SUNDRY_DEBTORS", "DEBTORS")
+
+    # 3. Resolve Bank or Cash Ledger Account
+    resolved_company_bank_id: Optional[int] = None
+    if data.bank_account_id:
+        cb_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.id == data.bank_account_id))
+        cb_obj = cb_res.scalar_one_or_none()
+        if cb_obj:
+            if not cb_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected company bank account is deactivated.")
+            bank_id = cb_obj.account_id
+            resolved_company_bank_id = cb_obj.id
+        else:
+            acc_res = await session.execute(select(Account).where(Account.id == data.bank_account_id))
+            acc_obj = acc_res.scalar_one_or_none()
+            if acc_obj and not acc_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected ledger account is inactive.")
+            bank_id = data.bank_account_id
+            if acc_obj:
+                cba_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.account_id == acc_obj.id))
+                cba_obj = cba_res.scalar_one_or_none()
+                if cba_obj:
+                    resolved_company_bank_id = cba_obj.id
+    elif data.bank_account_code:
+        bank_id = await get_fallback_account_id(session, data.bank_account_code, "BANK")
+    elif (data.payment_mode or "").upper() == "CASH":
+        bank_id = await get_fallback_account_id(session, "ACC_CASH", "CASH")
+    else:
+        target_off = office_id or receipt.issuing_office_id
+        default_ba = await get_default_bank_account_for_office(session, target_off) if target_off else None
+        if default_ba:
+            bank_id = default_ba.account_id
+            resolved_company_bank_id = default_ba.id
+        else:
+            bank_id = await get_fallback_account_id(session, "ACC_HDFC_BANK", "BANK")
+
+    net_cash = data.amount
+    tds_total = data.tds_amount or Decimal("0.00")
+    disc_total = data.discount_amount or Decimal("0.00")
+    gross_receipt_val = net_cash + tds_total + disc_total
+
+    # 4. Bill Allocation Processing (AGAINST_REF)
+    allocated_bills: List[Dict[str, Any]] = []
+    sum_alloc_net = Decimal("0.00")
+    sum_alloc_total = Decimal("0.00")
+
+    receipt_type = (data.receipt_type or "AGAINST_REF").upper()
+    if receipt_type == "AGAINST_REF" and data.allocations:
+        for item in data.allocations:
+            a_net = item.allocated_amount or Decimal("0.00")
+            a_tds = item.tds_amount or Decimal("0.00")
+            a_disc = item.discount_amount or Decimal("0.00")
+            a_tot = a_net + a_tds + a_disc
+            if a_tot <= Decimal("0.00"):
+                continue
+
+            inv_res = await session.execute(select(Voucher).where(Voucher.id == item.invoice_id))
+            inv = inv_res.scalar_one_or_none()
+            if not inv:
+                raise HTTPException(status_code=404, detail=f"Invoice #{item.invoice_id} not found")
+            if inv.is_void:
+                raise HTTPException(status_code=400, detail=f"Cannot allocate payment to voided invoice {inv.voucher_number}")
+
+            bal = inv.balance_amount if inv.balance_amount is not None else inv.net_amount
+            if a_tot > bal + Decimal("0.01"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Settlement ₹{a_tot} exceeds remaining balance ₹{bal} for invoice {inv.voucher_number}"
+                )
+
+            inv.paid_amount = (inv.paid_amount or Decimal("0.00")) + a_tot
+            inv.balance_amount = max(Decimal("0.00"), inv.net_amount - inv.paid_amount)
+            if inv.balance_amount == Decimal("0.00"):
+                inv.payment_status = "PAID"
+            else:
+                inv.payment_status = "PARTIALLY_PAID"
+
+            allocated_bills.append({
+                "invoice": inv,
+                "allocated_amount": a_net,
+                "tds_amount": a_tds,
+                "discount_amount": a_disc,
+                "total_settled": a_tot,
+            })
+            sum_alloc_net += a_net
+            sum_alloc_total += a_tot
+
+        if sum_alloc_net > net_cash + Decimal("0.01"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Total allocated cash ₹{sum_alloc_net} exceeds amount received ₹{net_cash}."
+            )
+
+        unapplied_advance = max(Decimal("0.00"), net_cash - sum_alloc_net)
+    elif receipt_type in ["ADVANCE", "ON_ACCOUNT"]:
+        unapplied_advance = net_cash
+    else:
+        unapplied_advance = net_cash
+
+    ref_num = data.reference_number or data.cheque_number
+    ref_dt = data.cheque_date
+
+    tax_breakup = {
+        "receipt_type": receipt_type,
+        "payment_mode": data.payment_mode,
+        "reference_number": ref_num,
+        "cheque_number": data.cheque_number,
+        "cheque_date": str(data.cheque_date) if data.cheque_date else None,
+        "cheque_bank": data.cheque_bank,
+        "clearance_status": data.clearance_status or "CLEARED",
+        "tds_section": data.tds_section or "194C",
+        "tds_rate": float(data.tds_rate or 0),
+        "tds_amount": float(tds_total),
+        "discount_amount": float(disc_total),
+        "unapplied_advance_amount": float(unapplied_advance),
+        "settled_invoices_count": len(allocated_bills),
+    }
+
+    primary_against_id = allocated_bills[0]["invoice"].id if len(allocated_bills) == 1 else None
+    init_payment_status = "PENDING" if (data.payment_mode or "").upper() == "CHEQUE" and data.clearance_status == "PENDING" else "PAID"
+
+    # Update voucher fields
+    receipt.voucher_date = data.voucher_date or receipt.voucher_date
+    receipt.party_name = party_name
+    receipt.party_type = "BILLING_CLIENT"
+    receipt.reference_number = ref_num
+    receipt.reference_date = ref_dt
+    receipt.total_amount = gross_receipt_val
+    receipt.net_amount = net_cash
+    receipt.paid_amount = net_cash
+    receipt.balance_amount = Decimal("0.00")
+    receipt.payment_status = init_payment_status
+    receipt.narration = data.narration or f"Payment received from {party_name} via {data.payment_mode}"
+    receipt.account_id = debtor_id
+    receipt.billing_client_id = data.billing_client_id
+    if office_id and not receipt.issuing_office_id:
+        receipt.issuing_office_id = office_id
+    receipt.company_bank_account_id = resolved_company_bank_id
+    receipt.against_voucher_id = primary_against_id
+    receipt.tax_breakup = tax_breakup
+    receipt.attachment_url = data.attachment_url
+    receipt.cost_center = data.cost_center
+
+    # Record new Bill Allocations
+    for b in allocated_bills:
+        inv = b["invoice"]
+        ba = BillAllocation(
+            voucher_id=receipt.id,
+            invoice_id=inv.id,
+            allocated_amount=b["allocated_amount"],
+            tds_amount=b["tds_amount"],
+            discount_amount=b["discount_amount"],
+            total_settled=b["total_settled"],
+            adjustment_type="AGAINST_REF",
+            notes=f"Settlement against {inv.voucher_number}",
+        )
+        session.add(ba)
+
+    # Post new Ledger Entries
+    mode_desc = f"via {data.payment_mode}" + (f" (Ref/Cheque #{ref_num})" if ref_num else "")
+    session.add(LedgerEntry(
+        voucher_id=receipt.id,
+        account_id=bank_id,
+        entry_date=receipt.voucher_date,
+        debit_amount=net_cash,
+        credit_amount=Decimal("0.00"),
+        narration=f"Payment received {mode_desc} from {party_name}",
+    ))
+
+    if tds_total > Decimal("0.00"):
+        sec = (data.tds_section or "194C").upper()
+        if "194J" in sec:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_194J_RECV", "ASSET")
+            tds_narr = f"TDS u/s 194J deducted by {party_name}"
+        else:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_RECEIVABLE", "ASSET")
+            tds_narr = f"TDS u/s 194C deducted by {party_name}"
+
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=tds_acc_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=tds_total,
+            credit_amount=Decimal("0.00"),
+            narration=tds_narr,
+        ))
+
+    if disc_total > Decimal("0.00"):
+        disc_acc_id = await get_fallback_account_id(session, "ACC_DISCOUNT_ALLOWED", "EXPENSE")
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=disc_acc_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=disc_total,
+            credit_amount=Decimal("0.00"),
+            narration=f"Discount/Deduction allowed to {party_name}",
+        ))
+
+    if receipt_type == "AGAINST_REF":
+        if sum_alloc_total > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=receipt.id,
+                account_id=debtor_id,
+                entry_date=receipt.voucher_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=sum_alloc_total,
+                narration=f"Settlement of {len(allocated_bills)} invoice(s) for {party_name}",
+            ))
+        if unapplied_advance > Decimal("0.00"):
+            adv_acc_id = await get_fallback_account_id(session, "ACC_CUSTOMER_ADVANCES", "LIABILITY")
+            session.add(LedgerEntry(
+                voucher_id=receipt.id,
+                account_id=adv_acc_id,
+                entry_date=receipt.voucher_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=unapplied_advance,
+                narration=f"Unapplied excess payment / advance from {party_name}",
+            ))
+    elif receipt_type == "ADVANCE":
+        adv_acc_id = await get_fallback_account_id(session, "ACC_CUSTOMER_ADVANCES", "LIABILITY")
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=adv_acc_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=gross_receipt_val,
+            narration=f"Customer advance received from {party_name}",
+        ))
+    elif receipt_type == "ON_ACCOUNT":
+        session.add(LedgerEntry(
+            voucher_id=receipt.id,
+            account_id=debtor_id,
+            entry_date=receipt.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=gross_receipt_val,
+            narration=f"On-account receipt from {party_name}",
+        ))
+
+    await session.commit()
+    return await get_voucher_by_id(session, receipt.id)
+
+
 # ------------------------------------------------------------------------------
 # ATH and BTH Transporter Payments
 # ------------------------------------------------------------------------------
@@ -2246,6 +2554,279 @@ async def create_purchase_bill(
         debit_amount=Decimal("0.00"),
         credit_amount=supplier_payable,
         narration=creditor_narr,
+    ))
+
+    await session.commit()
+    return await get_voucher_by_id(session, voucher.id)
+
+
+async def update_purchase_bill(
+    session: AsyncSession,
+    voucher_id: int,
+    data: PurchaseBillCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Updates an existing Purchase Bill / Register Voucher, replacing line items
+    and regenerating balanced double-entry ledger entries.
+    """
+    await ensure_standard_accounts(session)
+
+    voucher = await get_voucher_by_id(session, voucher_id)
+    if voucher.voucher_type not in [VoucherType.NORMAL_PURCHASE.value, VoucherType.GENERAL_PURCHASE.value]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voucher is not a Purchase Bill.",
+        )
+    if voucher.is_void:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voided voucher cannot be edited.",
+        )
+    if voucher.paid_amount and voucher.paid_amount > Decimal("0.00"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot edit voucher {voucher.voucher_number} because active payments totaling ₹{voucher.paid_amount} exist against it. Please void the payments first.",
+        )
+
+    # 1. Resolve Vendor
+    party_name = (data.party_name or "").strip()
+    party_gstin = data.party_gstin
+    vendor_state = data.vendor_state
+
+    if data.vendor_id:
+        v_res = await session.execute(select(Vendor).where(Vendor.id == data.vendor_id))
+        vendor = v_res.scalar_one_or_none()
+        if not vendor:
+            raise HTTPException(status_code=404, detail=f"Vendor #{data.vendor_id} not found")
+        party_name = vendor.name
+        party_gstin = vendor.gstin
+        vendor_state = getattr(vendor, "state", None) or vendor_state
+        cred_acc = await get_or_create_party_account(session, "VENDOR", vendor.id, vendor.name, getattr(vendor, "pan", None))
+        creditor_id = cred_acc.id
+    elif data.party_account_id:
+        creditor_id = data.party_account_id
+        if not party_name:
+            acc_o = await session.get(Account, creditor_id)
+            party_name = acc_o.name if acc_o else "Supplier"
+    else:
+        party_name = party_name or "General Supplier"
+        creditor_id = await get_fallback_account_id(session, "ACC_SUNDRY_CREDITORS", "CREDITORS")
+
+    # 2. Company office state
+    target_off = office_id or voucher.issuing_office_id
+    office_state = None
+    if target_off:
+        b_res = await session.execute(select(Branch).where(Branch.id == target_off))
+        branch = b_res.scalar_one_or_none()
+        if branch:
+            office_state = branch.state
+
+    is_interstate = False
+    if office_state and vendor_state:
+        is_interstate = (office_state.strip().lower() != vendor_state.strip().lower())
+    elif data.place_of_supply and office_state:
+        is_interstate = (data.place_of_supply.strip().lower() != office_state.strip().lower())
+
+    gst_treatment = (data.gst_treatment or "FCM").upper()
+    is_rcm = (gst_treatment == "RCM")
+    is_exempt = (gst_treatment in ["EXEMPT", "NIL_RATED"])
+
+    # Clear old items and ledger entries
+    await session.execute(delete(VoucherItem).where(VoucherItem.voucher_id == voucher.id))
+    await session.execute(delete(LedgerEntry).where(LedgerEntry.voucher_id == voucher.id))
+
+    # Process items
+    tc_res = await session.execute(select(TaxCategory))
+    tax_cat_map = {tc.id: tc for tc in tc_res.scalars().all()}
+
+    total_taxable = Decimal("0.00")
+    total_tax = Decimal("0.00")
+    tax_breakup = {
+        "cgst": Decimal("0.00"),
+        "sgst": Decimal("0.00"),
+        "igst": Decimal("0.00"),
+        "is_interstate": is_interstate,
+        "gst_treatment": gst_treatment,
+        "itc_eligibility": data.itc_eligibility or "ELIGIBLE",
+        "purchase_category": data.purchase_category or "SPARES",
+        "bill_number": data.bill_number,
+        "bill_date": str(data.bill_date) if data.bill_date else None,
+        "vehicle_number": data.vehicle_number,
+        "tds_section": data.tds_section,
+        "tds_rate": float(data.tds_rate or 0),
+        "tds_amount": float(data.tds_amount or 0),
+    }
+
+    v_items: List[VoucherItem] = []
+    for itm in data.items:
+        qty = itm.quantity or Decimal("1.00")
+        rt = itm.rate or Decimal("0.00")
+        line_taxable = qty * rt
+        total_taxable += line_taxable
+
+        rate_pct = Decimal("0.00")
+        line_tax = Decimal("0.00")
+        if not is_exempt:
+            if itm.tax_category_id and itm.tax_category_id in tax_cat_map:
+                tc = tax_cat_map[itm.tax_category_id]
+                rate_pct = Decimal(str(tc.igst_rate or "0.00"))
+                if rate_pct == Decimal("0.00"):
+                    rate_pct = Decimal(str(tc.cgst_rate or "0.00")) + Decimal(str(tc.sgst_rate or "0.00"))
+                line_tax = ((line_taxable * rate_pct) / Decimal("100.00")).quantize(Decimal("0.01"))
+            elif itm.tax_amount and itm.tax_amount > Decimal("0.00"):
+                line_tax = Decimal(str(itm.tax_amount)).quantize(Decimal("0.01"))
+
+        total_tax += line_tax
+
+        if not is_exempt and line_tax > Decimal("0.00"):
+            if is_interstate:
+                tax_breakup["igst"] += line_tax
+            else:
+                half = line_tax / Decimal("2.00")
+                tax_breakup["cgst"] += half
+                tax_breakup["sgst"] += half
+
+        v_items.append(VoucherItem(
+            voucher_id=voucher.id,
+            charge_head_id=itm.charge_head_id,
+            description=itm.description,
+            quantity=qty,
+            rate=rt,
+            tax_category_id=itm.tax_category_id,
+            hsn_sac=itm.hsn_sac,
+            discount_amount=Decimal("0.00"),
+            tax_amount=line_tax,
+        ))
+
+    tds_amt = data.tds_amount or Decimal("0.00")
+    if is_rcm:
+        net_payable = total_taxable - tds_amt
+    else:
+        net_payable = (total_taxable + total_tax) - tds_amt
+
+    v_date = data.voucher_date or voucher.voucher_date
+    c_days = data.credit_period_days if data.credit_period_days is not None else 30
+    due_dt = data.due_date or (v_date + timedelta(days=c_days))
+
+    tax_breakup_json = {
+        k: float(v) if isinstance(v, Decimal) else v
+        for k, v in tax_breakup.items()
+    }
+
+    # Update voucher fields
+    voucher.voucher_date = v_date
+    voucher.party_name = party_name
+    voucher.party_type = "VENDOR"
+    voucher.party_gstin = party_gstin
+    voucher.reference_number = data.bill_number
+    voucher.reference_date = data.bill_date
+    voucher.total_amount = total_taxable
+    voucher.tax_amount = total_tax
+    voucher.net_amount = net_payable
+    voucher.balance_amount = net_payable
+    voucher.due_date = due_dt
+    voucher.credit_period_days = c_days
+    voucher.payment_status = "UNPAID"
+    voucher.gst_treatment = gst_treatment
+    voucher.place_of_supply = data.place_of_supply or office_state
+    voucher.itc_eligibility = data.itc_eligibility or "ELIGIBLE"
+    voucher.narration = data.narration or f"Purchase Bill {data.bill_number or voucher.voucher_number} from {party_name}"
+    voucher.tax_breakup = tax_breakup_json
+    voucher.vendor_id = data.vendor_id
+    voucher.account_id = creditor_id
+    voucher.hire_challan_id = data.hire_challan_id
+    voucher.cost_center = data.cost_center
+    voucher.attachment_url = data.attachment_url
+
+    session.add_all(v_items)
+
+    # Post Ledger Entries
+    exp_acc_id = data.expense_account_id or await get_fallback_account_id(session, "ACC_OFFICE_EXP", "EXPENSE")
+    session.add(LedgerEntry(
+        voucher_id=voucher.id,
+        account_id=exp_acc_id,
+        entry_date=v_date,
+        debit_amount=total_taxable,
+        credit_amount=Decimal("0.00"),
+        narration=f"Expense on Bill #{data.bill_number or voucher.voucher_number} ({party_name})",
+    ))
+
+    itc_elig = (data.itc_eligibility or "ELIGIBLE").upper()
+    if total_tax > Decimal("0.00") and not is_exempt:
+        if itc_elig == "BLOCKED":
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=exp_acc_id,
+                entry_date=v_date,
+                debit_amount=total_tax,
+                credit_amount=Decimal("0.00"),
+                narration=f"Ineligible GST ITC written off as business expense u/s 17(5)",
+            ))
+        else:
+            if is_interstate:
+                igst_id = await get_fallback_account_id(session, "ACC_INPUT_IGST", "ASSET")
+                session.add(LedgerEntry(
+                    voucher_id=voucher.id,
+                    account_id=igst_id,
+                    entry_date=v_date,
+                    debit_amount=tax_breakup["igst"],
+                    credit_amount=Decimal("0.00"),
+                    narration=f"Input IGST on Purchase {data.bill_number or voucher.voucher_number}",
+                ))
+            else:
+                cgst_id = await get_fallback_account_id(session, "ACC_INPUT_CGST", "ASSET")
+                sgst_id = await get_fallback_account_id(session, "ACC_INPUT_SGST", "ASSET")
+                session.add(LedgerEntry(
+                    voucher_id=voucher.id,
+                    account_id=cgst_id,
+                    entry_date=v_date,
+                    debit_amount=tax_breakup["cgst"],
+                    credit_amount=Decimal("0.00"),
+                    narration=f"Input CGST on Purchase {data.bill_number or voucher.voucher_number}",
+                ))
+                session.add(LedgerEntry(
+                    voucher_id=voucher.id,
+                    account_id=sgst_id,
+                    entry_date=v_date,
+                    debit_amount=tax_breakup["sgst"],
+                    credit_amount=Decimal("0.00"),
+                    narration=f"Input SGST on Purchase {data.bill_number or voucher.voucher_number}",
+                ))
+
+    if is_rcm and total_tax > Decimal("0.00"):
+        rcm_acc_id = await get_fallback_account_id(session, "ACC_GST_RCM_LIABILITY", "LIABILITY")
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=rcm_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=total_tax,
+            narration=f"GST RCM output tax liability on Purchase {data.bill_number or voucher.voucher_number}",
+        ))
+
+    if tds_amt > Decimal("0.00"):
+        tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_PAYABLE", "LIABILITY")
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=tds_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=tds_amt,
+            narration=f"TDS deducted on Purchase {data.bill_number or voucher.voucher_number}",
+        ))
+
+    supplier_payable = total_taxable if is_rcm else (total_taxable + total_tax)
+    supplier_payable -= tds_amt
+
+    session.add(LedgerEntry(
+        voucher_id=voucher.id,
+        account_id=creditor_id,
+        entry_date=v_date,
+        debit_amount=Decimal("0.00"),
+        credit_amount=supplier_payable,
+        narration=f"Payable for Bill {data.bill_number or voucher.voucher_number} to {party_name}",
     ))
 
     await session.commit()
@@ -2881,6 +3462,421 @@ async def create_payment_voucher(
     return await get_voucher_by_id(session, pmt_id)
 
 
+async def update_payment_voucher(
+    session: AsyncSession,
+    voucher_id: int,
+    data: PaymentVoucherCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Updates an existing Payment Voucher, rolling back prior bill/hire challan settlements,
+    re-applying allocations, and updating balanced double-entry ledger entries.
+    """
+    await ensure_standard_accounts(session)
+
+    pmt = await get_voucher_by_id(session, voucher_id)
+    if pmt.voucher_type not in [VoucherType.PAYMENT_VOUCHER.value, VoucherType.PAYMENT_ATH.value, VoucherType.PAYMENT_BTH.value]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voucher is not a Payment Voucher.",
+        )
+    if pmt.is_void:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voided voucher cannot be edited.",
+        )
+
+    # 1. Roll back prior bill allocations
+    alloc_stmt = select(BillAllocation).where(BillAllocation.voucher_id == pmt.id)
+    alloc_res = await session.execute(alloc_stmt)
+    old_allocations = alloc_res.scalars().all()
+    for alloc in old_allocations:
+        inv_stmt = select(Voucher).where(Voucher.id == alloc.invoice_id)
+        inv_res = await session.execute(inv_stmt)
+        inv = inv_res.scalar_one_or_none()
+        if inv:
+            inv.paid_amount = max(Decimal("0.00"), (inv.paid_amount or Decimal("0.00")) - alloc.total_settled)
+            inv.balance_amount = min(inv.net_amount, (inv.balance_amount or Decimal("0.00")) + alloc.total_settled)
+            if inv.paid_amount == Decimal("0.00"):
+                inv.payment_status = "UNPAID"
+            else:
+                inv.payment_status = "PARTIALLY_PAID"
+
+    if pmt.hire_challan_id:
+        hc_stmt = select(HireChallan).where(HireChallan.id == pmt.hire_challan_id)
+        hc_res = await session.execute(hc_stmt)
+        hc_obj = hc_res.scalar_one_or_none()
+        if hc_obj:
+            hc_obj.advance_amount = max(Decimal("0.00"), (hc_obj.advance_amount or Decimal("0.00")) - pmt.net_amount)
+            hc_obj.balance_amount = min(hc_obj.hire_rate or Decimal("0.00"), (hc_obj.balance_amount or Decimal("0.00")) + pmt.net_amount)
+            if hc_obj.balance_amount > Decimal("0.00"):
+                hc_obj.status = "ISSUED"
+
+    # Delete old allocations and ledger entries
+    await session.execute(delete(BillAllocation).where(BillAllocation.voucher_id == pmt.id))
+    await session.execute(delete(LedgerEntry).where(LedgerEntry.voucher_id == pmt.id))
+
+    # 2. Resolve Bank or Cash Ledger Account
+    resolved_company_bank_id: Optional[int] = None
+    if data.bank_account_id:
+        cb_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.id == data.bank_account_id))
+        cb_obj = cb_res.scalar_one_or_none()
+        if cb_obj:
+            if not cb_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected company bank account is deactivated.")
+            bank_id = cb_obj.account_id
+            resolved_company_bank_id = cb_obj.id
+        else:
+            acc_res = await session.execute(select(Account).where(Account.id == data.bank_account_id))
+            acc_obj = acc_res.scalar_one_or_none()
+            if acc_obj and not acc_obj.is_active:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selected ledger account is inactive.")
+            bank_id = data.bank_account_id
+            if acc_obj:
+                cba_res = await session.execute(select(CompanyBankAccount).where(CompanyBankAccount.account_id == acc_obj.id))
+                cba_obj = cba_res.scalar_one_or_none()
+                if cba_obj:
+                    resolved_company_bank_id = cba_obj.id
+    elif data.bank_account_code:
+        bank_id = await get_fallback_account_id(session, data.bank_account_code, "BANK")
+    elif (data.payment_mode or "").upper() == "CASH":
+        bank_id = await get_fallback_account_id(session, "ACC_CASH", "CASH")
+    else:
+        target_off = office_id or pmt.issuing_office_id
+        default_ba = await get_default_bank_account_for_office(session, target_off) if target_off else None
+        if default_ba:
+            bank_id = default_ba.account_id
+            resolved_company_bank_id = default_ba.id
+        else:
+            bank_id = await get_fallback_account_id(session, "ACC_HDFC_BANK", "BANK")
+
+    net_cash = data.amount
+    tds_total = data.tds_amount or Decimal("0.00")
+    disc_total = data.discount_amount or Decimal("0.00")
+    gross_disbursement_val = net_cash + tds_total + disc_total
+
+    # 3. Resolve Party & Debited Account
+    p_type = data.payment_type
+    party_name = (data.party_name or "").strip()
+    creditor_id: Optional[int] = None
+    debit_target_id: Optional[int] = None
+    vendor_id = data.vendor_id
+    driver_id = data.driver_id
+    hire_challan_id = data.hire_challan_id
+
+    if p_type == "AGAINST_REF" or p_type == "ADVANCE":
+        if vendor_id:
+            v_res = await session.execute(select(Vendor).where(Vendor.id == vendor_id))
+            v_obj = v_res.scalar_one_or_none()
+            if not v_obj:
+                raise HTTPException(status_code=404, detail=f"Vendor #{vendor_id} not found")
+            party_name = v_obj.name
+            cred_acc = await get_or_create_party_account(session, "VENDOR", v_obj.id, v_obj.name, getattr(v_obj, "pan", None))
+            creditor_id = cred_acc.id
+        elif data.party_account_id:
+            creditor_id = data.party_account_id
+            if not party_name:
+                acc_o = await session.get(Account, creditor_id)
+                party_name = acc_o.name if acc_o else "Vendor"
+        else:
+            party_name = party_name or "General Vendor"
+            creditor_id = await get_fallback_account_id(session, "ACC_SUNDRY_CREDITORS", "CREDITORS")
+        debit_target_id = creditor_id
+
+    elif p_type == "HIRE_CHALLAN":
+        if not hire_challan_id:
+            hire_challan_id = pmt.hire_challan_id
+        if not hire_challan_id:
+            raise HTTPException(status_code=400, detail="Hire Challan ID is required for HIRE_CHALLAN payment type.")
+        hc_res = await session.execute(
+            select(HireChallan).options(selectinload(HireChallan.owner)).where(HireChallan.id == hire_challan_id)
+        )
+        hc_obj = hc_res.scalar_one_or_none()
+        if not hc_obj:
+            raise HTTPException(status_code=404, detail=f"Hire Challan #{hire_challan_id} not found")
+
+        party_name = hc_obj.owner.name if hc_obj.owner else f"Truck Owner ({hc_obj.truck_number})"
+        if hc_obj.owner_id:
+            vo_acc = await get_or_create_party_account(session, "VEHICLE_OWNER", hc_obj.owner_id, party_name, getattr(hc_obj.owner, "pan_number", None))
+            creditor_id = vo_acc.id
+        else:
+            creditor_id = await get_fallback_account_id(session, "ACC_SUNDRY_CREDITORS", "CREDITORS")
+        debit_target_id = creditor_id
+
+        # Update Hire Challan balances
+        cur_adv = hc_obj.advance_amount or Decimal("0.00")
+        hc_obj.advance_amount = cur_adv + net_cash
+        hire_rate = hc_obj.hire_rate or Decimal("0.00")
+        hc_obj.balance_amount = max(Decimal("0.00"), hire_rate - hc_obj.advance_amount)
+        if hc_obj.balance_amount == Decimal("0.00"):
+            hc_obj.status = "SETTLED"
+        else:
+            hc_obj.status = "PARTIAL_PAID"
+
+    elif p_type == "DRIVER_ADVANCE":
+        if driver_id:
+            d_res = await session.execute(select(Driver).where(Driver.id == driver_id))
+            d_obj = d_res.scalar_one_or_none()
+            if not d_obj:
+                raise HTTPException(status_code=404, detail=f"Driver #{driver_id} not found")
+            party_name = d_obj.name
+            d_acc = await get_or_create_party_account(session, "DRIVER", d_obj.id, d_obj.name, d_obj.license_number)
+            debit_target_id = d_acc.id
+        else:
+            party_name = party_name or "Fleet Driver"
+            debit_target_id = await get_fallback_account_id(session, "ACC_DRIVER_ADVANCES", "CA")
+
+    elif p_type == "DRIVER_EXPENSE":
+        debit_target_id = data.party_account_id or await get_fallback_account_id(session, "ACC_VEHICLE_RUNNING_EXP", "EXPENSE")
+        party_name = party_name or "Driver Expense"
+
+    elif p_type == "DIRECT_EXPENSE":
+        debit_target_id = data.party_account_id or await get_fallback_account_id(session, "ACC_OFFICE_EXP", "EXPENSE")
+        party_name = party_name or "Direct Operating Expense"
+
+    elif p_type == "STATUTORY_PAYMENT":
+        debit_target_id = data.party_account_id or await get_fallback_account_id(session, "ACC_GST_PAYABLE", "LIABILITY")
+        party_name = party_name or "Statutory Authority / Tax Dept"
+
+    else:
+        debit_target_id = await get_fallback_account_id(session, "ACC_SUNDRY_CREDITORS", "CREDITORS")
+        party_name = party_name or "Payee"
+
+    # 4. Bill Allocation Processing (AGAINST_REF)
+    allocated_bills: List[Dict[str, Any]] = []
+    sum_alloc_net = Decimal("0.00")
+    sum_alloc_total = Decimal("0.00")
+
+    if p_type == "AGAINST_REF" and data.allocations:
+        for item in data.allocations:
+            a_net = item.allocated_amount or Decimal("0.00")
+            a_tds = item.tds_amount or Decimal("0.00")
+            a_disc = item.discount_amount or Decimal("0.00")
+            a_tot = a_net + a_tds + a_disc
+            if a_tot <= Decimal("0.00"):
+                continue
+
+            inv_res = await session.execute(select(Voucher).where(Voucher.id == item.invoice_id))
+            inv = inv_res.scalar_one_or_none()
+            if not inv:
+                raise HTTPException(status_code=404, detail=f"Bill #{item.invoice_id} not found")
+            if inv.is_void:
+                raise HTTPException(status_code=400, detail=f"Cannot allocate payment to voided bill {inv.voucher_number}")
+
+            bal = inv.balance_amount if inv.balance_amount is not None else inv.net_amount
+            if a_tot > bal + Decimal("0.01"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Settlement ₹{a_tot} exceeds remaining balance ₹{bal} for bill {inv.voucher_number}"
+                )
+
+            inv.paid_amount = (inv.paid_amount or Decimal("0.00")) + a_tot
+            inv.balance_amount = max(Decimal("0.00"), inv.net_amount - inv.paid_amount)
+            if inv.balance_amount == Decimal("0.00"):
+                inv.payment_status = "PAID"
+            else:
+                inv.payment_status = "PARTIALLY_PAID"
+
+            allocated_bills.append({
+                "invoice": inv,
+                "allocated_amount": a_net,
+                "tds_amount": a_tds,
+                "discount_amount": a_disc,
+                "total_settled": a_tot,
+            })
+            sum_alloc_net += a_net
+            sum_alloc_total += a_tot
+
+        if sum_alloc_net > net_cash + Decimal("0.01"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Total allocated cash ₹{sum_alloc_net} exceeds amount paid ₹{net_cash}."
+            )
+
+        unapplied_advance = max(Decimal("0.00"), net_cash - sum_alloc_net)
+    elif p_type == "ADVANCE":
+        unapplied_advance = net_cash
+    else:
+        unapplied_advance = Decimal("0.00")
+
+    ref_num = data.reference_number or data.cheque_number
+    ref_dt = data.cheque_date
+
+    tax_breakup = {
+        "payment_type": p_type,
+        "payment_mode": data.payment_mode,
+        "reference_number": ref_num,
+        "cheque_number": data.cheque_number,
+        "cheque_date": str(data.cheque_date) if data.cheque_date else None,
+        "cheque_bank": data.cheque_bank,
+        "clearance_status": data.clearance_status or "CLEARED",
+        "tds_section": data.tds_section or "194C",
+        "tds_rate": float(data.tds_rate or 0),
+        "tds_amount": float(tds_total),
+        "discount_amount": float(disc_total),
+        "unapplied_advance_amount": float(unapplied_advance),
+        "settled_bills_count": len(allocated_bills),
+        "hire_challan_id": hire_challan_id,
+        "hire_challan_payment_type": data.hire_challan_payment_type,
+    }
+
+    primary_against_id = allocated_bills[0]["invoice"].id if len(allocated_bills) == 1 else None
+    init_payment_status = "PENDING" if (data.payment_mode or "").upper() == "CHEQUE" and data.clearance_status == "PENDING" else "PAID"
+
+    # Update voucher fields
+    pmt.voucher_date = data.voucher_date or pmt.voucher_date
+    pmt.party_name = party_name
+    pmt.party_type = "VENDOR" if vendor_id else ("DRIVER" if driver_id else "EXPENSE")
+    pmt.reference_number = ref_num
+    pmt.reference_date = ref_dt
+    pmt.total_amount = gross_disbursement_val
+    pmt.net_amount = net_cash
+    pmt.paid_amount = net_cash
+    pmt.balance_amount = Decimal("0.00")
+    pmt.payment_status = init_payment_status
+    pmt.narration = data.narration or f"Payment to {party_name} via {data.payment_mode}"
+    pmt.account_id = debit_target_id
+    pmt.vendor_id = vendor_id
+    pmt.driver_id = driver_id
+    pmt.hire_challan_id = hire_challan_id
+    if office_id and not pmt.issuing_office_id:
+        pmt.issuing_office_id = office_id
+    pmt.company_bank_account_id = resolved_company_bank_id
+    pmt.against_voucher_id = primary_against_id
+    pmt.tax_breakup = tax_breakup
+    pmt.attachment_url = data.attachment_url
+    pmt.cost_center = data.cost_center
+
+    # Record new Bill Allocations
+    for b in allocated_bills:
+        inv = b["invoice"]
+        ba = BillAllocation(
+            voucher_id=pmt.id,
+            invoice_id=inv.id,
+            allocated_amount=b["allocated_amount"],
+            tds_amount=b["tds_amount"],
+            discount_amount=b["discount_amount"],
+            total_settled=b["total_settled"],
+            adjustment_type="AGAINST_REF",
+            notes=f"Settlement against {inv.voucher_number}",
+        )
+        session.add(ba)
+
+    # Post new Ledger Entries
+    mode_desc = f"via {data.payment_mode}" + (f" (Ref/Cheque #{ref_num})" if ref_num else "")
+    session.add(LedgerEntry(
+        voucher_id=pmt.id,
+        account_id=bank_id,
+        entry_date=pmt.voucher_date,
+        debit_amount=Decimal("0.00"),
+        credit_amount=net_cash,
+        narration=f"Disbursement {mode_desc} to {party_name}",
+    ))
+
+    if tds_total > Decimal("0.00"):
+        sec = (data.tds_section or "194C").upper()
+        if "194J" in sec:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_PAYABLE_194J", "TAX")
+            tds_narr = f"TDS u/s 194J retained on payment to {party_name}"
+        elif "194Q" in sec:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_PAYABLE_194Q", "TAX")
+            tds_narr = f"TDS u/s 194Q retained on payment to {party_name}"
+        else:
+            tds_acc_id = await get_fallback_account_id(session, "ACC_TDS_PAYABLE_194C", "TAX")
+            tds_narr = f"TDS u/s 194C retained on payment to {party_name}"
+
+        session.add(LedgerEntry(
+            voucher_id=pmt.id,
+            account_id=tds_acc_id,
+            entry_date=pmt.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=tds_total,
+            narration=tds_narr,
+        ))
+
+    if disc_total > Decimal("0.00"):
+        disc_acc_id = await get_fallback_account_id(session, "ACC_DISCOUNT_RECEIVED", "REV_DIRECT")
+        session.add(LedgerEntry(
+            voucher_id=pmt.id,
+            account_id=disc_acc_id,
+            entry_date=pmt.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=disc_total,
+            narration=f"Discount received from {party_name}",
+        ))
+
+    if p_type == "AGAINST_REF":
+        if sum_alloc_total > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=pmt.id,
+                account_id=creditor_id,
+                entry_date=pmt.voucher_date,
+                debit_amount=sum_alloc_total,
+                credit_amount=Decimal("0.00"),
+                narration=f"Settlement of {len(allocated_bills)} purchase bill(s) for {party_name}",
+            ))
+        if unapplied_advance > Decimal("0.00"):
+            adv_acc_id = await get_fallback_account_id(session, "ACC_SUPPLIER_ADVANCES", "CA")
+            session.add(LedgerEntry(
+                voucher_id=pmt.id,
+                account_id=adv_acc_id,
+                entry_date=pmt.voucher_date,
+                debit_amount=unapplied_advance,
+                credit_amount=Decimal("0.00"),
+                narration=f"Unapplied excess payment / advance to {party_name}",
+            ))
+    elif p_type == "HIRE_CHALLAN":
+        session.add(LedgerEntry(
+            voucher_id=pmt.id,
+            account_id=creditor_id,
+            entry_date=pmt.voucher_date,
+            debit_amount=gross_disbursement_val,
+            credit_amount=Decimal("0.00"),
+            narration=f"Truck hire settlement for Challan {data.reference_number or hire_challan_id} ({party_name})",
+        ))
+    elif p_type == "DRIVER_ADVANCE":
+        session.add(LedgerEntry(
+            voucher_id=pmt.id,
+            account_id=debit_target_id,
+            entry_date=pmt.voucher_date,
+            debit_amount=gross_disbursement_val,
+            credit_amount=Decimal("0.00"),
+            narration=f"Trip advance issued to Driver {party_name}",
+        ))
+    elif p_type in ["DRIVER_EXPENSE", "DIRECT_EXPENSE"]:
+        session.add(LedgerEntry(
+            voucher_id=pmt.id,
+            account_id=debit_target_id,
+            entry_date=pmt.voucher_date,
+            debit_amount=gross_disbursement_val,
+            credit_amount=Decimal("0.00"),
+            narration=f"Expense payment to {party_name}",
+        ))
+    elif p_type == "ADVANCE":
+        adv_acc_id = await get_fallback_account_id(session, "ACC_SUPPLIER_ADVANCES", "CA")
+        session.add(LedgerEntry(
+            voucher_id=pmt.id,
+            account_id=adv_acc_id,
+            entry_date=pmt.voucher_date,
+            debit_amount=gross_disbursement_val,
+            credit_amount=Decimal("0.00"),
+            narration=f"Supplier advance paid to {party_name}",
+        ))
+    elif p_type == "STATUTORY_PAYMENT":
+        session.add(LedgerEntry(
+            voucher_id=pmt.id,
+            account_id=debit_target_id,
+            entry_date=pmt.voucher_date,
+            debit_amount=gross_disbursement_val,
+            credit_amount=Decimal("0.00"),
+            narration=f"Statutory payment ({party_name})",
+        ))
+
+    await session.commit()
+    return await get_voucher_by_id(session, pmt.id)
+
+
 # ------------------------------------------------------------------------------
 # Void Voucher (Reversing Entry per Rules §7)
 # ------------------------------------------------------------------------------
@@ -3217,6 +4213,195 @@ async def create_contra_voucher(
     final_id = voucher.id
     await session.commit()
     return await get_voucher_by_id(session, final_id)
+
+
+async def update_contra_voucher(
+    session: AsyncSession,
+    voucher_id: int,
+    data: ContraVoucherCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Updates an existing Contra Voucher, replacing its double-entry postings
+    and preserving strict zero-profit/zero-GST internal fund movement rules.
+    """
+    await ensure_standard_accounts(session)
+
+    voucher = await get_voucher_by_id(session, voucher_id)
+    if voucher.voucher_type != VoucherType.CONTRA_VOUCHER.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voucher is not a Contra Voucher.",
+        )
+    if voucher.is_void:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voided voucher cannot be edited.",
+        )
+
+    # 1. Validate Amount
+    if data.amount <= Decimal("0.00"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Transfer amount must be strictly greater than zero.",
+        )
+
+    # 2. Prevent Same Account Transfer
+    if data.source_account_id == data.destination_account_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Source and Destination accounts cannot be the same. Please choose two distinct accounts.",
+        )
+
+    # 3. Retrieve and Validate Accounts
+    src_stmt = select(Account).options(selectinload(Account.group)).where(Account.id == data.source_account_id)
+    src_res = await session.execute(src_stmt)
+    source_acc = src_res.scalar_one_or_none()
+    if not source_acc or not source_acc.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Source account does not exist or is inactive.",
+        )
+
+    dest_stmt = select(Account).options(selectinload(Account.group)).where(Account.id == data.destination_account_id)
+    dest_res = await session.execute(dest_stmt)
+    dest_acc = dest_res.scalar_one_or_none()
+    if not dest_acc or not dest_acc.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Destination account does not exist or is inactive.",
+        )
+
+    if source_acc.billing_client_id or source_acc.vendor_id or source_acc.driver_id or \
+       dest_acc.billing_client_id or dest_acc.vendor_id or dest_acc.driver_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contra vouchers are strictly for internal fund movements. Payments to or collections from third parties must use Receipt or Payment Vouchers.",
+        )
+
+    def is_bank_acc(a: Account) -> bool:
+        grp = (a.group.code if a.group else "").upper()
+        code = (a.code or "").upper()
+        name = (a.name or "").lower()
+        return grp in ("BANK", "BANK_OD", "BANK_OCC") or "bank" in name or "bank" in code.lower() or (a.company_bank_account is not None)
+
+    def is_cash_acc(a: Account) -> bool:
+        grp = (a.group.code if a.group else "").upper()
+        code = (a.code or "").upper()
+        name = (a.name or "").lower()
+        return grp == "CASH" or "cash" in name or "cash" in code.lower()
+
+    src_is_bank = is_bank_acc(source_acc)
+    src_is_cash = is_cash_acc(source_acc)
+    dest_is_bank = is_bank_acc(dest_acc)
+    dest_is_cash = is_cash_acc(dest_acc)
+
+    c_type = (data.contra_type or "").upper()
+    if c_type == "CASH_TO_BANK":
+        if not src_is_cash:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Source must be a Cash account. '{source_acc.name}' is not Cash.")
+        if not dest_is_bank:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Destination must be a Bank account. '{dest_acc.name}' is not Bank.")
+        type_desc = f"Cash Deposit ({source_acc.name} -> {dest_acc.name})"
+    elif c_type == "BANK_TO_CASH":
+        if not src_is_bank:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Source must be a Bank account. '{source_acc.name}' is not Bank.")
+        if not dest_is_cash:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Destination must be a Cash account. '{dest_acc.name}' is not Cash.")
+        type_desc = f"Cash Withdrawal ({source_acc.name} -> {dest_acc.name})"
+    elif c_type == "BANK_TO_BANK":
+        if not (src_is_bank and dest_is_bank):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Both source and destination must be Bank accounts.")
+        type_desc = f"Inter-Bank Transfer ({source_acc.name} -> {dest_acc.name})"
+    elif c_type == "CASH_TO_CASH":
+        if not (src_is_cash and dest_is_cash):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Both source and destination must be Cash accounts.")
+        type_desc = f"Internal Cash Transfer ({source_acc.name} -> {dest_acc.name})"
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid contra type '{data.contra_type}'.")
+
+    bank_charges = data.bank_charges or Decimal("0.00")
+    bank_charges_acc_id = None
+    if bank_charges > Decimal("0.00"):
+        bank_charges_acc_id = data.bank_charges_account_id or (
+            await get_fallback_account_id(session, "ACC_BANK_CHARGES_EXP", "EXP_INDIRECT")
+        )
+
+    contra_meta = {
+        "contra_type": c_type,
+        "transfer_mode": data.transfer_mode or "BANK_TRANSFER",
+        "source_account_id": source_acc.id,
+        "source_account_name": source_acc.name,
+        "source_account_code": source_acc.code,
+        "destination_account_id": dest_acc.id,
+        "destination_account_name": dest_acc.name,
+        "destination_account_code": dest_acc.code,
+        "transferred_amount": str(data.amount),
+        "bank_charges": str(bank_charges),
+        "cheque_number": data.cheque_number,
+        "cheque_date": str(data.cheque_date) if data.cheque_date else None,
+        "reference_number": data.reference_number,
+    }
+
+    total_disbursed = data.amount + bank_charges
+
+    # Clear old ledger entries
+    await session.execute(delete(LedgerEntry).where(LedgerEntry.voucher_id == voucher.id))
+
+    # Update voucher record
+    voucher.voucher_date = data.voucher_date
+    voucher.party_name = type_desc
+    voucher.reference_number = data.reference_number
+    voucher.total_amount = total_disbursed
+    voucher.net_amount = data.amount
+    voucher.paid_amount = data.amount
+    voucher.narration = data.narration.strip() if data.narration else type_desc
+    voucher.tax_breakup = contra_meta
+    voucher.company_bank_account_id = dest_acc.company_bank_account.id if dest_acc.company_bank_account else (source_acc.company_bank_account.id if source_acc.company_bank_account else None)
+    if office_id and not voucher.issuing_office_id:
+        voucher.issuing_office_id = office_id
+
+    # Post new balanced double-entry postings
+    mode_str = f" via {data.transfer_mode or 'Transfer'}"
+    ref_str = f" (Ref #{data.reference_number})" if data.reference_number else ""
+
+    session.add(
+        LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=dest_acc.id,
+            entry_date=data.voucher_date,
+            debit_amount=data.amount,
+            credit_amount=Decimal("0.00"),
+            narration=f"Transfer In from {source_acc.name}{mode_str}{ref_str}",
+        )
+    )
+
+    if bank_charges > Decimal("0.00") and bank_charges_acc_id:
+        session.add(
+            LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=bank_charges_acc_id,
+                entry_date=data.voucher_date,
+                debit_amount=bank_charges,
+                credit_amount=Decimal("0.00"),
+                narration=f"Bank charges incurred on transfer #{voucher.voucher_number}",
+            )
+        )
+
+    session.add(
+        LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=source_acc.id,
+            entry_date=data.voucher_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=total_disbursed,
+            narration=f"Transfer Out to {dest_acc.name}{mode_str}{ref_str}",
+        )
+    )
+
+    await session.commit()
+    return await get_voucher_by_id(session, voucher.id)
 
 
 
@@ -3687,6 +4872,456 @@ async def create_credit_debit_note(
         ))
 
         # Update Target Bill Balance (increases payable)
+        if target_invoice:
+            target_invoice.balance_amount = (target_invoice.balance_amount or Decimal("0.00")) + net_amt
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=net_amt,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="CREDIT_NOTE",
+                    notes=f"Credit Note {v_num} additional supplier charge",
+                )
+            )
+
+    await session.flush()
+    final_id = voucher.id
+    await session.commit()
+    return await get_voucher_by_id(session, final_id)
+
+
+async def update_credit_debit_note(
+    session: AsyncSession,
+    voucher_id: int,
+    data: schemas.CreditDebitNoteCreate,
+    office_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Updates an existing Credit or Debit Note, adjusting prior invoice allocations,
+    updating items and posting updated double-entry ledger entries.
+    """
+    await ensure_standard_accounts(session)
+
+    voucher = await get_voucher_by_id(session, voucher_id)
+    if voucher.voucher_type not in [VoucherType.CREDIT_NOTE.value, VoucherType.DEBIT_NOTE.value]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voucher is not a Credit Note or Debit Note.",
+        )
+    if voucher.is_void:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voided voucher cannot be edited.",
+        )
+
+    # 1. Roll back previous allocations against target invoices
+    alloc_stmt = select(BillAllocation).where(BillAllocation.voucher_id == voucher.id)
+    alloc_res = await session.execute(alloc_stmt)
+    old_allocations = alloc_res.scalars().all()
+    cat = getattr(voucher, "note_category", None) or ""
+    for alloc in old_allocations:
+        inv_stmt = select(Voucher).where(Voucher.id == alloc.invoice_id)
+        inv_res = await session.execute(inv_stmt)
+        target = inv_res.scalar_one_or_none()
+        if not target:
+            continue
+        if voucher.voucher_type == VoucherType.CREDIT_NOTE.value:
+            if cat == "PURCHASE_CREDIT_NOTE":
+                target.balance_amount = max(Decimal("0.00"), (target.balance_amount or Decimal("0.00")) - voucher.net_amount)
+            else:
+                target.paid_amount = max(Decimal("0.00"), (target.paid_amount or Decimal("0.00")) - alloc.allocated_amount)
+                target.balance_amount = min(target.net_amount, (target.balance_amount or Decimal("0.00")) + alloc.allocated_amount)
+                target.payment_status = "UNPAID" if target.balance_amount == target.net_amount else "PARTIAL"
+        elif voucher.voucher_type == VoucherType.DEBIT_NOTE.value:
+            if cat == "SALES_DEBIT_NOTE":
+                target.balance_amount = max(Decimal("0.00"), (target.balance_amount or Decimal("0.00")) - voucher.net_amount)
+            else:
+                target.paid_amount = max(Decimal("0.00"), (target.paid_amount or Decimal("0.00")) - alloc.allocated_amount)
+                target.balance_amount = min(target.net_amount, (target.balance_amount or Decimal("0.00")) + alloc.allocated_amount)
+                target.payment_status = "UNPAID" if target.balance_amount == target.net_amount else "PARTIAL"
+
+    await session.execute(delete(BillAllocation).where(BillAllocation.voucher_id == voucher.id))
+    await session.execute(delete(VoucherItem).where(VoucherItem.voucher_id == voucher.id))
+    await session.execute(delete(LedgerEntry).where(LedgerEntry.voucher_id == voucher.id))
+
+    # 2. Party Validation & Account Resolution
+    party_name = data.party_name
+    party_gstin = data.party_gstin
+    place_of_supply = data.place_of_supply
+
+    if data.note_category in ("SALES_CREDIT_NOTE", "SALES_DEBIT_NOTE"):
+        if not data.billing_client_id:
+            raise HTTPException(status_code=400, detail="Customer (Billing Client) is required for Sales Credit / Debit Notes.")
+        client_res = await session.execute(select(BillingClient).where(BillingClient.id == data.billing_client_id))
+        client = client_res.scalar_one_or_none()
+        if not client:
+            raise HTTPException(status_code=404, detail="Customer not found.")
+        party_name = party_name or client.name
+        party_gstin = party_gstin or client.gstin
+        place_of_supply = place_of_supply or client.state
+        debtor_acc_id = await get_fallback_account_id(session, "ACC_SUNDRY_DEBTORS", "DEBTORS")
+    else:
+        if not data.vendor_id:
+            raise HTTPException(status_code=400, detail="Vendor / Supplier is required for Purchase Debit / Credit Notes.")
+        vend_res = await session.execute(select(Vendor).where(Vendor.id == data.vendor_id))
+        vend = vend_res.scalar_one_or_none()
+        if not vend:
+            raise HTTPException(status_code=404, detail="Vendor not found.")
+        party_name = party_name or vend.name
+        party_gstin = party_gstin or vend.gstin
+        place_of_supply = place_of_supply or vend.state
+        creditor_acc_id = await get_fallback_account_id(session, "ACC_SUNDRY_CREDITORS", "CREDITORS")
+
+    # 3. Target Original Invoice
+    target_invoice = None
+    if data.against_voucher_id:
+        t_res = await session.execute(select(Voucher).where(Voucher.id == data.against_voucher_id))
+        target_invoice = t_res.scalar_one_or_none()
+
+    target_office = office_id or voucher.issuing_office_id or 1
+
+    # 4. Tax Calculation
+    is_gst = bool(data.is_gst_note)
+    taxable_amt = Decimal(str(data.total_taxable_amount))
+    tax_amt = Decimal(str(data.tax_amount)) if is_gst else Decimal("0.00")
+    net_amt = Decimal(str(data.net_amount))
+
+    # Validate net amount equals taxable + tax
+    expected_net = taxable_amt + tax_amt
+    if abs(net_amt - expected_net) > Decimal("0.05"):
+        net_amt = expected_net
+
+    cgst_amt = Decimal(str(data.cgst_amount or "0.00")) if is_gst else Decimal("0.00")
+    sgst_amt = Decimal(str(data.sgst_amount or "0.00")) if is_gst else Decimal("0.00")
+    igst_amt = Decimal(str(data.igst_amount or "0.00")) if is_gst else Decimal("0.00")
+
+    if is_gst and tax_amt > Decimal("0.00") and cgst_amt == 0 and sgst_amt == 0 and igst_amt == 0:
+        br_stmt = select(Branch).where(Branch.id == target_office)
+        br_obj = (await session.execute(br_stmt)).scalar_one_or_none()
+        is_interstate = False
+        if br_obj and br_obj.state and place_of_supply:
+            is_interstate = br_obj.state.strip().lower() != place_of_supply.strip().lower()
+
+        if is_interstate:
+            igst_amt = tax_amt
+        else:
+            cgst_amt = (tax_amt / Decimal("2.00")).quantize(Decimal("0.01"))
+            sgst_amt = tax_amt - cgst_amt
+
+    v_date = data.voucher_date or voucher.voucher_date
+    tax_breakup = {
+        "is_gst_note": is_gst,
+        "tax_rate": float(data.tax_rate or 0),
+        "taxable_amount": float(taxable_amt),
+        "cgst_amount": float(cgst_amt),
+        "sgst_amount": float(sgst_amt),
+        "igst_amount": float(igst_amt),
+        "tax_amount": float(tax_amt),
+        "reason_code": data.reason_code,
+        "reason_description": data.reason_description,
+        "note_category": data.note_category,
+    }
+
+    # Update voucher fields
+    voucher.voucher_date = v_date
+    voucher.party_name = party_name
+    voucher.party_gstin = party_gstin
+    voucher.party_type = "CUSTOMER" if data.note_category.startswith("SALES") else "VENDOR"
+    voucher.reference_number = data.reference_number
+    voucher.reference_date = data.reference_date
+    voucher.total_amount = taxable_amt
+    voucher.tax_amount = tax_amt
+    voucher.net_amount = net_amt
+    voucher.paid_amount = net_amt if data.note_category in ("SALES_CREDIT_NOTE", "PURCHASE_DEBIT_NOTE") else Decimal("0.00")
+    voucher.balance_amount = Decimal("0.00") if data.note_category in ("SALES_CREDIT_NOTE", "PURCHASE_DEBIT_NOTE") else net_amt
+    voucher.payment_status = "CLEARED" if data.note_category in ("SALES_CREDIT_NOTE", "PURCHASE_DEBIT_NOTE") else "UNPAID"
+    voucher.narration = data.narration or f"{data.note_category.replace('_', ' ').title()} - {data.reason_description or 'Adjustment'}"
+    voucher.place_of_supply = place_of_supply
+    voucher.note_category = data.note_category
+    voucher.reason_code = data.reason_code
+    voucher.against_voucher_id = data.against_voucher_id
+    voucher.tax_breakup = tax_breakup
+    voucher.billing_client_id = data.billing_client_id
+    voucher.vendor_id = data.vendor_id
+
+    # Line items
+    if data.items:
+        for itm in data.items:
+            session.add(
+                VoucherItem(
+                    voucher_id=voucher.id,
+                    description=itm.description,
+                    quantity=itm.quantity,
+                    rate=itm.rate,
+                    tax_amount=itm.tax_amount if is_gst else Decimal("0.00"),
+                    total_amount=itm.total_amount,
+                )
+            )
+    else:
+        reason_label = data.reason_description or (f"Reason Code {data.reason_code}" if data.reason_code else "Adjustment")
+        session.add(
+            VoucherItem(
+                voucher_id=voucher.id,
+                description=f"{data.note_category.replace('_', ' ').title()} ({reason_label})",
+                quantity=Decimal("1.00"),
+                rate=taxable_amt,
+                tax_amount=tax_amt,
+                total_amount=net_amt,
+            )
+        )
+
+    # Post Double-Entry Ledger Entries
+    rev_acc_id = await get_fallback_account_id(session, "ACC_FREIGHT_REV", "REVENUE")
+    exp_acc_id = await get_fallback_account_id(session, "ACC_TRUCK_HIRE_EXP", "EXPENSE")
+    cgst_out_id = await get_fallback_account_id(session, "ACC_GST_OUT_CGST", "TAX")
+    sgst_out_id = await get_fallback_account_id(session, "ACC_GST_OUT_SGST", "TAX")
+    igst_out_id = await get_fallback_account_id(session, "ACC_GST_OUT_IGST", "TAX")
+    cgst_in_id = await get_fallback_account_id(session, "ACC_GST_IN_CGST", "TAX")
+    sgst_in_id = await get_fallback_account_id(session, "ACC_GST_IN_SGST", "TAX")
+    igst_in_id = await get_fallback_account_id(session, "ACC_GST_IN_IGST", "TAX")
+
+    v_num = voucher.voucher_number
+    if data.note_category == "SALES_CREDIT_NOTE":
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=rev_acc_id,
+            entry_date=v_date,
+            debit_amount=taxable_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Revenue reduction / claim via {v_num}",
+        ))
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_out_id,
+                entry_date=v_date,
+                debit_amount=cgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"CGST Output Reduction on {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_out_id,
+                entry_date=v_date,
+                debit_amount=sgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"SGST Output Reduction on {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_out_id,
+                entry_date=v_date,
+                debit_amount=igst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"IGST Output Reduction on {v_num}",
+            ))
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=debtor_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=net_amt,
+            narration=f"Credit note {v_num} applied to debtor {party_name}",
+        ))
+
+        if target_invoice:
+            target_invoice.paid_amount = (target_invoice.paid_amount or Decimal("0.00")) + net_amt
+            target_invoice.balance_amount = max(Decimal("0.00"), target_invoice.net_amount - target_invoice.paid_amount)
+            if target_invoice.balance_amount == Decimal("0.00"):
+                target_invoice.payment_status = "PAID"
+            else:
+                target_invoice.payment_status = "PARTIAL"
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=net_amt,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="CREDIT_NOTE",
+                    notes=f"Credit Note {v_num} adjustment",
+                )
+            )
+
+    elif data.note_category == "SALES_DEBIT_NOTE":
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=debtor_acc_id,
+            entry_date=v_date,
+            debit_amount=net_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Debit note {v_num} charged to debtor {party_name}",
+        ))
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=rev_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=taxable_amt,
+            narration=f"Additional freight / detention charge via {v_num}",
+        ))
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_out_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=cgst_amt,
+                narration=f"CGST Output on Debit Note {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_out_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=sgst_amt,
+                narration=f"SGST Output on Debit Note {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_out_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=igst_amt,
+                narration=f"IGST Output on Debit Note {v_num}",
+            ))
+
+        if target_invoice:
+            target_invoice.balance_amount = (target_invoice.balance_amount or Decimal("0.00")) + net_amt
+            if target_invoice.payment_status == "PAID":
+                target_invoice.payment_status = "PARTIAL"
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=net_amt,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="DEBIT_NOTE",
+                    notes=f"Debit Note {v_num} added charges",
+                )
+            )
+
+    elif data.note_category == "PURCHASE_DEBIT_NOTE":
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=creditor_acc_id,
+            entry_date=v_date,
+            debit_amount=net_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Debit note {v_num} deducted from supplier {party_name}",
+        ))
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=exp_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=taxable_amt,
+            narration=f"Expense reversal / shortage deduction via {v_num}",
+        ))
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_in_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=cgst_amt,
+                narration=f"CGST Input ITC Reversal on {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_in_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=sgst_amt,
+                narration=f"SGST Input ITC Reversal on {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_in_id,
+                entry_date=v_date,
+                debit_amount=Decimal("0.00"),
+                credit_amount=igst_amt,
+                narration=f"IGST Input ITC Reversal on {v_num}",
+            ))
+
+        if target_invoice:
+            target_invoice.paid_amount = (target_invoice.paid_amount or Decimal("0.00")) + net_amt
+            target_invoice.balance_amount = max(Decimal("0.00"), target_invoice.net_amount - target_invoice.paid_amount)
+            if target_invoice.balance_amount == Decimal("0.00"):
+                target_invoice.payment_status = "PAID"
+            else:
+                target_invoice.payment_status = "PARTIAL"
+            session.add(
+                BillAllocation(
+                    voucher_id=voucher.id,
+                    invoice_id=target_invoice.id,
+                    allocated_amount=net_amt,
+                    tds_amount=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    total_settled=net_amt,
+                    adjustment_type="DEBIT_NOTE",
+                    notes=f"Debit Note {v_num} vendor deduction",
+                )
+            )
+
+    elif data.note_category == "PURCHASE_CREDIT_NOTE":
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=exp_acc_id,
+            entry_date=v_date,
+            debit_amount=taxable_amt,
+            credit_amount=Decimal("0.00"),
+            narration=f"Additional purchase charge on {v_num}",
+        ))
+        if is_gst and cgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=cgst_in_id,
+                entry_date=v_date,
+                debit_amount=cgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"CGST Input ITC on {v_num}",
+            ))
+        if is_gst and sgst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=sgst_in_id,
+                entry_date=v_date,
+                debit_amount=sgst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"SGST Input ITC on {v_num}",
+            ))
+        if is_gst and igst_amt > Decimal("0.00"):
+            session.add(LedgerEntry(
+                voucher_id=voucher.id,
+                account_id=igst_in_id,
+                entry_date=v_date,
+                debit_amount=igst_amt,
+                credit_amount=Decimal("0.00"),
+                narration=f"IGST Input ITC on {v_num}",
+            ))
+        session.add(LedgerEntry(
+            voucher_id=voucher.id,
+            account_id=creditor_acc_id,
+            entry_date=v_date,
+            debit_amount=Decimal("0.00"),
+            credit_amount=net_amt,
+            narration=f"Credit note {v_num} recorded for supplier {party_name}",
+        ))
+
         if target_invoice:
             target_invoice.balance_amount = (target_invoice.balance_amount or Decimal("0.00")) + net_amt
             session.add(
@@ -5079,6 +6714,147 @@ async def create_journal_voucher(
     await session.flush()
 
     # If posted (not draft), create double-entry LedgerEntry postings
+    if not data.is_draft:
+        for e in data.entries:
+            dr = Decimal(str(e.debit_amount or "0.00"))
+            cr = Decimal(str(e.credit_amount or "0.00"))
+            line_narr = e.narration.strip() if e.narration and e.narration.strip() else data.narration
+            session.add(
+                LedgerEntry(
+                    voucher_id=voucher.id,
+                    account_id=e.account_id,
+                    entry_date=data.voucher_date,
+                    debit_amount=dr,
+                    credit_amount=cr,
+                    narration=line_narr,
+                )
+            )
+
+    await session.commit()
+    return await get_voucher_by_id(session, voucher.id)
+
+
+async def update_journal_voucher(
+    session: AsyncSession,
+    voucher_id: int,
+    data: schemas.JournalVoucherCreate,
+    current_user: Optional[User] = None,
+    office_id: Optional[int] = None,
+) -> Voucher:
+    """
+    Updates an existing Journal Voucher, replacing its double-entry postings
+    and maintaining Indian accounting balanced rules.
+    """
+    await ensure_standard_accounts(session)
+
+    voucher = await get_voucher_by_id(session, voucher_id)
+    if voucher.voucher_type != VoucherType.JOURNAL_VOUCHER.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voucher is not a Journal Voucher.",
+        )
+    if voucher.is_void:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Voided voucher cannot be edited.",
+        )
+
+    target_office_id = data.issuing_office_id or voucher.issuing_office_id or office_id
+    if not target_office_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Issuing office is mandatory for Journal Vouchers.",
+        )
+
+    office = await session.get(Branch, target_office_id)
+    if not office or not office.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Selected issuing office does not exist or is inactive.",
+        )
+
+    preview = await preview_journal_voucher(session, data)
+    if not data.is_draft and (not preview.is_balanced or preview.validation_errors):
+        first_err = preview.validation_errors[0] if preview.validation_errors else "Voucher is unbalanced."
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot update Journal Voucher: {first_err}",
+        )
+
+    primary_party_name = None
+    party_type = None
+    account_id = None
+    billing_client_id = None
+    vendor_id = None
+    driver_id = None
+
+    for line in preview.lines:
+        acc = await session.get(Account, line.account_id)
+        if acc:
+            if acc.billing_client_id and not billing_client_id:
+                billing_client_id = acc.billing_client_id
+                primary_party_name = acc.name
+                party_type = "CUSTOMER"
+                account_id = acc.id
+            elif acc.vendor_id and not vendor_id:
+                vendor_id = acc.vendor_id
+                primary_party_name = acc.name
+                party_type = "VENDOR"
+                account_id = acc.id
+            elif acc.driver_id and not driver_id:
+                driver_id = acc.driver_id
+                primary_party_name = acc.name
+                party_type = "DRIVER"
+                account_id = acc.id
+
+    if not primary_party_name:
+        primary_party_name = JOURNAL_ADJUSTMENT_TYPES.get(data.adjustment_type, {}).get("label", "Journal Adjustment")
+        party_type = "GENERAL_JOURNAL"
+
+    tax_breakup = {
+        "adjustment_type": data.adjustment_type,
+        "gst_tax_type": data.gst_tax_type,
+        "tds_section": data.tds_section,
+        "internal_remarks": data.internal_remarks,
+        "allow_cash_bank": data.allow_cash_bank,
+        "is_balanced": preview.is_balanced,
+        "total_debit": float(preview.total_debit),
+        "total_credit": float(preview.total_credit),
+        "draft_entries": [
+            {
+                "account_id": e.account_id,
+                "debit_amount": float(e.debit_amount),
+                "credit_amount": float(e.credit_amount),
+                "narration": e.narration,
+                "cost_center": e.cost_center,
+            }
+            for e in data.entries
+        ] if data.is_draft else [],
+    }
+
+    # Delete old ledger entries
+    await session.execute(delete(LedgerEntry).where(LedgerEntry.voucher_id == voucher.id))
+
+    # Update voucher fields
+    voucher.voucher_date = data.voucher_date
+    voucher.party_name = primary_party_name
+    voucher.party_type = party_type
+    voucher.reference_number = data.reference_number
+    voucher.reference_date = data.reference_date
+    voucher.total_amount = preview.total_debit
+    voucher.net_amount = preview.total_debit
+    voucher.narration = data.narration
+    voucher.cost_center = data.cost_center
+    voucher.issuing_office_id = target_office_id
+    voucher.account_id = account_id
+    voucher.billing_client_id = billing_client_id
+    voucher.vendor_id = vendor_id
+    voucher.driver_id = driver_id
+    voucher.note_category = data.adjustment_type
+    voucher.attachment_url = data.attachment_url
+    voucher.payment_status = "DRAFT" if data.is_draft else "POSTED"
+    voucher.tax_breakup = tax_breakup
+
     if not data.is_draft:
         for e in data.entries:
             dr = Decimal(str(e.debit_amount or "0.00"))

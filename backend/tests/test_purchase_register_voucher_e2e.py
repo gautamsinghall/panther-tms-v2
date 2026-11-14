@@ -415,7 +415,7 @@ async def test_reverse_charge_mechanism_rcm_purchase(e2e_session: AsyncSession):
     assert rcm_entry.credit_amount == Decimal("1250.00")
 
     # Verify Vendor credit is only 25,000
-    vendor_entry = next(e for e in entries if e.account.code == "ACC_SUNDRY_CREDITORS")
+    vendor_entry = next(e for e in entries if e.account_id == voucher.account_id)
     assert vendor_entry.credit_amount == Decimal("25000.00")
 
 

@@ -26,6 +26,7 @@ import {
   ArrowRight,
   Calculator,
   Download,
+  Pencil,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -207,6 +208,7 @@ export default function CreditDebitNotesPage() {
 
   // Creation Drawer State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<VoucherRecord | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<NoteCategory>("SALES_CREDIT_NOTE");
   const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
   const [partySearch, setPartySearch] = useState("");
@@ -364,6 +366,7 @@ export default function CreditDebitNotesPage() {
 
   // Open Drawer for a specific category
   const openCreateDrawer = (cat: NoteCategory) => {
+    setEditingVoucher(null);
     setSelectedCategory(cat);
     setSelectedPartyId(null);
     setSelectedInvoiceId(null);
@@ -373,6 +376,27 @@ export default function CreditDebitNotesPage() {
     setReferenceNumber("");
     setNarration("");
     setIsGstNote(true);
+    setIsCreateOpen(true);
+  };
+
+  // Open Drawer to Edit Note
+  const handleEditNote = (v: VoucherRecord) => {
+    setEditingVoucher(v);
+    const tb = v.tax_breakup || {};
+    const cat = v.note_category || (v.voucher_type === "CREDIT_NOTE" ? "SALES_CREDIT_NOTE" : "SALES_DEBIT_NOTE");
+    setSelectedCategory(cat);
+    const partyId = (v as any).billing_client_id || (v as any).vendor_id || (cat.startsWith("SALES") ? customers.find(c => c.name === v.party_name)?.id : vendors.find(ven => ven.name === v.party_name)?.id) || null;
+    setSelectedPartyId(partyId || null);
+    setSelectedInvoiceId(v.against_voucher_id || null);
+    setVoucherDate(v.voucher_date || new Date().toISOString().split("T")[0]);
+    setIsGstNote(tb.is_gst_note ?? (parseFloat(String(v.tax_amount || 0)) > 0));
+    setReasonCode(v.reason_code || tb.reason_code || "04");
+    setReasonDescription(tb.reason_description || "");
+    setReferenceNumber(v.reference_number || "");
+    setReferenceDate(v.reference_date || "");
+    setTaxableAmount(String(tb.taxable_amount ?? v.total_amount ?? ""));
+    setTaxRate(String(tb.tax_rate ?? 18));
+    setNarration(v.narration || "");
     setIsCreateOpen(true);
   };
 
@@ -456,38 +480,73 @@ export default function CreditDebitNotesPage() {
         ? customers.find((c) => c.id === selectedPartyId)
         : vendors.find((v) => v.id === selectedPartyId);
 
-      await apiClient("/api/v1/accounts/credit-debit-notes", {
-        method: "POST",
-        body: JSON.stringify({
-          note_type: noteType,
-          note_category: selectedCategory,
-          voucher_date: voucherDate,
-          is_gst_note: isGstNote,
-          against_voucher_id: selectedInvoiceId || undefined,
-          party_type: selectedCategory.startsWith("SALES") ? "CUSTOMER" : "VENDOR",
-          billing_client_id: selectedCategory.startsWith("SALES") ? selectedPartyId : undefined,
-          vendor_id: !selectedCategory.startsWith("SALES") ? selectedPartyId : undefined,
-          party_name: party?.name,
-          party_gstin: party?.gstin,
-          place_of_supply: party?.state,
-          reason_code: reasonCode,
-          reason_description: reasonDescription.trim() || undefined,
-          reference_number: referenceNumber.trim() || undefined,
-          reference_date: referenceDate || undefined,
-          total_taxable_amount: parsedTaxable,
-          tax_rate: isGstNote ? parsedRate : 0,
-          tax_amount: calculatedTax.totalTax,
-          cgst_amount: calculatedTax.cgst,
-          sgst_amount: calculatedTax.sgst,
-          igst_amount: calculatedTax.igst,
-          net_amount: calculatedTax.net,
-          narration: narration.trim() || undefined,
-          series_id: activeSeries?.id || undefined,
-        }),
-      });
+      if (editingVoucher) {
+        await apiClient(`/api/v1/accounts/credit-debit-notes/${editingVoucher.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            note_type: noteType,
+            note_category: selectedCategory,
+            voucher_date: voucherDate,
+            is_gst_note: isGstNote,
+            against_voucher_id: selectedInvoiceId || undefined,
+            party_type: selectedCategory.startsWith("SALES") ? "CUSTOMER" : "VENDOR",
+            billing_client_id: selectedCategory.startsWith("SALES") ? selectedPartyId : undefined,
+            vendor_id: !selectedCategory.startsWith("SALES") ? selectedPartyId : undefined,
+            party_name: party?.name,
+            party_gstin: party?.gstin,
+            place_of_supply: party?.state,
+            reason_code: reasonCode,
+            reason_description: reasonDescription.trim() || undefined,
+            reference_number: referenceNumber.trim() || undefined,
+            reference_date: referenceDate || undefined,
+            total_taxable_amount: parsedTaxable,
+            tax_rate: isGstNote ? parsedRate : 0,
+            tax_amount: calculatedTax.totalTax,
+            cgst_amount: calculatedTax.cgst,
+            sgst_amount: calculatedTax.sgst,
+            igst_amount: calculatedTax.igst,
+            net_amount: calculatedTax.net,
+            narration: narration.trim() || undefined,
+            series_id: activeSeries?.id || undefined,
+          }),
+        });
+        const noteTypeName = editingVoucher.voucher_type === "DEBIT_NOTE" ? "Debit Note" : "Credit Note";
+        toast.success(`${noteTypeName} ${editingVoucher.voucher_number} updated successfully`);
+      } else {
+        await apiClient("/api/v1/accounts/credit-debit-notes", {
+          method: "POST",
+          body: JSON.stringify({
+            note_type: noteType,
+            note_category: selectedCategory,
+            voucher_date: voucherDate,
+            is_gst_note: isGstNote,
+            against_voucher_id: selectedInvoiceId || undefined,
+            party_type: selectedCategory.startsWith("SALES") ? "CUSTOMER" : "VENDOR",
+            billing_client_id: selectedCategory.startsWith("SALES") ? selectedPartyId : undefined,
+            vendor_id: !selectedCategory.startsWith("SALES") ? selectedPartyId : undefined,
+            party_name: party?.name,
+            party_gstin: party?.gstin,
+            place_of_supply: party?.state,
+            reason_code: reasonCode,
+            reason_description: reasonDescription.trim() || undefined,
+            reference_number: referenceNumber.trim() || undefined,
+            reference_date: referenceDate || undefined,
+            total_taxable_amount: parsedTaxable,
+            tax_rate: isGstNote ? parsedRate : 0,
+            tax_amount: calculatedTax.totalTax,
+            cgst_amount: calculatedTax.cgst,
+            sgst_amount: calculatedTax.sgst,
+            igst_amount: calculatedTax.igst,
+            net_amount: calculatedTax.net,
+            narration: narration.trim() || undefined,
+            series_id: activeSeries?.id || undefined,
+          }),
+        });
 
-      toast.success(`${selectedCategory.replace(/_/g, " ").toLowerCase()} successfully issued & posted!`);
+        toast.success(`${selectedCategory.replace(/_/g, " ").toLowerCase()} successfully issued & posted!`);
+      }
       setIsCreateOpen(false);
+      setEditingVoucher(null);
       await loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to post note voucher.");
@@ -666,6 +725,12 @@ export default function CreditDebitNotesPage() {
 
   // Row Actions
   const rowActions: RowAction<VoucherRecord>[] = [
+    {
+      label: "Edit Voucher",
+      icon: <Pencil className="w-4 h-4 mr-2 text-blue-500" />,
+      hidden: (v: VoucherRecord) => v.is_void,
+      onClick: (v: VoucherRecord) => handleEditNote(v),
+    },
     {
       label: "Print Voucher",
       icon: <Printer className="w-4 h-4 mr-2" />,
@@ -928,9 +993,14 @@ export default function CreditDebitNotesPage() {
           ========================================================================= */}
       <EntityDrawer
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setEditingVoucher(null);
+        }}
         title={
-          selectedCategory === "SALES_CREDIT_NOTE"
+          editingVoucher
+            ? `Edit ${editingVoucher.voucher_type === "DEBIT_NOTE" ? "Debit Note" : "Credit Note"} (${editingVoucher.voucher_number})`
+            : selectedCategory === "SALES_CREDIT_NOTE"
             ? "Reduce Customer Bill (Credit Note)"
             : selectedCategory === "SALES_DEBIT_NOTE"
             ? "Add Extra Customer Charge (Debit Note)"
@@ -938,7 +1008,7 @@ export default function CreditDebitNotesPage() {
             ? "Reduce Supplier Bill (Purchase Return / Debit Note)"
             : "Adjust Supplier Charge (Purchase Credit Note)"
         }
-        subtitle="Record Tally Prime double-entry adjustment with Indian GST Section 34 compliance."
+        subtitle={editingVoucher ? "Update Tally Prime double-entry adjustment with Indian GST Section 34 compliance." : "Record Tally Prime double-entry adjustment with Indian GST Section 34 compliance."}
         size="lg"
       >
         <div className="flex flex-col gap-6 p-1">
@@ -1364,11 +1434,11 @@ export default function CreditDebitNotesPage() {
               <span>Active Note Draft</span>
             </div>
             <div className="flex items-center gap-3">
-              <Button type="button" variant="outline" size="md" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting} className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer">
+              <Button type="button" variant="outline" size="md" onClick={() => { setIsCreateOpen(false); setEditingVoucher(null); }} disabled={isSubmitting} className="rounded-xl h-10 px-5 text-xs font-semibold cursor-pointer">
                 Cancel
               </Button>
               <Button type="button" variant="primary" size="md" onClick={handleSubmitNote} isLoading={isSubmitting} disabled={isSubmitting} className="rounded-xl h-10 px-6 text-xs font-semibold cursor-pointer">
-                Post {selectedCategory.replace(/_/g, " ").toLowerCase()}
+                {editingVoucher ? `Update ${editingVoucher.voucher_type === "DEBIT_NOTE" ? "Debit Note" : "Credit Note"}` : `Post ${selectedCategory.replace(/_/g, " ").toLowerCase()}`}
               </Button>
             </div>
           </div>

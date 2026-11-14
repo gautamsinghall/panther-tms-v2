@@ -30,6 +30,7 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
+  Pencil,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -121,6 +122,7 @@ interface VoucherItemRecord {
   total_amount: string | number;
   charge_head_name?: string;
   tax_category_name?: string;
+  tax_category_id?: number;
 }
 
 interface VoucherRecord {
@@ -222,6 +224,7 @@ export default function PurchasesPage() {
 
   // Drawer 1: Record Purchase Bill
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<VoucherRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [purchaseCategory, setPurchaseCategory] = useState<string>("SPARES");
   const [purchaseType, setPurchaseType] = useState<"NORMAL_PURCHASE" | "GENERAL_PURCHASE">("NORMAL_PURCHASE");
@@ -490,10 +493,59 @@ export default function PurchasesPage() {
     };
   }, [lineItems, gstTreatment, taxCategories, vendorState, placeOfSupply]);
 
+  // Edit Purchase Bill handler
+  const handleEditPurchase = (row: VoucherRecord) => {
+    setEditingVoucher(row);
+    const tb = row.tax_breakup || {};
+    setPurchaseType((row.voucher_type as any) || "NORMAL_PURCHASE");
+    setPurchaseCategory(tb.purchase_category || "SPARES");
+    setSelectedVendorId(row.vendor_id ? String(row.vendor_id) : (tb.vendor_id ? String(tb.vendor_id) : ""));
+    setManualVendorName(row.party_name || "");
+    setVendorGstin(row.party_gstin || "");
+    setVendorState(tb.vendor_state || "");
+    setBillNumber(row.reference_number || tb.bill_number || "");
+    setBillDate(row.reference_date || row.voucher_date || new Date().toISOString().split("T")[0]);
+    setCreditPeriodDays(String(row.credit_period_days || tb.credit_period_days || "30"));
+    setGstTreatment(row.gst_treatment || tb.gst_treatment || "FCM");
+    setItcEligibility(row.itc_eligibility || tb.itc_eligibility || "ELIGIBLE");
+    setPlaceOfSupply(row.place_of_supply || tb.place_of_supply || "");
+    setVehicleNumber(tb.vehicle_number || row.cost_center || "");
+    setLinkedHireChallanId(row.hire_challan_id ? String(row.hire_challan_id) : "");
+    setAttachmentUrl(row.attachment_url || "");
+    setNarration(row.narration || "");
+
+    if (row.items && row.items.length > 0) {
+      setLineItems(
+        row.items.map((it, idx) => ({
+          id: `line-${idx + 1}`,
+          description: it.description || "",
+          hsn_sac: it.hsn_sac || "9967",
+          quantity: String(it.quantity || "1"),
+          rate: String(it.rate || "0"),
+          discount_amount: String(it.discount_amount || "0"),
+          tax_category_id: it.tax_category_id ? String(it.tax_category_id) : (taxCategories[0] ? String(taxCategories[0].id) : ""),
+        }))
+      );
+    } else {
+      setLineItems([
+        {
+          id: "line-1",
+          description: `${tb.purchase_category || "Purchase"}`,
+          hsn_sac: "9967",
+          quantity: "1",
+          rate: String(row.total_amount || "0"),
+          discount_amount: "0",
+          tax_category_id: taxCategories[0] ? String(taxCategories[0].id) : "",
+        },
+      ]);
+    }
+    setIsCreateOpen(true);
+  };
+
   // Create Purchase Bill handler
   const handleCreatePurchase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeSeries?.configured || !activeSeries?.next_number_formatted) {
+    if (!editingVoucher && (!activeSeries?.configured || !activeSeries?.next_number_formatted)) {
       toast.error(
         "Purchase Bill cannot be recorded because no sequence series is configured for this issuing office. Please check Settings > Series Master."
       );
@@ -529,7 +581,7 @@ export default function PurchasesPage() {
         vendor_state: vendorState.trim() || undefined,
         purchase_type: purchaseType,
         purchase_category: purchaseCategory,
-        voucher_number: activeSeries.next_number_formatted,
+        voucher_number: editingVoucher ? editingVoucher.voucher_number : activeSeries.next_number_formatted,
         voucher_date: billDate,
         credit_period_days: parseInt(creditPeriodDays, 10) || 30,
         bill_number: billNumber.trim(),
@@ -552,14 +604,23 @@ export default function PurchasesPage() {
         })),
       };
 
-      await apiClient("/api/v1/accounts/purchases", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      toast.success("Purchase Bill recorded and posted to double-entry ledger!");
-      setSuccessMessage(`Purchase Bill ${billNumber} recorded successfully under Voucher #${activeSeries.next_number_formatted}`);
+      if (editingVoucher) {
+        await apiClient(`/api/v1/accounts/purchases/${editingVoucher.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast.success(`Purchase Voucher ${editingVoucher.voucher_number} updated successfully`);
+        setSuccessMessage(`Purchase Voucher ${editingVoucher.voucher_number} updated successfully`);
+      } else {
+        await apiClient("/api/v1/accounts/purchases", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Purchase Bill recorded and posted to double-entry ledger!");
+        setSuccessMessage(`Purchase Bill ${billNumber} recorded successfully under Voucher #${activeSeries.next_number_formatted}`);
+      }
       setIsCreateOpen(false);
+      setEditingVoucher(null);
 
       // Reset form
       setBillNumber("");
@@ -983,6 +1044,12 @@ export default function PurchasesPage() {
   // Table Row Actions
   const actions: RowAction<VoucherRecord>[] = [
     {
+      label: "Edit Voucher",
+      icon: <Pencil className="w-3.5 h-3.5 text-blue-600" />,
+      hidden: (row) => row.is_void || (row.paid_amount !== undefined && Number(row.paid_amount) > 0),
+      onClick: (row) => handleEditPurchase(row),
+    },
+    {
       label: "Pay Supplier",
       icon: <CreditCard className="w-3.5 h-3.5 text-emerald-600" />,
       hidden: (row) => row.is_void || (row.balance_amount !== undefined && Number(row.balance_amount) <= 0),
@@ -1030,7 +1097,10 @@ export default function PurchasesPage() {
         primaryAction={{
           label: "Add Purchase Bill",
           icon: <Plus className="w-4 h-4" />,
-          onClick: () => setIsCreateOpen(true),
+          onClick: () => {
+            setEditingVoucher(null);
+            setIsCreateOpen(true);
+          },
         }}
         secondaryActions={[
           {
@@ -1203,7 +1273,13 @@ export default function PurchasesPage() {
         actions={actions}
         emptyMessage="No purchase bills found"
         emptySubtext="Click 'Add Purchase Bill' above to record vendor bills and automatically post double-entry ledger entries."
-        emptyAction={{ label: "Add Purchase Bill", onClick: () => setIsCreateOpen(true) }}
+        emptyAction={{
+          label: "Add Purchase Bill",
+          onClick: () => {
+            setEditingVoucher(null);
+            setIsCreateOpen(true);
+          },
+        }}
       />
 
       {/* -------------------------------------------------------------------------- */}
@@ -1211,9 +1287,12 @@ export default function PurchasesPage() {
       {/* -------------------------------------------------------------------------- */}
       <EntityDrawer
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Add Purchase Bill"
-        subtitle="Log vendor invoice, calculate Input GST, and post double-entry ledger impact"
+        onClose={() => {
+          setIsCreateOpen(false);
+          setEditingVoucher(null);
+        }}
+        title={editingVoucher ? `Edit Purchase Voucher (${editingVoucher.voucher_number})` : "Add Purchase Bill"}
+        subtitle={editingVoucher ? "Update vendor invoice, recalculate Input GST, and refresh double-entry ledger impact" : "Log vendor invoice, calculate Input GST, and post double-entry ledger impact"}
         size="lg"
       >
         <form onSubmit={handleCreatePurchase} className="space-y-6 pb-20">
@@ -1639,10 +1718,13 @@ export default function PurchasesPage() {
               {
                 label: "Cancel",
                 variant: "outline",
-                onClick: () => setIsCreateOpen(false),
+                onClick: () => {
+                  setIsCreateOpen(false);
+                  setEditingVoucher(null);
+                },
               },
               {
-                label: "Confirm & Post Purchase Bill",
+                label: editingVoucher ? "Update Purchase Bill" : "Confirm & Post Purchase Bill",
                 variant: "primary",
                 type: "submit",
                 isLoading: isSubmitting,

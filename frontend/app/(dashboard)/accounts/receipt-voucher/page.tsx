@@ -25,6 +25,7 @@ import {
   Wallet,
   Clock,
   Check,
+  Pencil,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -202,6 +203,7 @@ export default function ReceiptVoucherPage() {
 
   // Drawer 1: Record Customer Receipt
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState<VoucherRecord | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [receiptType, setReceiptType] = useState<"AGAINST_REF" | "ADVANCE" | "ON_ACCOUNT">("AGAINST_REF");
   const [paymentMode, setPaymentMode] = useState<string>("BANK");
@@ -482,6 +484,57 @@ export default function ReceiptVoucherPage() {
     setAllocations({});
   };
 
+  // Edit Receipt Handler
+  const handleEditReceipt = async (v: VoucherRecord) => {
+    setEditingVoucher(v);
+    const tb = v.tax_breakup || {};
+    const clientId = v.billing_client_id ? String(v.billing_client_id) : "";
+    setSelectedClientId(clientId);
+    setReceiptType((tb.receipt_type as any) || "AGAINST_REF");
+    setPaymentMode(tb.payment_mode || "BANK");
+    setBankAccountId(tb.bank_account_id ? String(tb.bank_account_id) : "");
+    setVoucherDate(v.voucher_date || new Date().toISOString().split("T")[0]);
+    setReferenceNumber(v.reference_number || "");
+    setChequeNumber(tb.cheque_number || "");
+    setChequeDate(tb.cheque_date || "");
+    setChequeBank(tb.cheque_bank || "");
+    setClearanceStatus(tb.clearance_status || "CLEARED");
+    setAmountReceived(String(v.net_amount || ""));
+    setTdsSection(tb.tds_section || "194C");
+    setTdsRate(tb.tds_rate ? String(tb.tds_rate) : "0");
+    setTdsAmount(tb.tds_amount ? String(tb.tds_amount) : "0");
+    setDiscountAmount(tb.discount_amount ? String(tb.discount_amount) : "0");
+    setNarration(v.narration || "");
+
+    if (clientId) {
+      setIsLoadingOpenInvoices(true);
+      try {
+        const invoices = await apiClient<OpenInvoice[]>(`/api/v1/accounts/billing-clients/${clientId}/open-invoices`);
+        setClientOpenInvoices(invoices || []);
+        const allocMap: Record<number, AllocationRow> = {};
+        (v.bill_allocations || []).forEach((ba) => {
+          allocMap[ba.invoice_id] = {
+            invoice_id: ba.invoice_id,
+            invoice_number: ba.invoice_number || `INV #${ba.invoice_id}`,
+            voucher_date: v.voucher_date,
+            voucher_type: "TAX_INVOICE",
+            balance_amount: parseFloat(String(ba.total_settled)) || 0,
+            allocated_amount: String(ba.allocated_amount || "0"),
+            tds_amount: String(ba.tds_amount || "0"),
+            discount_amount: String(ba.discount_amount || "0"),
+          };
+        });
+        setAllocations(allocMap);
+      } catch (e) {
+        console.error("Failed to load open invoices for editing:", e);
+      } finally {
+        setIsLoadingOpenInvoices(false);
+      }
+    }
+
+    setIsCreateOpen(true);
+  };
+
   // Submit Receipt Voucher
   const handleCreateReceipt = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -567,13 +620,22 @@ export default function ReceiptVoucherPage() {
         narration: narration.trim() || undefined,
       };
 
-      await apiClient("/api/v1/accounts/receipt-vouchers", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (editingVoucher) {
+        await apiClient(`/api/v1/accounts/receipt-vouchers/${editingVoucher.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        toast.success(`Receipt Voucher ${editingVoucher.voucher_number} updated successfully`);
+      } else {
+        await apiClient("/api/v1/accounts/receipt-vouchers", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast.success("Receipt Voucher posted successfully with balanced double-entry entries!");
+      }
 
-      toast.success("Receipt Voucher posted successfully with balanced double-entry entries!");
       setIsCreateOpen(false);
+      setEditingVoucher(null);
       resetCreateForm();
       loadData();
     } catch (err: any) {
@@ -824,6 +886,12 @@ export default function ReceiptVoucherPage() {
   // Table Row Actions
   const actions: RowAction<VoucherRecord>[] = [
     {
+      label: "Edit Voucher",
+      icon: <Pencil className="h-4 w-4 text-blue-400" />,
+      hidden: (v) => v.is_void,
+      onClick: (v) => handleEditReceipt(v),
+    },
+    {
       label: "View Journal & Allocations",
       icon: <Eye className="h-4 w-4 text-cyan-400" />,
       onClick: (v) => {
@@ -887,6 +955,7 @@ export default function ReceiptVoucherPage() {
           icon: <Plus className="w-4 h-4" />,
           onClick: () => {
             resetCreateForm();
+            setEditingVoucher(null);
             setIsCreateOpen(true);
           },
         }}
@@ -1017,6 +1086,7 @@ export default function ReceiptVoucherPage() {
               size="sm"
               onClick={() => {
                 resetCreateForm();
+                setEditingVoucher(null);
                 setIsCreateOpen(true);
               }}
               className="mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
@@ -1031,9 +1101,12 @@ export default function ReceiptVoucherPage() {
       {/* DRAWER 1: Record Customer Receipt (Friendly & Intuitive) */}
       <EntityDrawer
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Record Customer Receipt (Money In)"
-        description="Enter payment details received from your customer. Distribute across open invoices or record as an advance deposit."
+        onClose={() => {
+          setIsCreateOpen(false);
+          setEditingVoucher(null);
+        }}
+        title={editingVoucher ? `Edit Receipt Voucher (${editingVoucher.voucher_number})` : "Record Customer Receipt (Money In)"}
+        description={editingVoucher ? "Update payment details received from your customer and adjust bill-wise settlements." : "Enter payment details received from your customer. Distribute across open invoices or record as an advance deposit."}
         size="xl"
       >
         <form onSubmit={handleCreateReceipt} className="space-y-6 pb-20">
@@ -1597,8 +1670,11 @@ export default function ReceiptVoucherPage() {
           </div>
 
           <FormActionBar
-            onCancel={() => setIsCreateOpen(false)}
-            submitLabel="Post Receipt Voucher"
+            onCancel={() => {
+              setIsCreateOpen(false);
+              setEditingVoucher(null);
+            }}
+            submitLabel={editingVoucher ? "Update Receipt Voucher" : "Post Receipt Voucher"}
             isSubmitting={isSubmitting}
           />
         </form>
