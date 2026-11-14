@@ -230,7 +230,6 @@ export default function HireChallansPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedChallanDetail, setSelectedChallanDetail] = useState<HireChallanRecord | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [isRefreshingDrivers, setIsRefreshingDrivers] = useState(false);
 
   // Stable refs to prevent circular effect dependencies & infinite render loops
   const branchesRef = useRef<BranchOption[]>([]);
@@ -740,19 +739,56 @@ export default function HireChallansPage() {
     }));
   }, []);
 
-  const refreshDrivers = async () => {
-    setIsRefreshingDrivers(true);
-    try {
-      const freshDrivers = await apiClient<DriverOption[]>("/api/v1/transport/drivers");
-      if (Array.isArray(freshDrivers)) {
-        setDrivers(freshDrivers);
+  const handleDriverCreated = useCallback((newD: any) => {
+    if (!newD) return;
+    const id = newD.id !== undefined && newD.id !== null ? String(newD.id) : "";
+    const name = (newD.name || newD.label || "").trim();
+    const phone = (newD.phone || "").trim();
+    if (!id && !name) return;
+
+    const newDriver: DriverOption = {
+      id: Number(id) || Date.now(),
+      name,
+      phone,
+    };
+
+    setDrivers((prev) => {
+      const filtered = prev.filter((d) => String(d.id) !== id && d.name.toLowerCase() !== name.toLowerCase());
+      return [newDriver, ...filtered];
+    });
+
+    setDriverId(id);
+    setDriverName(name);
+    if (phone) setDriverPhone(phone);
+  }, []);
+
+  useEffect(() => {
+    const handleDriverEvent = (e?: Event) => {
+      const customEvent = e as CustomEvent<any>;
+      const detail = customEvent?.detail;
+      if (detail && (detail.id || detail.name)) {
+        handleDriverCreated(detail);
+        return;
       }
-    } catch (err) {
-      console.error("Failed to refresh drivers:", err);
-    } finally {
-      setTimeout(() => setIsRefreshingDrivers(false), 500);
-    }
-  };
+      try {
+        const raw = localStorage.getItem("panther_party_created");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.type === "driver" && (parsed.id || parsed.name)) {
+            localStorage.removeItem("panther_party_created");
+            handleDriverCreated(parsed);
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener("panther_driver_created", handleDriverEvent);
+    window.addEventListener("focus", handleDriverEvent);
+    return () => {
+      window.removeEventListener("panther_driver_created", handleDriverEvent);
+      window.removeEventListener("focus", handleDriverEvent);
+    };
+  }, [handleDriverCreated]);
 
   const handleVehicleSelect = (val: string) => {
     setVehicleNumber(val);
@@ -2071,7 +2107,7 @@ export default function HireChallansPage() {
                 />
               </div>
 
-              {/* Driver Name with standardized pale purple '+' and slate Reload */}
+              {/* Driver Name with standardized pale purple '+' */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-700">
                   Driver Name <span className="text-rose-500">*</span>
@@ -2092,15 +2128,7 @@ export default function HireChallansPage() {
                       openMasterTab({
                         type: "driver",
                         title: "Add Driver",
-                        onSuccess: (newD) => {
-                          setDrivers((prev) => [
-                            { id: Number(newD.id), name: newD.name || newD.label, phone: newD.phone },
-                            ...prev,
-                          ]);
-                          setDriverId(String(newD.id));
-                          setDriverName(newD.name || newD.label);
-                          if (newD.phone) setDriverPhone(newD.phone);
-                        },
+                        onSuccess: handleDriverCreated,
                       })
                     }
                     title="Add Driver in new TMS tab"
@@ -2108,19 +2136,6 @@ export default function HireChallansPage() {
                     className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={refreshDrivers}
-                    title="Refresh Drivers List"
-                    aria-label="Refresh Drivers List"
-                    className={cn(
-                      "w-10 h-10 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-all cursor-pointer",
-                      isRefreshingDrivers && "animate-spin"
-                    )}
-                  >
-                    <RotateCw className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>

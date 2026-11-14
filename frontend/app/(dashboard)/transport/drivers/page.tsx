@@ -478,8 +478,8 @@ export default function DriversPage({ embedded = false, onCreated, onCancel }: D
           body: JSON.stringify(values),
         });
         if (typeof window !== "undefined" && created) {
-          localStorage.setItem("panther_party_created", JSON.stringify({ type: "driver", id: created.id, name: created.name }));
-          window.dispatchEvent(new Event("panther_driver_created"));
+          localStorage.setItem("panther_party_created", JSON.stringify({ type: "driver", id: created.id, name: created.name, phone: created.phone }));
+          window.dispatchEvent(new CustomEvent("panther_driver_created", { detail: { id: created.id, name: created.name, phone: created.phone } }));
         }
         if (embedded && created) {
           onCreated?.({ ...created, label: created.name });
