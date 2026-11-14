@@ -1,12 +1,19 @@
 # Graph Report - panther-tms-v2  (2026-11-14)
 
 ## Corpus Check
-- Large corpus: 441 files · ~616,821 words. Semantic extraction will be expensive (many Claude tokens). Consider running on a subfolder.
+- 425 files · ~617,063 words
+- Verdict: corpus is large enough that graph structure adds value.
+- Unclassified: 14 file(s) not represented in the graph (top: (none) 7, .example 2, .ini 2)
 
 ## Summary
-- 4495 nodes · 18151 edges · 181 communities (97 shown, 84 thin omitted)
-- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 2470 edges (avg confidence: 0.95)
+- 4495 nodes · 18153 edges · 181 communities (97 shown, 84 thin omitted)
+- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 2471 edges (avg confidence: 0.95)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `8a26ed84`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - AI Copilot & Conversational Booking
@@ -192,15 +199,15 @@
 
 ### Community 0 - "AI Copilot & Conversational Booking"
 Cohesion: 0.03
-Nodes (83): _matches_permission(), Entitlement, validate_and_update_hc_draft(), is_instructional_inquiry(), is_lr_booking_intent(), parse_lr_entities_from_text(), validate_indian_gstin(), validate_indian_pincode() (+75 more)
+Nodes (96): _matches_permission(), Entitlement, clean_party_name(), handle_conversational_lr_booking(), is_instructional_inquiry(), is_lr_booking_intent(), parse_lr_entities_from_text(), resolve_or_create_consignee() (+88 more)
 
 ### Community 1 - "FASTag Toll & Tracking Service"
 Cohesion: 0.04
 Nodes (150): Branch, CompanyBankAccount, CompanyBankAccountsPage(), INDIAN_BANKS, ContraAccountOption, ContraType, ContraVoucherPage(), LedgerEntry (+142 more)
 
 ### Community 2 - "Accounts Voucher & Banking System"
-Cohesion: 0.04
-Nodes (99): CompanyBankAccountResponse, CreditDebitNoteCreate, GeneralInvoiceCreate, GeneralInvoiceItemCreate, PaymentAllocationItem, PaymentVoucherCreate, PurchaseBillCreate, PurchaseBillItemCreate (+91 more)
+Cohesion: 0.05
+Nodes (73): CompanyBankAccountResponse, PaymentAllocationItem, PaymentVoucherCreate, PurchaseBillCreate, PurchaseBillItemCreate, PurchasePaymentCreate, VoidVoucherRequest, VoucherCreate (+65 more)
 
 ### Community 3 - "GST E-Invoicing & IRN Generation"
 Cohesion: 0.05
@@ -228,7 +235,7 @@ Nodes (101): create_account(), create_charge_head(), create_employee(), create_g
 
 ### Community 9 - "FASTag Toll & Tracking Service (2)"
 Cohesion: 0.05
-Nodes (67): ensure_unified_creditor_vendors(), get_billing_client_ledger_detail(), get_company_bank_account_ledger_detail(), get_company_vehicle_ledger_detail(), get_driver_ledger_detail(), get_generic_account_ledger_detail(), get_master_ledger_summary(), get_or_create_party_account() (+59 more)
+Nodes (54): ensure_unified_creditor_vendors(), get_billing_client_ledger_detail(), get_company_bank_account_ledger_detail(), get_company_vehicle_ledger_detail(), get_driver_ledger_detail(), get_generic_account_ledger_detail(), get_master_ledger_summary(), get_or_create_party_account() (+46 more)
 
 ### Community 10 - "AI Copilot & Conversational Booking (2)"
 Cohesion: 0.05
@@ -240,15 +247,15 @@ Nodes (70): AppException, add_sim_trip_comment(), auto_sync_all_in_transit_fasta
 
 ### Community 12 - "Accounts Voucher & Banking System (2)"
 Cohesion: 0.07
-Nodes (53): check_entitlement_limit(), create_ath_payment(), create_bth_payment(), create_company_bank_account(), create_contra_voucher_endpoint(), create_credit_debit_note_endpoint(), create_general_invoice_endpoint(), create_general_invoice_payment() (+45 more)
+Nodes (54): check_entitlement_limit(), create_ath_payment(), create_bth_payment(), create_company_bank_account(), create_contra_voucher_endpoint(), create_credit_debit_note_endpoint(), create_general_invoice_endpoint(), create_general_invoice_payment() (+46 more)
 
 ### Community 13 - "FASTag Toll & Tracking Service (3)"
 Cohesion: 0.03
 Nodes (67): BillAllocationItem, LedgerEntry, LRRecord, TaxCategoryRecord, VoucherItem, VoucherRecord, FastagTripSummary, LRSummary (+59 more)
 
 ### Community 14 - "AI LR Drafting Service"
-Cohesion: 0.05
-Nodes (37): clean_party_name(), handle_conversational_lr_booking(), resolve_or_create_consignee(), resolve_or_create_consigner(), resolve_or_create_location(), strip_field_label(), validate_and_update_draft(), validate_eway_bill_number() (+29 more)
+Cohesion: 0.10
+Nodes (27): CreditDebitNoteCreate, GeneralInvoiceCreate, GeneralInvoiceItemCreate, ReceiptAllocationItem, ReceiptVoucherCreate, create_credit_debit_note(), create_general_invoice(), test_commercial_note_without_gst_adjustment() (+19 more)
 
 ### Community 15 - "AI Copilot & Conversational Booking (3)"
 Cohesion: 0.05
@@ -271,12 +278,12 @@ Cohesion: 0.05
 Nodes (29): QuotaExceededException, build_hc_preview_card(), handle_conversational_hc_booking(), handle_conversational_job_booking(), parse_job_entities_from_text(), resolve_or_create_job_location(), resolve_or_create_job_party(), validate_and_update_job_draft() (+21 more)
 
 ### Community 20 - "General Consignor & Consignee Masters (2)"
-Cohesion: 0.09
-Nodes (54): create_billing_client(), create_consignee(), create_consigner(), create_designation(), create_group_company(), create_industry(), create_load_type(), create_location() (+46 more)
+Cohesion: 0.10
+Nodes (53): create_billing_client(), create_consignee(), create_consigner(), create_designation(), create_group_company(), create_industry(), create_load_type(), create_location() (+45 more)
 
 ### Community 21 - "Transport LR & GR Booking Engine"
 Cohesion: 0.06
-Nodes (27): allocate_or_validate_voucher_number(), check_series_status(), compute_series_display_data(), extract_sequence_number(), format_series_number(), get_all_used_numbers_for_doc(), get_manual_series_ranges(), get_real_voucher_usage() (+19 more)
+Nodes (34): validate_and_update_hc_draft(), allocate_or_validate_voucher_number(), check_series_status(), compute_series_display_data(), extract_sequence_number(), format_series_number(), get_all_used_numbers_for_doc(), get_manual_series_ranges() (+26 more)
 
 ### Community 22 - "AI Copilot & Conversational Booking (4)"
 Cohesion: 0.09
@@ -296,11 +303,11 @@ Nodes (54): create_eway_bill(), ArrivalReportBase, ArrivalReportCreate, ArrivalR
 
 ### Community 26 - "Accounts Voucher & Banking System (3)"
 Cohesion: 0.08
-Nodes (27): ContraVoucherCreate, JournalEntryLineCreate, JournalVoucherCreate, create_contra_voucher(), create_journal_voucher(), generate_voucher_number(), get_account_by_code(), get_journal_adjustment_types_list() (+19 more)
+Nodes (29): ContraVoucherCreate, JournalEntryLineCreate, JournalVoucherCreate, calculate_account_balance(), create_contra_voucher(), create_journal_voucher(), get_account_by_code(), preview_journal_voucher() (+21 more)
 
 ### Community 27 - "Misc Accounting Groups & Categories (2)"
-Cohesion: 0.10
-Nodes (41): BalanceSheetAccountItem, BalanceSheetGroupItem, BalanceSheetResponse, BankReconciliationResponse, BankReconTransaction, DaybookEntry, DaybookResponse, ExportJobCreate (+33 more)
+Cohesion: 0.08
+Nodes (40): ATHPaymentCreate, BillAllocationResponse, BillingClientLedgerListItem, BTHPaymentCreate, CategoryOverviewStat, CompanyBankAccountBase, CompanyBankAccountCreate, CompanyBankAccountLedgerListItem (+32 more)
 
 ### Community 28 - "FASTag Toll & Tracking Service (5)"
 Cohesion: 0.11
@@ -315,24 +322,24 @@ Cohesion: 0.09
 Nodes (23): get_active_lr_draft(), get_blocked_delete_message(), get_bulk_pii_refusal_message(), stream_chat_with_copilot(), execute_accounting_tool(), execute_branch_tool(), execute_client_tool(), execute_consigner_consignee_tool() (+15 more)
 
 ### Community 31 - "AI Job Drafting Service (2)"
-Cohesion: 0.09
-Nodes (28): LRCreate, create_job(), create_lr(), get_all_jobs(), test_manual_lr_creation_service_unaffected(), test_manual_transport_workflows_regression(), test_auto_create_job_when_lr_has_no_job(), test_job_listing_shows_linked_lr_and_vehicle() (+20 more)
+Cohesion: 0.08
+Nodes (30): LRCreate, create_job(), create_lr(), get_all_jobs(), Job, UserOfficeAssignment, test_manual_lr_creation_service_unaffected(), test_manual_transport_workflows_regression() (+22 more)
 
 ### Community 32 - "Multi-Tenant Auth & Permissions"
 Cohesion: 0.13
 Nodes (30): get_business_overview(), get_financial_analysis(), get_fleet_operations(), get_own_fleet(), get_real_notifications(), ActiveTransitMovement, BusinessOverviewData, CorridorVolume (+22 more)
 
 ### Community 33 - "Transport Registers & Operations Reports"
-Cohesion: 0.12
-Nodes (30): get_arrival_register(), get_hc_register(), get_invoice_register(), get_lr_booking_register(), get_lr_client_wise(), get_pending_hc(), get_unbilled(), get_unused_series() (+22 more)
+Cohesion: 0.14
+Nodes (29): get_arrival_register(), get_hc_register(), get_invoice_register(), get_lr_booking_register(), get_lr_client_wise(), get_pending_hc(), get_unbilled(), get_unused_series() (+21 more)
 
 ### Community 34 - "FASTag Toll & Tracking Service (6)"
 Cohesion: 0.12
 Nodes (37): update_user_account(), ApiCenterSettingResponse, ApiCenterSettingUpdate, ApiCenterTestRequest, ApiCenterTestResponse, BranchBase, BranchCreate, BranchResponse (+29 more)
 
 ### Community 35 - "Settings & Numbering Series Master"
-Cohesion: 0.12
-Nodes (37): create_role(), create_user(), import_default_series_template(), initialize_standard_series(), map_user_to_list_item(), update_admin_settings(), update_role(), update_series_category() (+29 more)
+Cohesion: 0.16
+Nodes (29): list_roles(), map_user_to_list_item(), ActivityFiltersResponse, ActivityOfficeOption, ActivityStatsResponse, ActivityUserOption, AdminSettingItem, AdminSettingResponse (+21 more)
 
 ### Community 36 - "AI Copilot & Conversational Booking (6)"
 Cohesion: 0.08
@@ -343,16 +350,16 @@ Cohesion: 0.06
 Nodes (12): test_accounts_double_entry_reconciliation_and_void(), test_einvoicing_lifecycle_and_taxpayer_lookup(), test_free_plan_limits_and_feature_locks(), test_misc_accounting_masters_crud(), test_phase1_exit_criteria_e2e(), test_general_module_crud_masters(), test_rbac_custom_role_and_employee_restrictions(), test_phase2_end_to_end_exit_criteria() (+4 more)
 
 ### Community 38 - "Multi-Tenant Auth & Permissions (2)"
-Cohesion: 0.12
-Nodes (21): get_current_user(), build_user_navigation(), get_me(), get_user_navigation(), login(), logout(), refresh_token(), LoginRequest (+13 more)
+Cohesion: 0.13
+Nodes (19): get_current_user(), build_user_navigation(), get_me(), get_user_navigation(), login(), logout(), refresh_token(), LoginRequest (+11 more)
 
 ### Community 39 - "FASTag Toll & Tracking Service (7)"
 Cohesion: 0.17
 Nodes (33): sanitize_ft_base_url(), TaxApiCounterResponse, TaxApiTransactionItem, check_and_deduct_tax_credit(), create_branch(), delete_branch(), get_api_center_setting(), get_branches() (+25 more)
 
 ### Community 40 - "Settings & Numbering Series Master (2)"
-Cohesion: 0.11
-Nodes (30): create_series_category(), create_series_master(), delete_role(), delete_series_category(), delete_series_master(), set_default_series(), ensure_series_table_schema(), create_new_user() (+22 more)
+Cohesion: 0.13
+Nodes (25): list_admin_settings(), ensure_series_table_schema(), create_new_role(), create_new_user(), create_series_category(), create_series_master(), delete_existing_role(), delete_series_category() (+17 more)
 
 ### Community 41 - "FASTag Toll & Tracking Service (8)"
 Cohesion: 0.10
@@ -363,8 +370,8 @@ Cohesion: 0.13
 Nodes (21): create_subscription(), get_tenant_info(), list_plans(), provision_new_tenant(), razorpay_webhook(), signup_complete(), signup_initiate(), CreateSubscriptionRequest (+13 more)
 
 ### Community 43 - "Multi-Tenant Auth & Permissions (4)"
-Cohesion: 0.10
-Nodes (12): _cors_headers_for_request(), DuplicateResourceException, InternalServerException, RateLimitException, register_error_handlers(), app_exception_handler(), general_exception_handler(), http_exception_handler() (+4 more)
+Cohesion: 0.06
+Nodes (53): _cors_headers_for_request(), DuplicateResourceException, InternalServerException, RateLimitException, register_error_handlers(), app_exception_handler(), general_exception_handler(), http_exception_handler() (+45 more)
 
 ### Community 44 - "AI Copilot & Conversational Booking (7)"
 Cohesion: 0.08
@@ -411,8 +418,8 @@ Cohesion: 0.09
 Nodes (20): BillAllocationRecord, CustomerOption, EligibleInvoice, LedgerEntry, NoteCategory, numberToWords(), VendorOption, VoucherRecord (+12 more)
 
 ### Community 55 - "Financial Reporting & Daybook"
-Cohesion: 0.22
-Nodes (15): download_export_file(), get_account_ledger(), get_balance_sheet(), get_bank_reconciliation(), get_daybook(), get_export_job_status(), get_profit_and_loss(), get_purchase_register() (+7 more)
+Cohesion: 0.23
+Nodes (16): create_role(), create_series_category(), create_series_master(), create_user(), delete_role(), delete_series_category(), delete_series_master(), import_default_series_template() (+8 more)
 
 ### Community 56 - "AI Copilot & Conversational Booking (8)"
 Cohesion: 0.13
@@ -423,8 +430,8 @@ Cohesion: 0.16
 Nodes (13): BranchItem, IssuingOfficesPage(), ProfileBranchRedirect(), CountrySelect(), CountrySelectProps, GstinInput(), StateSelect(), StateSelectProps (+5 more)
 
 ### Community 59 - "Settings & Numbering Series Master (3)"
-Cohesion: 0.23
-Nodes (13): create_access_token(), create_refresh_token(), decode_token(), get_password_hash(), verify_password(), change_password(), update_user(), UserUpdate (+5 more)
+Cohesion: 0.21
+Nodes (14): create_access_token(), create_refresh_token(), decode_token(), get_password_hash(), verify_password(), change_password(), UserUpdate, update_existing_user() (+6 more)
 
 ### Community 60 - "Privacy Component Flow"
 Cohesion: 0.12
@@ -439,8 +446,8 @@ Cohesion: 0.11
 Nodes (19): dependencies, class-variance-authority@^0.7.1, clsx@^2.1.1, html2canvas@^1.4.1, jspdf@^4.2.1, lucide-react@^0.428.0, next@^14.2.10, @radix-ui/react-slot@^1.3.3 (+11 more)
 
 ### Community 63 - "Settings & Numbering Series Master (4)"
-Cohesion: 0.18
-Nodes (12): get_permissions_schema(), check_series(), get_activity_filters(), get_activity_stats(), get_manual_series_ranges(), get_permissions_schema_endpoint(), list_activity_logs(), list_admin_settings() (+4 more)
+Cohesion: 0.14
+Nodes (10): get_permissions_schema(), check_series(), get_activity_filters(), get_activity_stats(), get_manual_series_ranges(), get_permissions_schema_endpoint(), list_activity_logs(), list_series_categories() (+2 more)
 
 ### Community 64 - "Tsconfig.Json Component Flow"
 Cohesion: 0.11
@@ -455,8 +462,8 @@ Cohesion: 0.16
 Nodes (16): devDependencies, autoprefixer@^10.4.20, postcss@^8.4.41, @types/node@^20.14.14, @types/react@^18.3.3, @types/react-dom@^18.3.0, typescript@^5.5.4, name (+8 more)
 
 ### Community 67 - "Multi-Tenant Auth & Permissions (6)"
-Cohesion: 0.18
-Nodes (6): TenantNotFoundException, get_tenant_by_company_code(), get_tenant_by_id(), get_tenant_id_from_request(), get_current_tenant(), test_get_tenant_id_from_headers()
+Cohesion: 0.17
+Nodes (7): TenantNotFoundException, get_tenant_by_company_code(), get_tenant_by_id(), get_tenant_id_from_request(), get_current_tenant(), get_tenant_db(), test_get_tenant_id_from_headers()
 
 ### Community 68 - "Draft_Store Component Flow"
 Cohesion: 0.16
@@ -579,23 +586,23 @@ Cohesion: 0.67
 Nodes (3): Fleet Cost, Tyre & Vehicle Maintenance Model, Phase 5: Fleet Management, Fleet Management Module
 
 ## Knowledge Gaps
-- **55 isolated node(s):** `PantherTMS Tech Stack (Next.js, FastAPI, PostgreSQL, Redis, Arq)`, `Tenant Resolution (Company Code / Tenant ID Routing)`, `High-Level Request Flow (Traefik, Next.js, FastAPI, Redis, Arq)`, `Modular FastAPI Backend Structure`, `Next.js Frontend Structure & Shared Components` (+50 more)
+- **55 isolated node(s):** `Razorpay Subscriptions & Webhook Processing`, `Double-Entry Ledger Accounts Model`, `Phase 3: Accounts, Misc & E-Invoicing`, `Fleet Cost, Tyre & Vehicle Maintenance Model`, `Phase 5: Fleet Management` (+50 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1465 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **84 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `Accounts Voucher & Banking System (2)` to `AI Copilot & Conversational Booking`, `Accounts Voucher & Banking System`, `SIM & Telecom Tracking Integration`, `Fleet & Vehicle Maintenance Operations`, `Misc Accounting Groups & Categories`, `FASTag Toll & Tracking Service (2)`, `AI Copilot & Conversational Booking (2)`, `AI LR Drafting Service`, `AI Copilot & Conversational Booking (3)`, `AI Hire Challan Service`, `General Consignor & Consignee Masters (2)`, `AI Copilot & Conversational Booking (4)`, `AI Hire Challan Service (2)`, `FASTag Toll & Tracking Service (4)`, `Accounts Voucher & Banking System (3)`, `AI Copilot & Conversational Booking (5)`, `AI Job Drafting Service (2)`, `Multi-Tenant Auth & Permissions`, `Transport Registers & Operations Reports`, `FASTag Toll & Tracking Service (6)`, `Settings & Numbering Series Master`, `AI Copilot & Conversational Booking (6)`, `Multi-Tenant Auth & Permissions (2)`, `FASTag Toll & Tracking Service (7)`, `Settings & Numbering Series Master (2)`, `Accounts Financial Management & Invoicing (2)`, `Multi-Tenant Auth & Permissions (5)`, `FASTag Toll & Tracking Service (10)`, `FASTag Toll & Tracking Service (11)`, `Financial Reporting & Daybook`, `AI Copilot & Conversational Booking (8)`, `Settings & Numbering Series Master (3)`, `Privacy Component Flow`, `Settings & Numbering Series Master (4)`, `Test_Activity_Audit_Log_System Component Flow`?**
+- **Why does `User` connect `Accounts Voucher & Banking System (2)` to `AI Copilot & Conversational Booking`, `Accounts Voucher & Banking System`, `SIM & Telecom Tracking Integration`, `Fleet & Vehicle Maintenance Operations`, `Misc Accounting Groups & Categories`, `FASTag Toll & Tracking Service (2)`, `AI Copilot & Conversational Booking (2)`, `AI Copilot & Conversational Booking (3)`, `AI Hire Challan Service`, `General Consignor & Consignee Masters (2)`, `Transport LR & GR Booking Engine`, `AI Copilot & Conversational Booking (4)`, `AI Hire Challan Service (2)`, `FASTag Toll & Tracking Service (4)`, `Accounts Voucher & Banking System (3)`, `AI Copilot & Conversational Booking (5)`, `AI Job Drafting Service (2)`, `Multi-Tenant Auth & Permissions`, `Transport Registers & Operations Reports`, `FASTag Toll & Tracking Service (6)`, `Settings & Numbering Series Master`, `AI Copilot & Conversational Booking (6)`, `Multi-Tenant Auth & Permissions (2)`, `FASTag Toll & Tracking Service (7)`, `Settings & Numbering Series Master (2)`, `Multi-Tenant Auth & Permissions (4)`, `Accounts Financial Management & Invoicing (2)`, `Multi-Tenant Auth & Permissions (5)`, `FASTag Toll & Tracking Service (10)`, `FASTag Toll & Tracking Service (11)`, `Financial Reporting & Daybook`, `AI Copilot & Conversational Booking (8)`, `Settings & Numbering Series Master (3)`, `Privacy Component Flow`, `Settings & Numbering Series Master (4)`, `Test_Activity_Audit_Log_System Component Flow`?**
   _High betweenness centrality (0.093) - this node is a cross-community bridge._
 - **Are the 470 inferred relationships involving `User` (e.g. with `check_entitlement_limit()` and `get_current_company_admin()`) actually correct?**
   _`User` has 470 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `PantherTMS Tech Stack (Next.js, FastAPI, PostgreSQL, Redis, Arq)`, `Tenant Resolution (Company Code / Tenant ID Routing)`, `High-Level Request Flow (Traefik, Next.js, FastAPI, Redis, Arq)` to the rest of the system?**
+- **What connects `Razorpay Subscriptions & Webhook Processing`, `Double-Entry Ledger Accounts Model`, `Phase 3: Accounts, Misc & E-Invoicing` to the rest of the system?**
   _55 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `AI Copilot & Conversational Booking` be split into smaller, more focused modules?**
-  _Cohesion score 0.034348864994026285 - nodes in this community are weakly interconnected._
-- **Why does `Branch` connect `AI Copilot & Conversational Booking` to `Accounts Voucher & Banking System`, `SIM & Telecom Tracking Integration`, `FASTag Toll & Tracking Service (2)`, `AI Copilot & Conversational Booking (2)`, `SIM & Telecom Tracking Integration (3)`, `Accounts Voucher & Banking System (2)`, `AI LR Drafting Service`, `AI Copilot & Conversational Booking (3)`, `AI Hire Challan Service`, `General Consignor & Consignee Masters (2)`, `Transport LR & GR Booking Engine`, `AI Copilot & Conversational Booking (4)`, `AI Hire Challan Service (2)`, `Accounts Voucher & Banking System (3)`, `AI Copilot & Conversational Booking (5)`, `AI Job Drafting Service (2)`, `Multi-Tenant Auth & Permissions`, `Transport Registers & Operations Reports`, `Settings & Numbering Series Master`, `AI Copilot & Conversational Booking (6)`, `Multi-Tenant Auth & Permissions (2)`, `FASTag Toll & Tracking Service (7)`, `Settings & Numbering Series Master (2)`, `Accounts Financial Management & Invoicing (2)`, `Multi-Tenant Auth & Permissions (5)`, `FASTag Toll & Tracking Service (11)`, `Financial Reporting & Daybook`, `AI Copilot & Conversational Booking (8)`, `Settings & Numbering Series Master (3)`, `Settings & Numbering Series Master (4)`, `Test_Activity_Audit_Log_System Component Flow`, `Profile, Branch & Company Settings (2)`?**
-  _High betweenness centrality (0.046) - this node is a cross-community bridge._
+  _Cohesion score 0.028642992768553307 - nodes in this community are weakly interconnected._
+- **Why does `Branch` connect `AI Copilot & Conversational Booking` to `Accounts Voucher & Banking System`, `SIM & Telecom Tracking Integration`, `FASTag Toll & Tracking Service (2)`, `AI Copilot & Conversational Booking (2)`, `SIM & Telecom Tracking Integration (3)`, `Accounts Voucher & Banking System (2)`, `AI LR Drafting Service`, `AI Copilot & Conversational Booking (3)`, `AI Hire Challan Service`, `General Consignor & Consignee Masters (2)`, `Transport LR & GR Booking Engine`, `AI Copilot & Conversational Booking (4)`, `AI Hire Challan Service (2)`, `Accounts Voucher & Banking System (3)`, `Misc Accounting Groups & Categories (2)`, `AI Copilot & Conversational Booking (5)`, `AI Job Drafting Service (2)`, `Multi-Tenant Auth & Permissions`, `Transport Registers & Operations Reports`, `Settings & Numbering Series Master`, `AI Copilot & Conversational Booking (6)`, `Multi-Tenant Auth & Permissions (2)`, `FASTag Toll & Tracking Service (7)`, `Settings & Numbering Series Master (2)`, `Multi-Tenant Auth & Permissions (4)`, `Accounts Financial Management & Invoicing (2)`, `Multi-Tenant Auth & Permissions (5)`, `FASTag Toll & Tracking Service (11)`, `Financial Reporting & Daybook`, `AI Copilot & Conversational Booking (8)`, `Settings & Numbering Series Master (3)`, `Settings & Numbering Series Master (4)`, `Test_Activity_Audit_Log_System Component Flow`, `Profile, Branch & Company Settings (2)`?**
+  _High betweenness centrality (0.045) - this node is a cross-community bridge._
 - **Are the 234 inferred relationships involving `Branch` (e.g. with `get_current_office()` and `get_user_office_context()`) actually correct?**
   _`Branch` has 234 INFERRED edges - model-reasoned connections that need verification._
 - **Should `FASTag Toll & Tracking Service` be split into smaller, more focused modules?**

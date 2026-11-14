@@ -312,10 +312,10 @@
     "semantic_hash": "f4307e665c297c75c06457a003b57823"
   },
   "backend/app/modules/ai/intent_router.py": {
-    "mtime": 1794639435.4379323,
-    "seen": 1794640624.0937643,
-    "ast_hash": "e9c0917ac4ea2c2e06db739dc87578e2",
-    "semantic_hash": "e9c0917ac4ea2c2e06db739dc87578e2"
+    "mtime": 1794641677.369862,
+    "seen": 1794641907.5430572,
+    "ast_hash": "52b69ee3243f89e8b0f0c5c6bb1fa17d",
+    "semantic_hash": ""
   },
   "backend/app/modules/ai/job_draft_service.py": {
     "mtime": 1794639435.4429352,
@@ -360,10 +360,10 @@
     "semantic_hash": "06ebb4ad4e5c1c14c0db606aad6a9ac0"
   },
   "backend/app/modules/ai/router.py": {
-    "mtime": 1794639435.4733381,
-    "seen": 1794640624.0937707,
-    "ast_hash": "807c46ddb77dd6cfa74a42390e85c259",
-    "semantic_hash": "807c46ddb77dd6cfa74a42390e85c259"
+    "mtime": 1794641677.3781736,
+    "seen": 1794641907.543066,
+    "ast_hash": "debc8775a9e762654b01ff3e78235973",
+    "semantic_hash": ""
   },
   "backend/app/modules/ai/schemas.py": {
     "mtime": 1793527859.571609,
@@ -384,10 +384,10 @@
     "semantic_hash": "71597644443f812d47c1ffc15ae1f7fd"
   },
   "backend/app/modules/ai/typed_tools.py": {
-    "mtime": 1794639435.4940088,
-    "seen": 1794640624.0937743,
-    "ast_hash": "d0e0e6535eaee1c0358eb58438ef646d",
-    "semantic_hash": "d0e0e6535eaee1c0358eb58438ef646d"
+    "mtime": 1794641677.3781736,
+    "seen": 1794641907.5430708,
+    "ast_hash": "31b4584eed50ccf7691e304222f2c0d6",
+    "semantic_hash": ""
   },
   "backend/app/modules/einvoicing/__init__.py": {
     "mtime": 1789904231.4439027,
@@ -1956,10 +1956,10 @@
     "semantic_hash": "57bfcdd3a8095b9fe92d1c70244c8de4"
   },
   "frontend/components/ai/panther-ai-panel.tsx": {
-    "mtime": 1794639435.5116293,
-    "seen": 1794640624.093985,
-    "ast_hash": "fcdec1529eadfa2d0a081853c50dd4a0",
-    "semantic_hash": "fcdec1529eadfa2d0a081853c50dd4a0"
+    "mtime": 1794641677.3781736,
+    "seen": 1794641907.543344,
+    "ast_hash": "77c50eb614ea54b669857e76530406c7",
+    "semantic_hash": ""
   },
   "frontend/components/api-center/api-center-nav-tabs.tsx": {
     "mtime": 1794488574.239189,
@@ -2632,5 +2632,23 @@
     "seen": 1794640624.094083,
     "ast_hash": "5b821a1ff9394cc781e3a535be3e223a",
     "semantic_hash": "5b821a1ff9394cc781e3a535be3e223a"
+  },
+  "frontend/public/panther-ai-icon.webp": {
+    "mtime": 1794315896.5295482,
+    "seen": 1794641907.543456,
+    "ast_hash": "1b233a84ec230e659a78289675a134c8",
+    "semantic_hash": ""
+  },
+  "frontend/public/panther-logo.png": {
+    "mtime": 1792769882.732843,
+    "seen": 1794641907.5434597,
+    "ast_hash": "90b19fd421952a0476839db8738fef5b",
+    "semantic_hash": ""
+  },
+  "frontend/package-lock.json": {
+    "mtime": 1790521421.147851,
+    "seen": 1794641907.5434637,
+    "ast_hash": "ee861058752fbf14728df391fed64788",
+    "semantic_hash": ""
   }
 }
