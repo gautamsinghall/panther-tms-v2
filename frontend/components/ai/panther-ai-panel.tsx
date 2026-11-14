@@ -256,12 +256,21 @@ export function PantherAIPanel() {
     if (!container || !msgEl) return;
 
     requestAnimationFrame(() => {
-      if (!messagesContainerRef.current || !lastAssistantMsgRef.current) return;
-      const containerRect = messagesContainerRef.current.getBoundingClientRect();
-      const msgRect = lastAssistantMsgRef.current.getBoundingClientRect();
-      const scrollOffset = msgRect.top - containerRect.top;
-      const targetTop = messagesContainerRef.current.scrollTop + scrollOffset - 12;
-      messagesContainerRef.current.scrollTo({
+      const c = messagesContainerRef.current;
+      const m = lastAssistantMsgRef.current;
+      if (!c || !m) return;
+
+      let targetTop: number;
+      if (m.offsetParent === c) {
+        targetTop = m.offsetTop - 12;
+      } else {
+        const containerRect = c.getBoundingClientRect();
+        const msgRect = m.getBoundingClientRect();
+        const scrollOffset = msgRect.top - containerRect.top;
+        targetTop = c.scrollTop + scrollOffset - 12;
+      }
+
+      c.scrollTo({
         top: Math.max(0, targetTop),
         behavior,
       });
@@ -269,7 +278,7 @@ export function PantherAIPanel() {
   }, []);
 
   // Auto-scroll intelligently:
-  // - When a new assistant response arrives, display the beginning at the top of the chat area
+  // - When a new assistant response arrives, display the beginning at the top of the chat area (never jump to end)
   // - When user sends a message or when waiting/loading, scroll to bottom
   useEffect(() => {
     if (!isOpen) return;
@@ -283,16 +292,18 @@ export function PantherAIPanel() {
 
     if (isNewAssistantMsg) {
       lastScrolledMsgIdRef.current = lastMsg.id;
-      // When cards are present, auto-scroll to card bottom so card & action buttons are fully visible above fixed input bar
-      const timer = setTimeout(() => {
-        if (lastMsg.cards && lastMsg.cards.length > 0) {
-          scrollToBottom("smooth");
-        } else {
-          scrollToAssistantTop("smooth");
-        }
+      // Always scroll to the top of the assistant response so the view is at the top of that message, not the end
+      const timer1 = setTimeout(() => {
+        scrollToAssistantTop("smooth");
       }, 50);
+      const timer2 = setTimeout(() => {
+        scrollToAssistantTop("smooth");
+      }, 180);
       prevMessagesCountRef.current = messages.length;
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
     } else if (isLoading || lastMsg?.role === "user") {
       scrollToBottom("smooth");
     }
@@ -1088,7 +1099,7 @@ export function PantherAIPanel() {
       {/* 3. Message Stream Canvas */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 space-y-4 bg-white dark:bg-[#0F111D] no-scrollbar overscroll-contain"
+        className="relative flex-1 min-h-0 w-full max-w-full overflow-y-auto overflow-x-hidden px-4 pt-4 pb-8 space-y-4 bg-white dark:bg-[#0F111D] no-scrollbar overscroll-contain"
       >
         {messages.map((msg, idx) => {
           const isLatestAssistant = idx === messages.length - 1 && msg.role === "assistant";
