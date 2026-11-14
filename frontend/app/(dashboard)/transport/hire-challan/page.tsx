@@ -139,6 +139,7 @@ interface LROption {
   lr_number: string;
   lr_date?: string;
   vehicle_number?: string;
+  vehicle_type?: string;
   driver_name?: string;
   driver_phone?: string;
   package_count?: number;
@@ -148,6 +149,8 @@ interface LROption {
   origin_location_display?: string;
   destination_city?: string;
   destination_location_display?: string;
+  loading_charges?: number;
+  unloading_charges?: number;
 }
 
 interface ChargeHeadOption {
@@ -618,21 +621,62 @@ export default function HireChallansPage() {
     return list;
   }, [chargeHeads]);
 
-  const locationOptions = useMemo(
-    () => locations.filter((location) => location.is_active !== false).map((location) => ({
-      value: location.city_name,
-      label: location.city_name,
-      subLabel: [location.state, location.pincode].filter(Boolean).join(" · "),
-    })),
+  const resolveLocationCity = useCallback(
+    (city?: string, display?: string) => {
+      if (city && city.trim()) {
+        const direct = locations.find(
+          (l) => l.city_name.trim().toLowerCase() === city.trim().toLowerCase()
+        );
+        if (direct) return direct.city_name;
+      }
+      if (display && display.trim()) {
+        const displayClean = display.trim().toLowerCase();
+        const displayParts = displayClean.split(",").map((p) => p.trim());
+        const matchPart = locations.find((l) =>
+          displayParts.some((part) => part === l.city_name.trim().toLowerCase())
+        );
+        if (matchPart) return matchPart.city_name;
+
+        const match = locations.find(
+          (l) =>
+            displayClean.includes(l.city_name.trim().toLowerCase()) ||
+            l.city_name.trim().toLowerCase().includes(displayClean)
+        );
+        if (match) return match.city_name;
+      }
+      if (city && city.trim()) return city.trim();
+      if (display && display.trim()) {
+        const first = display.split(",")[0]?.trim();
+        return first || display.trim();
+      }
+      return "";
+    },
     [locations]
   );
+
+  const locationOptions = useMemo(() => {
+    const list = locations
+      .filter((location) => location.is_active !== false)
+      .map((location) => ({
+        value: location.city_name,
+        label: location.city_name,
+        subLabel: [location.state, location.pincode].filter(Boolean).join(" · "),
+      }));
+    if (fromLocation && !list.some((o) => o.value.toLowerCase() === fromLocation.toLowerCase())) {
+      list.unshift({ value: fromLocation, label: fromLocation, subLabel: "From LR" });
+    }
+    if (toLocation && !list.some((o) => o.value.toLowerCase() === toLocation.toLowerCase())) {
+      list.unshift({ value: toLocation, label: toLocation, subLabel: "From LR" });
+    }
+    return list;
+  }, [locations, fromLocation, toLocation]);
 
   const vehicleOptions = useMemo(
     () => {
       const options = vehicles.map((vehicle) => ({
-      value: vehicle.vehicle_number,
-      label: vehicle.vehicle_number,
-      subLabel: vehicle.vehicle_type || "Vehicle",
+        value: vehicle.vehicle_number,
+        label: vehicle.vehicle_number,
+        subLabel: vehicle.vehicle_type || "Vehicle",
       }));
       if (vehicleNumber && !options.some((option) => option.value.toLowerCase() === vehicleNumber.toLowerCase())) {
         options.unshift({ value: vehicleNumber, label: vehicleNumber, subLabel: "LR vehicle" });
@@ -644,13 +688,16 @@ export default function HireChallansPage() {
 
   const driverOptions = useMemo(
     () => {
-      const options = drivers.filter((driver: any) => driver.is_active !== false || String(driver.id) === driverId).map((driver) => ({
-      value: String(driver.id),
-      label: driver.name,
-      subLabel: driver.phone || "Driver",
-      }));
-      if (!driverId && driverName) {
-        options.unshift({ value: `lr-driver:${driverName}`, label: driverName, subLabel: driverPhone || "LR driver" });
+      const options = drivers
+        .filter((driver: any) => driver.is_active !== false || String(driver.id) === driverId)
+        .map((driver) => ({
+          value: String(driver.id),
+          label: driver.name,
+          subLabel: driver.phone || "Driver",
+        }));
+      if (driverName && !options.some((o) => o.label.toLowerCase() === driverName.toLowerCase())) {
+        const val = driverId || `lr-driver:${driverName}`;
+        options.unshift({ value: val, label: driverName, subLabel: driverPhone || "LR driver" });
       }
       return options;
     },
@@ -709,18 +756,41 @@ export default function HireChallansPage() {
 
   const handleVehicleSelect = (val: string) => {
     setVehicleNumber(val);
+    if (!val) return;
+
+    const clean = val.replace(/[\s-]/g, "").toLowerCase();
     const matchedVehicle = vehicles.find(
-      (v) => v.vehicle_number.toLowerCase() === val.toLowerCase()
+      (v) =>
+        v.vehicle_number.toLowerCase() === val.toLowerCase() ||
+        v.vehicle_number.replace(/[\s-]/g, "").toLowerCase() === clean
     );
-    if (matchedVehicle && matchedVehicle.owner_id) {
-      setOwnerId(String(matchedVehicle.owner_id));
-      setVendorId("");
+    if (matchedVehicle) {
+      if (matchedVehicle.owner_id) {
+        setOwnerId(String(matchedVehicle.owner_id));
+        setVendorId("");
+      } else if (matchedVehicle.owner_name) {
+        const matchedOwner = owners.find(
+          (o) => o.name.toLowerCase() === matchedVehicle.owner_name?.toLowerCase()
+        );
+        if (matchedOwner) {
+          setOwnerId(String(matchedOwner.id));
+          setVendorId("");
+        } else {
+          const matchedVendor = vendors.find(
+            (v) => v.name.toLowerCase() === matchedVehicle.owner_name?.toLowerCase()
+          );
+          if (matchedVendor) {
+            setVendorId(String(matchedVendor.id));
+            setOwnerId("");
+          }
+        }
+      }
     }
   };
 
   const handleDriverSelect = (selectedId: string) => {
     if (selectedId.startsWith("lr-driver:")) {
-      setDriverId("");
+      setDriverId(selectedId);
       setDriverName(selectedId.slice("lr-driver:".length));
       return;
     }
@@ -737,20 +807,35 @@ export default function HireChallansPage() {
     const lr = lrs.find((item) => String(item.id) === selectedId);
     if (!lr) return;
 
-    setFromLocation(lr.origin_location_display || lr.origin_city || "");
-    setToLocation(lr.destination_location_display || lr.destination_city || "");
-    if (lr.vehicle_number) handleVehicleSelect(lr.vehicle_number);
+    const resolvedOrigin = resolveLocationCity(lr.origin_city, lr.origin_location_display);
+    const resolvedDest = resolveLocationCity(lr.destination_city, lr.destination_location_display);
+    if (resolvedOrigin) setFromLocation(resolvedOrigin);
+    if (resolvedDest) setToLocation(resolvedDest);
 
-    const matchingDriver = drivers.find((driver) =>
-      driver.name.toLowerCase() === (lr.driver_name || "").toLowerCase()
-    );
-    if (matchingDriver) {
-      handleDriverSelect(String(matchingDriver.id));
-    } else {
-      setDriverId("");
-      setDriverName(lr.driver_name || "");
-      setDriverPhone(lr.driver_phone || "");
+    if (lr.vehicle_number) {
+      handleVehicleSelect(lr.vehicle_number);
     }
+
+    const lrDriverName = (lr.driver_name || "").trim();
+    const lrDriverPhone = (lr.driver_phone || "").trim();
+    if (lrDriverName) {
+      const matchingDriver = drivers.find(
+        (driver) => driver.name.trim().toLowerCase() === lrDriverName.toLowerCase()
+      );
+      if (matchingDriver) {
+        setDriverId(String(matchingDriver.id));
+        setDriverName(matchingDriver.name);
+        setDriverPhone(matchingDriver.phone || lrDriverPhone || "");
+      } else {
+        const customDriverId = `lr-driver:${lrDriverName}`;
+        setDriverId(customDriverId);
+        setDriverName(lrDriverName);
+        setDriverPhone(lrDriverPhone);
+      }
+    }
+
+    const pkgCount = lr.package_count !== undefined && lr.package_count !== null ? lr.package_count : "";
+    const grossWeight = lr.chargeable_weight_mt ?? lr.actual_weight_mt ?? "";
 
     setLoadingExpenses((current) => {
       const firstRow = current[0] || {
@@ -760,13 +845,38 @@ export default function HireChallansPage() {
         tds_applicable: false,
         inr_amount: "",
       };
-      return [{
-        ...firstRow,
-        lr_id: lr.id,
-        lr_no: lr.lr_number,
-        pkg_count: lr.package_count ?? "",
-        gross_weight: lr.chargeable_weight_mt ?? lr.actual_weight_mt ?? "",
-      }, ...current.slice(1)];
+      return [
+        {
+          ...firstRow,
+          lr_id: lr.id,
+          lr_no: lr.lr_number,
+          pkg_count: pkgCount,
+          gross_weight: grossWeight,
+          inr_amount: firstRow.inr_amount || (lr.loading_charges ? String(lr.loading_charges) : ""),
+        },
+        ...current.slice(1),
+      ];
+    });
+
+    setUnloadingExpenses((current) => {
+      const firstRow = current[0] || {
+        id: "unload-1",
+        charge_head: "Unloading Charges",
+        narration: "",
+        tds_applicable: false,
+        inr_amount: "",
+      };
+      return [
+        {
+          ...firstRow,
+          lr_id: lr.id,
+          lr_no: lr.lr_number,
+          pkg_count: pkgCount,
+          gross_weight: grossWeight,
+          inr_amount: firstRow.inr_amount || (lr.unloading_charges ? String(lr.unloading_charges) : ""),
+        },
+        ...current.slice(1),
+      ];
     });
   };
 
@@ -809,8 +919,34 @@ export default function HireChallansPage() {
           if (matched.chargeable_weight_mt || matched.actual_weight_mt) {
             current.gross_weight = matched.chargeable_weight_mt || matched.actual_weight_mt || "";
           }
-          if (!fromLocation && (matched.origin_location_display || matched.origin_city)) setFromLocation(matched.origin_location_display || matched.origin_city || "");
-          if (!toLocation && (matched.destination_location_display || matched.destination_city)) setToLocation(matched.destination_location_display || matched.destination_city || "");
+          if (matched.loading_charges && !current.inr_amount) {
+            current.inr_amount = String(matched.loading_charges);
+          }
+          if (!fromLocation) {
+            const orig = resolveLocationCity(matched.origin_city, matched.origin_location_display);
+            if (orig) setFromLocation(orig);
+          }
+          if (!toLocation) {
+            const dest = resolveLocationCity(matched.destination_city, matched.destination_location_display);
+            if (dest) setToLocation(dest);
+          }
+          if (!vehicleNumber && matched.vehicle_number) {
+            handleVehicleSelect(matched.vehicle_number);
+          }
+          if (!driverName && matched.driver_name) {
+            const dName = matched.driver_name.trim();
+            const dPhone = (matched.driver_phone || "").trim();
+            const matchD = drivers.find((d) => d.name.trim().toLowerCase() === dName.toLowerCase());
+            if (matchD) {
+              setDriverId(String(matchD.id));
+              setDriverName(matchD.name);
+              setDriverPhone(matchD.phone || dPhone || "");
+            } else {
+              setDriverId(`lr-driver:${dName}`);
+              setDriverName(dName);
+              setDriverPhone(dPhone);
+            }
+          }
         }
       }
       next[index] = current;
@@ -876,6 +1012,34 @@ export default function HireChallansPage() {
           }
           if (matched.chargeable_weight_mt || matched.actual_weight_mt) {
             current.gross_weight = matched.chargeable_weight_mt || matched.actual_weight_mt || "";
+          }
+          if (matched.unloading_charges && !current.inr_amount) {
+            current.inr_amount = String(matched.unloading_charges);
+          }
+          if (!fromLocation) {
+            const orig = resolveLocationCity(matched.origin_city, matched.origin_location_display);
+            if (orig) setFromLocation(orig);
+          }
+          if (!toLocation) {
+            const dest = resolveLocationCity(matched.destination_city, matched.destination_location_display);
+            if (dest) setToLocation(dest);
+          }
+          if (!vehicleNumber && matched.vehicle_number) {
+            handleVehicleSelect(matched.vehicle_number);
+          }
+          if (!driverName && matched.driver_name) {
+            const dName = matched.driver_name.trim();
+            const dPhone = (matched.driver_phone || "").trim();
+            const matchD = drivers.find((d) => d.name.trim().toLowerCase() === dName.toLowerCase());
+            if (matchD) {
+              setDriverId(String(matchD.id));
+              setDriverName(matchD.name);
+              setDriverPhone(matchD.phone || dPhone || "");
+            } else {
+              setDriverId(`lr-driver:${dName}`);
+              setDriverName(dName);
+              setDriverPhone(dPhone);
+            }
           }
         }
       }
@@ -986,6 +1150,8 @@ export default function HireChallansPage() {
     }
     setChallanDate(new Date().toISOString().split("T")[0]);
     setSelectedLrId("");
+    setFromLocation("");
+    setToLocation("");
     setVehicleNumber("");
     setDriverId("");
     setDriverName("");
@@ -1039,7 +1205,7 @@ export default function HireChallansPage() {
     setToLocation(row.to_location || "");
     setChallanDate(row.challan_date ? row.challan_date.split("T")[0] : new Date().toISOString().split("T")[0]);
     setVehicleNumber(row.vehicle_number || "");
-    setDriverId(row.driver_id ? String(row.driver_id) : "");
+    setDriverId(row.driver_id ? String(row.driver_id) : (row.driver_name ? `lr-driver:${row.driver_name}` : ""));
     setDriverName(row.driver_name || "");
     setDriverPhone(row.driver_phone || "");
     setOwnerId(row.owner_id ? String(row.owner_id) : "");
@@ -1166,6 +1332,11 @@ export default function HireChallansPage() {
       const primaryLrId =
         loadingExpenses[0]?.lr_id || unloadingExpenses[0]?.lr_id || undefined;
 
+      const parsedDriverId =
+        driverId && !driverId.startsWith("lr-driver:") && !isNaN(parseInt(driverId, 10))
+          ? parseInt(driverId, 10)
+          : undefined;
+
       const payload = {
         challan_number: challanNumber.trim(),
         issuing_office_id: parseInt(effectiveOfficeId, 10),
@@ -1175,7 +1346,7 @@ export default function HireChallansPage() {
         vehicle_number: vehicleNumber.trim().toUpperCase(),
         owner_id: ownerId ? parseInt(ownerId, 10) : undefined,
         vendor_id: vendorId ? parseInt(vendorId, 10) : undefined,
-        driver_id: driverId ? parseInt(driverId, 10) : undefined,
+        driver_id: parsedDriverId,
         driver_name: driverName.trim() || undefined,
         driver_phone: driverPhone.trim() || undefined,
         from_location: fromLocation.trim(),
@@ -2061,6 +2232,9 @@ export default function HireChallansPage() {
                           className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         >
                           <option value="">- Select GR/LR -</option>
+                          {row.lr_no && !lrs.some((l) => l.lr_number === row.lr_no) && (
+                            <option value={row.lr_no}>{row.lr_no}</option>
+                          )}
                           {lrs.map((lr) => (
                             <option key={lr.id} value={lr.lr_number}>
                               {lr.lr_number} ({lr.package_count || 0} pkgs)
@@ -2209,6 +2383,9 @@ export default function HireChallansPage() {
                           className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         >
                           <option value="">- Select GR/LR -</option>
+                          {row.lr_no && !lrs.some((l) => l.lr_number === row.lr_no) && (
+                            <option value={row.lr_no}>{row.lr_no}</option>
+                          )}
                           {lrs.map((lr) => (
                             <option key={lr.id} value={lr.lr_number}>
                               {lr.lr_number} ({lr.package_count || 0} pkgs)
