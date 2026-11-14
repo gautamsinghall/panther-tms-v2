@@ -30,6 +30,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import { EntityDrawer } from "@/components/ui/entity-drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormActionBar } from "@/components/ui/form-action-bar";
+import { GeneralInvoicePrintModal } from "@/components/modals/general-invoice-print-modal";
 import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
@@ -1990,251 +1991,19 @@ export default function GeneralInvoicePage() {
       </EntityDrawer>
 
       {/* ---------------------------------------------------------------------- */}
-      {/* 4. GST Tax Invoice Print Preview Modal                                 */}
+      {/* 4. GST Tax Invoice Print Preview Modal (Standard Corporate Format)     */}
       {/* ---------------------------------------------------------------------- */}
       {printInvoice && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white print:overflow-visible print:static">
-          <div className="bg-white dark:bg-[#111217] rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-[#22232E] print:p-0 print:w-full print:shadow-none print:border-none print:m-0">
-            {/* Modal Controls */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#22232E] pb-4 print:hidden">
-              <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
-                  GST Tax Invoice & Billing Bill
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => window.print()}
-                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Printer className="w-4 h-4" /> Print / Save PDF
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPrintInvoice(null)}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-
-            {/* Printable Document Sheet */}
-            <div
-              id="printable-tax-invoice"
-              className="printable-paper-sheet printable-document-sheet p-6 border border-slate-300 rounded-xl space-y-6 text-xs text-slate-900 bg-white"
-            >
-              {/* Header */}
-              <div className="text-center border-b pb-4 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                  ORIGINAL FOR RECIPIENT
-                </span>
-                <h1 className="text-lg font-black uppercase text-slate-900">
-                  Panther Logistics & Transport Private Limited
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400">
-                  Registered Office: Corridor Road, Sector 18, Vashi, Navi Mumbai, Maharashtra - 400703
-                </p>
-                <div className="flex items-center justify-center gap-4 text-[11px] font-semibold font-mono text-slate-700 dark:text-slate-300">
-                  <span>GSTIN: 27AAACP0123M1Z1</span>
-                  <span>•</span>
-                  <span>State: Maharashtra (Code: 27)</span>
-                  <span>•</span>
-                  <span>PAN: AAACP0123M</span>
-                </div>
-              </div>
-
-              {/* Title & Metadata */}
-              <div className="grid grid-cols-2 gap-4 border-b pb-4">
-                <div>
-                  <span className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
-                    TAX INVOICE DETAILS
-                  </span>
-                  <div className="mt-1 space-y-0.5">
-                    <p>
-                      <strong>Invoice No:</strong>{" "}
-                      <span className="font-mono font-bold">{printInvoice.voucher_number}</span>
-                    </p>
-                    <p>
-                      <strong>Date of Issue:</strong> {formatDate(printInvoice.voucher_date)}
-                    </p>
-                    <p>
-                      <strong>Place of Supply:</strong>{" "}
-                      {printInvoice.place_of_supply || "Maharashtra"}
-                    </p>
-                    <p>
-                      <strong>Reverse Charge (RCM):</strong>{" "}
-                      <span className="font-bold">
-                        {printInvoice.gst_treatment === "RCM" ? "YES (Sec 9(3))" : "NO"}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
-                    REFERENCE & COMMERCIAL DETAILS
-                  </span>
-                  <div className="mt-1 space-y-0.5">
-                    <p>
-                      <strong>PO / Order Ref:</strong>{" "}
-                      <span className="font-mono">{printInvoice.reference_number || "—"}</span>
-                    </p>
-                    <p>
-                      <strong>Cost Center:</strong>{" "}
-                      <span className="font-mono">{printInvoice.cost_center || "General Corporate"}</span>
-                    </p>
-                    <p>
-                      <strong>Payment Terms:</strong> {printInvoice.credit_period_days || 30} Days
-                    </p>
-                    <p>
-                      <strong>Due Date:</strong> {formatDate(printInvoice.due_date || printInvoice.voucher_date)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Billed To / Recipient */}
-              <div className="border-b pb-4 bg-slate-50 p-3 rounded-lg">
-                <span className="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 block">
-                  BILLED TO (RECIPIENT)
-                </span>
-                <p className="font-bold text-sm text-slate-900 mt-1">
-                  {printInvoice.party_name || "General Client"}
-                </p>
-                <p className="font-mono font-semibold text-slate-700 dark:text-slate-300 mt-0.5">
-                  GSTIN: {printInvoice.party_gstin || "27AABCT1332L1Z4"}
-                </p>
-                <p className="text-slate-600 dark:text-slate-400">
-                  Place of Supply: {printInvoice.place_of_supply || "Maharashtra"}
-                </p>
-              </div>
-
-              {/* Itemized Table */}
-              <table className="w-full border-collapse border border-slate-300 text-xs">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 dark:text-slate-300 font-bold">
-                    <th className="p-2 border-r border-slate-300 text-center w-10">Sr.</th>
-                    <th className="p-2 border-r border-slate-300 text-left">Description of Services</th>
-                    <th className="p-2 border-r border-slate-300 text-center w-24">SAC / HSN</th>
-                    <th className="p-2 border-r border-slate-300 text-right w-20">Qty</th>
-                    <th className="p-2 border-r border-slate-300 text-right w-24">Rate (₹)</th>
-                    <th className="p-2 border-r border-slate-300 text-right w-28">Amount (₹)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {printInvoice.items && printInvoice.items.length > 0 ? (
-                    printInvoice.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="p-2 border-r text-center font-mono">{idx + 1}</td>
-                        <td className="p-2 border-r">{item.description}</td>
-                        <td className="p-2 border-r text-center font-mono">{item.hsn_sac || "9967"}</td>
-                        <td className="p-2 border-r text-right font-mono">{Number(item.quantity || 1).toFixed(2)}</td>
-                        <td className="p-2 border-r text-right font-mono">{formatCurrency(item.rate || 0)}</td>
-                        <td className="p-2 border-r text-right font-mono font-semibold">
-                          {formatCurrency(item.total_amount || 0)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="p-2 border-r text-center font-mono">1</td>
-                      <td className="p-2 border-r">General Services / Charges</td>
-                      <td className="p-2 border-r text-center font-mono">9967</td>
-                      <td className="p-2 border-r text-right font-mono">1.00</td>
-                      <td className="p-2 border-r text-right font-mono">{formatCurrency(printInvoice.total_amount)}</td>
-                      <td className="p-2 border-r text-right font-mono font-semibold">
-                        {formatCurrency(printInvoice.total_amount)}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-slate-300 font-semibold bg-slate-50">
-                    <td colSpan={5} className="p-2 text-right border-r">
-                      Total Taxable Value:
-                    </td>
-                    <td className="p-2 text-right font-mono font-bold">
-                      {formatCurrency(printInvoice.total_amount)}
-                    </td>
-                  </tr>
-                  {printInvoice.gst_treatment === "RCM" ? (
-                    <tr className="border-t border-slate-300 bg-amber-50/70 text-amber-900">
-                      <td colSpan={6} className="p-2 text-center text-[11px] font-semibold">
-                        TAX PAYABLE UNDER REVERSE CHARGE: YES (Recipient is liable to discharge GST under
-                        Section 9(3) of the CGST Act 2017)
-                      </td>
-                    </tr>
-                  ) : (
-                    <tr className="border-t border-slate-300 font-semibold bg-slate-50">
-                      <td colSpan={5} className="p-2 text-right border-r">
-                        Output GST Total:
-                      </td>
-                      <td className="p-2 text-right font-mono font-bold">
-                        {formatCurrency(printInvoice.tax_amount)}
-                      </td>
-                    </tr>
-                  )}
-                  <tr className="border-t-2 border-slate-400 font-bold bg-slate-100 text-sm">
-                    <td colSpan={5} className="p-2.5 text-right border-r uppercase text-slate-900">
-                      Total Invoice Amount (INR):
-                    </td>
-                    <td className="p-2.5 text-right font-mono text-slate-900">
-                      {formatCurrency(printInvoice.net_amount)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-
-              {/* Amount in Words */}
-              <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                <span className="text-[10px] text-slate-500 uppercase block font-semibold">
-                  Amount Chargeable (in words):
-                </span>
-                <span className="font-bold text-slate-900 text-xs">
-                  {numberToWords(parseFloat(String(printInvoice.net_amount)))}
-                </span>
-              </div>
-
-              {/* Bank & Payment Remittance Details */}
-              <div className="grid grid-cols-2 gap-4 border-t pt-4">
-                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
-                  <span className="text-[10px] font-bold uppercase text-slate-500 block">
-                    BANK REMITTANCE DETAILS (RTGS / NEFT)
-                  </span>
-                  <p>
-                    <strong>Bank Name:</strong> HDFC Bank Limited
-                  </p>
-                  <p>
-                    <strong>Account Name:</strong> Panther Logistics & Transport Pvt Ltd
-                  </p>
-                  <p>
-                    <strong>Account No:</strong> <span className="font-mono font-bold">50200012345678</span>
-                  </p>
-                  <p>
-                    <strong>IFSC Code:</strong> <span className="font-mono font-bold">HDFC0000240</span>
-                  </p>
-                  <p>
-                    <strong>Branch:</strong> Vashi Sector 17, Navi Mumbai
-                  </p>
-                </div>
-                <div className="flex flex-col justify-between text-right p-3">
-                  <span className="text-slate-500 text-[10px]">
-                    For Panther Logistics & Transport Pvt Ltd
-                  </span>
-                  <div className="h-12 flex items-center justify-end">
-                    <span className="text-slate-400 font-mono text-[10px] italic">
-                      [ Digitally Signed & Authorized ]
-                    </span>
-                  </div>
-                  <span className="font-bold text-slate-900">Authorized Signatory</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <GeneralInvoicePrintModal
+          isOpen={!!printInvoice}
+          onClose={() => setPrintInvoice(null)}
+          invoice={printInvoice}
+          client={clients.find(
+            (c) =>
+              c.id === printInvoice.billing_client_id ||
+              c.name === printInvoice.party_name
+          )}
+        />
       )}
 
       {/* ---------------------------------------------------------------------- */}
