@@ -1894,6 +1894,26 @@ async def execute_job_tool(
     return msg, [card]
 
 
+def map_lr_booking_status(raw: Optional[str]) -> Tuple[str, str]:
+    """Single source of truth for LR booking_status in tracking (Defect 4 fix).
+    Returns (status_label, badge_variant).
+    BOOKED -> ('Booked — not yet dispatched', 'neutral')
+    IN_TRANSIT -> ('In transit', 'warning')
+    DELIVERED -> ('Delivered', 'success')
+    missing -> ('Status not recorded', 'neutral')
+    """
+    if not raw:
+        return "Status not recorded", "neutral"
+    s = str(raw).strip().upper().replace(" ", "_")
+    if s == "BOOKED":
+        return "Booked — not yet dispatched", "neutral"
+    if s in ("IN_TRANSIT", "DISPATCHED"):
+        return "In transit", "warning"
+    if s == "DELIVERED":
+        return "Delivered", "success"
+    return str(raw), "neutral"
+
+
 async def execute_tracking_tool(
     db: AsyncSession,
     user: User,
@@ -1953,7 +1973,9 @@ async def execute_tracking_tool(
             vehicle_number = matched_lr.vehicle_number
             orig = matched_lr.origin_location.name if matched_lr.origin_location else "Origin"
             dest = matched_lr.destination_location.name if matched_lr.destination_location else "Destination"
-            context_prefix = f"Consignment **LR {matched_lr.lr_number}** ({orig} → {dest}) is in transit on vehicle **{vehicle_number}**."
+            lr_status_text, lr_status_variant = map_lr_booking_status(matched_lr.booking_status)
+            veh_str = f" on vehicle **{vehicle_number}**" if vehicle_number else ""
+            context_prefix = f"Consignment **LR {matched_lr.lr_number}** ({orig} → {dest}) is **{lr_status_text}**{veh_str}."
         else:
             if eff_office_id and eff_office_id != -1 and (user.role or "").upper().strip() not in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"):
                 res_other = await db.execute(lr_stmt.limit(1))
@@ -2094,6 +2116,10 @@ async def execute_tracking_tool(
         msg = f"Vehicle **{clean_v}** telemetry: **{status_text}** via Wheelseye GPS at **{location}** (Speed: {speed} km/h, Timestamp: {raw_ts or 'Live'})."
         if context_prefix:
             msg = f"{context_prefix}\n\n{msg}"
+        if matched_lr:
+            msg = f"{msg}\n\n(Source: Wheelseye GPS — LR {matched_lr.lr_number})"
+        else:
+            msg = f"{msg}\n\n(Source: Wheelseye GPS — Vehicle {clean_v})"
         return msg, [card]
 
     # 2. Check SIM trip records (cellular tower ping)
@@ -2152,6 +2178,12 @@ async def execute_tracking_tool(
             msg = f"वाहन **{clean_v or latest_sim.driver_phone}** के लिए सिम ट्रैकिंग टेलीमेट्री: **{status_text}** स्थान **{loc}** ({ts_str})।"
         else:
             msg = f"SIM telemetry for **{clean_v or latest_sim.driver_phone}**: **{status_text}** at **{loc}** ({ts_str})."
+        if context_prefix:
+            msg = f"{context_prefix}\n\n{msg}"
+        if matched_lr:
+            msg = f"{msg}\n\n(Source: SIM Tracking — LR {matched_lr.lr_number})"
+        else:
+            msg = f"{msg}\n\n(Source: SIM Tracking — Vehicle {clean_v or latest_sim.driver_phone})"
         return msg, [card]
 
     # 3. Check FASTag toll plaza transactions (point-in-time plaza crossings, NOT continuous tracking)
@@ -2205,27 +2237,62 @@ async def execute_tracking_tool(
         else:
             msg = f"Tracking for **{latest_ft.vehicle_number}**: **{status_text}** (Point-in-time toll plaza event, not continuous GPS). Last observed at **{toll_location}** ({timestamp_str})."
 
+        if context_prefix:
+            msg = f"{context_prefix}\n\n{msg}"
+        if matched_lr:
+            msg = f"{msg}\n\n(Source: NETC FASTag — LR {matched_lr.lr_number})"
+        else:
+            msg = f"{msg}\n\n(Source: NETC FASTag — Vehicle {latest_ft.vehicle_number})"
         return msg, [card]
 
     # 4. Tracking Unavailable / Awaiting Pings
     target_name = clean_v or "Requested vehicle"
     if matched_lr:
+        lr_status_text, lr_status_variant = map_lr_booking_status(matched_lr.booking_status)
+        raw_s = (matched_lr.booking_status or "").strip().upper().replace(" ", "_")
+
+        if raw_s == "BOOKED":
+            card_sub = f"Vehicle: {clean_v} • Consignment Booked — not yet dispatched" if clean_v else "Consignment Booked — not yet dispatched"
+            timeline_items = [
+                {"primary": f"Origin: {orig}", "secondary": "Consignment Booked — not yet dispatched", "status": "Completed"},
+                {"primary": f"Dispatch / Route {orig} → {dest}", "secondary": f"Assigned to Vehicle {clean_v or 'Not Assigned'} • Awaiting dispatch", "status": "Pending"},
+                {"primary": f"Destination: {dest}", "secondary": "Pending Dispatch", "status": "Pending"},
+            ]
+        elif raw_s == "DELIVERED":
+            card_sub = f"Vehicle: {clean_v} • Consignment Delivered" if clean_v else "Consignment Delivered"
+            timeline_items = [
+                {"primary": f"Origin: {orig}", "secondary": "Consignment Dispatched", "status": "Completed"},
+                {"primary": f"Transit • Route {orig} → {dest}", "secondary": f"Delivered by Vehicle {clean_v or 'Assigned'}", "status": "Completed"},
+                {"primary": f"Destination: {dest}", "secondary": "Consignment Delivered", "status": "Completed"},
+            ]
+        elif raw_s in ("IN_TRANSIT", "DISPATCHED"):
+            card_sub = f"Vehicle: {clean_v} • Consignment In transit" if clean_v else "Consignment In transit"
+            timeline_items = [
+                {"primary": f"Origin: {orig}", "secondary": "Consignment Dispatched", "status": "Completed"},
+                {"primary": f"In Transit • Route {orig} → {dest}", "secondary": f"Assigned to Vehicle {clean_v}", "status": "In Progress"},
+                {"primary": f"Destination: {dest}", "secondary": "Expected for Delivery", "status": "Pending"},
+            ]
+        else:
+            card_sub = f"Vehicle: {clean_v} • Status: {lr_status_text}" if clean_v else f"Status: {lr_status_text}"
+            timeline_items = [
+                {"primary": f"Origin: {orig}", "secondary": lr_status_text, "status": "Pending"},
+                {"primary": f"Route {orig} → {dest}", "secondary": lr_status_text, "status": "Pending"},
+                {"primary": f"Destination: {dest}", "secondary": lr_status_text, "status": "Pending"},
+            ]
+
         card = StructuredCard(
             card_type="tracking",
             title=f"Tracking: LR {matched_lr.lr_number} • {clean_v}" if clean_v else f"Tracking: LR {matched_lr.lr_number}",
-            subtitle=f"Vehicle: {clean_v} • Consignment Booked & Dispatched",
-            badge={"text": "In Transit", "variant": "warning"},
+            subtitle=card_sub,
+            badge={"text": lr_status_text, "variant": lr_status_variant},
             metrics=[
                 {"label": "LR Number", "value": matched_lr.lr_number},
-                {"label": "Vehicle", "value": clean_v},
+                {"label": "LR Status", "value": lr_status_text},
+                {"label": "Vehicle", "value": clean_v or "Not Assigned"},
                 {"label": "Route", "value": f"{orig} → {dest}"},
                 {"label": "Telemetry", "value": "Awaiting Live Ping"},
             ],
-            items=[
-                {"primary": f"Origin: {orig}", "secondary": "Consignment Booked & Dispatched", "status": "Completed"},
-                {"primary": f"In Transit • Route {orig} → {dest}", "secondary": f"Assigned to Vehicle {clean_v}", "status": "In Progress"},
-                {"primary": f"Destination: {dest}", "secondary": "Expected for Delivery", "status": "Pending"},
-            ],
+            items=timeline_items,
             action={"label": "View Tracking Dashboard", "href": "/tracking"},
         )
     else:
@@ -2251,6 +2318,11 @@ async def execute_tracking_tool(
 
     if context_prefix:
         msg = f"{context_prefix}\n\n{msg}"
+
+    if matched_lr:
+        msg = f"{msg}\n\n(Source: Live Tracking — LR {matched_lr.lr_number})"
+    elif clean_v:
+        msg = f"{msg}\n\n(Source: Live Tracking — Vehicle {clean_v})"
 
     return msg, [card]
 
@@ -2446,6 +2518,7 @@ async def execute_accounting_tool(
         else:
             msg = f"Retrieved ledger balance for **{first['name']}**: **₹{first['balance']:,.2f} {first['balance_type']}** ({first['type']})."
 
+        msg = f"{msg}\n\n(Source: Master Ledger — {first['name']})"
         return msg, [card]
 
     # 2. General Master Ledger Summary / Pending Balances
@@ -2510,6 +2583,7 @@ async def execute_accounting_tool(
             f"- Driver Advances (Recoverable): **₹{drv_amt:,.2f}**"
         )
 
+    msg = f"{msg}\n\n(Source: Master Ledger — Overview)"
     return msg, [card]
 
 
@@ -2578,7 +2652,7 @@ async def execute_pod_tool(
             dest = l.destination_location.city_name if l.destination_location else "Destination"
             items.append({
                 "primary": f"LR {l.lr_number} • {orig} → {dest}",
-                "secondary": f"Vehicle: {l.vehicle_number or 'Assigned'} • Status: {l.booking_status or 'In Transit'}",
+                "secondary": f"Vehicle: {l.vehicle_number or 'Assigned'} • Status: {map_lr_booking_status(l.booking_status)[0]}",
                 "status": "No POD",
                 "href": f"/transport/pod-records?search={l.lr_number}",
             })
@@ -3523,15 +3597,17 @@ def classify_operational_intent(
     clean_text = text.strip()
     lower = clean_text.lower()
 
-    # P1 GUARD: Conceptual 'how-to' and 'what-is' questions must NEVER execute operational record searches!
-    # A question starting with 'How do I', 'How to', 'What is', 'Explain', 'kaise', 'kya hai' must NEVER run a record search
+    # P1 GUARD: Conceptual 'how-to', 'what-is', and 'why/purpose' questions must NEVER execute operational record searches!
+    # A question starting with 'How do I', 'How to', 'What is', 'Why', 'Explain', 'kaise', 'kyun', 'kya hai' must NEVER run a record search
     # and must NEVER reuse an old LR/vehicle ID.
     how_to_pattern = r"\b(how\s+do\s+i|how\s+to|how\s+can\s+i|how\s+i|kaise|kaha\s+se|kidhar\s+se|steps\s+to|tarika|tareeka|guide|kese)\b"
     what_is_pattern = r"\b(what\s+is|what\s+are|what\s+does|explain|meaning\s+of|tell\s+me\s+about|describe|details\s+of|kya\s+hai|kya\s+hota\s+hai|kya\s+hota|samjhao|samjha\s+do)\b"
+    why_pattern = r"\b(why|purpose|kyun|kyu|kis\s+liye|kahe|kya\s+zarurat|zarurat\s+kyun|why\s+do\s+we|why\s+we|what\s+is\s+the\s+purpose)\b"
     if (
         re.search(how_to_pattern, lower)
         or re.search(what_is_pattern, lower)
-        or (re.search(r"[\u0900-\u097F]", clean_text) and ("कैसे" in clean_text or "क्या है" in clean_text or "समझाएं" in clean_text))
+        or re.search(why_pattern, lower)
+        or (re.search(r"[\u0900-\u097F]", clean_text) and ("कैसे" in clean_text or "क्या है" in clean_text or "समझाएं" in clean_text or "क्यों" in clean_text or "किस लिए" in clean_text))
     ):
         return None
 

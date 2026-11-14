@@ -11,21 +11,13 @@ https://www.gst.gov.in and https://ewaybillgst.gov.in), verified Panther
 files for Panther behaviour, general logistics concepts written here in our
 own words. Do NOT scrape random web pages into RAG — they conflict.
 
-`> **VERIFY:**` marks a claim that needs a check against the live app or
-current law before go-live. VERIFY items are also listed in
-CHANGES-no14-v3.md. The most important one: the Create LR form field list —
-the user correction of 13 Nov 2026 says the form has NO freight amount
-fields, but the 12 Nov 2026 live-form audit listed optional §5 freight
-fields. The KB follows the user's correction; the dev must confirm on the
-live form.
+
 
 ## What is an LR (Lorry Receipt), GR and Bilty
 - **Document ID**: `glossary-lr-gr-bilty`
 - **Category**: `general`
 - **Minimum Plan Tier**: `1`
 - **Keywords**: `lr, gr, bilty, lorry receipt, goods receipt, consignment note, cn, builty, bilti, lr kya hai, what is lr, why lr`
-
-> **VERIFY:** the Panther form mapping below, against the live Create LR form before go-live (freight-field conflict — see the header note above).
 
 An LR (Lorry Receipt) is the main transport document issued by the transporter when goods are handed over for carriage. GR (Goods Receipt), Bilty/Builty and Consignment Note (CN) are the same thing under different names in different regions and industries.
 ### What it does
@@ -50,8 +42,6 @@ On Panther's Create LR form the required fields are Booking Status, Dispatch Dat
 - Consignee: the party receiving the goods (delivery party).
 - Billing party / Billing Client: the party who is invoiced for freight. It is often the consignor, sometimes the consignee, sometimes a third party (a head office, a trader). It is not always the same as consignor or consignee.
 - Panther spellings: the app uses "Consigner" in many places and "Consignor" in the Create LR form. They mean the same thing.
-
-> **VERIFY:** the Panther spellings claim above, against the live app before go-live.
 
 ## Payment terms: To Pay, Paid, To Be Billed (TBB)
 - **Document ID**: `glossary-payment-terms`
@@ -106,8 +96,6 @@ Detention and demurrage are both charges for holding up equipment, but they appl
 - **Minimum Plan Tier**: `1`
 - **Keywords**: `manifest, trip manifest, load manifest, consignment list, vehicle manifest`
 
-> **VERIFY:** this definition against how Panther TMS uses manifests, before go-live.
-
 A manifest is the list of all consignments (LRs) carried on one vehicle on one trip. It names each LR, its consignor and consignee, its origin and destination, and its packages and weight, so that anyone checking the vehicle — at loading, at a checkpoint, or at unloading — can verify what the truck is supposed to be carrying. One trip has one manifest; one LR appears on the manifest of the trip that carries it. If a consignment is on the truck but not on the manifest, or on the manifest but not on the truck, that mismatch must be resolved before the vehicle leaves.
 
 ## E-way bill Part A and Part B
@@ -115,8 +103,6 @@ A manifest is the list of all consignments (LRs) carried on one vehicle on one t
 - **Category**: `general`
 - **Minimum Plan Tier**: `1`
 - **Keywords**: `eway bill, e-way bill, ewb, part a, part b, eway part a, eway part b, ewb-01, transporter id, what is eway bill`
-
-> **VERIFY:** thresholds and validity against https://ewaybillgst.gov.in before go-live.
 
 An e-way bill is the GST document for the movement of goods, in Form GST EWB-01 under section 68 of the CGST Act and Rule 138, generated on the government portal https://ewaybillgst.gov.in before the goods move. It is required when the value of a consignment exceeds Rs 50,000 including GST and cess, per consignment per invoice, for inter-state movement; intrastate thresholds differ by state, so the state rule must be checked — do not state Rs 50,000 as a flat rule for every move. In Panther TMS an e-way bill is mandatory above Rs 50,000 and LR confirmation is blocked until a valid e-way bill number is entered; that is Panther's own rule.
 ### Part A
@@ -131,8 +117,6 @@ An e-way bill is valid for 1 day per 200 km for regular cargo, where 1 day means
 - **Category**: `general`
 - **Minimum Plan Tier**: `1`
 - **Keywords**: `irn, e-invoicing, einvoice, e invoice, invoice registration portal, irp, qr code, 64 character`
-
-> **VERIFY:** turnover threshold and scope against https://www.gst.gov.in before go-live.
 
 E-invoicing does not mean creating the invoice on the government portal. The invoice is created in the company's own software and then reported as JSON data to an Invoice Registration Portal (IRP). The IRP returns a 64-character IRN hash and a signed QR code, which are printed on the invoice. Without the IRN the invoice is not a valid e-invoice. E-invoicing is mandatory above Rs 5 crore aggregate turnover in any preceding financial year from 2017-18, for B2B supplies and exports, since 1 August 2023. An IRN can be cancelled within 24 hours. The e-invoice is a different document from the e-way bill: the e-invoice proves the supply for GST, while the e-way bill permits the movement of the goods. A transport invoice must include the gross and charged weight, the GSTINs of consignor and consignee, the vehicle registration number, the LR number, the SAC code 996511, the freight amount and rate, an RCM-vs-FCM declaration, and the place of supply.
 
@@ -151,8 +135,6 @@ FASTag is the RFID tag fixed on a vehicle's windscreen, linked to a prepaid wall
 - **Route**: `/transport/lr-booking`
 - **Keywords**: `lr booking page, lr booking, lr list, lr page, what is this page, lr booking screen, create lr, new lr booking`
 
-> **VERIFY:** field labels and button labels against the live LR Booking page before go-live. Verified so far: the form is at /transport/lr-booking, the button is "New LR Booking", the save button is "Create Lorry Receipt".
-
 ### What it is
 The LR Booking page is where LRs are created and viewed in Panther TMS. It lists existing lorry receipts with their status in the flow BOOKED, then IN_TRANSIT, then DELIVERED, and it is where a new LR is made. The LR number on this page is the same reference used on the POD, the transport invoice and the party ledger, so this page is the starting point for almost every transport question about a consignment.
 ### What you do on it
@@ -169,7 +151,7 @@ The official LR number is assigned from the series for the issuing office, and t
 - Returning from Add Vehicle has wiped the LR form's job-imported values in the past (job, dispatch date, parties, packages, weights) — check every field again after adding a vehicle and re-select the job if the values are gone.
 - The booking date can look inconsistent: the print shows one date and the LR list shows the dispatch date, because there is no separate LR Date field.
 ### FAQs
-- Can Panther AI create the LR from chat? No. It guides you to this form with the exact labels and a link.
+- Can Parth AI create the LR from chat? No. It guides you to this form with the exact labels and a link.
 - Why is confirmation blocked? Usually a missing e-way bill above Rs 50,000, or a missing required field such as Truck No.
 
 ## Job Orders page
@@ -178,8 +160,6 @@ The official LR number is assigned from the series for the issuing office, and t
 - **Minimum Plan Tier**: `1`
 - **Route**: `/transport/job-orders`
 - **Keywords**: `job orders page, jobs page, job list, transport jobs, what is this page, job orders screen, create job, create trip order`
-
-> **VERIFY:** field labels against the live Job Orders page before go-live. Verified so far: the form is at /transport/job-orders and the save button is "Create Trip Order".
 
 ### What it is
 The Job Orders page is where transport job orders are created and viewed. A job order is the customer order for what must be delivered: the shipper and consignee, the pickup and delivery windows, the commodity, and the agreed rate. The page lists jobs with their status, so you can see which jobs are open, which are booked onto a vehicle, and which are done.
@@ -202,8 +182,6 @@ The job record is created with a job number. The job can then be selected on the
 - **Route**: `/transport/hire-challan`
 - **Keywords**: `hire challan page, hire challan, lorry hire memo, lhc, what is this page, hire challan screen, market vehicle hire`
 
-> **VERIFY:** field and button labels against the live Hire Challan page before go-live. Verified so far: the hire challan is at /transport/hire-challan. Note: both /transport/hire-challan and /transport/hire-challans appear in the codebase — the singular/plural route is unresolved.
-
 ### What it is
 The Hire Challan page is where a market vehicle — a third-party truck hired for one trip — is recorded. The hire challan (lorry hire memo, LHC) records the vehicle, the route, the agreed hire, the advance paid, the balance payable, any deductions, and the terms of the hiring.
 ### What you do on it
@@ -222,8 +200,6 @@ The challan is recorded against the vehicle owner. It is settled after unloading
 - **Route**: `/accounts/master-ledger`
 - **Keywords**: `master ledger page, ledger page, party ledger, outstanding balance, what is this page, khata page, ledger`
 
-> **VERIFY:** button labels against the live Master Ledger page before go-live. Verified so far: the route /accounts/master-ledger.
-
 ### What it is
 The Master Ledger page is where the running ledger for a customer, vendor or driver is viewed. A party ledger is the live running record for one party: every invoice, payment, credit note, debit note, advance and TDS entry is posted to it, and the running balance shows what is owed at any moment.
 ### What you do on it
@@ -239,8 +215,6 @@ Check a billing client's outstanding balance, see how old the unpaid invoices ar
 - **Minimum Plan Tier**: `1`
 - **Keywords**: `transport invoice page, invoice page, freight invoice, billing page, what is this page, invoice screen`
 
-> **VERIFY:** route and button labels against the live app before go-live (route named in the bot's own knowledge base only).
-
 ### What it is
 The transport invoices page is where freight invoices are raised from booked LRs. A transport invoice bills the freight for one or more LRs to the billing client.
 ### What an invoice must include
@@ -254,8 +228,6 @@ The invoice is created against the billing client. Invoicing normally follows th
 - **Minimum Plan Tier**: `1`
 - **Route**: `/tracking/fastag`
 - **Keywords**: `tracking page, live tracking, gps tracking page, sim tracking, fastag tracking, what is this page, track vehicle`
-
-> **VERIFY:** route names against the live app before go-live. Verified so far: /tracking/fastag and /tracking/sim appear in repo tests. /transport/tracking vs /tracking/fastag|sim|gps is an unresolved route inconsistency.
 
 ### What they are
 The tracking pages are where live vehicle and consignment positions are checked.
@@ -275,8 +247,6 @@ The tracking pages are where live vehicle and consignment positions are checked.
 - **Route**: `/transport/pod-records`
 - **Keywords**: `pod records page, pod page, proof of delivery page, pending pod, what is this page, pod screen`
 
-> **VERIFY:** button labels against the live POD Records page before go-live. Verified so far: the route /transport/pod-records.
-
 ### What it is
 The POD Records page is where proof of delivery is viewed and managed. A POD is the documented confirmation that a shipment reached its recipient at the agreed place and time, with the date and time, the recipient's name, signature and stamp, the delivery location, the LR number, and the condition of the goods.
 ### What you do on it
@@ -292,17 +262,15 @@ See which LRs still have a pending POD, check a POD that was uploaded, and verif
 - **Route**: `/dashboard`
 - **Keywords**: `dashboard, home page, home screen, overview, what is this page, dashboard page`
 
-> **VERIFY:** KPI labels against the live dashboard before go-live. Verified so far: the route /dashboard.
-
 ### What it is
 The home or dashboard page is the overview of the transport business for the day and branch: how many LRs were booked, how many vehicles are on the road, what is pending, and what needs attention, such as PODs waiting to come back or invoices waiting to be paid.
 ### Common mistakes
 - The dashboard is an overview, not a working page. The work itself happens on the detail pages: LR Booking for consignments, Job Orders for customer orders, the Master Ledger for balances, and the tracking pages for live positions.
 
-## What Panther AI can do on any page
+## What Parth AI can do on any page
 - **Document ID**: `page-panther-ai-help`
 - **Category**: `general`
 - **Minimum Plan Tier**: `1`
-- **Keywords**: `what can you do, panther ai, help, what can panther ai do, bot help, capabilities`
+- **Keywords**: `what can you do, parth ai, help, what can parth ai do, panther ai, bot help, capabilities`
 
-Panther AI is the TMS expert inside Panther TMS, and it works on every page. It can explain what the page you are on is for and what you can do on it, explain transport terms such as LR, e-way bill, POD, detention or TBB, guide you to the right form with its exact button labels, track an LR or a vehicle, show a job list, and check a ledger balance from the live records. It does not create LRs, jobs or hire challans from chat: for those it guides you to the form — for example the LR Booking page at /transport/lr-booking, where you click "New LR Booking" and save with "Create Lorry Receipt". It never invents a live fact: if a record is not found, it says so, and for anything outside its scope it offers the closest Panther alternative or a human through "Talk to support".
+Parth AI is the TMS expert inside Panther TMS, and it works on every page. It can explain what the page you are on is for and what you can do on it, explain transport terms such as LR, e-way bill, POD, detention or TBB, guide you to the right form with its exact button labels, track an LR or a vehicle, show a job list, and check a ledger balance from the live records. It does not create LRs, jobs or hire challans from chat: for those it guides you to the form — for example the LR Booking page at /transport/lr-booking, where you click "New LR Booking" and save with "Create Lorry Receipt". It never invents a live fact: if a record is not found, it says so, and for anything outside its scope it offers the closest Panther alternative or a human through "Talk to support".

@@ -149,18 +149,13 @@ def detect_delete_record_request(text: str) -> Optional[str]:
 def get_blocked_delete_message(item_name: str, lang: str = "en") -> str:
     """Exact blocked message for HARD RULE 0 across supported languages.
 
-    Hard Rule 0 (user decision): an LR delete is ALWAYS refused with the exact
+    Hard Rule 0 (user decision): delete is ALWAYS refused with the exact
     English sentence below, in every language — Hindi/Hinglish requests must
     NOT get a translated refusal. This one function serves both the chat path
     (STEP 0) and the stream path, so the fix covers both.
     """
-    if item_name == "LR":
-        return "You cannot delete this LR. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this LR needs correction or cancellation."
-    if lang == "hinglish":
-        return f"Aap is {item_name} ko delete nahi kar sakte. Panther TMS me deletion allowed nahi hai. Correction ya cancellation ke liye apne Company Admin se sampark karein."
-    elif lang == "hi_devanagari":
-        return f"आप इस {item_name} को डिलीट नहीं कर सकते। पैंथर टीएमएस (Panther TMS) में डिलीशन की अनुमति नहीं है। सुधार या रद्दीकरण (cancellation) के लिए कृपया अपने कंपनी एडमिन से संपर्क करें।"
-    return f"You cannot delete this {item_name}. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this {item_name} needs correction or cancellation."
+    target = "LR" if item_name in ("LR", "record") else item_name
+    return f"You cannot delete this {target}. Deletion is not allowed in Panther TMS. Please contact your Company Admin if this {target} needs correction or cancellation."
 
 
 def is_bulk_pii_request(text: str) -> bool:
@@ -182,16 +177,16 @@ def is_bulk_pii_request(text: str) -> bool:
 def get_bulk_pii_refusal_message(lang: str = "en") -> str:
     if lang == "hi_devanagari":
         return (
-            "गोपनीयता और डेटा सुरक्षा नीति के तहत, पैंथर एआई कोपायलट से सभी ग्राहकों के फ़ोन नंबर या ईमेल पते का बल्क एक्सपोर्ट (एक साथ सूची) देना अनुमत नहीं है। "
+            "गोपनीयता और डेटा सुरक्षा नीति के तहत, पार्थ एआई कोपायलट से सभी ग्राहकों के फ़ोन नंबर या ईमेल पते का बल्क एक्सपोर्ट (एक साथ सूची) देना अनुमत नहीं है। "
             "अधिकृत संपर्क विवरण देखने के लिए कृपया मास्टर मेनू में बिलिंग क्लाइंट डायरेक्टरी देखें।"
         )
     elif lang == "hinglish":
         return (
-            "Privacy aur data protection ke tehat, Panther AI Copilot se sabhi customers ke phone numbers ya email addresses bulk export karna allowed nahi hai. "
+            "Privacy aur data protection ke tehat, Parth AI Copilot se sabhi customers ke phone numbers ya email addresses bulk export karna allowed nahi hai. "
             "Aap kisi specific customer ka naam batakar unki details dekh sakte hain, ya Billing Clients module me authorized Client Directory check kar sakte hain."
         )
     return (
-        "For privacy and data protection, bulk export of customer phone numbers or email addresses is not permitted via Panther AI Copilot. "
+        "For privacy and data protection, bulk export of customer phone numbers or email addresses is not permitted via Parth AI Copilot. "
         "You may view an individual customer's details by naming a specific customer, or access the authorized Client Directory under Billing Clients."
     )
 
@@ -206,6 +201,7 @@ def is_greeting(text: str) -> bool:
         "hlo", "hii", "helo", "helloo", "heyy", "hey there", "hi there",
         "hello there", "good morning", "good afternoon", "good evening",
         "good day", "hi panther", "hello panther", "hey panther",
+        "hi parth", "hello parth", "hey parth",
         "kese ho", "kaise ho", "kya haal hai", "नमस्ते", "नमस्कार", "प्रणाम"
     }
     words = raw_clean.split()
@@ -281,16 +277,16 @@ def get_greeting_response(
     page_bit = f" — you are on the {page_title} page" if page_title else ""
     if lang == "hi_devanagari":
         return (
-            f"नमस्ते{name_bit}! मैं पैंथर हूँ, आपका ट्रांसपोर्ट ऑपरेशंस साथी।{page_bit} "
+            f"नमस्ते{name_bit}! मैं पार्थ हूँ, आपका ट्रांसपोर्ट ऑपरेशंस साथी।{page_bit} "
             f"मैं आपकी {hints} में मदद कर सकता हूँ। बताइए, आज क्या करना है?"
         )
     if lang == "hinglish":
         return (
-            f"Hi{name_bit}! Main Panther hoon, aapka transport-operations colleague.{page_bit} "
+            f"Hi{name_bit}! Main Parth hoon, aapka transport-operations colleague.{page_bit} "
             f"Main aapki {hints} mein madad kar sakta hoon. Bataiye, aaj kya karna hai?"
         )
     return (
-        f"Hi{name_bit}! I'm Panther, your transport-operations colleague.{page_bit} "
+        f"Hi{name_bit}! I'm Parth, your transport-operations colleague.{page_bit} "
         f"I can help you {hints}. What would you like to do today?"
     )
 
@@ -378,32 +374,102 @@ def build_page_help_response(
     plan_code: str = "PRO",
     permitted_categories: Optional[List[str]] = None,
 ) -> Tuple[str, List[Dict[str, str]]]:
-    """Page-help answer: what the current page is for, from the page
-    registry, plus the tms-pages-* KB chunks for that page (grounded
-    context). Returns (content, citations).
+    """Page-help answer: scoped strictly to the current page's registry entry
+    and route-matched KB chunks only (Defect 3 fix).
+    Cap the answer: purpose in 2 lines, then at most 4 bullets (what you can do here),
+    then the one primary action. Word count capped under ~120 words.
     """
-    base = get_page_awareness_response(page_context, "what_page_does", lang=lang)
-    try:
-        grounded, citations = knowledge_engine.format_grounded_context(
-            query=f"{query} {parse_page_context(page_context)[0]}",
-            plan_code=plan_code,
-            user_permitted_categories=permitted_categories,
-            top_k=5,
-            current_page=page_context,
-        )
-    except Exception:
-        grounded, citations = "", []
-    if not grounded:
-        return base, citations
-    # Strip internal scaffolding so the user sees only the knowledge text.
-    body = grounded.split("\nIMPORTANT:")[0]
-    body = body.replace("AUTHORITATIVE PANTHERTMS RETRIEVED SPECIFICATIONS:\n", "")
-    # Remove raw source-citation headers (--- SOURCE [n]: ... ---)
-    body = re.sub(r"---\s*SOURCE\s*\[\d+\]:.*?---\s*\n?", "", body)
-    body = body.strip()
-    if not body:
-        return base, citations
-    return base + "\n\n" + body, citations
+    _path, meta = get_page_registry_entry(page_context)
+    if meta is None:
+        if lang in ("hinglish", "hi_devanagari"):
+            msg = "Mujhe abhi aapka currently open page determine karne me asuvidha ho rahi hai. Kripya aap jo section dekh rahe hain uska naam batayein, aur main aapko guide kar dunga."
+        else:
+            msg = "I cannot determine your currently open page right now. Please tell me the section you are viewing, and I can guide you."
+        return msg, []
+
+    title = meta["title"]
+    purpose = meta["purpose"]
+
+    # ONLY chunks whose route matches the current page — no other page's chunks may be retrieved.
+    route_norm = (_path or "").strip().rstrip("/")
+    matching_chunks = [
+        c for c in knowledge_engine.chunks
+        if c.route and (c.route.strip().rstrip("/") == route_norm or (route_norm and route_norm.startswith(c.route.strip().rstrip("/"))))
+    ]
+    citations = [
+        {"doc_id": c.doc_id, "title": c.title, "source": f"{c.source_file} § {c.title}"}
+        for c in matching_chunks[:2]
+    ]
+
+    # 1. Purpose in 2 lines
+    if lang == "hi_devanagari":
+        line1 = f"आप वर्तमान में **{title}** पेज पर हैं।"
+        line2 = purpose
+        bullets_header = "यहाँ आप क्या कर सकते हैं:"
+        action_header = "मुख्य कार्रवाई:"
+    elif lang == "hinglish":
+        line1 = f"Aap abhi **{title}** page par hain."
+        line2 = purpose
+        bullets_header = "Yahan aap kya kar sakte hain:"
+        action_header = "Primary action:"
+    else:
+        line1 = f"You are on the **{title}** page in Panther TMS."
+        line2 = purpose
+        bullets_header = "What you can do here:"
+        action_header = "Primary action:"
+
+    # 2. At most 4 bullets (what you can do here)
+    if _path == "/transport/lr-booking":
+        bullets = [
+            "Create new Lorry Receipts (LRs) with consignment details and assigned truck",
+            "Track consignment lifecycle status: BOOKED → IN_TRANSIT → DELIVERED",
+            "Select an existing Job Order to import customer, route, and weight details",
+            "Attach GST E-Way Bill numbers (mandatory for goods value > ₹50,000 in Panther)",
+        ]
+    elif _path == "/accounts/master-ledger":
+        bullets = [
+            "View live running account balances for billing clients, vendors, and drivers",
+            "Track outstanding invoices, freight advances, and overdue ageing reports",
+            "Audit debits, credits, and TDS deduction entries in real time",
+            "Filter ledger statements by party name, date range, or issuing office",
+        ]
+    elif _path == "/transport/pod-records":
+        bullets = [
+            "View and verify signed Proof of Delivery (POD) acknowledgements",
+            "Monitor consignments currently pending delivery documentation",
+            "Transition LR booking status to Delivered upon verified receipt",
+            "Unblock freight invoice billing and driver balance settlements",
+        ]
+    elif meta.get("next_steps"):
+        bullets = [f"{step}" for step in meta.get("next_steps", [])[:4]]
+    else:
+        bullets = [f"View and manage records on the {title} page"]
+
+    bullet_lines = "\n".join(f"• {b}" for b in bullets[:4])
+
+    # 3. The one primary action
+    save_act = meta.get("save")
+    if save_act:
+        primary_action = save_act
+    elif _path == "/transport/lr-booking":
+        primary_action = "Click \"New LR Booking\" to start, then \"Create Lorry Receipt\" to save."
+    elif _path == "/accounts/master-ledger":
+        primary_action = "Select an account or party from the ledger list to view their statement."
+    elif _path == "/transport/pod-records":
+        primary_action = "Search an LR number to verify its Proof of Delivery."
+    else:
+        primary_action = f"Review or manage records on the {title} page."
+
+    source_title = matching_chunks[0].title if matching_chunks else f"{title} Page Guide"
+    source_line = f"(Source: Panther docs — '{source_title}'.)"
+
+    content = (
+        f"{line1}\n{line2}\n\n"
+        f"{bullets_header}\n{bullet_lines}\n\n"
+        f"{action_header} {primary_action}\n\n"
+        f"{source_line}"
+    )
+    return content, citations
 
 
 def is_capabilities_query(text: str) -> bool:
@@ -639,11 +705,11 @@ def handle_record_prefill_intent(text: str, lang: str = "en") -> Optional[ChatRe
                     action={"label": f"Open Vehicle Form ({veh_candidate})", "href": f"/transport/company-vehicles?action=add&vehicle_number={veh_candidate}"},
                 )
                 if lang == "hi_devanagari":
-                    msg = f"मैंने वाहन **{veh_candidate}** के लिए पंजीकरण फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पैंथर एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
+                    msg = f"मैंने वाहन **{veh_candidate}** के लिए पंजीकरण फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पार्थ एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
                 elif lang == "hinglish":
-                    msg = f"Maine vehicle **{veh_candidate}** ke liye registration form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Panther AI bina aapke review ke directly database me save nahi karta.)*"
+                    msg = f"Maine vehicle **{veh_candidate}** ke liye registration form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Parth AI bina aapke review ke directly database me save nahi karta.)*"
                 else:
-                    msg = f"I have prepared the vehicle registration form for **{veh_candidate}**. Click the button below to review details and save in the transport register.\n\n*(Note: Panther AI does not create records silently without your review.)*"
+                    msg = f"I have prepared the vehicle registration form for **{veh_candidate}**. Click the button below to review details and save in the transport register.\n\n*(Note: Parth AI does not create records silently without your review.)*"
 
                 return ChatResponse(
                     content=msg,
@@ -711,11 +777,11 @@ def handle_record_prefill_intent(text: str, lang: str = "en") -> Optional[ChatRe
                 action={"label": f"Open Driver Form ({driver_name})", "href": target_href},
             )
             if lang == "hi_devanagari":
-                msg = f"मैंने ड्राइवर **{driver_name}** के लिए फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पैंथर एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
+                msg = f"मैंने ड्राइवर **{driver_name}** के लिए फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पार्थ एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
             elif lang == "hinglish":
-                msg = f"Maine driver **{driver_name}** ke liye form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Panther AI bina aapke review ke directly database me save nahi karta.)*"
+                msg = f"Maine driver **{driver_name}** ke liye form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Parth AI bina aapke review ke directly database me save nahi karta.)*"
             else:
-                msg = f"I have prepared the driver registration form for **{driver_name}**. Click the button below to review details and save in the transport register.\n\n*(Note: Panther AI does not create records silently without your review.)*"
+                msg = f"I have prepared the driver registration form for **{driver_name}**. Click the button below to review details and save in the transport register.\n\n*(Note: Parth AI does not create records silently without your review.)*"
 
             return ChatResponse(
                 content=msg,
@@ -756,11 +822,11 @@ def handle_record_prefill_intent(text: str, lang: str = "en") -> Optional[ChatRe
                 action={"label": f"Open Client Form ({client_name})", "href": target_href},
             )
             if lang == "hi_devanagari":
-                msg = f"मैंने बिलिंग क्लाइंट **{client_name}** के लिए फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पैंथर एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
+                msg = f"मैंने बिलिंग क्लाइंट **{client_name}** के लिए फॉर्म तैयार कर दिया है। नीचे दिए गए बटन पर क्लिक करके विवरण की पुष्टि करें और सेव करें।\n\n*(नोट: पार्थ एआई बिना आपकी समीक्षा के सीधे डेटाबेस में रिकॉर्ड नहीं जोड़ता है।)*"
             elif lang == "hinglish":
-                msg = f"Maine billing client **{client_name}** ke liye form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Panther AI bina aapke review ke directly database me save nahi karta.)*"
+                msg = f"Maine billing client **{client_name}** ke liye form prepare kar diya hai. Niche diye button par click karke details review aur save karein.\n\n*(Note: Parth AI bina aapke review ke directly database me save nahi karta.)*"
             else:
-                msg = f"I have prepared the billing client form for **{client_name}**. Click the button below to review details and save in the transport register.\n\n*(Note: Panther AI does not create records silently without your review.)*"
+                msg = f"I have prepared the billing client form for **{client_name}**. Click the button below to review details and save in the transport register.\n\n*(Note: Parth AI does not create records silently without your review.)*"
 
             return ChatResponse(
                 content=msg,
@@ -1315,9 +1381,9 @@ def get_safe_general_or_refusal_response(
 
     # Default fallback (No.14 template)
     msg = _msg(
-        "That's outside what Panther AI is built for — " + scope_en + offer_en,
-        "यह पैंथर एआई के दायरे से बाहर है — " + scope_hi + offer_hi,
-        "Ye Panther AI ke scope se bahar hai — " + scope_hinglish + offer_hinglish,
+        "That's outside what Parth AI is built for — " + scope_en + offer_en,
+        "यह पार्थ एआई के दायरे से बाहर है — " + scope_hi + offer_hi,
+        "Ye Parth AI ke scope se bahar hai — " + scope_hinglish + offer_hinglish,
     )
     return msg, navs
 
@@ -1391,7 +1457,7 @@ def build_human_handoff_response(
         "LRs, tracking or billing — just ask."
     )
 
-router = APIRouter(prefix="/ai", tags=["Panther AI"])
+router = APIRouter(prefix="/ai", tags=["Parth AI"])
 
 
 async def get_ai_tenant_db(
@@ -1421,7 +1487,7 @@ def sanitize_ai_output(text: str) -> str:
 async def get_ai_status(
     current_user: User = Depends(get_current_user),
 ):
-    """Returns the operational status and configuration of Panther AI."""
+    """Returns the operational status and configuration of Parth AI."""
     configured = is_provider_configured()
     return AIStatusResponse(
         is_configured=configured,
@@ -2574,7 +2640,7 @@ async def chat_with_copilot(
                 detected_language=detected_lang,
             )
 
-    op_intent = classify_operational_intent(last_user_message, conversation_history=history_dicts)
+    op_intent = classify_operational_intent(last_user_message, conversation_history=history_dicts) if c_intent != "tms_knowledge" else None
     if op_intent:
         tool_name = op_intent.get("tool")
         if tool_name == "tracking_prompt":
@@ -2826,17 +2892,17 @@ async def chat_with_copilot(
         key_name = "NVIDIA_API_KEY" if settings.active_ai_provider == "nvidia" else "OPENAI_API_KEY"
         if detected_lang == "hi_devanagari":
             unconfigured_msg = (
-                f"पैंथर एआई (Panther AI) वर्तमान में सेटअप मोड में है क्योंकि बैकएंड में `{key_name}` (या `OPENAI_API_KEY`) कॉन्फ़िगर नहीं है। "
+                f"पार्थ एआई (Parth AI) वर्तमान में सेटअप मोड में है क्योंकि बैकएंड में `{key_name}` (या `OPENAI_API_KEY`) कॉन्फ़िगर नहीं है। "
                 "लाइव एआई उत्तरों को सक्रिय करने के लिए कृपया अपने बैकएंड `.env` फ़ाइल में API Key सेट करें।"
             )
         elif detected_lang == "hinglish":
             unconfigured_msg = (
-                f"Panther AI abhi setup mode mein hai kyunki backend environment mein `{key_name}` (ya `OPENAI_API_KEY`) configured nahi hai. "
+                f"Parth AI abhi setup mode mein hai kyunki backend environment mein `{key_name}` (ya `OPENAI_API_KEY`) configured nahi hai. "
                 "Live AI responses activate karne ke liye kripya backend `.env` file mein apni API Key set karein."
             )
         else:
             unconfigured_msg = (
-                f"Panther AI is currently in setup mode because `{key_name}` (or `OPENAI_API_KEY`) is not configured in the backend environment. "
+                f"Parth AI is currently in setup mode because `{key_name}` (or `OPENAI_API_KEY`) is not configured in the backend environment. "
                 "To enable live assistant responses, please configure your AI provider API key in the backend `.env` file."
             )
 
@@ -2899,6 +2965,17 @@ async def chat_with_copilot(
             user_text=last_user_message,
             history_texts=[m.content for m in data.messages if m.role == "user"],
         )
+        if citations and not reply_guarded:
+            unique_titles = []
+            for c in citations:
+                t = c.get("title") if isinstance(c, dict) else getattr(c, "title", None)
+                if t and t not in unique_titles:
+                    unique_titles.append(t)
+            if unique_titles:
+                source_names = ", ".join(f"'{t}'" for t in unique_titles[:2])
+                source_line = f"(Source: Panther docs — {source_names}.)"
+                if "source:" not in reply_content.lower():
+                    reply_content = reply_content.rstrip() + f"\n\n{source_line}"
     except Exception as e:
         err_msg = str(e)
         if "Quota Exceeded" in err_msg or "rate limit" in err_msg.lower():
@@ -3679,7 +3756,7 @@ async def confirm_lr_draft(
             office_name=office_name,
             office_code=office_code,
             details_json={
-                "created_via": "Panther AI Conversational Assistant",
+                "created_via": "Parth AI Conversational Assistant",
                 "draft_id": draft.draft_id,
                 "operation_id": op_id,
                 "lr_number": lr.lr_number,
@@ -3899,7 +3976,7 @@ async def confirm_job_draft(
             office_id=job.issuing_office_id or target_office_id,
             office_name=office_name,
             details_json={
-                "created_via": "Panther AI Conversational Assistant",
+                "created_via": "Parth AI Conversational Assistant",
                 "draft_id": draft.draft_id,
                 "operation_id": op_id,
                 "job_number": job.job_number,
@@ -4119,7 +4196,7 @@ async def confirm_hire_challan_draft(
             office_id=hc.issuing_office_id or target_office_id,
             office_name=office_name,
             details_json={
-                "created_via": "Panther AI Conversational Assistant",
+                "created_via": "Parth AI Conversational Assistant",
                 "draft_id": draft.draft_id,
                 "operation_id": op_id,
                 "challan_number": hc.challan_number,

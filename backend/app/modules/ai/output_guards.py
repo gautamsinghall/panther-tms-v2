@@ -118,6 +118,21 @@ def guard_llm_reply(
     if user_text:
         all_grounded.append(user_text)
     all_grounded.extend(history_texts or [])
+
+    # Defence-in-depth: block internal dev notes / VERIFY leaks (Defect 2 fix)
+    has_dev_leak = (
+        bool(re.search(r"\b(?:VERIFY|CHANGES)\b", reply or ""))
+        or bool(re.search(r"\b(?:before\s+go[- ]live|do[- ]not[- ]show)\b", reply or "", re.IGNORECASE))
+    )
+    if has_dev_leak:
+        safe = (
+            "I couldn't verify those details in your Panther TMS records, so I won't "
+            "guess them. Please try tracking an LR, checking a ledger, or asking "
+            "about the page you are on — or tap 'Talk to support' below the chat "
+            "if you need a human."
+        )
+        return safe, True
+
     if strict_live_records:
         ungrounded = find_ungrounded_claims(reply, all_grounded)
     else:

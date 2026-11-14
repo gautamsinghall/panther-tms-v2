@@ -739,14 +739,14 @@ def getKnowledge(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard
             subtitle="NIC E-Way Bill Rules & Limits in Panther TMS",
             badge={"text": "GST Rule 138", "variant": "neutral"},
             metrics=[
-                {"label": "Mandatory Limit", "value": "₹50,000+"},
+                {"label": "Inter-State Threshold", "value": "₹50,000 (intrastate varies)"},
                 {"label": "Digits", "value": "12-digit NIC"},
                 {"label": "Part A", "value": "Invoice / Consignment"},
                 {"label": "Part B", "value": "Vehicle / Transporter"},
             ],
             items=[
-                {"primary": "What is an E-Way Bill?", "secondary": "An electronic waybill generated on the Government NIC portal for transporting goods valuing over ₹50,000."},
-                {"primary": "When is it required in Panther TMS?", "secondary": "Mandatory for all LRs where consignment goods value exceeds ₹50,000 before confirmation is allowed."},
+                {"primary": "What is an E-Way Bill?", "secondary": "An electronic waybill generated on the Government NIC portal. ₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule."},
+                {"primary": "When is it required in Panther TMS?", "secondary": "₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule."},
                 {"primary": "Documents Required", "secondary": "1. Tax Invoice or Delivery Challan. 2. Vehicle Registration Number or Transporter ID."},
             ],
             action={"label": "Open E-Way Bill Module", "href": "/transport/eway-bill"},
@@ -755,29 +755,32 @@ def getKnowledge(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard
         if lang == "hi_devanagari":
             msg = (
                 "ई-वे बिल (Electronic Way Bill) की जानकारी:\n\n"
-                "• **क्या है**: जीएसटी नियम 138 के तहत **₹50,000** से अधिक मूल्य के माल के परिवहन के लिए यह एक अनिवार्य कानूनी दस्तावेज़ है।\n"
+                "• **क्या है**: जीएसटी नियम 138 के तहत एक इलेक्ट्रॉनिक वे-बिल। ₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n"
                 "• **पार्ट-ए (Part-A)**: माल का इनवॉइस विवरण, कंसाइनर व कंसाइनी का जीएसटीएन और मूल्य।\n"
                 "• **पार्ट-बी (Part-B)**: वाहन पंजीकरण संख्या (Vehicle Number) या ट्रांसपोर्टर आईडी।\n"
                 "• **आवश्यक दस्तावेज़**: 1. टैक्स इनवॉइस/चालान, 2. वाहन नंबर।\n\n"
-                "पैंथर टीएमएस में ₹50,000 से अधिक मूल्य वाले एलआर पर ई-वे बिल अनिवार्य होता है।"
+                "₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n\n"
+                "(Source: Panther docs — 'GST Rule 138', 'E-Way Bill Regulations'.)"
             )
         elif lang == "hinglish":
             msg = (
                 "E-Way Bill (Electronic Way Bill) Information:\n\n"
-                "• **What it is**: GST Rule 138 ke tehat **₹50,000** se zyada goods value ke consignment transport ke liye mandatory compliance document hai.\n"
+                "• **What it is**: GST Rule 138 ke tehat electronic compliance document hai. ₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n"
                 "• **Part-A**: Consignment details, Consigner/Consignee GSTIN, Invoice Number aur Goods Value.\n"
                 "• **Part-B**: Vehicle registration number ya Transporter ID/LR number.\n"
                 "• **Required Documents**: 1. Tax Invoice ya Delivery Challan, 2. Assigned Vehicle Registration Number.\n\n"
-                "Panther TMS mein goods value ₹50,000 se upar hone par 12-digit E-Way Bill enter karna zaroori hai."
+                "₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n\n"
+                "(Source: Panther docs — 'GST Rule 138', 'E-Way Bill Regulations'.)"
             )
         else:
             msg = (
                 "E-Way Bill (Electronic Way Bill) Overview:\n\n"
-                "• **Definition**: A mandatory document under GST Rule 138 required for transporting consignment goods valuing over **₹50,000**.\n"
+                "• **Definition**: An electronic waybill under GST Rule 138. ₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n"
                 "• **Part-A**: Consignment information (Supplier/Recipient GSTIN, Invoice/Challan Number, Goods Value, HSN).\n"
                 "• **Part-B**: Transport details (Vehicle Registration Number or Transporter ID).\n"
                 "• **Required Documents**: 1. Tax Invoice or Delivery Challan. 2. Assigned Vehicle Registration Number.\n\n"
-                "In Panther TMS, entering a valid 12-digit E-Way Bill is enforced whenever consignment goods value exceeds ₹50,000."
+                "₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n\n"
+                "(Source: Panther docs — 'GST Rule 138', 'E-Way Bill Regulations'.)"
             )
         return msg, [card], navs
 
@@ -830,6 +833,7 @@ def getHowTo(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard], L
                 "4. **Cargo & E-Way Bill**: Enter packages, weight, and 12-digit E-Way Bill if goods value exceeds ₹50,000 (Panther rule; GST intrastate thresholds vary by state).\n\n"
                 "Chat cannot create an LR — click \"New LR Booking\" on the form and save with \"Create Lorry Receipt\"."
             )
+        msg = f"{msg}\n\n(Source: Panther docs — 'How to Create an LR', 'LR Booking'.)"
         return msg, [card], navs
 
     if topic == "tracking":
@@ -1036,4 +1040,5 @@ async def search_jobs(
         msg = f"Aapke records me **{total} Transport Job(s)** hain. Latest {len(jobs)} dikhaye ja rahe hain."
     else:
         msg = f"You have **{total} Transport Job(s)** in your records. Showing the latest {len(jobs)}."
+    msg = f"{msg}\n\n(Source: Transport Jobs — {total} records)"
     return msg, [card], navs

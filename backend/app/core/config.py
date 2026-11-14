@@ -122,9 +122,9 @@ class Settings(BaseSettings):
             "GEMINI_MODEL",
         ),
     )
-    AI_SYSTEM_NAME: str = "Panther AI (Gemini 2.5 Flash)"
+    AI_SYSTEM_NAME: str = "Parth AI (Gemini 2.5 Flash)"
 
-    # Panther AI Assistant LLM Provider Configuration (Groq / NVIDIA / Gemini)
+    # Parth AI Assistant LLM Provider Configuration (Groq / NVIDIA / Gemini)
     AI_PROVIDER: str = Field(
         default="groq",
         validation_alias=AliasChoices("AI_PROVIDER", "LLM_PROVIDER"),
@@ -258,10 +258,10 @@ class Settings(BaseSettings):
     def active_ai_system_name(self) -> str:
         prov = self.active_ai_provider
         if prov == "groq":
-            return "Panther AI (Groq Qwen 3.8 27B)"
+            return "Parth AI (Groq Qwen 3.8 27B)"
         elif prov == "nvidia":
-            return "Panther AI (NVIDIA DiffusionGemma 26B)"
-        return f"Panther AI ({self.OPENAI_MODEL})"
+            return "Parth AI (NVIDIA DiffusionGemma 26B)"
+        return f"Parth AI ({self.OPENAI_MODEL})"
 
 settings = Settings()
 

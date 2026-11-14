@@ -238,6 +238,21 @@ def classify_intent_and_entities(
     # --------------------------------------------------------------------------
     # 5. KNOWLEDGE & HOW-TO QUESTIONS (MUST NEVER TRIGGER SEARCHES)
     # --------------------------------------------------------------------------
+    # WHY / PURPOSE QUESTIONS: checked BEFORE any how-to or action rule.
+    # Any question containing why / "kis liye" / "kyun" / "what is the purpose of" /
+    # "why do we" is routed to RAG with a boost on why/purpose chunks, NEVER
+    # to how_to_create_lr. Applies to all topics: why LR, why e-way bill, why POD, etc.
+    _WHY_PATTERNS = (
+        r"\b(?:why\s+do\s+we|why\s+should\s+we|why\s+would\s+we|why\s+must\s+we|why\s+is|why\s+are|why\s+do|why\s+to|why\s+need|why\b|"
+        r"what\s+is\s+the\s+purpose\s+of|what\s+is\s+the\s+need\s+(?:for|of)|purpose\s+of|"
+        r"ka\s+kya\s+purpose\s+hai|kya\s+purpose\s+hai|kis\s+liye|kyun|kyu|kyon|kis\s+kaam\s+(?:aata|ka))\b"
+    )
+    is_why_question = bool(re.search(_WHY_PATTERNS, lower)) or any(
+        kw in clean for kw in ["किस लिए", "क्यों", "क्यूँ", "का मकसद", "का उद्देश्य"]
+    )
+    if is_why_question:
+        return RouterResult(intent="tms_knowledge", confidence=1.0, matched_rule="why_purpose_knowledge")
+
     # General TMS knowledge question: "what is X" / "explain X" / "X kya hai"
     # for any TMS concept. Must be checked BEFORE action intents so
     # "what is hire challan" never opens a draft.

@@ -85,7 +85,7 @@ const INITIAL_WELCOME_MESSAGE: Message = {
   id: "welcome-1",
   role: "assistant",
   content:
-    "👋 **Welcome to Panther AI!**\n\nI help with Panther TMS — creating jobs, tracking vehicles and shipments, invoices and balances, PODs, and learning how to use each screen. For an LR, I guide you to the LR form — I don't create LRs in chat. I can also explain transport terms (LR, e-way bill, POD) when they help you do that work.\n\nAsk me in English, हिन्दी or Hinglish — for example, track an LR, create a job, or check a ledger balance. If something is outside what I can do, I'll tell you what I can do instead, or connect you to support.\n\n**What would you like to do today?**",
+    "👋 **Welcome to Parth AI!**\n\nI help with Panther TMS — creating jobs, tracking vehicles and shipments, invoices and balances, PODs, and learning how to use each screen. For an LR, I guide you to the LR form — I don't create LRs in chat. I can also explain transport terms (LR, e-way bill, POD) when they help you do that work.\n\nAsk me in English, हिन्दी or Hinglish — for example, track an LR, create a job, or check a ledger balance. If something is outside what I can do, I'll tell you what I can do instead, or connect you to support.\n\n**What would you like to do today?**",
   timestamp: new Date(),
 };
 
@@ -729,7 +729,7 @@ export function PantherAIPanel() {
         setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (err: any) {
-      const errorMsg = err?.message || "Failed to reach Panther AI service. Please try again.";
+      const errorMsg = err?.message || "Failed to reach Parth AI service. Please try again.";
       setError(errorMsg);
     } finally {
       setIsLoading(false);
@@ -917,7 +917,7 @@ export function PantherAIPanel() {
   return (
     <div
       role="dialog"
-      aria-label="Panther AI Copilot"
+      aria-label="Parth AI Copilot"
       className={`fixed bottom-18 sm:bottom-[88px] right-3 left-3 sm:left-auto sm:right-6 z-50 rounded-2xl sm:rounded-3xl flex flex-col bg-white dark:bg-[#0F111D] border border-slate-200/90 dark:border-[#1E2235] shadow-[0_20px_60px_-15px_rgba(79,70,229,0.15)] dark:shadow-[0_25px_65px_-15px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-bottom-4 motion-reduce:animate-none ${
         isExpanded
           ? "sm:w-[780px] md:w-[860px] lg:w-[940px] max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-3rem)] h-[calc(100dvh-5.5rem)] sm:h-[calc(100dvh-7.5rem)] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-7.5rem)]"
@@ -932,11 +932,11 @@ export function PantherAIPanel() {
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full overflow-hidden bg-[#0B2A5B] flex items-center justify-center shrink-0 shadow-2xs">
-            <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
+            <img src="/panther-ai-icon.png" alt="Parth AI" className="w-full h-full object-cover" />
           </div>
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-none">
-              Panther AI
+              Parth AI
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal mt-1 leading-none truncate">
               {activeOffice ? `${activeOffice.name} • Your logistics copilot` : "Your logistics copilot"}
@@ -1137,7 +1137,7 @@ export function PantherAIPanel() {
               // Assistant Bubble
               <div className="flex items-start gap-2.5 w-full min-w-0 max-w-full">
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-[#0B2A5B] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                  <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
+                  <img src="/panther-ai-icon.png" alt="Parth AI" className="w-full h-full object-cover" />
                 </div>
 
                 <div className="flex-1 min-w-0 max-w-full rounded-2xl rounded-tl-xs px-4 py-3 bg-slate-50 dark:bg-[#181B2B] text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-[#262B44] text-xs sm:text-[13px] leading-relaxed shadow-xs space-y-2 break-words [overflow-wrap:anywhere] overflow-x-hidden">
@@ -1838,11 +1838,11 @@ export function PantherAIPanel() {
         {isLoading && (
           <div className="flex items-start gap-2.5 max-w-[95%]">
             <div className="w-8 h-8 rounded-full overflow-hidden bg-[#0B2A5B] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-              <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
+              <img src="/panther-ai-icon.png" alt="Parth AI" className="w-full h-full object-cover" />
             </div>
             <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 dark:bg-[#181B2B] rounded-2xl rounded-tl-xs border border-slate-200/80 dark:border-[#262B44] text-xs text-slate-500 dark:text-slate-400 shadow-2xs">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
-              <span className="font-medium">Panther AI is typing...</span>
+              <span className="font-medium">Parth AI is typing...</span>
             </div>
           </div>
         )}
@@ -1932,7 +1932,7 @@ export function PantherAIPanel() {
             type="button"
             onClick={toggleSpeechRecognition}
             disabled={isLoading}
-            title={isListening ? "Stop listening" : "Speak to Panther AI"}
+            title={isListening ? "Stop listening" : "Speak to Parth AI"}
             className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 cursor-pointer mb-0.5 ${
               isListening
                 ? "bg-rose-500 text-white animate-pulse shadow-sm"
@@ -1948,7 +1948,7 @@ export function PantherAIPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isListening ? "Listening... speak now" : "Ask Panther AI... (Shift+Enter for newline)"}
+            placeholder={isListening ? "Listening... speak now" : "Ask Parth AI... (Shift+Enter for newline)"}
             disabled={isLoading}
             className="flex-1 min-h-[36px] max-h-[120px] bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-hidden px-2 py-2 leading-relaxed overflow-y-auto"
           />

@@ -199,19 +199,19 @@ export function Header() {
           <Search className="w-4 h-4" />
         </button>
 
-        {/* Action Controls: Notifications, Theme Switch & Panther AI */}
+        {/* Action Controls: Notifications, Theme Switch & Parth AI */}
         <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             type="button"
             onClick={toggleAI}
-            aria-label="Open Panther AI (Ctrl+/)"
-            title="Open Panther AI Copilot (Ctrl+/)"
+            aria-label="Open Parth AI (Ctrl+/)"
+            title="Open Parth AI Copilot (Ctrl+/)"
             className="hidden sm:flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200/80 dark:border-blue-800/60 transition-colors cursor-pointer select-none shrink-0"
           >
             <div className="w-4 h-4 rounded-full overflow-hidden bg-[#0B2A5B] shrink-0 flex items-center justify-center">
-              <img src="/panther-ai-icon.png" alt="Panther AI" className="w-full h-full object-cover" />
+              <img src="/panther-ai-icon.png" alt="Parth AI" className="w-full h-full object-cover" />
             </div>
-            <span className="hidden sm:inline">Panther AI</span>
+            <span className="hidden sm:inline">Parth AI</span>
           </button>
           <NotificationsPopover />
           <div className="hidden sm:block shrink-0">

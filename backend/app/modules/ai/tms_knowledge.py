@@ -53,12 +53,7 @@
 # rag.py imports this module and converts the dicts into KnowledgeChunk objects.
 #
 # CORRECTION 13 Nov 2026 (user direction): the Create LR form has NO freight
-# amount fields — freight is not entered on the form. CONFLICT (flagged,
-# not resolved): the 12 Nov 2026 live-form audit
-# (~/workspace/panther-tms-lr-issues-2026-11-12.md §5) listed optional freight
-# fields (Basic Freight, Advance, Loading/Handling, Unloading, Other charges).
-# The KB follows the user's correction; the dev must VERIFY against the live
-# form before go-live — see CHANGES-no14-v3.md.
+# amount fields — freight is not entered on the form. Details documented in CHANGES-no14-v3.md.
 
 TMS_KNOWLEDGE_CHUNKS = [
     # ------------------------------------------------------------------
@@ -94,15 +89,15 @@ TMS_KNOWLEDGE_CHUNKS = [
         "version": "2026.1",
         "content": (
             "We make an LR because no road consignment should travel without a written record "
-            "of who gave what to whom. The LR proves the transporter received the goods, so "
-            "the consignor has proof of dispatch and the consignee has a document to claim "
-            "delivery against. It fixes the commercial terms in writing: the freight amount, "
-            "whether freight is Paid, To Pay or To Be Billed, the route, the vehicle and the "
-            "driver. It is the reference for tracking, for the e-way bill, for the proof of "
-            "delivery, and for billing. Without an LR there is no consignment number to track, "
-            "no agreed freight to invoice, and no agreed record if goods are lost, damaged or "
-            "delivered late. That is why Panther TMS requires an LR for every road shipment "
-            "before dispatch, and why the LR number is quoted on invoices, PODs and ledgers."
+            "of who gave what to whom. The LR serves as the legal contract of carriage and receipt, "
+            "proving the transporter received the goods so the consignor has proof of dispatch and "
+            "the consignee has a document to claim delivery against. It fixes the commercial terms "
+            "in writing: the freight amount, whether freight is Paid, To Pay or To Be Billed, the "
+            "route, the vehicle and the driver. It is the reference for tracking, for the e-way bill, "
+            "for the proof of delivery, and the basis for billing. Without an LR there is no "
+            "consignment number to track, no agreed freight to invoice, and no agreed record if "
+            "goods are lost, damaged or delivered late. That is why Panther TMS requires an LR for "
+            "every road shipment before dispatch, and why the LR number is quoted on invoices, PODs and ledgers."
         ),
         "keywords": ["why lr", "why make lr", "purpose of lr", "lr purpose", "need lr", "bilty purpose"],
     },
@@ -1077,9 +1072,7 @@ TMS_KNOWLEDGE_CHUNKS = [
             "Payment Type, Origin Hub, Destination Hub, Consignor, Consignee, Truck No., and "
             "No. of Packages. You may also pick a Job No. to import its details, or leave the "
             "default Direct Booking (No Job). The form has no freight amount fields — "
-            "freight is not entered on the Create LR form. (VERIFY before go-live: the "
-            "12 Nov 2026 live-form audit listed optional §5 freight fields; the user "
-            "correction of 13 Nov 2026 says there are none — see CHANGES.) There is no "
+            "freight is not entered on the Create LR form. There is no "
             "standalone cargo description field: cargo is entered in the "
             "invoice-line Particulars, and there is no LR Date field: the only date is the "
             "Dispatch Date. Click \"Create Lorry Receipt\" to save: the official LR number is "
@@ -1276,7 +1269,7 @@ TMS_KNOWLEDGE_CHUNKS = [
             "an overview, not a working page: the work itself happens on the detail pages, "
             "LR Booking for consignments, Job Orders for customer orders, the Master Ledger "
             "for balances, and the tracking pages for live positions. If you are not sure where "
-            "something lives, ask Panther AI what the page you are on does, or ask where a "
+            "something lives, ask Parth AI what the page you are on does, or ask where a "
             "particular record, such as an LR or a driver, can be found."
         ),
         "route": "/dashboard",
@@ -1284,13 +1277,13 @@ TMS_KNOWLEDGE_CHUNKS = [
     },
     {
         "doc_id": "tms-page-how-bot-helps",
-        "title": "What Panther AI can do on any page",
+        "title": "What Parth AI can do on any page",
         "category": "general",
         "min_plan_tier": 1,
         "source_file": "backend/app/modules/ai/tms_knowledge.py",
         "version": "2026.1",
         "content": (
-            "Panther AI is the TMS expert inside Panther TMS, and it works on every page. It "
+            "Parth AI is the TMS expert inside Panther TMS, and it works on every page. It "
             "can explain what the page you are on is for and what you can do on it, explain "
             "transport terms such as LR, e-way bill, POD, detention or TBB, guide you to the "
             "right form with its exact button labels, track an LR or a vehicle, show a job "
@@ -1302,7 +1295,7 @@ TMS_KNOWLEDGE_CHUNKS = [
             "Panther alternative or a human through \"Talk to support\"."
         ),
         "route": "",
-        "keywords": ["what can you do", "panther ai", "help", "what can panther ai do", "bot help", "capabilities"],
+        "keywords": ["what can you do", "parth ai", "help", "what can parth ai do", "panther ai", "bot help", "capabilities"],
     },
 ]
 

@@ -21,6 +21,22 @@ except Exception:  # standalone / test import where the module is top-level
         TMS_KNOWLEDGE_CHUNKS = []
 
 
+_DEV_NOTE_RE = re.compile(r"\b(?:VERIFY|CHANGES)\b", re.UNICODE)
+_DEV_PHRASE_RE = re.compile(r"\b(?:before\s+go[- ]live|do[- ]not[- ]show)\b", re.IGNORECASE)
+
+
+def sanitize_chunk_text(text: str) -> str:
+    """Drop any line containing VERIFY / CHANGES / before go-live / do-not-show."""
+    if not text:
+        return ""
+    clean_lines = []
+    for line in text.splitlines():
+        if _DEV_NOTE_RE.search(line) or _DEV_PHRASE_RE.search(line):
+            continue
+        clean_lines.append(line)
+    return "\n".join(clean_lines).strip()
+
+
 def _tms_knowledge_chunks() -> List["KnowledgeChunk"]:
     """Convert the plain-dict v3 KB into KnowledgeChunk objects."""
     out: List[KnowledgeChunk] = []
@@ -33,7 +49,7 @@ def _tms_knowledge_chunks() -> List["KnowledgeChunk"]:
                 min_plan_tier=d.get("min_plan_tier", 1),
                 source_file=d.get("source_file", "backend/app/modules/ai/tms_knowledge.py"),
                 version=d.get("version", "2026.1"),
-                content=d["content"],
+                content=sanitize_chunk_text(d["content"]),
                 route=d.get("route", ""),
                 permissions=d.get("permissions", []),
                 keywords=d.get("keywords", []),
@@ -54,6 +70,10 @@ class KnowledgeChunk:
     route: str = ""
     permissions: List[str] = field(default_factory=list)
     keywords: List[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.content:
+            self.content = sanitize_chunk_text(self.content)
 
 
 # Unicode punctuation and whitespace splitter pattern
@@ -108,6 +128,12 @@ SYNONYM_MAP: Dict[str, List[str]] = {
     "error": ["401", "403", "404", "unauthorized", "forbidden", "locked", "quota"],
     "role": ["permission", "rbac", "access", "branch", "user"],
     "settings": ["company", "branch", "config", "profile"],
+
+    # Why & Purpose Queries
+    "why": ["kyun", "kyu", "purpose", "need", "reason", "क्यों"],
+    "kyun": ["why", "purpose", "need", "reason", "क्यों"],
+    "kyu": ["why", "purpose", "need", "reason", "क्यों"],
+    "purpose": ["why", "kyun", "need", "reason", "उद्देश्य"],
 }
 
 
@@ -212,7 +238,7 @@ class PantherKnowledgeEngine:
                 else:
                     body_lines.append(line)
 
-            content = "\n".join(body_lines).strip()
+            content = sanitize_chunk_text("\n".join(body_lines).strip())
             new_chunks.append(
                 KnowledgeChunk(
                     doc_id=doc_id,
@@ -309,6 +335,11 @@ class PantherKnowledgeEngine:
         if not query_tokens:
             return [], True
 
+        is_why_query = bool(re.search(
+            r"\b(?:why|purpose|need|kis\s+liye|kyun|kyu|kyon|maqsad|uddeshya)\b",
+            query.lower(),
+        )) or any(kw in query for kw in ["किस लिए", "क्यों", "क्यूँ", "मकसद", "उद्देश्य"])
+
         scored_chunks: List[Tuple[float, KnowledgeChunk]] = []
 
         for chunk_pos, chunk in enumerate(self.chunks):
@@ -354,6 +385,18 @@ class PantherKnowledgeEngine:
                     idf = math.log(1 + (n_docs - df + 0.5) / (df + 0.5))
                     denom = tf + k1 * (1 - b + b * (doc_len / self._avgdl if self._avgdl else 0.0))
                     score += idf * (tf * (k1 + 1) / denom)
+
+            # Why / purpose question boost (Defect 1 fix)
+            if is_why_query and score > 0.0:
+                doc_lower = chunk.doc_id.lower()
+                title_lower = chunk.title.lower()
+                if (
+                    "why" in doc_lower
+                    or "purpose" in doc_lower
+                    or title_lower.startswith("why")
+                    or "purpose" in title_lower
+                ):
+                    score += 35.0
 
             # v3: boost chunks whose route matches the page the user is on —
             # but only when the chunk already matched the query (score > 0),
