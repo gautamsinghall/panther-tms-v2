@@ -1028,35 +1028,41 @@ export function PantherAIPanel() {
         </div>
       )}
 
-      {/* 2. Suggested Action Chips Row (Reference Style) */}
+      {/* 2. Top Suggested Action Shortcuts (moved from bottom) */}
       {(() => {
-        const canTrack = canAccessModule("tracking") || canAccessModule("transport", "lr_booking");
-        const canLedger = canAccessModule("accounts", "master_ledger");
-        if (!canTrack && !canLedger) return null;
+        const prompts = getSuggestedPrompts(pathname).filter(
+          (p) => !p.module || canAccessModule(p.module, p.feature)
+        );
+        if (prompts.length === 0) return null;
+
+        const getPromptIcon = (label: string) => {
+          const l = label.toLowerCase();
+          if (l.includes("ledger") || l.includes("balance") || l.includes("invoice")) {
+            return <CreditCard className="w-3.5 h-3.5 text-emerald-500" />;
+          }
+          if (l.includes("pod") || l.includes("challan") || l.includes("job") || l.includes("list")) {
+            return <FileText className="w-3.5 h-3.5 text-purple-500" />;
+          }
+          if (l.includes("track") || l.includes("vehicle") || l.includes("shipment") || l.includes("lr")) {
+            return <Truck className="w-3.5 h-3.5 text-blue-500" />;
+          }
+          return <FileText className="w-3.5 h-3.5 text-indigo-500" />;
+        };
 
         return (
           <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-[#1C2033] bg-slate-50/50 dark:bg-[#111322] shrink-0">
-            {canTrack && (
+            {prompts.map((p) => (
               <button
+                key={p.label}
                 type="button"
-                onClick={() => handleSendMessage("Track shipment")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
+                onClick={() => (p.href ? handleNavigate(p.href) : handleSendMessage(p.text))}
+                disabled={isLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs disabled:cursor-not-allowed"
               >
-                <Truck className="w-3.5 h-3.5 text-blue-500" />
-                <span>Track Shipment</span>
+                {getPromptIcon(p.label)}
+                <span>{p.label}</span>
               </button>
-            )}
-
-            {canLedger && (
-              <button
-                type="button"
-                onClick={() => handleSendMessage("View Ledger")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
-              >
-                <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
-                <span>View Ledger</span>
-              </button>
-            )}
+            ))}
           </div>
         );
       })()}
@@ -1855,30 +1861,6 @@ export function PantherAIPanel() {
 
         <div ref={messagesEndRef} className="h-6 shrink-0" />
       </div>
-
-      {/* Per-page suggested prompts — No.14 P3: shown on a fresh chat only */}
-      {messages.length <= 1 &&
-        (() => {
-          const prompts = getSuggestedPrompts(pathname).filter(
-            (p) => !p.module || canAccessModule(p.module, p.feature)
-          );
-          if (prompts.length === 0) return null;
-          return (
-            <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3 bg-white dark:bg-[#0F111D] shrink-0">
-              {prompts.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => (p.href ? handleNavigate(p.href) : handleSendMessage(p.text))}
-                  disabled={isLoading}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/60 transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          );
-        })()}
 
       {/* 5. Sticky Composer Area */}
       <div className="p-3 bg-white dark:bg-[#0F111D] border-t border-slate-100 dark:border-[#1C2033] shrink-0">
