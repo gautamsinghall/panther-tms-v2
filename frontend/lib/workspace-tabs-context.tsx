@@ -14,6 +14,7 @@ import { confirmModal } from "@/lib/toast";
 
 export type MasterType =
   | "billing_client"
+  | "vendor"
   | "consigner"
   | "consignee"
   | "location"
@@ -72,6 +73,7 @@ interface WorkspaceTabsContextValue {
 
 const DEFAULT_TITLES: Record<MasterType, string> = {
   billing_client: "Add Billing Client",
+  vendor: "Add Vendor",
   consigner: "Add Consignor",
   consignee: "Add Consignee",
   location: "Add Location",

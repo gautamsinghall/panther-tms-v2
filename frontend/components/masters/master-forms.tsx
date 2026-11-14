@@ -9,6 +9,7 @@ import VehicleOwnersPage from "@/app/(dashboard)/transport/vehicle-owners/page";
 import LoadTypePage from "@/app/(dashboard)/general/load-type/page";
 import PackingMethodPage from "@/app/(dashboard)/general/packing-method/page";
 import BillingClientPage from "@/app/(dashboard)/general/billing-client/page";
+import VendorMasterPage from "@/app/(dashboard)/general/vendor/page";
 import ConsignerPage from "@/app/(dashboard)/general/consigner/page";
 import ConsigneePage from "@/app/(dashboard)/general/consignee/page";
 import LocationPage from "@/app/(dashboard)/general/location/page";
@@ -139,6 +140,25 @@ function MasterFormView({ tab, onClose, onSuccess }: MasterFormViewProps) {
             id: rec.id,
             label: rec.name,
             name: rec.name,
+          })
+        }
+        onCancel={onClose}
+      />
+    );
+  }
+
+  if (tab.type === "vendor") {
+    return (
+      <VendorMasterPage
+        embedded
+        onCreated={(rec: any) =>
+          onSuccess({
+            ...rec,
+            id: rec.id,
+            label: rec.name,
+            name: rec.name,
+            gstin: rec.gstin,
+            state: rec.state || rec.billing_state,
           })
         }
         onCancel={onClose}

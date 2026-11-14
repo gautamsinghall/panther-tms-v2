@@ -102,9 +102,17 @@ const defaultInitialValues = {
 const isRecordActive = (d: VendorRecord): boolean =>
   d.is_active !== false && String(d.account_status || "").toUpperCase() !== "INACTIVE";
 
-export default function VendorMasterPage() {
+export interface VendorMasterPageProps {
+  embedded?: boolean;
+  onCreated?: (record: VendorRecord) => void;
+  onCancel?: () => void;
+  [key: string]: any;
+}
+
+export default function VendorMasterPage(props: any = {}) {
+  const { embedded = false, onCreated, onCancel } = props || {};
   const [data, setData] = useState<VendorRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!embedded);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -114,11 +122,12 @@ export default function VendorMasterPage() {
   const [gstFilter, setGstFilter] = useState("ALL");
 
   // Drawer / Form state
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(embedded);
   const [editingRecord, setEditingRecord] = useState<VendorRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadData = async () => {
+    if (embedded) return;
     setIsLoading(true);
     setIsError(false);
     setErrorMessage(null);
@@ -134,17 +143,19 @@ export default function VendorMasterPage() {
   };
 
   useEffect(() => {
-    loadData();
+    if (!embedded) {
+      loadData();
+    }
     if (typeof window !== "undefined" && window.location.search.includes("add=true")) {
       setEditingRecord(null);
       setIsDrawerOpen(true);
     }
     const handleOfficeChange = () => {
-      loadData();
+      if (!embedded) loadData();
     };
     window.addEventListener("panther_office_changed", handleOfficeChange);
     return () => window.removeEventListener("panther_office_changed", handleOfficeChange);
-  }, []);
+  }, [embedded]);
 
   const openCreateDrawer = () => {
     setEditingRecord(null);
@@ -237,6 +248,10 @@ export default function VendorMasterPage() {
           window.dispatchEvent(new Event("panther_vendor_created"));
         }
         toast.success(`Vendor "${payload.name}" registered successfully.`);
+        if (embedded && onCreated && created) {
+          onCreated(created);
+          return;
+        }
       }
 
       setIsDrawerOpen(false);
@@ -762,114 +777,126 @@ export default function VendorMasterPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <PageHeader
-        title="Vendor Master"
-        description="Transporters, suppliers, fuel vendors, GST/TDS tax profiles, and branch address directory."
-        breadcrumbs={[
-          { label: "Home", href: "/" },
-          { label: "General", href: "/general" },
-          { label: "Vendor" },
-        ]}
-        primaryAction={{
-          label: "Add Vendor",
-          icon: <Plus className="w-4 h-4" />,
-          onClick: openCreateDrawer,
-        }}
-      />
+      {!embedded && (
+        <>
+          {/* Page Header */}
+          <PageHeader
+            title="Vendor Master"
+            description="Transporters, suppliers, fuel vendors, GST/TDS tax profiles, and branch address directory."
+            breadcrumbs={[
+              { label: "Home", href: "/" },
+              { label: "General", href: "/general" },
+              { label: "Vendor" },
+            ]}
+            primaryAction={{
+              label: "Add Vendor",
+              icon: <Plus className="w-4 h-4" />,
+              onClick: openCreateDrawer,
+            }}
+          />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          title="Total Vendors"
-          value={metrics.total}
-          subtext="Registered vendor accounts"
-          icon={<Users className="w-4 h-4 text-indigo-600" />}
-        />
-        <KpiCard
-          title="Active Vendors"
-          value={metrics.active}
-          subtext="Live operational suppliers"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-        />
-        <KpiCard
-          title="GST Registered"
-          value={metrics.gstCount}
-          subtext="Verified GSTIN profiles"
-          icon={<ShieldCheck className="w-4 h-4 text-sky-600" />}
-        />
-        <KpiCard
-          title="On Hold / Inactive"
-          value={metrics.holdCount}
-          subtext="Restricted vendor profiles"
-          icon={<Clock className="w-4 h-4 text-amber-600" />}
-        />
-      </div>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="Total Vendors"
+              value={metrics.total}
+              subtext="Registered vendor accounts"
+              icon={<Users className="w-4 h-4 text-indigo-600" />}
+            />
+            <KpiCard
+              title="Active Vendors"
+              value={metrics.active}
+              subtext="Live operational suppliers"
+              icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+            />
+            <KpiCard
+              title="GST Registered"
+              value={metrics.gstCount}
+              subtext="Verified GSTIN profiles"
+              icon={<ShieldCheck className="w-4 h-4 text-sky-600" />}
+            />
+            <KpiCard
+              title="On Hold / Inactive"
+              value={metrics.holdCount}
+              subtext="Restricted vendor profiles"
+              icon={<Clock className="w-4 h-4 text-amber-600" />}
+            />
+          </div>
 
-      {/* Filter Bar */}
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search vendors by name, phone, GSTIN, PAN, city, state..."
-        filters={[
-          {
-            id: "status",
-            label: "Status",
-            options: [
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active Only", value: "ACTIVE" },
-              { label: "Inactive Only", value: "INACTIVE" },
-            ],
-            value: statusFilter,
-            onChange: setStatusFilter,
-          },
-          {
-            id: "gst",
-            label: "GST Status",
-            options: [
-              { label: "All GST Profiles", value: "ALL" },
-              { label: "GST Registered", value: "GST" },
-              { label: "Non-GST / Exempt", value: "NON_GST" },
-            ],
-            value: gstFilter,
-            onChange: setGstFilter,
-          },
-        ]}
-        onClear={() => {
-          setSearchTerm("");
-          setStatusFilter("ALL");
-          setGstFilter("ALL");
-        }}
-      />
+          {/* Filter Bar */}
+          <FilterBar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search vendors by name, phone, GSTIN, PAN, city, state..."
+            filters={[
+              {
+                id: "status",
+                label: "Status",
+                options: [
+                  { label: "All Statuses", value: "ALL" },
+                  { label: "Active Only", value: "ACTIVE" },
+                  { label: "Inactive Only", value: "INACTIVE" },
+                ],
+                value: statusFilter,
+                onChange: setStatusFilter,
+              },
+              {
+                id: "gst",
+                label: "GST Status",
+                options: [
+                  { label: "All GST Profiles", value: "ALL" },
+                  { label: "GST Registered", value: "GST" },
+                  { label: "Non-GST / Exempt", value: "NON_GST" },
+                ],
+                value: gstFilter,
+                onChange: setGstFilter,
+              },
+            ]}
+            onClear={() => {
+              setSearchTerm("");
+              setStatusFilter("ALL");
+              setGstFilter("ALL");
+            }}
+          />
 
-      {/* Error Banner */}
-      {isError && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm font-medium">
-          {errorMessage || "Failed to load vendors. Please retry."}
-        </div>
+          {/* Error Banner */}
+          {isError && (
+            <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm font-medium">
+              {errorMessage || "Failed to load vendors. Please retry."}
+            </div>
+          )}
+
+          {/* Data Table */}
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={errorMessage}
+            onRetry={loadData}
+            actions={actions}
+            emptyMessage="No vendors registered yet"
+            emptySubtext="Get started by adding your first vendor, transporter, or supplier account."
+            emptyAction={{
+              label: "Add Vendor",
+              onClick: openCreateDrawer,
+            }}
+          />
+        </>
       )}
-
-      {/* Data Table */}
-      <DataTable
-        columns={columns}
-        data={filteredData}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={errorMessage}
-        onRetry={loadData}
-        actions={actions}
-        emptyMessage="No vendors registered yet"
-        emptySubtext="Get started by adding your first vendor, transporter, or supplier account."
-        emptyAction={{
-          label: "Add Vendor",
-          onClick: openCreateDrawer,
-        }}
-      />
 
       {/* Add / Edit Vendor Workspace Tab Drawer */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={handleCloseDrawer}
+        inline={embedded}
+        embedded={embedded}
+        onClose={() => {
+          if (embedded && onCancel) {
+            onCancel();
+          } else {
+            handleCloseDrawer();
+          }
+        }}
         title={editingRecord ? `Edit Vendor: ${editingRecord.name}` : "Add New Vendor"}
         description="Configure vendor profile, GST & TDS statutory compliance, primary & secondary branch addresses."
       >
@@ -878,7 +905,13 @@ export default function VendorMasterPage() {
           sections={formSections}
           initialValues={editingInitialValues}
           onSubmit={handleFormSubmit}
-          onCancel={handleCloseDrawer}
+          onCancel={() => {
+            if (embedded && onCancel) {
+              onCancel();
+            } else {
+              handleCloseDrawer();
+            }
+          }}
           submitLabel={editingRecord ? "Save Changes" : "Submit"}
           isSubmitting={isSubmitting}
         />

@@ -46,6 +46,8 @@ import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { canAccessRoute } from "@/lib/permissions";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
 // Indian Rupees Number to Words
 function numberToWords(num: number): string {
@@ -202,6 +204,7 @@ interface LineItemForm {
 }
 
 export default function PurchasesPage() {
+  const { openMasterTab } = useWorkspaceTabs();
   const [data, setData] = useState<VoucherRecord[]>([]);
   const [vendors, setVendors] = useState<VendorOption[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategoryOption[]>([]);
@@ -352,6 +355,17 @@ export default function PurchasesPage() {
 
   useEffect(() => {
     loadData();
+    const handleVendorCreatedEvent = () => {
+      apiClient<VendorOption[]>("/api/v1/general/vendors")
+        .then((res) => {
+          if (Array.isArray(res)) setVendors(res);
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("panther_vendor_created", handleVendorCreatedEvent);
+    return () => {
+      window.removeEventListener("panther_vendor_created", handleVendorCreatedEvent);
+    };
   }, []);
 
   const handleSyncSchema = async () => {
@@ -368,16 +382,42 @@ export default function PurchasesPage() {
     }
   };
 
+  const vendorOptions = useMemo(() => {
+    return vendors.map((v) => ({
+      value: String(v.id),
+      label: v.name || `Vendor #${v.id}`,
+      subLabel: [v.gstin, v.state || v.billing_state, v.phone].filter(Boolean).join(" • "),
+      keywords: [v.name, v.gstin, v.pan, v.phone, v.state, v.billing_state].filter(Boolean) as string[],
+    }));
+  }, [vendors]);
+
+  const handleVendorCreated = (newVendor: any) => {
+    const formatted: VendorOption = {
+      id: Number(newVendor.id),
+      name: newVendor.name || newVendor.label || `Vendor #${newVendor.id}`,
+      gstin: newVendor.gstin,
+      state: newVendor.state || newVendor.billing_state,
+      billing_state: newVendor.billing_state || newVendor.state,
+      pan: newVendor.pan,
+      phone: newVendor.phone,
+    };
+    setVendors((prev) => [formatted, ...prev.filter((v) => v.id !== formatted.id)]);
+    handleVendorSelect(String(formatted.id));
+    toast.success(`Vendor "${formatted.name}" registered and selected.`);
+  };
+
   // Vendor selection auto-fill
   const handleVendorSelect = (vendId: string) => {
     setSelectedVendorId(vendId);
     if (!vendId) {
       setVendorGstin("");
       setVendorState("");
+      setManualVendorName("");
       return;
     }
     const found = vendors.find((v) => String(v.id) === vendId);
     if (found) {
+      setManualVendorName(found.name);
       setVendorGstin(found.gstin || "");
       const st = found.state || found.billing_state || "";
       setVendorState(st);
@@ -552,12 +592,16 @@ export default function PurchasesPage() {
       return;
     }
 
-    const party = selectedVendorId
-      ? vendors.find((v) => String(v.id) === selectedVendorId)?.name
-      : manualVendorName.trim();
+    if (!selectedVendorId && !manualVendorName.trim()) {
+      toast.warning("Please select a vendor from the list.");
+      return;
+    }
+
+    const matchedVendor = vendors.find((v) => String(v.id) === selectedVendorId);
+    const party = matchedVendor?.name || manualVendorName.trim();
 
     if (!party) {
-      toast.warning("Please choose a supplier / vendor from the list or enter the vendor name.");
+      toast.warning("Please select a vendor from the list.");
       return;
     }
 
@@ -1304,34 +1348,41 @@ export default function PurchasesPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Select Supplier / Vendor *</label>
-                <select
-                  value={selectedVendorId}
-                  onChange={(e) => handleVendorSelect(e.target.value)}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
-                >
-                  <option value="">-- Choose from existing Vendors / Suppliers --</option>
-                  {vendors.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} {v.gstin ? `(${v.gstin})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {!selectedVendorId && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Or Enter Vendor Name *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Apollo Tyres Agency, Bharat Petroleum"
-                    value={manualVendorName}
-                    onChange={(e) => setManualVendorName(e.target.value)}
-                    className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
-                  />
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>
+                    Select Vendor <span className="text-[#DC2626]">*</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-normal">Compulsory</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <SearchableSelect
+                      value={selectedVendorId}
+                      onChange={(val) => handleVendorSelect(String(val || ""))}
+                      options={vendorOptions}
+                      required
+                      placeholder="Select Vendor"
+                      searchPlaceholder="Search vendor by name, GSTIN, PAN, state..."
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openMasterTab({
+                        type: "vendor",
+                        title: "Add Vendor",
+                        onSuccess: handleVendorCreated,
+                      })
+                    }
+                    title="Add Vendor in new TMS tab"
+                    aria-label="Add Vendor"
+                    className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
-              )}
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Supplier GSTIN</label>
