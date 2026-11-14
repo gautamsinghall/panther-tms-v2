@@ -843,7 +843,7 @@ export default function HireChallansPage() {
         charge_head: "Loading Charges",
         narration: "",
         tds_applicable: false,
-        inr_amount: "",
+        inr_amount: "0",
       };
       return [
         {
@@ -852,28 +852,7 @@ export default function HireChallansPage() {
           lr_no: lr.lr_number,
           pkg_count: pkgCount,
           gross_weight: grossWeight,
-          inr_amount: firstRow.inr_amount || (lr.loading_charges ? String(lr.loading_charges) : ""),
-        },
-        ...current.slice(1),
-      ];
-    });
-
-    setUnloadingExpenses((current) => {
-      const firstRow = current[0] || {
-        id: "unload-1",
-        charge_head: "Unloading Charges",
-        narration: "",
-        tds_applicable: false,
-        inr_amount: "",
-      };
-      return [
-        {
-          ...firstRow,
-          lr_id: lr.id,
-          lr_no: lr.lr_number,
-          pkg_count: pkgCount,
-          gross_weight: grossWeight,
-          inr_amount: firstRow.inr_amount || (lr.unloading_charges ? String(lr.unloading_charges) : ""),
+          inr_amount: firstRow.inr_amount !== undefined && firstRow.inr_amount !== "" ? firstRow.inr_amount : "0",
         },
         ...current.slice(1),
       ];
@@ -919,8 +898,8 @@ export default function HireChallansPage() {
           if (matched.chargeable_weight_mt || matched.actual_weight_mt) {
             current.gross_weight = matched.chargeable_weight_mt || matched.actual_weight_mt || "";
           }
-          if (matched.loading_charges && !current.inr_amount) {
-            current.inr_amount = String(matched.loading_charges);
+          if (current.inr_amount === undefined || current.inr_amount === "") {
+            current.inr_amount = "0";
           }
           if (!fromLocation) {
             const orig = resolveLocationCity(matched.origin_city, matched.origin_location_display);
@@ -966,7 +945,7 @@ export default function HireChallansPage() {
         charge_head: "Loading Charges",
         narration: "",
         tds_applicable: false,
-        inr_amount: "",
+        inr_amount: "0",
       },
     ]);
   };
@@ -983,7 +962,7 @@ export default function HireChallansPage() {
           charge_head: "Loading Charges",
           narration: "",
           tds_applicable: false,
-          inr_amount: "",
+          inr_amount: "0",
         },
       ]);
       return;
@@ -1013,8 +992,8 @@ export default function HireChallansPage() {
           if (matched.chargeable_weight_mt || matched.actual_weight_mt) {
             current.gross_weight = matched.chargeable_weight_mt || matched.actual_weight_mt || "";
           }
-          if (matched.unloading_charges && !current.inr_amount) {
-            current.inr_amount = String(matched.unloading_charges);
+          if (current.inr_amount === undefined || current.inr_amount === "") {
+            current.inr_amount = "0";
           }
           if (!fromLocation) {
             const orig = resolveLocationCity(matched.origin_city, matched.origin_location_display);
@@ -1060,7 +1039,7 @@ export default function HireChallansPage() {
         charge_head: "Unloading Charges",
         narration: "",
         tds_applicable: false,
-        inr_amount: "",
+        inr_amount: "0",
       },
     ]);
   };
@@ -1077,7 +1056,7 @@ export default function HireChallansPage() {
           charge_head: "Unloading Charges",
           narration: "",
           tds_applicable: false,
-          inr_amount: "",
+          inr_amount: "0",
         },
       ]);
       return;
@@ -1175,7 +1154,7 @@ export default function HireChallansPage() {
         charge_head: "Loading Charges",
         narration: "",
         tds_applicable: false,
-        inr_amount: "",
+        inr_amount: "0",
       },
     ]);
     setUnloadingExpenses([
@@ -1188,7 +1167,7 @@ export default function HireChallansPage() {
         charge_head: "Unloading Charges",
         narration: "",
         tds_applicable: false,
-        inr_amount: "",
+        inr_amount: "0",
       },
     ]);
     setIsDrawerOpen(true);
@@ -2306,7 +2285,7 @@ export default function HireChallansPage() {
                         <input
                           type="number"
                           step="any"
-                          value={row.inr_amount || ""}
+                          value={row.inr_amount !== undefined && row.inr_amount !== null ? row.inr_amount : ""}
                           onChange={(e) => updateLoadingRow(idx, "inr_amount", e.target.value)}
                           placeholder="0.00"
                           className="w-full h-8 px-2 text-xs font-mono font-semibold text-right rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -2457,7 +2436,7 @@ export default function HireChallansPage() {
                         <input
                           type="number"
                           step="any"
-                          value={row.inr_amount || ""}
+                          value={row.inr_amount !== undefined && row.inr_amount !== null ? row.inr_amount : ""}
                           onChange={(e) => updateUnloadingRow(idx, "inr_amount", e.target.value)}
                           placeholder="0.00"
                           className="w-full h-8 px-2 text-xs font-mono font-semibold text-right rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
