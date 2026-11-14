@@ -13,6 +13,8 @@ import { ColumnDef, RowAction } from "@/types/table";
 import { apiClient } from "@/lib/api-client";
 import { getActiveOffice } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useWorkspaceTabs } from "@/lib/workspace-tabs-context";
 
 interface LedgerEntry {
   id: number;
@@ -29,6 +31,7 @@ interface VoucherRecord {
   voucher_type: string;
   voucher_date: string;
   party_name?: string;
+  billing_client_id?: number;
   reference_number?: string;
   total_amount: string | number;
   tax_amount: string | number;
@@ -40,8 +43,21 @@ interface VoucherRecord {
   created_at: string;
 }
 
+interface BillingClientItem {
+  id: number;
+  name: string;
+  code?: string;
+  company_name?: string;
+  gstin?: string;
+  city?: string;
+  state?: string;
+}
+
 export default function ProformaInvoicePage() {
+  const { openMasterTab } = useWorkspaceTabs();
   const [data, setData] = useState<VoucherRecord[]>([]);
+  const [billingClients, setBillingClients] = useState<BillingClientItem[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -72,12 +88,14 @@ export default function ProformaInvoicePage() {
     try {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
-      const [res, sInfo] = await Promise.all([
+      const [res, sInfo, clientsRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=PROFORMA_INVOICE"),
         apiClient<any>(`/api/v1/settings/series/check/PROFORMA_INVOICE${officeParam}`).catch(() => null),
+        apiClient<any[]>("/api/v1/general/billing-clients").catch(() => []),
       ]);
       setData(res);
       setSeriesInfo(sInfo);
+      setBillingClients(Array.isArray(clientsRes) ? clientsRes : []);
       if (sInfo?.series_options?.length > 0) {
         setSelectedSeriesId(String(sInfo.series_options[0].id));
       }
@@ -137,10 +155,46 @@ export default function ProformaInvoicePage() {
 
   const activeNextNumber = activeSeries?.next_number_formatted || seriesInfo?.next_number_formatted || "";
 
+  const billingClientOptions = useMemo(() => {
+    return billingClients.map((c) => ({
+      value: String(c.id),
+      label: c.name || c.company_name || `Client #${c.id}`,
+      subLabel: [c.code, c.gstin, c.city].filter(Boolean).join(" • "),
+      keywords: [c.name, c.company_name, c.code, c.gstin, c.city].filter(Boolean) as string[],
+    }));
+  }, [billingClients]);
+
+  const handleBillingClientCreated = (newClient: any) => {
+    const formatted: BillingClientItem = {
+      id: Number(newClient.id),
+      name: newClient.name || newClient.company_name || newClient.label || `Client #${newClient.id}`,
+      code: newClient.code,
+      gstin: newClient.gstin,
+      city: newClient.city,
+      state: newClient.state,
+    };
+    setBillingClients((prev) => [formatted, ...prev.filter((c) => c.id !== formatted.id)]);
+    setSelectedClientId(String(formatted.id));
+    setPartyName(formatted.name);
+    toast.success(`Billing client "${formatted.name}" created and selected.`);
+  };
+
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!seriesInfo?.configured && (!seriesInfo?.series_options || seriesInfo.series_options.length === 0)) {
       toast.error("Proforma Invoice cannot be recorded because no series is configured for this issuing office. Please setup or import the default series in Settings > Series Master.");
+      return;
+    }
+
+    if (!selectedClientId) {
+      toast.warning("Please select a billing client.");
+      return;
+    }
+
+    const matchedClient = billingClients.find((c) => String(c.id) === String(selectedClientId));
+    const finalPartyName = matchedClient ? (matchedClient.name || matchedClient.company_name) : partyName.trim();
+    if (!finalPartyName) {
+      toast.warning("Please select a billing client.");
       return;
     }
 
@@ -162,7 +216,9 @@ export default function ProformaInvoicePage() {
           voucher_type: "PROFORMA_INVOICE",
           voucher_number: activeNextNumber || undefined,
           series_id: parsedSeriesId,
-          party_name: partyName.trim(),
+          billing_client_id: parseInt(selectedClientId, 10),
+          party_name: finalPartyName,
+          party_gstin: matchedClient?.gstin || undefined,
           reference_number: refNumber.trim() || undefined,
           total_amount: tot,
           tax_amount: tax,
@@ -172,6 +228,7 @@ export default function ProformaInvoicePage() {
       });
       setSuccessMessage("Proforma Invoice issued successfully!");
       setIsCreateOpen(false);
+      setSelectedClientId("");
       setPartyName("");
       setRefNumber("");
       setTotalAmount("");
@@ -227,7 +284,8 @@ export default function ProformaInvoicePage() {
     },
     {
       key: "party_name",
-      header: "Prospective Customer",
+      header: "Billing Client",
+      sortable: true,
       cell: (row) => (
         <div>
           <span className="font-medium text-slate-900 dark:text-white">
@@ -330,7 +388,7 @@ export default function ProformaInvoicePage() {
         isError={Boolean(errorMessage)}
         errorMessage={errorMessage || undefined}
         onRetry={() => loadData(true)}
-        searchPlaceholder="Search proforma by number or party..."
+        searchPlaceholder="Search proforma by number or billing client..."
         searchColumn="party_name"
         actions={actions}
         emptyMessage="No proforma invoices created"
@@ -447,17 +505,48 @@ export default function ProformaInvoicePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1">
-                Prospective Customer / Party *
+              <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1 flex items-center justify-between">
+                <span>
+                  Billing Client <span className="text-[#DC2626]">*</span>
+                </span>
+                <span className="text-[11px] text-slate-500 font-normal">Compulsory</span>
               </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Apex Industrial Works"
-                value={partyName}
-                onChange={(e) => setPartyName(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <SearchableSelect
+                    value={selectedClientId}
+                    onChange={(val) => {
+                      const strVal = String(val || "");
+                      setSelectedClientId(strVal);
+                      const matched = billingClients.find((c) => String(c.id) === strVal);
+                      if (matched) {
+                        setPartyName(matched.name || matched.company_name || "");
+                      } else {
+                        setPartyName("");
+                      }
+                    }}
+                    options={billingClientOptions}
+                    required
+                    placeholder="Select Billing Client"
+                    searchPlaceholder="Search client by name, code, GSTIN..."
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openMasterTab({
+                      type: "billing_client",
+                      title: "Add Billing Client",
+                      onSuccess: handleBillingClientCreated,
+                    })
+                  }
+                  title="Add Billing Client in new TMS tab"
+                  aria-label="Add Billing Client"
+                  className="w-10 h-10 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div>
@@ -538,7 +627,7 @@ export default function ProformaInvoicePage() {
           <div className="space-y-4">
             <div className="p-5 bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] space-y-3 text-xs shadow-2xs">
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Customer / Party</span>
+                <span className="text-slate-500 dark:text-slate-400">Billing Client</span>
                 <span className="font-medium text-slate-900 dark:text-white">{selectedVoucher.party_name}</span>
               </div>
               <div className="flex justify-between">
