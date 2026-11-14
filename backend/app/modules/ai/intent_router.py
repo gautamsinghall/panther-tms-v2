@@ -294,14 +294,18 @@ def classify_intent_and_entities(
     # How to create LR
     if bool(re.search(r"\b(?:how\s+(?:do\s+i|to|can\s+i)\s+(?:create|book|make|generate|register)\s+(?:an?\s+)?(?:new\s+)?(?:lr|gr|bilty|consignment))\b", lower)) or \
        bool(re.search(r"\b(?:steps\s+(?:to|for)\s+(?:create|register|book|make|generate)\s+(?:an?\s+)?(?:new\s+)?(?:lr|gr|bilty|consignment))\b", lower)) or \
-       bool(re.search(r"\b(?:lr|gr|bilty)\s+(?:kaise\s+(?:banaye|banayein|karein|banti\s+hai)|steps)\b", lower)) or \
+       bool(re.search(r"\b(?:lr|gr|bilty|consignment)\b.*\b(?:kaise|kese|kaha|kidhar|steps)\b.*\b(?:book|create|make|generate|banaye|banayein|banao|banana|bana|kare|karein|karo|kre|karegi|hogi)\b", lower)) or \
+       bool(re.search(r"\b(?:kaise|kese|kaha|kidhar|how|steps)\b.*\b(?:book|create|make|generate|banaye|banayein|banao|banana|bana|kare|karein|karo|kre)\b.*\b(?:lr|gr|bilty|consignment)\b", lower)) or \
+       bool(re.search(r"\b(?:lr|gr|bilty)\s+(?:kaise\s+(?:banaye|banayein|karein|banti\s+hai|book\s+(?:kare|kre|karein|karo))|steps)\b", lower)) or \
        "एलआर कैसे" in clean or "बिल्टी कैसे" in clean:
         return RouterResult(intent="how_to_create_lr", confidence=1.0, matched_rule="how_to_create_lr")
 
     # How to create Job
     if bool(re.search(r"\b(?:how\s+(?:do\s+i|to|can\s+i)\s+(?:create|book|make|generate|register)\s+(?:an?\s+)?(?:new\s+)?(?:job|job\s+order|transport\s+job))\b", lower)) or \
        bool(re.search(r"\b(?:steps\s+(?:to|for)\s+(?:create|register|book|make|generate)\s+(?:an?\s+)?(?:new\s+)?(?:job|job\s+order|transport\s+job))\b", lower)) or \
-       bool(re.search(r"\b(?:job|job\s+order)\s+(?:kaise\s+(?:banaye|banayein|karein|banta\s+hai)|steps)\b", lower)) or \
+       bool(re.search(r"\b(?:job|job\s+order|transport\s+job)\b.*\b(?:kaise|kese|kaha|kidhar|steps)\b.*\b(?:book|create|make|generate|banaye|banayein|banao|banana|bana|kare|karein|karo|kre)\b", lower)) or \
+       bool(re.search(r"\b(?:kaise|kese|kaha|kidhar|how|steps)\b.*\b(?:book|create|make|generate|banaye|banayein|banao|banana|bana|kare|karein|karo|kre)\b.*\b(?:job|job\s+order|transport\s+job)\b", lower)) or \
+       bool(re.search(r"\b(?:job|job\s+order)\s+(?:kaise\s+(?:banaye|banayein|karein|banta\s+hai|book\s+(?:kare|kre|karein|karo))|steps)\b", lower)) or \
        "जॉब कैसे" in clean or "जॉब आर्डर कैसे" in clean:
         return RouterResult(intent="how_to_create_job", confidence=1.0, matched_rule="how_to_create_job")
 
@@ -576,8 +580,8 @@ def classify_intent_and_entities(
     # --------------------------------------------------------------------------
     lr_guide_patterns = [
         r"\b(?:book|create|make|generate)\s+(?:an?\s+)?(?:lr|gr|bilty|consignment)\b",
-        r"\b(?:lr|gr|bilty)\s+(?:book|create|banao|banaye|banana|bana\s+do|bana|book\s+karni|book\s+karna|book\s+karo|book\s+karein)\b",
-        r"\b(?:mujhe\s+)?(?:lr|bilty)\s+book\s+karni\s+hai\b",
+        r"\b(?:lr|gr|bilty)\s+(?:book|create|banao|banaye|banana|bana\s+do|bana|book\s+karni|book\s+karna|book\s+karo|book\s+karein|book\s+kare|book\s+kre|kaise\s+book\s+(?:kare|kre|karein|karo))\b",
+        r"\b(?:mujhe\s+)?(?:lr|bilty)\s+book\s+(?:karni|karna|karein|kare|kre)\s+(?:hai)?\b",
         # Mixed script: Latin "LR" + Devanagari verb ("LR बुक करना है").
         r"\b(?:lr|gr|bilty)\s+(?:बुक|बनाएं|बनाओ|बनाना|बना|बनानी)\b",
         r"एलआर\s+(?:बुक|बनाएं|बनाओ|बनाना)",
@@ -604,8 +608,8 @@ def classify_intent_and_entities(
     # --------------------------------------------------------------------------
     job_guide_patterns = [
         r"\b(?:book|create|make|generate|start|raise|new)\s+(?:an?\s+)?(?:transport\s+)?(?:job|job\s+order)\b",
-        r"\b(?:job|job\s+order|transport\s+job)\b.*\b(?:create|book|banao|banaye|banana|bana\s+do|bana|karni|karna|karo|karein)\b",
-        r"\b(?:mujhe\s+)?(?:job|job\s+order)\s+(?:banana|create|book)\s+(?:hai|karna|karni)\b",
+        r"\b(?:job|job\s+order|transport\s+job)\b.*\b(?:create|book|banao|banaye|banana|bana\s+do|bana|karni|karna|karo|karein|kare|kre)\b",
+        r"\b(?:mujhe\s+)?(?:job|job\s+order)\s+(?:banana|create|book)\s+(?:hai|karna|karni|kare|kre)\b",
         r"\b(?:ek|1)\s*(?:job|transport\s+job|job\s+order)\b",
         r"\bjob\s+booking\b",
         r"\b(?:job)\s+(?:बुक|बनाएं|बनाओ|बनाना|बना)\b",

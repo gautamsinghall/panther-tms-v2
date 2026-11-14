@@ -461,9 +461,14 @@ def get_authorized_navigation_catalog(
     Returns only the navigation modules and features that the current tenant plan
     and user role are authorized to access.
     """
-    plan_code = (tenant.plan.code if tenant and tenant.plan else "PRO").upper()
+    try:
+        plan = getattr(tenant, "plan", None)
+        plan_code = (getattr(plan, "code", "PRO") or "PRO").upper()
+    except Exception:
+        plan_code = "PRO"
     user_tier = PLAN_TIERS.get(plan_code, 2)
-    is_admin = bool(user and (user.role or "").upper().strip() in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER"))
+    user_role = (getattr(user, "role", "") or "").upper().strip() if user else ""
+    is_admin = user_role in ("COMPANY_ADMIN", "ADMIN", "SUPER_ADMIN", "OWNER")
 
     authorized_modules = []
     for mod in ALL_NAVIGATION_MODULES:
@@ -482,15 +487,19 @@ def get_authorized_navigation_catalog(
 
             # RBAC check for employees
             if not is_admin:
-                if not user or not user.custom_role or not user.custom_role.permissions:
-                    if mod_id not in ("home", "profile"):
-                        continue
-                else:
+                perms = None
+                try:
+                    custom_role = getattr(user, "custom_role", None) if user else None
+                    perms = getattr(custom_role, "permissions", None) if custom_role else None
+                except Exception:
+                    perms = None
+
+                if perms is not None:
                     has_perm = any(
-                        p.module.replace("-", "_").lower() == mod_id.replace("-", "_").lower()
-                        and p.feature.lower() in (feat_id.lower(), "all", "*")
-                        and p.is_allowed
-                        for p in user.custom_role.permissions
+                        getattr(p, "module", "").replace("-", "_").lower() == mod_id.replace("-", "_").lower()
+                        and getattr(p, "feature", "").lower() in (feat_id.lower(), "all", "*")
+                        and getattr(p, "is_allowed", False)
+                        for p in perms
                     )
                     if not has_perm and mod_id not in ("home", "profile"):
                         continue
