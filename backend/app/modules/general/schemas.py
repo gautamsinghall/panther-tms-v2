@@ -392,7 +392,7 @@ class LoadTypeResponse(LoadTypeBase):
 
 # --- Vendor ---
 class VendorBase(BaseModel):
-    name: str = Field(..., min_length=2, max_length=255)
+    name: str = Field(..., min_length=1, max_length=255)
     incorporation_date: Optional[date] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -435,8 +435,14 @@ class VendorBase(BaseModel):
                 data["country"] = data["county"]
             if "secondary_county" in data and "secondary_country" not in data:
                 data["secondary_country"] = data["secondary_county"]
-            if data.get("incorporation_date") == "":
-                data["incorporation_date"] = None
+            for k in (
+                "incorporation_date", "phone", "email", "pan", "pan_state", "tan_no",
+                "gstin", "billing_state", "address", "state", "city", "pincode",
+                "secondary_address", "secondary_state", "secondary_city", "secondary_pincode",
+                "fax", "website", "group_company"
+            ):
+                if data.get(k) == "":
+                    data[k] = None
         return data
 
 class VendorCreate(VendorBase):
@@ -487,8 +493,14 @@ class VendorUpdate(BaseModel):
                 data["country"] = data["county"]
             if "secondary_county" in data and "secondary_country" not in data:
                 data["secondary_country"] = data["secondary_county"]
-            if data.get("incorporation_date") == "":
-                data["incorporation_date"] = None
+            for k in (
+                "incorporation_date", "phone", "email", "pan", "pan_state", "tan_no",
+                "gstin", "billing_state", "address", "state", "city", "pincode",
+                "secondary_address", "secondary_state", "secondary_city", "secondary_pincode",
+                "fax", "website", "group_company"
+            ):
+                if data.get(k) == "":
+                    data[k] = None
         return data
 
 class VendorResponse(VendorBase):
@@ -496,7 +508,7 @@ class VendorResponse(VendorBase):
     is_active: bool
     issuing_office_id: Optional[int] = None
     issuing_office_name: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,8 +1,10 @@
+from datetime import datetime, timezone
 from typing import List, Optional, Type, TypeVar
 from sqlalchemy import func, select, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import AppException
 from app.tenant_db.models import (
+    Account,
     BillingClient,
     Consignee,
     Consigner,
@@ -458,35 +460,162 @@ async def delete_load_type(db: AsyncSession, lid: int) -> LoadType:
     return await _soft_delete(db, LoadType, lid)
 
 # --- Vendor Service ---
+async def _ensure_vendor_columns(db: AsyncSession):
+    try:
+        columns = [
+            "country VARCHAR(100) DEFAULT 'India'",
+            "incorporation_date DATE",
+            "phone VARCHAR(50)",
+            "email VARCHAR(255)",
+            "pan VARCHAR(10)",
+            "pan_state VARCHAR(100)",
+            "tan_no VARCHAR(20)",
+            "gstin VARCHAR(15)",
+            "billing_state VARCHAR(100)",
+            "gst_exempt VARCHAR(50) DEFAULT 'No'",
+            "tds_declaration VARCHAR(100)",
+            "address_type VARCHAR(100)",
+            "address TEXT",
+            "state VARCHAR(100)",
+            "city VARCHAR(100)",
+            "pincode VARCHAR(20)",
+            "secondary_address_type VARCHAR(100)",
+            "secondary_address TEXT",
+            "secondary_country VARCHAR(100) DEFAULT 'India'",
+            "secondary_state VARCHAR(100)",
+            "secondary_city VARCHAR(100)",
+            "secondary_pincode VARCHAR(20)",
+            "fax VARCHAR(50)",
+            "website VARCHAR(255)",
+            "industry VARCHAR(100)",
+            "legal_status VARCHAR(100)",
+            "group_company VARCHAR(150)",
+            "account_status VARCHAR(50) DEFAULT 'Active'",
+            "is_active BOOLEAN DEFAULT TRUE",
+            "issuing_office_id INTEGER",
+            "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
+            "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
+        ]
+        for col in columns:
+            await db.execute(text(f"ALTER TABLE general_vendors ADD COLUMN IF NOT EXISTS {col};"))
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
 async def list_vendors(
     db: AsyncSession,
     office_id: Optional[int] = None,
     include_unassigned: bool = False,
 ) -> List[Vendor]:
-    from app.modules.accounts.master_ledger_service import ensure_unified_creditor_vendors
-    await ensure_unified_creditor_vendors(db)
-    return await _get_all(db, Vendor, office_id=office_id, include_unassigned=include_unassigned)
+    try:
+        from app.modules.accounts.master_ledger_service import ensure_unified_creditor_vendors
+        await ensure_unified_creditor_vendors(db)
+        return await _get_all(db, Vendor, office_id=office_id, include_unassigned=include_unassigned)
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await db.rollback()
+            await _ensure_vendor_columns(db)
+            return await _get_all(db, Vendor, office_id=office_id, include_unassigned=include_unassigned)
+        raise
 
 async def get_vendor(db: AsyncSession, vid: int) -> Vendor:
-    return await _get_by_id(db, Vendor, vid)
+    try:
+        return await _get_by_id(db, Vendor, vid)
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await db.rollback()
+            await _ensure_vendor_columns(db)
+            return await _get_by_id(db, Vendor, vid)
+        raise
 
 async def create_vendor(db: AsyncSession, data, office_id: Optional[int] = None) -> Vendor:
-    data_dict = data.model_dump()
+    data_dict = data.model_dump() if hasattr(data, "model_dump") else dict(data)
     if office_id and not data_dict.get("issuing_office_id"):
         data_dict["issuing_office_id"] = office_id
-    entity = Vendor(**data_dict)
-    db.add(entity)
-    await db.commit()
-    await db.refresh(entity)
-    return entity
+    try:
+        entity = Vendor(**data_dict)
+        db.add(entity)
+        await db.commit()
+        await db.refresh(entity)
+        return entity
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await db.rollback()
+            await _ensure_vendor_columns(db)
+            entity = Vendor(**data_dict)
+            db.add(entity)
+            await db.commit()
+            await db.refresh(entity)
+            return entity
+        raise
 
 async def update_vendor(db: AsyncSession, vid: int, data) -> Vendor:
-    entity = await _get_by_id(db, Vendor, vid)
-    for k, v in data.model_dump(exclude_unset=True).items():
-        setattr(entity, k, v)
-    await db.commit()
-    await db.refresh(entity)
-    return entity
+    try:
+        entity = await _get_by_id(db, Vendor, vid)
+        data_dict = data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else dict(data)
+
+        # Synchronize is_active and account_status seamlessly
+        if data_dict.get("is_active") is False and "account_status" not in data_dict:
+            data_dict["account_status"] = "Inactive"
+        elif data_dict.get("is_active") is True and "account_status" not in data_dict:
+            if entity.account_status == "Inactive":
+                data_dict["account_status"] = "Active"
+        elif data_dict.get("account_status") == "Inactive" and "is_active" not in data_dict:
+            data_dict["is_active"] = False
+        elif data_dict.get("account_status") == "Active" and "is_active" not in data_dict:
+            data_dict["is_active"] = True
+
+        for k, v in data_dict.items():
+            if hasattr(entity, k):
+                setattr(entity, k, v)
+
+        entity.updated_at = datetime.now(timezone.utc)
+
+        # If name or is_active changed, sync the associated creditor Account
+        acc_stmt = select(Account).where(Account.vendor_id == entity.id)
+        acc_res = await db.execute(acc_stmt)
+        acc = acc_res.scalar_one_or_none()
+        if acc:
+            if "name" in data_dict and data_dict["name"]:
+                acc.name = entity.name
+            if "is_active" in data_dict:
+                acc.is_active = entity.is_active
+
+        await db.commit()
+        await db.refresh(entity)
+        return entity
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await db.rollback()
+            await _ensure_vendor_columns(db)
+            return await update_vendor(db, vid, data)
+        raise
 
 async def delete_vendor(db: AsyncSession, vid: int) -> Vendor:
-    return await _soft_delete(db, Vendor, vid)
+    try:
+        entity = await _get_by_id(db, Vendor, vid)
+        entity.is_active = False
+        entity.account_status = "Inactive"
+        entity.updated_at = datetime.now(timezone.utc)
+
+        # Sync associated creditor Account
+        acc_stmt = select(Account).where(Account.vendor_id == entity.id)
+        acc_res = await db.execute(acc_stmt)
+        acc = acc_res.scalar_one_or_none()
+        if acc:
+            acc.is_active = False
+
+        await db.commit()
+        await db.refresh(entity)
+        return entity
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "does not exist" in err_msg or "undefinedcolumn" in err_msg:
+            await db.rollback()
+            await _ensure_vendor_columns(db)
+            return await delete_vendor(db, vid)
+        raise

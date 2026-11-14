@@ -33,38 +33,38 @@ import { FetchButton } from "@/components/ui/fetch-button";
 export interface VendorRecord {
   id: number;
   name: string;
-  incorporation_date?: string;
-  phone?: string;
-  email?: string;
-  pan?: string;
-  pan_state?: string;
-  tan_no?: string;
-  gstin?: string;
-  billing_state?: string;
-  gst_exempt?: string;
-  tds_declaration?: string;
-  address_type?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  country?: string;
-  secondary_address_type?: string;
-  secondary_address?: string;
-  secondary_city?: string;
-  secondary_state?: string;
-  secondary_pincode?: string;
-  secondary_country?: string;
-  fax?: string;
-  website?: string;
-  industry?: string;
-  legal_status?: string;
-  group_company?: string;
-  account_status?: string;
+  incorporation_date?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  pan?: string | null;
+  pan_state?: string | null;
+  tan_no?: string | null;
+  gstin?: string | null;
+  billing_state?: string | null;
+  gst_exempt?: string | null;
+  tds_declaration?: string | null;
+  address_type?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  country?: string | null;
+  secondary_address_type?: string | null;
+  secondary_address?: string | null;
+  secondary_city?: string | null;
+  secondary_state?: string | null;
+  secondary_pincode?: string | null;
+  secondary_country?: string | null;
+  fax?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  legal_status?: string | null;
+  group_company?: string | null;
+  account_status?: string | null;
   is_active: boolean;
-  issuing_office_id?: number;
-  created_at?: string;
-  updated_at?: string;
+  issuing_office_id?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 const defaultInitialValues = {
@@ -98,6 +98,9 @@ const defaultInitialValues = {
   group_company: "",
   account_status: "Active",
 };
+
+const isRecordActive = (d: VendorRecord): boolean =>
+  d.is_active !== false && String(d.account_status || "").toUpperCase() !== "INACTIVE";
 
 export default function VendorMasterPage() {
   const [data, setData] = useState<VendorRecord[]>([]);
@@ -153,9 +156,35 @@ export default function VendorMasterPage() {
     setIsDrawerOpen(true);
   };
 
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false);
+    setEditingRecord(null);
+  };
+
+  const editingInitialValues = useMemo(() => {
+    if (!editingRecord) return defaultInitialValues;
+    return {
+      ...defaultInitialValues,
+      ...editingRecord,
+      address_type: editingRecord.address_type || defaultInitialValues.address_type,
+      country: editingRecord.country || defaultInitialValues.country,
+      secondary_address_type: editingRecord.secondary_address_type || defaultInitialValues.secondary_address_type,
+      secondary_country: editingRecord.secondary_country || defaultInitialValues.secondary_country,
+      gst_exempt: editingRecord.gst_exempt || defaultInitialValues.gst_exempt,
+      tds_declaration: editingRecord.tds_declaration || defaultInitialValues.tds_declaration,
+      industry: editingRecord.industry || defaultInitialValues.industry,
+      legal_status: editingRecord.legal_status || defaultInitialValues.legal_status,
+      account_status: editingRecord.account_status || (isRecordActive(editingRecord) ? "Active" : "Inactive"),
+      incorporation_date: editingRecord.incorporation_date
+        ? String(editingRecord.incorporation_date).slice(0, 10)
+        : "",
+    };
+  }, [editingRecord]);
+
   const handleFormSubmit = async (values: Record<string, any>) => {
     setIsSubmitting(true);
     try {
+      const isInactive = values.account_status === "Inactive";
       const payload = {
         name: String(values.name || "").trim(),
         incorporation_date: values.incorporation_date ? String(values.incorporation_date).slice(0, 10) : null,
@@ -185,15 +214,19 @@ export default function VendorMasterPage() {
         industry: values.industry || null,
         legal_status: values.legal_status || null,
         group_company: values.group_company ? String(values.group_company).trim() : null,
-        account_status: values.account_status || "Active",
+        account_status: values.account_status || (isInactive ? "Inactive" : "Active"),
+        is_active: isInactive ? false : (editingRecord ? editingRecord.is_active : true),
       };
 
       if (editingRecord) {
-        await apiClient(`/api/v1/general/vendors/${editingRecord.id}`, {
+        const updated = await apiClient<VendorRecord>(`/api/v1/general/vendors/${editingRecord.id}`, {
           method: "PUT",
           body: JSON.stringify(payload),
         });
         toast.success(`Vendor "${payload.name}" updated successfully.`);
+        if (updated && typeof updated === "object") {
+          setData((prev) => prev.map((item) => (item.id === editingRecord.id ? { ...item, ...payload, ...updated } : item)));
+        }
       } else {
         const created = await apiClient<VendorRecord>("/api/v1/general/vendors", {
           method: "POST",
@@ -225,17 +258,25 @@ export default function VendorMasterPage() {
     });
 
     if (confirmed) {
-      // Immediate status change with NO page refresh
+      // Immediate optimistic update
       setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: false, account_status: "Inactive" } : item)));
       try {
-        const res = await apiClient(`/api/v1/general/vendors/${record.id}`, {
-          method: "PUT",
-          body: JSON.stringify({ is_active: false, account_status: "Inactive" }),
-        });
+        let res: any;
+        try {
+          res = await apiClient(`/api/v1/general/vendors/${record.id}`, {
+            method: "DELETE",
+          });
+        } catch {
+          res = await apiClient(`/api/v1/general/vendors/${record.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ is_active: false, account_status: "Inactive" }),
+          });
+        }
         toast.success("Deactivated successfully.");
         if (res && typeof res === "object") {
           setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, ...res, is_active: false, account_status: "Inactive" } : item)));
         }
+        await loadData();
       } catch (err: any) {
         // Revert optimistic update
         setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: true, account_status: "Active" } : item)));
@@ -253,7 +294,7 @@ export default function VendorMasterPage() {
     });
 
     if (confirmed) {
-      // Immediate status change with NO page refresh
+      // Immediate optimistic update
       setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: true, account_status: "Active" } : item)));
       try {
         const res = await apiClient(`/api/v1/general/vendors/${record.id}`, {
@@ -264,6 +305,7 @@ export default function VendorMasterPage() {
         if (res && typeof res === "object") {
           setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, ...res, is_active: true, account_status: "Active" } : item)));
         }
+        await loadData();
       } catch (err: any) {
         // Revert optimistic update
         setData((prev) => prev.map((item) => (String(item.id) === String(record.id) ? { ...item, is_active: false, account_status: "Inactive" } : item)));
@@ -292,6 +334,13 @@ export default function VendorMasterPage() {
           label: "PAN No. & State",
           type: "pan",
           placeholder: "e.g. AAACT1234F",
+          colSpan: 1,
+        },
+        {
+          name: "pan_state",
+          label: "PAN State Code",
+          placeholder: "e.g. 27",
+          helperText: "2-digit state code (e.g. 27 for Maharashtra)",
           colSpan: 1,
         },
         {
@@ -488,6 +537,8 @@ export default function VendorMasterPage() {
           type: "select",
           options: [
             { label: "Logistics & Transport", value: "Logistics & Transport" },
+            { label: "Transporter / Fleet Owner", value: "Transporter / Fleet Owner" },
+            { label: "Creditor / Supplier", value: "Creditor / Supplier" },
             { label: "Petroleum & Fuel", value: "Petroleum & Fuel" },
             { label: "Automotive & Spares", value: "Automotive & Spares" },
             { label: "Tyre Manufacturing", value: "Tyre Manufacturing" },
@@ -539,9 +590,9 @@ export default function VendorMasterPage() {
   // KPI Metrics
   const metrics = useMemo(() => {
     const total = data.length;
-    const active = data.filter((d) => d.is_active && (d.account_status || "Active").toLowerCase() === "active").length;
+    const active = data.filter(isRecordActive).length;
     const gstCount = data.filter((d) => d.gstin && d.gstin.trim().length > 0).length;
-    const holdCount = data.filter((d) => (d.account_status || "").toLowerCase() === "hold" || !d.is_active).length;
+    const holdCount = data.filter((d) => !isRecordActive(d) || String(d.account_status || "").toUpperCase() === "HOLD").length;
 
     return { total, active, gstCount, holdCount };
   }, [data]);
@@ -549,8 +600,8 @@ export default function VendorMasterPage() {
   // Filtered dataset
   const filteredData = useMemo(() => {
     return data.filter((item) => {
-      if (statusFilter === "ACTIVE" && !item.is_active) return false;
-      if (statusFilter === "INACTIVE" && item.is_active) return false;
+      if (statusFilter === "ACTIVE" && !isRecordActive(item)) return false;
+      if (statusFilter === "INACTIVE" && isRecordActive(item)) return false;
 
       if (gstFilter === "GST" && (!item.gstin || item.gstin.trim() === "")) return false;
       if (gstFilter === "NON_GST" && item.gstin && item.gstin.trim() !== "") return false;
@@ -668,17 +719,17 @@ export default function VendorMasterPage() {
       key: "account_status",
       header: "Running Status",
       cell: (row) => {
-        const isActuallyActive = row.is_active !== false && String(row.account_status || "").toUpperCase() !== "INACTIVE";
-        const rawStatus = (row.account_status || (isActuallyActive ? "Active" : "Inactive")).toUpperCase();
+        const active = isRecordActive(row);
+        const rawStatus = (row.account_status || (active ? "Active" : "Inactive")).toUpperCase();
         let variant: "active" | "inactive" | "pending" | "warning" = "active";
-        if (!isActuallyActive || rawStatus === "INACTIVE") variant = "inactive";
+        if (!active || rawStatus === "INACTIVE") variant = "inactive";
         else if (rawStatus === "ACTIVE") variant = "active";
         else if (rawStatus === "HOLD" || rawStatus === "ON HOLD") variant = "warning";
         else variant = "inactive";
 
         return (
           <StatusBadge
-            status={!isActuallyActive ? "Inactive" : (row.account_status || "Active")}
+            status={!active ? "Inactive" : (row.account_status || "Active")}
             variant={variant}
           />
         );
@@ -697,14 +748,14 @@ export default function VendorMasterPage() {
       label: "Deactivate",
       icon: <Trash2 className="w-3.5 h-3.5 text-rose-600" />,
       variant: "danger",
-      hidden: (record) => !record.is_active || String(record.account_status || "").toUpperCase() === "INACTIVE",
+      hidden: (record) => !isRecordActive(record),
       onClick: (record) => handleDeactivate(record),
     },
     {
       label: "Activate",
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
       variant: "default",
-      hidden: (record) => !!record.is_active && String(record.account_status || "").toUpperCase() !== "INACTIVE",
+      hidden: (record) => isRecordActive(record),
       onClick: (record) => handleActivate(record),
     },
   ];
@@ -818,31 +869,16 @@ export default function VendorMasterPage() {
       {/* Add / Edit Vendor Workspace Tab Drawer */}
       <EntityDrawer
         isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          setEditingRecord(null);
-        }}
+        onClose={handleCloseDrawer}
         title={editingRecord ? `Edit Vendor: ${editingRecord.name}` : "Add New Vendor"}
         description="Configure vendor profile, GST & TDS statutory compliance, primary & secondary branch addresses."
       >
         <Form
+          key={editingRecord ? `edit-${editingRecord.id}` : "create"}
           sections={formSections}
-          initialValues={
-            editingRecord
-              ? {
-                  ...defaultInitialValues,
-                  ...editingRecord,
-                  incorporation_date: editingRecord.incorporation_date
-                    ? String(editingRecord.incorporation_date).slice(0, 10)
-                    : "",
-                }
-              : defaultInitialValues
-          }
+          initialValues={editingInitialValues}
           onSubmit={handleFormSubmit}
-          onCancel={() => {
-            setIsDrawerOpen(false);
-            setEditingRecord(null);
-          }}
+          onCancel={handleCloseDrawer}
           submitLabel={editingRecord ? "Save Changes" : "Submit"}
           isSubmitting={isSubmitting}
         />

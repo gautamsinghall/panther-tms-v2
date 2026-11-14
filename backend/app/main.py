@@ -155,6 +155,40 @@ async def lifespan(app: FastAPI):
                         await t_conn.execute(text("ALTER TABLE general_consignees ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_consigners ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
                         await t_conn.execute(text("ALTER TABLE general_vendors ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT 'India';"))
+                        for v_col in [
+                            "incorporation_date DATE",
+                            "phone VARCHAR(50)",
+                            "email VARCHAR(255)",
+                            "pan VARCHAR(10)",
+                            "pan_state VARCHAR(100)",
+                            "tan_no VARCHAR(20)",
+                            "gstin VARCHAR(15)",
+                            "billing_state VARCHAR(100)",
+                            "gst_exempt VARCHAR(50) DEFAULT 'No'",
+                            "tds_declaration VARCHAR(100)",
+                            "address_type VARCHAR(100)",
+                            "address TEXT",
+                            "state VARCHAR(100)",
+                            "city VARCHAR(100)",
+                            "pincode VARCHAR(20)",
+                            "secondary_address_type VARCHAR(100)",
+                            "secondary_address TEXT",
+                            "secondary_country VARCHAR(100) DEFAULT 'India'",
+                            "secondary_state VARCHAR(100)",
+                            "secondary_city VARCHAR(100)",
+                            "secondary_pincode VARCHAR(20)",
+                            "fax VARCHAR(50)",
+                            "website VARCHAR(255)",
+                            "industry VARCHAR(100)",
+                            "legal_status VARCHAR(100)",
+                            "group_company VARCHAR(150)",
+                            "account_status VARCHAR(50) DEFAULT 'Active'",
+                            "is_active BOOLEAN DEFAULT TRUE",
+                            "issuing_office_id INTEGER REFERENCES profile_branches(id)",
+                            "created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
+                            "updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
+                        ]:
+                            await t_conn.execute(text(f"ALTER TABLE general_vendors ADD COLUMN IF NOT EXISTS {v_col};"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ADD COLUMN IF NOT EXISTS billing_client_id INTEGER REFERENCES general_billing_clients(id);"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_weight_mt DROP NOT NULL;"))
                         await t_conn.execute(text("ALTER TABLE transport_jobs ALTER COLUMN estimated_packages DROP NOT NULL;"))
