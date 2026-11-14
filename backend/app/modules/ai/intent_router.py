@@ -27,6 +27,8 @@ Closed Intent Taxonomy (v3):
 - change_consignee
 - how_to_create_lr  (v3: EVERY explicit "book/create an LR" request lands here
   as a GUIDE — chat never opens an LR draft; there is no book_lr intent)
+- how_to_create_job (EVERY explicit "create/book a job" request lands here
+  as a GUIDE — chat never opens a job draft; chat job creation is removed)
 - how_to_track
 - what_is_eway
 - cancel_draft
@@ -295,6 +297,13 @@ def classify_intent_and_entities(
        bool(re.search(r"\b(?:lr|gr|bilty)\s+(?:kaise\s+(?:banaye|banayein|karein|banti\s+hai)|steps)\b", lower)) or \
        "एलआर कैसे" in clean or "बिल्टी कैसे" in clean:
         return RouterResult(intent="how_to_create_lr", confidence=1.0, matched_rule="how_to_create_lr")
+
+    # How to create Job
+    if bool(re.search(r"\b(?:how\s+(?:do\s+i|to|can\s+i)\s+(?:create|book|make|generate|register)\s+(?:an?\s+)?(?:new\s+)?(?:job|job\s+order|transport\s+job))\b", lower)) or \
+       bool(re.search(r"\b(?:steps\s+(?:to|for)\s+(?:create|register|book|make|generate)\s+(?:an?\s+)?(?:new\s+)?(?:job|job\s+order|transport\s+job))\b", lower)) or \
+       bool(re.search(r"\b(?:job|job\s+order)\s+(?:kaise\s+(?:banaye|banayein|karein|banta\s+hai)|steps)\b", lower)) or \
+       "जॉब कैसे" in clean or "जॉब आर्डर कैसे" in clean:
+        return RouterResult(intent="how_to_create_job", confidence=1.0, matched_rule="how_to_create_job")
 
     # How to track / what is tracking (conceptual — NOT "track LR XYZ")
     if bool(re.search(r"\b(?:how\s+(?:do\s+i|to|can\s+i)\s+track|how\s+does\s+tracking\s+work|tracking\s+kaise\s+(?:karein|hoti\s+hai))\b", lower)) or \
@@ -583,6 +592,34 @@ def classify_intent_and_entities(
             confidence=0.95,
             entities_raw={},
             matched_rule="how_to_create_lr_explicit",
+        )
+
+    # --------------------------------------------------------------------------
+    # 14B. JOB CREATION REQUESTS — GUIDE ONLY.
+    # Chat job creation is REMOVED: chat never opens a job draft. An explicit
+    # request to create/book a job ("Create a job", "Book a transport job",
+    # "Mujhe job banana hai", "Job order banao") is classified as
+    # how_to_create_job — a GUIDE telling the user to create it themselves
+    # in the TMS for accuracy and appropriateness, never a draft.
+    # --------------------------------------------------------------------------
+    job_guide_patterns = [
+        r"\b(?:book|create|make|generate|start|raise|new)\s+(?:an?\s+)?(?:transport\s+)?(?:job|job\s+order)\b",
+        r"\b(?:job|job\s+order|transport\s+job)\b.*\b(?:create|book|banao|banaye|banana|bana\s+do|bana|karni|karna|karo|karein)\b",
+        r"\b(?:mujhe\s+)?(?:job|job\s+order)\s+(?:banana|create|book)\s+(?:hai|karna|karni)\b",
+        r"\b(?:ek|1)\s*(?:job|transport\s+job|job\s+order)\b",
+        r"\bjob\s+booking\b",
+        r"\b(?:job)\s+(?:बुक|बनाएं|बनाओ|बनाना|बना)\b",
+        r"जॉब\s+(?:बुक|बनाएं|बनाओ|बनाना|बना)",
+    ]
+    is_job_guide = any(re.search(p, lower) for p in job_guide_patterns) or \
+        ("जॉब बना" in clean or "जॉब बुक" in clean or "जॉब आर्डर बना" in clean)
+
+    if is_job_guide and not is_job_list and not is_why_question and not is_knowledge_question:
+        return RouterResult(
+            intent="how_to_create_job",
+            confidence=0.95,
+            entities_raw={},
+            matched_rule="how_to_create_job_explicit",
         )
 
     # --------------------------------------------------------------------------

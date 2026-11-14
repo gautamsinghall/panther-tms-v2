@@ -842,6 +842,51 @@ def getHowTo(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard], L
         msg = f"{msg}\n\n(Source: Panther docs — 'How to Create an LR', 'LR Booking'.)"
         return msg, [card], navs
 
+    if topic in ("job", "job_order"):
+        navs = [NavigationSuggestion(title="Job Creation", href="/transport/jobs", module="Transport Operations")]
+        card = StructuredCard(
+            card_type="job_howto",
+            title="How to Create a Job Order",
+            subtitle="Manual Job Creation in TMS",
+            badge={"text": "Guide", "variant": "neutral"},
+            items=[
+                {"primary": "1. Open Job Creation Form", "secondary": "Go to /transport/jobs and click '+ Create Job'."},
+                {"primary": "2. Customer & Parties", "secondary": "Select Customer/Billing Client, Consignor, and Consignee."},
+                {"primary": "3. Route & Cargo Details", "secondary": "Fill Origin, Destination, Cargo materials, and vehicle type."},
+                {"primary": "4. Save Manually", "secondary": "Create it yourself in the TMS to ensure data is appropriate and accurate."},
+            ],
+            action={"label": "Open Job Creation", "href": "/transport/jobs"},
+        )
+        if lang == "hi_devanagari":
+            msg = (
+                "जॉब (Job Order) बनाने के लिए कृपया इसे टीएमएस में स्वयं बनाएं, जिससे सभी विवरण, पार्टी और रूट की जानकारी पूरी तरह उपयुक्त और सटीक (accurate) रहे:\n\n"
+                "1. **Job Creation** पेज (/transport/jobs) पर जाएं।\n"
+                "2. **\"+ Create Job\"** बटन पर क्लिक करें।\n"
+                "3. Customer (Billing Client), Consignor, Consignee, Origin, Destination और Cargo विवरण भरें।\n"
+                "4. **\"Save\"** पर क्लिक करके जॉब सुरक्षित करें।\n\n"
+                "चैट में जॉब नहीं बनाया जाता — सटीकता सुनिश्चित करने के लिए फॉर्म पर जाकर स्वयं बनाएं।"
+            )
+        elif lang == "hinglish":
+            msg = (
+                "Job Order create karne ke liye kripya ise TMS mein khud banayein, jisse sabhi party details, routes aur billing information appropriate aur accurate rahein:\n\n"
+                "1. **Job Creation** page (/transport/jobs) par jayein.\n"
+                "2. **\"+ Create Job\"** button par click karein.\n"
+                "3. Customer (Billing Client), Consignor, Consignee, Origin, Destination aur Cargo details bharein.\n"
+                "4. **\"Save\"** par click karke job create karein.\n\n"
+                "Chat se job nahi banta — accuracy aur correctness ke liye form par jakar khud create karein."
+            )
+        else:
+            msg = (
+                "To create a Job Order, please create it directly by yourself in the TMS — this ensures all order details, parties, routes, and billing information are appropriate and accurate:\n\n"
+                "1. Open the **Job Creation** page (/transport/jobs).\n"
+                "2. Click the **\"+ Create Job\"** button.\n"
+                "3. Enter the Customer (Billing Client), Consignor, Consignee, Origin, Destination, and Cargo details.\n"
+                "4. Click **\"Save\"** to create the job.\n\n"
+                "Chat does not create jobs — please create it directly on the Job Creation form for accuracy."
+            )
+        msg = f"{msg}\n\n(Source: Panther docs — 'Job Creation', 'Job Orders'.)"
+        return msg, [card], navs
+
     if topic == "tracking":
         navs = [
             NavigationSuggestion(title="Live Tracking", href="/transport/tracking", module="Transport Operations"),

@@ -223,10 +223,15 @@ _PAGE_GREETING_HINTS = {
         "hinglish": "LR track karna, LR form ke fields samajhna, ya e-way bill ke rules jaanna",
         "hi_devanagari": "एलआर ट्रैक करना, एलआर फॉर्म के फ़ील्ड समझना, या ई-वे बिल के नियम जानना",
     },
+    "/transport/jobs": {
+        "en": "show your job list, explain job vs trip vs LR, or guide you on the job creation form",
+        "hinglish": "aapki job list dikhana, job vs trip vs LR samjhana, ya job creation form par guide karna",
+        "hi_devanagari": "आपकी जॉब लिस्ट दिखाना, जॉब vs ट्रिप vs एलआर समझाना, या जॉब निर्माण फॉर्म पर मार्गदर्शन करना",
+    },
     "/transport/job-orders": {
-        "en": "show your job list, explain job vs trip vs LR, or guide you to create a job",
-        "hinglish": "aapki job list dikhana, job vs trip vs LR samjhana, ya job create karne me guide karna",
-        "hi_devanagari": "आपकी जॉब लिस्ट दिखाना, जॉब vs ट्रिप vs एलआर समझाना, या जॉब बनाने में मार्गदर्शन करना",
+        "en": "show your job list, explain job vs trip vs LR, or guide you on the job creation form",
+        "hinglish": "aapki job list dikhana, job vs trip vs LR samjhana, ya job creation form par guide karna",
+        "hi_devanagari": "आपकी जॉब लिस्ट दिखाना, जॉब vs ट्रिप vs एलआर समझाना, या जॉब निर्माण फॉर्म पर मार्गदर्शन करना",
     },
     "/accounts/master-ledger": {
         "en": "check a balance, explain TBB vs To Pay vs Paid, or look at outstanding ageing",
@@ -363,6 +368,57 @@ def get_lr_guide_response(
             "2. Click **\"New LR Booking\"**.\n"
             "3. Fill the required fields: Booking Status, Dispatch Date, Payment Type, Origin Hub, Destination Hub, Consignor, Consignee, Truck No., No. of Packages.\n"
             "4. Click **\"Create Lorry Receipt\"** to save — the official LR number is assigned automatically."
+        )
+    return content, navs
+
+
+def get_job_guide_response(
+    lang: str = "en", has_old_draft: bool = False
+) -> Tuple[str, List[NavigationSuggestion]]:
+    """Chat never creates a Job and never opens a job draft. Tells user to create it
+    themselves in Panther TMS directly, which is appropriate and accurate,
+    with 3-4 short steps and an 'Open Job Creation' navigation suggestion.
+    """
+    navs = [
+        NavigationSuggestion(
+            title="Open Job Creation",
+            href="/transport/jobs",
+            module="Transport Operations",
+            description="Open Job Creation to manually create a job",
+        )
+    ]
+    draft_note = ""
+    if has_old_draft:
+        if lang == "hi_devanagari":
+            draft_note = "पुराना जॉब ड्राफ्ट हटा दिया गया है — चैट में अब जॉब ड्राफ्ट नहीं बनते। "
+        elif lang == "hinglish":
+            draft_note = "Purana job draft hata diya gaya hai — chat mein ab job draft nahi bante. "
+        else:
+            draft_note = "Your previous chat draft has been removed — chat drafts for jobs no longer exist. "
+
+    if lang == "hi_devanagari":
+        content = (
+            draft_note + "जॉब (Job Order) बनाने के लिए कृपया इसे टीएमएस में स्वयं बनाएं, जिससे सभी विवरण, पार्टी, सामग्री और रूट की जानकारी पूरी तरह उपयुक्त और सटीक (accurate) रहे:\n\n"
+            "1. **Job Creation** पेज (/transport/jobs) पर जाएं।\n"
+            "2. **\"+ Create Job\"** बटन पर क्लिक करें।\n"
+            "3. ज़रूरी फ़ील्ड भरें: Customer (Billing Client), Consignor, Consignee, Origin, Destination, Cargo/Materials और वाहन आवश्यकताएं।\n"
+            "4. **\"Save\"** पर क्लिक करके सुरक्षित करें — आधिकारिक जॉब नंबर अपने आप मिलेगा।"
+        )
+    elif lang == "hinglish":
+        content = (
+            draft_note + "Job create karne ke liye kripya ise TMS mein khud banayein, jisse sabhi party details, routes aur cargo information appropriate aur accurate rahein:\n\n"
+            "1. **Job Creation** page (/transport/jobs) par jayein.\n"
+            "2. **\"+ Create Job\"** button par click karein.\n"
+            "3. Required details bharein: Customer (Billing Client), Consignor, Consignee, Origin, Destination, Cargo/Material details aur Vehicle requirements.\n"
+            "4. **\"Save\"** par click karke save karein — official job number automatically milega."
+        )
+    else:
+        content = (
+            draft_note + "To create a Job Order, please create it directly by yourself in the TMS — this ensures that all customer details, parties, routes, and cargo specifications are appropriate and accurate:\n\n"
+            "1. Open the **Job Creation** page (/transport/jobs).\n"
+            "2. Click the **\"+ Create Job\"** button.\n"
+            "3. Fill in the required details: Customer (Billing Client), Consignor, Consignee, Origin, Destination, Cargo/Material details, and Vehicle requirements.\n"
+            "4. Click **\"Save\"** to create the job — the official Job Number is assigned automatically."
         )
     return content, navs
 
@@ -1880,6 +1936,10 @@ async def chat_with_copilot(
             msg, cards, navs = typed_tools.getHowTo("lr", lang=detected_lang)
             return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
 
+        if c_intent == "how_to_create_job":
+            msg, cards, navs = typed_tools.getHowTo("job", lang=detected_lang)
+            return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
         if c_intent == "how_to_track":
             msg, cards, navs = typed_tools.getHowTo("tracking", lang=detected_lang)
             return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
@@ -2078,6 +2138,23 @@ async def chat_with_copilot(
                 detected_language=detected_lang,
             )
 
+        # 13B. Job creation requests are a GUIDE, never a draft.
+        if has_active_job and not is_hc_req:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="job")
+            await lr_draft_store.set_conversation_state(
+                tenant.id, current_user.id,
+                {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None},
+            )
+            guide_content, guide_navs = get_job_guide_response(lang=detected_lang, has_old_draft=True)
+            return ChatResponse(
+                content=guide_content,
+                navigation_suggestions=guide_navs,
+                citations=[],
+                cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
+
     # --------------------------------------------------------------------------
     # STEP 2: CONVERSATIONAL WRITE WORKFLOWS & DRAFT INTERRUPT/PAUSE HANDLING
     # --------------------------------------------------------------------------
@@ -2134,6 +2211,36 @@ async def chat_with_copilot(
                     provider_configured=is_provider_configured(),
                     detected_language=detected_lang,
                 )
+
+        # STALE CHAT JOB DRAFT. Chat Job creation is removed: if an old Job
+        # draft is still open, clear it and answer with the guide.
+        if has_active_job:
+            await lr_draft_store.clear_active_draft(tenant.id, current_user.id, draft_type="job")
+            await lr_draft_store.set_conversation_state(
+                tenant.id, current_user.id,
+                {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None},
+            )
+            has_active_job = False
+            d_job = None
+            if not is_hc_req:
+                guide_content, guide_navs = get_job_guide_response(lang=detected_lang, has_old_draft=True)
+                return ChatResponse(
+                    content=guide_content,
+                    navigation_suggestions=guide_navs,
+                    citations=[], cards=[],
+                    provider_configured=is_provider_configured(),
+                    detected_language=detected_lang,
+                )
+
+        if is_job_req and not is_job_inq:
+            guide_content, guide_navs = get_job_guide_response(lang=detected_lang)
+            return ChatResponse(
+                content=guide_content,
+                navigation_suggestions=guide_navs,
+                citations=[], cards=[],
+                provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
 
         is_cancel = is_cancel_intent(last_user_message)
 
@@ -2501,22 +2608,24 @@ async def chat_with_copilot(
 
         # D: Route to active draft continuation or confirmed start
         chosen_workflow = None
-        if is_job_req and not is_job_inq:
-            chosen_workflow = "job"
-        elif is_hc_req and not is_hc_inq:
+        if is_hc_req and not is_hc_inq:
             chosen_workflow = "hc"
-        elif has_active_draft or has_active_job or has_active_hc:
+        elif has_active_hc:
             active_list = []
-            if has_active_job and d_job:
-                active_list.append(("job", getattr(d_job, "updated_at", "")))
             if has_active_hc and d_hc:
                 active_list.append(("hc", getattr(d_hc, "updated_at", "")))
-            # v3: an LR draft never selects a workflow (chat LR booking
-            # is removed; stale LR drafts are cleared at the top of Step 2).
 
             if active_list:
                 active_list.sort(key=lambda x: str(x[1]), reverse=True)
                 chosen_workflow = active_list[0][0]
+
+        if chosen_workflow == "job":
+            guide_content, guide_navs = get_job_guide_response(lang=detected_lang)
+            return ChatResponse(
+                content=guide_content, navigation_suggestions=guide_navs,
+                citations=[], cards=[], provider_configured=is_provider_configured(),
+                detected_language=detected_lang,
+            )
 
         if chosen_workflow == "job":
             reply_content, cards = await handle_conversational_job_booking(

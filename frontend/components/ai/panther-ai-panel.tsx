@@ -19,7 +19,6 @@ import {
   UserCheck,
   MapPin,
   CreditCard,
-  Layers,
   Building2,
   IndianRupee,
   ChevronDown,
@@ -85,7 +84,7 @@ const INITIAL_WELCOME_MESSAGE: Message = {
   id: "welcome-1",
   role: "assistant",
   content:
-    "👋 **Welcome to Parth AI!**\n\nI help with Panther TMS — creating jobs, tracking vehicles and shipments, invoices and balances, PODs, and learning how to use each screen. For an LR, I guide you to the LR form — I don't create LRs in chat. I can also explain transport terms (LR, e-way bill, POD) when they help you do that work.\n\nAsk me in English, हिन्दी or Hinglish — for example, track an LR, create a job, or check a ledger balance. If something is outside what I can do, I'll tell you what I can do instead, or connect you to support.\n\n**What would you like to do today?**",
+    "👋 **Welcome to Parth AI!**\n\nI help with Panther TMS — tracking vehicles and shipments, invoices and balances, PODs, and learning how to use each screen. For creating jobs or booking LRs, please create them directly in the TMS forms for maximum accuracy — I don't create jobs or LRs in chat. I can also explain transport terms (LR, e-way bill, POD) when they help you do that work.\n\nAsk me in English, हिन्दी or Hinglish — for example, track an LR, track a vehicle, or check a ledger balance. If something is outside what I can do, I'll tell you what I can do instead, or connect you to support.\n\n**What would you like to do today?**",
   timestamp: new Date(),
 };
 
@@ -105,7 +104,6 @@ interface SuggestedPrompt {
 function getSuggestedPrompts(pathname: string): SuggestedPrompt[] {
   if (pathname.startsWith("/transport/lr")) {
     return [
-      { label: "Book an LR", text: "Mujhe LR book karni hai", module: "transport", feature: "lr_booking", href: "/transport/lr-booking" },
       { label: "Track an LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
       { label: "Show pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
       { label: "How do I create an LR?", text: "How do I create an LR?" },
@@ -113,9 +111,9 @@ function getSuggestedPrompts(pathname: string): SuggestedPrompt[] {
   }
   if (pathname.startsWith("/transport/job")) {
     return [
-      { label: "Create a job", text: "Create a job", module: "transport" },
       { label: "Show my job list", text: "What is my job list?", module: "transport" },
       { label: "Show pending LRs", text: "Show pending LRs", module: "transport" },
+      { label: "Where is my shipment?", text: "Where is my shipment?", module: "transport" },
     ];
   }
   if (pathname.startsWith("/accounts") || pathname.startsWith("/general")) {
@@ -140,9 +138,9 @@ function getSuggestedPrompts(pathname: string): SuggestedPrompt[] {
   }
   return [
     { label: "Track an LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
-    { label: "Create a job", text: "Create a job", module: "transport" },
     { label: "View ledger", text: "View Ledger", module: "accounts", feature: "master_ledger" },
     { label: "Show pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
+    { label: "Track a vehicle", text: "Track a vehicle", module: "transport" },
   ];
 }
 
@@ -204,35 +202,14 @@ export function PantherAIPanel() {
     }
   }, []);
 
-  // Restore persisted chat messages on mount
+  // Clear any persisted chat messages on mount so chat is wiped automatically on refresh
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("panther_ai_chat_messages");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const restored = parsed.map((m: any) => ({
-            ...m,
-            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-          }));
-          setMessages(restored);
-        }
-      }
+      localStorage.removeItem("panther_ai_chat_messages");
     } catch {
       // ignore
     }
   }, []);
-
-  // Persist chat messages whenever they change
-  useEffect(() => {
-    try {
-      if (messages.length > 1 || (messages.length === 1 && messages[0].id !== "welcome-1")) {
-        localStorage.setItem("panther_ai_chat_messages", JSON.stringify(messages));
-      }
-    } catch {
-      // ignore
-    }
-  }, [messages]);
 
   const toggleSize = useCallback(() => {
     setIsExpanded((prev) => {
@@ -1042,24 +1019,12 @@ export function PantherAIPanel() {
 
       {/* 2. Suggested Action Chips Row (Reference Style) */}
       {(() => {
-        const canBookLr = canAccessModule("transport", "lr_booking");
         const canTrack = canAccessModule("tracking") || canAccessModule("transport", "lr_booking");
         const canLedger = canAccessModule("accounts", "master_ledger");
-        if (!canBookLr && !canTrack && !canLedger) return null;
+        if (!canTrack && !canLedger) return null;
 
         return (
           <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-[#1C2033] bg-slate-50/50 dark:bg-[#111322] shrink-0">
-            {canBookLr && (
-              <button
-                type="button"
-                onClick={() => handleNavigate("/transport/lr-booking")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs"
-              >
-                <Layers className="w-3.5 h-3.5 text-[#5B50E6] dark:text-violet-400" />
-                <span>Book LR</span>
-              </button>
-            )}
-
             {canTrack && (
               <button
                 type="button"
