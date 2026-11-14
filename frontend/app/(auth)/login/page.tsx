@@ -20,6 +20,7 @@ import {
   Info,
   Cloud,
   Play,
+  Phone,
 } from "lucide-react";
 import { login, getStoredAuth } from "@/lib/auth";
 import { AuthNavbar } from "@/components/layout/auth-navbar";
@@ -228,6 +229,10 @@ export default function LoginPage() {
                   Password resets are managed by your administrator. Contact support at{" "}
                   <a href="mailto:support@panthertms.com" className="font-semibold underline text-white hover:text-white/80">
                     support@panthertms.com
+                  </a>{" "}
+                  or call toll-free{" "}
+                  <a href="tel:18005710683" className="font-semibold underline text-white hover:text-white/80">
+                    1800 571 0683
                   </a>.
                 </div>
               </div>
@@ -547,6 +552,10 @@ export default function LoginPage() {
                         Password resets are managed by your workspace administrator. Contact your admin or reach out to{" "}
                         <a href="mailto:support@panthertms.com" className="font-semibold underline text-white hover:text-white/80">
                           support@panthertms.com
+                        </a>{" "}
+                        or call toll-free{" "}
+                        <a href="tel:18005710683" className="font-semibold underline text-white hover:text-white/80">
+                          1800 571 0683
                         </a>.
                       </div>
                     </div>
@@ -746,13 +755,21 @@ export default function LoginPage() {
             </span>
           </div>
 
-          <div>
+          <div className="flex items-center gap-2">
+            <a
+              href="tel:18005710683"
+              className="liquid-glass-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-white/80 hover:text-white font-medium text-[11px] transition-colors"
+              title="Call Toll-Free Helpline: 1800 571 0683"
+            >
+              <Phone className="w-3.5 h-3.5 text-white/60 shrink-0" />
+              <span>Helpline: 1800 571 0683</span>
+            </a>
             <a
               href="mailto:support@panthertms.com"
               className="liquid-glass-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-white/80 hover:text-white font-medium text-[11px] transition-colors"
             >
               <HelpCircle className="w-3.5 h-3.5 text-white/60 shrink-0" />
-              <span>Need help? Contact support</span>
+              <span>support@panthertms.com</span>
             </a>
           </div>
         </footer>

@@ -84,7 +84,7 @@ const INITIAL_WELCOME_MESSAGE: Message = {
   id: "welcome-1",
   role: "assistant",
   content:
-    "👋 **Welcome to Parth AI!**\n\nI help with Panther TMS — tracking vehicles and shipments, invoices and balances, PODs, and learning how to use each screen. For creating jobs or booking LRs, please create them directly in the TMS forms for maximum accuracy — I don't create jobs or LRs in chat. I can also explain transport terms (LR, e-way bill, POD) when they help you do that work.\n\nAsk me in English, हिन्दी or Hinglish — for example, track an LR, track a vehicle, or check a ledger balance. If something is outside what I can do, I'll tell you what I can do instead, or connect you to support.\n\n**What would you like to do today?**",
+    "👋 **Welcome to Parth AI!**\n\nI help with Panther TMS — tracking vehicles and shipments, invoices and balances, PODs, and learning how to use each screen. For creating jobs or booking LRs, please create them directly in the TMS forms for maximum accuracy — I don't create jobs or LRs in chat. I can also explain transport terms (LR, e-way bill, POD) when they help you do that work.\n\nAsk me in English, हिन्दी or Hinglish — for example, track an LR, track a vehicle, or check a ledger balance. If something is outside what I can do, I'll tell you what I can do instead, or connect you to support (Toll-Free Helpline: 1800 571 0683).\n\n**What would you like to do today?**",
   timestamp: new Date(),
 };
 
@@ -718,7 +718,11 @@ export function PantherAIPanel() {
         setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (err: any) {
-      const errorMsg = err?.message || "Failed to reach Parth AI service. Please try again.";
+      const rawMsg = String(err?.message || "");
+      const errorMsg =
+        rawMsg.toLowerCase().includes("database error") || rawMsg.toLowerCase().includes("internal")
+          ? "Unable to reach Parth AI service right now. Please retry or contact support at 1800 571 0683."
+          : rawMsg || "Failed to reach Parth AI service. Please try again.";
       setError(errorMsg);
     } finally {
       setIsLoading(false);
@@ -1937,14 +1941,24 @@ export function PantherAIPanel() {
             <Info className="w-3.5 h-3.5 shrink-0" />
             <span>Review details before confirming.</span>
           </div>
-          <button
-            type="button"
-            onClick={() => handleSendMessage("I need help from a human — please connect me to support")}
-            disabled={isLoading}
-            className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer disabled:cursor-not-allowed"
-          >
-            Talk to support
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <a
+              href="tel:18005710683"
+              className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+              title="Call Toll-Free: 1800 571 0683"
+            >
+              1800 571 0683
+            </a>
+            <span className="text-slate-300 dark:text-slate-600">•</span>
+            <button
+              type="button"
+              onClick={() => handleSendMessage("I need help from a human — please connect me to support")}
+              disabled={isLoading}
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer disabled:cursor-not-allowed"
+            >
+              Talk to support
+            </button>
+          </div>
         </div>
       </div>
     </div>

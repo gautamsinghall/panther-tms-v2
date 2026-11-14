@@ -6,6 +6,10 @@ Strictly enforces tenant isolation, office isolation, plan entitlements, and RBA
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional, List, Dict, Any, Tuple
 import re
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import select, or_, and_, desc, cast, String
 from sqlalchemy.orm import selectinload
@@ -2643,180 +2647,223 @@ async def execute_pod_tool(
         )
         return msg, [card]
 
-    eff_office_id = get_effective_office_id(user, current_office)
+    try:
+        eff_office_id = get_effective_office_id(user, current_office)
 
-    if is_pending and not is_count and not (query or lr_number):
-        stmt_pending = (
-            select(LR)
-            .options(selectinload(LR.consignee), selectinload(LR.origin_location), selectinload(LR.destination_location))
-            .outerjoin(PODRecord, LR.id == PODRecord.lr_id)
-            .where(or_(PODRecord.id.is_(None), PODRecord.verification_status != "VERIFIED"))
-            .order_by(desc(LR.created_at))
-            .limit(10)
-        )
-        if eff_office_id and eff_office_id != -1:
-            stmt_pending = stmt_pending.where(LR.issuing_office_id == eff_office_id)
-        res_p = await db.execute(stmt_pending)
-        lrs_pending = list(res_p.scalars().all())
-        items = []
-        for l in lrs_pending:
-            orig = l.origin_location.city_name if l.origin_location else "Origin"
-            dest = l.destination_location.city_name if l.destination_location else "Destination"
-            items.append({
-                "primary": f"LR {l.lr_number} • {orig} → {dest}",
-                "secondary": f"Vehicle: {l.vehicle_number or 'Assigned'} • Status: {map_lr_booking_status(l.booking_status)[0]}",
-                "status": "No POD",
-                "href": f"/transport/pod-records?search={l.lr_number}",
-            })
-        office_label = f" ({current_office.name or 'Active Branch'})" if current_office and eff_office_id and eff_office_id != -1 else ""
-        msg = f"Found **{len(lrs_pending)} LRs** with no verified Proof of Delivery (POD){office_label}:\n" + "\n".join(
-            f"• **LR {l.lr_number}** ({l.origin_location.city_name if l.origin_location else 'Origin'} → {l.destination_location.city_name if l.destination_location else 'Destination'}) • Vehicle: {l.vehicle_number or 'Assigned'} — [Open](/transport/pod-records?search={l.lr_number})"
-            for l in lrs_pending
-        )
-        card = StructuredCard(
-            card_type="pod_list",
-            title=f"LRs With No POD ({len(lrs_pending)})",
-            subtitle=f"Top consignments without verified delivery proof{office_label}",
-            badge={"text": f"{len(lrs_pending)} Pending", "variant": "warning"},
-            metrics=[{"label": "Pending PODs", "value": str(len(lrs_pending))}],
-            items=items,
-            action={"label": "Manage POD Records", "href": "/transport/pod-records"},
-        )
-        return msg, [card]
-    stmt = (
-        select(PODRecord)
-        .options(selectinload(PODRecord.lr))
-        .join(LR, PODRecord.lr_id == LR.id, isouter=True)
-        .order_by(desc(PODRecord.created_at), desc(PODRecord.id))
-        .limit(limit)
-    )
-
-    if eff_office_id and eff_office_id != -1:
-        stmt = stmt.where(LR.issuing_office_id == eff_office_id)
-
-    if is_pending:
-        stmt = stmt.where(or_(PODRecord.verification_status != "VERIFIED", PODRecord.verification_status == "PENDING"))
-
-    search_term = query or lr_number
-    if search_term:
-        clean_term = re.sub(r"^(?:pod|lr|bilty|no\.?|#|[\s\-_])+", "", search_term, flags=re.IGNORECASE).strip()
-        pattern = f"%{clean_term or search_term}%"
-        stmt = stmt.where(
-            or_(
-                PODRecord.pod_number.ilike(pattern),
-                LR.lr_number.ilike(pattern),
-                PODRecord.receiver_name.ilike(pattern),
-                cast(PODRecord.id, String) == (clean_term or search_term),
+        if is_pending and not is_count and not (query or lr_number):
+            stmt_pending = (
+                select(LR)
+                .options(selectinload(LR.consignee), selectinload(LR.origin_location), selectinload(LR.destination_location))
+                .outerjoin(PODRecord, LR.id == PODRecord.lr_id)
+                .where(
+                    or_(LR.status.is_(None), LR.status != "CANCELLED"),
+                    or_(PODRecord.id.is_(None), PODRecord.verification_status != "VERIFIED")
+                )
+                .order_by(desc(LR.created_at))
+                .limit(10)
             )
-        )
-
-    res = await db.execute(stmt)
-    records = list(res.scalars().all())
-
-    if is_count:
-        status_label = "Pending / Unverified" if is_pending else "Total"
-        if lang == "hinglish":
-            msg = f"Aapke office scope mein **{len(records)} {status_label} POD records** hain."
-        elif lang == "hi_devanagari":
-            msg = f"आपके ऑफिस स्कोप में **{len(records)} {status_label} POD रिकॉर्ड्स** हैं।"
-        else:
-            msg = f"Found **{len(records)} {status_label} POD record(s)** in your office scope."
-
-        card = StructuredCard(
-            card_type="pod_list",
-            title=f"{status_label} POD Records ({len(records)})",
-            subtitle="Proof of Delivery Tracking",
-            badge={"text": f"{len(records)} Records", "variant": "info" if is_pending else "success"},
-            metrics=[{"label": "Records Found", "value": str(len(records))}],
-            action={"label": "Open POD Records", "href": "/transport/pod-records"},
-        )
-        return msg, [card]
-
-    if not records:
-        if search_term:
-            clean_lr_check = re.sub(r"^(?:pod|lr|bilty|no\.?|#|[\s\-_])+", "", search_term, flags=re.IGNORECASE).strip()
-            lr_chk_stmt = select(LR).where(or_(LR.lr_number.ilike(f"%{clean_lr_check}%"), cast(LR.id, String) == clean_lr_check))
             if eff_office_id and eff_office_id != -1:
-                lr_chk_stmt = lr_chk_stmt.where(LR.issuing_office_id == eff_office_id)
-            res_lr_check = await db.execute(lr_chk_stmt.limit(1))
-            matched_lr_chk = res_lr_check.scalar_one_or_none()
-            if matched_lr_chk:
-                msg = f"POD for LR **{matched_lr_chk.lr_number}** is **Pending** (Awaiting delivery confirmation / driver POD upload)."
+                stmt_pending = stmt_pending.where(LR.issuing_office_id == eff_office_id)
+            res_p = await db.execute(stmt_pending)
+            lrs_pending = list(res_p.scalars().unique().all())
+
+            office_label = f" ({current_office.name or 'Active Branch'})" if current_office and eff_office_id and eff_office_id != -1 else ""
+
+            if not lrs_pending:
+                msg = (
+                    f"Aapke office{office_label} ke liye koi pending POD nahi hai. Sabhi active consignments ka delivery proof verified hai."
+                    if lang in ("hinglish", "hi_devanagari")
+                    else f"No pending PODs found{office_label}. All active consignments have verified delivery proof."
+                )
                 card = StructuredCard(
-                    card_type="pod_detail",
-                    title=f"POD Pending • LR {matched_lr_chk.lr_number}",
-                    subtitle="Proof of Delivery has not yet been uploaded",
-                    badge={"text": "POD Pending", "variant": "warning"},
-                    metrics=[
-                        {"label": "LR Number", "value": matched_lr_chk.lr_number},
-                        {"label": "POD Status", "value": "Pending Upload"},
-                        {"label": "Vehicle", "value": matched_lr_chk.vehicle_number or "Assigned"},
-                    ],
-                    action={"label": "Upload POD", "href": f"/transport/pod-records?action=upload&lr={matched_lr_chk.lr_number}"},
+                    card_type="pod_list",
+                    title="Pending PODs (0)",
+                    subtitle=f"All active consignments verified{office_label}",
+                    badge={"text": "All Clear", "variant": "success"},
+                    metrics=[{"label": "Pending PODs", "value": "0"}],
+                    items=[],
+                    action={"label": "View All POD Records", "href": "/transport/pod-records"},
                 )
                 return msg, [card]
-            else:
-                msg = (
-                    "Mujhe aapke tenant / issuing office me wo record nahi mila."
-                    if lang in ("hinglish", "hi_devanagari")
-                    else "I couldn't find that record in your tenant / issuing office."
-                )
-                return msg, []
 
-        msg = (
-            f"Koi POD record nahi mila{' search: ' + search_term if search_term else ''}."
-            if lang in ("hinglish", "hi_devanagari")
-            else f"No POD records found{' matching ' + search_term if search_term else ''}."
+            items = []
+            for l in lrs_pending:
+                orig = l.origin_location.city_name if l.origin_location else "Origin"
+                dest = l.destination_location.city_name if l.destination_location else "Destination"
+                items.append({
+                    "primary": f"LR {l.lr_number} • {orig} → {dest}",
+                    "secondary": f"Vehicle: {l.vehicle_number or 'Assigned'} • Status: {map_lr_booking_status(l.booking_status)[0]}",
+                    "status": "No POD",
+                    "href": f"/transport/pod-records?search={l.lr_number}",
+                })
+            msg = f"Found **{len(lrs_pending)} LRs** with no verified Proof of Delivery (POD){office_label}:\n" + "\n".join(
+                f"• **LR {l.lr_number}** ({l.origin_location.city_name if l.origin_location else 'Origin'} → {l.destination_location.city_name if l.destination_location else 'Destination'}) • Vehicle: {l.vehicle_number or 'Assigned'} — [Open](/transport/pod-records?search={l.lr_number})"
+                for l in lrs_pending
+            )
+            card = StructuredCard(
+                card_type="pod_list",
+                title=f"LRs With No POD ({len(lrs_pending)})",
+                subtitle=f"Top consignments without verified delivery proof{office_label}",
+                badge={"text": f"{len(lrs_pending)} Pending", "variant": "warning"},
+                metrics=[{"label": "Pending PODs", "value": str(len(lrs_pending))}],
+                items=items,
+                action={"label": "Manage POD Records", "href": "/transport/pod-records"},
+            )
+            return msg, [card]
+
+        stmt = (
+            select(PODRecord)
+            .options(selectinload(PODRecord.lr))
+            .join(LR, PODRecord.lr_id == LR.id, isouter=True)
+            .order_by(desc(PODRecord.created_at), desc(PODRecord.id))
+            .limit(limit)
         )
+
+        if eff_office_id and eff_office_id != -1:
+            stmt = stmt.where(LR.issuing_office_id == eff_office_id)
+
+        if is_pending:
+            stmt = stmt.where(or_(PODRecord.verification_status != "VERIFIED", PODRecord.verification_status == "PENDING"))
+
+        search_term = query or lr_number
+        if search_term:
+            clean_term = re.sub(r"^(?:pod|lr|bilty|no\.?|#|[\s\-_])+", "", search_term, flags=re.IGNORECASE).strip()
+            pattern = f"%{clean_term or search_term}%"
+            stmt = stmt.where(
+                or_(
+                    PODRecord.pod_number.ilike(pattern),
+                    LR.lr_number.ilike(pattern),
+                    PODRecord.receiver_name.ilike(pattern),
+                    cast(PODRecord.id, String) == (clean_term or search_term),
+                )
+            )
+
+        res = await db.execute(stmt)
+        records = list(res.scalars().unique().all())
+
+        if is_count:
+            status_label = "Pending / Unverified" if is_pending else "Total"
+            if lang == "hinglish":
+                msg = f"Aapke office scope mein **{len(records)} {status_label} POD records** hain."
+            elif lang == "hi_devanagari":
+                msg = f"आपके ऑफिस स्कोप में **{len(records)} {status_label} POD रिकॉर्ड्स** हैं।"
+            else:
+                msg = f"Found **{len(records)} {status_label} POD record(s)** in your office scope."
+
+            card = StructuredCard(
+                card_type="pod_list",
+                title=f"{status_label} POD Records ({len(records)})",
+                subtitle="Proof of Delivery Tracking",
+                badge={"text": f"{len(records)} Records", "variant": "info" if is_pending else "success"},
+                metrics=[{"label": "Records Found", "value": str(len(records))}],
+                action={"label": "Open POD Records", "href": "/transport/pod-records"},
+            )
+            return msg, [card]
+
+        if not records:
+            if search_term:
+                clean_lr_check = re.sub(r"^(?:pod|lr|bilty|no\.?|#|[\s\-_])+", "", search_term, flags=re.IGNORECASE).strip()
+                lr_chk_stmt = select(LR).where(or_(LR.lr_number.ilike(f"%{clean_lr_check}%"), cast(LR.id, String) == clean_lr_check))
+                if eff_office_id and eff_office_id != -1:
+                    lr_chk_stmt = lr_chk_stmt.where(LR.issuing_office_id == eff_office_id)
+                res_lr_check = await db.execute(lr_chk_stmt.limit(1))
+                matched_lr_chk = res_lr_check.scalar_one_or_none()
+                if matched_lr_chk:
+                    msg = f"POD for LR **{matched_lr_chk.lr_number}** is **Pending** (Awaiting delivery confirmation / driver POD upload)."
+                    card = StructuredCard(
+                        card_type="pod_detail",
+                        title=f"POD Pending • LR {matched_lr_chk.lr_number}",
+                        subtitle="Proof of Delivery has not yet been uploaded",
+                        badge={"text": "POD Pending", "variant": "warning"},
+                        metrics=[
+                            {"label": "LR Number", "value": matched_lr_chk.lr_number},
+                            {"label": "POD Status", "value": "Pending Upload"},
+                            {"label": "Vehicle", "value": matched_lr_chk.vehicle_number or "Assigned"},
+                        ],
+                        action={"label": "Upload POD", "href": f"/transport/pod-records?action=upload&lr={matched_lr_chk.lr_number}"},
+                    )
+                    return msg, [card]
+                else:
+                    msg = (
+                        "Mujhe aapke tenant / issuing office me wo record nahi mila."
+                        if lang in ("hinglish", "hi_devanagari")
+                        else "I couldn't find that record in your tenant / issuing office."
+                    )
+                    return msg, []
+
+            msg = (
+                f"Koi POD record nahi mila{' search: ' + search_term if search_term else ''}."
+                if lang in ("hinglish", "hi_devanagari")
+                else f"No POD records found{' matching ' + search_term if search_term else ''}."
+            )
+            card = StructuredCard(
+                card_type="pod_detail",
+                title="POD Records Search",
+                subtitle="No matching records found in active office scope",
+                badge={"text": "0 Results", "variant": "neutral"},
+                action={"label": "Open POD Records", "href": "/transport/pod-records"},
+            )
+            return msg, [card]
+
+        target = records[0]
+        lr_num = target.lr.lr_number if target.lr else "Unlinked"
+        del_date = target.delivery_date.strftime("%Y-%m-%d") if target.delivery_date else "N/A"
+        status_str = str(target.verification_status or "PENDING")
+
         card = StructuredCard(
             card_type="pod_detail",
-            title="POD Records Search",
-            subtitle="No matching records found in active office scope",
-            badge={"text": "0 Results", "variant": "neutral"},
+            title=f"POD #{target.pod_number or target.id}",
+            subtitle=f"LR #{lr_num} • Receiver: {target.receiver_name or 'N/A'}",
+            badge={"text": status_str, "variant": "success" if status_str == "VERIFIED" else "warning"},
+            metrics=[
+                {"label": "Consignment", "value": f"LR #{lr_num}"},
+                {"label": "Delivery Date", "value": del_date},
+                {"label": "Packages Delivered", "value": str(target.packages_delivered or "N/A")},
+                {"label": "Verification", "value": status_str},
+            ],
+            items=[
+                {"primary": f"Receiver: {target.receiver_name or 'N/A'} (Phone: {target.receiver_phone or 'N/A'})", "secondary": f"Condition: {target.received_condition or 'Intact'}"},
+                {"primary": f"Remarks: {target.remarks or 'No damage/shortage reported'}", "secondary": f"Document: {'Uploaded' if target.document_path else 'Pending Upload'}"},
+            ],
+            action={"label": "Verify in POD Records", "href": "/transport/pod-records"},
+        )
+
+        if lang == "hinglish":
+            msg = (
+                f"### 📦 POD Details: **#{target.pod_number or target.id}**\n\n"
+                f"- **Linked LR**: **LR #{lr_num}**\n"
+                f"- **Verification Status**: **{status_str}**\n"
+                f"- **Receiver**: **{target.receiver_name or 'N/A'}** (Delivery Date: {del_date})\n"
+                f"- **Condition**: {target.received_condition or 'Intact'} | Packages: {target.packages_delivered or 'N/A'}\n"
+            )
+        else:
+            msg = (
+                f"### 📦 Proof of Delivery (POD): **#{target.pod_number or target.id}**\n\n"
+                f"- **Consignment**: **LR #{lr_num}**\n"
+                f"- **Verification Status**: **{status_str}**\n"
+                f"- **Receiver**: **{target.receiver_name or 'N/A'}** (Date: {del_date})\n"
+                f"- **Delivered Condition**: {target.received_condition or 'Intact'} | Packages: {target.packages_delivered or 'N/A'}\n"
+            )
+        return msg, [card]
+    except Exception as e:
+        logger.error(f"Error in execute_pod_tool: {e}\n{traceback.format_exc()}")
+        office_label = f" ({current_office.name})" if current_office and hasattr(current_office, "name") and current_office.name else ""
+        msg = (
+            f"POD records load karne me takleef aayi{office_label}. "
+            f"Aap unhe seedhe **POD Records** register par dekh sakte hain ya toll-free helpline **1800 571 0683** par call kar sakte hain."
+            if lang in ("hinglish", "hi_devanagari")
+            else f"Unable to retrieve POD records right now{office_label}. "
+            f"You can view and manage all PODs directly in the **POD Records** register or call our toll-free helpline at **1800 571 0683**."
+        )
+        card = StructuredCard(
+            card_type="pod_list",
+            title="Proof of Delivery Register",
+            subtitle="POD verification and records",
+            badge={"text": "POD Records", "variant": "neutral"},
+            items=[],
             action={"label": "Open POD Records", "href": "/transport/pod-records"},
         )
         return msg, [card]
-
-    target = records[0]
-    lr_num = target.lr.lr_number if target.lr else "Unlinked"
-    del_date = target.delivery_date.strftime("%Y-%m-%d") if target.delivery_date else "N/A"
-    status_str = str(target.verification_status or "PENDING")
-
-    card = StructuredCard(
-        card_type="pod_detail",
-        title=f"POD #{target.pod_number or target.id}",
-        subtitle=f"LR #{lr_num} • Receiver: {target.receiver_name or 'N/A'}",
-        badge={"text": status_str, "variant": "success" if status_str == "VERIFIED" else "warning"},
-        metrics=[
-            {"label": "Consignment", "value": f"LR #{lr_num}"},
-            {"label": "Delivery Date", "value": del_date},
-            {"label": "Packages Delivered", "value": str(target.packages_delivered or "N/A")},
-            {"label": "Verification", "value": status_str},
-        ],
-        items=[
-            {"primary": f"Receiver: {target.receiver_name or 'N/A'} (Phone: {target.receiver_phone or 'N/A'})", "secondary": f"Condition: {target.received_condition or 'Intact'}"},
-            {"primary": f"Remarks: {target.remarks or 'No damage/shortage reported'}", "secondary": f"Document: {'Uploaded' if target.document_path else 'Pending Upload'}"},
-        ],
-        action={"label": "Verify in POD Records", "href": "/transport/pod-records"},
-    )
-
-    if lang == "hinglish":
-        msg = (
-            f"### 📦 POD Details: **#{target.pod_number or target.id}**\n\n"
-            f"- **Linked LR**: **LR #{lr_num}**\n"
-            f"- **Verification Status**: **{status_str}**\n"
-            f"- **Receiver**: **{target.receiver_name or 'N/A'}** (Delivery Date: {del_date})\n"
-            f"- **Condition**: {target.received_condition or 'Intact'} | Packages: {target.packages_delivered or 'N/A'}\n"
-        )
-    else:
-        msg = (
-            f"### 📦 Proof of Delivery (POD): **#{target.pod_number or target.id}**\n\n"
-            f"- **Consignment**: **LR #{lr_num}**\n"
-            f"- **Verification Status**: **{status_str}**\n"
-            f"- **Receiver**: **{target.receiver_name or 'N/A'}** (Date: {del_date})\n"
-            f"- **Delivered Condition**: {target.received_condition or 'Intact'} | Packages: {target.packages_delivered or 'N/A'}\n"
-        )
-    return msg, [card]
 
 
 async def execute_eway_bill_tool(

@@ -27,6 +27,7 @@ import {
   Crown,
   Headset,
   SlidersHorizontal,
+  Phone,
 } from "lucide-react";
 import { LineHoverLink } from "@/components/ui/line-hover-link";
 import { Link000 } from "@/components/ui/skiper-ui/skiper40";
@@ -990,6 +991,14 @@ export default function SignupPage() {
                         Custom plan modules and enterprise workflows require administrative configuration. Please contact the concerned authority or our support team to activate specific features for your organization.
                       </p>
                       <div className="pt-1 flex flex-wrap items-center gap-3 text-xs">
+                        <a
+                          href="tel:18005710683"
+                          className="inline-flex items-center gap-1.5 font-semibold text-emerald-300 hover:text-white hover:underline"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>1800 571 0683 (Toll-Free)</span>
+                        </a>
+                        <span className="text-white/30">•</span>
                         <a
                           href="mailto:support@panthertms.com?subject=Custom%20TMS%20Plan%20Feature%20Activation"
                           className="inline-flex items-center gap-1.5 font-semibold text-violet-300 hover:text-white hover:underline"

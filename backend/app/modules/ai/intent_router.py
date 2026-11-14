@@ -182,13 +182,17 @@ def classify_intent_and_entities(
         or re.search(r"\b(?:talk|contact|reach|call)\s+(?:to\s+|with\s+)?(?:support|agent|human|team|helpdesk)\b", lower)
         or re.search(r"\bneed\s+(?:a\s+)?human\b", lower)
         or re.search(r"\bhuman\s+(?:help|support|assistance)\b", lower)
-        or re.search(r"\b(?:support|helpdesk|agent)\s+(?:contact|number|email|phone|details|helpline)\b", lower)
+        or re.search(r"\b(?:support|helpdesk|agent|helpline|customer\s*care)\s+(?:contact|number|email|phone|details|helpline)\b", lower)
+        or re.search(r"\b(?:customer\s*care|helpline|toll\s*free|tollfree)\b", lower)
+        or "18005710683" in lower or "1800-571-0683" in lower or "1800 571 0683" in lower
         or "मानव से बात" in clean
         or "इंसान से बात" in clean
         or "सपोर्ट से बात" in clean
         or "सपोर्ट नंबर" in clean
+        or "हेल्पलाइन" in clean
+        or "कस्टमर केयर" in clean
         or "सपोर्ट ईमेल" in clean
-        or bool(re.search(r"\b(?:human|support|agent)\s+se\s+baat\b", lower))
+        or bool(re.search(r"\b(?:human|support|agent|helpline)\s+se\s+baat\b", lower))
     )
     if is_human_request:
         return RouterResult(intent="human", confidence=1.0, matched_rule="human_handoff")

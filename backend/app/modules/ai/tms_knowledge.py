@@ -1292,7 +1292,7 @@ TMS_KNOWLEDGE_CHUNKS = [
             "the LR Booking page at /transport/lr-booking, where you click \"New LR Booking\" "
             "and save with \"Create Lorry Receipt\". It never invents a live fact: if a record "
             "is not found, it says so, and for anything outside its scope it offers the closest "
-            "Panther alternative or a human through \"Talk to support\"."
+            "Panther alternative or a human through \"Talk to support\" (toll-free helpline: 1800 571 0683, email: support@panthertms.com)."
         ),
         "route": "",
         "keywords": ["what can you do", "parth ai", "help", "what can parth ai do", "panther ai", "bot help", "capabilities"],
