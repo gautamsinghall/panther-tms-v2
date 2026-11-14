@@ -1,4 +1,5 @@
 from typing import List, Optional
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -287,9 +288,41 @@ async def delete_charge_head(session: AsyncSession, item_id: int) -> bool:
 # Tax Category Service
 # ------------------------------------------------------------------------------
 async def get_tax_categories(session: AsyncSession) -> List[TaxCategory]:
-    stmt = select(TaxCategory).order_by(TaxCategory.id)
+    stmt = select(TaxCategory).order_by(TaxCategory.igst_rate.asc(), TaxCategory.id.asc())
     res = await session.execute(stmt)
-    return list(res.scalars().all())
+    items = list(res.scalars().all())
+    if not items:
+        standard_categories = [
+            {"code": "GST_0", "name": "GST 0% (Exempt / Nil Rated)", "igst_rate": Decimal("0.00"), "cgst_rate": Decimal("0.00"), "sgst_rate": Decimal("0.00"), "is_rcm": False},
+            {"code": "GST_5", "name": "GST 5%", "igst_rate": Decimal("5.00"), "cgst_rate": Decimal("2.50"), "sgst_rate": Decimal("2.50"), "is_rcm": False},
+            {"code": "GST_12", "name": "GST 12%", "igst_rate": Decimal("12.00"), "cgst_rate": Decimal("6.00"), "sgst_rate": Decimal("6.00"), "is_rcm": False},
+            {"code": "GST_18", "name": "GST 18%", "igst_rate": Decimal("18.00"), "cgst_rate": Decimal("9.00"), "sgst_rate": Decimal("9.00"), "is_rcm": False},
+            {"code": "GST_28", "name": "GST 28%", "igst_rate": Decimal("28.00"), "cgst_rate": Decimal("14.00"), "sgst_rate": Decimal("14.00"), "is_rcm": False},
+            {"code": "GTA_RCM_5", "name": "GST 5% (GTA RCM)", "igst_rate": Decimal("5.00"), "cgst_rate": Decimal("2.50"), "sgst_rate": Decimal("2.50"), "is_rcm": True},
+        ]
+        for cat_data in standard_categories:
+            session.add(TaxCategory(**cat_data))
+        await session.commit()
+        res = await session.execute(select(TaxCategory).order_by(TaxCategory.igst_rate.asc(), TaxCategory.id.asc()))
+        items = list(res.scalars().all())
+    else:
+        existing_rates = {Decimal(str(c.igst_rate)) for c in items}
+        existing_codes = {c.code for c in items}
+        added = False
+        needed = [
+            {"code": "GST_0", "name": "GST 0% (Exempt / Nil Rated)", "igst_rate": Decimal("0.00"), "cgst_rate": Decimal("0.00"), "sgst_rate": Decimal("0.00"), "is_rcm": False},
+            {"code": "GST_5", "name": "GST 5%", "igst_rate": Decimal("5.00"), "cgst_rate": Decimal("2.50"), "sgst_rate": Decimal("2.50"), "is_rcm": False},
+            {"code": "GST_18", "name": "GST 18%", "igst_rate": Decimal("18.00"), "cgst_rate": Decimal("9.00"), "sgst_rate": Decimal("9.00"), "is_rcm": False},
+        ]
+        for n in needed:
+            if n["igst_rate"] not in existing_rates and n["code"] not in existing_codes and not (n["code"] == "GST_0" and "EXEMPT" in existing_codes):
+                session.add(TaxCategory(**n))
+                added = True
+        if added:
+            await session.commit()
+            res = await session.execute(select(TaxCategory).order_by(TaxCategory.igst_rate.asc(), TaxCategory.id.asc()))
+            items = list(res.scalars().all())
+    return items
 
 async def get_tax_category_by_id(session: AsyncSession, item_id: int) -> TaxCategory:
     stmt = select(TaxCategory).where(TaxCategory.id == item_id)

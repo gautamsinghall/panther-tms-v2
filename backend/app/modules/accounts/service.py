@@ -1058,7 +1058,7 @@ async def create_general_invoice(
             "quantity": qty,
             "rate": rate,
             "discount_amount": disc,
-            "tax_category_id": itm.tax_category_id,
+            "tax_category_id": tax_cat.id if tax_cat else itm.tax_category_id,
             "tax_amount": line_tax,
             "total_amount": line_total,
         })

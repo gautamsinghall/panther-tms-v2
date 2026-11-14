@@ -219,6 +219,14 @@ interface ServiceLineInput {
   tax_category_id: string;
 }
 
+const DEFAULT_TAX_CATEGORIES: TaxCategoryRecord[] = [
+  { id: 1, name: "GST 0% (Exempt / Nil Rated)", igst_rate: 0, cgst_rate: 0, sgst_rate: 0 },
+  { id: 2, name: "GST 5%", igst_rate: 5, cgst_rate: 2.5, sgst_rate: 2.5 },
+  { id: 3, name: "GST 12%", igst_rate: 12, cgst_rate: 6, sgst_rate: 6 },
+  { id: 4, name: "GST 18%", igst_rate: 18, cgst_rate: 9, sgst_rate: 9 },
+  { id: 5, name: "GST 28%", igst_rate: 28, cgst_rate: 14, sgst_rate: 14 },
+];
+
 const INDIAN_STATES = [
   "Maharashtra",
   "Gujarat",
@@ -250,7 +258,7 @@ export default function GeneralInvoicePage() {
   const router = useRouter();
   const [data, setData] = useState<VoucherRecord[]>([]);
   const [clients, setClients] = useState<BillingClientRecord[]>([]);
-  const [taxCategories, setTaxCategories] = useState<TaxCategoryRecord[]>([]);
+  const [taxCategories, setTaxCategories] = useState<TaxCategoryRecord[]>(DEFAULT_TAX_CATEGORIES);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -285,7 +293,7 @@ export default function GeneralInvoicePage() {
       quantity: "1.00",
       rate: "0.00",
       discount: "0.00",
-      tax_category_id: "",
+      tax_category_id: "4", // Default 18% GST
     },
   ]);
 
@@ -352,15 +360,30 @@ export default function GeneralInvoicePage() {
       ]);
       setData(Array.isArray(vouchersRes) ? vouchersRes : []);
       setClients(Array.isArray(clientsRes) ? clientsRes : []);
-      setTaxCategories(Array.isArray(taxesRes) ? taxesRes : []);
+
+      // Build comprehensive tax categories ensuring 0%, 5%, and 18% are present
+      const rawTaxes: TaxCategoryRecord[] = Array.isArray(taxesRes) && taxesRes.length > 0 ? taxesRes : DEFAULT_TAX_CATEGORIES;
+      const mergedTaxes: TaxCategoryRecord[] = [...rawTaxes];
+
+      if (!mergedTaxes.some((t) => Number(t.igst_rate) === 0)) {
+        mergedTaxes.unshift({ id: 1, name: "GST 0% (Exempt / Nil Rated)", igst_rate: 0, cgst_rate: 0, sgst_rate: 0 });
+      }
+      if (!mergedTaxes.some((t) => Number(t.igst_rate) === 5)) {
+        mergedTaxes.push({ id: 2, name: "GST 5%", igst_rate: 5, cgst_rate: 2.5, sgst_rate: 2.5 });
+      }
+      if (!mergedTaxes.some((t) => Number(t.igst_rate) === 18)) {
+        mergedTaxes.push({ id: 4, name: "GST 18%", igst_rate: 18, cgst_rate: 9, sgst_rate: 9 });
+      }
+
+      setTaxCategories(mergedTaxes);
       setSeriesInfo(sInfo);
       setManualSeriesData(manualRangesRes);
 
       // Set default tax category (18% GST standard)
-      if (taxesRes.length > 0) {
-        const g18 = taxesRes.find((t) => t.name.includes("18") || Number(t.igst_rate) === 18) || taxesRes[0];
+      const g18 = mergedTaxes.find((t) => Number(t.igst_rate) === 18 || t.name.includes("18")) || mergedTaxes[0];
+      if (g18) {
         setServiceLines((prev) =>
-          prev.map((l) => (l.tax_category_id ? l : { ...l, tax_category_id: g18.id.toString() }))
+          prev.map((l) => (!l.tax_category_id ? { ...l, tax_category_id: String(g18.id) } : l))
         );
       }
     } catch (err: any) {
@@ -464,7 +487,7 @@ export default function GeneralInvoicePage() {
       const lineTaxable = Math.max(0, q * r - d);
 
       const tc = taxCategories.find((t) => String(t.id) === String(line.tax_category_id));
-      const rate = tc ? parseFloat(String(tc.igst_rate)) : 0;
+      const rate = tc ? parseFloat(String(tc.igst_rate)) : (isExempt || isRcm ? 0 : 18);
 
       let lineTax = 0;
       let lineCgst = 0;
@@ -523,7 +546,7 @@ export default function GeneralInvoicePage() {
         quantity: "1.00",
         rate: "0.00",
         discount: "0.00",
-        tax_category_id: g18 ? g18.id.toString() : "",
+        tax_category_id: g18 ? g18.id.toString() : "4",
       },
     ]);
   };
@@ -579,14 +602,25 @@ export default function GeneralInvoicePage() {
           reference_number: refNumber.trim() || undefined,
           cost_center: costCenter.trim() || undefined,
           narration: narration.trim() || undefined,
-          items: serviceLines.map((l) => ({
-            description: l.description.trim() || "Business Service",
-            hsn_sac: l.hsn_sac.trim() || "9967",
-            quantity: parseFloat(l.quantity) || 1.0,
-            rate: parseFloat(l.rate) || 0.0,
-            discount_amount: parseFloat(l.discount) || 0.0,
-            tax_category_id: l.tax_category_id ? parseInt(l.tax_category_id, 10) : undefined,
-          })),
+          items: serviceLines.map((l) => {
+            const q = parseFloat(l.quantity) || 1.0;
+            const r = parseFloat(l.rate) || 0.0;
+            const d = parseFloat(l.discount) || 0.0;
+            const lineTaxable = Math.max(0, q * r - d);
+            const tc = taxCategories.find((t) => String(t.id) === String(l.tax_category_id));
+            const rate = tc ? parseFloat(String(tc.igst_rate)) : (gstTreatment === "EXEMPT" ? 0 : 18);
+            const lineTax = gstTreatment === "EXEMPT" || gstTreatment === "RCM" ? 0 : Math.round(((lineTaxable * rate) / 100) * 100) / 100;
+            return {
+              description: l.description.trim() || "Business Service",
+              hsn_sac: l.hsn_sac.trim() || "9967",
+              quantity: q,
+              rate: r,
+              discount_amount: d,
+              tax_category_id: l.tax_category_id ? parseInt(l.tax_category_id, 10) : (tc ? tc.id : undefined),
+              tax_amount: lineTax,
+              total_amount: lineTaxable + lineTax,
+            };
+          }),
         }),
       });
       toast.success("General Invoice posted successfully with double-entry ledgers!");
@@ -598,6 +632,18 @@ export default function GeneralInvoicePage() {
       setRefNumber("");
       setCostCenter("");
       setNarration("");
+      const g18 = taxCategories.find((t) => Number(t.igst_rate) === 18 || t.name.includes("18")) || taxCategories[0];
+      setServiceLines([
+        {
+          id: "1",
+          description: "Warehousing & Storage Services",
+          hsn_sac: "996729",
+          quantity: "1.00",
+          rate: "0.00",
+          discount: "0.00",
+          tax_category_id: g18 ? String(g18.id) : "4",
+        },
+      ]);
       await loadData();
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to create general invoice.");
@@ -958,6 +1004,12 @@ export default function GeneralInvoicePage() {
       setSelectedRangeId(initialRangeId);
     }
     setVoucherNumber(initialNo);
+    const g18 = taxCategories.find((t) => Number(t.igst_rate) === 18 || t.name.includes("18")) || taxCategories[0];
+    if (g18) {
+      setServiceLines((prev) =>
+        prev.map((l) => (!l.tax_category_id ? { ...l, tax_category_id: String(g18.id) } : l))
+      );
+    }
     setIsCreateOpen(true);
   };
 
@@ -965,7 +1017,7 @@ export default function GeneralInvoicePage() {
     <div className="space-y-6">
       <PageHeader
         title="General Invoices"
-        description="Tally Prime double-entry non-freight billing, itemized services, GST calculation (FCM/RCM/Exempt), and bill-wise receivables."
+        description="Double-entry non-freight billing, itemized services, GST calculation (FCM/RCM/Exempt), and bill-wise receivables."
         breadcrumbs={[
           { label: "Dashboard", href: "/" },
           { label: "Accounts", href: "/accounts" },
@@ -1463,12 +1515,12 @@ export default function GeneralInvoicePage() {
                       </td>
                       <td className="px-3 py-2">
                         <select
-                          value={line.tax_category_id}
+                          value={line.tax_category_id || String(taxCategories.find((t) => Number(t.igst_rate) === 18)?.id || "")}
                           onChange={(e) => handleLineChange(line.id, "tax_category_id", e.target.value)}
                           className="w-full h-8 px-2 text-xs rounded border border-slate-200 bg-white"
                         >
                           {taxCategories.map((tc) => (
-                            <option key={tc.id} value={tc.id}>
+                            <option key={tc.id} value={String(tc.id)}>
                               {tc.name} ({tc.igst_rate}%)
                             </option>
                           ))}
@@ -1528,41 +1580,49 @@ export default function GeneralInvoicePage() {
           <div className="bg-white dark:bg-[#12131A] rounded-2xl border border-slate-200/90 dark:border-[#22232E] p-5 sm:p-6 space-y-3 shadow-2xs">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-indigo-600" /> Tally Prime Double-Entry Posting Preview
+                <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Double-Entry Posting Preview
               </span>
-              <span className="text-[11px] font-mono font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              <span className="text-[11px] font-mono font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
                 Balanced (Dr = Cr)
               </span>
             </h4>
 
             <div className="border border-slate-200/90 dark:border-[#22232E] rounded-xl overflow-hidden bg-white dark:bg-[#12131A]">
               <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
+                <thead className="bg-slate-50 dark:bg-[#17171B] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200/90 dark:border-[#22232E]">
                   <tr>
-                    <th className="px-3 py-2">Ledger Account</th>
+                    <th className="px-3 py-2">Ledger Name</th>
                     <th className="px-3 py-2">Accounting Group</th>
                     <th className="px-3 py-2 text-right">Debit (Dr)</th>
                     <th className="px-3 py-2 text-right">Credit (Cr)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-900">
-                      Dr. {selectedClientId ? clients.find((c) => String(c.id) === selectedClientId)?.name || "Customer Ledger" : customPartyName || "Sundry Debtors A/c"}
+                    <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                      <span className="font-bold text-blue-700 dark:text-blue-400 mr-1.5">[Dr.]</span>
+                      {selectedClientId
+                        ? clients.find((c) => String(c.id) === String(selectedClientId))?.name || customPartyName.trim() || "Sundry Debtors Account"
+                        : customPartyName.trim() || "Sundry Debtors Account"}
                     </td>
                     <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Sundry Debtors (Asset)</td>
-                    <td className="px-3 py-2 font-mono text-right text-emerald-700 font-bold">
+                    <td className="px-3 py-2 font-mono text-right text-emerald-700 dark:text-emerald-400 font-bold">
                       {formatCurrency(calculationSummary.netReceivable)}
                     </td>
                     <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
                   </tr>
                   <tr>
-                    <td className="px-3 py-2 font-medium text-slate-900">
-                      Cr. {incomeHead === "ACC_WAREHOUSE_REV" ? "Warehousing & Storage Income" : incomeHead === "ACC_HANDLING_REV" ? "Loading & Material Handling Income" : "General Sales & Service Revenue"}
+                    <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                      <span className="font-bold text-emerald-700 dark:text-emerald-400 mr-1.5">[Cr.]</span>
+                      {incomeHead === "ACC_WAREHOUSE_REV"
+                        ? "Warehousing & Storage Income"
+                        : incomeHead === "ACC_HANDLING_REV"
+                        ? "Loading & Material Handling Income"
+                        : "General Sales & Service Revenue"}
                     </td>
                     <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Direct Income (Revenue)</td>
                     <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
-                    <td className="px-3 py-2 font-mono text-right text-indigo-700 font-bold">
+                    <td className="px-3 py-2 font-mono text-right text-indigo-700 dark:text-indigo-400 font-bold">
                       {formatCurrency(calculationSummary.taxableTotal)}
                     </td>
                   </tr>
@@ -1571,7 +1631,10 @@ export default function GeneralInvoicePage() {
                       {calculationSummary.isIntra ? (
                         <>
                           <tr>
-                            <td className="px-3 py-2 font-medium text-slate-900">Cr. GST Output CGST A/c</td>
+                            <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400 mr-1.5">[Cr.]</span>
+                              GST Output CGST
+                            </td>
                             <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Duties & Taxes (Liability)</td>
                             <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
                             <td className="px-3 py-2 font-mono text-right text-slate-900 dark:text-white">
@@ -1579,7 +1642,10 @@ export default function GeneralInvoicePage() {
                             </td>
                           </tr>
                           <tr>
-                            <td className="px-3 py-2 font-medium text-slate-900">Cr. GST Output SGST A/c</td>
+                            <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400 mr-1.5">[Cr.]</span>
+                              GST Output SGST
+                            </td>
                             <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Duties & Taxes (Liability)</td>
                             <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
                             <td className="px-3 py-2 font-mono text-right text-slate-900 dark:text-white">
@@ -1589,7 +1655,10 @@ export default function GeneralInvoicePage() {
                         </>
                       ) : (
                         <tr>
-                          <td className="px-3 py-2 font-medium text-slate-900">Cr. GST Output IGST A/c</td>
+                          <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                            <span className="font-bold text-emerald-700 dark:text-emerald-400 mr-1.5">[Cr.]</span>
+                            GST Output IGST
+                          </td>
                           <td className="px-3 py-2 text-slate-500 dark:text-slate-400">Duties & Taxes (Liability)</td>
                           <td className="px-3 py-2 font-mono text-right text-slate-400">—</td>
                           <td className="px-3 py-2 font-mono text-right text-slate-900 dark:text-white">
@@ -1600,15 +1669,15 @@ export default function GeneralInvoicePage() {
                     </>
                   )}
                 </tbody>
-                <tfoot className="bg-slate-50 font-bold border-t text-slate-900">
+                <tfoot className="bg-slate-50 dark:bg-[#17171B] font-bold border-t border-slate-200/90 dark:border-[#22232E] text-slate-900 dark:text-white">
                   <tr>
                     <td colSpan={2} className="px-3 py-2 text-right">
                       Total Ledger Impact:
                     </td>
-                    <td className="px-3 py-2 font-mono text-right text-emerald-700">
+                    <td className="px-3 py-2 font-mono text-right text-emerald-700 dark:text-emerald-400">
                       {formatCurrency(calculationSummary.netReceivable)}
                     </td>
-                    <td className="px-3 py-2 font-mono text-right text-emerald-700">
+                    <td className="px-3 py-2 font-mono text-right text-emerald-700 dark:text-emerald-400">
                       {formatCurrency(calculationSummary.netReceivable)}
                     </td>
                   </tr>

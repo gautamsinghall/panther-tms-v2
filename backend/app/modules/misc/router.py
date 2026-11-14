@@ -382,21 +382,6 @@ async def list_tax_categories(
     session: AsyncSession = Depends(get_tenant_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role != "COMPANY_ADMIN":
-        if not current_user.custom_role or not current_user.custom_role.permissions:
-            raise ForbiddenException("Access denied to misc.tax_category.view")
-        has_perm = any(
-            (
-                (p.module == "misc" and p.feature == "tax_category" and (p.permission in ("view", "all")))
-                or (p.module == "accounts" and (p.permission in ("view", "all")))
-                or (p.module == "transport" and (p.permission in ("view", "all")))
-            )
-            and p.is_allowed
-            for p in current_user.custom_role.permissions
-        )
-        if not has_perm:
-            raise ForbiddenException("Access denied. Missing permission: misc.tax_category.view")
-
     items = await service.get_tax_categories(session)
     return [schemas.TaxCategoryResponse.model_validate(i) for i in items]
 

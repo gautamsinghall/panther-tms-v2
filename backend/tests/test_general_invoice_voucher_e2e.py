@@ -18,6 +18,7 @@ from app.tenant_db.models import (
     LedgerEntry,
 )
 from app.modules.accounts import service as accounts_service, master_ledger_service
+from app.modules.misc import service as misc_service
 from app.modules.accounts.schemas import (
     GeneralInvoiceCreate,
     GeneralInvoiceItemCreate,
@@ -462,3 +463,92 @@ async def test_general_invoice_reporting_and_gst_statements(e2e_session: AsyncSe
     os_debtors = await statements_service.get_os_debtor(session, as_of_date=date(2026, 4, 30))
     assert len(os_debtors.debtors) >= 1
     assert os_debtors.total_outstanding > Decimal("0.00")
+
+
+@pytest.mark.asyncio
+async def test_general_invoice_tax_categories_0_5_18(e2e_session: AsyncSession):
+    """
+    Test verifying that 0%, 5%, and 18% tax categories are available
+    and that 18% (default), 5%, and 0% compute the appropriate GST amounts on General Invoices.
+    """
+    session = e2e_session
+
+    # 1. Verify get_tax_categories returns 0%, 5%, and 18%
+    tax_cats = await misc_service.get_tax_categories(session)
+    rates = {Decimal(str(tc.igst_rate)) for tc in tax_cats}
+    assert Decimal("0.00") in rates, "0% tax category must be present"
+    assert Decimal("5.00") in rates, "5% tax category must be present"
+    assert Decimal("18.00") in rates, "18% tax category must be present"
+
+    tc_0 = next(tc for tc in tax_cats if Decimal(str(tc.igst_rate)) == Decimal("0.00"))
+    tc_5 = next(tc for tc in tax_cats if Decimal(str(tc.igst_rate)) == Decimal("5.00"))
+    tc_18 = next(tc for tc in tax_cats if Decimal(str(tc.igst_rate)) == Decimal("18.00"))
+
+    # 2. General Invoice with 18% (Default)
+    inv_18 = await accounts_service.create_general_invoice(
+        session,
+        GeneralInvoiceCreate(
+            billing_client_id=1,
+            voucher_number="GI-TEST-18",
+            voucher_date=date(2026, 4, 25),
+            place_of_supply="Maharashtra",
+            items=[
+                GeneralInvoiceItemCreate(
+                    description="Standard Consulting Service",
+                    quantity=Decimal("1.00"),
+                    rate=Decimal("10000.00"),
+                    tax_category_id=tc_18.id,
+                )
+            ],
+        ),
+        office_id=1,
+    )
+    assert inv_18.total_amount == Decimal("10000.00")
+    assert inv_18.tax_amount == Decimal("1800.00")
+    assert inv_18.net_amount == Decimal("11800.00")
+
+    # 3. General Invoice with 5%
+    inv_5 = await accounts_service.create_general_invoice(
+        session,
+        GeneralInvoiceCreate(
+            billing_client_id=1,
+            voucher_number="GI-TEST-5",
+            voucher_date=date(2026, 4, 25),
+            place_of_supply="Maharashtra",
+            items=[
+                GeneralInvoiceItemCreate(
+                    description="Special 5% Service",
+                    quantity=Decimal("1.00"),
+                    rate=Decimal("10000.00"),
+                    tax_category_id=tc_5.id,
+                )
+            ],
+        ),
+        office_id=1,
+    )
+    assert inv_5.total_amount == Decimal("10000.00")
+    assert inv_5.tax_amount == Decimal("500.00")
+    assert inv_5.net_amount == Decimal("10500.00")
+
+    # 4. General Invoice with 0%
+    inv_0 = await accounts_service.create_general_invoice(
+        session,
+        GeneralInvoiceCreate(
+            billing_client_id=1,
+            voucher_number="GI-TEST-0",
+            voucher_date=date(2026, 4, 25),
+            place_of_supply="Maharashtra",
+            items=[
+                GeneralInvoiceItemCreate(
+                    description="Exempt / 0% Service",
+                    quantity=Decimal("1.00"),
+                    rate=Decimal("10000.00"),
+                    tax_category_id=tc_0.id,
+                )
+            ],
+        ),
+        office_id=1,
+    )
+    assert inv_0.total_amount == Decimal("10000.00")
+    assert inv_0.tax_amount == Decimal("0.00")
+    assert inv_0.net_amount == Decimal("10000.00")
