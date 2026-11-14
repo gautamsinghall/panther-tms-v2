@@ -104,43 +104,43 @@ interface SuggestedPrompt {
 function getSuggestedPrompts(pathname: string): SuggestedPrompt[] {
   if (pathname.startsWith("/transport/lr")) {
     return [
-      { label: "Track an LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
-      { label: "Show pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
-      { label: "How do I create an LR?", text: "How do I create an LR?" },
+      { label: "Track LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
+      { label: "Pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
+      { label: "How to create LR?", text: "How do I create an LR?" },
     ];
   }
   if (pathname.startsWith("/transport/job")) {
     return [
-      { label: "Show my job list", text: "What is my job list?", module: "transport" },
-      { label: "Show pending LRs", text: "Show pending LRs", module: "transport" },
-      { label: "Where is my shipment?", text: "Where is my shipment?", module: "transport" },
+      { label: "Job List", text: "What is my job list?", module: "transport" },
+      { label: "Pending LRs", text: "Show pending LRs", module: "transport" },
+      { label: "Track Shipment", text: "Where is my shipment?", module: "transport" },
     ];
   }
   if (pathname.startsWith("/accounts") || pathname.startsWith("/general")) {
     return [
-      { label: "View ledger", text: "View Ledger", module: "accounts", feature: "master_ledger" },
-      { label: "Show pending invoices", text: "Show my pending invoices", module: "accounts", feature: "master_ledger" },
-      { label: "What is my balance?", text: "What is my balance?", module: "accounts", feature: "master_ledger" },
+      { label: "View Ledger", text: "View Ledger", module: "accounts", feature: "master_ledger" },
+      { label: "Pending Invoices", text: "Show my pending invoices", module: "accounts", feature: "master_ledger" },
+      { label: "Check Balance", text: "What is my balance?", module: "accounts", feature: "master_ledger" },
     ];
   }
   if (pathname.startsWith("/transport/hire")) {
     return [
-      { label: "Create a hire challan", text: "Create a hire challan", module: "transport" },
-      { label: "Show hire challans", text: "Show hire challans", module: "transport" },
+      { label: "Hire Challans", text: "Show hire challans", module: "transport" },
+      { label: "Create Challan", text: "Create a hire challan", module: "transport" },
     ];
   }
   if (pathname.startsWith("/transport") || pathname.startsWith("/tracking")) {
     return [
-      { label: "Track a vehicle", text: "Track a vehicle", module: "transport" },
-      { label: "Show my vehicles", text: "Show my vehicles", module: "transport" },
-      { label: "Where is my shipment?", text: "Where is my shipment?", module: "transport" },
+      { label: "Track Vehicle", text: "Track a vehicle", module: "transport" },
+      { label: "My Vehicles", text: "Show my vehicles", module: "transport" },
+      { label: "Track Shipment", text: "Where is my shipment?", module: "transport" },
     ];
   }
   return [
-    { label: "Track an LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
-    { label: "View ledger", text: "View Ledger", module: "accounts", feature: "master_ledger" },
-    { label: "Show pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
-    { label: "Track a vehicle", text: "Track a vehicle", module: "transport" },
+    { label: "Track LR", text: "Track my LR", module: "transport", feature: "lr_booking" },
+    { label: "View Ledger", text: "View Ledger", module: "accounts", feature: "master_ledger" },
+    { label: "Pending PODs", text: "Show pending PODs", module: "transport", feature: "lr_booking" },
+    { label: "Track Vehicle", text: "Track a vehicle", module: "transport" },
   ];
 }
 
@@ -1038,26 +1038,26 @@ export function PantherAIPanel() {
         const getPromptIcon = (label: string) => {
           const l = label.toLowerCase();
           if (l.includes("ledger") || l.includes("balance") || l.includes("invoice")) {
-            return <CreditCard className="w-3.5 h-3.5 text-emerald-500" />;
+            return <CreditCard className="w-3 h-3 text-emerald-500 shrink-0" />;
           }
           if (l.includes("pod") || l.includes("challan") || l.includes("job") || l.includes("list")) {
-            return <FileText className="w-3.5 h-3.5 text-purple-500" />;
+            return <FileText className="w-3 h-3 text-purple-500 shrink-0" />;
           }
           if (l.includes("track") || l.includes("vehicle") || l.includes("shipment") || l.includes("lr")) {
-            return <Truck className="w-3.5 h-3.5 text-blue-500" />;
+            return <Truck className="w-3 h-3 text-blue-500 shrink-0" />;
           }
-          return <FileText className="w-3.5 h-3.5 text-indigo-500" />;
+          return <FileText className="w-3 h-3 text-indigo-500 shrink-0" />;
         };
 
         return (
-          <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-[#1C2033] bg-slate-50/50 dark:bg-[#111322] shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-slate-100 dark:border-[#1C2033] bg-slate-50/50 dark:bg-[#111322] shrink-0">
             {prompts.map((p) => (
               <button
                 key={p.label}
                 type="button"
                 onClick={() => (p.href ? handleNavigate(p.href) : handleSendMessage(p.text))}
                 disabled={isLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer select-none shrink-0 bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer select-none bg-white dark:bg-[#161928] hover:bg-indigo-50/70 dark:hover:bg-[#1E233A] text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-[#252A42] shadow-2xs disabled:cursor-not-allowed shrink-0"
               >
                 {getPromptIcon(p.label)}
                 <span>{p.label}</span>
