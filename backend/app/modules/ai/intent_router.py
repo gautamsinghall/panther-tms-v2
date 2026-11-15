@@ -617,17 +617,26 @@ def classify_intent_and_entities(
     # the unknown fallback. Answered from page_context + the tms-pages-* KB
     # chunks (router.py), never from a canned reply.
     # --------------------------------------------------------------------------
+    has_page_followup = False
+    if conversation_history:
+        last_asst_msg = next((m.get("content", "") for m in reversed(conversation_history) if m.get("role") == "assistant"), "")
+        if "tell me the section you are viewing" in last_asst_msg.lower() or "currently open page" in last_asst_msg.lower():
+            has_page_followup = True
+
     is_page_help = bool(
         re.search(
             r"\b(what\s+is\s+this\s+(?:page|screen)|what\s+does\s+this\s+(?:page|screen)\s+do|"
             r"what\s+is\s+this\s+(?:page|screen)\s+for|what\s+can\s+i\s+do\s+(?:here|on\s+this\s+page)|"
-            r"what\s+is\s+the\s+purpose\s+of\s+this\s+page|explain\s+this\s+page|"
+            r"what\s+is\s+the\s+purpose\s+of\s+this\s+page|explain\s+this\s+(?:page|screen)|"
+            r"about\s+this\s+(?:page|screen)|help\s+with\s+this\s+(?:page|screen)|"
             r"is\s+page\s+pe\s+kya\s+hota\s+hai|is\s+page\s+ka\s+kya\s+kaam\s+hai|"
             r"yahan\s+kya\s+kar\s+sakte\s+hain|is\s+screen\s+par\s+kya\s+hota\s+hai)\b",
             lower,
         )
+        or has_page_followup
         or "इस पेज पर क्या होता है" in clean
         or "इस पेज का क्या काम है" in clean
+        or lower in ("what is this page", "what is this screen", "this page", "this screen", "page help", "screen help", "about this page")
     )
     if is_page_help:
         return RouterResult(intent="page_help", confidence=0.95, matched_rule="page_help")

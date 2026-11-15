@@ -160,3 +160,56 @@ def test_rag_engine_retrieves_new_chunks():
         chunks, _ = engine.retrieve(query, top_k=3)
         doc_ids = [c.doc_id for c in chunks]
         assert expected_chunk_id in doc_ids, f"Query '{query}' expected chunk '{expected_chunk_id}' in top 3, got {doc_ids}"
+
+
+def test_page_registry_all_modules_and_dynamic_fallback():
+    """Verify that all major frontend pages exist in PAGE_REGISTRY and dynamic fallback works."""
+    from app.modules.ai.knowledge import get_page_registry_entry
+
+    routes = [
+        "/fleet/trip-expense",
+        "/fleet/trip-advance",
+        "/fleet/trip-expense-register",
+        "/fleet/truck-pnl",
+        "/accounts/general-invoice",
+        "/accounts/proforma-invoice",
+        "/accounts/purchases",
+        "/accounts/receipt-voucher",
+        "/transport-reports/lr-register",
+        "/transport-reports/hc-register",
+        "/reports/trial-balance",
+        "/company/branches",
+    ]
+    for r in routes:
+        path, meta = get_page_registry_entry(r)
+        assert meta is not None, f"Route {r} missing from PAGE_REGISTRY"
+        assert meta.get("title"), f"Route {r} missing title"
+        assert meta.get("purpose"), f"Route {r} missing purpose"
+
+    # Test dynamic fallback on unmapped route
+    _, dyn_meta = get_page_registry_entry("/custom/warehouse-zones")
+    assert dyn_meta is not None
+    assert dyn_meta["title"] == "Warehouse Zones"
+
+
+@pytest.mark.asyncio
+async def test_llm_failure_resilience():
+    """Verify that LLM failure never crashes with 500 UnboundLocalError or missing traceback."""
+    from unittest.mock import patch
+    from app.modules.ai.router import chat_with_copilot
+    from app.modules.ai.schemas import ChatRequest, ChatMessage
+    from app.control.models import Tenant, Plan
+    from app.tenant_db.models import User, Branch
+
+    plan = Plan(id=1, code="PRO", name="Pro")
+    tenant = Tenant(id=1, company_name="Test Co", company_code="TESTCO", status="ACTIVE", plan=plan)
+    user = User(id=1, full_name="User", email="user@test.com", role="admin")
+    branch = Branch(id=1, name="Delhi", code="DEL")
+
+    with patch("app.modules.ai.router.call_llm", side_effect=RuntimeError("Provider timed out")):
+        req = ChatRequest(messages=[ChatMessage(role="user", content="tell me about transit corridors")], page_context="/dashboard")
+        resp = await chat_with_copilot(data=req, current_user=user, tenant=tenant, current_office=branch, db=None)
+        assert resp is not None
+        assert len(resp.content) > 0
+        assert "500" not in resp.content
+

@@ -377,6 +377,397 @@ PAGE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "save": "",
         "verified": False,
     },
+    # ------------------------------------------------------------------
+    # FLEET MANAGEMENT PAGES
+    # ------------------------------------------------------------------
+    "/fleet/trip-expense": {
+        "title": "Trip Expense Management",
+        "purpose": "Record and reconcile on-road trip operational expenses (diesel/fuel, FASTag/tolls, driver allowances, unloading, minor en-route repairs) against a vehicle and trip order.",
+        "key_fields": [
+            ("Vehicle Number", True), ("Expense Category", True),
+            ("Amount", True), ("Bill / Receipt No.", False),
+        ],
+        "common_errors": ["Trip expenses must be booked to the correct vehicle and trip so driver settlements and truck-wise P&L reflect actual costs."],
+        "next_steps": ["Check the Trip Expense Register", "Reconcile driver advances in Trip Advance", "Review Truck-Wise P&L"],
+        "save": "Click \"Add Expense Voucher\" to submit the new expense entry.",
+        "verified": True,
+        "bullets": [
+            "Log fuel (diesel), FASTag tolls, driver en-route expenses, and truck maintenance",
+            "Allocate costs directly to specific trips or vehicles for cost-center tracking",
+            "Upload vendor expense bills, fuel slips, and toll receipts",
+            "Feed data directly into Driver Settlement and Truck-Wise Profit & Loss (P&L)",
+        ],
+    },
+    "/fleet/trip-advance": {
+        "title": "Trip Advance",
+        "purpose": "Issue and record upfront cash or bank advances given to drivers prior to trip departure for fuel, tolls, and en-route allowances.",
+        "key_fields": [("Vehicle", True), ("Driver", True), ("Advance Amount", True)],
+        "common_errors": ["Do not confuse driver trip advance with market truck hire advance (Hire Challan advance)."],
+        "next_steps": ["Reconcile with actual trip expenses at trip completion"],
+        "save": "Click \"Issue Advance\" to record payment.",
+        "verified": True,
+        "bullets": [
+            "Issue cash or bank advances to drivers for transit trip operating funds",
+            "Track un-settled driver balances across completed and in-transit trips",
+            "Auto-link advances with the assigned Trip / LR number",
+        ],
+    },
+    "/fleet/trip-expense-register": {
+        "title": "Trip Expense Register",
+        "purpose": "Consolidated chronological register of all trip operational expenses, filterable by date, vehicle, category, and driver.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Export report or inspect individual expense vouchers"],
+        "save": "",
+        "verified": True,
+        "bullets": [
+            "Audit all diesel, toll, repair, and miscellaneous expenses in one master view",
+            "Filter records by date range, vehicle number, or expense category",
+            "Export expense registers for financial accounting audit and P&L reconciliation",
+        ],
+    },
+    "/fleet/truck-pnl": {
+        "title": "Truck-Wise P&L",
+        "purpose": "Financial analytics dashboard calculating gross and net profitability per vehicle by matching freight earnings against all trip operating expenses.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Review vehicle operational margins and identify loss-making routes"],
+        "save": "",
+        "verified": True,
+        "bullets": [
+            "View net profitability per company-owned or contracted vehicle",
+            "Compare billed freight revenue against diesel, maintenance, and toll spend",
+            "Analyze cost-per-kilometer and route-wise operational margins",
+        ],
+    },
+    "/fleet/vehicle-health": {
+        "title": "Vehicle Health & Maintenance",
+        "purpose": "Track preventative maintenance schedules, service intervals, inspection checklists, and fitness records across the fleet.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Schedule servicing or log completed maintenance job cards"],
+        "save": "Click \"Log Health Check\" to save inspection.",
+        "verified": True,
+        "bullets": [
+            "Monitor vehicle service due dates and odometer milestones",
+            "Record maintenance workshop visits, part replacements, and service bills",
+            "Prevent en-route vehicle breakdowns with timely preventive servicing",
+        ],
+    },
+    "/fleet/documents": {
+        "title": "Vehicle Documents & Compliance",
+        "purpose": "Store, track, and monitor expiry dates for statutory vehicle documents (RC, National Permit, Fitness Certificate, Road Tax, Insurance, PUC).",
+        "key_fields": [("Document Type", True), ("Expiry Date", True)],
+        "common_errors": ["Operating vehicles with expired national permits or fitness leads to heavy RTO penalties and insurance denial."],
+        "next_steps": ["Upload renewed document copies before expiry"],
+        "save": "Click \"Upload Document\" to update vehicle records.",
+        "verified": True,
+        "bullets": [
+            "Track expiry dates for Insurance, Fitness, Road Tax, PUC, and National Permit",
+            "Receive proactive renewal alerts before statutory documents lapse",
+            "Maintain digital scanned copies of RC books and compliance certificates",
+        ],
+    },
+    "/fleet/tyre": {
+        "title": "Tyre Management",
+        "purpose": "Track commercial vehicle tyre inventory, serial numbers, axle positions, tread depth measurements, and retreading cycles.",
+        "key_fields": [("Tyre Serial No.", True), ("Vehicle", True), ("Axle Position", True)],
+        "common_errors": [],
+        "next_steps": ["Log periodic tread depth or record tyre rotation"],
+        "save": "Click \"Save Tyre Record\".",
+        "verified": True,
+        "bullets": [
+            "Map tyre serial numbers to specific vehicle axle positions",
+            "Monitor tread wear, mileage performance, and retreading history",
+            "Control tyre replacement costs and prevent unauthorized tyre swaps",
+        ],
+    },
+    "/fleet/service": {
+        "title": "Vehicle Service & Repairs",
+        "purpose": "Log major and minor workshop repairs, mechanic job cards, and spare part replacement invoices.",
+        "key_fields": [("Vehicle", True), ("Workshop", True), ("Total Cost", True)],
+        "common_errors": [],
+        "next_steps": ["Link service cost to the vehicle maintenance ledger"],
+        "save": "Click \"Create Service Record\".",
+        "verified": True,
+        "bullets": [
+            "Record mechanical, electrical, and tyre repairs with workshop bills",
+            "Track spare parts replaced and labor charges incurred",
+            "Maintain complete historical service logs for vehicle resale and audit",
+        ],
+    },
+    # ------------------------------------------------------------------
+    # ACCOUNTS & INVOICING PAGES
+    # ------------------------------------------------------------------
+    "/accounts": {
+        "title": "Accounts Overview",
+        "purpose": "Executive accounting dashboard displaying outstanding receivables, vendor payables, cash/bank balances, and voucher summaries.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Open Master Ledger, Transport Invoices, or Voucher registers"],
+        "save": "",
+        "verified": True,
+        "bullets": [
+            "Monitor live company financial health, receivables, and payables",
+            "Access direct links to all sales invoices, purchase bills, and vouchers",
+            "Track cash-in-hand and bank account balances across all branches",
+        ],
+    },
+    "/accounts/transport-invoice": {
+        "title": "Transport Invoice",
+        "purpose": "Create and manage GST-compliant freight sales invoices billed to customers for transport consignments (LRs).",
+        "key_fields": [("Billing Client", True), ("LR Selection", True), ("Invoice Date", True)],
+        "common_errors": ["Ensure PODs are verified before generating final transport invoices."],
+        "next_steps": ["Generate IRN for B2B e-invoicing", "Send invoice copy to client"],
+        "save": "Click \"Generate Transport Invoice\".",
+        "verified": True,
+        "bullets": [
+            "Generate GST sales invoices by importing delivered LRs",
+            "Apply statutory GST rates (5% RCM or 12% Forward Charge) under SAC 9965",
+            "Post automatic debit entries to the Client Master Ledger",
+        ],
+    },
+    "/accounts/general-invoice": {
+        "title": "General Invoice",
+        "purpose": "Bill clients for non-freight commercial services such as vehicle detention, demurrage, warehousing, handling, and equipment leasing.",
+        "key_fields": [("Billing Client", True), ("SAC Code", True), ("Taxable Amount", True)],
+        "common_errors": ["Do not use general invoices for standard freight movements — use Transport Invoice instead."],
+        "next_steps": ["Post invoice and record incoming payment in Receipt Voucher"],
+        "save": "Click \"Create General Invoice\".",
+        "verified": True,
+        "bullets": [
+            "Bill customers for detention charges, demurrage, loading labor, or warehousing",
+            "Select applicable service SAC code with SGST/CGST or IGST calculation",
+            "Post debit to customer account without requiring LR consignment linkage",
+        ],
+    },
+    "/accounts/proforma-invoice": {
+        "title": "Proforma Invoice",
+        "purpose": "Issue provisional commercial quotations and freight estimates without impacting the General Ledger or creating tax liability.",
+        "key_fields": [("Billing Client", True), ("Estimated Amount", True)],
+        "common_errors": ["Proforma invoices have NO legal tax validity and do NOT post entries to customer ledgers."],
+        "next_steps": ["Convert to Transport Invoice once the shipment is delivered and confirmed"],
+        "save": "Click \"Issue Proforma\".",
+        "verified": True,
+        "bullets": [
+            "Send formal price quotations and freight estimates to prospective shippers",
+            "Provide clients with pre-dispatch billing amounts for advance approval",
+            "Zero double-entry ledger impact until converted to a finalized invoice",
+        ],
+    },
+    "/accounts/purchases": {
+        "title": "Purchase Register",
+        "purpose": "Record vendor bills for diesel purchases, spare parts, tyre suppliers, office expenses, and third-party truck hiring.",
+        "key_fields": [("Vendor / Supplier", True), ("Bill No.", True), ("Expense Category", True), ("Amount", True)],
+        "common_errors": ["Ensure supplier GSTIN matches the invoice copy for GSTR-2B ITC claim eligibility."],
+        "next_steps": ["Post payment voucher when settling the vendor bill"],
+        "save": "Click \"Add Purchase Bill\".",
+        "verified": True,
+        "bullets": [
+            "Log supplier invoices with GST breakdown (IGST / CGST / SGST)",
+            "Classify expenses: Diesel, Tyres, Maintenance, Truck Hire, Office Supplies",
+            "Post vendor credit liabilities to the Master Ledger for payment scheduling",
+        ],
+    },
+    "/accounts/receipt-voucher": {
+        "title": "Receipt Voucher",
+        "purpose": "Post receipts for payments received from billing customers via bank transfer (NEFT/RTGS), cheque, UPI, or cash.",
+        "key_fields": [("Customer", True), ("Deposit Account", True), ("Amount", True), ("Voucher Date", True)],
+        "common_errors": ["Always allocate receipt amounts to specific unpaid invoices to keep debtor aging accurate."],
+        "next_steps": ["View updated customer balance in Master Ledger"],
+        "save": "Click \"Post Receipt Voucher\".",
+        "verified": True,
+        "bullets": [
+            "Record incoming customer payments against outstanding transport invoices",
+            "Debit Bank/Cash account and credit Customer Ledger simultaneously",
+            "Track deductions such as TDS (Section 194C) or customer freight penalties",
+        ],
+    },
+    "/accounts/payment-voucher": {
+        "title": "Payment Voucher",
+        "purpose": "Record payments made to suppliers, diesel bunks, vehicle owners, mechanics, and drivers with TDS deduction.",
+        "key_fields": [("Paid To / Vendor", True), ("Withdrawal Account", True), ("Amount", True)],
+        "common_errors": ["Apply Section 194C TDS (1% individual, 2% company) on contractor payments where applicable."],
+        "next_steps": ["Check vendor ledger balance to verify settlement"],
+        "save": "Click \"Post Payment Voucher\".",
+        "verified": True,
+        "bullets": [
+            "Disburse payments to vendors, fuel stations, and transport contractors",
+            "Deduct statutory TDS (Section 194C) automatically upon voucher creation",
+            "Maintain audit trail of cheque numbers, UTR transaction IDs, and bank sources",
+        ],
+    },
+    "/accounts/contra-voucher": {
+        "title": "Contra Voucher",
+        "purpose": "Record internal funds transfers between bank accounts or between cash-in-hand and company bank accounts.",
+        "key_fields": [("Transfer From", True), ("Transfer To", True), ("Amount", True)],
+        "common_errors": ["Contra vouchers are ONLY for internal cash/bank transfers — never for customer or vendor payments."],
+        "next_steps": ["Verify closing balances in both affected bank/cash ledgers"],
+        "save": "Click \"Post Contra Voucher\".",
+        "verified": True,
+        "bullets": [
+            "Transfer funds from bank to branch petty cash (cash withdrawal)",
+            "Deposit daily branch cash collections into company bank accounts",
+            "Transfer liquidity between primary and secondary company bank accounts",
+        ],
+    },
+    "/accounts/journal-voucher": {
+        "title": "Journal Voucher",
+        "purpose": "Record non-cash accounting adjustments, TDS liabilities, depreciation, freight corrections, and year-end audit entries.",
+        "key_fields": [("Debit Account", True), ("Credit Account", True), ("Amount", True)],
+        "common_errors": ["Debit and Credit totals must balance perfectly before the journal voucher can be posted."],
+        "next_steps": ["Inspect Master Ledger to review posted adjustment impacts"],
+        "save": "Click \"Post Journal Voucher\".",
+        "verified": True,
+        "bullets": [
+            "Make manual double-entry adjustments across any chart of accounts ledgers",
+            "Post monthly depreciation, bad debt provisions, and tax adjustments",
+            "Rectify posting errors between different cost centers or parties",
+        ],
+    },
+    "/accounts/credit-debit-notes": {
+        "title": "Credit & Debit Notes",
+        "purpose": "Issue credit notes for customer discounts, shortage deductions, or rate corrections, and debit notes for vendor penalties.",
+        "key_fields": [("Party", True), ("Original Invoice / Bill", True), ("Adjustment Amount", True)],
+        "common_errors": ["Always link credit notes to the original GST invoice number for GST reporting compliance."],
+        "next_steps": ["Review customer ledger to verify reduced outstanding balance"],
+        "save": "Click \"Create Note\".",
+        "verified": True,
+        "bullets": [
+            "Issue GST Credit Notes to customers for cargo shortage, damage, or agreed discounts",
+            "Raise Debit Notes on vendors or truck owners for detention or in-transit loss",
+            "Keep financial ledgers perfectly reconciled with tax return filings",
+        ],
+    },
+    "/accounts/bank-accounts": {
+        "title": "Company Bank Accounts",
+        "purpose": "Configure company banking accounts, monitor live balances, bank branch details, and IFSC codes.",
+        "key_fields": [("Bank Name", True), ("Account Number", True), ("IFSC Code", True)],
+        "common_errors": ["Ensure opening balance is entered accurately during initial setup."],
+        "next_steps": ["Perform monthly Bank Reconciliation (BRS) against bank statements"],
+        "save": "Click \"Add Bank Account\".",
+        "verified": True,
+        "bullets": [
+            "Manage current, savings, and cash-credit (OD/CC) bank accounts",
+            "View live reconciled ledger balances for each active banking channel",
+            "Assign default payout bank accounts for branches and operations",
+        ],
+    },
+    # ------------------------------------------------------------------
+    # TRANSPORT OPERATIONS & REPORTS PAGES
+    # ------------------------------------------------------------------
+    "/transport/drivers": {
+        "title": "Drivers Directory",
+        "purpose": "Maintain driver profiles, driving license (DL) details, mobile numbers, and KYC verification records.",
+        "key_fields": [("Driver Name", True), ("Mobile", True), ("DL Number", True)],
+        "common_errors": ["Verify DL validity before assigning drivers to long-haul transit jobs."],
+        "next_steps": ["Assign driver to vehicle or active trip"],
+        "save": "Click \"Add Driver\".",
+        "verified": True,
+        "bullets": [
+            "Store verified driver personal profiles, photographs, and license details",
+            "Track DL expiry dates and emergency contact phone numbers",
+            "Review driver trip history and outstanding advance balances",
+        ],
+    },
+    "/transport/eway-bill": {
+        "title": "E-Way Bill Management",
+        "purpose": "View, manage, update vehicle numbers (Part B), and extend validity of statutory GST E-Way Bills.",
+        "key_fields": [("E-Way Bill No.", True), ("Vehicle No.", True)],
+        "common_errors": ["Expired e-way bills or missing Part B updates incur heavy 100% tax penalties by GST flying squads."],
+        "next_steps": ["Update vehicle plate number when transshipping cargo"],
+        "save": "Click \"Update E-Way Bill\".",
+        "verified": True,
+        "bullets": [
+            "Search and inspect 12-digit GST E-Way Bills linked to active consignments",
+            "Update Part-B vehicle details during transshipment or breakdown",
+            "Monitor remaining validity hours to avoid transit interception",
+        ],
+    },
+    "/transport-reports/lr-register": {
+        "title": "LR Booking Register",
+        "purpose": "Comprehensive audit register of all Lorry Receipts booked across issuing offices, filterable by date, status, customer, and route.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Export register to Excel or filter unbilled consignments"],
+        "save": "",
+        "verified": True,
+        "bullets": [
+            "View every LR booked in the system with full freight and party details",
+            "Track booking states: Booked, Loaded, In Transit, Arrived, Delivered",
+            "Export complete operational data for MIS reporting and customer audits",
+        ],
+    },
+    "/transport-reports/hc-register": {
+        "title": "Hire Challan Register",
+        "purpose": "Operational register tracking market truck hire challans, advance payouts, diesel slips, and destination balances.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Audit pending hire balances and approve driver final settlements"],
+        "save": "",
+        "verified": True,
+        "bullets": [
+            "Track all third-party vehicle hiring memos in one master ledger",
+            "Audit advance amounts paid vs balance payable at destination",
+            "Verify TDS deducted under Section 194C on vehicle hiring",
+        ],
+    },
+    "/transport-reports/invoice-register": {
+        "title": "Invoice Register",
+        "purpose": "Chronological register of all generated transport and general sales invoices with GST breakdown, taxable values, and status.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Export for monthly GSTR-1 return filing or client payment follow-up"],
+        "save": "",
+        "verified": True,
+        "bullets": [
+            "Filter and review all transport invoices and general commercial bills",
+            "Audit taxable freight amounts, CGST, SGST, IGST, and total invoice sums",
+            "Identify paid, partially paid, and overdue unpaid invoices",
+        ],
+    },
+    "/general/vendor": {
+        "title": "Vendors & Suppliers",
+        "purpose": "Manage supplier profiles for fuel bunks, tyre dealers, spare parts suppliers, mechanics, and truck hiring brokers.",
+        "key_fields": [("Vendor Name", True), ("Category", True), ("GSTIN", False)],
+        "common_errors": [],
+        "next_steps": ["View vendor running balance in Master Ledger"],
+        "save": "Click \"Add Vendor\".",
+        "verified": True,
+        "bullets": [
+            "Maintain vendor directory with payment terms, PAN, and GSTIN",
+            "Classify vendors: Fuel Bunks, Mechanics, Tyre Agencies, Brokers",
+            "Audit vendor purchase liabilities and payment histories",
+        ],
+    },
+    "/reports/trial-balance": {
+        "title": "Trial Balance",
+        "purpose": "Accounting report verifying debit and credit equality across all assets, liabilities, income, and expense ledgers.",
+        "key_fields": [],
+        "common_errors": [],
+        "next_steps": ["Verify ledger equilibrium before closing quarterly or annual financial statements"],
+        "save": "",
+        "verified": True,
+        "bullets": [
+            "Audit total debits and credits across the entire chart of accounts",
+            "Detect un-balanced entries or posting discrepancies immediately",
+            "Filter trial balance by financial year or specific branch office",
+        ],
+    },
+    "/company/branches": {
+        "title": "Company Branches",
+        "purpose": "Manage company issuing offices, physical hubs, operational branches, and assigned document numbering series.",
+        "key_fields": [("Branch Name", True), ("Branch Code", True), ("State", True)],
+        "common_errors": [],
+        "next_steps": ["Assign document series and users to the branch"],
+        "save": "Click \"Add Branch\".",
+        "verified": True,
+        "bullets": [
+            "Configure branch locations, contact phone numbers, and physical addresses",
+            "Link branch issuing offices to regional document numbering sequences",
+            "Manage user office switching and operational access boundaries",
+        ],
+    },
 }
 
 
@@ -395,8 +786,10 @@ def parse_page_context(page_context: Optional[str]) -> Tuple[str, str]:
 
 
 def get_page_registry_entry(page_context: Optional[str]) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """Look up the current page in PAGE_REGISTRY. Returns (path, entry|None)."""
-    path, _ = parse_page_context(page_context)
+    """Look up the current page in PAGE_REGISTRY. Returns (path, entry).
+    Always provides a clean, accurate entry for any page in Panther TMS.
+    """
+    path, extras = parse_page_context(page_context)
     if not path:
         return "", None
     if path in PAGE_REGISTRY:
@@ -404,6 +797,35 @@ def get_page_registry_entry(page_context: Optional[str]) -> Tuple[str, Optional[
     for route, entry in PAGE_REGISTRY.items():
         if route != "/dashboard" and (path.endswith(route) or route in path):
             return route, entry
+
+    # Universal dynamic fallback for unmapped or newly added routes
+    clean_path = path.strip().strip("/")
+    if clean_path:
+        parts = clean_path.split("/")
+        inferred_title = ""
+        if "title:" in extras:
+            m_t = re.search(r"title:\s*([^|]+)", extras)
+            if m_t:
+                inferred_title = m_t.group(1).strip().replace("PantherTMS", "").replace("-", " ").strip()
+        if not inferred_title:
+            inferred_title = parts[-1].replace("-", " ").replace("_", " ").title()
+
+        module_name = parts[0].replace("-", " ").replace("_", " ").title() if len(parts) > 1 else "Operations"
+        return path, {
+            "title": inferred_title or "TMS Workspace",
+            "purpose": f"Manage and review operations for {inferred_title} in the {module_name} module.",
+            "key_fields": [],
+            "common_errors": [],
+            "next_steps": [f"Review active {inferred_title} records", "Filter and search entries as needed"],
+            "save": f"Review or manage records on the {inferred_title} screen.",
+            "verified": False,
+            "bullets": [
+                f"Manage and audit records on the {inferred_title} screen",
+                f"Perform primary tasks within the {module_name} workspace",
+                "Filter entries and export data according to branch requirements",
+            ],
+        }
+
     return path, None
 
 

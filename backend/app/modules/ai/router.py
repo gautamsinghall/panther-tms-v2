@@ -7,6 +7,7 @@ from typing import Optional, AsyncGenerator, Tuple, List, Dict, Any
 from decimal import Decimal
 import re
 import urllib.parse
+import traceback
 
 from fastapi import APIRouter, Depends, Query, status, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -436,6 +437,18 @@ def build_page_help_response(
     then the one primary action. Word count capped under ~120 words.
     """
     _path, meta = get_page_registry_entry(page_context)
+
+    # If the user mentioned a specific section by name, look up that page directly
+    q_lower = (query or "").lower().strip()
+    if meta is None or (q_lower and q_lower not in ("what is this page", "what is this screen", "explain this page", "what does this page do")):
+        for route, entry in PAGE_REGISTRY.items():
+            r_slug = route.split("/")[-1].replace("-", " ")
+            t_lower = entry.get("title", "").lower()
+            if len(q_lower) >= 3 and (r_slug in q_lower or q_lower in r_slug or t_lower in q_lower):
+                _path = route
+                meta = entry
+                break
+
     if meta is None:
         if lang in ("hinglish", "hi_devanagari"):
             msg = "Mujhe abhi aapka currently open page determine karne me asuvidha ho rahi hai. Kripya aap jo section dekh rahe hain uska naam batayein, aur main aapko guide kar dunga."
@@ -452,6 +465,10 @@ def build_page_help_response(
         c for c in knowledge_engine.chunks
         if c.route and (c.route.strip().rstrip("/") == route_norm or (route_norm and route_norm.startswith(c.route.strip().rstrip("/"))))
     ]
+    if not matching_chunks:
+        retrieved, _ = knowledge_engine.retrieve(f"{title} {purpose}", top_k=2)
+        matching_chunks = retrieved
+
     citations = [
         {"doc_id": c.doc_id, "title": c.title, "source": f"{c.source_file} § {c.title}"}
         for c in matching_chunks[:2]
@@ -475,7 +492,9 @@ def build_page_help_response(
         action_header = "Primary action:"
 
     # 2. At most 4 bullets (what you can do here)
-    if _path == "/transport/lr-booking":
+    if meta.get("bullets"):
+        bullets = meta["bullets"]
+    elif _path == "/transport/lr-booking":
         bullets = [
             "Create new Lorry Receipts (LRs) with consignment details and assigned truck",
             "Track consignment lifecycle status: BOOKED → IN_TRANSIT → DELIVERED",
@@ -3195,6 +3214,7 @@ async def chat_with_copilot(
     )
 
     # 7. Call LLM
+    reply_guarded = False
     try:
         safe_messages = sanitize_chat_history_for_external_llm(data.messages)
         raw_reply = await call_llm(
@@ -3225,7 +3245,9 @@ async def chat_with_copilot(
                 if "source:" not in reply_content.lower():
                     reply_content = reply_content.rstrip() + f"\n\n{source_line}"
     except Exception as e:
+        reply_guarded = False
         err_msg = str(e)
+        logger.error(f"Error calling LLM provider: {e}\n{traceback.format_exc()}")
         if "Quota Exceeded" in err_msg or "rate limit" in err_msg.lower():
             if detected_lang == "hi_devanagari":
                 reply_content = "एआई सेवा वर्तमान में व्यस्त है (रेट लिमिट)। कृपया कुछ सेकंड बाद पुनः प्रयास करें। आपकी कंपनी के डेटा प्रश्न (जैसे क्लाइंट, वेंडर, ड्राइवर या एलआर) अभी भी उपलब्ध हैं।"
@@ -3234,7 +3256,31 @@ async def chat_with_copilot(
             else:
                 reply_content = "The AI assistant is temporarily rate-limited. Please retry in a few moments. Note that direct company records queries (clients, vendors, drivers, LRs) remain fully operational."
         else:
-            reply_content = f"Sorry, I encountered an issue while processing your request: {err_msg}"
+            if citations and rag_context:
+                top_chunks = [c for c in citations if isinstance(c, dict) and c.get("title")]
+                top_titles = ", ".join(f"'{c.get('title')}'" for c in top_chunks[:2])
+                raw_chunk_text = ""
+                for line in rag_context.splitlines():
+                    if line.startswith("--- SOURCE") or line.startswith("AUTHORITATIVE") or not line.strip():
+                        continue
+                    raw_chunk_text += line + " "
+                    if len(raw_chunk_text) >= 500:
+                        break
+                summary_excerpt = raw_chunk_text.strip()[:500]
+                if summary_excerpt:
+                    reply_content = f"{summary_excerpt}\n\n(Source: Panther docs — {top_titles}.)"
+                else:
+                    reply_content = (
+                        f"Aap Panther TMS ke is module ki jankari direct menu se dekh sakte hain ya helpline **1800 571 0683** par call kar sakte hain."
+                        if detected_lang in ("hinglish", "hi_devanagari")
+                        else f"You can explore this section directly in Panther TMS or reach our team at **1800 571 0683**."
+                    )
+            else:
+                reply_content = (
+                    "Aapke request par abhi jankari fetch nahi ho saki. Kripya punah prayas karein ya hamari helpline **1800 571 0683** par call karein."
+                    if detected_lang in ("hinglish", "hi_devanagari")
+                    else "I encountered a temporary connection issue. Please retry or contact our support team at **1800 571 0683**."
+                )
 
     _log_ai_turn(
         last_user_message,
