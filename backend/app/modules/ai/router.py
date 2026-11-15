@@ -2071,6 +2071,90 @@ async def chat_with_copilot(
             )
             return ChatResponse(content=msg, navigation_suggestions=navs or nav_suggestions, citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
 
+        # 10B. New Expanded Intents (Vendors, Hire Challans, POD, E-Invoice, FASTag, Detention, Reports, Accounts)
+        if c_intent == "list_vendors":
+            reply_content, cards = await execute_vendor_tool(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                query=None, is_count=False, limit=6, lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=[NavigationSuggestion(title="Vendor Master", href="/general/vendor", module="General Masters")], citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "show_hire_challan":
+            reply_content, cards = await execute_hire_challan_tool(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                query=None, is_latest=False, lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=[NavigationSuggestion(title="Hire Challan", href="/transport/hire-challan", module="Transport Operations")], citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "show_pod":
+            reply_content, cards = await execute_pod_tool(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                query=None, is_pending=True, is_count=False, lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=[NavigationSuggestion(title="POD Records", href="/transport/pod-records", module="Transport Operations")], citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "track_fastag":
+            v_num = c_slots.get("vehicle_number")
+            reply_content, cards = await execute_tracking_tool(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                vehicle_number=v_num, lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=[NavigationSuggestion(title="FASTag Tracking", href="/tracking/fastag", module="Tracking")], citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "show_einvoice":
+            reply_content, cards = await execute_einvoice_tool(
+                db=db, user=current_user, tenant=tenant, query=None, lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=[NavigationSuggestion(title="Generate IRN", href="/einvoicing/generate-irn", module="E-Invoicing")], citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "list_accounts":
+            reply_content, cards = await execute_accounting_tool(
+                db=db, user=current_user, tenant=tenant, current_office=current_office,
+                party_name=None, lang=detected_lang,
+            )
+            return ChatResponse(content=reply_content, navigation_suggestions=[NavigationSuggestion(title="Master Ledger", href="/accounts/master-ledger", module="Accounts")], citations=[], cards=cards, provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "view_transport_reports":
+            msg = (
+                "Aap Panther TMS ke sabhi Transport Reports aur Registers yahan dekh sakte hain:\n"
+                "- **LR Booking Register**: [/transport-reports/lr-register](/transport-reports/lr-register)\n"
+                "- **Hire Challan Register**: [/transport-reports/hc-register](/transport-reports/hc-register)\n"
+                "- **Invoice Register**: [/transport-reports/invoice-register](/transport-reports/invoice-register)\n"
+                "- **Pending HC Report**: [/transport-reports/pending-hc](/transport-reports/pending-hc)\n"
+                "- **Unbilled Deliveries**: [/transport-reports/unbilled](/transport-reports/unbilled)"
+                if detected_lang in ("hinglish", "hi_devanagari")
+                else "You can access all Transport Reports and Operational Registers here in Panther TMS:\n"
+                "- **LR Booking Register**: [/transport-reports/lr-register](/transport-reports/lr-register)\n"
+                "- **Hire Challan Register**: [/transport-reports/hc-register](/transport-reports/hc-register)\n"
+                "- **Invoice Register**: [/transport-reports/invoice-register](/transport-reports/invoice-register)\n"
+                "- **Pending HC Report**: [/transport-reports/pending-hc](/transport-reports/pending-hc)\n"
+                "- **Unbilled Consignments**: [/transport-reports/unbilled](/transport-reports/unbilled)"
+            )
+            navs = [
+                NavigationSuggestion(title="LR Register", href="/transport-reports/lr-register", module="Transport Reports"),
+                NavigationSuggestion(title="Hire Challan Register", href="/transport-reports/hc-register", module="Transport Reports"),
+                NavigationSuggestion(title="Invoice Register", href="/transport-reports/invoice-register", module="Transport Reports"),
+            ]
+            return ChatResponse(content=msg, navigation_suggestions=navs, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+
+        if c_intent == "report_detention":
+            msg = (
+                "Panther TMS mein Detention aur Demurrage charges manage karne ke liye:\n"
+                "1. **Customer Invoicing**: [/accounts/general-invoice](/accounts/general-invoice) par jayein aur detention line-item add karein (SAC 996511).\n"
+                "2. **Vehicle Detention**: [/transport/hire-challan](/transport/hire-challan) ya Trip Expense register par additional charges approve karein.\n"
+                "Aam taur par free loading/unloading time 1-2 ghante hota hai, jiske baad per-hour ya daily detention dar lagu hoti hai."
+                if detected_lang in ("hinglish", "hi_devanagari")
+                else "In Panther TMS, detention and demurrage charges are managed as follows:\n"
+                "1. **Customer Billing**: Raise a General Invoice at [/accounts/general-invoice](/accounts/general-invoice) under SAC 996511 with applicable GST.\n"
+                "2. **Truck Halting / Detention**: Log the approved detention amount in the Hire Challan ([/transport/hire-challan](/transport/hire-challan)) or Trip Expense register.\n"
+                "Standard free time for loading/unloading is usually 1-2 hours, after which contracted hourly or daily detention rates apply."
+            )
+            navs = [
+                NavigationSuggestion(title="General Invoice", href="/accounts/general-invoice", module="Accounts"),
+                NavigationSuggestion(title="Hire Challan", href="/transport/hire-challan", module="Transport Operations"),
+            ]
+            return ChatResponse(content=msg, navigation_suggestions=navs, citations=[], cards=[], provider_configured=is_provider_configured(), detected_language=detected_lang)
+
         # 11. Tracking (LR / Vehicle)
         if c_intent in ("track_lr", "track_vehicle"):
             can_track = is_user_permitted(current_user, tenant, "tracking", "tracking", "view") or is_user_permitted(current_user, tenant, "transport", "lr_booking", "view")

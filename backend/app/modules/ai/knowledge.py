@@ -440,11 +440,12 @@ def detect_language(text: str) -> str:
 
     hinglish_markers = {
         "mujhe", "karna", "karni", "hai", "hain", "kaise", "karein", "batao", "bataiye",
-        "kahan", "kya", "kyun", "aap", "mera", "meri", "hum", "chahiye", "kar", "sakta",
+        "kahan", "kya", "kyun", "aap", "mera", "meri", "mere", "hum", "chahiye", "kar", "sakta",
         "sakte", "gaadi", "gadi", "chalak", "khata", "bhejo", "dikhao", "dekho",
         "kholna", "kaun", "kab", "kitna", "kitni", "karun", "karo", "bilty", "bolo",
         "banao", "bana", "banaiye", "banani", "banana", "se", "ek", "bhai", "bhaiya",
-        "hoga", "hogi", "dena", "lena", "baki"
+        "hoga", "hogi", "dena", "lena", "baki", "bhada", "kiraya", "maal", "pahunch", "pahuncha",
+        "rok", "chalana", "shuru", "band", "sab", "sabhi", "hisab", "hisaab", "pauti", "theek"
     }
     words = re.findall(r"\b[a-zA-Z]+\b", text.lower())
     if any(w in hinglish_markers for w in words):

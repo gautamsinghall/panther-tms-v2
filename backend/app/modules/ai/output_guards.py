@@ -25,9 +25,9 @@ Nothing here imports the app or the database; it is pure and unit-testable.
 import re
 from typing import List, Optional, Tuple
 
-# LR-0005 / JOB-2026-024 / HC-2026-0001 / INV-... / PLPL-0105 / LR12345 ...
+# LR-0005 / JOB-2026-024 / HC-2026-0001 / INV-... / PLPL-0105 / PI-0001 / GI-0001 / POD-0001 ...
 _ID_RE = re.compile(
-    r"\b(?:LR|GR|JOB|HC|INV|PV|RV|CV|JV|EWB|TI|PLPL)[-_\s#]?\d[\w-]*\b",
+    r"\b(?:LR|GR|JOB|HC|INV|PV|RV|CV|JV|EWB|TI|PLPL|PI|GI|PB|DN|CN|POD|AR)[-_\s#]?\d[\w-]*\b",
     re.IGNORECASE,
 )
 # Indian vehicle registration: DL01AB1234

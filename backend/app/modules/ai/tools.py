@@ -3696,12 +3696,12 @@ def classify_operational_intent(
 
     # Priority Sub-document Filters (must evaluate before generic parent records)
     # POD Intent (checked before generic LR lookup)
-    if any(m in lower for m in ("pod", "proof of delivery", "delivery proof")):
+    if any(m in lower for m in ("pod", "proof of delivery", "delivery proof", "पॉड", "पावती")):
         is_pending = any(w in lower for w in ("pending", "unverified", "baki", "no pod", "without pod", "missing pod"))
-        is_plural_or_list = any(w in lower for w in ("which", "list", "show", "all", "lrs", "bilties"))
+        is_plural_or_list = any(w in lower for w in ("which", "list", "show", "all", "lrs", "bilties", "report", "generate", "रिपोर्ट"))
         m_pod = re.search(r"\b(?:pod)[#\s\-_/]*([0-9][A-Za-z0-9_-]*)", clean_text, re.IGNORECASE)
         lr_ref = entities.get("lr_number")
-        if is_pending and (is_plural_or_list or "no pod" in lower or "without pod" in lower):
+        if (is_pending or is_plural_or_list) and ("no pod" in lower or "without pod" in lower or is_pending):
             lr_ref = None
             m_pod = None
         else:
@@ -3713,12 +3713,12 @@ def classify_operational_intent(
             "tool": "pod",
             "query": q,
             "lr_number": lr_ref,
-            "is_pending": is_pending,
+            "is_pending": is_pending or ("pending" in lower) or ("report" in lower),
             "is_count": any(m in lower for m in ("kitni", "kitne", "kitna", "how many", "count", "total", "mere", "meri", "hamare")),
         }
 
     # E-Way Bill Intent (checked before generic vehicle/LR lookup)
-    if any(m in lower for m in ("eway", "ewb", "e-way")):
+    if any(m in lower for m in ("eway", "ewb", "e-way", "ई-वे बिल")):
         m_ewb = re.search(r"\b([0-9]{12})\b", clean_text)
         return {
             "tool": "eway_bill",
@@ -3737,18 +3737,19 @@ def classify_operational_intent(
         }
 
     # E-Invoice (IRN) Intent (checked before generic invoice lookup)
-    if any(m in lower for m in ("irn", "e-invoice", "einvoice", "ack no", "ack number")):
+    if any(m in lower for m in ("irn", "e-invoice", "einvoice", "ack no", "ack number", "ई-इनवॉइस")):
         return {
             "tool": "einvoice",
             "query": entities.get("invoice_number"),
         }
 
-    # 2. Specific Hire Challan Detail Query
-    if entities["hc_number"] or (("hire challan" in lower or "hc" in lower or "challan" in lower) and (entities["is_latest"] or (entities["field_focus"] and entities["hc_number"]))):
+    # 2. Hire Challan Query (Specific or Listing)
+    is_hc_kw = any(m in lower for m in ("hire challan", "lorry hire memo", "challan", "चालान"))
+    if entities["hc_number"] or (is_hc_kw and (entities["is_latest"] or entities["field_focus"] or any(w in lower for w in ("list", "all", "show", "dikhao", "dekho", "challans", "sabhi", "पूरी", "सारे")))):
         return {
             "tool": "hire_challan",
             "query": entities["hc_number"],
-            "is_detail": True,
+            "is_detail": bool(entities["hc_number"]),
             "is_latest": entities["is_latest"],
             "field_focus": entities["field_focus"],
             "is_today": "aaj" in lower or "today" in lower,
@@ -3941,9 +3942,9 @@ def classify_operational_intent(
         }
 
     # 4. Vehicle Intent
-    vehicle_markers = ["vehicle", "vehicles", "gaadi", "gadi", "truck", "trucks", "lorry", "fleet"]
-    if any(m in lower for m in vehicle_markers):
-        is_list = any(w in lower for w in ("list", "dikhao", "all", "sabhi", "show", "count", "kitne", "kitni", "total"))
+    vehicle_markers = ["vehicle", "vehicles", "gaadi", "gadi", "truck", "trucks", "lorry", "fleet", "गाड़ी", "गाड़ी", "वाहन", "ट्रक"]
+    if any(m in lower for m in vehicle_markers) or "गाड़ी" in clean_text or "वाहन" in clean_text:
+        is_list = any(w in lower for w in ("list", "dikhao", "all", "sabhi", "show", "count", "kitne", "kitni", "total", "master", "directory", "लिस्ट")) or "मास्टर" in clean_text
         # Partial prefix or keyword search: "Find vehicle DL01", "vehicle DL01", "search truck HR"
         m_veh_prefix = re.search(r"\b(?:find|search|lookup|get|show|check)?\s*(?:vehicle|truck|gaadi|gadi|lorry)\s*(?:no\.?|number|#)?\s*([A-Za-z0-9_-]+)\b", clean_text, re.IGNORECASE)
         veh_cand = None

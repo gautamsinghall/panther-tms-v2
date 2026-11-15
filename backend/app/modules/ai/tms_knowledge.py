@@ -76,7 +76,8 @@ TMS_KNOWLEDGE_CHUNKS = [
             "destination, and the accounts team uses it to raise the freight invoice. An LR is "
             "also the starting point of any loss or damage claim, because it records what was "
             "handed over, in what condition, and on what terms. In Panther TMS every LR moves "
-            "through the status flow BOOKED, then IN_TRANSIT, then DELIVERED."
+            "through the LR status flow: DRAFT, BOOKED, LOADED, IN_TRANSIT, ARRIVED, DELIVERED, "
+            "POD_RECEIVED, POD_VERIFIED and CANCELLED."
         ),
         "keywords": ["lr", "lorry receipt", "gr", "goods receipt", "bilty", "consignment note", "what is lr"],
     },
@@ -172,17 +173,21 @@ TMS_KNOWLEDGE_CHUNKS = [
         "source_file": "backend/app/modules/ai/tms_knowledge.py",
         "version": "2026.1",
         "content": (
-            "In Panther TMS an LR moves through the status flow BOOKED, then IN_TRANSIT, then "
-            "DELIVERED. BOOKED means the LR has been created and the consignment is accepted "
-            "for transport but has not yet left. IN_TRANSIT means the vehicle has departed and "
-            "the goods are on the road. DELIVERED means the goods reached the consignee and "
-            "the delivery is recorded. Delivery is normally confirmed by the POD, the signed "
+            "In Panther TMS an LR moves through a fixed workflow of nine statuses: DRAFT, BOOKED, "
+            "LOADED, IN_TRANSIT, ARRIVED, DELIVERED, POD_RECEIVED, POD_VERIFIED, and CANCELLED. "
+            "DRAFT means the LR is saved but not yet confirmed. BOOKED means the LR is confirmed "
+            "and the consignment is accepted for transport. LOADED means the goods have been put "
+            "on the vehicle. IN_TRANSIT means the vehicle has departed and the goods are on the "
+            "road. ARRIVED means the vehicle has reached the destination. DELIVERED means the "
+            "goods reached the consignee and delivery is recorded. POD_RECEIVED means the proof "
+            "of delivery document has been received but not yet checked. POD_VERIFIED is the final "
+            "stage: the POD has been verified and approved, which is what triggers billing and "
             "acknowledgement from the receiver, and a clean POD is what triggers billing and "
             "payment. An LR can also be cancelled instead of completing the flow. Tracking an "
             "LR means asking for its current status in this flow plus its latest location "
             "evidence, such as a GPS ping, a SIM location, or a FASTag toll crossing."
         ),
-        "keywords": ["lr status", "booked", "in transit", "delivered", "lr status flow", "lr tracking status"],
+        "keywords": ["lr status", "booked", "in transit", "delivered", "lr status flow", "lr tracking status", "draft", "loaded", "arrived", "pod_received", "pod_verified", "cancelled", "nine statuses", "lr lifecycle", "lr transitions"],
     },
     # ------------------------------------------------------------------
     # tms-eway-bill — the GST e-way bill
@@ -1297,7 +1302,460 @@ TMS_KNOWLEDGE_CHUNKS = [
         "route": "",
         "keywords": ["what can you do", "parth ai", "help", "what can parth ai do", "panther ai", "bot help", "capabilities"],
     },
+    # ------------------------------------------------------------------
+    # ENUMS & SYSTEM CODES — ground-truth database enums in Panther TMS
+    # ------------------------------------------------------------------
+    {
+        "doc_id": "tms-enums-job-status",
+        "title": "JobStatus lifecycle and valid states",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "JobStatus in Panther TMS tracks the commercial indent lifecycle for road transport jobs. "
+            "There are six valid states: OPEN, BOOKED, DISPATCHED, DELIVERED, CLOSED, and CANCELLED. "
+            "OPEN: The booking order is confirmed by the client, awaiting vehicle and driver placement. "
+            "BOOKED: A vehicle and driver are allocated and an LR is linked to this indent. "
+            "DISPATCHED: Goods are loaded on the vehicle and the truck has departed on the transit corridor. "
+            "DELIVERED: The vehicle reached destination and delivered goods to the consignee. "
+            "CLOSED: The trip is finished, POD verified, financial settlement completed, and billing archived. "
+            "CANCELLED: The transport indent was cancelled before vehicle dispatch."
+        ),
+        "route": "/transport/job-orders",
+        "keywords": ["job status", "jobstatus", "job lifecycle", "job states", "open", "dispatched", "closed", "cancelled"],
+    },
+    {
+        "doc_id": "tms-enums-hire-challan-status",
+        "title": "HireChallanStatus workflow and transitions",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "HireChallanStatus tracks third-party lorry hire contracts (Hire Challan / Lorry Hire Memo) "
+            "in Panther TMS. It has six statuses: DRAFT, CONFIRMED, ISSUED, TRANSIT, SETTLED, and CANCELLED. "
+            "DRAFT: The hire contract is created with vehicle, vendor, and route details but not locked. "
+            "CONFIRMED: The agreed hire freight, TDS applicability under Section 194C, and advances are approved. "
+            "ISSUED: The challan is handed over to the driver/vendor, and Advance To Hired (ATH diesel/cash) is released. "
+            "TRANSIT: The hired vehicle is on the road carrying consignments. "
+            "SETTLED: Delivery is completed, verified POD received, and final Balance To Hired (BTH) is paid "
+            "after deducting diesel advances, cash advances, and TDS. "
+            "CANCELLED: The hire memo was cancelled prior to trip dispatch."
+        ),
+        "route": "/transport/hire-challan",
+        "keywords": ["hire challan status", "hirechallanstatus", "challan status", "settled", "ath", "bth", "hire challan workflow"],
+    },
+    {
+        "doc_id": "tms-enums-pod",
+        "title": "PODCondition and PODVerificationStatus",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Proof of Delivery (POD) records in Panther TMS use two core enums: PODCondition and "
+            "PODVerificationStatus. PODCondition records cargo condition at delivery: OK (goods delivered intact, "
+            "packages complete, seals untampered), DAMAGED (cargo has physical damage or broken packaging), and "
+            "SHORTAGE (delivered package count is lower than booked package count on the LR). "
+            "PODVerificationStatus tracks auditing of the signed delivery proof: PENDING (delivery receipt uploaded "
+            "or documented, awaiting audit by branch/billing team), VERIFIED (signed and stamped delivery receipt confirmed "
+            "authentic, which unlocks customer invoicing and vendor balance payment), and REJECTED (uploaded document "
+            "was illegible, unverified, or rejected due to dispute)."
+        ),
+        "route": "/transport/pod-records",
+        "keywords": ["pod status", "pod verification status", "pod condition", "ok", "damaged", "shortage", "verified", "pending", "rejected"],
+    },
+    {
+        "doc_id": "tms-enums-tracking-modes",
+        "title": "TrackingMode and SIMConsentStatus",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Shipment tracking in Panther TMS utilizes TrackingMode: FASTAG (toll-plaza passage pings from NPCI NETC "
+            "with a 10-minute anti-spam cooldown, acting as independent route validation), GPS (high-precision live "
+            "hardware telematics updated every 30 seconds to 5 minutes), and SIM (cellular triangulation via driver phone consent). "
+            "For SIM tracking, SIMConsentStatus defines driver authorization: PENDING (consent request SMS dispatched to driver), "
+            "ACCEPTED (driver replied YES, enabling automated periodic tracking pings), and REJECTED (driver denied consent or timed out)."
+        ),
+        "route": "/tracking/fastag",
+        "keywords": ["tracking mode", "trackingmode", "fastag", "gps", "sim", "sim consent", "simconsentstatus"],
+    },
+    {
+        "doc_id": "tms-enums-voucher-types",
+        "title": "VoucherType double-entry classification",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "VoucherType defines accounting transactions in Panther TMS double-entry General Ledger: "
+            "TRANSPORT_INVOICE (customer freight bill against booked LRs), GENERAL_INVOICE (non-freight commercial services "
+            "such as demurrage, consulting, or warehouse storage), PROFORMA_INVOICE (provisional quotation with zero GL ledger impact), "
+            "NORMAL_PURCHASE and GENERAL_PURCHASE (vendor bills for fuel, tyres, spares, lubricants), RECEIPT_VOUCHER (funds received "
+            "from clients via bank/cash), PAYMENT_VOUCHER (supplier/vendor overhead payments), PAYMENT_ATH (Advance To Hired given at loading), "
+            "PAYMENT_BTH (Balance To Hired settled on verified POD), CREDIT_NOTE and DEBIT_NOTE (statutory GST rate/amount adjustments), "
+            "CONTRA_VOUCHER (cash deposit/withdrawal and bank-to-bank transfers), and JOURNAL_VOUCHER (rectifications and adjusting entries)."
+        ),
+        "route": "/accounts/master-ledger",
+        "keywords": ["voucher types", "vouchertype", "transport invoice", "receipt voucher", "payment voucher", "contra", "journal", "ath", "bth"],
+    },
+    {
+        "doc_id": "tms-enums-einvoice-status",
+        "title": "EInvoiceStatus and IRN lifecycle",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "EInvoiceStatus tracks government Invoice Registration Portal (IRP) integration in Panther TMS. "
+            "GENERATED: The invoice has been successfully reported to the GST NIC portal, receiving a unique 64-character "
+            "Invoice Reference Number (IRN) and digitally signed QR code. CANCELLED: The IRN was voided within the statutory "
+            "24-hour legal cancellation window on the government portal. FAILED: The invoice payload was rejected by NIC "
+            "due to invalid GSTIN, HSN mismatch, or schema validation error."
+        ),
+        "route": "/einvoicing/generate-irn",
+        "keywords": ["einvoice status", "e-invoice status", "irn status", "generated", "cancelled", "failed"],
+    },
+
+    # ------------------------------------------------------------------
+    # FRONTEND PAGES & MODULES — what every page does and how to use it
+    # ------------------------------------------------------------------
+    {
+        "doc_id": "tms-page-accounts-overview",
+        "title": "Accounts Module and Financial Overview",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Accounts module (/accounts) is the financial hub of Panther TMS. It handles Transport Invoices "
+            "(/accounts/transport-invoice), General Invoices (/accounts/general-invoice), Proforma Invoices (/accounts/proforma-invoice), "
+            "Purchase Register (/accounts/purchases), Vouchers (Receipt, Payment, Contra, Journal), Credit/Debit Notes, "
+            "Company Bank Accounts (/accounts/bank-accounts), and the Master Ledger (/accounts/master-ledger). "
+            "All financial transactions post directly into double-entry accounts with real-time debit and credit tracking, "
+            "reconciling freight receivables from billing clients and vehicle hiring liabilities to market vendors."
+        ),
+        "route": "/accounts",
+        "keywords": ["accounts", "accounts page", "finance", "accounting", "ledger", "invoices", "vouchers", "what is this page"],
+    },
+    {
+        "doc_id": "tms-page-general-invoice",
+        "title": "General Invoice page what it is for",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The General Invoice page (/accounts/general-invoice) is used to bill non-freight services, handling charges, "
+            "demurrage, detention fees, warehouse leasing, or consulting charges to clients. Unlike Transport Invoices which "
+            "require booked LRs, a General Invoice allows direct line-item billing with customizable GST categories (0%, 5%, 18%), "
+            "SAC codes, party selection, posting directly to selected income ledgers and creating accounts receivable balances."
+        ),
+        "route": "/accounts/general-invoice",
+        "keywords": ["general invoice", "general invoice page", "demurrage bill", "handling invoice", "consulting bill"],
+    },
+    {
+        "doc_id": "tms-page-proforma-invoice",
+        "title": "Proforma Invoice page what it is for",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Proforma Invoice page (/accounts/proforma-invoice) creates provisional commercial quotations and estimates "
+            "for prospective or existing clients before final shipment execution. Proforma invoices carry provisional line items, "
+            "estimated tax, and quotation validity terms, but have ZERO impact on the General Ledger. Once approved, the proforma "
+            "can be converted into a final GST Transport or General Invoice."
+        ),
+        "route": "/accounts/proforma-invoice",
+        "keywords": ["proforma invoice", "proforma", "quotation", "commercial estimate", "proforma page"],
+    },
+    {
+        "doc_id": "tms-page-purchases",
+        "title": "Purchase Register page what it is for",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Purchase Register page (/accounts/purchases) records supplier and vendor invoices for fleet operating expenses, "
+            "such as fuel & diesel bills, tyre purchases, vehicle spare parts, workshop repair charges, and toll/FASTag recharges. "
+            "It captures supplier GSTIN, invoice number, credit terms, and allocates expenses to specific vehicles or Hire Challans "
+            "to track vehicle cost centres and claim Input Tax Credit (ITC)."
+        ),
+        "route": "/accounts/purchases",
+        "keywords": ["purchase register", "purchase bill", "vendor invoice", "diesel bill", "spare parts bill", "purchases page"],
+    },
+    {
+        "doc_id": "tms-page-vouchers-overview",
+        "title": "Vouchers Management in Panther TMS",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Vouchers in Panther TMS manage double-entry accounting transactions across four dedicated registers: "
+            "Receipt Voucher (/accounts/receipt-voucher) records customer freight payments received against outstanding invoices. "
+            "Payment Voucher (/accounts/payment-voucher) records payments disbursed to vendors, driver trip advances, and office expenses. "
+            "Contra Voucher (/accounts/contra-voucher) records bank-to-bank transfers, cash deposits, and cash withdrawals. "
+            "Journal Voucher (/accounts/journal-voucher) records period-end adjustments, TDS provisions, depreciation, and inter-branch adjustments."
+        ),
+        "route": "/accounts/receipt-voucher",
+        "keywords": ["receipt voucher", "payment voucher", "contra voucher", "journal voucher", "vouchers", "double entry"],
+    },
+    {
+        "doc_id": "tms-page-master-ledger",
+        "title": "Master Ledger page what it is for",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Master Ledger page (/accounts/master-ledger) displays running double-entry accounts for all clients, vendors, "
+            "drivers, banks, cash, and tax heads in Panther TMS. You can select any party account to inspect historical debits, "
+            "credits, running balances, opening balances, and linked transaction references (LRs, Invoices, Vouchers). "
+            "Ledger balances can be filtered by date range and branch, or exported to Excel/PDF for account reconciliation."
+        ),
+        "route": "/accounts/master-ledger",
+        "keywords": ["master ledger", "ledger page", "party ledger", "khata", "outstanding balance", "account balance", "debit credit"],
+    },
+    {
+        "doc_id": "tms-page-bank-accounts",
+        "title": "Company Bank Accounts page what it is for",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Company Bank Accounts page (/accounts/bank-accounts) configures enterprise bank and cash accounts in Panther TMS. "
+            "It records bank name, account number, IFSC code, branch name, account type (Current, Savings, Overdraft/OD, Cash), "
+            "and opening balances. Configured bank accounts populate payment and receipt voucher dropdowns and invoice print footers."
+        ),
+        "route": "/accounts/bank-accounts",
+        "keywords": ["bank accounts", "company bank accounts", "bank master", "ifsc", "current account", "bank page"],
+    },
+    {
+        "doc_id": "tms-page-credit-debit-notes",
+        "title": "Credit and Debit Notes page what it is for",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Credit & Debit Notes page (/accounts/credit-debit-notes) handles statutory GST commercial adjustments against issued invoices. "
+            "A Credit Note is issued to a customer to reduce taxable freight (e.g. for damage claims, rate revisions, or short delivery). "
+            "A Debit Note is issued to increase invoice value or issued to vendors for penalties, shortages, or detention charges."
+        ),
+        "route": "/accounts/credit-debit-notes",
+        "keywords": ["credit note", "debit note", "credit debit notes", "rate revision", "shortage claim", "gst adjustment"],
+    },
+    {
+        "doc_id": "tms-page-einvoicing-overview",
+        "title": "E-Invoicing Module and IRN Generation",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The E-Invoicing module (/einvoicing) integrates directly with the government NIC Invoice Registration Portal (IRP). "
+            "Generate IRN (/einvoicing/generate-irn) converts approved transport and general B2B invoices into e-invoices with a "
+            "64-character hash (IRN) and cryptographically signed QR code. IRN List (/einvoicing/irn-list) displays all registered "
+            "e-invoices. Cancel IRN (/einvoicing/cancel-irn) allows cancelling an IRN within the legal 24-hour statutory window. "
+            "Taxpayer Search (/einvoicing/taxpayer) verifies client or vendor GSTIN status, trade name, and filing state in real-time."
+        ),
+        "route": "/einvoicing/generate-irn",
+        "keywords": ["einvoicing", "e-invoicing", "generate irn", "irn list", "cancel irn", "taxpayer search", "nic portal"],
+    },
+    {
+        "doc_id": "tms-page-fleet-overview",
+        "title": "Fleet Management and Vehicle Health",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Fleet module manages internal vehicle lifecycle and maintenance in Panther TMS. "
+            "Vehicle Health (/fleet/vehicle-health) tracks engine, battery, chassis, and fitness inspections. "
+            "Tyre Management (/fleet/tyre) monitors tyre serial numbers, tread depth, and axle rotation (steer, drive, trailer). "
+            "Service & Repairs (/fleet/service) logs workshop maintenance and part replacements. "
+            "Vehicle Documents (/fleet/documents) tracks statutory expiry dates for Insurance, Fitness, National Permit, and PUC. "
+            "Trip Advance (/fleet/trip-advance) & Trip Expenses (/fleet/trip-expense) log en-route diesel and toll costs, "
+            "while Truck P&L (/fleet/truck-pnl) reconciles per-vehicle operating revenues vs fuel, maintenance, and driver costs."
+        ),
+        "route": "/fleet/vehicle-health",
+        "keywords": ["fleet", "fleet management", "vehicle health", "tyre management", "service repairs", "truck pnl", "fleet page"],
+    },
+    {
+        "doc_id": "tms-page-reports-overview",
+        "title": "Financial Reports and Profit & Loss",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Reports module provides executive financial intelligence: Profit & Loss (/reports/profit-loss) summarizes "
+            "freight operating revenue against trip hiring, direct diesel, and overhead costs. Balance Sheet (/reports/balance-sheet) "
+            "reflects company capital, bank balances, fixed fleet assets, and trade liabilities. Trial Balance (/reports/trial-balance) "
+            "validates double-entry debit/credit ledger equality. Daybook (/reports/daybook) audits all chronological vouchers logged "
+            "across branches for any selected date. Bank Reconciliation (/reports/bank-reconciliation) aligns bank statements with TMS ledger records."
+        ),
+        "route": "/reports/profit-loss",
+        "keywords": ["reports", "financial reports", "profit loss", "pnl", "balance sheet", "trial balance", "daybook", "bank reconciliation"],
+    },
+    {
+        "doc_id": "tms-page-statements-overview",
+        "title": "Statements and Statutory Tax Compliance",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Statements module handles accounts receivable/payable aging and statutory taxation compliance: "
+            "Outstanding Debtors (/statements/os-debtor) tracks unpaid freight invoices grouped by billing client and aging bucket (0-30, 31-60, 60+ days). "
+            "Outstanding Creditors (/statements/os-creditor) lists pending liabilities to truck owners and fuel vendors. "
+            "GST Output (/statements/gst-output) and GST Input (/statements/gst-input) prepare monthly GSTR-1 and GSTR-3B freight summaries. "
+            "TDS Payable (/statements/tds-payable) & TDS Return (/statements/tds-return) audit Section 194C contractor withholding deductions."
+        ),
+        "route": "/statements/os-debtor",
+        "keywords": ["statements", "outstanding debtors", "outstanding creditors", "os debtor", "os creditor", "gst return", "tds payable"],
+    },
+    {
+        "doc_id": "tms-page-transport-reports-overview",
+        "title": "Transport Operations Reports and Registers",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Transport Reports (/transport-reports) provide comprehensive operational registers for logistics auditing: "
+            "LR Register (/transport-reports/lr-register) exports master consignment booking records with route, weight, and status. "
+            "Invoice Register (/transport-reports/invoice-register) audits all raised freight invoices. "
+            "Hire Challan Register (/transport-reports/hc-register) and Pending HC Report (/transport-reports/pending-hc) track trip memos "
+            "and unsettled lorry hire balances. Unbilled LRs (/transport-reports/unbilled) flags completed deliveries awaiting customer freight billing. "
+            "Arrival Register (/transport-reports/arrival-register) logs destination hub vehicle unloadings. Unused Series (/transport-reports/unused-series) "
+            "audits gaps in pre-allocated LR and Challan serial numbers."
+        ),
+        "route": "/transport-reports/lr-register",
+        "keywords": ["transport reports", "lr register", "invoice register", "hc register", "pending hc", "unbilled lr", "arrival register"],
+    },
+    {
+        "doc_id": "tms-page-company-masters",
+        "title": "Company Masters, Branches and RBAC",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Company module manages enterprise hierarchy and security: Branches (/company/branches) configures hub offices, "
+            "booking branches, and transit delivery terminals with local GSTIN and series allocations. Users (/company/users) "
+            "and Roles & Permissions (/company/roles) implement strict multi-tenant Role-Based Access Control (RBAC), restricting "
+            "branch managers, accountants, and dispatchers to authorized modules and issuing office scopes. Company Details (/company/details) "
+            "records company legal name, PAN, CIN, and registered address."
+        ),
+        "route": "/company/branches",
+        "keywords": ["company branches", "branch master", "users", "roles", "rbac", "permissions", "company settings"],
+    },
+
+    # ------------------------------------------------------------------
+    # MAJOR LOGISTICS WORKFLOWS — step-by-step operating procedures
+    # ------------------------------------------------------------------
+    {
+        "doc_id": "tms-workflow-vehicle-master",
+        "title": "Vehicle Master Workflow Company vs Market",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Panther TMS distinguishes between Company Vehicles (/transport/company-vehicles) and Market Vehicles (/transport/market-vehicles). "
+            "Company Vehicles are owned or leased by the enterprise; they require registration plate, chassis number, engine number, "
+            "gross vehicle weight, unladen weight, carrying capacity (MT), and statutory document renewals (RC, Fitness Certificate, "
+            "National Goods Permit, Comprehensive Insurance, and 6-month PUC). "
+            "Market Vehicles are third-party hired trucks booked for single trips or spot contracts; they are mapped to a registered "
+            "Vehicle Owner / Transporter Broker (/transport/vehicle-owners) and driver, requiring PAN verification to avoid double-taxation."
+        ),
+        "route": "/transport/company-vehicles",
+        "keywords": ["vehicle master", "company vehicle", "market vehicle", "vehicle owner", "rc", "fitness", "national permit", "puc"],
+    },
+    {
+        "doc_id": "tms-workflow-driver-master",
+        "title": "Driver Master and Commercial Compliance",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Driver Master (/transport/drivers) maintains verified profiles of commercial vehicle drivers. "
+            "Essential compliance fields include Driver Full Name, Commercial Driving License (DL) Number with validity date, "
+            "Mobile Phone Number (used for SIM tracking dispatch and trip communication), Aadhaar Number, and Father's Name. "
+            "A valid commercial driving licence is legally mandatory for transport operations under the Motor Vehicles Act. "
+            "In Panther TMS, assigning a driver to a Hire Challan or LR verifies active status and links the driver's phone for telematics."
+        ),
+        "route": "/transport/drivers",
+        "keywords": ["driver master", "driver profile", "driving license", "dl", "driver phone", "commercial license"],
+    },
+    {
+        "doc_id": "tms-workflow-hire-challan",
+        "title": "Hire Challan and Lorry Hire Memo Flow",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The Hire Challan workflow (/transport/hire-challan) formalizes the truck hiring agreement between the logistics operator "
+            "and a vehicle vendor/broker: 1. Specify Origin Hub, Destination Hub, Market Vehicle, Vendor, and Driver. "
+            "2. Agree on total hiring freight rate (e.g. ₹45,000). 3. Disburse Advance To Hired (ATH): specify Diesel Advance coupon "
+            "and Cash Advance handed to the driver at loading. 4. Deduct statutory TDS under Section 194C (1% for individual/HUF owners, "
+            "2% for corporate transporters with valid PAN; exempt under 194C(6) if owner declares owning 10 or fewer trucks). "
+            "5. The remaining balance (Balance To Hired / BTH) is payable at destination hub only after receiver signs the POD."
+        ),
+        "route": "/transport/hire-challan",
+        "keywords": ["hire challan flow", "lorry hire memo", "ath", "bth", "diesel advance", "cash advance", "tds 194c", "hire settlement"],
+    },
+    {
+        "doc_id": "tms-workflow-job-trip",
+        "title": "Job Indent to Delivery Lifecycle",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "The complete shipment lifecycle in Panther TMS follows five structured phases: "
+            "1. Booking Indent (/transport/job-orders): Customer places an indent specifying route, cargo, packages, and weight. "
+            "2. Placement & LR Booking (/transport/lr-booking): Vehicle is assigned, e-way bill entered, and LR is generated. "
+            "3. Dispatch & Challan (/transport/hire-challan): Market truck memo is issued with loading advances, and truck departs (IN_TRANSIT). "
+            "4. Transit Tracking (/tracking/fastag & /tracking/sim): Trip progress monitored via toll crossings and telematics. "
+            "5. Delivery & Invoicing: Vehicle arrives at destination, receiver inspects cargo, signs the POD (/transport/pod-records), "
+            "closing the LR to DELIVERED, unlocking customer Freight Invoicing (/accounts/transport-invoice), and settling vendor balance."
+        ),
+        "route": "/transport/job-orders",
+        "keywords": ["job lifecycle", "trip lifecycle", "indent to delivery", "shipment workflow", "lr booking flow"],
+    },
+    {
+        "doc_id": "tms-workflow-freight-payment-terms",
+        "title": "Freight Terms Paid To-Pay TBB and GST Rules",
+        "category": "general",
+        "min_plan_tier": 1,
+        "source_file": "backend/app/modules/ai/tms_knowledge.py",
+        "version": "2026.1",
+        "content": (
+            "Freight payment terms in road logistics define who pays for the transport and when: "
+            "1. PAID: Consignor settles the freight charge at the time of booking. "
+            "2. TO PAY: Consignee is legally responsible to pay the entire freight charge at destination before cargo is offloaded. "
+            "3. TO BE BILLED (TBB): Freight is charged to an approved corporate Billing Client account with credit terms (e.g. 30 days) "
+            "and billed via formal GST Transport Invoice upon delivery verification. "
+            "Under Indian GST law, road transportation of goods by a Goods Transport Agency (GTA) falls under SAC 996511. "
+            "Default rate is 5% Reverse Charge Mechanism (RCM) where recipient pays GST; or 18% Forward Charge Mechanism (FCM) "
+            "where the GTA charges GST with Input Tax Credit (ITC) entitlement from 22 September 2025."
+        ),
+        "route": "/transport/lr-booking",
+        "keywords": ["freight terms", "paid", "to pay", "to be billed", "tbb", "sac 996511", "gta", "rcm", "fcm", "gst transport"],
+    },
 ]
+
 
 # ----------------------------------------------------------------------
 # Logistics glossary — seeded definitions in our own words, for the user
@@ -1309,17 +1767,47 @@ TMS_KNOWLEDGE_CHUNKS = [
 # words. Do NOT scrape random web pages into RAG — they conflict.
 # ----------------------------------------------------------------------
 TMS_GLOSSARY = {
-    "LR / GR / Bilty": "Lorry Receipt / Goods Receipt: the transporter's receipt and contract of carriage issued on taking custody of goods; the tracking key for the consignment.",
-    "FTL": "Full Truck Load: one shipper books the whole vehicle, direct, flat route rate.",
-    "LTL / PTL": "Less Than Truckload / Part Load: several shippers share one vehicle via hub-and-spoke; cheaper, slower (+1-3 days), more handling.",
-    "POD": "Proof of Delivery: signed, auditable confirmation of delivery (date/time, recipient name/signature/stamp, location, LR number, goods condition). Not a status update or GPS ping.",
-    "Detention": "Fee for a truck held beyond free time (usually 1-2 hours) at loading/unloading, per hour.",
-    "Demurrage": "Daily fee for a loaded container sitting at a port/terminal beyond free days (typically 2-7 days).",
-    "Manifest": "The list of all consignments (LRs) carried on one vehicle on one trip.",
-    "E-way bill Part A": "Commercial details of the GST e-way bill: GSTINs, places (PINs), invoice/challan no. + date, HSN, value, reason. Source: https://ewaybillgst.gov.in",
-    "E-way bill Part B": "Transport details of the GST e-way bill: vehicle number or Transporter ID. The validity clock starts only when Part B is filled. Source: https://ewaybillgst.gov.in",
-    "IRN": "Invoice Reference Number: the 64-character hash the Invoice Registration Portal returns for an e-invoice, with a signed QR code. Source: https://www.gst.gov.in",
-    "FASTag": "RFID tag on the windscreen; toll deducted from a prepaid wallet at plazas. Tracking checkpoints only (50-200 km apart), not continuous tracking.",
-    "TBB / To Pay / Paid": "Freight payment terms. TBB (To Be Billed): invoiced later to an approved account. To Pay: consignee pays at delivery before release. Paid: settled at booking.",
-    "GTA": "Goods Transport Agency: a transporter issuing an LR. SAC 996511. Default GST 5% reverse charge; forward charge 18% with ITC from 22 Sept 2025. Source: https://www.gst.gov.in",
+    "LR / GR / Bilty": "Lorry Receipt / Goods Receipt (बिल्टी): The legal contract of carriage and receipt issued by the transporter upon taking custody of goods; the central tracking and billing key for the consignment.",
+    "बिल्टी / Bilty": "ट्रांसपोर्टर द्वारा माल प्राप्त करने पर जारी किया जाने वाला आधिकारिक दस्तावेज (Lorry Receipt / LR), जो माल का कानूनी प्रमाण और अनुबंध होता है।",
+    "FTL": "Full Truck Load: One consignor books the entire vehicle for a dedicated point-to-point trip with a flat freight rate.",
+    "LTL / PTL": "Less Than Truckload / Part Load (पार्ट लोड): Multiple consignors share vehicle cargo space through hub-and-spoke transit networks.",
+    "Job / Job Order": "Job / Trip Order (जॉब ऑर्डर): Commercial booking confirmation representing customer demand before vehicle placement and LR generation.",
+    "जॉब / Job Order": "ग्राहक द्वारा माल भेजने का प्रारंभिक आर्डर (Job/Trip indent), जिसके आधार पर गाड़ी लगाई जाती है और बिल्टी बनाई जाती है।",
+    "POD / Proof of Delivery": "Proof of Delivery (डिलीवरी प्रमाण / पावती): Documented signed and stamped acknowledgment from the consignee confirming safe receipt of cargo with date, time, and package condition. Clean POD is mandatory for billing.",
+    "पॉड / डिलीवरी प्रमाण": "माल मिलने पर कंसाइनी द्वारा हस्ताक्षरित और मुहरबंद रसीद (Proof of Delivery), जिसके सत्यापन के बाद ही मालभाड़ा बिलिंग और भुगतान होता है।",
+    "Detention / डिटेन्शन": "Detention (रोक / विलंब शुल्क): Monetary penalty charged per hour/day when a truck is detained beyond agreed free loading/unloading time (usually 1-2 hours).",
+    "डिटेन्शन / रोक शुल्क": "लोडिंग या अनलोडिंग पॉइंट पर तय समय (फ्री टाइम) से ज्यादा गाड़ी रोके रखने पर ट्रांसपोर्टर द्वारा लिया जाने वाला जुर्माना।",
+    "Demurrage / डेमरेज": "Demurrage: Daily storage penalty levied on loaded cargo/containers held at terminal, warehouse, or rail siding beyond allowed free days.",
+    "Manifest": "The official trip document listing all individual consignments (LRs) carried together on a single vehicle transit corridor.",
+    "Hire Challan / Lorry Hire Memo": "Hire Challan (गाड़ी चालान): The contracted agreement issued to market vehicle owners/drivers detailing agreed freight, diesel advance, cash advance, and destination balance.",
+    "चालान / हायर चालान": "बाजार से किराए पर ली गई गाड़ी (Market Truck) के मालिक/ड्राइवर को दिया जाने वाला रसीदी अनुबंध, जिसमें तय भाड़ा, डीजल पेशगी और बकाया लिखा होता है।",
+    "E-way bill Part A": "Commercial details of the GST e-way bill: GSTINs of supplier and recipient, dispatch/delivery PIN codes, invoice/challan number and date, HSN, and value.",
+    "E-way bill Part B": "Transport details of the GST e-way bill: vehicle registration number or Transporter ID. The statutory validity countdown begins only after Part B is updated.",
+    "ई-वे बिल / E-Way Bill": "जीएसटी नियमों के तहत ₹50,000 से अधिक मूल्य के माल परिवहन के लिए सरकारी पोर्टल पर बनने वाला कानूनी परमिट (EWB-01)।",
+    "IRN / E-Invoice": "Invoice Reference Number: A unique 64-character cryptographic hash generated on the NIC Invoice Registration Portal for B2B invoices, printed with a signed QR code.",
+    "ई-इनवॉइस / IRN": "सरकार के एनआईसी पोर्टल से बी2बी इनवॉइस के लिए जनरेट होने वाला 64-डिजिट का यूनिक इनवॉइस रेफरेंस नंबर और डिजिटल क्यूआर कोड।",
+    "FASTag / फास्टैग": "Windscreen-mounted RFID tag linked to prepaid toll wallet; provides automatic plaza passage timestamps used as independent checkpoint verification.",
+    "फास्टैग / FASTag": "गाड़ी के विंडशील्ड पर लगा आरएफआईडी टैग, जिससे टोल प्लाजा क्रॉसिंग का समय और स्थान दर्ज होता है।",
+    "SIM Tracking / सिम ट्रैकिंग": "Consent-driven cellular cell-tower triangulation of driver phone (Freight Tiger/telco gateway) for tracking market trucks without hardware GPS.",
+    "सिम ट्रैकिंग": "ड्राइवर के मोबाइल फोन से एसएमएस सहमति लेकर मोबाइल टावर के आधार पर गाड़ी की लोकेशन ट्रैक करने की तकनीक।",
+    "GPS Tracking / जीपीएस": "Hardware telematics unit installed inside the vehicle providing real-time live latitude/longitude coordinates every 30 seconds to 5 minutes.",
+    "जीपीएस / GPS": "गाड़ी में लगे हार्डवेयर डिवाइस द्वारा लाइव उपग्रह लोकेशन, स्पीड और रूट की निरंतर ट्रैकिंग।",
+    "TBB / To Be Billed": "To Be Billed (टीबीबी): Freight payment term where the transport charges are billed later to an approved corporate Billing Client account on credit terms.",
+    "टीबीबी / TBB": "मालभाड़ा भुगतान की वह शर्त जिसमें भाड़ा तुरंत नहीं लिया जाता, बल्कि बाद में बिलिंग पार्टी को इनवॉइस भेजकर तय क्रेडिट दिनों में लिया जाता है।",
+    "To Pay / टू-पे": "To Pay: Freight payment term where the consignee (receiver) must pay full freight charges at destination terminal before unloading goods.",
+    "टू-पे / To Pay": "भाड़ा भुगतान की शर्त जहां माल पहुंचने पर डिलीवरी से पहले पाने वाले (Consignee) द्वारा पूरा भाड़ा चुकाया जाता है।",
+    "Paid / पेड": "Paid: Freight payment term where the consignor (sender) settles full freight charges at the time of booking at the origin branch.",
+    "पेड / Paid": "भाड़ा भुगतान की शर्त जहां माल की बुकिंग के समय भेजने वाले (Consignor) द्वारा पूरा भाड़ा पहले ही जमा कर दिया जाता है।",
+    "Master Ledger / खाता": "Master Ledger: Double-entry running balance statement for clients, vendors, drivers, and bank accounts showing chronological debits, credits, and net balance.",
+    "खाता / लेजर / Master Ledger": "ग्राहक, वेंडर, ड्राइवर या बैंक का संपूर्ण वित्तीय बहीखाता, जिसमें सभी डेबिट, क्रेडिट और बकाया बैलेंस का हिसाब होता है।",
+    "Advance (ATH) / पेशगी": "Advance To Hired (अग्रिम भाड़ा): Cash or fuel/diesel advance given to the hired truck driver at the time of loading to cover trip en-route expenses.",
+    "TDS (Section 194C)": "Tax Deducted at Source on freight payments to contractors: 1% for Individual/HUF vehicle owners, 2% for Corporate transporters with valid PAN; exempt under Section 194C(6) for owners of 10 or fewer trucks submitting a PAN declaration.",
+    "टीडीएस / TDS (धारा 194C)": "ट्रांसपोर्टर/गाड़ी मालिक को भाड़ा देते समय काटा जाने वाला आयकर: व्यक्तिगत मालिक पर 1%, कंपनी पर 2%, और 10 या कम गाड़ी वाले मालिकों के लिए डिक्लेरेशन पर छूट।",
+    "Consigner / कंसाइनर": "Consignor / Shipper (कंसाइनर): The party sending the goods from the origin loading location.",
+    "Consignee / कंसाइनी": "Consignee / Receiver (कंसाइनी): The party to whom the goods are delivered at the destination terminal.",
+    "Billing Client / बिलिंग क्लाइंट": "The commercial corporate customer to whom freight invoices are debited and billed under agreed contract terms.",
+    "Arrival Report / अराइवल": "The destination terminal log registering the arrival of a vehicle, verifying seals, and recording physical package counts against the LR manifest.",
+    "गाड़ी / Vehicle": "ट्रांसपोर्ट में माल ढोने वाला ट्रक या ट्रेलर (कंपनी का अपना या बाजार से किराए पर लिया हुआ वाहन)।",
+    "ड्राइवर / Driver": "वाणिज्यिक वाहन चलाने वाला अधिकृत चालक जिसके पास वैध कमर्शियल ड्राइविंग लाइसेंस (DL) होता है।",
+    "भाड़ा / Freight": "सड़क परिवहन द्वारा माल एक जगह से दूसरी जगह ले जाने का तय किया गया सेवा शुल्क या किराया।",
 }

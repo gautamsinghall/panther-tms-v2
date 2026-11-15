@@ -223,14 +223,15 @@ def classify_intent_and_entities(
         "hlo", "hii", "helo", "helloo", "heyy", "hey there", "hi there",
         "hello there", "good morning", "good afternoon", "good evening",
         "good day", "hi panther", "hello panther", "hey panther",
-        "kese ho", "kaise ho", "kya haal hai", "नमस्ते", "नमस्कार", "प्रणाम"
+        "kese ho", "kaise ho", "kya haal hai", "नमस्ते", "नमस्कार", "प्रणाम",
+        "हाय", "हैलो", "हेलो", "राम राम", "ram ram", "radhe radhe"
     }
     # v3: ONLY an exact short greeting is a greeting. A message that starts
     # with "hi" but asks something ("hi, what is LR?") is NOT a greeting —
     # it falls through to the real intent / RAG + LLM, so it gets an answer.
     _greet_words = raw_clean.split()
-    if raw_clean in greetings or (
-        len(_greet_words) <= 3
+    if clean in greetings or lower in greetings or raw_clean in greetings or (
+        (len(_greet_words) <= 3 or len(clean.split()) <= 3)
         and (
             raw_clean.startswith("hi ")
             or raw_clean.startswith("hello ")
@@ -238,6 +239,20 @@ def classify_intent_and_entities(
             or raw_clean.startswith("hlo ")
             or raw_clean.startswith("namaste ")
             or raw_clean.startswith("namaskar ")
+            or clean == "नमस्ते"
+            or clean.startswith("नमस्ते ")
+            or clean == "नमस्कार"
+            or clean.startswith("नमस्कार ")
+            or clean == "प्रणाम"
+            or clean.startswith("प्रणाम ")
+            or clean == "हाय"
+            or clean.startswith("हाय ")
+            or clean == "हैलो"
+            or clean.startswith("हैलो ")
+            or clean == "हेलो"
+            or clean.startswith("हेलो ")
+            or clean == "राम राम"
+            or clean.startswith("राम राम ")
         )
     ):
         return RouterResult(intent="greet", confidence=1.0, matched_rule="greet")
@@ -392,9 +407,57 @@ def classify_intent_and_entities(
         return RouterResult(intent="outstanding_balance", confidence=0.95, matched_rule="outstanding_balance")
 
     # General View Ledger / Master Ledger / Running balances
-    if bool(re.search(r"\b(?:view\s+ledger|show\s+ledger|master\s+ledger|party\s+ledger|running\s+balances?|all\s+balances?|ledger\s+dikhao|dikhao\s+ledger|khata\s+dikhao|khata|hisab|hisaab|लेजर\s+देखें|खाता\s+दिखाओ)\b", lower)) or \
-       lower in ("view ledger", "show ledger", "ledger", "khata", "लेजर देखें", "ledger dikhao"):
+    if bool(re.search(r"\b(?:view\s+ledger|show\s+ledger|master\s+ledger|party\s+ledger|running\s+balances?|all\s+balances?|ledger\s+dikhao|dikhao\s+ledger|khata\s+dikhao|khata|hisab|hisaab)\b", lower)) or \
+       bool(re.search(r"(?:लेजर\s+(?:दिखाओ|देखें|लिस्ट|चेक)|खाता\s+(?:दिखाओ|देखें|चेक)|लेजर)", clean)) or \
+       lower in ("view ledger", "show ledger", "ledger", "khata", "लेजर देखें", "ledger dikhao", "लेजर दिखाओ"):
         return RouterResult(intent="view_ledger", confidence=0.95, matched_rule="view_ledger")
+
+    # Accounts & Chart of Accounts
+    if bool(re.search(r"\b(?:list\s+accounts|show\s+accounts|accounts\s+list|chart\s+of\s+accounts|all\s+accounts)\b", lower)) or \
+       bool(re.search(r"(?:अकाउंट्स\s+(?:दिखाओ|देखें|लिस्ट)|खातों\s+की\s+लिस्ट)", clean)) or \
+       lower in ("list accounts", "show accounts", "accounts", "अकाउंट्स दिखाओ", "खाता दिखाओ"):
+        return RouterResult(intent="list_accounts", confidence=0.95, matched_rule="list_accounts")
+
+    # E-Invoicing & IRN
+    if bool(re.search(r"\b(?:e[- ]?invoicing|einvoice|generate\s+irn|show\s+irn|irn\s+status|irn\s+list|cancel\s+irn)\b", lower)) or \
+       bool(re.search(r"(?:ई[- ]?इनवॉइस|आईआरएन|आईआरएन\s+दिखाओ)", clean)) or \
+       lower in ("show einvoice", "e-invoicing", "generate irn", "irn list", "ई-इनवॉइस दिखाओ", "irn दिखाओ"):
+        return RouterResult(intent="show_einvoice", confidence=0.95, matched_rule="show_einvoice")
+
+    # FASTag Tracking
+    if bool(re.search(r"\b(?:track\s+fastag|fastag\s+status|fastag\s+tracking|fastag\s+location|toll\s+crossing)\b", lower)) or \
+       bool(re.search(r"(?:फास्टैग\s+ट्रैकिंग|फास्टैग\s+स्टेटस|फास्टैग)", clean)):
+        veh_num = extract_indian_vehicle_number(clean)
+        return RouterResult(intent="track_fastag", confidence=0.95, entities_raw={"vehicle_number": veh_num}, matched_rule="track_fastag")
+
+    # Hire Challan
+    if bool(re.search(r"\b(?:show\s+(?:all\s+)?(?:hire\s+)?challans?|list\s+(?:hire\s+)?challans?|hire\s+challan\s+list|lorry\s+hire\s+memo)\b", lower)) or \
+       bool(re.search(r"(?:हायर\s+चालान|चालान\s+दिखाओ|चालान\s+लिस्ट)", clean)) or \
+       lower in ("show hire challans", "hire challan", "hire challans", "चालान दिखाओ"):
+        return RouterResult(intent="show_hire_challan", confidence=0.95, matched_rule="show_hire_challan")
+
+    # Proof of Delivery (POD) Records & Pending PODs
+    if bool(re.search(r"\b(?:pending\s+pods?|show\s+(?:pending\s+)?pods?|pod\s+records?|pod\s+list|generate\s+pod\s+report|proof\s+of\s+delivery\s+report|pod\s+status)\b", lower)) or \
+       bool(re.search(r"(?:पॉड\s+(?:रिकॉर्ड|स्टेटस|दिखाओ|देखें|लिस्ट|रिपोर्ट)|पेंडिंग\s+पॉड|डिलीवरी\s+प्रमाण)", clean)) or \
+       lower in ("show pending pods", "pending pods", "pod records", "show pods", "पॉड दिखाओ", "पॉड स्टेटस दिखाओ"):
+        return RouterResult(intent="show_pod", confidence=0.95, matched_rule="show_pod")
+
+    # Detention & Demurrage
+    if bool(re.search(r"\b(?:detention|detention\s+charges?|report\s+detention|demurrage|demurrage\s+charges?|halting|halting\s+charges?|gadi\s+rukne|gaadi\s+rukne)\b", lower)) or \
+       bool(re.search(r"(?:डिटेन्शन|रोक\s+शुल्क|विलंब\s+शुल्क|गाड़ी\s+रुकने|हॉल्टिंग)", clean)):
+        return RouterResult(intent="report_detention", confidence=0.95, matched_rule="report_detention")
+
+    # Transport Reports
+    if bool(re.search(r"\b(?:transport\s+reports?|lr\s+register|invoice\s+register|hc\s+register|arrival\s+register|pending\s+hc\s+report|unbilled\s+report)\b", lower)) or \
+       bool(re.search(r"(?:ट्रांसपोर्ट\s+रिपोर्ट|एलआर\s+रजिस्टर)", clean)) or \
+       lower in ("transport reports", "view transport reports", "reports", "रजिस्टर देखें"):
+        return RouterResult(intent="view_transport_reports", confidence=0.95, matched_rule="view_transport_reports")
+
+    # Vendor Lookups
+    if bool(re.search(r"\b(?:list\s+vendors?|show\s+vendors?|all\s+vendors?|vendor\s+list)\b", lower)) or \
+       bool(re.search(r"(?:वेंडर\s+लिस्ट|सप्लायर\s+दिखाओ|सभी\s+वेंडर|सप्लायर)", clean)) or \
+       lower in ("list vendors", "show vendors", "vendors", "वेंडर दिखाओ"):
+        return RouterResult(intent="list_vendors", confidence=0.95, matched_rule="list_vendors")
 
     # --------------------------------------------------------------------------
     # 9. FREIGHT FOR SPECIFIC LR
