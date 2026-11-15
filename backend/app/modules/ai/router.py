@@ -11,6 +11,7 @@ import traceback
 
 from fastapi import APIRouter, Depends, Query, status, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -18,7 +19,7 @@ from app.core.database import get_tenant_session_maker
 from app.auth.dependencies import get_current_user, get_current_office
 from app.tenant_db.session import get_current_tenant
 from app.control.models import Tenant
-from app.tenant_db.models import User, Branch, CompanySetting
+from app.tenant_db.models import User, Branch, CompanySetting, LR
 from app.modules.ai.schemas import (
     ChatRequest,
     ChatResponse,
@@ -1765,6 +1766,7 @@ async def chat_with_copilot(
     c_slots = {}
     conv_state = {"state": "idle", "draft": None, "lastIntent": None, "lastSearch": None}
     has_active_draft = False
+    has_active_job = False
 
     if db:
         conv_state = await lr_draft_store.get_conversation_state(tenant.id, current_user.id)
