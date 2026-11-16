@@ -532,7 +532,7 @@ export default function UsersPage() {
                 required
                 value={formFullName}
                 onChange={(e) => setFormFullName(e.target.value)}
-                placeholder="e.g. Ramesh Kumar"
+                placeholder="Enter user full name"
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
@@ -547,7 +547,7 @@ export default function UsersPage() {
                 disabled={Boolean(editingUser)}
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
-                placeholder="ramesh@company.com"
+                placeholder="user@yourcompany.com"
                 className={cn(
                   "w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500",
                   editingUser && "bg-slate-50 text-slate-500 cursor-not-allowed"

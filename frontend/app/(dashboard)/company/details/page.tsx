@@ -85,6 +85,7 @@ export default function CompanyDetailsPage() {
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [signingAuthorityName, setSigningAuthorityName] = useState("");
   const [signingAuthorityDesignation, setSigningAuthorityDesignation] = useState("");
+  const [currentUser, setCurrentUser] = useState<{ full_name?: string; role?: string } | null>(null);
 
   // Status & State
   const [saved, setSaved] = useState(false);
@@ -101,6 +102,12 @@ export default function CompanyDetailsPage() {
     if (auth) {
       setTenantId(auth.tenantId || "");
       setCompanyCode(auth.companyCode || "");
+      if (auth.user) {
+        setCurrentUser({
+          full_name: auth.user.full_name || "",
+          role: auth.user.designation || auth.user.role || "",
+        });
+      }
     }
 
     async function loadData() {
@@ -622,13 +629,29 @@ export default function CompanyDetailsPage() {
 
             <div className="space-y-2.5 mt-3 pt-2">
               <div>
-                <label className="text-[11px] font-medium text-slate-600 block mb-1">
-                  Authorized Signatory Name
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-medium text-slate-600 block">
+                    Authorized Signatory Name
+                  </label>
+                  {currentUser?.full_name && !signingAuthorityName && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSigningAuthorityName(currentUser.full_name || "");
+                        if (currentUser.role && !signingAuthorityDesignation) {
+                          setSigningAuthorityDesignation(currentUser.role);
+                        }
+                      }}
+                      className="text-[10px] text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
+                    >
+                      Autofill from account
+                    </button>
+                  )}
+                </div>
                 <Input
                   value={signingAuthorityName}
                   onChange={(e) => setSigningAuthorityName(e.target.value)}
-                  placeholder="e.g. Parth Sharma"
+                  placeholder="Enter authorized signatory name"
                   className="text-xs h-8"
                 />
               </div>
@@ -639,9 +662,19 @@ export default function CompanyDetailsPage() {
                 <Input
                   value={signingAuthorityDesignation}
                   onChange={(e) => setSigningAuthorityDesignation(e.target.value)}
-                  placeholder="e.g. Authorized Signatory / Operations Director"
+                  placeholder="Enter designation (e.g. Director, Partner)"
                   className="text-xs h-8"
+                  list="standard-designations"
                 />
+                <datalist id="standard-designations">
+                  <option value="Director" />
+                  <option value="Managing Director" />
+                  <option value="Partner" />
+                  <option value="Proprietor" />
+                  <option value="Authorized Signatory" />
+                  <option value="General Manager" />
+                  <option value="Operations Head" />
+                </datalist>
               </div>
             </div>
           </div>
@@ -788,7 +821,7 @@ export default function CompanyDetailsPage() {
                     id="company-pan"
                     value={pan}
                     onChange={setPan}
-                    placeholder="e.g. AAACT2727Q"
+                    placeholder="Enter 10-character PAN"
                     size="sm"
                     onFetch={(res) => {
                       if (res.legal_name) setLegalEntityName(res.legal_name);
@@ -811,7 +844,7 @@ export default function CompanyDetailsPage() {
                       setCompanyName(e.target.value);
                       if (!legalEntityName) setLegalEntityName(e.target.value);
                     }}
-                    placeholder="e.g. Panther Logistics"
+                    placeholder="Enter company brand / trade name"
                     className="text-xs font-semibold text-slate-900"
                   />
                   <span className="text-[11px] text-slate-400 mt-1 block">
@@ -827,7 +860,7 @@ export default function CompanyDetailsPage() {
                     required
                     value={legalEntityName}
                     onChange={(e) => setLegalEntityName(e.target.value)}
-                    placeholder="e.g. Panther Digital Solutions Private Limited"
+                    placeholder="Enter registered corporate legal entity name"
                     className="text-xs font-semibold text-slate-900"
                   />
                   <span className="text-[11px] text-slate-400 mt-1 block">
@@ -844,7 +877,7 @@ export default function CompanyDetailsPage() {
                     <Input
                       value={website}
                       onChange={(e) => setWebsite(e.target.value)}
-                      placeholder="https://pantherlogistics.com"
+                      placeholder="https://example.com"
                       className="text-xs pl-8"
                     />
                   </div>

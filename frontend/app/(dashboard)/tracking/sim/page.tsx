@@ -1791,7 +1791,7 @@ export default function SIMTrackingPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. HR30AB0001"
+                    placeholder="Enter vehicle registration number"
                     value={addFormData.vehicle_number}
                     onChange={(e) => setAddFormData({ ...addFormData, vehicle_number: e.target.value.toUpperCase() })}
                     className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs uppercase font-mono font-bold focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
@@ -1803,7 +1803,7 @@ export default function SIMTrackingPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 8882920719"
+                    placeholder="Enter 10-digit mobile number"
                     value={addFormData.driver_phone}
                     onChange={(e) => setAddFormData({ ...addFormData, driver_phone: e.target.value })}
                     className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs font-mono font-semibold focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
@@ -1835,7 +1835,7 @@ export default function SIMTrackingPage() {
                   <label className="block font-semibold text-slate-700 mb-1">Driver Name</label>
                   <input
                     type="text"
-                    placeholder="e.g. Driver Name"
+                    placeholder="Enter driver name"
                     value={addFormData.driver_name}
                     onChange={(e) => setAddFormData({ ...addFormData, driver_name: e.target.value })}
                     className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
@@ -1848,7 +1848,7 @@ export default function SIMTrackingPage() {
                   <label className="block font-semibold text-slate-700 mb-1">Origin City / Hub</label>
                   <input
                     type="text"
-                    placeholder="e.g. delhi"
+                    placeholder="Enter origin city / hub"
                     value={addFormData.origin_address}
                     onChange={(e) => setAddFormData({ ...addFormData, origin_address: e.target.value })}
                     className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
@@ -1859,7 +1859,7 @@ export default function SIMTrackingPage() {
                   <label className="block font-semibold text-slate-700 mb-1">Destination City / Hub</label>
                   <input
                     type="text"
-                    placeholder="e.g. Gurugram, Haryana"
+                    placeholder="Enter destination city / hub"
                     value={addFormData.destination_address}
                     onChange={(e) => setAddFormData({ ...addFormData, destination_address: e.target.value })}
                     className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
@@ -1916,7 +1916,7 @@ export default function SIMTrackingPage() {
                 <label className="block font-semibold text-slate-700 mb-1">Closing Reason / Remark</label>
                 <textarea
                   rows={3}
-                  placeholder="e.g. Consignment safely delivered at unloading point"
+                  placeholder="Enter closing reason or remarks"
                   value={closeComment}
                   onChange={(e) => setCloseComment(e.target.value)}
                   className="w-full p-2.5 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
@@ -2103,7 +2103,7 @@ export default function SIMTrackingPage() {
                 <input
                   type="email"
                   required
-                  placeholder="e.g. logistics@client.com"
+                  placeholder="Enter recipient email address"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   className="w-full h-9 px-3 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"

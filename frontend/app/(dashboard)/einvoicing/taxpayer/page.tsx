@@ -79,7 +79,7 @@ export default function TaxpayerDetailsPage() {
               type="text"
               required
               maxLength={15}
-              placeholder="Enter 15-character GSTIN (e.g. 24AAACT1234F1Z1)..."
+              placeholder="Enter 15-character GSTIN..."
               value={gstin}
               onChange={(e) => setGstin(e.target.value.toUpperCase())}
               className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-primary/20"

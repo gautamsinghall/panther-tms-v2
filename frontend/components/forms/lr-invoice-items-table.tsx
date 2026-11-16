@@ -424,7 +424,7 @@ export function LRInvoiceItemsTable({
                             type="text"
                             value={row.invoice_no || ""}
                             disabled={disabled}
-                            placeholder="e.g. INV-2026-001"
+                            placeholder="Enter invoice number"
                             onChange={(e) => handleFieldChange(idx, "invoice_no", e.target.value)}
                             className="w-full h-9 px-3 text-xs font-semibold text-slate-900 rounded-xl border border-slate-200 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-2xs"
                           />
@@ -481,7 +481,7 @@ export function LRInvoiceItemsTable({
                             type="text"
                             value={row.cha_job_number || ""}
                             disabled={disabled}
-                            placeholder="e.g. CHA-1029"
+                            placeholder="Enter CHA job number"
                             onChange={(e) => handleFieldChange(idx, "cha_job_number", e.target.value)}
                             className="w-full h-9 px-3 text-xs font-medium text-slate-800 rounded-xl border border-slate-200 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-2xs"
                           />
@@ -516,7 +516,7 @@ export function LRInvoiceItemsTable({
                               maxLength={12}
                               value={row.eway_bill_number || ""}
                               disabled={disabled}
-                              placeholder="e.g. 123456789012"
+                              placeholder="Enter 12-digit E-Way Bill number"
                               onChange={(e) =>
                                 handleFieldChange(idx, "eway_bill_number", e.target.value.replace(/\D/g, ""))
                               }
@@ -601,7 +601,7 @@ export function LRInvoiceItemsTable({
                           type="text"
                           value={row.particulars || ""}
                           disabled={disabled}
-                          placeholder="e.g. 50 Cartons FMCG Goods / Machinery"
+                          placeholder="Enter item description / particulars"
                           onChange={(e) => handleFieldChange(idx, "particulars", e.target.value)}
                           className="w-full h-9 px-3 text-xs font-medium text-slate-800 rounded-xl border border-slate-200 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-2xs"
                         />
@@ -614,7 +614,7 @@ export function LRInvoiceItemsTable({
                           type="text"
                           value={row.remarks || ""}
                           disabled={disabled}
-                          placeholder="e.g. Handle with care / temperature controlled"
+                          placeholder="Enter line remarks / special instructions"
                           onChange={(e) => handleFieldChange(idx, "remarks", e.target.value)}
                           className="w-full h-9 px-3 text-xs font-medium text-slate-800 rounded-xl border border-slate-200 bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all shadow-2xs"
                         />

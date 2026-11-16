@@ -476,7 +476,7 @@ export default function DLApiPage() {
               type="text"
               value={testDlNumber}
               onChange={(e) => setTestDlNumber(e.target.value.toUpperCase())}
-              placeholder="e.g. MH12 20180012345"
+              placeholder="Enter driving licence number"
               className="w-full h-10 px-3.5 text-xs font-mono font-semibold rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 uppercase"
             />
           </div>

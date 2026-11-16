@@ -1247,7 +1247,7 @@ export default function JournalVouchersPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. AUDIT-2026-04, POL-9842"
+                  placeholder="Enter reference or document number"
                   value={formReferenceNumber}
                   onChange={(e) => setFormReferenceNumber(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1274,7 +1274,7 @@ export default function JournalVouchersPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Fleet Operations, Maintenance Hub"
+                  placeholder="Enter cost center or branch name"
                   value={formCostCenter}
                   onChange={(e) => setFormCostCenter(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1836,7 +1836,7 @@ export default function JournalVouchersPage() {
           <input
             type="text"
             required
-            placeholder="e.g. Month-end accrual reversal upon receipt of vendor bill"
+            placeholder="Enter reversal reason for audit trail"
             value={reverseDialog.reason}
             onChange={(e) => setReverseDialog((prev) => ({ ...prev, reason: e.target.value }))}
             className="w-full text-xs border border-slate-200 dark:border-[#2B2E42] rounded-xl p-2.5 bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 shadow-2xs"

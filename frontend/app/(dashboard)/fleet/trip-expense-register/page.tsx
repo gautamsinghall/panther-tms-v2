@@ -230,7 +230,7 @@ export default function TripExpenseRegisterPage() {
         <div className="flex-1 min-w-[160px]">
           <label className="text-[11px] font-semibold text-[#667085] uppercase block mb-1">Vehicle</label>
           <Input
-            placeholder="e.g. MH-12-RN-4821"
+            placeholder="Filter by vehicle number"
             value={vehicleFilter}
             onChange={(e) => setVehicleFilter(e.target.value)}
           />

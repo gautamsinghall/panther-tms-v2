@@ -896,7 +896,7 @@ export default function CompanyBankAccountsPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Panther Logistics Pvt Ltd"
+                  placeholder="Enter account holder name"
                   value={formAccountHolder}
                   onChange={(e) => setFormAccountHolder(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -966,7 +966,7 @@ export default function CompanyBankAccountsPage() {
                     type="text"
                     required
                     maxLength={11}
-                    placeholder="e.g. HDFC0001234"
+                    placeholder="Enter 11-digit IFSC code"
                     value={formIFSC}
                     onChange={(e) => setFormIFSC(e.target.value.toUpperCase())}
                     className="flex-1 h-10 px-3.5 text-xs sm:text-sm font-mono font-medium uppercase rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -991,7 +991,7 @@ export default function CompanyBankAccountsPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Connaught Place Branch"
+                  placeholder="Enter branch name"
                   value={formBranchName}
                   onChange={(e) => setFormBranchName(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1033,7 +1033,7 @@ export default function CompanyBankAccountsPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. company@hdfcbank"
+                  placeholder="Enter UPI ID (e.g. name@bank)"
                   value={formUPI}
                   onChange={(e) => setFormUPI(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1127,7 +1127,7 @@ export default function CompanyBankAccountsPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. HDFC Bank - Delhi Office"
+                      placeholder="Enter ledger display name"
                       value={formLedgerName}
                       onChange={(e) => setFormLedgerName(e.target.value)}
                       className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"

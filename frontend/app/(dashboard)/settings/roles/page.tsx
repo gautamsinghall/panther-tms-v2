@@ -621,7 +621,7 @@ export default function RolesPage() {
               <input
                 type="text"
                 required
-                placeholder="e.g. Master Data Clerk"
+                placeholder="Enter custom role title"
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
                 className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
@@ -633,7 +633,7 @@ export default function RolesPage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. Can view and edit consignees and locations"
+                placeholder="Enter role description and operational scope"
                 value={roleDescription}
                 onChange={(e) => setRoleDescription(e.target.value)}
                 className="w-full px-3 py-2 text-sm border rounded-lg bg-surface border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"

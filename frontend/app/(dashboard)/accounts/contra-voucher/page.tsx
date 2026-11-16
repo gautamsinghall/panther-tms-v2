@@ -1098,7 +1098,7 @@ export default function ContraVoucherPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. SLIP-88123 / UTR9823471"
+                  placeholder="Enter deposit slip / UTR reference number"
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1114,7 +1114,7 @@ export default function ContraVoucherPage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 004812"
+                      placeholder="Enter 6-digit cheque number"
                       value={chequeNumber}
                       onChange={(e) => setChequeNumber(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"

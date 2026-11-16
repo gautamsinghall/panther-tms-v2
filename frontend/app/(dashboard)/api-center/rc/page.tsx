@@ -465,7 +465,7 @@ export default function RCApiPage() {
               type="text"
               value={testVehicleNumber}
               onChange={(e) => setTestVehicleNumber(e.target.value.toUpperCase())}
-              placeholder="Enter Vehicle Reg No. (e.g. MH04AZ5678, DL1AA1234)"
+              placeholder="Enter vehicle registration number"
               className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-semibold rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 uppercase tracking-widest"
             />
           </div>

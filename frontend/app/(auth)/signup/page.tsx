@@ -1054,7 +1054,7 @@ export default function SignupPage() {
                       required
                       value={companyName}
                       onChange={(e) => handleCompanyChange(e.target.value)}
-                      placeholder="Apex Fast Freight Pvt Ltd"
+                      placeholder="Enter registered company name"
                       className="w-full pl-10 pr-3.5 py-2.5 text-sm text-white placeholder:text-white/40 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all"
                     />
                   </div>
@@ -1079,7 +1079,7 @@ export default function SignupPage() {
                       required
                       value={companyCode}
                       onChange={(e) => setCompanyCode(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
-                      placeholder="APEXFREIGHT"
+                      placeholder="ENTERCODE"
                       className="w-full pl-9 pr-3.5 py-2.5 text-sm font-bold font-mono tracking-wider text-indigo-300 placeholder:text-white/30 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all uppercase"
                     />
                   </div>
@@ -1103,7 +1103,7 @@ export default function SignupPage() {
                         required
                         value={adminName}
                         onChange={(e) => setAdminName(e.target.value)}
-                        placeholder="Rahul Verma"
+                        placeholder="Enter administrator full name"
                         className="w-full pl-10 pr-3.5 py-2.5 text-sm text-white placeholder:text-white/40 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all"
                       />
                     </div>
@@ -1122,7 +1122,7 @@ export default function SignupPage() {
                         required
                         value={adminEmail}
                         onChange={(e) => setAdminEmail(e.target.value)}
-                        placeholder="admin@apexfreight.com"
+                        placeholder="admin@yourcompany.com"
                         className="w-full pl-10 pr-3.5 py-2.5 text-sm text-white placeholder:text-white/40 rounded-xl border border-white/15 bg-white/[0.06] backdrop-blur-md focus:border-indigo-400 focus:bg-white/[0.09] focus:ring-2 focus:ring-indigo-500/30 focus:outline-none transition-all"
                       />
                     </div>

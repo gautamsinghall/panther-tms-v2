@@ -590,7 +590,7 @@ export default function LoginPage() {
                           type="text"
                           value={companyCode}
                           onChange={(e) => setCompanyCode(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
-                          placeholder="e.g. BHARATROADWAYS"
+                          placeholder="ENTERCODE"
                           autoComplete="organization"
                           required
                           style={{ colorScheme: "dark" }}

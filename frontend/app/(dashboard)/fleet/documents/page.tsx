@@ -185,7 +185,7 @@ export default function FleetDocumentsPage() {
                 <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
                 <Input
                   required
-                  placeholder="e.g. MH-12-RN-4821"
+                  placeholder="Enter vehicle number"
                   value={formData.vehicle_number}
                   onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
                 />
@@ -230,7 +230,7 @@ export default function FleetDocumentsPage() {
               <label className="text-xs font-semibold text-[#344054]">Policy / Certificate Number *</label>
               <Input
                 required
-                placeholder="e.g. NIC-COMM-992102"
+                placeholder="Enter certificate / policy number"
                 value={formData.document_number}
                 onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
               />
@@ -239,7 +239,7 @@ export default function FleetDocumentsPage() {
             <div>
               <label className="text-xs font-semibold text-[#344054]">Issuing Authority</label>
               <Input
-                placeholder="e.g. National Insurance Co / RTO Pune"
+                placeholder="Enter issuing authority / insurer name"
                 value={formData.issuing_authority}
                 onChange={(e) => setFormData({ ...formData, issuing_authority: e.target.value })}
               />

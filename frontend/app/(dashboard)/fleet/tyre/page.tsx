@@ -210,7 +210,7 @@ export default function TyreManagementPage() {
               <label className="text-xs font-semibold text-[#344054]">Tyre Serial Number *</label>
               <Input
                 required
-                placeholder="e.g. MRF-99210-A"
+                placeholder="Enter tyre serial number"
                 value={formData.serial_number}
                 onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
               />
@@ -221,7 +221,7 @@ export default function TyreManagementPage() {
                 <label className="text-xs font-semibold text-[#344054]">Brand *</label>
                 <Input
                   required
-                  placeholder="e.g. MRF / Apollo / JK"
+                  placeholder="Enter tyre brand / make"
                   value={formData.brand}
                   onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                 />
@@ -230,7 +230,7 @@ export default function TyreManagementPage() {
                 <label className="text-xs font-semibold text-[#344054]">Size *</label>
                 <Input
                   required
-                  placeholder="e.g. 295/90 R20"
+                  placeholder="Enter tyre size"
                   value={formData.size}
                   onChange={(e) => setFormData({ ...formData, size: e.target.value })}
                 />
@@ -241,7 +241,7 @@ export default function TyreManagementPage() {
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Mounted Vehicle</label>
                 <Input
-                  placeholder="e.g. MH-12-RN-4821"
+                  placeholder="Enter vehicle number"
                   value={formData.vehicle_number}
                   onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
                 />

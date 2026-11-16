@@ -1254,7 +1254,7 @@ export default function ReceiptVoucherPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 004521"
+                      placeholder="Enter 6-digit cheque number"
                       value={chequeNumber}
                       onChange={(e) => setChequeNumber(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1277,7 +1277,7 @@ export default function ReceiptVoucherPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. State Bank of India"
+                      placeholder="Enter bank name"
                       value={chequeBank}
                       onChange={(e) => setChequeBank(e.target.value)}
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1304,7 +1304,7 @@ export default function ReceiptVoucherPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. CMS2948294821 or UPI Ref"
+                    placeholder="Enter UTR / transaction reference number"
                     value={referenceNumber}
                     onChange={(e) => setReferenceNumber(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1607,7 +1607,7 @@ export default function ReceiptVoucherPage() {
               </label>
               <textarea
                 rows={2}
-                placeholder="e.g. Payment received towards freight bills for April 2026 dispatches..."
+                placeholder="Enter voucher narration / remarks..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1999,7 +1999,7 @@ export default function ReceiptVoucherPage() {
           </label>
           <textarea
             rows={2}
-            placeholder="e.g. Cheque dishonoured / payment bounced / wrong client entered..."
+            placeholder="Enter reason for voiding voucher..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
             className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"

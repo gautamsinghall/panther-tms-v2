@@ -480,7 +480,7 @@ export default function IssuingOfficesPage() {
                   </label>
                   <Input
                     required
-                    placeholder="e.g. B-GZB-01"
+                    placeholder="Enter branch code"
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
                     className="font-mono text-xs font-semibold uppercase"
@@ -494,7 +494,7 @@ export default function IssuingOfficesPage() {
                   </label>
                   <Input
                     required
-                    placeholder="e.g. Ghaziabad Hub / Mumbai Central Office"
+                    placeholder="Enter branch name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="text-xs font-semibold"
@@ -520,7 +520,7 @@ export default function IssuingOfficesPage() {
                   size="sm"
                   value={gstin}
                   onChange={setGstin}
-                  placeholder="e.g. 09AAAAA0000A1Z5"
+                  placeholder="Enter 15-digit GSTIN"
                   onFetch={(res) => {
                     if (!name && (res.trade_name || res.legal_name)) {
                       setName(res.trade_name || res.legal_name || "");
@@ -549,7 +549,7 @@ export default function IssuingOfficesPage() {
                   Street Address
                 </label>
                 <Input
-                  placeholder="e.g. Plot No. 42, Transport Nagar, Phase-II"
+                  placeholder="Enter street address"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   className="text-xs"
@@ -565,7 +565,7 @@ export default function IssuingOfficesPage() {
                     type="text"
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value)}
-                    placeholder="e.g. 201001"
+                    placeholder="Enter 6-digit PIN code"
                     className="text-xs"
                   />
                 </div>
@@ -576,7 +576,7 @@ export default function IssuingOfficesPage() {
                   </label>
                   <Input
                     required
-                    placeholder="e.g. Ghaziabad"
+                    placeholder="Enter city"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     className="text-xs"
@@ -623,7 +623,7 @@ export default function IssuingOfficesPage() {
                     Office Phone Number
                   </label>
                   <Input
-                    placeholder="e.g. +91 98765 43210"
+                    placeholder="Enter phone number"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="text-xs"
@@ -636,7 +636,7 @@ export default function IssuingOfficesPage() {
                   </label>
                   <Input
                     type="email"
-                    placeholder="e.g. ghaziabad.hub@panthertms.com"
+                    placeholder="Enter office email address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="text-xs"
@@ -658,7 +658,7 @@ export default function IssuingOfficesPage() {
                     Bank Name
                   </label>
                   <Input
-                    placeholder="e.g. HDFC Bank / State Bank of India"
+                    placeholder="Enter bank name"
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
                     className="text-xs"
@@ -670,7 +670,7 @@ export default function IssuingOfficesPage() {
                     Account Number
                   </label>
                   <Input
-                    placeholder="e.g. 50200012345678"
+                    placeholder="Enter bank account number"
                     value={bankAccountNo}
                     onChange={(e) => setBankAccountNo(e.target.value)}
                     className="font-mono text-xs font-medium"
@@ -683,7 +683,7 @@ export default function IssuingOfficesPage() {
                   </label>
                   <Input
                     maxLength={11}
-                    placeholder="e.g. HDFC0001234"
+                    placeholder="Enter 11-digit IFSC code"
                     value={bankIfsc}
                     onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
                     className="font-mono text-xs font-semibold uppercase tracking-wider"
@@ -695,7 +695,7 @@ export default function IssuingOfficesPage() {
                     Bank Branch Name
                   </label>
                   <Input
-                    placeholder="e.g. Transport Nagar Branch"
+                    placeholder="Enter branch name"
                     value={bankBranch}
                     onChange={(e) => setBankBranch(e.target.value)}
                     className="text-xs"

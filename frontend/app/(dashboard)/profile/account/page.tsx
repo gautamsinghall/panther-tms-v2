@@ -183,13 +183,13 @@ export default function UserAccountPage() {
                   />
                   <Input
                     label="Phone Number"
-                    placeholder="+91 98765 43210"
+                    placeholder="Enter phone number"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                   />
                   <Input
                     label="Designation / Title"
-                    placeholder="Operations Director"
+                    placeholder="Enter designation / title"
                     value={designation}
                     onChange={(e) => setDesignation(e.target.value)}
                   />

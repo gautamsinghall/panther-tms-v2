@@ -153,7 +153,7 @@ export default function EmailSettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="SMTP Username"
-                  placeholder="postmaster@mg.panthertms.in"
+                  placeholder="Enter SMTP username"
                   value={smtpUsername}
                   onChange={(e) => setSmtpUsername(e.target.value)}
                   autoComplete="off"
@@ -171,7 +171,7 @@ export default function EmailSettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Sender Display Name"
-                  placeholder="PantherTMS Invoicing"
+                  placeholder="Enter sender display name"
                   value={fromName}
                   onChange={(e) => setFromName(e.target.value)}
                 />

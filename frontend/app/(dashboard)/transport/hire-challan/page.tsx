@@ -2035,7 +2035,7 @@ export default function HireChallansPage() {
                   type="text"
                   value={vendorRefNo}
                   onChange={(e) => setVendorRefNo(e.target.value)}
-                  placeholder="e.g. VREF-12345"
+                  placeholder="Enter vendor reference number"
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
                 />
               </div>

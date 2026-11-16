@@ -248,7 +248,7 @@ export default function TripAdvancePage() {
               <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
               <Input
                 required
-                placeholder="e.g. MH-12-RN-4821"
+                placeholder="Enter vehicle number"
                 value={formData.vehicle_number}
                 onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
               />
@@ -256,7 +256,7 @@ export default function TripAdvancePage() {
             <div>
               <label className="text-xs font-semibold text-[#344054]">Driver Name</label>
               <Input
-                placeholder="e.g. Ramesh Pawar"
+                placeholder="Enter driver name"
                 value={formData.driver_name}
                 onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
               />
@@ -344,7 +344,7 @@ export default function TripAdvancePage() {
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Audit Notes / Voucher References</label>
                 <Input
-                  placeholder="e.g. Reconciled against diesel bills & toll receipts"
+                  placeholder="Enter audit notes / voucher references"
                   value={settleNotes}
                   onChange={(e) => setSettleNotes(e.target.value)}
                 />

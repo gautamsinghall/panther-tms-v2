@@ -206,7 +206,7 @@ export default function RepairServicePage() {
                 <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
                 <Input
                   required
-                  placeholder="e.g. MH-12-RN-4821"
+                  placeholder="Enter vehicle number"
                   value={formData.vehicle_number}
                   onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
                 />
@@ -236,7 +236,7 @@ export default function RepairServicePage() {
                 <label className="text-xs font-semibold text-[#344054]">Workshop Hub *</label>
                 <Input
                   required
-                  placeholder="e.g. Tata Authorized Service Hub"
+                  placeholder="Enter workshop / service center name"
                   value={formData.workshop_name}
                   onChange={(e) => setFormData({ ...formData, workshop_name: e.target.value })}
                 />
@@ -245,7 +245,7 @@ export default function RepairServicePage() {
                 <label className="text-xs font-semibold text-[#344054]">Odometer at Service (KM)</label>
                 <Input
                   type="number"
-                  placeholder="e.g. 115000"
+                  placeholder="Enter odometer reading (km)"
                   value={formData.odometer_km}
                   onChange={(e) => setFormData({ ...formData, odometer_km: e.target.value })}
                 />
@@ -288,7 +288,7 @@ export default function RepairServicePage() {
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Workshop Invoice #</label>
                 <Input
-                  placeholder="e.g. INV-TATA-4412"
+                  placeholder="Enter invoice number"
                   value={formData.invoice_number}
                   onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                 />

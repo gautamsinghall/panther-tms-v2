@@ -1119,7 +1119,7 @@ export default function SeriesMasterPage() {
                   required
                   value={quickPrefix}
                   onChange={(e) => setQuickPrefix(e.target.value)}
-                  placeholder="e.g. LR-2026- or GI-DEL-"
+                  placeholder="Enter series prefix"
                   className="w-full px-3 py-2 text-sm font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 />
               </div>
@@ -1132,7 +1132,7 @@ export default function SeriesMasterPage() {
                   type="text"
                   value={quickSuffix}
                   onChange={(e) => setQuickSuffix(e.target.value)}
-                  placeholder="e.g. -HO or /26"
+                  placeholder="Enter series suffix (optional)"
                   className="w-full px-3 py-2 text-sm font-mono font-semibold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                 />
               </div>
@@ -1360,7 +1360,7 @@ export default function SeriesMasterPage() {
                     required
                     value={prefix}
                     onChange={(e) => setPrefix(e.target.value)}
-                    placeholder="e.g. LR-2026- or GI-DEL-"
+                    placeholder="Enter series prefix"
                     className="w-full px-3 py-2 text-xs font-mono font-bold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                   />
                   {/* Smart helper chips */}
@@ -1400,7 +1400,7 @@ export default function SeriesMasterPage() {
                     type="text"
                     value={suffix}
                     onChange={(e) => setSuffix(e.target.value)}
-                    placeholder="e.g. -HO or /26 (optional)"
+                    placeholder="Enter series suffix (optional)"
                     className="w-full px-3 py-2 text-xs font-mono font-semibold rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"
                   />
                   <span className="text-[11px] text-slate-400 mt-2 block">
@@ -1429,7 +1429,7 @@ export default function SeriesMasterPage() {
                     value={startingNum}
                     onChange={(e) => setStartingNum(parseInt(e.target.value, 10) || 1)}
                     className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
-                    placeholder="e.g. 1"
+                    placeholder="1"
                   />
                 </div>
 
@@ -1448,7 +1448,7 @@ export default function SeriesMasterPage() {
                       setEndNum(e.target.value ? parseInt(e.target.value, 10) : undefined)
                     }
                     className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
-                    placeholder="e.g. 1000"
+                    placeholder="Enter ending number"
                   />
                   {seriesMode === "MANUAL" && endNum && endNum >= startingNum && (
                     <span className="text-[11px] text-emerald-700 mt-1 block font-medium">
@@ -1466,7 +1466,7 @@ export default function SeriesMasterPage() {
                     type="text"
                     value={seriesName}
                     onChange={(e) => setSeriesName(e.target.value)}
-                    placeholder="e.g. Delhi Counter Book #1, Market Fleet Booklet"
+                    placeholder="Enter series booklet label or description"
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                   />
                   <span className="text-[11px] text-slate-500 mt-1 block">

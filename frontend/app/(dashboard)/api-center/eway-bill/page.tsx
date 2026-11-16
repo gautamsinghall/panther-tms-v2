@@ -345,7 +345,7 @@ export default function EWayBillApiPage() {
             <Input
               type="text"
               value={ewbUsername}
-              placeholder="e.g. NIC_GSP_USER"
+              placeholder="Enter NIC portal username"
               onChange={(e) => setEwbUsername(e.target.value)}
               className="h-10 text-xs font-mono font-medium bg-white"
             />
@@ -392,7 +392,7 @@ export default function EWayBillApiPage() {
               type="text"
               maxLength={15}
               value={ewbGstin}
-              placeholder="e.g. 27ABCDE1234F1Z5"
+              placeholder="Enter 15-digit GSTIN"
               onChange={(e) => setEwbGstin(e.target.value.toUpperCase())}
               className="h-10 text-xs font-mono font-bold tracking-wider uppercase bg-white"
             />

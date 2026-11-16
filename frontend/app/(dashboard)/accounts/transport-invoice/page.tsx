@@ -1257,7 +1257,7 @@ export default function TransportInvoicePage() {
                   type="text"
                   value={placeOfSupply}
                   onChange={(e) => setPlaceOfSupply(e.target.value)}
-                  placeholder="e.g. Maharashtra, Gujarat, Karnataka"
+                  placeholder="Enter place of supply state"
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
                 />
               </div>
@@ -1393,7 +1393,7 @@ export default function TransportInvoicePage() {
               rows={2}
               value={narration}
               onChange={(e) => setNarration(e.target.value)}
-              placeholder="e.g. Freight billing for Steel Coils Mumbai to Pune via Corridor 4"
+              placeholder="Enter invoice narration or remarks"
               className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
             />
           </div>
@@ -1544,7 +1544,7 @@ export default function TransportInvoicePage() {
                     type="text"
                     value={paymentRef}
                     onChange={(e) => setPaymentRef(e.target.value)}
-                    placeholder="e.g. UTR-AXIS-998822"
+                    placeholder="Enter UTR / transaction reference number"
                     className="w-full h-9 px-3 text-xs rounded-lg border border-slate-300"
                   />
                 </div>

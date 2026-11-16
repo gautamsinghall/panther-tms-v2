@@ -256,7 +256,7 @@ export default function TripExpensePage() {
                 <label className="text-xs font-semibold text-[#344054]">Vehicle Number *</label>
                 <Input
                   required
-                  placeholder="e.g. MH-12-RN-4821"
+                  placeholder="Enter vehicle number"
                   value={formData.vehicle_number}
                   onChange={(e) => setFormData({ ...formData, vehicle_number: e.target.value })}
                 />
@@ -264,7 +264,7 @@ export default function TripExpensePage() {
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Driver Name</label>
                 <Input
-                  placeholder="e.g. Ramesh Pawar"
+                  placeholder="Enter driver name"
                   value={formData.driver_name}
                   onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
                 />
@@ -337,7 +337,7 @@ export default function TripExpensePage() {
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Receipt / Bill #</label>
                 <Input
-                  placeholder="e.g. BPCL-9920"
+                  placeholder="Enter receipt / bill number"
                   value={formData.receipt_number}
                   onChange={(e) => setFormData({ ...formData, receipt_number: e.target.value })}
                 />
@@ -346,7 +346,7 @@ export default function TripExpensePage() {
                 <label className="text-xs font-semibold text-[#344054]">Odometer (KM)</label>
                 <Input
                   type="number"
-                  placeholder="e.g. 124500"
+                  placeholder="Enter odometer reading (km)"
                   value={formData.odometer_km}
                   onChange={(e) => setFormData({ ...formData, odometer_km: e.target.value })}
                 />
@@ -359,7 +359,7 @@ export default function TripExpensePage() {
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="e.g. 160.00"
+                  placeholder="Enter fuel quantity in liters"
                   value={formData.fuel_liters}
                   onChange={(e) => setFormData({ ...formData, fuel_liters: e.target.value })}
                 />
@@ -370,7 +370,7 @@ export default function TripExpensePage() {
               <div>
                 <label className="text-xs font-semibold text-[#344054]">Toll Plaza Name</label>
                 <Input
-                  placeholder="e.g. Khalapur Toll Plaza"
+                  placeholder="Enter toll plaza name"
                   value={formData.plaza_name}
                   onChange={(e) => setFormData({ ...formData, plaza_name: e.target.value })}
                 />

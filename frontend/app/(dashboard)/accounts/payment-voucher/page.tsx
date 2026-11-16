@@ -1297,7 +1297,7 @@ export default function PaymentVoucherPage() {
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Local Petrol Pump / Tyre Dealer"
+                        placeholder="Enter vendor name"
                         value={customPartyName}
                         onChange={(e) => setCustomPartyName(e.target.value)}
                         className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1403,7 +1403,7 @@ export default function PaymentVoucherPage() {
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Driver Ramesh Kumar"
+                        placeholder="Enter driver name"
                         value={customPartyName}
                         onChange={(e) => setCustomPartyName(e.target.value)}
                         className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1445,7 +1445,7 @@ export default function PaymentVoucherPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Anand Stationary / Coolie Union"
+                      placeholder="Enter payee / expense description"
                       value={customPartyName}
                       onChange={(e) => setCustomPartyName(e.target.value)}
                       className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1521,7 +1521,7 @@ export default function PaymentVoucherPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 008921"
+                      placeholder="Enter 6-digit cheque number"
                       value={chequeNumber}
                       onChange={(e) => setChequeNumber(e.target.value)}
                       className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1544,7 +1544,7 @@ export default function PaymentVoucherPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. HDFC Bank"
+                      placeholder="Enter bank name"
                       value={chequeBank}
                       onChange={(e) => setChequeBank(e.target.value)}
                       className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1571,7 +1571,7 @@ export default function PaymentVoucherPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. NEFT29482948 or UPI Ref"
+                    placeholder="Enter UTR / transaction reference number"
                     value={referenceNumber}
                     onChange={(e) => setReferenceNumber(e.target.value)}
                     className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1855,7 +1855,7 @@ export default function PaymentVoucherPage() {
               </label>
               <textarea
                 rows={2}
-                placeholder="e.g. Cheque issued towards fuel bill settlement..."
+                placeholder="Enter voucher narration / remarks..."
                 value={narration}
                 onChange={(e) => setNarration(e.target.value)}
                 className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-[#F5F5F7] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -2261,7 +2261,7 @@ export default function PaymentVoucherPage() {
           </label>
           <textarea
             rows={2}
-            placeholder="e.g. Cheque stopped / RTGS failed / wrong vendor selected..."
+            placeholder="Enter reason for voiding voucher..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
             className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"

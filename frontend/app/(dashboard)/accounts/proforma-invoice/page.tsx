@@ -555,7 +555,7 @@ export default function ProformaInvoicePage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. ENQ-4412"
+                placeholder="Enter enquiry / reference number"
                 value={refNumber}
                 onChange={(e) => setRefNumber(e.target.value)}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200/90 dark:border-[#22232E] bg-surface text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"

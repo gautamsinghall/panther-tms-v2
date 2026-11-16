@@ -575,7 +575,7 @@ export default function FastagTrackingPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") executeTrack(vehicleInput, false);
                 }}
-                placeholder="ENTER VEHICLE NUMBER (e.g. MH04GP1234)"
+                placeholder="ENTER VEHICLE REGISTRATION NUMBER"
                 className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold tracking-wider uppercase text-slate-900 placeholder:font-sans placeholder:font-normal placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white shadow-inner transition"
               />
             </div>
@@ -742,7 +742,7 @@ export default function FastagTrackingPage() {
                     type="text"
                     value={customOrigin}
                     onChange={(e) => setCustomOrigin(e.target.value)}
-                    placeholder="e.g. Jaipur, Rajasthan"
+                    placeholder="Enter origin location"
                     className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
@@ -752,7 +752,7 @@ export default function FastagTrackingPage() {
                     type="text"
                     value={customDestination}
                     onChange={(e) => setCustomDestination(e.target.value)}
-                    placeholder="e.g. Mumbai, Maharashtra"
+                    placeholder="Enter destination location"
                     className="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
@@ -1090,7 +1090,7 @@ export default function FastagTrackingPage() {
                   onChange={(e) =>
                     setManualForm({ ...manualForm, vehicle_number: e.target.value.toUpperCase() })
                   }
-                  placeholder="e.g. MH04GP1234 or RJ14GB5678"
+                  placeholder="Enter vehicle registration number"
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold tracking-wider text-slate-900 uppercase outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                 />
               </div>
@@ -1105,7 +1105,7 @@ export default function FastagTrackingPage() {
                     required
                     value={manualForm.origin_name}
                     onChange={(e) => setManualForm({ ...manualForm, origin_name: e.target.value })}
-                    placeholder="e.g. Jaipur, Rajasthan"
+                    placeholder="Enter origin location"
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                   />
                 </div>
@@ -1118,7 +1118,7 @@ export default function FastagTrackingPage() {
                     required
                     value={manualForm.destination_name}
                     onChange={(e) => setManualForm({ ...manualForm, destination_name: e.target.value })}
-                    placeholder="e.g. Mumbai, Maharashtra"
+                    placeholder="Enter destination location"
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                   />
                 </div>

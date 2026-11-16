@@ -1388,7 +1388,7 @@ export default function PurchasesPage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Supplier GSTIN</label>
                 <input
                   type="text"
-                  placeholder="e.g. 27AAACM1234F1Z5"
+                  placeholder="Enter 15-digit GSTIN"
                   value={vendorGstin}
                   onChange={(e) => setVendorGstin(e.target.value.toUpperCase())}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1399,7 +1399,7 @@ export default function PurchasesPage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Supplier State / Origin</label>
                 <input
                   type="text"
-                  placeholder="e.g. Maharashtra, Gujarat, Delhi"
+                  placeholder="Enter state name"
                   value={vendorState}
                   onChange={(e) => setVendorState(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1413,7 +1413,7 @@ export default function PurchasesPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. INV-9901, BILL/2026/04"
+                  placeholder="Enter supplier invoice / bill number"
                   value={billNumber}
                   onChange={(e) => setBillNumber(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1492,7 +1492,7 @@ export default function PurchasesPage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Link to Vehicle (Optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. MH-04-AB-1234, DL-01-AA-9999"
+                  placeholder="Enter vehicle number"
                   value={vehicleNumber}
                   onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono uppercase font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1675,7 +1675,7 @@ export default function PurchasesPage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Place of Supply (State)</label>
                 <input
                   type="text"
-                  placeholder="e.g. Maharashtra"
+                  placeholder="Enter place of supply state"
                   value={placeOfSupply}
                   onChange={(e) => setPlaceOfSupply(e.target.value)}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"
@@ -1862,7 +1862,7 @@ export default function PurchasesPage() {
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-semibold mb-1">Transaction Ref # (UTR / Cheque No.)</label>
             <input
               type="text"
-              placeholder="e.g. UTR-HDFC-991204"
+              placeholder="Enter UTR / transaction reference number"
               value={paymentRefNumber}
               onChange={(e) => setPaymentRefNumber(e.target.value)}
               className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-medium rounded-xl border border-slate-200 dark:border-[#303036] bg-white dark:bg-[#101013] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all shadow-2xs"

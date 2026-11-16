@@ -1317,7 +1317,7 @@ export default function GeneralInvoicePage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Tata Steel Logistics Ltd"
+                  placeholder="Enter customer / debtor name"
                   value={
                     selectedClientId
                       ? clients.find((c) => String(c.id) === selectedClientId)?.name || customPartyName
@@ -1338,7 +1338,7 @@ export default function GeneralInvoicePage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Customer GSTIN</label>
                 <input
                   type="text"
-                  placeholder="27AABCT1332L1Z4"
+                  placeholder="Enter 15-digit GSTIN"
                   maxLength={15}
                   value={customPartyGstin}
                   onChange={(e) => setCustomPartyGstin(e.target.value.toUpperCase())}
@@ -1404,7 +1404,7 @@ export default function GeneralInvoicePage() {
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 dark:text-slate-300 mb-1">Cost Centre</label>
                 <input
                   type="text"
-                  placeholder="e.g. WH-MUMBAI-MAIN"
+                  placeholder="Enter cost centre code"
                   value={costCenter}
                   onChange={(e) => setCostCenter(e.target.value)}
                   className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
@@ -1467,7 +1467,7 @@ export default function GeneralInvoicePage() {
                         <input
                           type="text"
                           required
-                          placeholder="e.g. Pallet Storage / Forklift Handling"
+                          placeholder="Enter description of goods / services"
                           value={line.description}
                           onChange={(e) => handleLineChange(line.id, "description", e.target.value)}
                           className="w-full h-8 px-2 text-xs rounded border border-slate-200 bg-white"

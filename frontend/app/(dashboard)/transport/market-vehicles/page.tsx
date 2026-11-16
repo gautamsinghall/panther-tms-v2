@@ -936,7 +936,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                       });
                       toast.success(`Verified: ${data.vehicle_description || data.maker_model || "RC details loaded"}`);
                     }}
-                    placeholder="e.g. MH-04-AZ-5678"
+                    placeholder="Enter vehicle registration number"
                     className={cn(
                       formErrors.vehicle_number ? "border-rose-400" : "border-slate-200"
                     )}
@@ -1018,7 +1018,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <input
                     type="text"
                     value={formValues.vehicle_description}
-                    placeholder="e.g. Tata Signa 4825.TK / BharatBenz 2823R"
+                    placeholder="Enter vehicle make / model"
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, vehicle_description: e.target.value }))
                     }
@@ -1098,7 +1098,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <input
                     type="text"
                     value={formValues.engine_number}
-                    placeholder="e.g. ENG98765432"
+                    placeholder="Enter engine number"
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, engine_number: e.target.value }))
                     }
@@ -1114,7 +1114,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <input
                     type="text"
                     value={formValues.chassis_number}
-                    placeholder="e.g. MAT4825ENG123456"
+                    placeholder="Enter chassis number"
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, chassis_number: e.target.value }))
                     }
@@ -1130,7 +1130,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <input
                     type="text"
                     value={formValues.financier}
-                    placeholder="e.g. HDFC Bank Ltd / Cholamandalam"
+                    placeholder="Enter financier / bank name"
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, financier: e.target.value }))
                     }
@@ -1148,7 +1148,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                       type="number"
                       step="any"
                       value={formValues.gvw_kg}
-                      placeholder="e.g. 28000"
+                      placeholder="Enter gross vehicle weight"
                       onChange={(e) => handleWeightChange("gvw_kg", e.target.value)}
                       className={cn(
                         "w-full h-10 pl-3.5 pr-12 text-xs sm:text-sm font-medium rounded-xl border bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs",
@@ -1174,7 +1174,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                       type="number"
                       step="any"
                       value={formValues.unladen_weight_kg}
-                      placeholder="e.g. 11500"
+                      placeholder="Enter unladen weight"
                       onChange={(e) => handleWeightChange("unladen_weight_kg", e.target.value)}
                       className="w-full h-10 pl-3.5 pr-12 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs"
                     />
@@ -1194,7 +1194,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                       type="number"
                       step="any"
                       value={formValues.capacity_mt}
-                      placeholder="e.g. 16.5"
+                      placeholder="Enter payload capacity"
                       onChange={(e) => {
                         setFormValues((prev) => ({ ...prev, capacity_mt: e.target.value }));
                         if (formErrors.capacity_mt) {
@@ -1247,7 +1247,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <input
                     type="text"
                     value={formValues.color}
-                    placeholder="e.g. Signal White / Royal Blue"
+                    placeholder="Enter vehicle color"
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, color: e.target.value }))
                     }
@@ -1263,7 +1263,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <input
                     type="number"
                     value={formValues.cylinders}
-                    placeholder="e.g. 6"
+                    placeholder="Enter cylinders count"
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, cylinders: e.target.value }))
                     }
@@ -1279,7 +1279,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                   <input
                     type="number"
                     value={formValues.seating_capacity}
-                    placeholder="e.g. 2"
+                    placeholder="Enter seating capacity"
                     onChange={(e) =>
                       setFormValues((prev) => ({ ...prev, seating_capacity: e.target.value }))
                     }
@@ -1640,7 +1640,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                       <input
                         type="number"
                         value={formValues.last_service_km}
-                        placeholder="e.g. 84500"
+                        placeholder="Enter odometer reading"
                         onChange={(e) =>
                           setFormValues((prev) => ({ ...prev, last_service_km: e.target.value }))
                         }
@@ -1660,7 +1660,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                     <input
                       type="text"
                       value={formValues.last_service_done_at}
-                      placeholder="e.g. Tata Authorized Workshop, Vashi"
+                      placeholder="Enter workshop / service center name"
                       onChange={(e) =>
                         setFormValues((prev) => ({ ...prev, last_service_done_at: e.target.value }))
                       }
@@ -1696,7 +1696,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                     <input
                       type="text"
                       value={formValues.driver_at_last_service}
-                      placeholder="e.g. Ramesh Kumar"
+                      placeholder="Enter driver name"
                       onChange={(e) =>
                         setFormValues((prev) => ({ ...prev, driver_at_last_service: e.target.value }))
                       }
@@ -1712,7 +1712,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                     <input
                       type="text"
                       value={formValues.driver_phone_at_last_service}
-                      placeholder="e.g. 9876543210"
+                      placeholder="Enter driver mobile number"
                       onChange={(e) =>
                         setFormValues((prev) => ({ ...prev, driver_phone_at_last_service: e.target.value }))
                       }
@@ -1728,7 +1728,7 @@ function MarketVehiclesPageImpl({ embedded = false, onCreated, onCancel }: Marke
                     <input
                       type="text"
                       value={formValues.tyre_numbers}
-                      placeholder="e.g. 10 Tyres - Apollo Radial 10.00R20"
+                      placeholder="Enter tyre specifications"
                       onChange={(e) =>
                         setFormValues((prev) => ({ ...prev, tyre_numbers: e.target.value }))
                       }

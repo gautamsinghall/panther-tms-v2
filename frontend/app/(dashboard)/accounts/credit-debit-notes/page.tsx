@@ -1184,7 +1184,7 @@ export default function CreditDebitNotesPage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. 5 cartons damaged, approved 10% freight concession..."
+                placeholder="Enter reason description or concession details..."
                 value={reasonDescription}
                 onChange={(e) => setReasonDescription(e.target.value)}
                 className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1408,7 +1408,7 @@ export default function CreditDebitNotesPage() {
               </label>
               <input
                 type="text"
-                placeholder="e.g. VEND-CN-908"
+                placeholder="Enter party document or reference number"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
                 className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-2xs transition-all"
@@ -1612,7 +1612,7 @@ export default function CreditDebitNotesPage() {
           </label>
           <textarea
             rows={3}
-            placeholder="e.g. Issued under incorrect dispute head, client agreement revised..."
+            placeholder="Enter audit reason for cancellation / voiding..."
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
             className="w-full px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-[#2B2E42] bg-white dark:bg-[#0E0F15] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 shadow-2xs"
