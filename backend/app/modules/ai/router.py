@@ -536,14 +536,10 @@ def build_page_help_response(
     else:
         primary_action = f"Review or manage records on the {title} page."
 
-    source_title = matching_chunks[0].title if matching_chunks else f"{title} Page Guide"
-    source_line = f"(Source: Panther docs — '{source_title}'.)"
-
     content = (
         f"{line1}\n{line2}\n\n"
         f"{bullets_header}\n{bullet_lines}\n\n"
-        f"{action_header} {primary_action}\n\n"
-        f"{source_line}"
+        f"{action_header} {primary_action}"
     )
     return content, citations
 
@@ -1567,6 +1563,7 @@ def sanitize_ai_output(text: str) -> str:
     text = re.sub(r"sk-[a-zA-Z0-9_-]{20,}", "[REDACTED_API_KEY]", text)
     text = re.sub(r"postgresql(\+asyncpg)?://[^\s]+", "[REDACTED_DB_URL]", text)
     text = re.sub(r"(?i)(password|secret|token)\s*=\s*['\"][^'\"]+['\"]", r"\1='[REDACTED]'", text)
+    text = re.sub(r"\n*\(Source:\s*Panther docs\s*—.*?\)\.?\s*$", "", text, flags=re.IGNORECASE)
     return text
 
 
@@ -3235,17 +3232,6 @@ async def chat_with_copilot(
             user_text=last_user_message,
             history_texts=[m.content for m in data.messages if m.role == "user"],
         )
-        if citations and not reply_guarded:
-            unique_titles = []
-            for c in citations:
-                t = c.get("title") if isinstance(c, dict) else getattr(c, "title", None)
-                if t and t not in unique_titles:
-                    unique_titles.append(t)
-            if unique_titles:
-                source_names = ", ".join(f"'{t}'" for t in unique_titles[:2])
-                source_line = f"(Source: Panther docs — {source_names}.)"
-                if "source:" not in reply_content.lower():
-                    reply_content = reply_content.rstrip() + f"\n\n{source_line}"
     except Exception as e:
         reply_guarded = False
         err_msg = str(e)
@@ -3259,8 +3245,6 @@ async def chat_with_copilot(
                 reply_content = "The AI assistant is temporarily rate-limited. Please retry in a few moments. Note that direct company records queries (clients, vendors, drivers, LRs) remain fully operational."
         else:
             if citations and rag_context:
-                top_chunks = [c for c in citations if isinstance(c, dict) and c.get("title")]
-                top_titles = ", ".join(f"'{c.get('title')}'" for c in top_chunks[:2])
                 raw_chunk_text = ""
                 for line in rag_context.splitlines():
                     if line.startswith("--- SOURCE") or line.startswith("AUTHORITATIVE") or not line.strip():
@@ -3270,7 +3254,7 @@ async def chat_with_copilot(
                         break
                 summary_excerpt = raw_chunk_text.strip()[:500]
                 if summary_excerpt:
-                    reply_content = f"{summary_excerpt}\n\n(Source: Panther docs — {top_titles}.)"
+                    reply_content = summary_excerpt
                 else:
                     reply_content = (
                         f"Aap Panther TMS ke is module ki jankari direct menu se dekh sakte hain ya helpline **1800 571 0683** par call kar sakte hain."

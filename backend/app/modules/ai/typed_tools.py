@@ -764,9 +764,7 @@ def getKnowledge(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard
                 "• **क्या है**: जीएसटी नियम 138 के तहत एक इलेक्ट्रॉनिक वे-बिल। ₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n"
                 "• **पार्ट-ए (Part-A)**: माल का इनवॉइस विवरण, कंसाइनर व कंसाइनी का जीएसटीएन और मूल्य।\n"
                 "• **पार्ट-बी (Part-B)**: वाहन पंजीकरण संख्या (Vehicle Number) या ट्रांसपोर्टर आईडी।\n"
-                "• **आवश्यक दस्तावेज़**: 1. टैक्स इनवॉइस/चालान, 2. वाहन नंबर।\n\n"
-                "₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n\n"
-                "(Source: Panther docs — 'GST Rule 138', 'E-Way Bill Regulations'.)"
+                "• **आवश्यक दस्तावेज़**: 1. टैक्स इनवॉइस/चालान, 2. वाहन नंबर।"
             )
         elif lang == "hinglish":
             msg = (
@@ -774,9 +772,7 @@ def getKnowledge(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard
                 "• **What it is**: GST Rule 138 ke tehat electronic compliance document hai. ₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n"
                 "• **Part-A**: Consignment details, Consigner/Consignee GSTIN, Invoice Number aur Goods Value.\n"
                 "• **Part-B**: Vehicle registration number ya Transporter ID/LR number.\n"
-                "• **Required Documents**: 1. Tax Invoice ya Delivery Challan, 2. Assigned Vehicle Registration Number.\n\n"
-                "₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n\n"
-                "(Source: Panther docs — 'GST Rule 138', 'E-Way Bill Regulations'.)"
+                "• **Required Documents**: 1. Tax Invoice ya Delivery Challan, 2. Assigned Vehicle Registration Number."
             )
         else:
             msg = (
@@ -784,9 +780,7 @@ def getKnowledge(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard
                 "• **Definition**: An electronic waybill under GST Rule 138. ₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n"
                 "• **Part-A**: Consignment information (Supplier/Recipient GSTIN, Invoice/Challan Number, Goods Value, HSN).\n"
                 "• **Part-B**: Transport details (Vehicle Registration Number or Transporter ID).\n"
-                "• **Required Documents**: 1. Tax Invoice or Delivery Challan. 2. Assigned Vehicle Registration Number.\n\n"
-                "₹50,000 for inter-state movement; intrastate thresholds vary by state. In Panther TMS, confirmation is blocked above ₹50,000 — that is Panther's own rule.\n\n"
-                "(Source: Panther docs — 'GST Rule 138', 'E-Way Bill Regulations'.)"
+                "• **Required Documents**: 1. Tax Invoice or Delivery Challan. 2. Assigned Vehicle Registration Number."
             )
         return msg, [card], navs
 
@@ -839,7 +833,6 @@ def getHowTo(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard], L
                 "4. **Cargo & E-Way Bill**: Enter packages, weight, and 12-digit E-Way Bill if goods value exceeds ₹50,000 (Panther rule; GST intrastate thresholds vary by state).\n\n"
                 "Chat cannot create an LR — click \"New LR Booking\" on the form and save with \"Create Lorry Receipt\"."
             )
-        msg = f"{msg}\n\n(Source: Panther docs — 'How to Create an LR', 'LR Booking'.)"
         return msg, [card], navs
 
     if topic in ("job", "job_order"):
@@ -884,7 +877,6 @@ def getHowTo(topic: str, lang: str = "en") -> Tuple[str, List[StructuredCard], L
                 "4. Click **\"Save\"** to create the job.\n\n"
                 "Chat does not create jobs — please create it directly on the Job Creation form for accuracy."
             )
-        msg = f"{msg}\n\n(Source: Panther docs — 'Job Creation', 'Job Orders'.)"
         return msg, [card], navs
 
     if topic == "tracking":

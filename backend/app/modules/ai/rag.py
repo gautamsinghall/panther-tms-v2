@@ -339,7 +339,10 @@ class PantherKnowledgeEngine:
     STOP_WORDS = {
         "the", "is", "a", "an", "and", "or", "for", "of", "in", "on", "at", "to",
         "what", "how", "with", "from", "by", "this", "that", "it", "are", "as",
-        "be", "do", "i", "can", "you", "me", "my", "we", "our", "so", "if"
+        "be", "do", "i", "can", "you", "me", "my", "we", "our", "so", "if",
+        "tms", "panther", "panthertms", "mein", "ko", "ka", "ki", "ke", "se",
+        "par", "bhi", "toh", "aur", "ya", "hai", "hain", "kya", "kar", "karo",
+        "karna", "rupee", "rupees", "rs",
     }
 
     def _tokenize(self, text: str, expand_synonyms: bool = True) -> List[str]:
@@ -351,6 +354,10 @@ class PantherKnowledgeEngine:
         """
         raw_tokens = TOKEN_PATTERN.findall(text.lower())
         content_tokens = [t for t in raw_tokens if t not in self.STOP_WORDS and len(t) > 1]
+        if expand_synonyms:
+            has_alpha = any(not t.isdigit() for t in content_tokens)
+            if has_alpha:
+                content_tokens = [t for t in content_tokens if not t.isdigit()]
         if not expand_synonyms:
             return content_tokens
         expanded = list(content_tokens)
@@ -378,7 +385,7 @@ class PantherKnowledgeEngine:
         self.load_and_index()
 
         tenant_tier = PLAN_TIERS.get(plan_code.upper(), 2)
-        query_tokens = self._tokenize(query)
+        query_tokens = [t for t in self._tokenize(query) if not t.isdigit()]
         if not query_tokens:
             return [], True
 
