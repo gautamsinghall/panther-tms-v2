@@ -2081,10 +2081,10 @@ export default function ReceiptVoucherPage() {
               }
             `}</style>
 
-            <div className="receipt-voucher-container relative bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden z-10 print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible print:rounded-none">
+            <div className="receipt-voucher-container relative bg-white dark:bg-[#111217] text-slate-900 rounded-2xl border border-slate-200 dark:border-[#22232E] shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden z-10 print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible print:rounded-none">
               {/* Modal Controls Bar (Always sticky and visible at the top) */}
-              <div className="no-print flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white sticky top-0 z-10 print:hidden shrink-0">
-                <span className="font-semibold text-sm text-slate-800 flex items-center gap-2">
+              <div className="no-print flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-[#2A2B36] bg-slate-50 dark:bg-[#161722] sticky top-0 z-10 print:hidden shrink-0">
+                <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
                   <Printer className="h-4 w-4 text-emerald-600" />
                   Print Preview: Receipt Voucher
                 </span>
@@ -2100,7 +2100,7 @@ export default function ReceiptVoucherPage() {
                   <button
                     type="button"
                     onClick={() => setIsPrintModalOpen(false)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#202025] transition-colors"
                     title="Close"
                   >
                     <X className="h-5 w-5" />
@@ -2109,20 +2109,22 @@ export default function ReceiptVoucherPage() {
               </div>
 
               {/* Scrollable Printable Document Body */}
-              <div className="receipt-voucher-print-sheet overflow-y-auto flex-1 p-6 sm:p-8 space-y-5 print:overflow-visible print:p-0 print:space-y-6 printable-paper-sheet printable-document-sheet">
+              <div className="receipt-voucher-print-sheet overflow-y-auto flex-1 p-6 sm:p-8 space-y-5 print:overflow-visible print:p-0 print:space-y-6 printable-paper-sheet printable-document-sheet bg-white text-slate-900">
                 {/* Document Header */}
-                <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start gap-4">
+                <div className="border-b-2 border-slate-900 pb-3.5 flex justify-between items-start gap-4">
                   {/* Left: Logo + Company Info */}
-                  <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
                     {companyLogoUrl ? (
-                      <img
-                        src={companyLogoUrl}
-                        alt={companyName}
-                        crossOrigin="anonymous"
-                        className="w-14 h-14 object-contain rounded-lg border border-slate-200 bg-white shrink-0 p-1"
-                      />
+                      <div className="shrink-0 flex items-center justify-center">
+                        <img
+                          src={companyLogoUrl}
+                          alt={companyName}
+                          crossOrigin="anonymous"
+                          className="h-18 sm:h-22 w-auto max-w-[220px] object-contain rounded-xl shrink-0"
+                        />
+                      </div>
                     ) : (
-                      <div className="w-14 h-14 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-black text-2xl shadow-xs shrink-0">
+                      <div className="w-18 h-18 sm:w-22 sm:h-22 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black text-3xl shadow-xs shrink-0">
                         {companyFirstLetter}
                       </div>
                     )}
@@ -2429,8 +2431,8 @@ export default function ReceiptVoucherPage() {
               </div>
 
               {/* Modal Actions Footer Bar (Always sticky and visible at the bottom) */}
-              <div className="no-print flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50 sticky bottom-0 z-10 print:hidden shrink-0">
-                <span className="text-xs text-slate-500 font-mono">
+              <div className="no-print flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-[#2A2B36] bg-slate-50 dark:bg-[#161722] sticky bottom-0 z-10 print:hidden shrink-0">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                   {printVoucher.voucher_number} • {formatDate(printVoucher.voucher_date)}
                 </span>
                 <div className="flex items-center gap-2">
@@ -2438,7 +2440,7 @@ export default function ReceiptVoucherPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setIsPrintModalOpen(false)}
-                    className="text-xs h-8 px-3 rounded-lg"
+                    className="text-xs h-8 px-3 rounded-lg dark:bg-[#1F202B] dark:border-[#2B2D3D] dark:text-slate-200 dark:hover:bg-[#262837]"
                   >
                     Close
                   </Button>
