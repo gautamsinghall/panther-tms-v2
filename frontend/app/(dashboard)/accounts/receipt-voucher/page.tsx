@@ -2068,24 +2068,122 @@ export default function ReceiptVoucherPage() {
                   animation: none !important;
                   background: #ffffff !important;
                 }
+                #receipt-voucher-printable-document,
                 .receipt-voucher-print-sheet {
-                  box-shadow: none !important;
-                  border: none !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
+                  position: static !important;
+                  display: block !important;
                   width: 100% !important;
                   max-width: 100% !important;
-                  min-height: 0 !important;
+                  margin: 0 auto !important;
+                  padding: 0 !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  page-break-inside: avoid !important;
+                  break-inside: avoid !important;
+                  background: #ffffff !important;
+                  color: #0f172a !important;
                   overflow: visible !important;
                 }
               }
+
+              /* Complete Dark Mode Immunity for the Printable Document Sheet */
+              html.dark #receipt-voucher-printable-document,
+              html.dark #receipt-voucher-printable-document * {
+                color-scheme: light !important;
+              }
+              html.dark #receipt-voucher-printable-document {
+                background-color: #ffffff !important;
+                background: #ffffff !important;
+                color: #0f172a !important;
+                border-color: #cbd5e1 !important;
+              }
+              html.dark #receipt-voucher-printable-document h1,
+              html.dark #receipt-voucher-printable-document h2,
+              html.dark #receipt-voucher-printable-document h3,
+              html.dark #receipt-voucher-printable-document h4,
+              html.dark #receipt-voucher-printable-document p,
+              html.dark #receipt-voucher-printable-document span,
+              html.dark #receipt-voucher-printable-document td,
+              html.dark #receipt-voucher-printable-document th {
+                color-scheme: light !important;
+              }
+              html.dark #receipt-voucher-printable-document h2,
+              html.dark #receipt-voucher-printable-document .text-slate-900 {
+                color: #0f172a !important;
+              }
+              html.dark #receipt-voucher-printable-document .text-slate-800 {
+                color: #1e293b !important;
+              }
+              html.dark #receipt-voucher-printable-document .text-slate-700 {
+                color: #334155 !important;
+              }
+              html.dark #receipt-voucher-printable-document .text-slate-600 {
+                color: #475569 !important;
+              }
+              html.dark #receipt-voucher-printable-document .text-slate-500 {
+                color: #64748b !important;
+              }
+              html.dark #receipt-voucher-printable-document .bg-white {
+                background-color: #ffffff !important;
+                background: #ffffff !important;
+              }
+              html.dark #receipt-voucher-printable-document .bg-slate-50,
+              html.dark #receipt-voucher-printable-document .bg-slate-50\/80 {
+                background-color: #f8fafc !important;
+                background: #f8fafc !important;
+                border-color: #e2e8f0 !important;
+              }
+              html.dark #receipt-voucher-printable-document .bg-emerald-50,
+              html.dark #receipt-voucher-printable-document .bg-emerald-50\/60 {
+                background-color: #ecfdf5 !important;
+                background: #ecfdf5 !important;
+              }
+              html.dark #receipt-voucher-printable-document .bg-slate-100,
+              html.dark #receipt-voucher-printable-document .bg-slate-100\/90 {
+                background-color: #f1f5f9 !important;
+                background: #f1f5f9 !important;
+              }
+              html.dark #receipt-voucher-printable-document table {
+                background-color: transparent !important;
+                background: transparent !important;
+                color: #0f172a !important;
+              }
+              html.dark #receipt-voucher-printable-document table thead th {
+                background-color: #f1f5f9 !important;
+                background: #f1f5f9 !important;
+                color: #334155 !important;
+                border-color: #e2e8f0 !important;
+              }
+              html.dark #receipt-voucher-printable-document table tbody td {
+                border-color: #f1f5f9 !important;
+                color: #0f172a !important;
+                background-color: transparent !important;
+                background: transparent !important;
+              }
+              html.dark #receipt-voucher-printable-document table tbody tr {
+                background-color: transparent !important;
+                background: transparent !important;
+              }
+              html.dark #receipt-voucher-printable-document table tbody tr:hover {
+                background-color: #f8fafc !important;
+                background: #f8fafc !important;
+              }
+              html.dark #receipt-voucher-printable-document table tfoot,
+              html.dark #receipt-voucher-printable-document table tfoot tr,
+              html.dark #receipt-voucher-printable-document table tfoot td {
+                background-color: #f8fafc !important;
+                background: #f8fafc !important;
+                color: #0f172a !important;
+              }
             `}</style>
 
-            <div className="receipt-voucher-container relative bg-white dark:bg-[#111217] text-slate-900 rounded-2xl border border-slate-200 dark:border-[#22232E] shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden z-10 print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible print:rounded-none">
+            <div className="receipt-voucher-container relative bg-white dark:bg-[#111217] text-slate-900 rounded-2xl border border-slate-200 dark:border-[#22232E] shadow-2xl max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden z-10 print:h-auto print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible print:rounded-none">
               {/* Modal Controls Bar (Always sticky and visible at the top) */}
-              <div className="no-print flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-[#2A2B36] bg-slate-50 dark:bg-[#161722] sticky top-0 z-10 print:hidden shrink-0">
+              <div className="no-print flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-[#22232E] bg-slate-50 dark:bg-[#161722] sticky top-0 z-10 print:hidden shrink-0">
                 <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <Printer className="h-4 w-4 text-emerald-600" />
+                  <Printer className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   Print Preview: Receipt Voucher
                 </span>
                 <div className="flex items-center gap-2">
@@ -2108,30 +2206,34 @@ export default function ReceiptVoucherPage() {
                 </div>
               </div>
 
-              {/* Scrollable Printable Document Body */}
-              <div className="receipt-voucher-print-sheet overflow-y-auto flex-1 p-6 sm:p-8 space-y-5 print:overflow-visible print:p-0 print:space-y-6 printable-paper-sheet printable-document-sheet bg-white text-slate-900">
-                {/* Document Header */}
-                <div className="border-b-2 border-slate-900 pb-3.5 flex justify-between items-start gap-4">
-                  {/* Left: Logo + Company Info */}
-                  <div className="flex items-start gap-4 flex-1 min-w-0">
-                    {companyLogoUrl ? (
-                      <div className="shrink-0 flex items-center justify-center">
+              {/* Scrollable Document Area in Modal (The Desk) */}
+              <div className="max-h-[80vh] overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-[#0B0B0E] flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:max-h-none">
+                {/* Printable Document Sheet (Pure White Paper) */}
+                <div
+                  id="receipt-voucher-printable-document"
+                  className="printable-paper-sheet printable-document-sheet receipt-voucher-print-sheet w-full max-w-[210mm] bg-white p-6 sm:p-8 border border-slate-300 shadow-md print:shadow-none print:border-none print:p-0 text-slate-900 font-sans space-y-5 print:space-y-6 h-fit flex flex-col justify-between"
+                  style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
+                >
+                  {/* Document Header */}
+                  <div className="border-b-2 border-slate-900 pb-3.5 flex justify-between items-start gap-4">
+                    {/* Left: Logo + Company Info */}
+                    <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                      {companyLogoUrl ? (
                         <img
                           src={companyLogoUrl}
                           alt={companyName}
                           crossOrigin="anonymous"
-                          className="h-18 sm:h-22 w-auto max-w-[220px] object-contain rounded-xl shrink-0"
+                          className="w-12 h-12 object-contain rounded-lg border border-slate-200 bg-white p-0.5 shrink-0"
                         />
-                      </div>
-                    ) : (
-                      <div className="w-18 h-18 sm:w-22 sm:h-22 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black text-3xl shadow-xs shrink-0">
-                        {companyFirstLetter}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900 leading-tight">
-                        {companyName}
-                      </h2>
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-black text-2xl shadow-xs shrink-0">
+                          {companyFirstLetter}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900 leading-tight">
+                          {companyName}
+                        </h2>
                       {fullAddressLine ? (
                         <p className="text-xs text-slate-600 mt-1 leading-normal">
                           {fullAddressLine}
@@ -2429,6 +2531,7 @@ export default function ReceiptVoucherPage() {
                   </div>
                 </div>
               </div>
+            </div>
 
               {/* Modal Actions Footer Bar (Always sticky and visible at the bottom) */}
               <div className="no-print flex items-center justify-between px-6 py-3 border-t border-slate-200 dark:border-[#2A2B36] bg-slate-50 dark:bg-[#161722] sticky bottom-0 z-10 print:hidden shrink-0">

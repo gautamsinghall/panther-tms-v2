@@ -720,33 +720,33 @@ html.dark .bg-\[\#F3F5FC\] {
 
 /* 2. Surfaces, Cards, and Containers */
 html.dark .card-elevation,
-html.dark .bg-white:not([class*="liquid-glass"]):not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not(input):not(textarea):not(button):not(select):not(aside):not(aside *) {
+html.dark .bg-white:not(.printable-paper-sheet):not(.printable-document-sheet):not([data-printable-sheet]):not([data-printable-document]):not(#printable-tax-invoice):not([id*="printable-tax-invoice"]):not(#lr-printable-document):not([id^="lr-printable-document"]):not(#hire-challan-printable-document):not([id^="hire-challan-printable-document"]):not(#job-order-printable-document):not([id^="job-order-printable-document"]):not(#receipt-voucher-printable-document):not([id*="receipt-voucher"]):not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *):not([class*="liquid-glass"]):not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not(input):not(textarea):not(button):not(select):not(aside):not(aside *) {
   background-color: #17171B !important;
   border-color: #303036 !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.40), inset 0 1px 0 0 rgba(255, 255, 255, 0.03) !important;
 }
 
 /* 3. Inset Containers & Wells */
-html.dark .bg-slate-50,
-html.dark .bg-slate-50\/50,
-html.dark .bg-slate-50\/60,
-html.dark .bg-slate-50\/70,
-html.dark .bg-slate-50\/80,
-html.dark .bg-slate-50\/90,
-html.dark .bg-\[\#F8F9FB\],
-html.dark .bg-\[\#F8F9FA\] {
+html.dark .bg-slate-50:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-50\/50:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-50\/60:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-50\/70:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-50\/80:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-50\/90:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-\[\#F8F9FB\]:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-\[\#F8F9FA\]:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *) {
   background-color: #131317 !important;
   border-color: #303036 !important;
 }
 
-html.dark .bg-slate-100,
-html.dark .bg-slate-100\/60,
-html.dark .bg-slate-100\/70,
-html.dark .bg-slate-100\/80,
-html.dark .bg-slate-100\/90,
-html.dark .bg-slate-200\/50,
-html.dark .bg-slate-200\/60,
-html.dark .bg-slate-200\/80 {
+html.dark .bg-slate-100:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-100\/60:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-100\/70:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-100\/80:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-100\/90:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-200\/50:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-200\/60:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *),
+html.dark .bg-slate-200\/80:not(.printable-paper-sheet *):not(.printable-document-sheet *):not([id*="printable"] *) {
   background-color: #17171B !important;
   border-color: #303036 !important;
 }
@@ -1596,6 +1596,9 @@ html.dark #job-order-printable-document,
 html.dark [id^="job-order-printable-document"],
 html.dark #printable-tax-invoice,
 html.dark [id*="printable-tax-invoice"],
+html.dark #receipt-voucher-printable-document,
+html.dark [id*="receipt-voucher-printable-document"],
+html.dark .receipt-voucher-print-sheet,
 html.dark .printable-document-sheet,
 html.dark .printable-paper-sheet,
 html.dark [data-printable-document],
@@ -1618,6 +1621,9 @@ html.dark #job-order-printable-document *,
 html.dark [id^="job-order-printable-document"] *,
 html.dark #printable-tax-invoice *,
 html.dark [id*="printable-tax-invoice"] *,
+html.dark #receipt-voucher-printable-document *,
+html.dark [id*="receipt-voucher-printable-document"] *,
+html.dark .receipt-voucher-print-sheet *,
 html.dark .printable-document-sheet *,
 html.dark .printable-paper-sheet *,
 html.dark [data-printable-document] *,
@@ -1636,6 +1642,9 @@ html.dark #job-order-printable-document .bg-white,
 html.dark [id^="job-order-printable-document"] .bg-white,
 html.dark #printable-tax-invoice .bg-white,
 html.dark [id*="printable-tax-invoice"] .bg-white,
+html.dark #receipt-voucher-printable-document .bg-white,
+html.dark [id*="receipt-voucher-printable-document"] .bg-white,
+html.dark .receipt-voucher-print-sheet .bg-white,
 html.dark .printable-document-sheet .bg-white,
 html.dark .printable-paper-sheet .bg-white,
 html.dark [data-printable-document] .bg-white,
