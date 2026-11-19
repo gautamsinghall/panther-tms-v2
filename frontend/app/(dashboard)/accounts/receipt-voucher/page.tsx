@@ -2,6 +2,7 @@
 import { toast } from "@/lib/toast";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   ArrowDownLeft,
@@ -243,6 +244,11 @@ export default function ReceiptVoucherPage() {
   const [voidVoucherNumber, setVoidVoucherNumber] = useState<string>("");
   const [voidReason, setVoidReason] = useState("");
   const [isVoiding, setIsVoiding] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -1859,7 +1865,8 @@ export default function ReceiptVoucherPage() {
       </EntityDrawer>
 
       {/* MODAL 3: Print Receipt Voucher (Indian Transport Standard) */}
-      {isPrintModalOpen && printVoucher && (() => {
+      {isPrintModalOpen && printVoucher && mounted && typeof document !== "undefined" && createPortal(
+        (() => {
         const auth = typeof window !== "undefined" ? getStoredAuth() : null;
         const currentOffice = getActiveOffice();
         const companyName = auth?.tenantName || "PANTHER LOGISTICS & TRANSPORT";
@@ -1875,15 +1882,94 @@ export default function ReceiptVoucherPage() {
           "Bank / Cash Operating Account";
 
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 print:p-0 print:bg-white print:overflow-visible print:static"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setIsPrintModalOpen(false);
-            }}
-          >
-            <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden relative print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible">
+          <div className="receipt-voucher-modal-portal fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 print:p-0 print:m-0 print:static print:overflow-visible print:block print:inset-auto">
+            {/* Backdrop */}
+            <div
+              className="receipt-voucher-backdrop fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity print:hidden"
+              onClick={() => setIsPrintModalOpen(false)}
+            />
+
+            {/* Print Isolation & Layout CSS */}
+            <style jsx global>{`
+              @media print {
+                @page {
+                  size: A4 portrait;
+                  margin: 8mm;
+                }
+                html,
+                body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  height: auto !important;
+                  min-height: 0 !important;
+                  background: #ffffff !important;
+                  overflow: visible !important;
+                }
+                /* Completely hide the rest of the application outside the modal portal */
+                body > *:not(.receipt-voucher-modal-portal) {
+                  display: none !important;
+                }
+                body * {
+                  visibility: hidden;
+                }
+                .receipt-voucher-modal-portal,
+                .receipt-voucher-modal-portal * {
+                  visibility: visible;
+                }
+                .no-print,
+                .no-print *,
+                .receipt-voucher-backdrop,
+                .receipt-voucher-backdrop * {
+                  display: none !important;
+                  visibility: hidden !important;
+                }
+                .receipt-voucher-modal-portal {
+                  position: static !important;
+                  display: block !important;
+                  width: 100% !important;
+                  height: auto !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  overflow: visible !important;
+                  inset: auto !important;
+                  z-index: auto !important;
+                  background: #ffffff !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                .receipt-voucher-container {
+                  position: static !important;
+                  display: block !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  height: auto !important;
+                  max-height: none !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  border: none !important;
+                  box-shadow: none !important;
+                  border-radius: 0 !important;
+                  overflow: visible !important;
+                  transform: none !important;
+                  animation: none !important;
+                  background: #ffffff !important;
+                }
+                .receipt-voucher-print-sheet {
+                  box-shadow: none !important;
+                  border: none !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  min-height: 0 !important;
+                  overflow: visible !important;
+                }
+              }
+            `}</style>
+
+            <div className="receipt-voucher-container relative bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden z-10 print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible print:rounded-none">
               {/* Modal Controls Bar (Always sticky and visible at the top) */}
-              <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white sticky top-0 z-10 print:hidden shrink-0">
+              <div className="no-print flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white sticky top-0 z-10 print:hidden shrink-0">
                 <span className="font-semibold text-sm text-slate-800 flex items-center gap-2">
                   <Printer className="h-4 w-4 text-emerald-600" />
                   Print Preview: Receipt Voucher
@@ -1909,7 +1995,7 @@ export default function ReceiptVoucherPage() {
               </div>
 
               {/* Scrollable Printable Document Body */}
-              <div className="overflow-y-auto flex-1 p-6 sm:p-8 space-y-5 print:overflow-visible print:p-0 print:space-y-6 printable-paper-sheet printable-document-sheet">
+              <div className="receipt-voucher-print-sheet overflow-y-auto flex-1 p-6 sm:p-8 space-y-5 print:overflow-visible print:p-0 print:space-y-6 printable-paper-sheet printable-document-sheet">
                 {/* Document Header */}
                 <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start">
                   <div>
@@ -2160,7 +2246,7 @@ export default function ReceiptVoucherPage() {
               </div>
 
               {/* Modal Actions Footer Bar (Always sticky and visible at the bottom) */}
-              <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50 sticky bottom-0 z-10 print:hidden shrink-0">
+              <div className="no-print flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50 sticky bottom-0 z-10 print:hidden shrink-0">
                 <span className="text-xs text-slate-500 font-mono">
                   {printVoucher.voucher_number} • {formatDate(printVoucher.voucher_date)}
                 </span>
@@ -2186,7 +2272,9 @@ export default function ReceiptVoucherPage() {
             </div>
           </div>
         );
-      })()}
+      })(),
+      document.body
+    )}
 
       {/* MODAL 4: Void Voucher Dialog */}
       <ConfirmDialog
