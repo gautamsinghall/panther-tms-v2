@@ -136,12 +136,48 @@ interface VoucherRecord {
   narration?: string;
   is_void: boolean;
   void_reason?: string;
+  issuing_office_id?: number;
   issuing_office_name?: string;
   account_name?: string;
   tax_breakup?: Record<string, any>;
   ledger_entries: LedgerEntry[];
   bill_allocations?: BillAllocationItem[];
   created_at: string;
+}
+
+interface CompanySettingData {
+  id?: number;
+  company_name: string;
+  gstin?: string | null;
+  pan?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  logo_url?: string | null;
+  signature_url?: string | null;
+  signing_authority_name?: string | null;
+  signing_authority_designation?: string | null;
+  issuing_office?: string | null;
+  default_issuing_office_id?: number | null;
+}
+
+interface BranchOption {
+  id: number;
+  code: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  address?: string | null;
+  pincode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  gstin?: string | null;
+  pan?: string | null;
+  is_head_office?: boolean;
 }
 
 interface BillingClientOption {
@@ -237,6 +273,8 @@ export default function ReceiptVoucherPage() {
   // Modal 3: Print Receipt Voucher
   const [printVoucher, setPrintVoucher] = useState<VoucherRecord | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [company, setCompany] = useState<CompanySettingData | null>(null);
+  const [branches, setBranches] = useState<BranchOption[]>([]);
 
   // Modal 4: Void Receipt
   const [isVoidOpen, setIsVoidOpen] = useState(false);
@@ -257,16 +295,20 @@ export default function ReceiptVoucherPage() {
       const activeOffice = getActiveOffice();
       const officeParam = activeOffice?.id ? `?office_id=${activeOffice.id}` : "";
 
-      const [vouchersRes, sInfo, clientsRes, accountsRes] = await Promise.all([
+      const [vouchersRes, sInfo, clientsRes, accountsRes, companyRes, branchesRes] = await Promise.all([
         apiClient<VoucherRecord[]>("/api/v1/accounts/vouchers?voucher_type=RECEIPT_VOUCHER"),
         apiClient<any>(`/api/v1/settings/series/check/RECEIPT_VOUCHER${officeParam}`).catch(() => null),
         apiClient<BillingClientOption[]>("/api/v1/general/billing-clients").catch(() => []),
         apiClient<AccountOption[]>("/api/v1/misc/accounts").catch(() => []),
+        apiClient<CompanySettingData>("/api/v1/profile/company").catch(() => null),
+        apiClient<BranchOption[]>("/api/v1/profile/branches").catch(() => []),
       ]);
 
       setData(vouchersRes);
       setSeriesInfo(sInfo);
       setBillingClients(clientsRes);
+      setCompany(companyRes);
+      setBranches(Array.isArray(branchesRes) ? branchesRes : []);
       
       // Filter bank and cash accounts
       const liquidAccounts = accountsRes.filter((a) => {
@@ -285,6 +327,17 @@ export default function ReceiptVoucherPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (isPrintModalOpen && !company) {
+      apiClient<CompanySettingData>("/api/v1/profile/company")
+        .then((c) => setCompany(c))
+        .catch(() => {});
+      apiClient<BranchOption[]>("/api/v1/profile/branches")
+        .then((b) => setBranches(Array.isArray(b) ? b : []))
+        .catch(() => {});
+    }
+  }, [isPrintModalOpen, company]);
 
   // When selected client changes in create drawer, fetch open invoices
   useEffect(() => {
@@ -1868,9 +1921,70 @@ export default function ReceiptVoucherPage() {
       {isPrintModalOpen && printVoucher && mounted && typeof document !== "undefined" && createPortal(
         (() => {
         const auth = typeof window !== "undefined" ? getStoredAuth() : null;
-        const currentOffice = getActiveOffice();
-        const companyName = auth?.tenantName || "PANTHER LOGISTICS & TRANSPORT";
-        const officeName = printVoucher.issuing_office_name || currentOffice?.name || "Head Office";
+        const activeOffice = getActiveOffice();
+
+        // 1. Resolve Company Details
+        const companyName = company?.company_name?.trim() || auth?.tenantName || "PANTHER LOGISTICS & TRANSPORT";
+        const companyLogoUrl = company?.logo_url || null;
+        const companyFirstLetter = companyName.charAt(0).toUpperCase() || "P";
+
+        // 2. Resolve Issuing Office / Branch
+        const targetOfficeId = printVoucher.issuing_office_id || activeOffice?.id;
+        const issuingBranch =
+          branches.find((b) => b.id === targetOfficeId) ||
+          branches.find((b) => b.name === printVoucher.issuing_office_name) ||
+          branches.find((b) => b.is_head_office) ||
+          branches[0] ||
+          null;
+
+        const officeName =
+          printVoucher.issuing_office_name ||
+          issuingBranch?.name ||
+          activeOffice?.name ||
+          company?.issuing_office ||
+          "Head Office";
+
+        const officeCode = issuingBranch?.code || activeOffice?.code || "";
+
+        // 3. Resolve Company & Branch Address
+        const headOfficeBranch = branches.find((b) => b.is_head_office) || branches[0];
+        const rawAddress =
+          company?.address?.trim() ||
+          headOfficeBranch?.address?.trim() ||
+          issuingBranch?.address?.trim() ||
+          "";
+
+        const city = company?.city || headOfficeBranch?.city || issuingBranch?.city || "";
+        const state = company?.state || headOfficeBranch?.state || issuingBranch?.state || "";
+        const pincode = company?.pincode || headOfficeBranch?.pincode || issuingBranch?.pincode || "";
+
+        const fullAddressLine = [
+          rawAddress,
+          city && !rawAddress.toLowerCase().includes(city.toLowerCase()) ? city : null,
+          state && !rawAddress.toLowerCase().includes(state.toLowerCase()) ? state : null,
+          pincode && !rawAddress.includes(pincode) ? `- ${pincode}` : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+
+        const companyPhone = company?.phone?.trim() || headOfficeBranch?.phone?.trim() || issuingBranch?.phone?.trim() || "";
+        const companyEmail = company?.email?.trim() || headOfficeBranch?.email?.trim() || issuingBranch?.email?.trim() || "";
+        const companyWebsite = company?.website?.trim() || "";
+
+        const companyGstin =
+          company?.gstin?.trim() ||
+          issuingBranch?.gstin?.trim() ||
+          headOfficeBranch?.gstin?.trim() ||
+          "";
+
+        const companyPan =
+          company?.pan?.trim() ||
+          headOfficeBranch?.pan?.trim() ||
+          issuingBranch?.pan?.trim() ||
+          (companyGstin.length === 15 ? companyGstin.slice(2, 12).toUpperCase() : "");
+
+        const officeGstin = issuingBranch?.gstin?.trim() || "";
 
         // Find bank/cash debit ledger entry
         const debitLedger = printVoucher.ledger_entries?.find(
@@ -1997,25 +2111,78 @@ export default function ReceiptVoucherPage() {
               {/* Scrollable Printable Document Body */}
               <div className="receipt-voucher-print-sheet overflow-y-auto flex-1 p-6 sm:p-8 space-y-5 print:overflow-visible print:p-0 print:space-y-6 printable-paper-sheet printable-document-sheet">
                 {/* Document Header */}
-                <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start">
-                  <div>
-                    <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900">
-                      {companyName}
-                    </h2>
-                    <p className="text-xs text-slate-600">Enterprise Transport Management System</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Issuing Office: {officeName}
-                    </p>
+                <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start gap-4">
+                  {/* Left: Logo + Company Info */}
+                  <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                    {companyLogoUrl ? (
+                      <img
+                        src={companyLogoUrl}
+                        alt={companyName}
+                        crossOrigin="anonymous"
+                        className="w-14 h-14 object-contain rounded-lg border border-slate-200 bg-white shrink-0 p-1"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-emerald-700 text-white flex items-center justify-center font-black text-2xl shadow-xs shrink-0">
+                        {companyFirstLetter}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900 leading-tight">
+                        {companyName}
+                      </h2>
+                      {fullAddressLine ? (
+                        <p className="text-xs text-slate-600 mt-1 leading-normal">
+                          {fullAddressLine}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500 mt-0.5">Enterprise Transport Management System</p>
+                      )}
+                      {(companyPhone || companyEmail || companyWebsite) && (
+                        <p className="text-xs text-slate-600 leading-normal mt-0.5">
+                          {companyPhone && <span>Phone: {companyPhone}</span>}
+                          {companyPhone && companyEmail && <span> &nbsp;|&nbsp; </span>}
+                          {companyEmail && <span>Email: {companyEmail}</span>}
+                          {(companyPhone || companyEmail) && companyWebsite && <span> &nbsp;|&nbsp; </span>}
+                          {companyWebsite && <span>Web: {companyWebsite}</span>}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-700 mt-1">
+                        {companyGstin && (
+                          <span className="font-mono text-[11px]">
+                            <strong className="font-sans font-semibold text-slate-500">GSTIN: </strong>
+                            {companyGstin}
+                          </span>
+                        )}
+                        {companyPan && (
+                          <span className="font-mono text-[11px]">
+                            <strong className="font-sans font-semibold text-slate-500">PAN: </strong>
+                            {companyPan}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
+
+                  {/* Right: Receipt Voucher Badge + Metadata */}
+                  <div className="text-right shrink-0">
                     <span className="inline-block px-3 py-1 bg-emerald-600 text-white text-xs font-bold uppercase rounded-md shadow-xs">
                       RECEIPT VOUCHER
                     </span>
-                    <p className="text-xs font-mono font-bold mt-1.5 text-slate-900">{printVoucher.voucher_number}</p>
+                    <p className="text-sm font-mono font-bold mt-1 text-slate-900">{printVoucher.voucher_number}</p>
                     <p className="text-xs text-slate-600">{formatDate(printVoucher.voucher_date)}</p>
-                    <p className="text-[11px] font-semibold text-emerald-700">
+                    <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">
                       {printVoucher.is_void ? "STATUS: VOIDED" : `STATUS: ${printVoucher.payment_status || "CLEARED"}`}
                     </p>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      <span className="text-slate-500">Issuing Office: </span>
+                      <span className="font-bold text-slate-800 uppercase">{officeName}</span>
+                      {officeCode ? ` (${officeCode})` : ""}
+                    </p>
+                    {officeGstin && officeGstin !== companyGstin && (
+                      <p className="text-[10px] font-mono text-slate-500 mt-0.5">
+                        Office GSTIN: {officeGstin}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -2234,9 +2401,25 @@ export default function ReceiptVoucherPage() {
                     <div className="border-b border-slate-400 mb-1 h-8" />
                     <span className="text-slate-600 font-medium">Verified By</span>
                   </div>
-                  <div>
-                    <div className="border-b border-slate-400 mb-1 h-8" />
-                    <span className="text-slate-600 font-medium">Authorized Signatory</span>
+                  <div className="flex flex-col justify-end">
+                    {company?.signature_url ? (
+                      <div className="flex justify-center mb-1 h-8 items-end">
+                        <img
+                          src={company.signature_url}
+                          alt="Signature"
+                          crossOrigin="anonymous"
+                          className="max-h-8 max-w-[110px] object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="border-b border-slate-400 mb-1 h-8" />
+                    )}
+                    <span className="text-slate-600 font-medium">
+                      {company?.signing_authority_name || "Authorized Signatory"}
+                    </span>
+                    {company?.signing_authority_designation && (
+                      <span className="text-[10px] text-slate-400"> ({company.signing_authority_designation})</span>
+                    )}
                   </div>
                   <div>
                     <div className="border-b border-slate-400 mb-1 h-8" />
