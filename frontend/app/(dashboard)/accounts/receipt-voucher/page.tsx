@@ -1875,11 +1875,16 @@ export default function ReceiptVoucherPage() {
           "Bank / Cash Operating Account";
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:p-0 print:bg-white print:overflow-visible print:static">
-            <div className="printable-paper-sheet printable-document-sheet bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full p-6 sm:p-8 space-y-6 relative print:m-0 print:p-0 print:w-full print:shadow-none">
-              {/* Modal Controls */}
-              <div className="flex items-center justify-between border-b pb-3 print:hidden">
-                <span className="font-semibold text-sm text-slate-700 flex items-center gap-1.5">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 print:p-0 print:bg-white print:overflow-visible print:static"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsPrintModalOpen(false);
+            }}
+          >
+            <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden relative print:max-h-none print:shadow-none print:border-none print:w-full print:m-0 print:p-0 print:overflow-visible">
+              {/* Modal Controls Bar (Always sticky and visible at the top) */}
+              <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 bg-white sticky top-0 z-10 print:hidden shrink-0">
+                <span className="font-semibold text-sm text-slate-800 flex items-center gap-2">
                   <Printer className="h-4 w-4 text-emerald-600" />
                   Print Preview: Receipt Voucher
                 </span>
@@ -1887,275 +1892,296 @@ export default function ReceiptVoucherPage() {
                   <Button
                     size="sm"
                     onClick={() => window.print()}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs px-3 h-8 gap-1.5 shadow-xs"
                   >
-                    <Printer className="h-4 w-4 mr-1.5" />
+                    <Printer className="h-3.5 w-3.5" />
                     Print Now
                   </Button>
                   <button
+                    type="button"
                     onClick={() => setIsPrintModalOpen(false)}
-                    className="p-1 rounded text-slate-500 hover:text-slate-800"
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    title="Close"
                   >
                     <X className="h-5 w-5" />
                   </button>
                 </div>
               </div>
 
-              {/* Document Header */}
-              <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900">
-                    {companyName}
-                  </h2>
-                  <p className="text-xs text-slate-600">Enterprise Transport Management System</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Issuing Office: {officeName}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="inline-block px-3 py-1 bg-emerald-600 text-white text-xs font-bold uppercase rounded-lg">
-                    RECEIPT VOUCHER
-                  </span>
-                  <p className="text-xs font-mono font-bold mt-1.5 text-slate-900">{printVoucher.voucher_number}</p>
-                  <p className="text-xs text-slate-600">{formatDate(printVoucher.voucher_date)}</p>
-                  <p className="text-[11px] font-semibold text-emerald-700">
-                    {printVoucher.is_void ? "STATUS: VOIDED" : `STATUS: ${printVoucher.payment_status || "CLEARED"}`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Receipt Summary Grid */}
-              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div className="space-y-1">
-                  <p className="text-slate-500 uppercase text-[10px] font-semibold">Received with thanks from:</p>
-                  <p className="font-bold text-sm text-slate-900">{printVoucher.party_name || "Direct Customer"}</p>
-                  {printVoucher.party_gstin && (
-                    <p className="text-slate-600 font-mono">GSTIN: {printVoucher.party_gstin}</p>
-                  )}
-                  <div className="pt-1 text-slate-700">
-                    <p>
-                      <strong>Payment Mode:</strong>{" "}
-                      <span className="uppercase font-semibold">{printVoucher.tax_breakup?.payment_mode || "BANK"}</span>
-                    </p>
-                    {printVoucher.reference_number && (
-                      <p>
-                        <strong>Ref / Cheque #:</strong> <span className="font-mono">{printVoucher.reference_number}</span>
-                      </p>
-                    )}
-                    {printVoucher.reference_date && (
-                      <p>
-                        <strong>Ref Date:</strong> <span>{formatDate(printVoucher.reference_date)}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1 flex flex-col justify-between">
+              {/* Scrollable Printable Document Body */}
+              <div className="overflow-y-auto flex-1 p-6 sm:p-8 space-y-5 print:overflow-visible print:p-0 print:space-y-6 printable-paper-sheet printable-document-sheet">
+                {/* Document Header */}
+                <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start">
                   <div>
-                    <p className="text-slate-500 uppercase text-[10px] font-semibold">Credited To (Account Head):</p>
-                    <p className="font-bold text-sm text-slate-900">{creditedAccount}</p>
+                    <h2 className="text-xl font-bold tracking-tight uppercase text-slate-900">
+                      {companyName}
+                    </h2>
+                    <p className="text-xs text-slate-600">Enterprise Transport Management System</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Issuing Office: {officeName}
+                    </p>
                   </div>
-                  <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-baseline">
-                    <span className="text-slate-600 font-semibold uppercase text-[11px]">Net Amount Received:</span>
-                    <span className="text-xl font-bold font-mono text-emerald-700">
-                      {formatCurrency(parseFloat(String(printVoucher.net_amount)) || 0)}
+                  <div className="text-right">
+                    <span className="inline-block px-3 py-1 bg-emerald-600 text-white text-xs font-bold uppercase rounded-md shadow-xs">
+                      RECEIPT VOUCHER
                     </span>
+                    <p className="text-xs font-mono font-bold mt-1.5 text-slate-900">{printVoucher.voucher_number}</p>
+                    <p className="text-xs text-slate-600">{formatDate(printVoucher.voucher_date)}</p>
+                    <p className="text-[11px] font-semibold text-emerald-700">
+                      {printVoucher.is_void ? "STATUS: VOIDED" : `STATUS: ${printVoucher.payment_status || "CLEARED"}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Receipt Summary Grid */}
+                <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                  <div className="space-y-1">
+                    <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Received with thanks from:</p>
+                    <p className="font-bold text-sm text-slate-900">{printVoucher.party_name || "Direct Customer"}</p>
+                    {printVoucher.party_gstin && (
+                      <p className="text-slate-600 font-mono text-[11px]">GSTIN: {printVoucher.party_gstin}</p>
+                    )}
+                    <div className="pt-1 text-slate-700 space-y-0.5">
+                      <p>
+                        <span className="text-slate-500 font-medium">Payment Mode:</span>{" "}
+                        <span className="uppercase font-semibold text-slate-900">{printVoucher.tax_breakup?.payment_mode || "BANK"}</span>
+                      </p>
+                      {printVoucher.reference_number && (
+                        <p>
+                          <span className="text-slate-500 font-medium">Ref / Cheque #:</span>{" "}
+                          <span className="font-mono font-semibold text-slate-900">{printVoucher.reference_number}</span>
+                        </p>
+                      )}
+                      {printVoucher.reference_date && (
+                        <p>
+                          <span className="text-slate-500 font-medium">Ref Date:</span>{" "}
+                          <span className="text-slate-800">{formatDate(printVoucher.reference_date)}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-1 flex flex-col justify-between">
+                    <div>
+                      <p className="text-slate-500 uppercase text-[10px] font-semibold tracking-wider">Credited To (Account Head):</p>
+                      <p className="font-bold text-sm text-slate-900">{creditedAccount}</p>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-baseline">
+                      <span className="text-slate-600 font-semibold uppercase text-[11px]">Net Amount Received:</span>
+                      <span className="text-xl font-bold font-mono text-emerald-700">
+                        {formatCurrency(parseFloat(String(printVoucher.net_amount)) || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amount in Words */}
+                <div className="text-xs border-l-4 border-emerald-600 pl-3 py-2 bg-emerald-50/60 rounded-r-lg italic text-slate-800">
+                  <span className="font-semibold text-slate-700 not-italic">Amount in Words: </span>
+                  {numberToWords(parseFloat(String(printVoucher.net_amount)) || 0)}
+                </div>
+
+                {/* Bill Allocation Breakdown Table */}
+                {printVoucher.bill_allocations && printVoucher.bill_allocations.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                      Settlement Breakdown Against Invoices ({printVoucher.bill_allocations.length}):
+                    </h4>
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-xs border-collapse">
+                        <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+                          <tr>
+                            <th className="py-2 px-3 text-left">Invoice #</th>
+                            <th className="py-2 px-3 text-right">Bank/Cash Applied (₹)</th>
+                            <th className="py-2 px-3 text-right">TDS Deducted (₹)</th>
+                            <th className="py-2 px-3 text-right">Discount (₹)</th>
+                            <th className="py-2 px-3 text-right">Total Settled (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                          {printVoucher.bill_allocations.map((ba) => (
+                            <tr key={ba.id} className="hover:bg-slate-50/80">
+                              <td className="py-2 px-3 font-semibold text-slate-900 text-left">
+                                {ba.invoice_number || `Invoice #${ba.invoice_id}`}
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                {formatCurrency(parseFloat(String(ba.allocated_amount)) || 0)}
+                              </td>
+                              <td className="py-2 px-3 text-right text-slate-600">
+                                {parseFloat(String(ba.tds_amount)) > 0
+                                  ? formatCurrency(parseFloat(String(ba.tds_amount)))
+                                  : "₹0.00"}
+                              </td>
+                              <td className="py-2 px-3 text-right text-slate-600">
+                                {parseFloat(String(ba.discount_amount)) > 0
+                                  ? formatCurrency(parseFloat(String(ba.discount_amount)))
+                                  : "₹0.00"}
+                              </td>
+                              <td className="py-2 px-3 text-right font-bold text-slate-900">
+                                {formatCurrency(parseFloat(String(ba.total_settled)) || 0)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-slate-900 font-mono text-[11px]">
+                          <tr>
+                            <td className="py-2 px-3 uppercase font-sans text-[10px] text-slate-600">Total:</td>
+                            <td className="py-2 px-3 text-right">
+                              {formatCurrency(
+                                printVoucher.bill_allocations.reduce(
+                                  (acc, ba) => acc + (parseFloat(String(ba.allocated_amount)) || 0),
+                                  0
+                                )
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-600">
+                              {formatCurrency(
+                                printVoucher.bill_allocations.reduce(
+                                  (acc, ba) => acc + (parseFloat(String(ba.tds_amount)) || 0),
+                                  0
+                                )
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-600">
+                              {formatCurrency(
+                                printVoucher.bill_allocations.reduce(
+                                  (acc, ba) => acc + (parseFloat(String(ba.discount_amount)) || 0),
+                                  0
+                                )
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-right font-bold text-emerald-700">
+                              {formatCurrency(
+                                printVoucher.bill_allocations.reduce(
+                                  (acc, ba) => acc + (parseFloat(String(ba.total_settled)) || 0),
+                                  0
+                                )
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Double-Entry Balanced Journal Postings Table */}
+                {printVoucher.ledger_entries && printVoucher.ledger_entries.length > 0 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                      Double-Entry Balanced Journal Postings:
+                    </h4>
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-xs border-collapse">
+                        <thead className="bg-slate-100/90 text-slate-700 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+                          <tr>
+                            <th className="py-2 px-3 text-left">Particulars / Account Head</th>
+                            <th className="py-2 px-3 text-right w-36">Debit (Dr) ₹</th>
+                            <th className="py-2 px-3 text-right w-36">Credit (Cr) ₹</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                          {printVoucher.ledger_entries.map((le) => (
+                            <tr key={le.id} className={le.is_reversal ? "opacity-60 italic" : "hover:bg-slate-50/80"}>
+                              <td className="py-2 px-3 font-sans">
+                                <div className="font-semibold text-slate-900">
+                                  {parseFloat(String(le.debit_amount)) > 0 ? "Dr. " : "    To "}
+                                  {le.account_name || `Account #${le.account_id}`}
+                                </div>
+                                {le.narration && (
+                                  <div className="text-[10px] text-slate-500 pl-4 mt-0.5">
+                                    ({le.narration})
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-right font-semibold text-slate-900">
+                                {parseFloat(String(le.debit_amount)) > 0
+                                  ? formatCurrency(parseFloat(String(le.debit_amount)))
+                                  : "—"}
+                              </td>
+                              <td className="py-2 px-3 text-right font-semibold text-slate-900">
+                                {parseFloat(String(le.credit_amount)) > 0
+                                  ? formatCurrency(parseFloat(String(le.credit_amount)))
+                                  : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-slate-900 font-mono text-[11px]">
+                          <tr>
+                            <td className="py-2 px-3 text-right uppercase font-sans text-[10px] text-slate-600">Total:</td>
+                            <td className="py-2 px-3 text-right text-slate-900">
+                              {formatCurrency(
+                                printVoucher.ledger_entries
+                                  .filter((e) => !e.is_reversal)
+                                  .reduce((acc, e) => acc + (parseFloat(String(e.debit_amount)) || 0), 0)
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-right text-slate-900">
+                              {formatCurrency(
+                                printVoucher.ledger_entries
+                                  .filter((e) => !e.is_reversal)
+                                  .reduce((acc, e) => acc + (parseFloat(String(e.credit_amount)) || 0), 0)
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Narration */}
+                {printVoucher.narration && (
+                  <div className="text-xs bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                    <span className="font-semibold text-slate-700 uppercase text-[10px] tracking-wider block">Narration / Remarks:</span>
+                    <span className="text-slate-800 italic mt-0.5 block">&quot;{printVoucher.narration}&quot;</span>
+                  </div>
+                )}
+
+                {/* Signatures */}
+                <div className="pt-6 border-t border-slate-300 grid grid-cols-4 gap-4 text-center text-xs">
+                  <div>
+                    <div className="border-b border-slate-400 mb-1 h-8" />
+                    <span className="text-slate-600 font-medium">Prepared By</span>
+                  </div>
+                  <div>
+                    <div className="border-b border-slate-400 mb-1 h-8" />
+                    <span className="text-slate-600 font-medium">Verified By</span>
+                  </div>
+                  <div>
+                    <div className="border-b border-slate-400 mb-1 h-8" />
+                    <span className="text-slate-600 font-medium">Authorized Signatory</span>
+                  </div>
+                  <div>
+                    <div className="border-b border-slate-400 mb-1 h-8" />
+                    <span className="text-slate-600 font-medium">Customer / Depositor</span>
                   </div>
                 </div>
               </div>
 
-              {/* Amount in Words */}
-              <div className="text-xs border-l-4 border-emerald-600 pl-3 py-2 bg-emerald-50/60 rounded-r-lg italic text-slate-800">
-                <strong>Amount in Words:</strong> {numberToWords(parseFloat(String(printVoucher.net_amount)) || 0)}
-              </div>
-
-              {/* Bill Allocation Breakdown Table */}
-              {printVoucher.bill_allocations && printVoucher.bill_allocations.length > 0 && (
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold uppercase text-slate-700">
-                    Settlement Breakdown Against Invoices ({printVoucher.bill_allocations.length}):
-                  </h4>
-                  <table className="w-full text-xs border border-slate-300 rounded-lg overflow-hidden border-collapse">
-                    <thead className="bg-slate-100 border-b border-slate-300 font-semibold uppercase text-[11px] text-slate-700">
-                      <tr>
-                        <th className="p-2 text-left">Invoice #</th>
-                        <th className="p-2 text-right">Bank/Cash Applied (₹)</th>
-                        <th className="p-2 text-right">TDS Deducted (₹)</th>
-                        <th className="p-2 text-right">Discount (₹)</th>
-                        <th className="p-2 text-right">Total Settled (₹)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 font-mono">
-                      {printVoucher.bill_allocations.map((ba) => (
-                        <tr key={ba.id} className="hover:bg-slate-50">
-                          <td className="p-2 font-semibold text-slate-900 text-left font-mono">
-                            {ba.invoice_number || `Invoice #${ba.invoice_id}`}
-                          </td>
-                          <td className="p-2 text-right">
-                            {formatCurrency(parseFloat(String(ba.allocated_amount)) || 0)}
-                          </td>
-                          <td className="p-2 text-right text-amber-700">
-                            {formatCurrency(parseFloat(String(ba.tds_amount)) || 0)}
-                          </td>
-                          <td className="p-2 text-right text-blue-700">
-                            {formatCurrency(parseFloat(String(ba.discount_amount)) || 0)}
-                          </td>
-                          <td className="p-2 text-right font-bold text-emerald-700">
-                            {formatCurrency(parseFloat(String(ba.total_settled)) || 0)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-slate-50 font-bold border-t border-slate-300 text-slate-900 font-mono">
-                      <tr>
-                        <td className="p-2 uppercase font-sans text-[11px] text-slate-600">Total:</td>
-                        <td className="p-2 text-right">
-                          {formatCurrency(
-                            printVoucher.bill_allocations.reduce(
-                              (acc, ba) => acc + (parseFloat(String(ba.allocated_amount)) || 0),
-                              0
-                            )
-                          )}
-                        </td>
-                        <td className="p-2 text-right text-amber-700">
-                          {formatCurrency(
-                            printVoucher.bill_allocations.reduce(
-                              (acc, ba) => acc + (parseFloat(String(ba.tds_amount)) || 0),
-                              0
-                            )
-                          )}
-                        </td>
-                        <td className="p-2 text-right text-blue-700">
-                          {formatCurrency(
-                            printVoucher.bill_allocations.reduce(
-                              (acc, ba) => acc + (parseFloat(String(ba.discount_amount)) || 0),
-                              0
-                            )
-                          )}
-                        </td>
-                        <td className="p-2 text-right font-bold text-emerald-700">
-                          {formatCurrency(
-                            printVoucher.bill_allocations.reduce(
-                              (acc, ba) => acc + (parseFloat(String(ba.total_settled)) || 0),
-                              0
-                            )
-                          )}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+              {/* Modal Actions Footer Bar (Always sticky and visible at the bottom) */}
+              <div className="flex items-center justify-between px-6 py-3 border-t border-slate-200 bg-slate-50 sticky bottom-0 z-10 print:hidden shrink-0">
+                <span className="text-xs text-slate-500 font-mono">
+                  {printVoucher.voucher_number} • {formatDate(printVoucher.voucher_date)}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsPrintModalOpen(false)}
+                    className="text-xs h-8 px-3 rounded-lg"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => window.print()}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3.5 rounded-lg font-medium shadow-xs gap-1.5"
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Print Voucher
+                  </Button>
                 </div>
-              )}
-
-              {/* Double-Entry Balanced Journal Postings Table */}
-              {printVoucher.ledger_entries && printVoucher.ledger_entries.length > 0 && (
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold uppercase text-slate-700">
-                    Double-Entry Balanced Journal Postings:
-                  </h4>
-                  <table className="w-full text-xs border border-slate-300 rounded-lg overflow-hidden border-collapse">
-                    <thead className="bg-slate-100 border-b border-slate-300 font-semibold uppercase text-[11px] text-slate-700">
-                      <tr>
-                        <th className="p-2 text-left">Particulars / Account Head</th>
-                        <th className="p-2 text-right w-36">Debit (Dr) ₹</th>
-                        <th className="p-2 text-right w-36">Credit (Cr) ₹</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 font-mono">
-                      {printVoucher.ledger_entries.map((le) => (
-                        <tr key={le.id} className={le.is_reversal ? "opacity-60 italic" : ""}>
-                          <td className="p-2 font-sans">
-                            <div className="font-semibold text-slate-900">
-                              {parseFloat(String(le.debit_amount)) > 0 ? "Dr. " : "    To "}
-                              {le.account_name || `Account #${le.account_id}`}
-                            </div>
-                            {le.narration && (
-                              <div className="text-[10px] text-slate-500 font-mono pl-4 mt-0.5">
-                                ({le.narration})
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-2 text-right font-semibold text-slate-900">
-                            {parseFloat(String(le.debit_amount)) > 0
-                              ? formatCurrency(parseFloat(String(le.debit_amount)))
-                              : "—"}
-                          </td>
-                          <td className="p-2 text-right font-semibold text-emerald-700">
-                            {parseFloat(String(le.credit_amount)) > 0
-                              ? formatCurrency(parseFloat(String(le.credit_amount)))
-                              : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-slate-50 font-bold border-t border-slate-300 text-slate-900 font-mono">
-                      <tr>
-                        <td className="p-2 text-right uppercase font-sans text-[11px] text-slate-600">Total:</td>
-                        <td className="p-2 text-right">
-                          {formatCurrency(
-                            printVoucher.ledger_entries
-                              .filter((e) => !e.is_reversal)
-                              .reduce((acc, e) => acc + (parseFloat(String(e.debit_amount)) || 0), 0)
-                          )}
-                        </td>
-                        <td className="p-2 text-right text-emerald-700">
-                          {formatCurrency(
-                            printVoucher.ledger_entries
-                              .filter((e) => !e.is_reversal)
-                              .reduce((acc, e) => acc + (parseFloat(String(e.credit_amount)) || 0), 0)
-                          )}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-
-              {/* Narration */}
-              {printVoucher.narration && (
-                <div className="text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="font-semibold text-slate-700 uppercase text-[10px] block">Narration / Remarks:</span>
-                  <span className="text-slate-800 italic mt-0.5 block">&quot;{printVoucher.narration}&quot;</span>
-                </div>
-              )}
-
-              {/* Signatures */}
-              <div className="pt-8 border-t border-slate-300 grid grid-cols-4 gap-4 text-center text-xs">
-                <div>
-                  <div className="border-b border-slate-400 mb-1 h-10" />
-                  <span className="text-slate-600 font-medium">Prepared By</span>
-                </div>
-                <div>
-                  <div className="border-b border-slate-400 mb-1 h-10" />
-                  <span className="text-slate-600 font-medium">Verified By</span>
-                </div>
-                <div>
-                  <div className="border-b border-slate-400 mb-1 h-10" />
-                  <span className="text-slate-600 font-medium">Authorized Signatory</span>
-                </div>
-                <div>
-                  <div className="border-b border-slate-400 mb-1 h-10" />
-                  <span className="text-slate-600 font-medium">Customer / Depositor</span>
-                </div>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 print:hidden">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsPrintModalOpen(false)}
-                  className="rounded-xl"
-                >
-                  Close
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl font-medium"
-                >
-                  <Printer className="h-4 w-4 mr-1.5" />
-                  Print Voucher
-                </Button>
               </div>
             </div>
           </div>
