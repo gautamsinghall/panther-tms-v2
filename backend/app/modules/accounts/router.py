@@ -58,10 +58,11 @@ def require_accounts_permission(permission: str = "view", feature: Optional[str]
                 raise ForbiddenException(f"Access denied. Missing permission: accounts.{feature}.{permission}")
             return current_user
         has_any = any(
-            p.module == "accounts" and (
+            p.module in ("accounts", "reports", "transport_reports") and (
                 p.permission == permission
                 or p.permission == "all"
                 or (permission == "edit" and p.permission in ("create", "edit", "all"))
+                or (permission == "view" and p.permission in ("create", "edit", "view", "all"))
             ) and p.is_allowed
             for p in current_user.custom_role.permissions
         )
